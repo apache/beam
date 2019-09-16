@@ -18,8 +18,12 @@
 Tests corresponding to the DataflowRunner implementation of MetricsResult,
 the DataflowMetrics class.
 """
+
+from __future__ import absolute_import
+
 import types
 import unittest
+from builtins import object
 
 import mock
 
@@ -29,12 +33,14 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.dataflow import dataflow_metrics
+from apache_beam.testing import metric_result_matchers
+from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 
 
 class DictToObject(object):
   """Translate from a dict(list()) structure to an object structure"""
   def __init__(self, data):
-    for name, value in data.iteritems():
+    for name, value in data.items():
       setattr(self, name, self._wrap(value))
 
   def _wrap(self, value):
@@ -45,6 +51,8 @@ class DictToObject(object):
 
 class TestDataflowMetrics(unittest.TestCase):
 
+  # TODO(BEAM-6734): Write a dump tool to generate this fake data, or
+  # somehow make this easier to maintain.
   ONLY_COUNTERS_LIST = {"metrics": [
       {"name": {"context":
                 {"additionalProperties": [
@@ -198,6 +206,103 @@ class TestDataflowMetrics(unittest.TestCase):
        "updateTime": "2017-03-22T18:47:06.402Z"
       },
   ]}
+  SYSTEM_COUNTERS_LIST = {"metrics": [
+      # ElementCount
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value":  "ToIsmRecordForMultimap-out0-ElementCount"},
+                    {"key": "output_user_name",
+                     "value": "ToIsmRecordForMultimap-out0"}
+                    ]
+                },
+                "name": "ElementCount",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 42},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value":  "ToIsmRecordForMultimap-out0-ElementCount"},
+                    {"key": "output_user_name",
+                     "value": "ToIsmRecordForMultimap-out0"},
+                    {"key": "tentative",
+                     "value": "true"}
+                    ]
+                },
+                "name": "ElementCount",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 42},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      # MeanByteCount
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value":  "Read-out0-MeanByteCount"},
+                    {"key": "output_user_name",
+                     "value": "GroupByKey/Read-out0"}
+                    ]
+                },
+                "name": "MeanByteCount",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 31},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value":  "Read-out0-MeanByteCount"},
+                    {"key": "output_user_name",
+                     "value": "GroupByKey/Read-out0"},
+                    {"key": "tentative",
+                     "value": "true"}
+                    ]
+                },
+                "name": "MeanByteCount",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 31},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      # ExecutionTime
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "step",
+                     "value":  "write/Write/Write"},
+                    ]
+                },
+                "name": "ExecutionTime_ProcessElement",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 1000},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "step",
+                     "value":  "write/Write/Write"},
+                    {"key": "tentative",
+                     "value": "true"}
+                    ]
+                },
+                "name": "ExecutionTime_ProcessElement",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 1000},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+  ]}
 
   def setup_mock_client_result(self, counter_list=None):
     mock_client = mock.Mock()
@@ -205,7 +310,7 @@ class TestDataflowMetrics(unittest.TestCase):
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
-    mock_job_result._is_in_terminal_state.return_value = False
+    mock_job_result.is_in_terminal_state.return_value = False
     return mock_client, mock_job_result
 
   def test_cache_functions(self):
@@ -221,7 +326,7 @@ class TestDataflowMetrics(unittest.TestCase):
     self.assertTrue(dm._cached_metrics is None)
 
     # The job has ended. The query should not run again after this.
-    mock_job_result._is_in_terminal_state.return_value = True
+    mock_job_result.is_in_terminal_state.return_value = True
     dm.query()
     self.assertTrue(dm._cached_metrics)
 
@@ -234,8 +339,8 @@ class TestDataflowMetrics(unittest.TestCase):
     expected_counters = [
         MetricResult(
             MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn',
-                                 'word_lengths')),
+                      MetricName('__main__.WordExtractingDoFn', 'word_lengths'),
+                     ),
             109475, 109475),
         ]
     self.assertEqual(query_result['counters'], expected_counters)
@@ -244,7 +349,8 @@ class TestDataflowMetrics(unittest.TestCase):
         MetricResult(
             MetricKey('split',
                       MetricName('__main__.WordExtractingDoFn',
-                                 'word_length_dist')),
+                                 'word_length_dist'),
+                     ),
             DistributionResult(DistributionData(
                 18, 2, 2, 16)),
             DistributionResult(DistributionData(
@@ -261,7 +367,8 @@ class TestDataflowMetrics(unittest.TestCase):
     expected_counters = [
         MetricResult(
             MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn', 'empty_lines')),
+                      MetricName('__main__.WordExtractingDoFn', 'empty_lines')
+                     ),
             1080, 1080),
         MetricResult(
             MetricKey('split',
@@ -272,6 +379,41 @@ class TestDataflowMetrics(unittest.TestCase):
                             key=lambda x: x.key.metric.name),
                      sorted(expected_counters,
                             key=lambda x: x.key.metric.name))
+
+  def test_system_counters_set_labels_and_step_name(self):
+    mock_client, mock_job_result = self.setup_mock_client_result(
+        self.SYSTEM_COUNTERS_LIST)
+    test_object = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
+    all_metrics = test_object.all_metrics()
+
+    matchers = [
+        MetricResultMatcher(
+            name='ElementCount',
+            labels={
+                'original_name' : 'ToIsmRecordForMultimap-out0-ElementCount',
+                'output_user_name' : 'ToIsmRecordForMultimap-out0'
+            },
+            attempted=42,
+            committed=42
+        ),
+        MetricResultMatcher(
+            name='MeanByteCount',
+            labels={
+                'original_name' : 'Read-out0-MeanByteCount',
+                'output_user_name' : 'GroupByKey/Read-out0'
+            },
+            attempted=31,
+            committed=31
+        ),
+        MetricResultMatcher(
+            name='ExecutionTime_ProcessElement',
+            step='write/Write/Write',
+            attempted=1000,
+            committed=1000
+        )
+    ]
+    errors = metric_result_matchers.verify_all(all_metrics, matchers)
+    self.assertFalse(errors, errors)
 
 
 if __name__ == '__main__':

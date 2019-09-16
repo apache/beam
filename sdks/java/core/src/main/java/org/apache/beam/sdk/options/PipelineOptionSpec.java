@@ -28,24 +28,16 @@ abstract class PipelineOptionSpec {
     return new AutoValue_PipelineOptionSpec(clazz, name, getter);
   }
 
-  /**
-   * The {@link PipelineOptions} interface which defines this {@link PipelineOptionSpec}.
-   */
+  /** The {@link PipelineOptions} interface which defines this {@link PipelineOptionSpec}. */
   abstract Class<? extends PipelineOptions> getDefiningInterface();
 
-  /**
-   * Name of the property.
-   */
+  /** Name of the property. */
   abstract String getName();
 
-  /**
-   * The getter method for this property.
-   */
+  /** The getter method for this property. */
   abstract Method getGetterMethod();
 
-  /**
-   * Whether the option should be serialized. Uses the {@link JsonIgnore} annotation.
-   */
+  /** Whether the option should be serialized. Uses the {@link JsonIgnore} annotation. */
   boolean shouldSerialize() {
     return !getGetterMethod().isAnnotationPresent(JsonIgnore.class);
   }

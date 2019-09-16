@@ -15,38 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.spark.Accumulator;
 import org.joda.time.Instant;
 
-
-/**
- * DoFnRunner decorator which registers {@link MetricsContainerImpl}.
- */
+/** DoFnRunner decorator which registers {@link MetricsContainerImpl}. */
 class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> delegate;
   private final String stepName;
-  private final Accumulator<MetricsContainerStepMap> metricsAccum;
+  private final MetricsContainerStepMapAccumulator metricsAccum;
 
   DoFnRunnerWithMetrics(
       String stepName,
       DoFnRunner<InputT, OutputT> delegate,
-      Accumulator<MetricsContainerStepMap> metricsAccum) {
+      MetricsContainerStepMapAccumulator metricsAccum) {
     this.delegate = delegate;
     this.stepName = stepName;
     this.metricsAccum = metricsAccum;
+  }
+
+  @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return delegate.getFn();
   }
 
   @Override
@@ -68,8 +69,11 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
   }
 
   @Override
-  public void onTimer(final String timerId, final BoundedWindow window, final Instant timestamp,
-                      final TimeDomain timeDomain) {
+  public void onTimer(
+      final String timerId,
+      final BoundedWindow window,
+      final Instant timestamp,
+      final TimeDomain timeDomain) {
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
       delegate.onTimer(timerId, window, timestamp, timeDomain);
     } catch (IOException e) {
@@ -87,6 +91,6 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
   }
 
   private MetricsContainer metricsContainer() {
-    return metricsAccum.localValue().getContainer(stepName);
+    return metricsAccum.value().getContainer(stepName);
   }
 }

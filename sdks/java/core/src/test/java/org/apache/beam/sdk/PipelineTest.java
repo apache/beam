@@ -27,8 +27,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -69,10 +67,11 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -80,9 +79,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Pipeline.
- */
+/** Tests for Pipeline. */
 @RunWith(JUnit4.class)
 public class PipelineTest {
 
@@ -92,8 +89,7 @@ public class PipelineTest {
 
   // Mock class that throws a user code exception during the call to
   // Pipeline.run().
-  static class TestPipelineRunnerThrowingUserException
-      extends PipelineRunner<PipelineResult> {
+  static class TestPipelineRunnerThrowingUserException extends PipelineRunner<PipelineResult> {
 
     public static TestPipelineRunnerThrowingUserException fromOptions(PipelineOptions options) {
       return new TestPipelineRunnerThrowingUserException();
@@ -108,8 +104,7 @@ public class PipelineTest {
 
   // Mock class that throws an SDK or API client code exception during
   // the call to Pipeline.run().
-  static class TestPipelineRunnerThrowingSdkException
-      extends PipelineRunner<PipelineResult> {
+  static class TestPipelineRunnerThrowingSdkException extends PipelineRunner<PipelineResult> {
 
     public static TestPipelineRunnerThrowingSdkException fromOptions(PipelineOptions options) {
       return new TestPipelineRunnerThrowingSdkException();
@@ -128,53 +123,58 @@ public class PipelineTest {
 
     // Check pipeline runner correctly catches user errors.
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(new BaseMatcher<String>() { // more readable than a regex
-      @Override
-      public void describeTo(final Description description) {
-        description.appendText("validates the conflicting instances are "
-                + "listed into the exception message");
-      }
+    thrown.expectMessage(
+        new BaseMatcher<String>() { // more readable than a regex
+          @Override
+          public void describeTo(final Description description) {
+            description.appendText(
+                "validates the conflicting instances are " + "listed into the exception message");
+          }
 
-      @Override
-      public boolean matches(final Object o) {
-        /*
-          example value (first 2 lines are a single one):
+          @Override
+          public boolean matches(final Object o) {
+            /*
+             example value (first 2 lines are a single one):
 
-          Pipeline update will not be possible because the following transforms do not have stable
-          unique names: ParDo(Anonymous)2.
+             Pipeline update will not be possible because the following transforms do not have stable
+             unique names: ParDo(Anonymous)2.
 
-          Conflicting instances:
-          - name=ParDo(Anonymous):
-              - org.apache.beam.sdk.PipelineTest$3@75d2da2d
-              - org.apache.beam.sdk.PipelineTest$2@4278284b
+             Conflicting instances:
+             - name=ParDo(Anonymous):
+                 - org.apache.beam.sdk.PipelineTest$3@75d2da2d
+                 - org.apache.beam.sdk.PipelineTest$2@4278284b
 
-          You can fix it adding a name when you call apply(): pipeline.apply(<name>, <transform>).
-         */
-        final String sanitized = String.class.cast(o)
-                                     .replaceAll("\\$[\\p{Alnum}]+@[\\p{Alnum}]+", "\\$x@y");
-        return sanitized.contains(
-              "Conflicting instances:\n"
-              + "- name=ParDo(Anonymous):\n"
-              + "    - org.apache.beam.sdk.PipelineTest$x@y\n"
-              + "    - org.apache.beam.sdk.PipelineTest$x@y\n\n"
-              + "You can fix it adding a name when you call apply(): "
-              + "pipeline.apply(<name>, <transform>).");
-      }
-    });
+             You can fix it adding a name when you call apply(): pipeline.apply(<name>, <transform>).
+            */
+            final String sanitized =
+                String.class.cast(o).replaceAll("\\$[\\p{Alnum}]+@[\\p{Alnum}]+", "\\$x@y");
+            return sanitized.contains(
+                "Conflicting instances:\n"
+                    + "- name=ParDo(Anonymous):\n"
+                    + "    - org.apache.beam.sdk.PipelineTest$x@y\n"
+                    + "    - org.apache.beam.sdk.PipelineTest$x@y\n\n"
+                    + "You can fix it adding a name when you call apply(): "
+                    + "pipeline.apply(<name>, <transform>).");
+          }
+        });
     p.apply(Create.of("a"))
-     // 2 anonymous classes are conflicting
-     .apply(ParDo.of(new DoFn<String, String>() {
-       @ProcessElement
-       public void onElement(final ProcessContext ctx) {
-         ctx.output(ctx.element());
-       }
-     }))
-     .apply(ParDo.of(new DoFn<String, String>() {
-       @ProcessElement
-       public void onElement(final ProcessContext ctx) {
-         // no-op
-       }
-     }));
+        // 2 anonymous classes are conflicting
+        .apply(
+            ParDo.of(
+                new DoFn<String, String>() {
+                  @ProcessElement
+                  public void onElement(final ProcessContext ctx) {
+                    ctx.output(ctx.element());
+                  }
+                }))
+        .apply(
+            ParDo.of(
+                new DoFn<String, String>() {
+                  @ProcessElement
+                  public void onElement(final ProcessContext ctx) {
+                    // no-op
+                  }
+                }));
     p.run();
   }
 
@@ -203,19 +203,18 @@ public class PipelineTest {
       fail("Should have thrown an exception.");
     } catch (RuntimeException exn) {
       // Make sure the exception isn't a UserCodeException.
-      Assert.assertThat(exn, not(instanceOf(UserCodeException.class)));
+      assertThat(exn, not(instanceOf(UserCodeException.class)));
       // Assert that the message is correct.
-      Assert.assertThat(exn.getMessage(), containsString("SDK exception"));
+      assertThat(exn.getMessage(), containsString("SDK exception"));
       // RuntimeException should be IllegalStateException.
-      Assert.assertThat(exn, instanceOf(IllegalStateException.class));
+      assertThat(exn, instanceOf(IllegalStateException.class));
     }
   }
 
   @Test
   @Category(ValidatesRunner.class)
   public void testMultipleApply() {
-    PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
-        addSuffix("+");
+    PTransform<PCollection<? extends String>, PCollection<String>> myTransform = addSuffix("+");
 
     PCollection<String> input = pipeline.apply(Create.of(ImmutableList.of("a", "b")));
 
@@ -231,12 +230,13 @@ public class PipelineTest {
 
   private static PTransform<PCollection<? extends String>, PCollection<String>> addSuffix(
       final String suffix) {
-    return MapElements.via(new SimpleFunction<String, String>() {
-      @Override
-      public String apply(String input) {
-        return input + suffix;
-      }
-    });
+    return MapElements.via(
+        new SimpleFunction<String, String>() {
+          @Override
+          public String apply(String input) {
+            return input + suffix;
+          }
+        });
   }
 
   @Test
@@ -282,12 +282,10 @@ public class PipelineTest {
     ((Pipeline) pipeline).validate(pipeline.getOptions());
   }
 
-  /**
-   * Tests that Pipeline supports a pass-through identity function.
-   */
+  /** Tests that Pipeline supports a pass-through identity function. */
   @Test
   @Category(ValidatesRunner.class)
-  public void testIdentityTransform() throws Exception {
+  public void testIdentityTransform() {
 
     PCollection<Integer> output =
         pipeline.apply(Create.of(1, 2, 3, 4)).apply("IdentityTransform", new IdentityTransform<>());
@@ -296,17 +294,14 @@ public class PipelineTest {
     pipeline.run();
   }
 
-  private static class IdentityTransform<T extends PInput & POutput>
-      extends PTransform<T, T> {
+  private static class IdentityTransform<T extends PInput & POutput> extends PTransform<T, T> {
     @Override
     public T expand(T input) {
       return input;
     }
   }
 
-  /**
-   * Tests that Pipeline supports pulling an element out of a tuple as a transform.
-   */
+  /** Tests that Pipeline supports pulling an element out of a tuple as a transform. */
   @Test
   @Category(ValidatesRunner.class)
   public void testTupleProjectionTransform() throws Exception {
@@ -335,9 +330,7 @@ public class PipelineTest {
     }
   }
 
-  /**
-   * Tests that Pipeline supports putting an element into a tuple as a transform.
-   */
+  /** Tests that Pipeline supports putting an element into a tuple as a transform. */
   @Test
   @Category(ValidatesRunner.class)
   public void testTupleInjectionTransform() throws Exception {
@@ -365,9 +358,7 @@ public class PipelineTest {
     }
   }
 
-  /**
-   * Tests that an empty pipeline runs.
-   */
+  /** Tests that an empty pipeline runs. */
   @Test
   @Category(NeedsRunner.class)
   public void testEmptyPipeline() throws Exception {
@@ -436,20 +427,23 @@ public class PipelineTest {
         return input.apply("custom_name", Sum.integersGlobally());
       }
     }
+
     class ReplacementTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
       @Override
       public PCollection<Integer> expand(PCollection<Integer> input) {
         return input.apply("custom_name", Max.integersGlobally());
       }
     }
+
     class ReplacementOverrideFactory
         implements PTransformOverrideFactory<
             PCollection<Integer>, PCollection<Integer>, OriginalTransform> {
 
-      @Override public PTransformReplacement<PCollection<Integer>, PCollection<Integer>>
-      getReplacementTransform(
-          AppliedPTransform<PCollection<Integer>,
-              PCollection<Integer>, OriginalTransform> transform) {
+      @Override
+      public PTransformReplacement<PCollection<Integer>, PCollection<Integer>>
+          getReplacementTransform(
+              AppliedPTransform<PCollection<Integer>, PCollection<Integer>, OriginalTransform>
+                  transform) {
         return PTransformReplacement.of(originalInput, new ReplacementTransform());
       }
 
@@ -493,7 +487,8 @@ public class PipelineTest {
 
     assertThat(nameToTransformClass.keySet(), hasItem("original_application/custom_name"));
     assertThat(nameToTransformClass.keySet(), not(hasItem("original_application/custom_name2")));
-    Assert.assertEquals(nameToTransformClass.get("original_application/custom_name"),
+    assertEquals(
+        nameToTransformClass.get("original_application/custom_name"),
         Max.integersGlobally().getClass());
   }
 
@@ -533,8 +528,7 @@ public class PipelineTest {
     @Override
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> transform) {
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(), new EmptyFlatten<T>());
+      return PTransformReplacement.of(transform.getPipeline().begin(), new EmptyFlatten<T>());
     }
 
     @Override

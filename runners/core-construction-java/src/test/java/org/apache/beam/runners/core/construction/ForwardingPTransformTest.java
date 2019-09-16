@@ -24,7 +24,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,9 +45,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link ForwardingPTransform}.
- */
+/** Tests for {@link ForwardingPTransform}. */
 @RunWith(JUnit4.class)
 public class ForwardingPTransformTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -114,11 +112,12 @@ public class ForwardingPTransformTest {
             PCollection.IsBounded.BOUNDED,
             null /* coder */);
     @SuppressWarnings("unchecked")
-    PCollection<String> output = PCollection.createPrimitiveOutputInternal(
-        null /* pipeline */,
-        WindowingStrategy.globalDefault(),
-        PCollection.IsBounded.BOUNDED,
-        null /* coder */);
+    PCollection<String> output =
+        PCollection.createPrimitiveOutputInternal(
+            null /* pipeline */,
+            WindowingStrategy.globalDefault(),
+            PCollection.IsBounded.BOUNDED,
+            null /* coder */);
     @SuppressWarnings("unchecked")
     Coder<String> outputCoder = mock(Coder.class);
 

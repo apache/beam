@@ -53,30 +53,30 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
- * A Beam Example that runs in both batch and streaming modes with traffic sensor data.
- * You can configure the running mode by setting {@literal --streaming} to true or false.
+ * A Beam Example that runs in both batch and streaming modes with traffic sensor data. You can
+ * configure the running mode by setting {@literal --streaming} to true or false.
  *
- * <p>Concepts: The batch and streaming runners, sliding windows,
- * use of the AvroCoder to encode a custom class, and custom Combine transforms.
+ * <p>Concepts: The batch and streaming runners, sliding windows, use of the AvroCoder to encode a
+ * custom class, and custom Combine transforms.
  *
- * <p>This example analyzes traffic sensor data using SlidingWindows. For each window,
- * it finds the lane that had the highest flow recorded, for each sensor station. It writes
- * those max values along with auxiliary info to a BigQuery table.
+ * <p>This example analyzes traffic sensor data using SlidingWindows. For each window, it finds the
+ * lane that had the highest flow recorded, for each sensor station. It writes those max values
+ * along with auxiliary info to a BigQuery table.
  *
  * <p>The pipeline reads traffic sensor data from {@literal --inputFile}.
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Beam pipeline).
- * You can override them by using the {@literal --bigQueryDataset}, and {@literal --bigQueryTable}
- * options. If the BigQuery table do not exist, the example will try to create them.
+ * (there are no defaults for a general Beam pipeline). You can override them by using the {@literal
+ * --bigQueryDataset}, and {@literal --bigQueryTable} options. If the BigQuery table do not exist,
+ * the example will try to create them.
  *
  * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
 public class TrafficMaxLaneFlow {
 
-  static final int WINDOW_DURATION = 60;  // Default sliding window duration in minutes
-  static final int WINDOW_SLIDE_EVERY = 5;  // Default window 'slide every' setting in minutes
+  static final int WINDOW_DURATION = 60; // Default sliding window duration in minutes
+  static final int WINDOW_SLIDE_EVERY = 5; // Default window 'slide every' setting in minutes
 
   /**
    * This class holds information about each lane in a station reading, along with some general
@@ -96,9 +96,16 @@ public class TrafficMaxLaneFlow {
 
     public LaneInfo() {}
 
-    public LaneInfo(String stationId, String lane, String direction, String freeway,
-        String timestamp, Integer laneFlow, Double laneAO,
-        Double laneAS, Integer totalFlow) {
+    public LaneInfo(
+        String stationId,
+        String lane,
+        String direction,
+        String freeway,
+        String timestamp,
+        Integer laneFlow,
+        Double laneAO,
+        Double laneAS,
+        Integer totalFlow) {
       this.stationId = stationId;
       this.lane = lane;
       this.direction = direction;
@@ -113,42 +120,49 @@ public class TrafficMaxLaneFlow {
     public String getStationId() {
       return this.stationId;
     }
+
     public String getLane() {
       return this.lane;
     }
+
     public String getDirection() {
       return this.direction;
     }
+
     public String getFreeway() {
       return this.freeway;
     }
+
     public String getRecordedTimestamp() {
       return this.recordedTimestamp;
     }
+
     public Integer getLaneFlow() {
       return this.laneFlow;
     }
+
     public Double getLaneAO() {
       return this.laneAO;
     }
+
     public Double getLaneAS() {
       return this.laneAS;
     }
+
     public Integer getTotalFlow() {
       return this.totalFlow;
     }
   }
 
-  /**
-   * Extract the timestamp field from the input string, and use it as the element timestamp.
-   */
+  /** Extract the timestamp field from the input string, and use it as the element timestamp. */
   static class ExtractTimestamps extends DoFn<String, String> {
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
     @ProcessElement
     public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
-      String[] items = c.element().split(",");
+      String[] items = c.element().split(",", -1);
+
       if (items.length > 0) {
         try {
           String timestamp = items[0];
@@ -171,7 +185,7 @@ public class TrafficMaxLaneFlow {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] items = c.element().split(",");
+      String[] items = c.element().split(",", -1);
       if (items.length < 48) {
         // Skip the invalid input.
         return;
@@ -189,8 +203,17 @@ public class TrafficMaxLaneFlow {
         if (laneFlow == null || laneAvgOccupancy == null || laneAvgSpeed == null) {
           return;
         }
-        LaneInfo laneInfo = new LaneInfo(stationId, "lane" + i, direction, freeway, timestamp,
-            laneFlow, laneAvgOccupancy, laneAvgSpeed, totalFlow);
+        LaneInfo laneInfo =
+            new LaneInfo(
+                stationId,
+                "lane" + i,
+                direction,
+                freeway,
+                timestamp,
+                laneFlow,
+                laneAvgOccupancy,
+                laneAvgSpeed,
+                totalFlow);
         c.output(KV.of(stationId, laneInfo));
       }
     }
@@ -220,25 +243,26 @@ public class TrafficMaxLaneFlow {
   }
 
   /**
-   * Format the results of the Max Lane flow calculation to a TableRow, to save to BigQuery.
-   * Add the timestamp from the window context.
+   * Format the results of the Max Lane flow calculation to a TableRow, to save to BigQuery. Add the
+   * timestamp from the window context.
    */
   static class FormatMaxesFn extends DoFn<KV<String, LaneInfo>, TableRow> {
     @ProcessElement
     public void processElement(ProcessContext c) {
 
       LaneInfo laneInfo = c.element().getValue();
-      TableRow row = new TableRow()
-          .set("station_id", c.element().getKey())
-          .set("direction", laneInfo.getDirection())
-          .set("freeway", laneInfo.getFreeway())
-          .set("lane_max_flow", laneInfo.getLaneFlow())
-          .set("lane", laneInfo.getLane())
-          .set("avg_occ", laneInfo.getLaneAO())
-          .set("avg_speed", laneInfo.getLaneAS())
-          .set("total_flow", laneInfo.getTotalFlow())
-          .set("recorded_timestamp", laneInfo.getRecordedTimestamp())
-          .set("window_timestamp", c.timestamp().toString());
+      TableRow row =
+          new TableRow()
+              .set("station_id", c.element().getKey())
+              .set("direction", laneInfo.getDirection())
+              .set("freeway", laneInfo.getFreeway())
+              .set("lane_max_flow", laneInfo.getLaneFlow())
+              .set("lane", laneInfo.getLane())
+              .set("avg_occ", laneInfo.getLaneAO())
+              .set("avg_speed", laneInfo.getLaneAS())
+              .set("total_flow", laneInfo.getTotalFlow())
+              .set("recorded_timestamp", laneInfo.getRecordedTimestamp())
+              .set("window_timestamp", c.timestamp().toString());
       c.output(row);
     }
 
@@ -272,8 +296,7 @@ public class TrafficMaxLaneFlow {
       PCollection<KV<String, LaneInfo>> flowMaxes = flowInfo.apply(Combine.perKey(new MaxFlow()));
 
       // <stationId, max lane flow info>... => row...
-      PCollection<TableRow> results = flowMaxes.apply(
-          ParDo.of(new FormatMaxesFn()));
+      PCollection<TableRow> results = flowMaxes.apply(ParDo.of(new FormatMaxesFn()));
 
       return results;
     }
@@ -288,45 +311,38 @@ public class TrafficMaxLaneFlow {
 
     @Override
     public PCollection<String> expand(PBegin begin) {
-      return begin
-          .apply(TextIO.read().from(inputFile))
-          .apply(ParDo.of(new ExtractTimestamps()));
+      return begin.apply(TextIO.read().from(inputFile)).apply(ParDo.of(new ExtractTimestamps()));
     }
   }
 
   /**
-    * Options supported by {@link TrafficMaxLaneFlow}.
-    *
-    * <p>Inherits standard configuration options.
-    */
+   * Options supported by {@link TrafficMaxLaneFlow}.
+   *
+   * <p>Inherits standard configuration options.
+   */
   public interface TrafficMaxLaneFlowOptions extends ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Path of the file to read from")
-    @Default.String("gs://apache-beam-samples/traffic_sensor/"
-        + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
+    @Default.String(
+        "gs://apache-beam-samples/traffic_sensor/"
+            + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
     String getInputFile();
+
     void setInputFile(String value);
 
     @Description("Numeric value of sliding window duration, in minutes")
     @Default.Integer(WINDOW_DURATION)
     Integer getWindowDuration();
+
     void setWindowDuration(Integer value);
 
     @Description("Numeric value of window 'slide every' setting, in minutes")
     @Default.Integer(WINDOW_SLIDE_EVERY)
     Integer getWindowSlideEvery();
+
     void setWindowSlideEvery(Integer value);
   }
 
-  /**
-   * Sets up and starts streaming pipeline.
-   *
-   * @throws IOException if there is a problem setting up resources
-   */
-  public static void main(String[] args) throws IOException {
-    TrafficMaxLaneFlowOptions options = PipelineOptionsFactory.fromArgs(args)
-        .withValidation()
-        .as(TrafficMaxLaneFlowOptions.class);
-    options.setBigQuerySchema(FormatMaxesFn.getSchema());
+  public static void runTrafficMaxLaneFlow(TrafficMaxLaneFlowOptions options) throws IOException {
     // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
@@ -354,6 +370,19 @@ public class TrafficMaxLaneFlow {
 
     // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
+  }
+
+  /**
+   * Sets up and starts streaming pipeline.
+   *
+   * @throws IOException if there is a problem setting up resources
+   */
+  public static void main(String[] args) throws IOException {
+    TrafficMaxLaneFlowOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficMaxLaneFlowOptions.class);
+    options.setBigQuerySchema(FormatMaxesFn.getSchema());
+
+    runTrafficMaxLaneFlow(options);
   }
 
   private static Integer tryIntParse(String number) {

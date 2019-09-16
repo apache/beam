@@ -17,7 +17,7 @@
  */
 
 /**
- * <p>Provides an API for reading from and writing to
- * <a href="https://developers.google.com/spanner/">Google Cloud Spanner</a>.
+ * Provides an API for reading from and writing to <a
+ * href="https://developers.google.com/spanner/">Google Cloud Spanner</a>.
  */
 package org.apache.beam.sdk.io.gcp.spanner;

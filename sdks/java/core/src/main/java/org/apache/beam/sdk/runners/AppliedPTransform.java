@@ -32,17 +32,18 @@ import org.apache.beam.sdk.values.TupleTag;
  *
  * <p>Inputs and outputs are stored in their expanded forms, as the condensed form of a composite
  * {@link PInput} or {@link POutput} is a language-specific concept, and {@link AppliedPTransform}
- * represents a possibly cross-language transform for which no appropriate composite type exists
- * in the Java SDK.
+ * represents a possibly cross-language transform for which no appropriate composite type exists in
+ * the Java SDK.
  *
- * @param <InputT>     transform input type
- * @param <OutputT>    transform output type
+ * @param <InputT> transform input type
+ * @param <OutputT> transform output type
  * @param <TransformT> transform type
  */
 @Internal
 @AutoValue
 public abstract class AppliedPTransform<
-    InputT extends PInput, OutputT extends POutput,
+    InputT extends PInput,
+    OutputT extends POutput,
     TransformT extends PTransform<? super InputT, OutputT>> {
   // To prevent extension outside of this package.
   AppliedPTransform() {}

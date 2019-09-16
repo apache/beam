@@ -17,19 +17,20 @@
  */
 package org.apache.beam.sdk.io.range;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Verify.verify;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,16 +47,15 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Interpreting {@link ByteKey} in a {@link ByteKeyRange}</h3>
  *
- * <p>The primary role of {@link ByteKeyRange} is to provide functionality for
- * {@link #estimateFractionForKey(ByteKey)}, {@link #interpolateKey(double)}, and
- * {@link #split(int)}.
+ * <p>The primary role of {@link ByteKeyRange} is to provide functionality for {@link
+ * #estimateFractionForKey(ByteKey)}, {@link #interpolateKey(double)}, and {@link #split(int)}.
  *
  * <p>{@link ByteKeyRange} implements these features by treating a {@link ByteKey}'s underlying
  * {@code byte[]} as the binary expansion of floating point numbers in the range {@code [0.0, 1.0]}.
- * For example, the keys {@code ByteKey.of(0x80)}, {@code ByteKey.of(0xc0)}, and
- * {@code ByteKey.of(0xe0)} are interpreted as {@code 0.5}, {@code 0.75}, and {@code 0.875}
- * respectively. The empty {@code ByteKey.EMPTY} is interpreted as {@code 0.0} when used as the
- * start of a range and {@code 1.0} when used as the end key.
+ * For example, the keys {@code ByteKey.of(0x80)}, {@code ByteKey.of(0xc0)}, and {@code
+ * ByteKey.of(0xe0)} are interpreted as {@code 0.5}, {@code 0.75}, and {@code 0.875} respectively.
+ * The empty {@code ByteKey.EMPTY} is interpreted as {@code 0.0} when used as the start of a range
+ * and {@code 1.0} when used as the end key.
  *
  * <p>Key interpolation, fraction estimation, and range splitting are all interpreted in these
  * floating-point semantics. See the respective implementations for further details. <b>Note:</b>
@@ -66,7 +66,11 @@ import org.slf4j.LoggerFactory;
  *
  * @see ByteKey
  */
-public final class ByteKeyRange implements Serializable {
+public final class ByteKeyRange
+    implements Serializable,
+        HasDefaultTracker<
+            ByteKeyRange, org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker> {
+
   private static final Logger LOG = LoggerFactory.getLogger(ByteKeyRange.class);
 
   /** The range of all keys, with empty start and end keys. */
@@ -78,7 +82,6 @@ public final class ByteKeyRange implements Serializable {
    * <p>Note that if {@code endKey} is empty, it is treated as the largest possible key.
    *
    * @see ByteKeyRange
-   *
    * @throws IllegalArgumentException if {@code endKey} is less than or equal to {@code startKey},
    *     unless {@code endKey} is empty indicating the maximum possible {@link ByteKey}.
    */
@@ -86,9 +89,7 @@ public final class ByteKeyRange implements Serializable {
     return new ByteKeyRange(startKey, endKey);
   }
 
-  /**
-   * Returns the {@link ByteKey} representing the lower bound of this {@link ByteKeyRange}.
-   */
+  /** Returns the {@link ByteKey} representing the lower bound of this {@link ByteKeyRange}. */
   public ByteKey getStartKey() {
     return startKey;
   }
@@ -102,16 +103,12 @@ public final class ByteKeyRange implements Serializable {
     return endKey;
   }
 
-  /**
-   * Returns {@code true} if the specified {@link ByteKey} is contained within this range.
-   */
+  /** Returns {@code true} if the specified {@link ByteKey} is contained within this range. */
   public Boolean containsKey(ByteKey key) {
     return key.compareTo(startKey) >= 0 && endsAfterKey(key);
   }
 
-  /**
-   * Returns {@code true} if the specified {@link ByteKeyRange} overlaps this range.
-   */
+  /** Returns {@code true} if the specified {@link ByteKeyRange} overlaps this range. */
   public Boolean overlaps(ByteKeyRange other) {
     // If each range starts before the other range ends, then they must overlap.
     //     { [] } -- one range inside the other   OR   { [ } ] -- partial overlap.
@@ -120,16 +117,16 @@ public final class ByteKeyRange implements Serializable {
 
   /**
    * Returns a list of up to {@code numSplits + 1} {@link ByteKey ByteKeys} in ascending order,
-   * where the keys have been interpolated to form roughly equal sub-ranges of this
-   * {@link ByteKeyRange}, assuming a uniform distribution of keys within this range.
+   * where the keys have been interpolated to form roughly equal sub-ranges of this {@link
+   * ByteKeyRange}, assuming a uniform distribution of keys within this range.
    *
    * <p>The first {@link ByteKey} in the result is guaranteed to be equal to {@link #getStartKey},
    * and the last {@link ByteKey} in the result is guaranteed to be equal to {@link #getEndKey}.
    * Thus the resulting list exactly spans the same key range as this {@link ByteKeyRange}.
    *
    * <p>Note that the number of keys returned is not always equal to {@code numSplits + 1}.
-   * Specifically, if this range is unsplittable (e.g., because the start and end keys are equal
-   * up to padding by zero bytes), the list returned will only contain the start and end key.
+   * Specifically, if this range is unsplittable (e.g., because the start and end keys are equal up
+   * to padding by zero bytes), the list returned will only contain the start and end key.
    *
    * @throws IllegalArgumentException if the specified number of splits is less than 1
    * @see ByteKeyRange the ByteKeyRange class Javadoc for more information about split semantics.
@@ -152,8 +149,8 @@ public final class ByteKeyRange implements Serializable {
   }
 
   /**
-   * Returns the fraction of this range {@code [startKey, endKey)} that is in the interval
-   * {@code [startKey, key)}.
+   * Returns the fraction of this range {@code [startKey, endKey)} that is in the interval {@code
+   * [startKey, key)}.
    *
    * @throws IllegalArgumentException if {@code key} does not fall within this range
    * @see ByteKeyRange the ByteKeyRange class Javadoc for more information about fraction semantics.
@@ -262,16 +259,12 @@ public final class ByteKeyRange implements Serializable {
         fixupHeadZeros(rangeStartInt.add(interpolatedOffset).toByteArray(), outputKeyLength));
   }
 
-  /**
-   * Returns new {@link ByteKeyRange} like this one, but with the specified start key.
-   */
+  /** Returns new {@link ByteKeyRange} like this one, but with the specified start key. */
   public ByteKeyRange withStartKey(ByteKey startKey) {
     return new ByteKeyRange(startKey, endKey);
   }
 
-  /**
-   * Returns new {@link ByteKeyRange} like this one, but with the specified end key.
-   */
+  /** Returns new {@link ByteKeyRange} like this one, but with the specified end key. */
   public ByteKeyRange withEndKey(ByteKey endKey) {
     return new ByteKeyRange(startKey, endKey);
   }
@@ -283,7 +276,11 @@ public final class ByteKeyRange implements Serializable {
   private ByteKeyRange(ByteKey startKey, ByteKey endKey) {
     this.startKey = checkNotNull(startKey, "startKey");
     this.endKey = checkNotNull(endKey, "endKey");
-    checkArgument(endsAfterKey(startKey), "Start %s must be less than end %s", startKey, endKey);
+    checkArgument(
+        endKey.isEmpty() || startKey.compareTo(endKey) <= 0,
+        "Start %s must be less than or equal to end %s",
+        startKey,
+        endKey);
   }
 
   @Override
@@ -311,9 +308,7 @@ public final class ByteKeyRange implements Serializable {
     return Objects.hash(startKey, endKey);
   }
 
-  /**
-   * Returns a copy of the specified array with the specified byte added at the front.
-   */
+  /** Returns a copy of the specified array with the specified byte added at the front. */
   private static byte[] addHeadByte(byte[] array, byte b) {
     byte[] ret = new byte[array.length + 1];
     ret[0] = b;
@@ -369,5 +364,10 @@ public final class ByteKeyRange implements Serializable {
         bytePaddingNeeded >= 0, "Required bytes.length {} < length {}", bytes.length, length);
     BigInteger ret = new BigInteger(1, bytes);
     return (bytePaddingNeeded == 0) ? ret : ret.shiftLeft(8 * bytePaddingNeeded);
+  }
+
+  @Override
+  public org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker newTracker() {
+    return org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker.of(this);
   }
 }

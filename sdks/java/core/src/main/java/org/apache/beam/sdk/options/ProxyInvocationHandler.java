@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -33,15 +33,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Defaults;
-import com.google.common.collect.ClassToInstanceMap;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.MutableClassToInstanceMap;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.io.NotSerializableException;
@@ -73,19 +64,28 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Defaults;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ClassToInstanceMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MutableClassToInstanceMap;
 
 /**
- * Represents and {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean
+ * Represents an {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean
  * introspection of the proxy class to store and retrieve values based off of the property name.
  *
- * <p>Unset properties use the {@code @Default} metadata on the getter to return values. If there
- * is no {@code @Default} annotation on the getter, then a <a
+ * <p>Unset properties use the {@code @Default} metadata on the getter to return values. If there is
+ * no {@code @Default} annotation on the getter, then a <a
  * href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as
  * per the Java Language Specification for the expected return type is returned.
  *
- * <p>In addition to the getter/setter pairs, this proxy invocation handler supports
- * {@link Object#equals(Object)}, {@link Object#hashCode()}, {@link Object#toString()} and
- * {@link PipelineOptions#as(Class)}.
+ * <p>In addition to the getter/setter pairs, this proxy invocation handler supports {@link
+ * Object#equals(Object)}, {@link Object#hashCode()}, {@link Object#toString()} and {@link
+ * PipelineOptions#as(Class)}.
  */
 @ThreadSafe
 class ProxyInvocationHandler implements InvocationHandler, Serializable {
@@ -93,6 +93,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * No two instances of this class are considered equivalent hence we generate a random hash code.
    */
   private final int hashCode = ThreadLocalRandom.current().nextInt();
+
   private final Set<Class<? extends PipelineOptions>> knownInterfaces;
   private final ClassToInstanceMap<PipelineOptions> interfaceToProxyCache;
   private final Map<String, BoundValue> options;
@@ -137,7 +138,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       @SuppressWarnings("unchecked")
       Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
       return as(clazz);
-    } else if (args != null && "populateDisplayData".equals(method.getName())
+    } else if (args != null
+        && "populateDisplayData".equals(method.getName())
         && args[0] instanceof DisplayData.Builder) {
       @SuppressWarnings("unchecked")
       DisplayData.Builder builder = (DisplayData.Builder) args[0];
@@ -150,9 +152,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         String propertyName = gettersToPropertyNames.get(methodName);
         if (!options.containsKey(propertyName)) {
           // Lazy bind the default to the method.
-          Object value = jsonOptions.containsKey(propertyName)
-              ? getValueFromJson(propertyName, method)
-              : getDefault((PipelineOptions) proxy, method);
+          Object value =
+              jsonOptions.containsKey(propertyName)
+                  ? getValueFromJson(propertyName, method)
+                  : getDefault((PipelineOptions) proxy, method);
           options.put(propertyName, BoundValue.fromDefault(value));
         }
         return options.get(propertyName).getValue();
@@ -161,16 +164,15 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         return Void.TYPE;
       }
     }
-    throw new RuntimeException("Unknown method [" + method + "] invoked with args ["
-        + Arrays.toString(args) + "].");
+    throw new RuntimeException(
+        "Unknown method [" + method + "] invoked with args [" + Arrays.toString(args) + "].");
   }
 
   public String getOptionName(Method method) {
     return gettersToPropertyNames.get(method.getName());
   }
 
-  private void writeObject(java.io.ObjectOutputStream stream)
-      throws IOException {
+  private void writeObject(java.io.ObjectOutputStream stream) throws IOException {
     throw new NotSerializableException(
         "PipelineOptions objects are not serializable and should not be embedded into transforms "
             + "(did you capture a PipelineOptions object in a field or in an anonymous class?). "
@@ -180,9 +182,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             + "at pipeline construction time.");
   }
 
-  /**
-   * Track whether options values are explicitly set, or retrieved from defaults.
-   */
+  /** Track whether options values are explicitly set, or retrieved from defaults. */
   @AutoValue
   abstract static class BoundValue {
     @Nullable
@@ -194,16 +194,12 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       return new AutoValue_ProxyInvocationHandler_BoundValue(value, isDefault);
     }
 
-    /**
-     * Create a {@link BoundValue} representing an explicitly set option.
-     */
+    /** Create a {@link BoundValue} representing an explicitly set option. */
     static BoundValue fromExplicitOption(@Nullable Object value) {
       return BoundValue.of(value, false);
     }
 
-    /**
-     * Create a {@link BoundValue} representing a default option value.
-     */
+    /** Create a {@link BoundValue} representing a default option value. */
     static BoundValue fromDefault(@Nullable Object value) {
       return BoundValue.of(value, true);
     }
@@ -220,13 +216,14 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     checkArgument(iface.isInterface(), "Not an interface: %s", iface);
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =
-          PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);
+          PipelineOptionsFactory.CACHE.get().validateWellFormed(iface, knownInterfaces);
       List<PropertyDescriptor> propertyDescriptors = registration.getPropertyDescriptors();
       Class<T> proxyClass = registration.getProxyClass();
       gettersToPropertyNames.putAll(generateGettersToPropertyNames(propertyDescriptors));
       settersToPropertyNames.putAll(generateSettersToPropertyNames(propertyDescriptors));
       knownInterfaces.add(iface);
-      interfaceToProxyCache.putInstance(iface,
+      interfaceToProxyCache.putInstance(
+          iface,
           InstanceBuilder.ofType(proxyClass)
               .fromClass(proxyClass)
               .withArg(InvocationHandler.class, this)
@@ -241,12 +238,13 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    *
    * @param obj The object to compare against this.
    * @return true iff the other object is a ProxyInvocationHandler or is a Proxy object and has the
-   *         same ProxyInvocationHandler as this.
+   *     same ProxyInvocationHandler as this.
    */
   @Override
   public boolean equals(Object obj) {
-    return obj != null && ((obj instanceof ProxyInvocationHandler && this == obj)
-        || (Proxy.isProxyClass(obj.getClass()) && this == Proxy.getInvocationHandler(obj)));
+    return obj != null
+        && ((obj instanceof ProxyInvocationHandler && this == obj)
+            || (Proxy.isProxyClass(obj.getClass()) && this == Proxy.getInvocationHandler(obj)));
   }
 
   /**
@@ -259,9 +257,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     return hashCode;
   }
 
-  /**
-   * Returns a map of properties which correspond to {@link RuntimeValueProvider}.
-   */
+  /** Returns a map of properties which correspond to {@link RuntimeValueProvider}. */
   public Map<String, Map<String, Object>> outputRuntimeOptions(PipelineOptions options) {
     Set<PipelineOptionSpec> optionSpecs = PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
     Map<String, Map<String, Object>> properties = Maps.newHashMap();
@@ -273,9 +269,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
           continue;
         }
         Map<String, Object> property = Maps.newHashMap();
-        property.put("type",
-                     ((ParameterizedType) spec.getGetterMethod()
-                      .getGenericReturnType()).getActualTypeArguments()[0]);
+        property.put(
+            "type",
+            ((ParameterizedType) spec.getGetterMethod().getGenericReturnType())
+                .getActualTypeArguments()[0]);
         properties.put(spec.getName(), property);
       }
     }
@@ -291,6 +288,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
      * pipeline options will be added as display data.
      */
+    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       Set<PipelineOptionSpec> optionSpecs =
           PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
@@ -313,8 +311,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             continue;
           }
 
-          builder.add(DisplayData.item(option.getKey(), resolved.getType(), resolved.getValue())
-              .withNamespace(optionSpec.getDefiningInterface()));
+          builder.add(
+              DisplayData.item(option.getKey(), resolved.getType(), resolved.getValue())
+                  .withNamespace(optionSpec.getDefiningInterface()));
         }
       }
 
@@ -327,8 +326,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
         if (specs.isEmpty()) {
           // No PipelineOptions interface for this key not currently loaded
-          builder.add(DisplayData.item(jsonOption.getKey(), jsonOption.getValue().toString())
-              .withNamespace(UnknownPipelineOptions.class));
+          builder.add(
+              DisplayData.item(jsonOption.getKey(), jsonOption.getValue().toString())
+                  .withNamespace(UnknownPipelineOptions.class));
           continue;
         }
 
@@ -339,29 +339,26 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
           Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
           DisplayDataValue resolved = DisplayDataValue.resolve(value);
-          builder.add(DisplayData.item(jsonOption.getKey(), resolved.getType(), resolved.getValue())
-              .withNamespace(spec.getDefiningInterface()));
+          builder.add(
+              DisplayData.item(jsonOption.getKey(), resolved.getType(), resolved.getValue())
+                  .withNamespace(spec.getDefiningInterface()));
         }
       }
     }
   }
 
-  /**
-   * Helper class to resolve a {@link DisplayData} type and value from {@link PipelineOptions}.
-   */
+  /** Helper class to resolve a {@link DisplayData} type and value from {@link PipelineOptions}. */
   @AutoValue
   abstract static class DisplayDataValue {
-    /**
-     * The resolved display data value. May differ from the input to {@link #resolve(Object)}
-     */
+    /** The resolved display data value. May differ from the input to {@link #resolve(Object)} */
     abstract Object getValue();
 
     /** The resolved display data type. */
     abstract DisplayData.Type getType();
 
     /**
-     * Infer the value and {@link DisplayData.Type type} for the given
-     * {@link PipelineOptions} value.
+     * Infer the value and {@link DisplayData.Type type} for the given {@link PipelineOptions}
+     * value.
      */
     static DisplayDataValue resolve(@Nullable Object value) {
       DisplayData.Type type = DisplayData.inferType(value);
@@ -374,9 +371,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       return new AutoValue_ProxyInvocationHandler_DisplayDataValue(value, type);
     }
 
-    /**
-     * Safe {@link Object#toString()} wrapper to extract display data values for various types.
-     */
+    /** Safe {@link Object#toString()} wrapper to extract display data values for various types. */
     private static String displayDataString(@Nullable Object value) {
       if (value == null) {
         return "";
@@ -390,7 +385,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
       // At this point, we have some type of primitive array. Arrays.deepToString(..) requires an
       // Object array, but will unwrap nested primitive arrays.
-      String wrapped = Arrays.deepToString(new Object[]{value});
+      String wrapped = Arrays.deepToString(new Object[] {value});
       return wrapped.substring(1, wrapped.length() - 1);
     }
   }
@@ -399,16 +394,16 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * Marker interface used when the original {@link PipelineOptions} interface is not known at
    * runtime. This can occur if {@link PipelineOptions} are deserialized from JSON.
    *
-   * <p>Pipeline authors can ensure {@link PipelineOptions} type information is available at
-   * runtime by registering their {@link PipelineOptions options} interfaces. See the "Registration"
-   * section of {@link PipelineOptions} documentation.
+   * <p>Pipeline authors can ensure {@link PipelineOptions} type information is available at runtime
+   * by registering their {@link PipelineOptions options} interfaces. See the "Registration" section
+   * of {@link PipelineOptions} documentation.
    */
   interface UnknownPipelineOptions extends PipelineOptions {}
 
   /**
    * Construct a mapping from an option name to its {@link PipelineOptions} interface(s)
-   * declarations. An option may be declared in multiple interfaces. If it is overridden in a
-   * type hierarchy, only the overriding interface will be included.
+   * declarations. An option may be declared in multiple interfaces. If it is overridden in a type
+   * hierarchy, only the overriding interface will be included.
    */
   private Multimap<String, PipelineOptionSpec> buildOptionNameToSpecMap(
       Set<PipelineOptionSpec> props) {
@@ -422,11 +417,11 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     for (Map.Entry<String, Collection<PipelineOptionSpec>> entry : optionsMap.asMap().entrySet()) {
 
       /* Compare all interfaces for an option pairwise (iface1, iface2) to look for type
-       hierarchies. If one is the base-class of the other, remove it from the output and continue
-       iterating.
+      hierarchies. If one is the base-class of the other, remove it from the output and continue
+      iterating.
 
-       This is an N^2 operation per-option, but the number of interfaces defining an option
-       should always be small (usually 1). */
+      This is an N^2 operation per-option, but the number of interfaces defining an option
+      should always be small (usually 1). */
       List<PipelineOptionSpec> specs = Lists.newArrayList(entry.getValue());
       if (specs.size() < 2) {
         // Only one known implementing interface, no need to check for inheritance
@@ -446,7 +441,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             // new "i" element in outer loop.
             i--;
             j = specs.size();
-          } else  if (iface2.isAssignableFrom(iface1)) {
+          } else if (iface2.isAssignableFrom(iface1)) {
             optionsMap.remove(entry.getKey(), specs.get(j));
             specs.remove(j);
 
@@ -462,9 +457,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   }
 
   /**
-   * This will output all the currently set values. This is a relatively costly function
-   * as it will call {@code toString()} on each object that has been set and format
-   * the results in a readable format.
+   * This will output all the currently set values. This is a relatively costly function as it will
+   * call {@code toString()} on each object that has been set and format the results in a readable
+   * format.
    *
    * @return A pretty printed string representation of this.
    */
@@ -495,8 +490,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    */
   private Object getValueFromJson(String propertyName, Method method) {
     try {
-      JavaType type = PipelineOptionsFactory.MAPPER.getTypeFactory()
-          .constructType(method.getGenericReturnType());
+      JavaType type =
+          PipelineOptionsFactory.MAPPER
+              .getTypeFactory()
+              .constructType(method.getGenericReturnType());
       JsonNode jsonNode = jsonOptions.get(propertyName);
       return PipelineOptionsFactory.MAPPER.readValue(jsonNode.toString(), type);
     } catch (IOException e) {
@@ -505,27 +502,31 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   }
 
   /**
-   * Returns a default value for the method based upon {@code @Default} metadata on the getter
-   * to return values. If there is no {@code @Default} annotation on the getter, then a <a
+   * Returns a default value for the method based upon {@code @Default} metadata on the getter to
+   * return values. If there is no {@code @Default} annotation on the getter, then a <a
    * href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as
    * per the Java Language Specification for the expected return type is returned.
    *
    * @param proxy The proxy object for which we are attempting to get the default.
    * @param method The getter method that was invoked.
    * @return The default value from an {@link Default} annotation if present, otherwise a default
-   *         value as per the Java Language Specification.
+   *     value as per the Java Language Specification.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private Object getDefault(PipelineOptions proxy, Method method) {
     if (method.getReturnType().equals(RuntimeValueProvider.class)) {
-      throw new RuntimeException(String.format(
-        "Method %s should not have return type "
-        + "RuntimeValueProvider, use ValueProvider instead.", method.getName()));
+      throw new RuntimeException(
+          String.format(
+              "Method %s should not have return type "
+                  + "RuntimeValueProvider, use ValueProvider instead.",
+              method.getName()));
     }
     if (method.getReturnType().equals(StaticValueProvider.class)) {
-      throw new RuntimeException(String.format(
-        "Method %s should not have return type "
-        + "StaticValueProvider, use ValueProvider instead.", method.getName()));
+      throw new RuntimeException(
+          String.format(
+              "Method %s should not have return type "
+                  + "StaticValueProvider, use ValueProvider instead.",
+              method.getName()));
     }
     @Nullable Object defaultObject = null;
     for (Annotation annotation : method.getAnnotations()) {
@@ -537,14 +538,17 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     if (method.getReturnType().equals(ValueProvider.class)) {
       String propertyName = gettersToPropertyNames.get(method.getName());
       return defaultObject == null
-        ? new RuntimeValueProvider(
-          method.getName(), propertyName,
-          (Class<? extends PipelineOptions>) method.getDeclaringClass(),
-          proxy.getOptionsId())
-        : new RuntimeValueProvider(
-          method.getName(), propertyName,
-          (Class<? extends PipelineOptions>) method.getDeclaringClass(),
-          defaultObject, proxy.getOptionsId());
+          ? new RuntimeValueProvider(
+              method.getName(),
+              propertyName,
+              (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+              proxy.getOptionsId())
+          : new RuntimeValueProvider(
+              method.getName(),
+              propertyName,
+              (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+              defaultObject,
+              proxy.getOptionsId());
     } else if (defaultObject != null) {
       return defaultObject;
     }
@@ -556,12 +560,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     return Defaults.defaultValue(method.getReturnType());
   }
 
-  /**
-   * Helper method to return standard Default cases.
-   */
+  /** Helper method to return standard Default cases. */
   @Nullable
-  private Object returnDefaultHelper(
-    Annotation annotation, PipelineOptions proxy, Method method) {
+  private Object returnDefaultHelper(Annotation annotation, PipelineOptions proxy, Method method) {
     if (annotation instanceof Default.Class) {
       return ((Default.Class) annotation).value();
     } else if (annotation instanceof Default.String) {
@@ -583,12 +584,12 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     } else if (annotation instanceof Default.Double) {
       return ((Default.Double) annotation).value();
     } else if (annotation instanceof Default.Enum) {
-      return Enum.valueOf((Class<Enum>) method.getReturnType(),
-                          ((Default.Enum) annotation).value());
+      return Enum.valueOf(
+          (Class<Enum>) method.getReturnType(), ((Default.Enum) annotation).value());
     } else if (annotation instanceof Default.InstanceFactory) {
       return InstanceBuilder.ofType(((Default.InstanceFactory) annotation).value())
-        .build()
-        .create(proxy);
+          .build()
+          .create(proxy);
     }
     return null;
   }
@@ -598,7 +599,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * {@link PropertyDescriptor}s property descriptors.
    *
    * @param propertyDescriptors A list of {@link PropertyDescriptor}s to use when generating the
-   *        map.
+   *     map.
    * @return A map of getter method name to property name.
    */
   private static Map<String, String> generateGettersToPropertyNames(
@@ -617,7 +618,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * passed in {@link PropertyDescriptor}s property descriptors.
    *
    * @param propertyDescriptors A list of {@link PropertyDescriptor}s to use when generating the
-   *        map.
+   *     map.
    * @return A map of setter method name to getter method name.
    */
   private static Map<String, String> generateSettersToPropertyNames(
@@ -641,8 +642,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         // the last serialization of this PipelineOptions and then verify that
         // they are all serializable.
         Map<String, BoundValue> filteredOptions = Maps.newHashMap(handler.options);
-        removeIgnoredOptions(handler.knownInterfaces, filteredOptions);
-        ensureSerializable(handler.knownInterfaces, filteredOptions);
+        PipelineOptionsFactory.Cache cache = PipelineOptionsFactory.CACHE.get();
+        removeIgnoredOptions(cache, handler.knownInterfaces, filteredOptions);
+        ensureSerializable(cache, handler.knownInterfaces, filteredOptions);
 
         // Now we create the map of serializable options by taking the original
         // set of serialized options (if any) and updating them with any properties
@@ -676,7 +678,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      * {@link JsonIgnore @JsonIgnore} from the passed in options using the passed in interfaces.
      */
     private void removeIgnoredOptions(
-        Set<Class<? extends PipelineOptions>> interfaces, Map<String, ?> options) {
+        PipelineOptionsFactory.Cache cache,
+        Set<Class<? extends PipelineOptions>> interfaces,
+        Map<String, ?> options) {
       // Find all the method names that are annotated with JSON ignore.
       Set<String> jsonIgnoreMethodNames =
           FluentIterable.from(ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces))
@@ -685,8 +689,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
               .toSet();
 
       // Remove all options that have the same method name as the descriptor.
-      for (PropertyDescriptor descriptor
-          : PipelineOptionsFactory.getPropertyDescriptors(interfaces)) {
+      for (PropertyDescriptor descriptor : cache.getPropertyDescriptors(interfaces)) {
         if (jsonIgnoreMethodNames.contains(descriptor.getReadMethod().getName())) {
           options.remove(descriptor.getName());
         }
@@ -694,18 +697,20 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     }
 
     /**
-     * We use an {@link ObjectMapper} to verify that the passed in options are serializable
-     * and deserializable.
+     * We use an {@link ObjectMapper} to verify that the passed in options are serializable and
+     * deserializable.
      */
-    private void ensureSerializable(Set<Class<? extends PipelineOptions>> interfaces,
-        Map<String, BoundValue> options) throws IOException {
+    private void ensureSerializable(
+        PipelineOptionsFactory.Cache cache,
+        Set<Class<? extends PipelineOptions>> interfaces,
+        Map<String, BoundValue> options)
+        throws IOException {
       // Construct a map from property name to the return type of the getter.
       Map<String, Type> propertyToReturnType = Maps.newHashMap();
-      for (PropertyDescriptor descriptor
-          : PipelineOptionsFactory.getPropertyDescriptors(interfaces)) {
+      for (PropertyDescriptor descriptor : cache.getPropertyDescriptors(interfaces)) {
         if (descriptor.getReadMethod() != null) {
-          propertyToReturnType.put(descriptor.getName(),
-              descriptor.getReadMethod().getGenericReturnType());
+          propertyToReturnType.put(
+              descriptor.getName(), descriptor.getReadMethod().getGenericReturnType());
         }
       }
 
@@ -714,13 +719,17 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         try {
           String serializedValue =
               PipelineOptionsFactory.MAPPER.writeValueAsString(entry.getValue().getValue());
-          JavaType type = PipelineOptionsFactory.MAPPER.getTypeFactory()
-              .constructType(propertyToReturnType.get(entry.getKey()));
+          JavaType type =
+              PipelineOptionsFactory.MAPPER
+                  .getTypeFactory()
+                  .constructType(propertyToReturnType.get(entry.getKey()));
           PipelineOptionsFactory.MAPPER.readValue(serializedValue, type);
         } catch (Exception e) {
-          throw new IOException(String.format(
-              "Failed to serialize and deserialize property '%s' with value '%s'",
-              entry.getKey(), entry.getValue().getValue()), e);
+          throw new IOException(
+              String.format(
+                  "Failed to serialize and deserialize property '%s' with value '%s'",
+                  entry.getKey(), entry.getValue().getValue()),
+              e);
         }
       }
     }
@@ -730,15 +739,19 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     @Override
     public PipelineOptions deserialize(JsonParser jp, DeserializationContext ctxt)
         throws IOException, JsonProcessingException {
-      ObjectNode objectNode = (ObjectNode) jp.readValueAsTree();
-      ObjectNode optionsNode = (ObjectNode) objectNode.get("options");
+      ObjectNode objectNode = jp.readValueAsTree();
+      JsonNode rawOptionsNode = objectNode.get("options");
 
       Map<String, JsonNode> fields = Maps.newHashMap();
-      for (Iterator<Map.Entry<String, JsonNode>> iterator = optionsNode.fields();
-          iterator.hasNext(); ) {
-        Map.Entry<String, JsonNode> field = iterator.next();
-        fields.put(field.getKey(), field.getValue());
+      if (rawOptionsNode != null && !rawOptionsNode.isNull()) {
+        ObjectNode optionsNode = (ObjectNode) rawOptionsNode;
+        for (Iterator<Map.Entry<String, JsonNode>> iterator = optionsNode.fields();
+            iterator != null && iterator.hasNext(); ) {
+          Map.Entry<String, JsonNode> field = iterator.next();
+          fields.put(field.getKey(), field.getValue());
+        }
       }
+
       PipelineOptions options =
           new ProxyInvocationHandler(Maps.newHashMap(), fields).as(PipelineOptions.class);
       ValueProvider.RuntimeValueProvider.setRuntimeOptions(options);

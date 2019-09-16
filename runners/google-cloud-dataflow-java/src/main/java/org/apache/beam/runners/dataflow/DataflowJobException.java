@@ -20,9 +20,7 @@ package org.apache.beam.runners.dataflow;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-/**
- * A {@link RuntimeException} that contains information about a {@link DataflowPipelineJob}.
- */
+/** A {@link RuntimeException} that contains information about a {@link DataflowPipelineJob}. */
 public abstract class DataflowJobException extends RuntimeException {
   private final DataflowPipelineJob job;
 
@@ -31,9 +29,7 @@ public abstract class DataflowJobException extends RuntimeException {
     this.job = Objects.requireNonNull(job);
   }
 
-  /**
-   * Returns the failed job.
-   */
+  /** Returns the failed job. */
   public DataflowPipelineJob getJob() {
     return job;
   }

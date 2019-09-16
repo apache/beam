@@ -18,23 +18,21 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.nio.ByteBuffer;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 /**
- * {@link KeySelector} that retrieves a key from a {@link KV}. This will return
- * the key as encoded by the provided {@link Coder} in a {@link ByteBuffer}. This ensures
- * that all key comparisons/hashing happen on the encoded form.
+ * {@link KeySelector} that retrieves a key from a {@link KV}. This will return the key as encoded
+ * by the provided {@link Coder} in a {@link ByteBuffer}. This ensures that all key
+ * comparisons/hashing happen on the encoded form.
  */
 public class KvToByteBufferKeySelector<K, V>
-    implements KeySelector<WindowedValue<KV<K, V>>, ByteBuffer>,
-    ResultTypeQueryable<ByteBuffer> {
+    implements KeySelector<WindowedValue<KV<K, V>>, ByteBuffer>, ResultTypeQueryable<ByteBuffer> {
 
   private final Coder<K> keyCoder;
 
@@ -43,14 +41,13 @@ public class KvToByteBufferKeySelector<K, V>
   }
 
   @Override
-  public ByteBuffer getKey(WindowedValue<KV<K, V>> value) throws Exception {
+  public ByteBuffer getKey(WindowedValue<KV<K, V>> value) {
     K key = value.getValue().getKey();
-    byte[] keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
-    return ByteBuffer.wrap(keyBytes);
+    return FlinkKeyUtils.encodeKey(key, keyCoder);
   }
 
   @Override
   public TypeInformation<ByteBuffer> getProducedType() {
-    return new GenericTypeInfo<>(ByteBuffer.class);
+    return new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of());
   }
 }

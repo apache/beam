@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,8 +37,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 
 /**
- * {@link BroadcastVariableInitializer} that initializes the broadcast input as a {@code Map}
- * from window to side input.
+ * {@link BroadcastVariableInitializer} that initializes the broadcast input as a {@code Map} from
+ * window to side input.
  */
 public class SideInputInitializer<ViewT>
     implements BroadcastVariableInitializer<WindowedValue<?>, Map<BoundedWindow, ViewT>> {
@@ -63,9 +63,9 @@ public class SideInputInitializer<ViewT>
 
     // first partition into windows
     Map<BoundedWindow, List<WindowedValue<KV<?, ?>>>> partitionedElements = new HashMap<>();
-    for (WindowedValue<KV<?, ?>> value
-        : (Iterable<WindowedValue<KV<?, ?>>>) (Iterable) inputValues) {
-      for (BoundedWindow window: value.getWindows()) {
+    for (WindowedValue<KV<?, ?>> value :
+        (Iterable<WindowedValue<KV<?, ?>>>) (Iterable) inputValues) {
+      for (BoundedWindow window : value.getWindows()) {
         List<WindowedValue<KV<?, ?>>> windowedValues =
             partitionedElements.computeIfAbsent(window, k -> new ArrayList<>());
         windowedValues.add(value);
@@ -74,7 +74,7 @@ public class SideInputInitializer<ViewT>
 
     Map<BoundedWindow, ViewT> resultMap = new HashMap<>();
 
-    for (Map.Entry<BoundedWindow, List<WindowedValue<KV<?, ?>>>> elements:
+    for (Map.Entry<BoundedWindow, List<WindowedValue<KV<?, ?>>>> elements :
         partitionedElements.entrySet()) {
 
       ViewFn<MultimapView, ViewT> viewFn = (ViewFn<MultimapView, ViewT>) view.getViewFn();
@@ -86,9 +86,7 @@ public class SideInputInitializer<ViewT>
                   InMemoryMultimapSideInputView.fromIterable(
                       keyCoder,
                       (Iterable)
-                          elements
-                              .getValue()
-                              .stream()
+                          elements.getValue().stream()
                               .map(WindowedValue::getValue)
                               .collect(Collectors.toList()))));
     }

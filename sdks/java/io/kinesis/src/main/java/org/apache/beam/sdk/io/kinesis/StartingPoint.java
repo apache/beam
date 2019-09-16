@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
@@ -26,9 +26,9 @@ import java.util.Objects;
 import org.joda.time.Instant;
 
 /**
- * Denotes a point at which the reader should start reading from a Kinesis stream.
- * It can be expressed either as an {@link InitialPositionInStream} enum constant or a timestamp,
- * in which case the reader will start reading at the specified point in time.
+ * Denotes a point at which the reader should start reading from a Kinesis stream. It can be
+ * expressed either as an {@link InitialPositionInStream} enum constant or a timestamp, in which
+ * case the reader will start reading at the specified point in time.
  */
 class StartingPoint implements Serializable {
 

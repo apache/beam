@@ -74,5 +74,4 @@ class GatherAllPanes<T>
         .apply(Values.create())
         .setWindowingStrategyInternal(input.getWindowingStrategy());
   }
-
 }

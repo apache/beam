@@ -20,12 +20,14 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import collections
 import inspect
-import sys
 import types
 
-import six
+from future.utils import raise_with_traceback
+from past.builtins import unicode
 
 from apache_beam import pipeline
 from apache_beam.pvalue import TaggedOutput
@@ -69,9 +71,6 @@ class AbstractDoFnWrapper(DoFn):
   def finish_bundle(self, *args, **kwargs):
     return self.wrapper(self.dofn.finish_bundle, args, kwargs)
 
-  def is_process_bounded(self):
-    return self.dofn.is_process_bounded()
-
 
 class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""
@@ -86,14 +85,14 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     except TypeCheckError as e:
       error_msg = ('Runtime type violation detected within ParDo(%s): '
                    '%s' % (self.full_label, e))
-      six.reraise(TypeCheckError, error_msg, sys.exc_info()[2])
+      raise_with_traceback(TypeCheckError(error_msg))
     else:
       return self._check_type(result)
 
   def _check_type(self, output):
     if output is None:
       return output
-    elif isinstance(output, (dict,) + six.string_types):
+    elif isinstance(output, (dict, bytes, str, unicode)):
       object_type = type(output).__name__
       raise TypeCheckError('Returning a %s from a ParDo or FlatMap is '
                            'discouraged. Please use list("%s") if you really '
@@ -175,12 +174,12 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       check_constraint(type_constraint, datum)
     except CompositeTypeHintError as e:
-      six.reraise(TypeCheckError, e.args[0], sys.exc_info()[2])
+      raise_with_traceback(TypeCheckError(e.args[0]))
     except SimpleTypeHintError:
       error_msg = ("According to type-hint expected %s should be of type %s. "
                    "Instead, received '%s', an instance of type %s."
                    % (datum_type, type_constraint, datum, type(datum)))
-      six.reraise(TypeCheckError, error_msg, sys.exc_info()[2])
+      raise_with_traceback(TypeCheckError(error_msg))
 
 
 class TypeCheckCombineFn(core.CombineFn):
@@ -205,11 +204,14 @@ class TypeCheckCombineFn(core.CombineFn):
       except TypeCheckError as e:
         error_msg = ('Runtime type violation detected within %s: '
                      '%s' % (self._label, e))
-        raise TypeCheckError, error_msg, sys.exc_info()[2]
+        raise_with_traceback(TypeCheckError(error_msg))
     return self._combinefn.add_input(accumulator, element, *args, **kwargs)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     return self._combinefn.merge_accumulators(accumulators, *args, **kwargs)
+
+  def compact(self, accumulator, *args, **kwargs):
+    return self._combinefn.compact(accumulator, *args, **kwargs)
 
   def extract_output(self, accumulator, *args, **kwargs):
     result = self._combinefn.extract_output(accumulator, *args, **kwargs)
@@ -220,7 +222,7 @@ class TypeCheckCombineFn(core.CombineFn):
       except TypeCheckError as e:
         error_msg = ('Runtime type violation detected within %s: '
                      '%s' % (self._label, e))
-        raise TypeCheckError, error_msg, sys.exc_info()[2]
+        raise_with_traceback(TypeCheckError(error_msg))
     return result
 
 

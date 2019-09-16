@@ -24,10 +24,9 @@ import org.apache.beam.sdk.transforms.PTransform;
  * Marker interface for {@link PTransform PTransforms} and components to specify display data used
  * within UIs and diagnostic tools.
  *
- * <p>Display data is registered by overriding
- * {@link #populateDisplayData(DisplayData.Builder)} in a component which implements
- * {@code HasDisplayData}. Display data is available for {@link PipelineOptions} and
- * {@link PTransform} implementations.
+ * <p>Display data is registered by overriding {@link #populateDisplayData(DisplayData.Builder)} in
+ * a component which implements {@code HasDisplayData}. Display data is available for {@link
+ * PipelineOptions} and {@link PTransform} implementations.
  *
  * <pre><code>{@literal @Override}
  * public void populateDisplayData(DisplayData.Builder builder) {
@@ -44,9 +43,9 @@ import org.apache.beam.sdk.transforms.PTransform;
  * }
  * </code></pre>
  *
- * <p>Display data is optional and may be collected during pipeline construction. It should
- * only be used for informational purposes. Tools and components should not assume that display data
- * will always be collected, or that collected display data will always be displayed.
+ * <p>Display data is optional and may be collected during pipeline construction. It should only be
+ * used for informational purposes. Tools and components should not assume that display data will
+ * always be collected, or that collected display data will always be displayed.
  *
  * @see #populateDisplayData(DisplayData.Builder)
  */
@@ -55,13 +54,12 @@ public interface HasDisplayData {
    * Register display data for the given transform or component.
    *
    * <p>{@code populateDisplayData(DisplayData.Builder)} is invoked by Pipeline runners to collect
-   * display data via {@link DisplayData#from(HasDisplayData)}. Implementations may call
-   * {@code super.populateDisplayData(builder)} in order to register display data in the current
-   * namespace, but should otherwise use {@code subcomponent.populateDisplayData(builder)} to use
-   * the namespace of the subcomponent.
+   * display data via {@link DisplayData#from(HasDisplayData)}. Implementations may call {@code
+   * super.populateDisplayData(builder)} in order to register display data in the current namespace,
+   * but should otherwise use {@code subcomponent.populateDisplayData(builder)} to use the namespace
+   * of the subcomponent.
    *
    * @param builder The builder to populate with display data.
-   *
    * @see HasDisplayData
    */
   void populateDisplayData(DisplayData.Builder builder);

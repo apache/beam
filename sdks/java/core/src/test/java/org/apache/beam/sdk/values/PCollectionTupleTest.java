@@ -23,7 +23,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.testing.EqualsTester;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -42,7 +41,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.hamcrest.Matchers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -54,14 +53,15 @@ import org.junit.runners.JUnit4;
 public final class PCollectionTupleTest implements Serializable {
 
   @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create()
-                                                             .enableAbandonedNodeEnforcement(false);
+  public final transient TestPipeline pipeline =
+      TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void testOfThenHas() {
 
-    PCollection<Integer> pCollection = PCollection.createPrimitiveOutputInternal(
-        pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
+    PCollection<Integer> pCollection =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
     TupleTag<Integer> tag = new TupleTag<>();
 
     assertTrue(PCollectionTuple.of(tag, pCollection).has(tag));
@@ -84,16 +84,18 @@ public final class PCollectionTupleTest implements Serializable {
     TupleTag<Integer> emptyOutputTag = new TupleTag<Integer>("empty") {};
     final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("extra") {};
 
-    PCollection<Integer> mainInput = pipeline
-        .apply(Create.of(inputs));
+    PCollection<Integer> mainInput = pipeline.apply(Create.of(inputs));
 
-    PCollectionTuple outputs = mainInput.apply(ParDo
-        .of(new DoFn<Integer, Integer>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            c.output(additionalOutputTag, c.element());
-          }})
-        .withOutputTags(emptyOutputTag, TupleTagList.of(additionalOutputTag)));
+    PCollectionTuple outputs =
+        mainInput.apply(
+            ParDo.of(
+                    new DoFn<Integer, Integer>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(additionalOutputTag, c.element());
+                      }
+                    })
+                .withOutputTags(emptyOutputTag, TupleTagList.of(additionalOutputTag)));
     assertNotNull("outputs.getPipeline()", outputs.getPipeline());
     outputs = outputs.and(mainOutputTag, mainInput);
 
@@ -116,7 +118,8 @@ public final class PCollectionTupleTest implements Serializable {
     // Empty tuples in the same pipeline are equal
     tester.addEqualityGroup(PCollectionTuple.empty(p), PCollectionTuple.empty(p));
 
-    tester.addEqualityGroup(PCollectionTuple.of(longTag, longs).and(strTag, strs),
+    tester.addEqualityGroup(
+        PCollectionTuple.of(longTag, longs).and(strTag, strs),
         PCollectionTuple.of(longTag, longs).and(strTag, strs));
 
     tester.addEqualityGroup(PCollectionTuple.of(longTag, longs));
@@ -137,12 +140,15 @@ public final class PCollectionTupleTest implements Serializable {
     Pipeline p = TestPipeline.create();
     PCollection<Long> longs = p.apply(GenerateSequence.from(0).to(100));
     PCollection<String> strs = p.apply(Create.of("foo", "bar", "baz"));
-    PCollection<Integer> ints = longs.apply(MapElements.via(new SimpleFunction<Long, Integer>() {
-      @Override
-      public Integer apply(Long input) {
-        return input.intValue();
-      }
-    }));
+    PCollection<Integer> ints =
+        longs.apply(
+            MapElements.via(
+                new SimpleFunction<Long, Integer>() {
+                  @Override
+                  public Integer apply(Long input) {
+                    return input.intValue();
+                  }
+                }));
 
     Map<TupleTag<?>, PCollection<?>> pcsByTag =
         ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
@@ -158,7 +164,7 @@ public final class PCollectionTupleTest implements Serializable {
       TupleTag<?> tag = taggedValue.getKey();
       PValue value = taggedValue.getValue();
       assertThat("The tag should map back to the value", tuple.get(tag), equalTo(value));
-      assertThat(value, Matchers.equalTo(pcsByTag.get(tag)));
+      assertThat(value, equalTo(pcsByTag.get(tag)));
       reconstructed = reconstructed.and(tag, (PCollection) value);
     }
 

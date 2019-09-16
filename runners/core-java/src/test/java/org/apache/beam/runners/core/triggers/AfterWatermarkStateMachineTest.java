@@ -43,9 +43,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests the {@link AfterWatermarkStateMachine} triggers.
- */
+/** Tests the {@link AfterWatermarkStateMachine} triggers. */
 @RunWith(JUnit4.class)
 public class AfterWatermarkStateMachineTest {
 
@@ -53,9 +51,11 @@ public class AfterWatermarkStateMachineTest {
   @Mock private TriggerStateMachine mockLate;
 
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
+
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
     return Mockito.any();
   }
+
   private static TriggerStateMachine.OnElementContext anyElementContext() {
     return Mockito.any();
   }
@@ -89,10 +89,10 @@ public class AfterWatermarkStateMachineTest {
 
   @Test
   public void testEarlyAndAtWatermark() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterWatermarkStateMachine.pastEndOfWindow()
-            .withEarlyFirings(mockEarly),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterWatermarkStateMachine.pastEndOfWindow().withEarlyFirings(mockEarly),
+            FixedWindows.of(Duration.millis(100)));
 
     injectElements(1);
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
@@ -109,9 +109,9 @@ public class AfterWatermarkStateMachineTest {
 
   @Test
   public void testTimerForEndOfWindow() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterWatermarkStateMachine.pastEndOfWindow(),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterWatermarkStateMachine.pastEndOfWindow(), FixedWindows.of(Duration.millis(100)));
 
     assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), nullValue());
     injectElements(1);
@@ -134,10 +134,10 @@ public class AfterWatermarkStateMachineTest {
 
   @Test
   public void testAtWatermarkAndLate() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterWatermarkStateMachine.pastEndOfWindow()
-            .withLateFirings(mockLate),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterWatermarkStateMachine.pastEndOfWindow().withLateFirings(mockLate),
+            FixedWindows.of(Duration.millis(100)));
 
     injectElements(1);
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
@@ -160,11 +160,12 @@ public class AfterWatermarkStateMachineTest {
 
   @Test
   public void testEarlyAndAtWatermarkAndLate() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterWatermarkStateMachine.pastEndOfWindow()
-            .withEarlyFirings(mockEarly)
-            .withLateFirings(mockLate),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterWatermarkStateMachine.pastEndOfWindow()
+                .withEarlyFirings(mockEarly)
+                .withLateFirings(mockLate),
+            FixedWindows.of(Duration.millis(100)));
 
     injectElements(1);
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
@@ -182,20 +183,21 @@ public class AfterWatermarkStateMachineTest {
   }
 
   /**
-   * Tests that if the EOW is finished in both as well as the merged window, then
-   * it is finished in the merged result.
+   * Tests that if the EOW is finished in both as well as the merged window, then it is finished in
+   * the merged result.
    *
-   * <p>Because windows are discarded when a trigger finishes, we need to embed this
-   * in a sequence in order to check that it is re-activated. So this test is potentially
-   * sensitive to other triggers' correctness.
+   * <p>Because windows are discarded when a trigger finishes, we need to embed this in a sequence
+   * in order to check that it is re-activated. So this test is potentially sensitive to other
+   * triggers' correctness.
    */
   @Test
   public void testOnMergeAlreadyFinished() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterEachStateMachine.inOrder(
-            AfterWatermarkStateMachine.pastEndOfWindow(),
-            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(1))),
-        Sessions.withGapDuration(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterEachStateMachine.inOrder(
+                AfterWatermarkStateMachine.pastEndOfWindow(),
+                RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(1))),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
     tester.injectElements(5);
@@ -232,17 +234,18 @@ public class AfterWatermarkStateMachineTest {
   /**
    * Tests that the trigger rewinds to be non-finished in the merged window.
    *
-   * <p>Because windows are discarded when a trigger finishes, we need to embed this
-   * in a sequence in order to check that it is re-activated. So this test is potentially
-   * sensitive to other triggers' correctness.
+   * <p>Because windows are discarded when a trigger finishes, we need to embed this in a sequence
+   * in order to check that it is re-activated. So this test is potentially sensitive to other
+   * triggers' correctness.
    */
   @Test
   public void testOnMergeRewinds() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterEachStateMachine.inOrder(
-            AfterWatermarkStateMachine.pastEndOfWindow(),
-            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(1))),
-        Sessions.withGapDuration(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterEachStateMachine.inOrder(
+                AfterWatermarkStateMachine.pastEndOfWindow(),
+                RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(1))),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
     tester.injectElements(5);
@@ -276,20 +279,21 @@ public class AfterWatermarkStateMachineTest {
   }
 
   /**
-   * Tests that if the EOW is finished in both as well as the merged window, then
-   * it is finished in the merged result.
+   * Tests that if the EOW is finished in both as well as the merged window, then it is finished in
+   * the merged result.
    *
-   * <p>Because windows are discarded when a trigger finishes, we need to embed this
-   * in a sequence in order to check that it is re-activated. So this test is potentially
-   * sensitive to other triggers' correctness.
+   * <p>Because windows are discarded when a trigger finishes, we need to embed this in a sequence
+   * in order to check that it is re-activated. So this test is potentially sensitive to other
+   * triggers' correctness.
    */
   @Test
   public void testEarlyAndLateOnMergeAlreadyFinished() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterWatermarkStateMachine.pastEndOfWindow()
-            .withEarlyFirings(AfterPaneStateMachine.elementCountAtLeast(100))
-            .withLateFirings(AfterPaneStateMachine.elementCountAtLeast(1)),
-        Sessions.withGapDuration(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterWatermarkStateMachine.pastEndOfWindow()
+                .withEarlyFirings(AfterPaneStateMachine.elementCountAtLeast(100))
+                .withLateFirings(AfterPaneStateMachine.elementCountAtLeast(1)),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
     tester.injectElements(5);
@@ -343,17 +347,18 @@ public class AfterWatermarkStateMachineTest {
   /**
    * Tests that the trigger rewinds to be non-finished in the merged window.
    *
-   * <p>Because windows are discarded when a trigger finishes, we need to embed this
-   * in a sequence in order to check that it is re-activated. So this test is potentially
-   * sensitive to other triggers' correctness.
+   * <p>Because windows are discarded when a trigger finishes, we need to embed this in a sequence
+   * in order to check that it is re-activated. So this test is potentially sensitive to other
+   * triggers' correctness.
    */
   @Test
   public void testEarlyAndLateOnMergeRewinds() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterWatermarkStateMachine.pastEndOfWindow()
-            .withEarlyFirings(AfterPaneStateMachine.elementCountAtLeast(100))
-            .withLateFirings(AfterPaneStateMachine.elementCountAtLeast(1)),
-        Sessions.withGapDuration(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterWatermarkStateMachine.pastEndOfWindow()
+                .withEarlyFirings(AfterPaneStateMachine.elementCountAtLeast(100))
+                .withLateFirings(AfterPaneStateMachine.elementCountAtLeast(1)),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
     tester.injectElements(5);
@@ -394,35 +399,40 @@ public class AfterWatermarkStateMachineTest {
 
   @Test
   public void testEarlyFiringsToString() {
-    TriggerStateMachine trigger = AfterWatermarkStateMachine.pastEndOfWindow()
-        .withEarlyFirings(StubTriggerStateMachine.named("t1"));
+    TriggerStateMachine trigger =
+        AfterWatermarkStateMachine.pastEndOfWindow()
+            .withEarlyFirings(StubTriggerStateMachine.named("t1"));
 
     assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1)", trigger.toString());
   }
 
   @Test
   public void testLateFiringsToString() {
-    TriggerStateMachine trigger = AfterWatermarkStateMachine.pastEndOfWindow()
-        .withLateFirings(StubTriggerStateMachine.named("t1"));
+    TriggerStateMachine trigger =
+        AfterWatermarkStateMachine.pastEndOfWindow()
+            .withLateFirings(StubTriggerStateMachine.named("t1"));
 
     assertEquals("AfterWatermark.pastEndOfWindow().withLateFirings(t1)", trigger.toString());
   }
 
   @Test
   public void testEarlyAndLateFiringsToString() {
-    TriggerStateMachine trigger = AfterWatermarkStateMachine.pastEndOfWindow()
-        .withEarlyFirings(StubTriggerStateMachine.named("t1"))
-        .withLateFirings(StubTriggerStateMachine.named("t2"));
+    TriggerStateMachine trigger =
+        AfterWatermarkStateMachine.pastEndOfWindow()
+            .withEarlyFirings(StubTriggerStateMachine.named("t1"))
+            .withLateFirings(StubTriggerStateMachine.named("t2"));
 
-    assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1).withLateFirings(t2)",
+    assertEquals(
+        "AfterWatermark.pastEndOfWindow().withEarlyFirings(t1).withLateFirings(t2)",
         trigger.toString());
   }
 
   @Test
   public void testToStringExcludesNeverTrigger() {
-    TriggerStateMachine trigger = AfterWatermarkStateMachine.pastEndOfWindow()
-        .withEarlyFirings(NeverStateMachine.ever())
-        .withLateFirings(NeverStateMachine.ever());
+    TriggerStateMachine trigger =
+        AfterWatermarkStateMachine.pastEndOfWindow()
+            .withEarlyFirings(NeverStateMachine.ever())
+            .withLateFirings(NeverStateMachine.ever());
 
     assertEquals("AfterWatermark.pastEndOfWindow()", trigger.toString());
   }

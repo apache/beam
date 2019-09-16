@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -29,11 +28,10 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
-/**
- * An immutable {@link TransformResult}.
- */
+/** An immutable {@link TransformResult}. */
 @AutoValue
 abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
@@ -42,8 +40,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
     return new Builder(transform, watermarkHold);
   }
 
-  public static <InputT> Builder<InputT> withoutHold(
-      AppliedPTransform<?, ?, ?> transform) {
+  public static <InputT> Builder<InputT> withoutHold(AppliedPTransform<?, ?, ?> transform) {
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
@@ -60,9 +57,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
         getOutputTypes());
   }
 
-  /**
-   * A builder for creating instances of {@link StepTransformResult}.
-   */
+  /** A builder for creating instances of {@link StepTransformResult}. */
   public static class Builder<InputT> {
     private final AppliedPTransform<?, ?, ?> transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
@@ -128,8 +123,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
       return this;
     }
 
-    public Builder<InputT> addOutput(
-        Collection<UncommittedBundle<?>> outputBundles) {
+    public Builder<InputT> addOutput(Collection<UncommittedBundle<?>> outputBundles) {
       bundlesBuilder.addAll(outputBundles);
       return this;
     }

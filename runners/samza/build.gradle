@@ -1,0 +1,94 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
+
+description = "Apache Beam :: Runners :: Samza"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ */
+evaluationDependsOn(":sdks:java:core")
+
+configurations {
+  validatesRunner
+}
+
+def samza_version = "1.1.0"
+
+dependencies {
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-java")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:java-fn-execution")
+  compile library.java.jackson_annotations
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.commons_compress
+  compile library.java.commons_io_2x
+  compile library.java.args4j
+  compile "org.apache.samza:samza-api:$samza_version"
+  compile "org.apache.samza:samza-core_2.11:$samza_version"
+  compile "org.apache.samza:samza-kafka_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
+  compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
+  compile "org.apache.samza:samza-yarn_2.11:$samza_version"
+  compile "org.apache.kafka:kafka-clients:0.11.0.2"
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile library.java.commons_lang3
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.jackson_dataformat_yaml
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(project.path)
+}
+
+task validatesRunner(type: Test) {
+  group = "Verification"
+  description "Validates Samza runner"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestSamzaRunner",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+  }
+}
+
+// Generates :runners:samza:runQuickstartJavaSamza
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner:'Samza')

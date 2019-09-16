@@ -21,11 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Equivalence;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -70,6 +65,11 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -79,8 +79,8 @@ import org.joda.time.Instant;
  * run {@code Trigger}s and {@code ReduceFn}s.
  *
  * @param <InputT> The element types.
- * @param <OutputT> The final type for elements in the window (for instance,
- *     {@code Iterable<InputT>})
+ * @param <OutputT> The final type for elements in the window (for instance, {@code
+ *     Iterable<InputT>})
  * @param <W> The type of windows being used.
  */
 public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
@@ -100,19 +100,20 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final PipelineOptions options;
 
   /**
-   * If true, the output watermark is automatically advanced to the latest possible
-   * point when the input watermark is advanced. This is the default for most tests.
-   * If false, the output watermark must be explicitly advanced by the test, which can
-   * be used to exercise some of the more subtle behavior of WatermarkHold.
+   * If true, the output watermark is automatically advanced to the latest possible point when the
+   * input watermark is advanced. This is the default for most tests. If false, the output watermark
+   * must be explicitly advanced by the test, which can be used to exercise some of the more subtle
+   * behavior of WatermarkHold.
    */
   private boolean autoAdvanceOutputWatermark = true;
 
   /**
-   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy}, creating
-   * a {@link TriggerStateMachine} from its {@link Trigger}.
+   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy}, creating a {@link
+   * TriggerStateMachine} from its {@link Trigger}.
    */
-  public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
-      nonCombining(WindowingStrategy<?, W> windowingStrategy) throws Exception {
+  public static <W extends BoundedWindow>
+      ReduceFnTester<Integer, Iterable<Integer>, W> nonCombining(
+          WindowingStrategy<?, W> windowingStrategy) throws Exception {
     return new ReduceFnTester<>(
         windowingStrategy,
         TriggerStateMachines.stateMachineForTrigger(
@@ -161,9 +162,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy} and
-   * {@link CombineFn}, creating a {@link TriggerStateMachine} from the
-   * {@link Trigger} in the {@link WindowingStrategy}.
+   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy} and {@link CombineFn},
+   * creating a {@link TriggerStateMachine} from the {@link Trigger} in the {@link
+   * WindowingStrategy}.
    */
   public static <W extends BoundedWindow, AccumT, OutputT>
       ReduceFnTester<Integer, OutputT, W> combining(
@@ -173,9 +174,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           throws Exception {
 
     CoderRegistry registry = CoderRegistry.createDefault();
-    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.withInputCoder(
-            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+    // Ensure that the CombineFn can be converted into an AppliedCombineFn
+    AppliedCombineFn.withInputCoder(
+        combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
         strategy,
@@ -186,18 +187,17 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy},
-   * {@link CombineFn}, and {@link TriggerStateMachine}, for mocking the interaction
-   * between {@link ReduceFnRunner} and the {@link TriggerStateMachine}.
-   * Ignores the {@link Trigger} in the {@link WindowingStrategy}.
+   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy}, {@link CombineFn},
+   * and {@link TriggerStateMachine}, for mocking the interaction between {@link ReduceFnRunner} and
+   * the {@link TriggerStateMachine}. Ignores the {@link Trigger} in the {@link WindowingStrategy}.
    */
   public static <W extends BoundedWindow, AccumT, OutputT>
-  ReduceFnTester<Integer, OutputT, W> combining(
-      WindowingStrategy<?, W> strategy,
-      TriggerStateMachine triggerStateMachine,
-      CombineFn<Integer, AccumT, OutputT> combineFn,
-      Coder<OutputT> outputCoder)
-      throws Exception {
+      ReduceFnTester<Integer, OutputT, W> combining(
+          WindowingStrategy<?, W> strategy,
+          TriggerStateMachine triggerStateMachine,
+          CombineFn<Integer, AccumT, OutputT> combineFn,
+          Coder<OutputT> outputCoder)
+          throws Exception {
 
     CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
@@ -222,9 +222,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           SideInputReader sideInputReader)
           throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.withInputCoder(
-            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+    // Ensure that the CombineFn can be converted into an AppliedCombineFn
+    AppliedCombineFn.withInputCoder(
+        combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
         strategy,
@@ -237,14 +237,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public static <W extends BoundedWindow, AccumT, OutputT>
-  ReduceFnTester<Integer, OutputT, W> combining(
-      WindowingStrategy<?, W> strategy,
-      TriggerStateMachine triggerStateMachine,
-      CombineFnWithContext<Integer, AccumT, OutputT> combineFn,
-      Coder<OutputT> outputCoder,
-      PipelineOptions options,
-      SideInputReader sideInputReader)
-      throws Exception {
+      ReduceFnTester<Integer, OutputT, W> combining(
+          WindowingStrategy<?, W> strategy,
+          TriggerStateMachine triggerStateMachine,
+          CombineFnWithContext<Integer, AccumT, OutputT> combineFn,
+          Coder<OutputT> outputCoder,
+          PipelineOptions options,
+          SideInputReader sideInputReader)
+          throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.withInputCoder(
@@ -358,8 +358,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Verifies that the the set of windows that have any state stored is exactly
-   * {@code expectedWindows} and that each of these windows has only tags from {@code allowedTags}.
+   * Verifies that the the set of windows that have any state stored is exactly {@code
+   * expectedWindows} and that each of these windows has only tags from {@code allowedTags}.
    */
   private void assertHasOnlyGlobalAndAllowedTags(
       Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
@@ -405,8 +405,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       }
     }
 
-    assertEquals("Still in use: " + actualWindows.toString(), expectedWindowsSet,
-        actualWindows.keySet());
+    assertEquals(
+        "Still in use: " + actualWindows.toString(), expectedWindowsSet, actualWindows.keySet());
   }
 
   private StateNamespace windowNamespace(W window) {
@@ -421,9 +421,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return timerInternals.currentOutputWatermarkTime();
   }
 
-  /**
-   * How many panes do we have in the output?
-   */
+  /** How many panes do we have in the output? */
   public int getOutputSize() {
     return testOutputter.outputs.size();
   }
@@ -445,8 +443,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Advance the input watermark to the specified time, firing any timers that should
-   * fire. Then advance the output watermark as far as possible.
+   * Advance the input watermark to the specified time, firing any timers that should fire. Then
+   * advance the output watermark as far as possible.
    */
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
     timerInternals.advanceInputWatermark(newInputWatermark);
@@ -480,8 +478,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * If {@link #autoAdvanceOutputWatermark} is {@literal false}, advance the output watermark
-   * to the given value. Otherwise throw.
+   * If {@link #autoAdvanceOutputWatermark} is {@literal false}, advance the output watermark to the
+   * given value. Otherwise throw.
    */
   public void advanceOutputWatermark(Instant newOutputWatermark) throws Exception {
     timerInternals.advanceOutputWatermark(newOutputWatermark);
@@ -506,11 +504,11 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Advance the synchronized processing time to the specified time,
-   * firing any timers that should fire.
+   * Advance the synchronized processing time to the specified time, firing any timers that should
+   * fire.
    */
-  public void advanceSynchronizedProcessingTime(
-      Instant newSynchronizedProcessingTime) throws Exception {
+  public void advanceSynchronizedProcessingTime(Instant newSynchronizedProcessingTime)
+      throws Exception {
     timerInternals.advanceSynchronizedProcessingTime(newSynchronizedProcessingTime);
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     while (true) {
@@ -533,13 +531,16 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   @SafeVarargs
   public final void injectElements(TimestampedValue<InputT>... values) throws Exception {
+    injectElements(Arrays.asList(values));
+  }
+
+  public final void injectElements(List<TimestampedValue<InputT>> values) throws Exception {
     for (TimestampedValue<InputT> value : values) {
       WindowTracing.trace("TriggerTester.injectElements: {}", value);
     }
 
     Iterable<WindowedValue<InputT>> inputs =
-        Arrays.asList(values)
-            .stream()
+        values.stream()
             .map(
                 input -> {
                   try {
@@ -591,7 +592,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   /**
    * Convey the simulated state and implement {@link #outputWindowedValue} to capture all output
    * elements.
-   */private class TestOutputWindowedValue implements OutputWindowedValue<KV<String, OutputT>> {
+   */
+  private class TestOutputWindowedValue implements OutputWindowedValue<KV<String, OutputT>> {
     private List<WindowedValue<KV<String, OutputT>>> outputs = new ArrayList<>();
 
     @Override

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,16 +24,18 @@ import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 
 /**
  * A {@link Coder} for {@code byte[]}.
  *
  * <p>The encoding format is as follows:
+ *
  * <ul>
- * <li>If in a non-nested context (the {@code byte[]} is the only value in the stream), the
- * bytes are read/written directly.</li>
- * <li>If in a nested context, the bytes are prefixed with the length of the array,
- * encoded via a {@link VarIntCoder}.</li>
+ *   <li>If in a non-nested context (the {@code byte[]} is the only value in the stream), the bytes
+ *       are read/written directly.
+ *   <li>If in a nested context, the bytes are prefixed with the length of the array, encoded via a
+ *       {@link VarIntCoder}.
  * </ul>
  */
 public class ByteArrayCoder extends AtomicCoder<byte[]> {
@@ -51,8 +52,7 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   private ByteArrayCoder() {}
 
   @Override
-  public void encode(byte[] value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(byte[] value, OutputStream outStream) throws IOException, CoderException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -96,10 +96,9 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   }
 
   @Override
-  public byte[] decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+  public byte[] decode(InputStream inStream, Context context) throws IOException, CoderException {
     if (context.isWholeStream) {
-      return StreamUtils.getBytes(inStream);
+      return StreamUtils.getBytesWithoutClosing(inStream);
     } else {
       int length = VarInt.decodeInt(inStream);
       if (length < 0) {
@@ -127,8 +126,8 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true} since {@link #getEncodedElementByteSize} runs in
-   * constant time using the {@code length} of the provided array.
+   * @return {@code true} since {@link #getEncodedElementByteSize} runs in constant time using the
+   *     {@code length} of the provided array.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(byte[] value) {
@@ -141,11 +140,10 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(byte[] value)
-      throws Exception {
+  protected long getEncodedElementByteSize(byte[] value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");
     }
-    return VarInt.getLength(value.length) + value.length;
+    return (long) VarInt.getLength(value.length) + value.length;
   }
 }

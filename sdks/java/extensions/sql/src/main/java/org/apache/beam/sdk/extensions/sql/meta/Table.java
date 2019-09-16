@@ -15,55 +15,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.net.URI;
-import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * Represents the metadata of a {@code BeamSqlTable}.
- */
+/** Represents the metadata of a {@code BeamSqlTable}. */
 @AutoValue
 public abstract class Table implements Serializable {
   /** type of the table. */
   public abstract String getType();
+
   public abstract String getName();
-  public abstract List<Column> getColumns();
+
+  public abstract Schema getSchema();
+
   @Nullable
   public abstract String getComment();
+
   @Nullable
-  public abstract URI getLocation();
-  @Nullable
+  public abstract String getLocation();
+
   public abstract JSONObject getProperties();
 
+  public abstract Builder toBuilder();
+
   public static Builder builder() {
-    return new org.apache.beam.sdk.extensions.sql.meta.AutoValue_Table.Builder();
+    return new AutoValue_Table.Builder().properties(new JSONObject());
   }
 
-  public String getLocationAsString() {
-    if (getLocation() == null) {
-      return null;
-    }
-
-    return "/" + getLocation().getHost() + getLocation().getPath();
-  }
-
-  /**
-   * Builder class for {@link Table}.
-   */
+  /** Builder class for {@link Table}. */
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder type(String type);
+
     public abstract Builder name(String name);
-    public abstract Builder columns(List<Column> columns);
+
+    public abstract Builder schema(Schema getSchema);
+
     public abstract Builder comment(String name);
-    public abstract Builder location(URI location);
+
+    public abstract Builder location(String location);
+
     public abstract Builder properties(JSONObject properties);
+
     public abstract Table build();
   }
 }

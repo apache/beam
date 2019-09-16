@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -33,6 +30,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 
 /**
  * Vends Java SDK objects rehydrated from a Runner API {@link Components} collection.
@@ -44,11 +44,10 @@ public class RehydratedComponents {
   private final Components components;
 
   /**
-   * This class may be used in the context of a pipeline or not. If not, then it cannot
-   * rehydrated {@link PCollection PCollections}.
+   * This class may be used in the context of a pipeline or not. If not, then it cannot rehydrated
+   * {@link PCollection PCollections}.
    */
-  @Nullable
-  private final Pipeline pipeline;
+  @Nullable private final Pipeline pipeline;
 
   /**
    * A non-evicting cache, serving as a memo table for rehydrated {@link WindowingStrategy
@@ -102,11 +101,12 @@ public class RehydratedComponents {
                       PCollection.class.getSimpleName(),
                       Pipeline.class.getSimpleName());
                   return PCollectionTranslation.fromProto(
-                      components.getPcollectionsOrThrow(id), pipeline, RehydratedComponents.this)
+                          components.getPcollectionsOrThrow(id),
+                          pipeline,
+                          RehydratedComponents.this)
                       .setName(id);
                 }
               });
-
 
   /** Create a new {@link RehydratedComponents} from a Runner API {@link Components}. */
   public static RehydratedComponents forComponents(RunnerApi.Components components) {
@@ -166,10 +166,22 @@ public class RehydratedComponents {
     }
   }
 
-  /**
-   * Returns the {@link Environment} associated with the given ID.
-   */
+  /** Returns the {@link Environment} associated with the given ID. */
   public Environment getEnvironment(String environmentId) {
     return components.getEnvironmentsOrThrow(environmentId);
+  }
+
+  public Components getComponents() {
+    return components;
+  }
+
+  public SdkComponents getSdkComponents() {
+    return SdkComponents.create(
+        components,
+        Collections.emptyMap(),
+        pCollections.asMap(),
+        windowingStrategies.asMap(),
+        coders.asMap(),
+        Collections.emptyMap());
   }
 }

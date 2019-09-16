@@ -20,11 +20,17 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import errno
 import logging
 import sys
 import time
+from builtins import object
 from socket import error as SocketError
+
+from future.builtins import next
+from past.builtins import unicode
 
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
@@ -88,7 +94,7 @@ def compare_path(p1, p2):
   3. If no `id` is defined for both paths, then their `names` are compared.
   """
 
-  result = cmp(p1.kind, p2.kind)
+  result = (p1.kind > p2.kind) - (p1.kind < p2.kind)
   if result != 0:
     return result
 
@@ -96,12 +102,12 @@ def compare_path(p1, p2):
     if not p2.HasField('id'):
       return -1
 
-    return cmp(p1.id, p2.id)
+    return (p1.id > p2.id) - (p1.id < p2.id)
 
   if p2.HasField('id'):
     return 1
 
-  return cmp(p1.name, p2.name)
+  return (p1.name > p2.name) - (p1.name < p2.name)
 
 
 def get_datastore(project):
@@ -134,14 +140,19 @@ def retry_on_rpc_error(exception):
   if isinstance(exception, RPCError):
     err_code = exception.code
     # TODO(BEAM-2156): put these codes in a global list and use that instead.
-    return (err_code == code_pb2.DEADLINE_EXCEEDED or
-            err_code == code_pb2.UNAVAILABLE or
-            err_code == code_pb2.UNKNOWN or
-            err_code == code_pb2.INTERNAL)
+    # https://cloud.google.com/datastore/docs/concepts/errors#error_codes
+    return err_code in [
+        code_pb2.ABORTED,
+        code_pb2.DEADLINE_EXCEEDED,
+        code_pb2.INTERNAL,
+        code_pb2.UNAVAILABLE,
+        code_pb2.UNKNOWN,
+    ]
 
   if isinstance(exception, SocketError):
     return (exception.errno == errno.ECONNRESET or
-            exception.errno == errno.ETIMEDOUT)
+            exception.errno == errno.ETIMEDOUT or
+            exception.errno == errno.EPIPE)
 
   return False
 
@@ -252,7 +263,8 @@ def make_kind_stats_query(namespace, kind, latest_timestamp):
     kind_stat_query.kind.add().name = '__Stat_Ns_Kind__'
 
   kind_filter = datastore_helper.set_property_filter(
-      query_pb2.Filter(), 'kind_name', PropertyFilter.EQUAL, unicode(kind))
+      query_pb2.Filter(), 'kind_name', PropertyFilter.EQUAL,
+      unicode(kind))
   timestamp_filter = datastore_helper.set_property_filter(
       query_pb2.Filter(), 'timestamp', PropertyFilter.EQUAL,
       latest_timestamp)

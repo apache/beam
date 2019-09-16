@@ -34,19 +34,15 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link ByteArrayCoder}.
- */
+/** Unit tests for {@link ByteArrayCoder}. */
 @RunWith(JUnit4.class)
 public class ByteArrayCoderTest {
 
   private static final ByteArrayCoder TEST_CODER = ByteArrayCoder.of();
 
-  private static final List<byte[]> TEST_VALUES = Arrays.asList(
-    new byte[]{0xa, 0xb, 0xc},
-    new byte[]{0xd, 0x3},
-    new byte[]{0xd, 0xe},
-    new byte[]{});
+  private static final List<byte[]> TEST_VALUES =
+      Arrays.asList(
+          new byte[] {0xa, 0xb, 0xc}, new byte[] {0xd, 0x3}, new byte[] {0xd, 0xe}, new byte[] {});
 
   @Test
   public void testDecodeEncodeEquals() throws Exception {
@@ -57,11 +53,13 @@ public class ByteArrayCoderTest {
 
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
-    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }});
+    CoderProperties.testByteCount(
+        ByteArrayCoder.of(), Coder.Context.OUTER, new byte[][] {{0xa, 0xb, 0xc}});
 
-    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
+    CoderProperties.testByteCount(
+        ByteArrayCoder.of(),
+        Coder.Context.NESTED,
+        new byte[][] {{0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {}});
   }
 
   @Test
@@ -77,7 +75,7 @@ public class ByteArrayCoderTest {
 
   @Test
   public void testEncodeThenMutate() throws Exception {
-    byte[] input = { 0x7, 0x3, 0xA, 0xf };
+    byte[] input = {0x7, 0x3, 0xA, 0xf};
     byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, input);
     input[1] = 0x9;
     byte[] decoded = CoderUtils.decodeFromByteArray(TEST_CODER, encoded);
@@ -108,22 +106,17 @@ public class ByteArrayCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "CgsM",
-      "DQM",
-      "DQ4",
-      "");
+  private static final List<String> TEST_ENCODINGS = Arrays.asList("CgsM", "DQM", "DQ4", "");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

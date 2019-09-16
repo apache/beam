@@ -24,11 +24,10 @@ import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
-
 
 /**
  * A {@link KryoSerializable} holder that uses the specified {@link Coder}.
+ *
  * @param <T> element type
  */
 public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
@@ -42,8 +41,7 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
   }
 
   @SuppressWarnings("unused") // for Kryo
-  private ValueAndCoderKryoSerializable() {
-  }
+  private ValueAndCoderKryoSerializable() {}
 
   public T get() {
     return value;
@@ -54,7 +52,7 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
     try {
       kryo.writeClass(output, coder.getClass());
       kryo.writeObject(output, coder, JAVA_SERIALIZER);
-      coder.encode(value, output, Context.OUTER);
+      coder.encode(value, output);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -66,10 +64,9 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
       @SuppressWarnings("unchecked")
       Class<Coder<T>> type = kryo.readClass(input).getType();
       coder = kryo.readObject(input, type, JAVA_SERIALIZER);
-      value = coder.decode(input, Context.OUTER);
+      value = coder.decode(input);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
-
 }

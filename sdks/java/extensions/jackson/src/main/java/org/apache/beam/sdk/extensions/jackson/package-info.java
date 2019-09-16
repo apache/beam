@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Utilities for parsing and creating JSON serialized objects.
- */
+/** Utilities for parsing and creating JSON serialized objects. */
 package org.apache.beam.sdk.extensions.jackson;

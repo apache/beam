@@ -17,18 +17,25 @@
 
 """Unit tests for SDF implementation for DirectRunner."""
 
+from __future__ import absolute_import
+from __future__ import division
+
 import logging
 import os
 import unittest
+from builtins import range
 
 import apache_beam as beam
+from apache_beam import Create
 from apache_beam import DoFn
 from apache_beam.io import filebasedsource_test
+from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.pvalue import AsList
+from apache_beam.pvalue import AsSingleton
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.window import SlidingWindows
@@ -39,10 +46,10 @@ class ReadFilesProvider(RestrictionProvider):
 
   def initial_restriction(self, element):
     size = os.path.getsize(element)
-    return (0, size)
+    return OffsetRange(0, size)
 
   def create_tracker(self, restriction):
-    return OffsetRestrictionTracker(*restriction)
+    return OffsetRestrictionTracker(restriction)
 
 
 class ReadFiles(DoFn):
@@ -51,7 +58,10 @@ class ReadFiles(DoFn):
     self._resume_count = resume_count
 
   def process(
-      self, element, restriction_tracker=ReadFilesProvider(), *args, **kwargs):
+      self,
+      element,
+      restriction_tracker=DoFn.RestrictionParam(ReadFilesProvider()),
+      *args, **kwargs):
     file_name = element
     assert isinstance(restriction_tracker, OffsetRestrictionTracker)
 
@@ -76,7 +86,7 @@ class ReadFiles(DoFn):
         output_count += 1
 
         if self._resume_count and output_count == self._resume_count:
-          yield ProcessContinuation()
+          restriction_tracker.defer_remainder()
           break
 
         pos += len_line
@@ -85,11 +95,12 @@ class ReadFiles(DoFn):
 class ExpandStringsProvider(RestrictionProvider):
 
   def initial_restriction(self, element):
-    return (0, len(element[0]))
+    return OffsetRange(0, len(element[0]))
 
   def create_tracker(self, restriction):
-    return OffsetRestrictionTracker(restriction[0], restriction[1])
+    return OffsetRestrictionTracker(restriction)
 
+  # No initial split performed.
   def split(self, element, restriction):
     return [restriction,]
 
@@ -100,10 +111,13 @@ class ExpandStrings(DoFn):
     self._record_window = record_window
 
   def process(
-      self, element, window=beam.DoFn.WindowParam,
-      restriction_tracker=ExpandStringsProvider(), side=None,
+      self, element, side1, side2, side3, window=beam.DoFn.WindowParam,
+      restriction_tracker=DoFn.RestrictionParam(ExpandStringsProvider()),
       *args, **kwargs):
-    side = side or []
+    side = []
+    side.extend(side1)
+    side.extend(side2)
+    side.extend(side3)
     assert isinstance(restriction_tracker, OffsetRestrictionTracker)
     side = list(side)
     for i in range(restriction_tracker.start_position(),
@@ -186,7 +200,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
         int(self._default_max_num_outputs * 3))
 
   def test_sdf_with_resume_single_element(self):
-    resume_count = self._default_max_num_outputs / 10
+    resume_count = self._default_max_num_outputs // 10
     # Makes sure that resume_count is not trivial.
     assert resume_count > 0
 
@@ -196,7 +210,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
         resume_count)
 
   def test_sdf_with_resume_multiple_elements(self):
-    resume_count = self._default_max_num_outputs / 10
+    resume_count = self._default_max_num_outputs // 10
     assert resume_count > 0
 
     self.run_sdf_read_pipeline(
@@ -212,7 +226,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
                                           TimestampedValue(('B', t), t)])
                 | beam.WindowInto(SlidingWindows(10, 5),
                                   accumulation_mode=AccumulationMode.DISCARDING)
-                | beam.ParDo(ExpandStrings(record_window=True)))
+                | beam.ParDo(ExpandStrings(record_window=True), [], [], []))
 
       expected_result = [
           'A:1:-5', 'A:1:0', 'A:3:-5', 'A:3:0', 'A:5:0', 'A:5:5', 'A:10:5',
@@ -222,11 +236,18 @@ class SDFDirectRunnerTest(unittest.TestCase):
 
   def test_sdf_with_side_inputs(self):
     with TestPipeline() as p:
+      side1 = p | 'Create1' >> Create(['1', '2'])
+      side2 = p | 'Create2' >> Create(['3', '4'])
+      side3 = p | 'Create3' >> Create(['5'])
       result = (p
-                | 'create_main' >> beam.Create(['1', '3', '5'])
-                | beam.ParDo(ExpandStrings(), side=['1', '3']))
+                | 'create_main' >> beam.Create(['a', 'b', 'c'])
+                | beam.ParDo(ExpandStrings(), AsList(side1), AsList(side2),
+                             AsSingleton(side3)))
 
-      expected_result = ['1:1', '3:1', '5:1', '1:3', '3:3', '5:3']
+      expected_result = []
+      for c in ['a', 'b', 'c']:
+        for i in range(5):
+          expected_result.append(c + ':' + str(i+1))
       assert_that(result, equal_to(expected_result))
 
 

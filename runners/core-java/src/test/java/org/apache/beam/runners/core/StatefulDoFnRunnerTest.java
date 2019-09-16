@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.MoreObjects;
 import java.util.Collections;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -57,8 +58,7 @@ public class StatefulDoFnRunnerTest {
   private static final long ALLOWED_LATENESS = 1;
 
   private static final WindowingStrategy<?, ?> WINDOWING_STRATEGY =
-      WindowingStrategy
-          .of(FixedWindows.of(Duration.millis(WINDOW_SIZE)))
+      WindowingStrategy.of(FixedWindows.of(Duration.millis(WINDOW_SIZE)))
           .withAllowedLateness(Duration.millis(ALLOWED_LATENESS));
 
   private static final IntervalWindow WINDOW_1 =
@@ -67,8 +67,7 @@ public class StatefulDoFnRunnerTest {
   private static final IntervalWindow WINDOW_2 =
       new IntervalWindow(new Instant(10), new Instant(20));
 
-  @Mock
-  StepContext mockStepContext;
+  @Mock StepContext mockStepContext;
 
   private InMemoryStateInternals<String> stateInternals;
   private InMemoryTimerInternals timerInternals;
@@ -99,13 +98,14 @@ public class StatefulDoFnRunnerTest {
 
     DoFn<KV<String, Integer>, Integer> fn = new MyDoFn();
 
-    DoFnRunner<KV<String, Integer>, Integer> runner = DoFnRunners.defaultStatefulDoFnRunner(
-        fn,
-        getDoFnRunner(fn),
-        WINDOWING_STRATEGY,
-        new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
-        new StatefulDoFnRunner.StateInternalsStateCleaner<>(
-            fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
+    DoFnRunner<KV<String, Integer>, Integer> runner =
+        DoFnRunners.defaultStatefulDoFnRunner(
+            fn,
+            getDoFnRunner(fn),
+            WINDOWING_STRATEGY,
+            new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
+            new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+                fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
 
     runner.startBundle();
 
@@ -133,13 +133,14 @@ public class StatefulDoFnRunnerTest {
     MyDoFn fn = new MyDoFn();
     StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
 
-    DoFnRunner<KV<String, Integer>, Integer> runner = DoFnRunners.defaultStatefulDoFnRunner(
-        fn,
-        getDoFnRunner(fn),
-        WINDOWING_STRATEGY,
-        new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
-        new StatefulDoFnRunner.StateInternalsStateCleaner<>(
-            fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
+    DoFnRunner<KV<String, Integer>, Integer> runner =
+        DoFnRunners.defaultStatefulDoFnRunner(
+            fn,
+            getDoFnRunner(fn),
+            WINDOWING_STRATEGY,
+            new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
+            new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+                fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
 
     Instant elementTime = new Instant(1);
 
@@ -147,8 +148,7 @@ public class StatefulDoFnRunnerTest {
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_1, PaneInfo.NO_FIRING));
 
-    assertEquals(
-        1, (int) stateInternals.state(windowNamespace(WINDOW_1), stateTag).read());
+    assertEquals(1, (int) stateInternals.state(windowNamespace(WINDOW_1), stateTag).read());
 
     // second element, key is hello, WINDOW_2
     runner.processElement(
@@ -159,15 +159,15 @@ public class StatefulDoFnRunnerTest {
         WindowedValue.of(
             KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
 
-    assertEquals(
-        2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
+    assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
 
     // advance watermark past end of WINDOW_1 + allowed lateness
     // the cleanup timer is set to window.maxTimestamp() + allowed lateness + 1
     // to ensure that state is still available when a user timer for window.maxTimestamp() fires
     advanceInputWatermark(
         timerInternals,
-        WINDOW_1.maxTimestamp()
+        WINDOW_1
+            .maxTimestamp()
             .plus(ALLOWED_LATENESS)
             .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
             .plus(1), // so the watermark is past the GC horizon, not on it
@@ -177,13 +177,13 @@ public class StatefulDoFnRunnerTest {
         stateInternals.isEmptyForTesting(
             stateInternals.state(windowNamespace(WINDOW_1), stateTag)));
 
-    assertEquals(
-        2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
+    assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
 
     // advance watermark past end of WINDOW_2 + allowed lateness
     advanceInputWatermark(
         timerInternals,
-        WINDOW_2.maxTimestamp()
+        WINDOW_2
+            .maxTimestamp()
             .plus(ALLOWED_LATENESS)
             .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
             .plus(1), // so the watermark is past the GC horizon, not on it
@@ -204,13 +204,16 @@ public class StatefulDoFnRunnerTest {
         null,
         Collections.emptyList(),
         mockStepContext,
-        WINDOWING_STRATEGY);
+        null,
+        Collections.emptyMap(),
+        WINDOWING_STRATEGY,
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
   }
 
   private static void advanceInputWatermark(
-      InMemoryTimerInternals timerInternals,
-      Instant newInputWatermark,
-      DoFnRunner<?, ?> toTrigger) throws Exception {
+      InMemoryTimerInternals timerInternals, Instant newInputWatermark, DoFnRunner<?, ?> toTrigger)
+      throws Exception {
     timerInternals.advanceInputWatermark(newInputWatermark);
     TimerInternals.TimerData timer;
     while ((timer = timerInternals.removeNextEventTimer()) != null) {
@@ -218,7 +221,10 @@ public class StatefulDoFnRunnerTest {
       checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
       BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
       toTrigger.onTimer(
-          timer.getTimerId(), window, timer.getTimestamp(), timer.getOutputTimestamp(),
+          timer.getTimerId(),
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
           timer.getDomain());
     }
   }
@@ -228,14 +234,12 @@ public class StatefulDoFnRunnerTest {
     public final String stateId = "foo";
 
     @StateId(stateId)
-    public final StateSpec<ValueState<Integer>> intState =
-        StateSpecs.value(VarIntCoder.of());
+    public final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement
-    public void processElement(
-        ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+    public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
       Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
       state.write(currentValue + 1);
     }
-  };
+  }
 }

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * gRPC stream management.
- */
+/** gRPC stream management. */
 package org.apache.beam.sdk.fn.stream;

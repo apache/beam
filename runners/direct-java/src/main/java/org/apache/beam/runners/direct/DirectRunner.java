@@ -17,11 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,10 +25,11 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -46,7 +43,15 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 
 /**
@@ -54,8 +59,8 @@ import org.joda.time.Duration;
  * {@link Pipeline}.
  *
  * <p>The {@link DirectRunner} is suitable for running a {@link Pipeline} on small scale, example,
- * and test data, and should be used for ensuring that processing logic is correct. It also
- * is appropriate for executing unit tests and performs additional work to ensure that behavior
+ * and test data, and should be used for ensuring that processing logic is correct. It also is
+ * appropriate for executing unit tests and performs additional work to ensure that behavior
  * contained within a {@link Pipeline} does not break assumptions within the Beam model, to improve
  * the ability to execute a {@link Pipeline} at scale on a distributed backend.
  */
@@ -98,8 +103,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return Collections.unmodifiableSet(enabled);
     }
 
-    static BundleFactory bundleFactoryFor(
-        Set<Enforcement> enforcements, DirectGraph graph) {
+    static BundleFactory bundleFactoryFor(Set<Enforcement> enforcements, DirectGraph graph) {
       BundleFactory bundleFactory =
           enforcements.contains(Enforcement.ENCODABILITY)
               ? CloningBundleFactory.create()
@@ -110,8 +114,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return bundleFactory;
     }
 
-    private static Map<String, Collection<ModelEnforcementFactory>>
-        defaultModelEnforcements(Set<Enforcement> enabledEnforcements) {
+    private static Map<String, Collection<ModelEnforcementFactory>> defaultModelEnforcements(
+        Set<Enforcement> enabledEnforcements) {
       ImmutableMap.Builder<String, Collection<ModelEnforcementFactory>> enforcements =
           ImmutableMap.builder();
       ImmutableList.Builder<ModelEnforcementFactory> enabledParDoEnforcements =
@@ -126,13 +130,14 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  private final DirectOptions options;
+  private DirectOptions options;
   private final Set<Enforcement> enabledEnforcements;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
-  /**
-   * Construct a {@link DirectRunner} from the provided options.
-   */
+  /** Construct a {@link DirectRunner} from the provided options. */
   public static DirectRunner fromOptions(PipelineOptions options) {
     return new DirectRunner(options.as(DirectOptions.class));
   }
@@ -140,13 +145,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private DirectRunner(DirectOptions options) {
     this.options = options;
     this.enabledEnforcements = Enforcement.enabled(options);
-  }
-
-  /**
-   * Returns the {@link PipelineOptions} used to create this {@link DirectRunner}.
-   */
-  public DirectOptions getPipelineOptions() {
-    return options;
   }
 
   Supplier<Clock> getClockSupplier() {
@@ -158,62 +156,74 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   }
 
   @Override
-  public DirectPipelineResult run(Pipeline originalPipeline) {
-    Pipeline pipeline;
-    if (getPipelineOptions().isProtoTranslation()) {
-      try {
-        pipeline = PipelineTranslation.fromProto(
-            PipelineTranslation.toProto(originalPipeline));
-      } catch (IOException exception) {
-        throw new RuntimeException("Error preparing pipeline for direct execution.", exception);
-      }
-    } else {
-      pipeline = originalPipeline;
+  public DirectPipelineResult run(Pipeline pipeline) {
+    try {
+      options =
+          MAPPER
+              .readValue(MAPPER.writeValueAsBytes(options), PipelineOptions.class)
+              .as(DirectOptions.class);
+    } catch (IOException e) {
+      throw new IllegalArgumentException(
+          "PipelineOptions specified failed to serialize to JSON.", e);
     }
+
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
-    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
-    pipeline.traverseTopologically(graphVisitor);
+    try {
+      DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+      pipeline.traverseTopologically(graphVisitor);
 
-    @SuppressWarnings("rawtypes")
-    KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
-    pipeline.traverseTopologically(keyedPValueVisitor);
+      @SuppressWarnings("rawtypes")
+      KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
+      pipeline.traverseTopologically(keyedPValueVisitor);
 
-    DisplayDataValidator.validatePipeline(pipeline);
-    DisplayDataValidator.validateOptions(getPipelineOptions());
+      DisplayDataValidator.validatePipeline(pipeline);
+      DisplayDataValidator.validateOptions(options);
 
-    DirectGraph graph = graphVisitor.getGraph();
-    EvaluationContext context =
-        EvaluationContext.create(
-            getPipelineOptions(),
-            clockSupplier.get(),
-            Enforcement.bundleFactoryFor(enabledEnforcements, graph),
-            graph,
-            keyedPValueVisitor.getKeyedPValues());
+      ExecutorService metricsPool =
+          Executors.newCachedThreadPool(
+              new ThreadFactoryBuilder()
+                  .setThreadFactory(MoreExecutors.platformThreadFactory())
+                  .setDaemon(false) // otherwise you say you want to leak, please don't!
+                  .setNameFormat("direct-metrics-counter-committer")
+                  .build());
+      DirectGraph graph = graphVisitor.getGraph();
+      EvaluationContext context =
+          EvaluationContext.create(
+              clockSupplier.get(),
+              Enforcement.bundleFactoryFor(enabledEnforcements, graph),
+              graph,
+              keyedPValueVisitor.getKeyedPValues(),
+              metricsPool);
 
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
-    PipelineExecutor executor =
-        ExecutorServiceParallelExecutor.create(
-            options.getTargetParallelism(),
-            registry,
-            Enforcement.defaultModelEnforcements(enabledEnforcements),
-            context);
-    executor.start(graph, RootProviderRegistry.defaultRegistry(context));
+      TransformEvaluatorRegistry registry =
+          TransformEvaluatorRegistry.javaSdkNativeRegistry(context, options);
+      PipelineExecutor executor =
+          ExecutorServiceParallelExecutor.create(
+              options.getTargetParallelism(),
+              registry,
+              Enforcement.defaultModelEnforcements(enabledEnforcements),
+              context,
+              metricsPool);
+      executor.start(graph, RootProviderRegistry.javaNativeRegistry(context, options));
 
-    DirectPipelineResult result = new DirectPipelineResult(executor, context);
-    if (options.isBlockOnRun()) {
-      try {
-        result.waitUntilFinish();
-      } catch (UserCodeException userException) {
-        throw new PipelineExecutionException(userException.getCause());
-      } catch (Throwable t) {
-        if (t instanceof RuntimeException) {
-          throw (RuntimeException) t;
+      DirectPipelineResult result = new DirectPipelineResult(executor, context);
+      if (options.isBlockOnRun()) {
+        try {
+          result.waitUntilFinish();
+        } catch (UserCodeException userException) {
+          throw new PipelineExecutionException(userException.getCause());
+        } catch (Throwable t) {
+          if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
+          }
+          throw new RuntimeException(t);
         }
-        throw new RuntimeException(t);
       }
+      return result;
+    } finally {
+      MetricsEnvironment.setMetricsSupported(false);
     }
-    return result;
   }
 
   /**
@@ -260,7 +270,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             .add(
                 PTransformOverride.of(
                     PTransformMatchers.urnEqualTo(
-                        SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
+                        PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
                     new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
             .add(
                 PTransformOverride.of(
@@ -273,17 +283,13 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     return builder.build();
   }
 
-  /**
-   * The result of running a {@link Pipeline} with the {@link DirectRunner}.
-   */
+  /** The result of running a {@link Pipeline} with the {@link DirectRunner}. */
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
     private final EvaluationContext evaluationContext;
     private State state;
 
-    private DirectPipelineResult(
-        PipelineExecutor executor,
-        EvaluationContext evaluationContext) {
+    private DirectPipelineResult(PipelineExecutor executor, EvaluationContext evaluationContext) {
       this.executor = executor;
       this.evaluationContext = evaluationContext;
       // Only ever constructed after the executor has started.
@@ -354,9 +360,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     }
   }
 
-  /**
-   * A {@link Supplier} that creates a {@link NanosOffsetClock}.
-   */
+  /** A {@link Supplier} that creates a {@link NanosOffsetClock}. */
   private static class NanosOffsetClockSupplier implements Supplier<Clock> {
     @Override
     public Clock get() {

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
 import java.math.BigDecimal;
@@ -26,44 +25,47 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.calcite.runtime.SqlFunctions;
 
 /**
  * {@link Combine.CombineFn} for <em>Variance</em> on {@link Number} types.
  *
- * <p>Calculates Population Variance and Sample Variance using incremental formulas described,
- * for example, by Chan, Golub, and LeVeque in "Algorithms for computing the sample variance:
- * analysis and recommendations", The American Statistician, 37 (1983) pp. 242--247.</p>
+ * <p>Calculates Population Variance and Sample Variance using incremental formulas described, for
+ * example, by Chan, Golub, and LeVeque in "Algorithms for computing the sample variance: analysis
+ * and recommendations", The American Statistician, 37 (1983) pp. 242--247.
  *
  * <p>If variance is defined like this:
- * <ul>
- *   <li>Input elements: {@code (x[1], ... , x[n])}</li>
- *   <li>Sum of elements: {sum(x) = x[1] + ... + x[n]}</li>
- *   <li>Average of all elements in the input: {@code mean(x) = sum(x) / n}</li>
- *   <li>Deviation of {@code i}th element from the current mean:
- *         {@code deviation(x, i) = x[i] - mean(n)}</li>
- *   <li>Variance: {@code variance(x) = deviation(x, 1)^2 + ... + deviation(x, n)^2}</li>
- * </ul>
- *
- * <p>Then variance of combined input of 2 samples {@code (x[1], ... , x[n])}
- * and {@code (y[1], ... , y[m])} is calculated using this formula:</p>
  *
  * <ul>
- *   <li>{@code variance(concat(x,y)) = variance(x) + variance(y) + increment}, where:</li>
- *   <li>{@code increment = m/(n(m+n)) * (n/m * sum(x) - sum(y))^2}</li>
+ *   <li>Input elements: {@code (x[1], ... , x[n])}
+ *   <li>Sum of elements: {sum(x) = x[1] + ... + x[n]}
+ *   <li>Average of all elements in the input: {@code mean(x) = sum(x) / n}
+ *   <li>Deviation of {@code i}th element from the current mean: {@code deviation(x, i) = x[i] -
+ *       mean(n)}
+ *   <li>Variance: {@code variance(x) = deviation(x, 1)^2 + ... + deviation(x, n)^2}
  * </ul>
  *
- * <p>This is also applicable for a single element increment, assuming that variance of
- * a single element input is zero</p>
+ * <p>Then variance of combined input of 2 samples {@code (x[1], ... , x[n])} and {@code (y[1], ...
+ * , y[m])} is calculated using this formula:
  *
- * <p>To implement the above formula we keep track of the current variation, sum,
- * and count of elements, and then use the formula whenever new element comes or we need to merge
- * variances for 2 samples.
+ * <ul>
+ *   <li>{@code variance(concat(x,y)) = variance(x) + variance(y) + increment}, where:
+ *   <li>{@code increment = m/(n(m+n)) * (n/m * sum(x) - sum(y))^2}
+ * </ul>
+ *
+ * <p>This is also applicable for a single element increment, assuming that variance of a single
+ * element input is zero
+ *
+ * <p>To implement the above formula we keep track of the current variation, sum, and count of
+ * elements, and then use the formula whenever new element comes or we need to merge variances for 2
+ * samples.
  */
 @Internal
-public class VarianceFn<T extends Number>
-    extends Combine.CombineFn<T, VarianceAccumulator, T> {
+public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceAccumulator, T> {
 
   static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);
 
@@ -73,10 +75,18 @@ public class VarianceFn<T extends Number>
   private boolean isSample; // flag to determine return value should be Variance Pop or Sample
   private SerializableFunction<BigDecimal, T> decimalConverter;
 
+  public static <V extends Number> VarianceFn newPopulation(Schema.TypeName typeName) {
+    return newPopulation(BigDecimalConverter.forSqlType(typeName));
+  }
+
   public static <V extends Number> VarianceFn newPopulation(
       SerializableFunction<BigDecimal, V> decimalConverter) {
 
     return new VarianceFn<>(POP, decimalConverter);
+  }
+
+  public static <V extends Number> VarianceFn newSample(Schema.TypeName typeName) {
+    return newSample(BigDecimalConverter.forSqlType(typeName));
   }
 
   public static <V extends Number> VarianceFn newSample(
@@ -85,7 +95,7 @@ public class VarianceFn<T extends Number>
     return new VarianceFn<>(SAMPLE, decimalConverter);
   }
 
-  private VarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter){
+  private VarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter) {
     this.isSample = isSample;
     this.decimalConverter = decimalConverter;
   }
@@ -102,19 +112,19 @@ public class VarianceFn<T extends Number>
       return currentVariance;
     }
 
-    return currentVariance.combineWith(VarianceAccumulator.ofSingleElement(toBigDecimal(rawInput)));
+    return currentVariance.combineWith(
+        VarianceAccumulator.ofSingleElement(SqlFunctions.toBigDecimal(rawInput)));
   }
 
   @Override
   public VarianceAccumulator mergeAccumulators(Iterable<VarianceAccumulator> variances) {
-    return StreamSupport
-        .stream(variances.spliterator(), false)
+    return StreamSupport.stream(variances.spliterator(), false)
         .reduce(VarianceAccumulator.ofZeroElements(), VarianceAccumulator::combineWith);
   }
 
   @Override
-  public Coder<VarianceAccumulator> getAccumulatorCoder(CoderRegistry registry,
-                                                        Coder<T> inputCoder) {
+  public Coder<VarianceAccumulator> getAccumulatorCoder(
+      CoderRegistry registry, Coder<T> inputCoder) {
     return SerializableCoder.of(VarianceAccumulator.class);
   }
 
@@ -125,14 +135,9 @@ public class VarianceFn<T extends Number>
 
   private BigDecimal getVariance(VarianceAccumulator variance) {
 
-    BigDecimal adjustedCount = this.isSample
-        ? variance.count().subtract(BigDecimal.ONE)
-        : variance.count();
+    BigDecimal adjustedCount =
+        this.isSample ? variance.count().subtract(BigDecimal.ONE) : variance.count();
 
     return variance.variance().divide(adjustedCount, MATH_CTX);
-  }
-
-  private BigDecimal toBigDecimal(T rawInput) {
-    return new BigDecimal(rawInput.toString());
   }
 }

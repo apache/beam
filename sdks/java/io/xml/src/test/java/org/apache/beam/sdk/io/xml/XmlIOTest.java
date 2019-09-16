@@ -20,9 +20,7 @@ package org.apache.beam.sdk.io.xml;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.common.collect.Lists;
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -31,38 +29,31 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link XmlIO}.
- */
+/** Tests for {@link XmlIO}. */
 @RunWith(JUnit4.class)
 public class XmlIOTest {
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Rule
-  public TestPipeline mainPipeline = TestPipeline.create();
+  @Rule public TestPipeline mainPipeline = TestPipeline.create();
 
-  @Rule
-  public TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   private static final List<Bird> BIRDS =
       Lists.newArrayList(
@@ -74,27 +65,27 @@ public class XmlIOTest {
   }
 
   @Test
-  public void testXmlWriteThenReadViaSinkAndReadFilesUTF8() throws Exception {
+  public void testXmlWriteThenReadViaSinkAndReadFilesUTF8() {
     testWriteThenRead(Method.SINK_AND_READ_FILES, BIRDS, StandardCharsets.UTF_8);
   }
 
   @Test
-  public void testXmlWriteThenReadViaSinkAndReadFilesISO8859() throws Exception {
+  public void testXmlWriteThenReadViaSinkAndReadFilesISO8859() {
     testWriteThenRead(Method.SINK_AND_READ_FILES, BIRDS, StandardCharsets.ISO_8859_1);
   }
 
   @Test
-  public void testXmlWriteThenReadViaWriteAndReadUTF8() throws Exception {
+  public void testXmlWriteThenReadViaWriteAndReadUTF8() {
     testWriteThenRead(Method.WRITE_AND_READ, BIRDS, StandardCharsets.UTF_8);
   }
 
   @Test
-  public void testXmlWriteThenReadViaWriteAndReadISO8859() throws Exception {
+  public void testXmlWriteThenReadViaWriteAndReadISO8859() {
     testWriteThenRead(Method.WRITE_AND_READ, BIRDS, StandardCharsets.ISO_8859_1);
   }
 
   private void testWriteThenRead(Method method, List<Bird> birds, Charset charset) {
-    switch(method) {
+    switch (method) {
       case SINK_AND_READ_FILES:
         PCollection<Bird> writeThenRead =
             mainPipeline
@@ -122,7 +113,8 @@ public class XmlIOTest {
         break;
 
       case WRITE_AND_READ:
-        mainPipeline.apply(Create.of(birds))
+        mainPipeline
+            .apply(Create.of(birds))
             .apply(
                 XmlIO.<Bird>write()
                     .to(new File(tmpFolder.getRoot(), "birds").getAbsolutePath())
@@ -134,7 +126,9 @@ public class XmlIOTest {
         PCollection<Bird> readBack =
             readPipeline.apply(
                 XmlIO.<Bird>read()
-                    .from(new File(tmpFolder.getRoot(), "birds").getAbsolutePath() + "*")
+                    .from(
+                        readPipeline.newProvider(
+                            new File(tmpFolder.getRoot(), "birds").getAbsolutePath() + "*"))
                     .withRecordClass(Bird.class)
                     .withRootElement("birds")
                     .withRecordElement("bird")
@@ -145,12 +139,10 @@ public class XmlIOTest {
         readPipeline.run();
         break;
     }
-
   }
 
   @Test
-  @Category(NeedsRunner.class)
-  public void testWriteThenReadLarger() throws IOException {
+  public void testWriteThenReadLarger() {
     List<Bird> birds = Lists.newArrayList();
     for (int i = 0; i < 100; ++i) {
       birds.add(new Bird("Testing", "Bird number " + i));
@@ -200,18 +192,15 @@ public class XmlIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    XmlIO.Write<Integer> write = XmlIO.<Integer>write()
-        .withRootElement("bird")
-        .withRecordClass(Integer.class);
+    XmlIO.Write<Integer> write =
+        XmlIO.<Integer>write().withRootElement("bird").withRecordClass(Integer.class);
 
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("rootElement", "bird"));
     assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
   }
 
-  /**
-   * Test JAXB annotated class.
-   */
+  /** Test JAXB annotated class. */
   @SuppressWarnings("unused")
   @XmlRootElement(name = "bird")
   @XmlType(propOrder = {"name", "adjective"})
@@ -265,6 +254,11 @@ public class XmlIOTest {
       int result = name.hashCode();
       result = 31 * result + adjective.hashCode();
       return result;
+    }
+
+    @Override
+    public String toString() {
+      return String.format("Bird: %s, %s", name, adjective);
     }
   }
 }

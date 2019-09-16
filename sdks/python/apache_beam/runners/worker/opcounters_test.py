@@ -15,10 +15,15 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+from __future__ import division
+
 import logging
 import math
 import random
 import unittest
+from builtins import object
+from builtins import range
 
 from apache_beam import coders
 from apache_beam.runners.worker import opcounters
@@ -32,7 +37,7 @@ from apache_beam.utils.counters import CounterFactory
 # These have to be at top level so the pickler can find them.
 
 
-class OldClassThatDoesNotImplementLen:  # pylint: disable=old-style-class
+class OldClassThatDoesNotImplementLen(object):  # pylint: disable=old-style-class
 
   def __init__(self):
     pass
@@ -93,15 +98,16 @@ class OperationCountersTest(unittest.TestCase):
     self.assertEqual(expected_elements, opcounts.element_counter.value())
     if expected_size is not None:
       if math.isnan(expected_size):
-        self.assertTrue(math.isnan(opcounts.mean_byte_counter.value()))
+        self.assertTrue(math.isnan(opcounts.mean_byte_counter.value()[0]))
       else:
-        self.assertEqual(expected_size, opcounts.mean_byte_counter.value())
+        self.assertEqual(expected_size, opcounts.mean_byte_counter.value()[0])
 
   def test_update_int(self):
     opcounts = OperationCounters(CounterFactory(), 'some-name',
                                  coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
     opcounts.update_from(GlobalWindows.windowed_value(1))
+    opcounts.update_collect()
     self.verify_counters(opcounts, 1)
 
   def test_update_str(self):
@@ -111,6 +117,7 @@ class OperationCountersTest(unittest.TestCase):
     self.verify_counters(opcounts, 0, float('nan'))
     value = GlobalWindows.windowed_value('abcde')
     opcounts.update_from(value)
+    opcounts.update_collect()
     estimated_size = coder.estimate_size(value)
     self.verify_counters(opcounts, 1, estimated_size)
 
@@ -122,6 +129,7 @@ class OperationCountersTest(unittest.TestCase):
     obj = OldClassThatDoesNotImplementLen()
     value = GlobalWindows.windowed_value(obj)
     opcounts.update_from(value)
+    opcounts.update_collect()
     estimated_size = coder.estimate_size(value)
     self.verify_counters(opcounts, 1, estimated_size)
 
@@ -134,6 +142,7 @@ class OperationCountersTest(unittest.TestCase):
     obj = ObjectThatDoesNotImplementLen()
     value = GlobalWindows.windowed_value(obj)
     opcounts.update_from(value)
+    opcounts.update_collect()
     estimated_size = coder.estimate_size(value)
     self.verify_counters(opcounts, 1, estimated_size)
 
@@ -145,22 +154,25 @@ class OperationCountersTest(unittest.TestCase):
     self.verify_counters(opcounts, 0, float('nan'))
     value = GlobalWindows.windowed_value('abcde')
     opcounts.update_from(value)
+    opcounts.update_collect()
     total_size += coder.estimate_size(value)
     value = GlobalWindows.windowed_value('defghij')
     opcounts.update_from(value)
+    opcounts.update_collect()
     total_size += coder.estimate_size(value)
-    self.verify_counters(opcounts, 2, float(total_size) / 2)
+    self.verify_counters(opcounts, 2, (float(total_size) / 2))
     value = GlobalWindows.windowed_value('klmnop')
     opcounts.update_from(value)
+    opcounts.update_collect()
     total_size += coder.estimate_size(value)
-    self.verify_counters(opcounts, 3, float(total_size) / 3)
+    self.verify_counters(opcounts, 3, (float(total_size) / 3))
 
   def test_should_sample(self):
     # Order of magnitude more buckets than highest constant in code under test.
     buckets = [0] * 300
     # The seed is arbitrary and exists just to ensure this test is robust.
     # If you don't like this seed, try your own; the test should still pass.
-    random.seed(1717)
+    random.seed(1720)
     # Do enough runs that the expected hits even in the last buckets
     # is big enough to expect some statistical smoothing.
     total_runs = 10 * len(buckets)

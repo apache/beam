@@ -15,57 +15,67 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.joda.time.DateTime;
 
 /**
  * Utility methods for working with {@code BeamTable}.
+ *
+ * <p>TODO: Does not yet support nested types.
  */
 public final class BeamTableUtils {
-  public static Row csvLine2BeamRow(
-      CSVFormat csvFormat,
-      String line,
-      RowType rowType) {
 
-    try (StringReader reader = new StringReader(line)) {
-      CSVParser parser = csvFormat.parse(reader);
-      CSVRecord rawRecord = parser.getRecords().get(0);
-
-      if (rawRecord.size() != rowType.getFieldCount()) {
-        throw new IllegalArgumentException(String.format(
-            "Expect %d fields, but actually %d",
-            rowType.getFieldCount(), rawRecord.size()
-        ));
+  /**
+   * Decode zero or more CSV records from the given string, according to the specified {@link
+   * CSVFormat}, and converts them to {@link Row Rows} with the specified {@link Schema}.
+   *
+   * <p>A single "line" read from e.g. {@link TextIO} can have zero or more records, depending on
+   * whether the line was split on the same characters that delimite CSV records, and whether the
+   * {@link CSVFormat} ignores blank lines.
+   */
+  public static Iterable<Row> csvLines2BeamRows(CSVFormat csvFormat, String line, Schema schema) {
+    // Empty lines can result in empty strings after Beam splits the file,
+    // which are not empty records to CSVParser unless they have a record terminator.
+    if (!line.endsWith(csvFormat.getRecordSeparator())) {
+      line += csvFormat.getRecordSeparator();
+    }
+    try (CSVParser parser = CSVParser.parse(line, csvFormat)) {
+      List<Row> rows = new ArrayList<>();
+      for (CSVRecord rawRecord : parser.getRecords()) {
+        if (rawRecord.size() != schema.getFieldCount()) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Expect %d fields, but actually %d", schema.getFieldCount(), rawRecord.size()));
+        }
+        rows.add(
+            IntStream.range(0, schema.getFieldCount())
+                .mapToObj(idx -> autoCastField(schema.getField(idx), rawRecord.get(idx)))
+                .collect(toRow(schema)));
       }
-
-      return
-          IntStream
-              .range(0, rowType.getFieldCount())
-              .mapToObj(idx -> autoCastField(rowType.getFieldCoder(idx), rawRecord.get(idx)))
-              .collect(toRow(rowType));
-
+      return rows;
     } catch (IOException e) {
-      throw new IllegalArgumentException("decodeRecord failed!", e);
+      throw new IllegalArgumentException(
+          String.format("Could not parse CSV records from %s with format %s", line, csvFormat), e);
     }
   }
 
@@ -82,26 +92,42 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
-  public static Object autoCastField(Coder coder, Object rawObj) {
-    checkArgument(coder instanceof SqlTypeCoder);
-
+  /**
+   * Attempt to cast an object to a specified Schema.Field.Type.
+   *
+   * @throws IllegalArgumentException if the value cannot be cast to that type.
+   * @return The casted object in Schema.Field.Type.
+   */
+  public static Object autoCastField(Schema.Field field, Object rawObj) {
     if (rawObj == null) {
+      if (!field.getType().getNullable()) {
+        throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));
+      }
       return null;
     }
 
-    SqlTypeName columnType = CalciteUtils.toCalciteType((SqlTypeCoder) coder);
-    // auto-casting for numberics
-    if ((rawObj instanceof String && SqlTypeName.NUMERIC_TYPES.contains(columnType))
-        || (rawObj instanceof BigDecimal && columnType != SqlTypeName.DECIMAL)) {
+    FieldType type = field.getType();
+    if (CalciteUtils.isStringType(type)) {
+      if (rawObj instanceof NlsString) {
+        return ((NlsString) rawObj).getValue();
+      } else {
+        return rawObj;
+      }
+    } else if (CalciteUtils.isDateTimeType(type)) {
+      // Internal representation of DateType in Calcite is convertible to Joda's Datetime.
+      return new DateTime(rawObj);
+    } else if (type.getTypeName().isNumericType()
+        && ((rawObj instanceof String)
+            || (rawObj instanceof BigDecimal && type.getTypeName() != TypeName.DECIMAL))) {
       String raw = rawObj.toString();
-      switch (columnType) {
-        case TINYINT:
+      switch (type.getTypeName()) {
+        case BYTE:
           return Byte.valueOf(raw);
-        case SMALLINT:
+        case INT16:
           return Short.valueOf(raw);
-        case INTEGER:
+        case INT32:
           return Integer.valueOf(raw);
-        case BIGINT:
+        case INT64:
           return Long.valueOf(raw);
         case FLOAT:
           return Float.valueOf(raw);
@@ -109,17 +135,9 @@ public final class BeamTableUtils {
           return Double.valueOf(raw);
         default:
           throw new UnsupportedOperationException(
-              String.format("Column type %s is not supported yet!", columnType));
+              String.format("Column type %s is not supported yet!", type));
       }
-    } else if (SqlTypeName.CHAR_TYPES.contains(columnType)) {
-      // convert NlsString to String
-      if (rawObj instanceof NlsString) {
-        return ((NlsString) rawObj).getValue();
-      } else {
-        return rawObj;
-      }
-    } else {
-      return rawObj;
     }
+    return rawObj;
   }
 }

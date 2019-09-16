@@ -23,21 +23,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
-import org.apache.beam.sdk.fn.test.Consumer;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,13 +44,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link BeamFnDataBufferingOutboundObserver}. */
 @RunWith(JUnit4.class)
 public class BeamFnDataBufferingOutboundObserverTest {
-  private static final LogicalEndpoint OUTPUT_LOCATION =
-      LogicalEndpoint.of(
-          "777L",
-          Target.newBuilder()
-              .setPrimitiveTransformReference("555L")
-              .setName("Test")
-              .build());
+  private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "555L");
   private static final Coder<WindowedValue<byte[]>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(ByteArrayCoder.of()));
 
@@ -97,8 +90,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
 
     // Test that when we close with an empty buffer we only have one end of stream
     consumer.close();
-    assertEquals(messageWithData(),
-        Iterables.get(values, 2));
+    assertEquals(messageWithData(), Iterables.get(values, 2));
 
     // Test that we can't write to a closed stream.
     try {
@@ -138,9 +130,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
 
     // Test that when we cross the buffer, we emit.
     consumer.accept(valueInGlobalWindow(new byte[49]));
-    assertEquals(
-        messageWithData(new byte[51], new byte[49]),
-        Iterables.get(values, 0));
+    assertEquals(messageWithData(new byte[51], new byte[49]), Iterables.get(values, 0));
 
     // Test that when we close we empty the value, and then the stream terminator as part
     // of the same message
@@ -148,23 +138,25 @@ public class BeamFnDataBufferingOutboundObserverTest {
     consumer.close();
     assertEquals(
         BeamFnApi.Elements.newBuilder(messageWithData(new byte[1]))
-            .addData(BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                .setTarget(OUTPUT_LOCATION.getTarget()))
+            .addData(
+                BeamFnApi.Elements.Data.newBuilder()
+                    .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+                    .setPtransformId(OUTPUT_LOCATION.getPTransformId()))
             .build(),
         Iterables.get(values, 1));
   }
 
-  private static BeamFnApi.Elements messageWithData(byte[] ... datum) throws IOException {
+  private static BeamFnApi.Elements messageWithData(byte[]... datum) throws IOException {
     ByteString.Output output = ByteString.newOutput();
     for (byte[] data : datum) {
       CODER.encode(valueInGlobalWindow(data), output);
     }
     return BeamFnApi.Elements.newBuilder()
-        .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-            .setTarget(OUTPUT_LOCATION.getTarget())
-            .setData(output.toByteString()))
+        .addData(
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+                .setPtransformId(OUTPUT_LOCATION.getPTransformId())
+                .setData(output.toByteString()))
         .build();
   }
 

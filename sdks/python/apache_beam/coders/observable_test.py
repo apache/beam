@@ -16,6 +16,7 @@
 #
 
 """Tests for the Observable mixin class."""
+from __future__ import absolute_import
 
 import logging
 import unittest
@@ -46,9 +47,9 @@ class ObservableMixinTest(unittest.TestCase):
     for _ in watched:
       pass
 
-    self.assertEquals(3, self.observed_count)
-    self.assertEquals(8, self.observed_sum)
-    self.assertEquals(['a1', 'a3', 'a4'], sorted(self.observed_keys))
+    self.assertEqual(3, self.observed_count)
+    self.assertEqual(8, self.observed_sum)
+    self.assertEqual(['a1', 'a3', 'a4'], sorted(self.observed_keys))
 
 
 if __name__ == '__main__':

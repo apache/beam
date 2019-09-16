@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-/**
- * Provides utilities for Beam runner authors.
- */
+/** Provides utilities for Beam runner authors. */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core;
 

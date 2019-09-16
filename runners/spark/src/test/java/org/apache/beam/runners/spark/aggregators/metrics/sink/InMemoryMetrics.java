@@ -15,49 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.aggregators.metrics.sink;
 
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.base.Predicates;
 import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.spark.metrics.sink.Sink;
 
-/**
- * An in-memory {@link Sink} implementation for tests.
- */
+/** An in-memory {@link Sink} implementation for tests. */
 public class InMemoryMetrics implements Sink {
 
   private static WithMetricsSupport extendedMetricsRegistry;
   private static MetricRegistry internalMetricRegistry;
 
   @SuppressWarnings("UnusedParameters")
-  public InMemoryMetrics(final Properties properties,
-                         final MetricRegistry metricRegistry,
-                         final org.apache.spark.SecurityManager securityMgr) {
+  public InMemoryMetrics(
+      final Properties properties,
+      final MetricRegistry metricRegistry,
+      final org.apache.spark.SecurityManager securityMgr) {
     extendedMetricsRegistry = WithMetricsSupport.forRegistry(metricRegistry);
     internalMetricRegistry = metricRegistry;
   }
 
-  @SuppressWarnings({"unchecked", "WeakerAccess"})
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   public static <T> T valueOf(final String name) {
     final T retVal;
 
     // this might fail in case we have multiple aggregators with the same suffix after
     // the last dot, but it should be good enough for tests.
     if (extendedMetricsRegistry != null
-        && extendedMetricsRegistry
-            .getGauges()
-            .keySet()
-            .stream()
+        && extendedMetricsRegistry.getGauges().keySet().stream()
             .anyMatch(Predicates.containsPattern(name + "$")::apply)) {
       String key =
-          extendedMetricsRegistry
-              .getGauges()
-              .keySet()
-              .stream()
+          extendedMetricsRegistry.getGauges().keySet().stream()
               .filter(Predicates.containsPattern(name + "$")::apply)
               .findFirst()
               .get();
@@ -77,18 +69,11 @@ public class InMemoryMetrics implements Sink {
   }
 
   @Override
-  public void start() {
-
-  }
+  public void start() {}
 
   @Override
-  public void stop() {
-
-  }
+  public void stop() {}
 
   @Override
-  public void report() {
-
-  }
-
+  public void report() {}
 }

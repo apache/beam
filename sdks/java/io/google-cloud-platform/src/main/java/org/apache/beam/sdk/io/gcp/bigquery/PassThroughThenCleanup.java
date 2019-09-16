@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -32,6 +30,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A {@link PTransform} that invokes {@link CleanupOperation} after the input {@link PCollection}
@@ -53,8 +52,10 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
   public PCollection<T> expand(PCollection<T> input) {
     TupleTag<T> mainOutput = new TupleTag<>();
     TupleTag<Void> cleanupSignal = new TupleTag<>();
-    PCollectionTuple outputs = input.apply(ParDo.of(new IdentityFn<T>())
-        .withOutputTags(mainOutput, TupleTagList.of(cleanupSignal)));
+    PCollectionTuple outputs =
+        input.apply(
+            ParDo.of(new IdentityFn<T>())
+                .withOutputTags(mainOutput, TupleTagList.of(cleanupSignal)));
 
     PCollectionView<Iterable<Void>> cleanupSignalView =
         outputs.get(cleanupSignal).setCoder(VoidCoder.of()).apply(View.asIterable());
@@ -85,6 +86,16 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
 
   abstract static class CleanupOperation implements Serializable {
     abstract void cleanup(ContextContainer container) throws Exception;
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && obj.getClass() == this.getClass();
+    }
   }
 
   static class ContextContainer {

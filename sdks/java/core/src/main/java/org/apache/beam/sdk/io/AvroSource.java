@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -65,6 +64,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
@@ -77,23 +78,21 @@ import org.apache.commons.compress.utils.IOUtils;
  *
  * <p>A {@link FileBasedSource} for reading Avro files.
  *
- * <p>To read a {@link PCollection} of objects from one or more Avro files, use
- * {@link AvroSource#from} to specify the path(s) of the files to read. The {@link AvroSource} that
- * is returned will read objects of type {@link GenericRecord} with the schema(s) that were written
- * at file creation. To further configure the {@link AvroSource} to read with a user-defined schema,
- * or to return records of a type other than {@link GenericRecord}, use
- * {@link AvroSource#withSchema(Schema)} (using an Avro {@link Schema}),
- * {@link AvroSource#withSchema(String)} (using a JSON schema), or
- * {@link AvroSource#withSchema(Class)} (to return objects of the Avro-generated class specified).
+ * <p>To read a {@link PCollection} of objects from one or more Avro files, use {@link
+ * AvroSource#from} to specify the path(s) of the files to read. The {@link AvroSource} that is
+ * returned will read objects of type {@link GenericRecord} with the schema(s) that were written at
+ * file creation. To further configure the {@link AvroSource} to read with a user-defined schema, or
+ * to return records of a type other than {@link GenericRecord}, use {@link
+ * AvroSource#withSchema(Schema)} (using an Avro {@link Schema}), {@link
+ * AvroSource#withSchema(String)} (using a JSON schema), or {@link AvroSource#withSchema(Class)} (to
+ * return objects of the Avro-generated class specified).
  *
  * <p>An {@link AvroSource} can be read from using the {@link Read} transform. For example:
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * AvroSource<MyType> source = AvroSource.from(file.toPath()).withSchema(MyType.class);
  * PCollection<MyType> records = Read.from(mySource);
- * }
- * </pre>
+ * }</pre>
  *
  * <p>This class's implementation is based on the <a
  * href="https://avro.apache.org/docs/1.7.7/spec.html">Avro 1.7.7</a> specification and implements
@@ -110,22 +109,22 @@ import org.apache.commons.compress.utils.IOUtils;
  * the start offset of the block is greater than or equal to the start offset of the source and less
  * than the end offset of the source.
  *
- * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.5.jar},
+ * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.8.jar},
  * which has been marked as optional in the Maven {@code sdk/pom.xml}.
  *
  * <pre>{@code
  * <dependency>
  *   <groupId>org.tukaani</groupId>
  *   <artifactId>xz</artifactId>
- *   <version>1.5</version>
+ *   <version>1.8</version>
  * </dependency>
  * }</pre>
  *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for
- * more details.
+ * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for more
+ * details.
  *
  * @param <T> The type of records to be read from the source.
  */
@@ -135,7 +134,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).
   // The default sync interval is 64k.
-  private static final long DEFAULT_MIN_BUNDLE_SIZE = 2 * DataFileConstants.DEFAULT_SYNC_INTERVAL;
+  private static final long DEFAULT_MIN_BUNDLE_SIZE = 2L * DataFileConstants.DEFAULT_SYNC_INTERVAL;
 
   // Use cases of AvroSource are:
   // 1) AvroSource<GenericRecord> Reading GenericRecord records with a specified schema.
@@ -151,14 +150,11 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     private final Class<?> type;
 
     // The JSON schema used to decode records.
-    @Nullable
-    private String readerSchemaString;
+    @Nullable private String readerSchemaString;
 
-    @Nullable
-    private final SerializableFunction<GenericRecord, T> parseFn;
+    @Nullable private final SerializableFunction<GenericRecord, T> parseFn;
 
-    @Nullable
-    private final Coder<T> outputCoder;
+    @Nullable private final Coder<T> outputCoder;
 
     private Mode(
         Class<?> type,
@@ -196,9 +192,11 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   private static Mode<GenericRecord> readGenericRecordsWithSchema(String schema) {
     return new Mode<>(GenericRecord.class, schema, null, null);
   }
+
   private static <T> Mode<T> readGeneratedClasses(Class<T> clazz) {
     return new Mode<>(clazz, ReflectData.get().getSchema(clazz).toString(), null, null);
   }
+
   private static <T> Mode<T> parseGenericRecords(
       SerializableFunction<GenericRecord, T> parseFn, Coder<T> outputCoder) {
     return new Mode<>(GenericRecord.class, null, parseFn, outputCoder);
@@ -215,6 +213,15 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         fileNameOrPattern,
         EmptyMatchTreatment.DISALLOW,
         DEFAULT_MIN_BUNDLE_SIZE,
+        readGenericRecordsWithSchema(null /* will need to be specified in withSchema */));
+  }
+
+  public static AvroSource<GenericRecord> from(Metadata metadata) {
+    return new AvroSource<>(
+        metadata,
+        DEFAULT_MIN_BUNDLE_SIZE,
+        0,
+        metadata.sizeBytes(),
         readGenericRecordsWithSchema(null /* will need to be specified in withSchema */));
   }
 
@@ -247,6 +254,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   /** Reads files containing records of the given class. */
   public <X> AvroSource<X> withSchema(Class<X> clazz) {
     checkArgument(clazz != null, "clazz can not be null");
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(),
+          getMinBundleSize(),
+          getStartOffset(),
+          getEndOffset(),
+          readGeneratedClasses(clazz));
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getEmptyMatchTreatment(),
@@ -262,6 +277,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       SerializableFunction<GenericRecord, X> parseFn, Coder<X> coder) {
     checkArgument(parseFn != null, "parseFn can not be null");
     checkArgument(coder != null, "coder can not be null");
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(),
+          getMinBundleSize(),
+          getStartOffset(),
+          getEndOffset(),
+          parseGenericRecords(parseFn, coder));
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getEmptyMatchTreatment(),
@@ -274,6 +297,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * minBundleSize} and its use.
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          getSingleFileMetadata(), minBundleSize, getStartOffset(), getEndOffset(), mode);
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(), getEmptyMatchTreatment(), minBundleSize, mode);
   }
@@ -290,11 +317,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   /** Constructor for SINGLE_FILE_OR_SUBRANGE mode. */
   private AvroSource(
-      Metadata metadata,
-      long minBundleSize,
-      long startOffset,
-      long endOffset,
-      Mode<T> mode) {
+      Metadata metadata, long minBundleSize, long startOffset, long endOffset, Mode<T> mode) {
     super(metadata, minBundleSize, startOffset, endOffset);
     this.mode = mode;
   }
@@ -368,9 +391,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     }
 
     /**
-     * The 16-byte sync marker for the file.  See the documentation for
-     * <a href="https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files">Object
-     * Container File</a> for more information.
+     * The 16-byte sync marker for the file. See the documentation for <a
+     * href="https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files">Object Container
+     * File</a> for more information.
      */
     public byte[] getSyncMarker() {
       return syncMarker;
@@ -380,9 +403,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   /**
    * Reads the {@link AvroMetadata} from the header of an Avro file.
    *
-   * <p>This method parses the header of an Avro
-   * <a href="https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files">
-   * Object Container File</a>.
+   * <p>This method parses the header of an Avro <a
+   * href="https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files">Object Container
+   * File</a>.
    *
    * @throws IOException if the file is an invalid format.
    */
@@ -478,9 +501,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       case FILEPATTERN:
         return new AvroSource<>(
             getFileOrPatternSpecProvider(), getEmptyMatchTreatment(), getMinBundleSize(), mode);
-        default:
-          throw new InvalidObjectException(
-              String.format("Unknown mode %s for AvroSource %s", getMode(), this));
+      default:
+        throw new InvalidObjectException(
+            String.format("Unknown mode %s for AvroSource %s", getMode(), this));
     }
   }
 
@@ -509,18 +532,18 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     private final BinaryDecoder decoder;
 
     /**
-     * Decodes a byte array as an InputStream. The byte array may be compressed using some
-     * codec. Reads from the returned stream will result in decompressed bytes.
+     * Decodes a byte array as an InputStream. The byte array may be compressed using some codec.
+     * Reads from the returned stream will result in decompressed bytes.
      *
      * <p>This supports the same codecs as Avro's {@link CodecFactory}, namely those defined in
      * {@link DataFileConstants}.
      *
      * <ul>
-     * <li>"snappy" : Google's Snappy compression
-     * <li>"deflate" : deflate compression
-     * <li>"bzip2" : Bzip2 compression
-     * <li>"xz" : xz compression
-     * <li>"null" (the string, not the value): Uncompressed data
+     *   <li>"snappy" : Google's Snappy compression
+     *   <li>"deflate" : deflate compression
+     *   <li>"bzip2" : Bzip2 compression
+     *   <li>"xz" : xz compression
+     *   <li>"null" (the string, not the value): Uncompressed data
      * </ul>
      */
     private static InputStream decodeAsInputStream(byte[] data, String codec) throws IOException {
@@ -543,12 +566,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       }
     }
 
-    AvroBlock(
-        byte[] data,
-        long numRecords,
-        Mode<T> mode,
-        String writerSchemaString,
-        String codec)
+    AvroBlock(byte[] data, long numRecords, Mode<T> mode, String writerSchemaString, String codec)
         throws IOException {
       this.mode = mode;
       this.numRecords = numRecords;
@@ -590,10 +608,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   /**
    * A {@link BlockBasedSource.BlockBasedReader} for reading blocks from Avro files.
    *
-   * <p>An Avro Object Container File consists of a header followed by a 16-bit sync marker
-   * and then a sequence of blocks, where each block begins with two encoded longs representing
-   * the total number of records in the block and the block's size in bytes, followed by the
-   * block's (optionally-encoded) records. Each block is terminated by a 16-bit sync marker.
+   * <p>An Avro Object Container File consists of a header followed by a 16-bit sync marker and then
+   * a sequence of blocks, where each block begins with two encoded longs representing the total
+   * number of records in the block and the block's size in bytes, followed by the block's
+   * (optionally-encoded) records. Each block is terminated by a 16-bit sync marker.
    *
    * @param <T> The type of records contained in the block.
    */
@@ -631,9 +649,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // Initialized in readNextBlock.
     @Nullable private BinaryDecoder decoder;
 
-    /**
-     * Reads Avro records of type {@code T} from the specified source.
-     */
+    /** Reads Avro records of type {@code T} from the specified source. */
     public AvroReader(AvroSource<T> source) {
       super(source);
     }
@@ -706,8 +722,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
                 syncMarkerOffset,
                 syncMarkerOffset + syncMarker.length,
                 getCurrentSource().getFileOrPatternSpec(),
-                Arrays.toString(readSyncMarker)
-            ));
+                Arrays.toString(readSyncMarker)));
       }
 
       // Atomically update both the position and offset of the new block.
@@ -754,13 +769,12 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     }
 
     /**
-     * Creates a {@link PushbackInputStream} that has a large enough pushback buffer to be able
-     * to push back the syncBuffer.
+     * Creates a {@link PushbackInputStream} that has a large enough pushback buffer to be able to
+     * push back the syncBuffer.
      */
     private PushbackInputStream createStream(ReadableByteChannel channel) {
       return new PushbackInputStream(
-          Channels.newInputStream(channel),
-          metadata.getSyncMarker().length);
+          Channels.newInputStream(channel), metadata.getSyncMarker().length);
     }
 
     // Postcondition: the stream is positioned at the beginning of the first block after the start
@@ -796,10 +810,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     }
 
     /**
-     * Advances to the first byte after the next occurrence of the sync marker in the
-     * stream when reading from the current offset. Returns the number of bytes consumed
-     * from the stream. Note that this method requires a PushbackInputStream with a buffer
-     * at least as big as the marker it is seeking for.
+     * Advances to the first byte after the next occurrence of the sync marker in the stream when
+     * reading from the current offset. Returns the number of bytes consumed from the stream. Note
+     * that this method requires a PushbackInputStream with a buffer at least as big as the marker
+     * it is seeking for.
      */
     static long advancePastNextSyncMarker(PushbackInputStream stream, byte[] syncMarker)
         throws IOException {
@@ -842,9 +856,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       // Number of bytes available to be matched in the buffer.
       private int available = 0;
 
-      /**
-       * Create a {@link Seeker} that looks for the given marker.
-       */
+      /** Create a {@link Seeker} that looks for the given marker. */
       public Seeker(byte[] marker) {
         this.marker = marker;
         this.searchBuffer = new byte[marker.length];
@@ -859,7 +871,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
        *
        * @param buffer
        * @return the index of the end of the marker within the buffer, or -1 if the buffer was not
-       * found.
+       *     found.
        */
       public int find(byte[] buffer, int length) {
         for (int i = 0; i < length; i++) {
@@ -867,7 +879,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           searchBuffer[searchBuffer.length - 1] = buffer[i];
           available = Math.min(available + 1, searchBuffer.length);
           if (ByteBuffer.wrap(searchBuffer, searchBuffer.length - available, available)
-                  .equals(ByteBuffer.wrap(marker))) {
+              .equals(ByteBuffer.wrap(marker))) {
             available = 0;
             return i;
           }

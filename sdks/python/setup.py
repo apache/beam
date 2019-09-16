@@ -17,31 +17,38 @@
 
 """Apache Beam SDK for Python setup file."""
 
-from distutils.version import StrictVersion
+from __future__ import absolute_import
+from __future__ import print_function
 
-import glob
 import os
-import pkg_resources
 import platform
-import re
-import shutil
-import subprocess
 import sys
 import warnings
+from distutils.version import StrictVersion
 
+# Pylint and isort disagree here.
+# pylint: disable=ungrouped-imports
 import setuptools
-
+from pkg_resources import DistributionNotFound
+from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
+from setuptools.command.egg_info import egg_info
 from setuptools.command.sdist import sdist
 from setuptools.command.test import test
-
-from pkg_resources import get_distribution, DistributionNotFound
 
 
 def get_version():
   global_names = {}
-  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)
+  exec(  # pylint: disable=exec-used
+      open(os.path.join(
+          os.path.dirname(os.path.abspath(__file__)),
+          'apache_beam/version.py')
+          ).read(),
+      global_names
+  )
   return global_names['__version__']
+
 
 PACKAGE_NAME = 'apache-beam'
 PACKAGE_VERSION = get_version()
@@ -69,7 +76,7 @@ if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
   )
 
 
-REQUIRED_CYTHON_VERSION = '0.26.1'
+REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
   if StrictVersion(_CYTHON_VERSION) < StrictVersion(REQUIRED_CYTHON_VERSION):
@@ -94,41 +101,57 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
-
 REQUIRED_PACKAGES = [
-    'avro>=1.8.1,<2.0.0',
+    'avro>=1.8.1,<2.0.0; python_version < "3.0"',
+    'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    'dill==0.2.6',
-    'grpcio>=1.0,<2',
+    'dill>=0.2.9,<0.4.0',
+    'fastavro>=0.21.4,<0.22',
+    'funcsigs>=1.0.2,<2; python_version < "3.0"',
+    'future>=0.16.0,<1.0.0',
+    'futures>=3.2.0,<4.0.0; python_version < "3.0"',
+    'grpcio>=1.12.1,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<0.10',
+    'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
-    'oauth2client>=2.0.1,<5',
-    # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
+    'pymongo>=3.8.0,<4.0.0',
+    'oauth2client>=2.0.1,<4',
     'protobuf>=3.5.0.post1,<4',
+    # [BEAM-6287] pyarrow is not supported on Windows for Python 2
+    ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
+     'platform_system != "Windows"'),
+    'pydot>=1.2.0,<2',
+    'python-dateutil>=2.8.0,<3',
+    'pytz>=2018.3',
+    # [BEAM-5628] Beam VCF IO is not supported in Python 3.
+    'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     'pyyaml>=3.12,<4.0.0',
-    'pyvcf>=0.6.8,<0.7.0',
-    'six>=1.9,<1.12',
-    'typing>=3.6.0,<3.7.0',
-    'futures>=3.1.1,<4.0.0',
-    ]
-
-REQUIRED_SETUP_PACKAGES = [
-    'nose>=1.0',
+    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     ]
 
 REQUIRED_TEST_PACKAGES = [
+    'nose>=1.3.7',
+    'nose_xunitmp>=0.4.1',
+    'numpy>=1.14.3,<2',
+    'pandas>=0.23.4,<0.25',
+    'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
+    'tenacity>=5.0.2,<6.0',
     ]
 
 GCP_REQUIREMENTS = [
-  # oauth2client >=4 only works with google-apitools>=0.5.18.
-  'google-apitools>=0.5.18,<=0.5.20',
-  'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-  'googledatastore==7.0.1',
-  'google-cloud-pubsub==0.26.0',
-  # GCP packages required by tests
-  'google-cloud-bigquery==0.25.0',
+    'cachetools>=3.1.0,<4',
+    'google-apitools>=0.5.28,<0.5.29',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
+    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
+    'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
+    'google-cloud-datastore>=1.7.1,<1.8.0',
+    'google-cloud-pubsub>=0.39.0,<0.40.0',
+    # GCP packages required by tests
+    'google-cloud-bigquery>=1.6.0,<1.18.0',
+    'google-cloud-core>=0.28.1,<2',
+    'google-cloud-bigtable>=0.31.1,<0.33.0',
 ]
 
 
@@ -138,6 +161,7 @@ def generate_protos_first(original_cmd):
     # See https://issues.apache.org/jira/browse/BEAM-2366
     # pylint: disable=wrong-import-position
     import gen_protos
+
     class cmd(original_cmd, object):
       def run(self):
         gen_protos.generate_proto_files()
@@ -148,34 +172,12 @@ def generate_protos_first(original_cmd):
     return original_cmd
 
 
-def generate_common_urns():
-  src = os.path.join(
-      os.path.dirname(__file__),
-      '../../'
-      'model/pipeline/src/main/resources/org/apache/beam/model/common_urns.md')
-  out = os.path.join(
-    os.path.dirname(__file__),
-    'apache_beam/portability/common_urns.py')
-  src_time = os.path.getmtime(src) if os.path.exists(src) else -1
-  out_time = os.path.getmtime(out) if os.path.exists(out) else -1
-  if src_time > out_time:
-    print 'Regenerating common_urns module.'
-    urns = {}
-    for m in re.finditer(
-        r'\b(?:urn:)?beam:(\S+):(\S+):(v\S+)', open(src).read()):
-      kind, name, version = m.groups()
-      var_name = name.upper() + '_' + kind.upper()
-      if var_name in urns:
-        var_name += '_' + version.upper().replace('.', '_')
-      urns[var_name] = m.group(0)
-    open(out, 'w').write(
-        '# Autogenerated from common_urns.md\n'
-        + '# pylint: disable=line-too-long\n\n'
-        + '\n'.join('%s = "%s"' % urn
-                    for urn in sorted(urns.items(), key=lambda kv: kv[1]))
-        + '\n')
-generate_common_urns()
+python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
+if sys.version_info[0] == 3:
+  warnings.warn(
+      'Some syntactic constructs of Python 3 are not yet fully supported by '
+      'Apache Beam.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -188,7 +190,8 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml',
+        'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
@@ -201,15 +204,14 @@ setuptools.setup(
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ]),
-    setup_requires=REQUIRED_SETUP_PACKAGES,
     install_requires=REQUIRED_PACKAGES,
-    python_requires='>=2.7,<3.0',
+    python_requires=python_requires,
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
-        'gcp': GCP_REQUIREMENTS
+        'gcp': GCP_REQUIREMENTS,
     },
     zip_safe=False,
     # PyPI package information.
@@ -218,6 +220,9 @@ setuptools.setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
@@ -225,10 +230,12 @@ setuptools.setup(
     keywords=PACKAGE_KEYWORDS,
     entry_points={
         'nose.plugins.0.10': [
-            'beam_test_plugin = test_config:BeamTestPlugin'
-    ]},
+            'beam_test_plugin = test_config:BeamTestPlugin',
+        ]},
     cmdclass={
         'build_py': generate_protos_first(build_py),
+        'develop': generate_protos_first(develop),
+        'egg_info': generate_protos_first(egg_info),
         'sdist': generate_protos_first(sdist),
         'test': generate_protos_first(test),
     },

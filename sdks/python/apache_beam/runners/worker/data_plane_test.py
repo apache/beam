@@ -28,10 +28,12 @@ import unittest
 from concurrent import futures
 
 import grpc
+from future.utils import raise_
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
 def timeout(timeout_secs):
@@ -50,7 +52,7 @@ def timeout(timeout_secs):
       thread.join(timeout_secs)
       if exc_info:
         t, v, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
-        raise t, v, tb
+        raise_(t, v, tb)
       assert not thread.is_alive(), 'timed out after %s seconds' % timeout_secs
     return wrapper
   return decorate
@@ -60,16 +62,22 @@ class DataChannelTest(unittest.TestCase):
 
   @timeout(5)
   def test_grpc_data_channel(self):
-    data_channel_service = data_plane.GrpcServerDataChannel()
+    data_servicer = data_plane.BeamFnDataServicer()
+    worker_id = 'worker_0'
+    data_channel_service = \
+      data_servicer.get_conn_by_worker_id(worker_id)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
-        data_channel_service, server)
+        data_servicer, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
 
-    data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(
-        grpc.insecure_channel('localhost:%s' % test_port))
+    grpc_channel = grpc.insecure_channel('localhost:%s' % test_port)
+    # Add workerId to the grpc channel
+    grpc_channel = grpc.intercept_channel(
+        grpc_channel, WorkerIdInterceptor(worker_id))
+    data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel)
     data_channel_client = data_plane.GrpcClientDataChannel(data_channel_stub)
 
     try:
@@ -89,50 +97,42 @@ class DataChannelTest(unittest.TestCase):
     self._data_channel_test_one_direction(client, server)
 
   def _data_channel_test_one_direction(self, from_channel, to_channel):
-    def send(instruction_id, target, data):
-      stream = from_channel.output_stream(instruction_id, target)
+    def send(instruction_id, transform_id, data):
+      stream = from_channel.output_stream(instruction_id, transform_id)
       stream.write(data)
       stream.close()
-    target_1 = beam_fn_api_pb2.Target(
-        primitive_transform_reference='1',
-        name='out')
-    target_2 = beam_fn_api_pb2.Target(
-        primitive_transform_reference='2',
-        name='out')
+    transform_1 = '1'
+    transform_2 = '2'
 
     # Single write.
-    send('0', target_1, 'abc')
+    send('0', transform_1, b'abc')
     self.assertEqual(
-        list(to_channel.input_elements('0', [target_1])),
+        list(to_channel.input_elements('0', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='0',
-            target=target_1,
-            data='abc')])
+            ptransform_id=transform_1,
+            data=b'abc')])
 
     # Multiple interleaved writes to multiple instructions.
-    target_2 = beam_fn_api_pb2.Target(
-        primitive_transform_reference='2',
-        name='out')
-
-    send('1', target_1, 'abc')
-    send('2', target_1, 'def')
+    send('1', transform_1, b'abc')
+    send('2', transform_1, b'def')
     self.assertEqual(
-        list(to_channel.input_elements('1', [target_1])),
+        list(to_channel.input_elements('1', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='1',
-            target=target_1,
-            data='abc')])
-    send('2', target_2, 'ghi')
+            ptransform_id=transform_1,
+            data=b'abc')])
+    send('2', transform_2, b'ghi')
     self.assertEqual(
-        list(to_channel.input_elements('2', [target_1, target_2])),
+        list(to_channel.input_elements('2', [transform_1, transform_2])),
         [beam_fn_api_pb2.Elements.Data(
             instruction_reference='2',
-            target=target_1,
-            data='def'),
+            ptransform_id=transform_1,
+            data=b'def'),
          beam_fn_api_pb2.Elements.Data(
              instruction_reference='2',
-             target=target_2,
-             data='ghi')])
+             ptransform_id=transform_2,
+             data=b'ghi')])
 
 
 if __name__ == '__main__':

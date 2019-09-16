@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
@@ -29,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** {@link CoderTranslator} implementations for known coder types. */
 class CoderTranslators {
@@ -76,6 +75,20 @@ class CoderTranslators {
     };
   }
 
+  static CoderTranslator<Timer.Coder<?>> timer() {
+    return new SimpleStructuredCoderTranslator<Timer.Coder<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(Timer.Coder<?> from) {
+        return from.getCoderArguments();
+      }
+
+      @Override
+      public Timer.Coder<?> fromComponents(List<Coder<?>> components) {
+        return Timer.Coder.of(components.get(0));
+      }
+    };
+  }
+
   static CoderTranslator<LengthPrefixCoder<?>> lengthPrefix() {
     return new SimpleStructuredCoderTranslator<LengthPrefixCoder<?>>() {
       @Override
@@ -107,6 +120,7 @@ class CoderTranslators {
 
   public abstract static class SimpleStructuredCoderTranslator<T extends Coder<?>>
       implements CoderTranslator<T> {
+    @Override
     public final T fromComponents(List<Coder<?>> components, byte[] payload) {
       return fromComponents(components);
     }

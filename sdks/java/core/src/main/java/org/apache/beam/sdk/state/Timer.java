@@ -38,8 +38,7 @@ import org.joda.time.Instant;
  * per scope.
  *
  * <p>Timer callbacks are not guaranteed to be called immediately according to the local view of the
- * {@link TimeDomain}, but will be called at some time after the requested time, in timestamp
- * order.
+ * {@link TimeDomain}, but will be called at some time after the requested time, in timestamp order.
  */
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timer {
@@ -71,6 +70,6 @@ public interface Timer {
   /**
    * Sets event time timer's output timestamp. Output watermark will be held at this timestamp until
    * the timer fires.
-   * */
+   */
   Timer withOutputTimestamp(Instant outputTime);
 }

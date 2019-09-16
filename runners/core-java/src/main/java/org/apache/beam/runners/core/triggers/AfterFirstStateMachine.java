@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Create a composite {@link TriggerStateMachine} that fires once after at least one of its
@@ -37,17 +37,13 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
     checkArgument(subTriggers.size() > 1);
   }
 
-  /**
-   * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers. */
   @SafeVarargs
-  public static TriggerStateMachine of(
-      TriggerStateMachine... triggers) {
+  public static TriggerStateMachine of(TriggerStateMachine... triggers) {
     return new AfterFirstStateMachine(Arrays.asList(triggers));
   }
 
-  public static TriggerStateMachine of(
-      Iterable<? extends TriggerStateMachine> triggers) {
+  public static TriggerStateMachine of(Iterable<? extends TriggerStateMachine> triggers) {
     return new AfterFirstStateMachine(ImmutableList.copyOf(triggers));
   }
 

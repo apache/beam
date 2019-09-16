@@ -23,18 +23,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link BigQueryCoderProviderRegistrar}.
- */
+/** Tests for {@link BigQueryCoderProviderRegistrar}. */
 @RunWith(JUnit4.class)
 public class BigQueryCoderProviderRegistrarTest {
   @Test
   public void testTableRowCoderIsRegistered() throws Exception {
     CoderRegistry.createDefault().getCoder(TableRow.class);
-  }
-
-  @Test
-  public void testTableRowInfoCoderIsRegistered() throws Exception {
-    CoderRegistry.createDefault().getCoder(TableRowInfo.class);
   }
 }

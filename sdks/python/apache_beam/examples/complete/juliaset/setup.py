@@ -24,6 +24,8 @@ then installed in the workers when they start running.
 This behavior is triggered by specifying the --setup_file command line option
 when running the workflow for remote execution.
 """
+
+from __future__ import absolute_import
 from __future__ import print_function
 
 import subprocess

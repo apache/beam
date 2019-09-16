@@ -20,33 +20,32 @@ package org.apache.beam.sdk.transforms.windowing;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Window}.
- */
+/** Tests for {@link Window}. */
 @RunWith(JUnit4.class)
 public class IntervalWindowTest {
 
   private static final Coder<IntervalWindow> TEST_CODER = IntervalWindow.getCoder();
 
-  private static final List<IntervalWindow> TEST_VALUES = Lists.newArrayList(
-      new IntervalWindow(new Instant(0), new Instant(0)),
-      new IntervalWindow(new Instant(0), new Instant(1000)),
-      new IntervalWindow(new Instant(-1000), new Instant(735)),
-      new IntervalWindow(new Instant(350), new Instant(60 * 60 * 1000)),
-      new IntervalWindow(new Instant(0), new Instant(24 * 60 * 60 * 1000)),
-      new IntervalWindow(
-          Instant.parse("2015-04-01T00:00:00Z"), Instant.parse("2015-04-01T11:45:13Z")));
+  private static final List<IntervalWindow> TEST_VALUES =
+      Lists.newArrayList(
+          new IntervalWindow(new Instant(0), new Instant(0)),
+          new IntervalWindow(new Instant(0), new Instant(1000)),
+          new IntervalWindow(new Instant(-1000), new Instant(735)),
+          new IntervalWindow(new Instant(350), new Instant(60 * 60 * 1000)),
+          new IntervalWindow(new Instant(0), new Instant(24 * 60 * 60 * 1000)),
+          new IntervalWindow(
+              Instant.parse("2015-04-01T00:00:00Z"), Instant.parse("2015-04-01T11:45:13Z")));
 
   @Test
   public void testBasicEncoding() throws Exception {
@@ -56,12 +55,12 @@ public class IntervalWindowTest {
   }
 
   /**
-   * This is a change detector test for the sizes of encoded windows. Since these are present
-   * for every element of every windowed PCollection, the size matters.
+   * This is a change detector test for the sizes of encoded windows. Since these are present for
+   * every element of every windowed PCollection, the size matters.
    *
-   * <p>This test documents the expectation that encoding as a (endpoint, duration) pair
-   * using big endian for the endpoint and variable length long for the duration should be about 25%
-   * smaller than encoding two big endian Long values.
+   * <p>This test documents the expectation that encoding as a (endpoint, duration) pair using big
+   * endian for the endpoint and variable length long for the duration should be about 25% smaller
+   * than encoding two big endian Long values.
    */
   @Test
   public void testLengthsOfEncodingChoices() throws Exception {
@@ -76,18 +75,16 @@ public class IntervalWindowTest {
     byte[] encodedHourEnd = CoderUtils.encodeToByteArray(instantCoder, hourEnd);
     byte[] encodedDayEnd = CoderUtils.encodeToByteArray(instantCoder, dayEnd);
 
-    byte[] encodedMinuteWindow = CoderUtils.encodeToByteArray(
-        TEST_CODER, new IntervalWindow(start, minuteEnd));
-    byte[] encodedHourWindow = CoderUtils.encodeToByteArray(
-        TEST_CODER, new IntervalWindow(start, hourEnd));
-    byte[] encodedDayWindow = CoderUtils.encodeToByteArray(
-        TEST_CODER, new IntervalWindow(start, dayEnd));
+    byte[] encodedMinuteWindow =
+        CoderUtils.encodeToByteArray(TEST_CODER, new IntervalWindow(start, minuteEnd));
+    byte[] encodedHourWindow =
+        CoderUtils.encodeToByteArray(TEST_CODER, new IntervalWindow(start, hourEnd));
+    byte[] encodedDayWindow =
+        CoderUtils.encodeToByteArray(TEST_CODER, new IntervalWindow(start, dayEnd));
 
-    assertThat(encodedMinuteWindow.length,
-        equalTo(encodedStart.length + encodedMinuteEnd.length - 5));
-    assertThat(encodedHourWindow.length,
-        equalTo(encodedStart.length + encodedHourEnd.length - 4));
-    assertThat(encodedDayWindow.length,
-        equalTo(encodedStart.length + encodedDayEnd.length - 4));
+    assertThat(
+        encodedMinuteWindow.length, equalTo(encodedStart.length + encodedMinuteEnd.length - 5));
+    assertThat(encodedHourWindow.length, equalTo(encodedStart.length + encodedHourEnd.length - 4));
+    assertThat(encodedDayWindow.length, equalTo(encodedStart.length + encodedDayEnd.length - 4));
   }
 }

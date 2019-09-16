@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -36,6 +34,7 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 
 /**
  * Utility methods for translating a {@link View} transforms to and from {@link RunnerApi}
@@ -54,13 +53,17 @@ public class CreatePCollectionViewTranslation {
   @Deprecated
   public static <ElemT, ViewT> PCollectionView<ViewT> getView(
       AppliedPTransform<
-              PCollection<ElemT>, PCollection<ElemT>,
+              PCollection<ElemT>,
+              PCollection<ElemT>,
               PTransform<PCollection<ElemT>, PCollection<ElemT>>>
           application)
       throws IOException {
 
     RunnerApi.PTransform transformProto =
-        PTransformTranslation.toProto(application, Collections.emptyList(), SdkComponents.create());
+        PTransformTranslation.toProto(
+            application,
+            Collections.emptyList(),
+            SdkComponents.create(application.getPipeline().getOptions()));
 
     checkArgument(
         PTransformTranslation.CREATE_VIEW_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),
@@ -72,20 +75,17 @@ public class CreatePCollectionViewTranslation {
 
     return (PCollectionView<ViewT>)
         SerializableUtils.deserializeFromByteArray(
-            transformProto
-                .getSpec()
-                .getPayload()
-                .toByteArray(),
+            transformProto.getSpec().getPayload().toByteArray(),
             PCollectionView.class.getSimpleName());
   }
 
   /**
-   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this
-   * as part of the translation for a `ParDo` side input.
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
+   *     part of the translation for a `ParDo` side input.
    */
   @Deprecated
   static class CreatePCollectionViewTranslator
-      extends TransformPayloadTranslator.WithDefaultRehydration<View.CreatePCollectionView<?, ?>> {
+      implements TransformPayloadTranslator<View.CreatePCollectionView<?, ?>> {
     @Override
     public String getUrn(View.CreatePCollectionView<?, ?> transform) {
       return PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
@@ -107,8 +107,8 @@ public class CreatePCollectionViewTranslation {
   /**
    * Registers {@link CreatePCollectionViewTranslator}.
    *
-   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this
-   * as part of the translation for a `ParDo` side input.
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
+   *     part of the translation for a `ParDo` side input.
    */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   @Deprecated
@@ -118,11 +118,6 @@ public class CreatePCollectionViewTranslation {
         getTransformPayloadTranslators() {
       return Collections.singletonMap(
           View.CreatePCollectionView.class, new CreatePCollectionViewTranslator());
-    }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

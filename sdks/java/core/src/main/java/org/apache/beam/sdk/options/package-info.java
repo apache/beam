@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 /**
- * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for
- * configuring pipeline execution.
+ * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution.
  *
- * <p>{@link org.apache.beam.sdk.options.PipelineOptions} encapsulates the various
- * parameters that describe how a pipeline should be run. {@code PipelineOptions} are created
- * using a {@link org.apache.beam.sdk.options.PipelineOptionsFactory}.
+ * <p>{@link org.apache.beam.sdk.options.PipelineOptions} encapsulates the various parameters that
+ * describe how a pipeline should be run. {@code PipelineOptions} are created using a {@link
+ * org.apache.beam.sdk.options.PipelineOptionsFactory}.
  */
 package org.apache.beam.sdk.options;

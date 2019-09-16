@@ -17,28 +17,28 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Joiner;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
 /**
- * A composite {@link Trigger} that executes its sub-triggers in order.
- * Only one sub-trigger is executing at a time,
- * and any time it fires the {@code AfterEach} fires. When the currently executing
- * sub-trigger finishes, the {@code AfterEach} starts executing the next sub-trigger.
+ * A composite {@link Trigger} that executes its sub-triggers in order. Only one sub-trigger is
+ * executing at a time, and any time it fires the {@code AfterEach} fires. When the currently
+ * executing sub-trigger finishes, the {@code AfterEach} starts executing the next sub-trigger.
  *
  * <p>{@code AfterEach.inOrder(t1, t2, ...)} finishes when all of the sub-triggers have finished.
  *
  * <p>The following properties hold:
+ *
  * <ul>
- *   <li> {@code AfterEach.inOrder(AfterEach.inOrder(a, b), c)} behaves the same as
- *   {@code AfterEach.inOrder(a, b, c)} and {@code AfterEach.inOrder(a, AfterEach.inOrder(b, c)}.
- *   <li> {@code AfterEach.inOrder(Repeatedly.forever(a), b)} behaves the same as
- *   {@code Repeatedly.forever(a)}, since the repeated trigger never finishes.
+ *   <li>{@code AfterEach.inOrder(AfterEach.inOrder(a, b), c)} behaves the same as {@code
+ *       AfterEach.inOrder(a, b, c)} and {@code AfterEach.inOrder(a, AfterEach.inOrder(b, c)}.
+ *   <li>{@code AfterEach.inOrder(Repeatedly.forever(a), b)} behaves the same as {@code
+ *       Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
  */
 @Experimental(Experimental.Kind.TRIGGER)
@@ -49,17 +49,13 @@ public class AfterEach extends Trigger {
     checkArgument(subTriggers.size() > 1);
   }
 
-  /**
-   * Returns an {@code AfterEach} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterEach} {@code Trigger} with the given subtriggers. */
   @SafeVarargs
   public static AfterEach inOrder(Trigger... triggers) {
     return new AfterEach(Arrays.asList(triggers));
   }
 
-  /**
-   * Returns an {@code AfterEach} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterEach} {@code Trigger} with the given subtriggers. */
   public static AfterEach inOrder(List<Trigger> triggers) {
     return new AfterEach(triggers);
   }

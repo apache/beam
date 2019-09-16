@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
@@ -57,10 +57,7 @@ public class ValueWithRecordId<ValueT> {
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("id", id)
-        .add("value", value)
-        .toString();
+    return MoreObjects.toStringHelper(this).add("id", id).add("value", value).toString();
   }
 
   @Override
@@ -72,8 +69,7 @@ public class ValueWithRecordId<ValueT> {
       return false;
     }
     ValueWithRecordId<?> otherRecord = (ValueWithRecordId<?>) other;
-    return Objects.deepEquals(id, otherRecord.id)
-        && Objects.deepEquals(value, otherRecord.value);
+    return Objects.deepEquals(id, otherRecord.id) && Objects.deepEquals(value, otherRecord.value);
   }
 
   @Override
@@ -81,9 +77,7 @@ public class ValueWithRecordId<ValueT> {
     return Objects.hash(Arrays.hashCode(id), value);
   }
 
-  /**
-   * A {@link Coder} for {@code ValueWithRecordId}, using a wrapped value {@code Coder}.
-   */
+  /** A {@link Coder} for {@code ValueWithRecordId}, using a wrapped value {@code Coder}. */
   public static class ValueWithRecordIdCoder<ValueT>
       extends StructuredCoder<ValueWithRecordId<ValueT>> {
     public static <ValueT> ValueWithRecordIdCoder<ValueT> of(Coder<ValueT> valueCoder) {
@@ -101,8 +95,7 @@ public class ValueWithRecordId<ValueT> {
     }
 
     @Override
-    public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream)
-        throws IOException {
+    public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream) throws IOException {
       encode(value, outStream, Context.NESTED);
     }
 

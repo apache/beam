@@ -23,9 +23,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the {@link AfterWatermark} triggers.
- */
+/** Tests the {@link AfterWatermark} triggers. */
 @RunWith(JUnit4.class)
 public class AfterWatermarkTest {
 
@@ -56,7 +54,8 @@ public class AfterWatermarkTest {
             .withEarlyFirings(StubTrigger.named("t1"))
             .withLateFirings(StubTrigger.named("t2"));
 
-    assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1).withLateFirings(t2)",
+    assertEquals(
+        "AfterWatermark.pastEndOfWindow().withEarlyFirings(t1).withLateFirings(t2)",
         trigger.toString());
   }
 

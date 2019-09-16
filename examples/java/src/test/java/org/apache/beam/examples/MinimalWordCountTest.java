@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.FileChannel;
@@ -25,16 +24,17 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,18 +42,15 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /**
- * To keep {@link MinimalWordCount} simple, it is not factored or testable. This test
- * file should be maintained with a copy of its code for a basic smoke test.
+ * To keep {@link MinimalWordCount} simple, it is not factored or testable. This test file should be
+ * maintained with a copy of its code for a basic smoke test.
  */
 @RunWith(JUnit4.class)
 public class MinimalWordCountTest implements Serializable {
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  /**
-   * A basic smoke test that ensures there is no crash at pipeline construction time.
-   */
+  /** A basic smoke test that ensures there is no crash at pipeline construction time. */
   @Test
   public void testMinimalWordCount() throws Exception {
     p.getOptions().as(GcsOptions.class).setGcsUtil(buildMockGcsUtil());

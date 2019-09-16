@@ -15,11 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import java.util.List;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /**
@@ -27,21 +31,16 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
  *
  * <p>So there will be a provider to handle textfile(CSV) based tables, there is a provider to
  * handle MySQL based tables, a provider to handle Casandra based tables etc.
+ *
+ * <p><i>Note:</i> all implementations marked with {@code @AutoService(TableProvider.class)} are
+ * automatically loaded by CLI or other cases when {@link JdbcDriver} is used with default
+ * connection parameters.
  */
 public interface TableProvider {
-  /**
-   * Init the provider.
-   */
-  void init();
-
-  /**
-   * Gets the table type this provider handles.
-   */
+  /** Gets the table type this provider handles. */
   String getTableType();
 
-  /**
-   * Creates a table.
-   */
+  /** Creates a table. */
   void createTable(Table table);
 
   /**
@@ -51,18 +50,30 @@ public interface TableProvider {
    */
   void dropTable(String tableName);
 
-  /**
-   * List all tables from this provider.
-   */
-  List<Table> listTables();
+  /** Get all tables from this provider. */
+  Map<String, Table> getTables();
 
-  /**
-   * Build a {@link BeamSqlTable} using the given table meta info.
-   */
+  /** Get a specific table from this provider it is present, or null if it is not present. */
+  default @Nullable Table getTable(String tableName) {
+    return getTables().get(tableName);
+  }
+
+  /** Build a {@link BeamSqlTable} using the given table meta info. */
   BeamSqlTable buildBeamSqlTable(Table table);
 
   /**
-   * Close the provider.
+   * Returns all sub-providers, e.g. sub-schemas. Temporary, this logic needs to live in {@link
+   * BeamCalciteSchema}.
    */
-  void close();
+  default Set<String> getSubProviders() {
+    return Collections.emptySet();
+  }
+
+  /**
+   * Returns a sub-provider, e.g. sub-schema. Temporary, this logic needs to live in {@link
+   * BeamCalciteSchema}.
+   */
+  default TableProvider getSubProvider(String name) {
+    return null;
+  }
 }

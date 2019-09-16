@@ -18,13 +18,11 @@
 package org.apache.beam.sdk.io.aws.options;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-/**
- * A registrar containing the default AWS options.
- */
+/** A registrar containing the default AWS options. */
 @AutoService(PipelineOptionsRegistrar.class)
 public class AwsPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
 

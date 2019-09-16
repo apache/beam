@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertEquals;
@@ -27,26 +26,28 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PCollectionViewTranslation}.
- */
+/** Tests for {@link PCollectionViewTranslation}. */
 @RunWith(JUnit4.class)
 public class PCollectionViewTranslationTest {
   @Test
   public void testViewFnTranslation() throws Exception {
-    assertEquals(new TestViewFn(),
+    SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+    assertEquals(
+        new TestViewFn(),
         PCollectionViewTranslation.viewFnFromProto(
-            ParDoTranslation.translateViewFn(new TestViewFn(),
-                SdkComponents.create())));
+            ParDoTranslation.translateViewFn(new TestViewFn(), sdkComponents)));
   }
 
   @Test
   public void testWindowMappingFnTranslation() throws Exception {
-    assertEquals(new GlobalWindows().getDefaultWindowMappingFn(),
+    SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+    assertEquals(
+        new GlobalWindows().getDefaultWindowMappingFn(),
         PCollectionViewTranslation.windowMappingFnFromProto(
             ParDoTranslation.translateWindowMappingFn(
-                new GlobalWindows().getDefaultWindowMappingFn(),
-                SdkComponents.create())));
+                new GlobalWindows().getDefaultWindowMappingFn(), sdkComponents)));
   }
 
   /** Test implementation to check for equality. */

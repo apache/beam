@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -33,7 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.hamcrest.Matchers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -64,13 +63,15 @@ public class WindowingStrategyTranslationTest {
   public static Iterable<ToProtoAndBackSpec> data() {
     return ImmutableList.of(
         toProtoAndBackSpec(WindowingStrategy.globalDefault()),
-        toProtoAndBackSpec(WindowingStrategy.of(
-            FixedWindows.of(Duration.millis(11)).withOffset(Duration.millis(3)))),
-        toProtoAndBackSpec(WindowingStrategy.of(
-            SlidingWindows.of(Duration.millis(37)).every(Duration.millis(3))
-                .withOffset(Duration.millis(2)))),
-        toProtoAndBackSpec(WindowingStrategy.of(
-            Sessions.withGapDuration(Duration.millis(389)))),
+        toProtoAndBackSpec(
+            WindowingStrategy.of(
+                FixedWindows.of(Duration.millis(11)).withOffset(Duration.millis(3)))),
+        toProtoAndBackSpec(
+            WindowingStrategy.of(
+                SlidingWindows.of(Duration.millis(37))
+                    .every(Duration.millis(3))
+                    .withOffset(Duration.millis(2)))),
+        toProtoAndBackSpec(WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(389)))),
         toProtoAndBackSpec(
             WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
                 .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS)
@@ -84,6 +85,13 @@ public class WindowingStrategyTranslationTest {
                 .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
                 .withTrigger(REPRESENTATIVE_TRIGGER)
                 .withAllowedLateness(Duration.millis(93))
+                .withTimestampCombiner(TimestampCombiner.LATEST)),
+        toProtoAndBackSpec(
+            WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
+                .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY)
+                .withMode(AccumulationMode.RETRACTING_FIRED_PANES)
+                .withTrigger(REPRESENTATIVE_TRIGGER)
+                .withAllowedLateness(Duration.millis(100))
                 .withTimestampCombiner(TimestampCombiner.LATEST)));
   }
 
@@ -93,9 +101,11 @@ public class WindowingStrategyTranslationTest {
   @Test
   public void testToProtoAndBack() throws Exception {
     WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     WindowingStrategy<?, ?> toProtoAndBackWindowingStrategy =
         WindowingStrategyTranslation.fromProto(
-            WindowingStrategyTranslation.toProto(windowingStrategy));
+            WindowingStrategyTranslation.toMessageProto(windowingStrategy, components));
 
     assertThat(
         toProtoAndBackWindowingStrategy,
@@ -106,6 +116,7 @@ public class WindowingStrategyTranslationTest {
   public void testToProtoAndBackWithComponents() throws Exception {
     WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.WindowingStrategy proto =
         WindowingStrategyTranslation.toProto(windowingStrategy, components);
     RehydratedComponents protoComponents =
@@ -113,7 +124,7 @@ public class WindowingStrategyTranslationTest {
 
     assertThat(
         WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
-        Matchers.equalTo(windowingStrategy.fixDefaults()));
+        equalTo(windowingStrategy.fixDefaults()));
 
     protoComponents.getCoder(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.data;
 
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -36,10 +35,10 @@ public interface BeamFnDataClient {
   /**
    * Registers the following inbound receiver for the provided instruction id and target.
    *
-   * <p>The provided coder is used to decode inbound elements. The decoded elements
-   * are passed to the provided receiver. Any failure during decoding or processing of the element
-   * will complete the returned future exceptionally. On successful termination of the stream,
-   * the returned future is completed successfully.
+   * <p>The provided coder is used to decode inbound elements. The decoded elements are passed to
+   * the provided receiver. Any failure during decoding or processing of the element will complete
+   * the returned future exceptionally. On successful termination of the stream, the returned future
+   * is completed successfully.
    *
    * <p>The receiver is not required to be thread safe.
    */

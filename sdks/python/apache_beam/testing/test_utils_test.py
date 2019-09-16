@@ -17,10 +17,14 @@
 
 """Unittest for testing utilities,"""
 
+from __future__ import absolute_import
+
 import logging
 import os
 import tempfile
 import unittest
+
+import mock
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystems import FileSystems
@@ -50,15 +54,13 @@ class TestUtilsTest(unittest.TestCase):
       utils.delete_files([path])
     self.assertTrue(
         error.exception.args[0].startswith('Delete operation failed'))
-    self.assertEqual(error.exception.exception_details.keys(), [path])
+    self.assertEqual(list(error.exception.exception_details.keys()), [path])
 
   def test_delete_files_fails_with_invalid_arg(self):
     with self.assertRaises(RuntimeError):
       utils.delete_files([])
 
   def test_temp_dir_removes_files(self):
-    dir_path = ''
-    file_path = ''
     with utils.TempDir() as tempdir:
       dir_path = tempdir.get_path()
       file_path = tempdir.create_temp_file()
@@ -72,13 +74,27 @@ class TestUtilsTest(unittest.TestCase):
     with utils.TempDir() as tempdir:
       filename = tempdir.create_temp_file(
           suffix='.txt',
-          lines=['line1\n', 'line2\n', 'line3\n'])
+          lines=[b'line1\n', b'line2\n', b'line3\n'])
       self.assertTrue(filename.endswith('.txt'))
 
       with open(filename, 'rb') as f:
-        self.assertEqual(f.readline(), 'line1\n')
-        self.assertEqual(f.readline(), 'line2\n')
-        self.assertEqual(f.readline(), 'line3\n')
+        self.assertEqual(f.readline(), b'line1\n')
+        self.assertEqual(f.readline(), b'line2\n')
+        self.assertEqual(f.readline(), b'line3\n')
+
+  def test_cleanup_subscriptions(self):
+    sub_client = mock.Mock()
+    sub = mock.Mock()
+    sub.name = 'test_sub'
+    utils.cleanup_subscriptions(sub_client, [sub])
+    sub_client.delete_subscription.assert_called_with(sub.name)
+
+  def test_cleanup_topics(self):
+    pub_client = mock.Mock()
+    topic = mock.Mock()
+    topic.name = 'test_topic'
+    utils.cleanup_topics(pub_client, [topic])
+    pub_client.delete_topic.assert_called_with(topic.name)
 
 
 if __name__ == '__main__':

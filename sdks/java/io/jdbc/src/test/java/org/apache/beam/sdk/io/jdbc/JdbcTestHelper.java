@@ -23,26 +23,23 @@ import java.sql.SQLException;
 import org.apache.beam.sdk.io.common.TestRow;
 
 /**
- * Contains Test helper methods used by both Integration and Unit Tests in
- * {@link org.apache.beam.sdk.io.jdbc.JdbcIO}.
+ * Contains Test helper methods used by both Integration and Unit Tests in {@link
+ * org.apache.beam.sdk.io.jdbc.JdbcIO}.
  */
 class JdbcTestHelper {
 
   static class CreateTestRowOfNameAndId implements JdbcIO.RowMapper<TestRow> {
     @Override
     public TestRow mapRow(ResultSet resultSet) throws Exception {
-      return TestRow.create(
-          resultSet.getInt("id"), resultSet.getString("name"));
+      return TestRow.create(resultSet.getInt("id"), resultSet.getString("name"));
     }
   }
 
   static class PrepareStatementFromTestRow implements JdbcIO.PreparedStatementSetter<TestRow> {
     @Override
-    public void setParameters(TestRow element, PreparedStatement statement)
-        throws SQLException {
+    public void setParameters(TestRow element, PreparedStatement statement) throws SQLException {
       statement.setLong(1, element.id());
       statement.setString(2, element.name());
     }
   }
-
 }

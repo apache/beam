@@ -15,24 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
-import static org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceAccumulator
-    .newVarianceAccumulator;
-import static org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceAccumulator
-    .ofSingleElement;
+import static org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceAccumulator.newVarianceAccumulator;
+import static org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceAccumulator.ofSingleElement;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import java.math.BigDecimal;
 import org.junit.Test;
 
-/**
- * Unit tests for {@link VarianceAccumulator}.
- */
+/** Unit tests for {@link VarianceAccumulator}. */
 public class VarianceAccumulatorTest {
   private static final double DELTA = 1e-7;
   private static final BigDecimal FIFTEEN = new BigDecimal(15);
@@ -68,8 +63,7 @@ public class VarianceAccumulatorTest {
 
   @Test
   public void testCombinesEmptyWithEmpty() {
-    VarianceAccumulator result = VarianceAccumulator.EMPTY
-        .combineWith(VarianceAccumulator.EMPTY);
+    VarianceAccumulator result = VarianceAccumulator.EMPTY.combineWith(VarianceAccumulator.EMPTY);
 
     assertEquals(VarianceAccumulator.EMPTY, result);
   }
@@ -104,29 +98,23 @@ public class VarianceAccumulatorTest {
     // result:
     //   increment() = 3/(4(3+4))  *  (4 * 4/3 - 5)^2 = 0.107142857 * 0.111111111 = 0.011904762
     //   var(combine(x,y)) = 15 + 16 + increment() = 31.011904762
-    VarianceAccumulator expectedCombined = newVarianceAccumulator(
-        FIFTEEN.add(SIXTEEN).add(new BigDecimal(0.011904762)),
-        THREE.add(FOUR),
-        FOUR.add(FIVE));
+    VarianceAccumulator expectedCombined =
+        newVarianceAccumulator(
+            FIFTEEN.add(SIXTEEN).add(new BigDecimal(0.011904762)), THREE.add(FOUR), FOUR.add(FIVE));
 
     VarianceAccumulator combined1 = accumulator1.combineWith(accumulator2);
     VarianceAccumulator combined2 = accumulator2.combineWith(accumulator1);
 
     assertEquals(
-        expectedCombined.variance().doubleValue(),
-        combined1.variance().doubleValue(),
-        DELTA);
+        expectedCombined.variance().doubleValue(), combined1.variance().doubleValue(), DELTA);
 
     assertEquals(
-        expectedCombined.variance().doubleValue(),
-        combined2.variance().doubleValue(),
-        DELTA);
+        expectedCombined.variance().doubleValue(), combined2.variance().doubleValue(), DELTA);
 
     assertEquals(expectedCombined.count(), combined1.count());
     assertEquals(expectedCombined.sum(), combined1.sum());
 
     assertEquals(expectedCombined.count(), combined2.count());
     assertEquals(expectedCombined.sum(), combined2.sum());
-
   }
 }

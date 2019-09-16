@@ -31,24 +31,22 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the {@link AfterProcessingTimeStateMachine}.
- */
+/** Tests the {@link AfterProcessingTimeStateMachine}. */
 @RunWith(JUnit4.class)
 public class AfterProcessingTimeStateMachineTest {
 
   /**
-   * Tests the basic property that the trigger does wait for processing time to be
-   * far enough advanced.
+   * Tests the basic property that the trigger does wait for processing time to be far enough
+   * advanced.
    */
   @Test
   public void testAfterProcessingTimeFixedWindows() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    SimpleTriggerStateMachineTester<IntervalWindow> tester = TriggerStateMachineTester.forTrigger(
-        AfterProcessingTimeStateMachine
-            .pastFirstElementInPane()
-            .plusDelayOf(Duration.millis(5)),
-        FixedWindows.of(windowDuration));
+    SimpleTriggerStateMachineTester<IntervalWindow> tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterProcessingTimeStateMachine.pastFirstElementInPane()
+                .plusDelayOf(Duration.millis(5)),
+            FixedWindows.of(windowDuration));
 
     tester.advanceProcessingTime(new Instant(10));
 
@@ -86,16 +84,16 @@ public class AfterProcessingTimeStateMachineTest {
   }
 
   /**
-   * Tests that when windows merge, if the trigger is waiting for "N millis after the first
-   * element" that it is relative to the earlier of the two merged windows.
+   * Tests that when windows merge, if the trigger is waiting for "N millis after the first element"
+   * that it is relative to the earlier of the two merged windows.
    */
   @Test
   public void testClear() throws Exception {
-    SimpleTriggerStateMachineTester<IntervalWindow> tester = TriggerStateMachineTester.forTrigger(
-        AfterProcessingTimeStateMachine
-            .pastFirstElementInPane()
-            .plusDelayOf(Duration.millis(5)),
-        FixedWindows.of(Duration.millis(10)));
+    SimpleTriggerStateMachineTester<IntervalWindow> tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterProcessingTimeStateMachine.pastFirstElementInPane()
+                .plusDelayOf(Duration.millis(5)),
+            FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1, 2, 3);
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
@@ -105,11 +103,11 @@ public class AfterProcessingTimeStateMachineTest {
 
   @Test
   public void testAfterProcessingTimeWithMergingWindow() throws Exception {
-    SimpleTriggerStateMachineTester<IntervalWindow> tester = TriggerStateMachineTester.forTrigger(
-        AfterProcessingTimeStateMachine
-            .pastFirstElementInPane()
-            .plusDelayOf(Duration.millis(5)),
-        Sessions.withGapDuration(Duration.millis(10)));
+    SimpleTriggerStateMachineTester<IntervalWindow> tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterProcessingTimeStateMachine.pastFirstElementInPane()
+                .plusDelayOf(Duration.millis(5)),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     tester.advanceProcessingTime(new Instant(10));
     tester.injectElements(1); // in [1, 11), timer for 15
@@ -128,14 +126,14 @@ public class AfterProcessingTimeStateMachineTest {
     assertTrue(tester.shouldFire(mergedWindow));
   }
 
-  /**
-   * Basic test of compatibility check between identical triggers.
-   */
+  /** Basic test of compatibility check between identical triggers. */
   @Test
   public void testCompatibilityIdentical() throws Exception {
-    TriggerStateMachine t1 = AfterProcessingTimeStateMachine.pastFirstElementInPane()
+    TriggerStateMachine t1 =
+        AfterProcessingTimeStateMachine.pastFirstElementInPane()
             .plusDelayOf(Duration.standardMinutes(1L));
-    TriggerStateMachine t2 = AfterProcessingTimeStateMachine.pastFirstElementInPane()
+    TriggerStateMachine t2 =
+        AfterProcessingTimeStateMachine.pastFirstElementInPane()
             .plusDelayOf(Duration.standardMinutes(1L));
     assertTrue(t1.isCompatible(t2));
   }
@@ -148,24 +146,27 @@ public class AfterProcessingTimeStateMachineTest {
 
   @Test
   public void testWithDelayToString() {
-    TriggerStateMachine trigger = AfterProcessingTimeStateMachine.pastFirstElementInPane()
-        .plusDelayOf(Duration.standardMinutes(5));
+    TriggerStateMachine trigger =
+        AfterProcessingTimeStateMachine.pastFirstElementInPane()
+            .plusDelayOf(Duration.standardMinutes(5));
 
-    assertEquals("AfterProcessingTime.pastFirstElementInPane().plusDelayOf(5 minutes)",
-        trigger.toString());
+    assertEquals(
+        "AfterProcessingTime.pastFirstElementInPane().plusDelayOf(5 minutes)", trigger.toString());
   }
 
   @Test
   public void testBuiltUpToString() {
-    TriggerStateMachine trigger = AfterWatermarkStateMachine.pastEndOfWindow()
-        .withLateFirings(AfterProcessingTimeStateMachine
-            .pastFirstElementInPane()
-            .plusDelayOf(Duration.standardMinutes(10)));
+    TriggerStateMachine trigger =
+        AfterWatermarkStateMachine.pastEndOfWindow()
+            .withLateFirings(
+                AfterProcessingTimeStateMachine.pastFirstElementInPane()
+                    .plusDelayOf(Duration.standardMinutes(10)));
 
-    String expected = "AfterWatermark.pastEndOfWindow()"
-        + ".withLateFirings(AfterProcessingTime"
-        + ".pastFirstElementInPane()"
-        + ".plusDelayOf(10 minutes))";
+    String expected =
+        "AfterWatermark.pastEndOfWindow()"
+            + ".withLateFirings(AfterProcessingTime"
+            + ".pastFirstElementInPane()"
+            + ".plusDelayOf(10 minutes))";
 
     assertEquals(expected, trigger.toString());
   }

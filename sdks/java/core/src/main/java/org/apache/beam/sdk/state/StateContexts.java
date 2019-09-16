@@ -48,4 +48,32 @@ public class StateContexts {
   public static <W extends BoundedWindow> StateContext<W> nullContext() {
     return (StateContext<W>) NULL_CONTEXT;
   }
+
+  public static <W extends BoundedWindow> StateContext<W> windowOnlyContext(W window) {
+    return new WindowOnlyContext<>(window);
+  }
+
+  private static class WindowOnlyContext<W extends BoundedWindow> implements StateContext<W> {
+    private final W window;
+
+    private WindowOnlyContext(W window) {
+      this.window = window;
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      throw new IllegalArgumentException(
+          "cannot call getPipelineOptions() in a window-only context");
+    }
+
+    @Override
+    public <T> T sideInput(PCollectionView<T> view) {
+      throw new IllegalArgumentException("cannot call sideInput() in a window-only context");
+    }
+
+    @Override
+    public W window() {
+      return window;
+    }
+  }
 }

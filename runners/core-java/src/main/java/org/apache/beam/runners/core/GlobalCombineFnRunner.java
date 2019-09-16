@@ -33,45 +33,60 @@ public interface GlobalCombineFnRunner<InputT, AccumT, OutputT> extends Serializ
   /**
    * Forwards the call to a {@link GlobalCombineFn} to create the accumulator.
    *
-   * <p>It constructs a {@code CombineWithContext.Context} from
-   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   * <p>It constructs a {@code CombineWithContext.Context} from {@link PipelineOptions} and {@link
+   * SideInputReader} if it is required.
    */
-  AccumT createAccumulator(PipelineOptions options,
-      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+  AccumT createAccumulator(
+      PipelineOptions options,
+      SideInputReader sideInputReader,
+      Collection<? extends BoundedWindow> windows);
 
   /**
    * Forwards the call to a {@link GlobalCombineFn} to add the input.
    *
-   * <p>It constructs a {@code CombineWithContext.Context} from
-   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   * <p>It constructs a {@code CombineWithContext.Context} from {@link PipelineOptions} and {@link
+   * SideInputReader} if it is required.
    */
-  AccumT addInput(AccumT accumulator, InputT value, PipelineOptions options,
-      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+  AccumT addInput(
+      AccumT accumulator,
+      InputT value,
+      PipelineOptions options,
+      SideInputReader sideInputReader,
+      Collection<? extends BoundedWindow> windows);
 
   /**
    * Forwards the call to a {@link GlobalCombineFn} to merge accumulators.
    *
-   * <p>It constructs a {@code CombineWithContext.Context} from
-   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   * <p>It constructs a {@code CombineWithContext.Context} from {@link PipelineOptions} and {@link
+   * SideInputReader} if it is required.
    */
-  AccumT mergeAccumulators(Iterable<AccumT> accumulators, PipelineOptions options,
-      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+  AccumT mergeAccumulators(
+      Iterable<AccumT> accumulators,
+      PipelineOptions options,
+      SideInputReader sideInputReader,
+      Collection<? extends BoundedWindow> windows);
 
   /**
    * Forwards the call to a {@link GlobalCombineFn} to extract the output.
    *
-   * <p>It constructs a {@code CombineWithContext.Context} from
-   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   * <p>It constructs a {@code CombineWithContext.Context} from {@link PipelineOptions} and {@link
+   * SideInputReader} if it is required.
    */
-  OutputT extractOutput(AccumT accumulator, PipelineOptions options,
-      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+  OutputT extractOutput(
+      AccumT accumulator,
+      PipelineOptions options,
+      SideInputReader sideInputReader,
+      Collection<? extends BoundedWindow> windows);
 
   /**
    * Forwards the call to a {@link GlobalCombineFn} to compact the accumulator.
    *
-   * <p>It constructs a {@code CombineWithContext.Context} from
-   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   * <p>It constructs a {@code CombineWithContext.Context} from {@link PipelineOptions} and {@link
+   * SideInputReader} if it is required.
    */
-  AccumT compact(AccumT accumulator, PipelineOptions options,
-      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+  AccumT compact(
+      AccumT accumulator,
+      PipelineOptions options,
+      SideInputReader sideInputReader,
+      Collection<? extends BoundedWindow> windows);
 }

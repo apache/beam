@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,23 +36,21 @@ import org.joda.time.Instant;
 /**
  * An immutable pair of a value and a timestamp.
  *
- * <p>The timestamp of a value determines many properties, such as its assignment to
- * windows and whether the value is late (with respect to the watermark of a {@link PCollection}).
+ * <p>The timestamp of a value determines many properties, such as its assignment to windows and
+ * whether the value is late (with respect to the watermark of a {@link PCollection}).
  *
  * @param <V> the type of the value
  */
 public class TimestampedValue<V> {
   /**
-   * Returns a new {@link TimestampedValue} with the
-   * {@link BoundedWindow#TIMESTAMP_MIN_VALUE minimum timestamp}.
+   * Returns a new {@link TimestampedValue} with the {@link BoundedWindow#TIMESTAMP_MIN_VALUE
+   * minimum timestamp}.
    */
   public static <V> TimestampedValue<V> atMinimumTimestamp(@Nullable V value) {
     return of(value, BoundedWindow.TIMESTAMP_MIN_VALUE);
   }
 
-  /**
-   * Returns a new {@code TimestampedValue} with the given value and timestamp.
-   */
+  /** Returns a new {@code TimestampedValue} with the given value and timestamp. */
   public static <V> TimestampedValue<V> of(@Nullable V value, Instant timestamp) {
     return new TimestampedValue<>(value, timestamp);
   }
@@ -95,23 +93,26 @@ public class TimestampedValue<V> {
       return new TimestampedValueCoder<>(valueCoder);
     }
 
+    @Override
+    public Object structuralValue(TimestampedValue<T> value) {
+      Object structuralValue = valueCoder.structuralValue(value.getValue());
+      return TimestampedValue.of(structuralValue, value.getTimestamp());
+    }
+
     @SuppressWarnings("unchecked")
     TimestampedValueCoder(Coder<T> valueCoder) {
       this.valueCoder = checkNotNull(valueCoder);
     }
 
     @Override
-    public void encode(TimestampedValue<T> windowedElem,
-                       OutputStream outStream)
+    public void encode(TimestampedValue<T> windowedElem, OutputStream outStream)
         throws IOException {
       valueCoder.encode(windowedElem.getValue(), outStream);
-      InstantCoder.of().encode(
-          windowedElem.getTimestamp(), outStream);
+      InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
     }
 
     @Override
-    public TimestampedValue<T> decode(InputStream inStream)
-        throws IOException {
+    public TimestampedValue<T> decode(InputStream inStream) throws IOException {
       T value = valueCoder.decode(inStream);
       Instant timestamp = InstantCoder.of().decode(inStream);
       return TimestampedValue.of(value, timestamp);

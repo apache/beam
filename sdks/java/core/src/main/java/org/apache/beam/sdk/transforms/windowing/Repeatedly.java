@@ -25,12 +25,13 @@ import org.joda.time.Instant;
  * A {@link Trigger} that fires according to its subtrigger forever.
  *
  * <p>For example, to fire after the end of the window, and every time late data arrives:
- * <pre> {@code
- *     Repeatedly.forever(AfterWatermark.pastEndOfWindow());
- * } </pre>
  *
- * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite
- * {@code AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
+ * <pre>{@code
+ * Repeatedly.forever(AfterWatermark.pastEndOfWindow());
+ * }</pre>
+ *
+ * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite {@code
+ * AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
  *
  * <p>You can use {@link #orFinally(OnceTrigger)} to let another trigger interrupt the repetition.
  */

@@ -20,18 +20,21 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-/**
- * A test of {@link SpannerSchema}.
- */
+/** A test of {@link SpannerSchema}. */
+@RunWith(JUnit4.class)
 public class SpannerSchemaTest {
 
   @Test
   public void testSingleTable() throws Exception {
-    SpannerSchema schema = SpannerSchema.builder()
-        .addColumn("test", "pk", "STRING(48)")
-        .addKeyPart("test", "pk", false)
-        .addColumn("test", "maxKey", "STRING(MAX)").build();
+    SpannerSchema schema =
+        SpannerSchema.builder()
+            .addColumn("test", "pk", "STRING(48)")
+            .addKeyPart("test", "pk", false)
+            .addColumn("test", "maxKey", "STRING(MAX)")
+            .build();
 
     assertEquals(1, schema.getTables().size());
     assertEquals(2, schema.getColumns("test").size());
@@ -40,16 +43,15 @@ public class SpannerSchemaTest {
 
   @Test
   public void testTwoTables() throws Exception {
-    SpannerSchema schema = SpannerSchema.builder()
-        .addColumn("test", "pk", "STRING(48)")
-        .addKeyPart("test", "pk", false)
-        .addColumn("test", "maxKey", "STRING(MAX)")
-
-        .addColumn("other", "pk", "INT64")
-        .addKeyPart("other", "pk", true)
-        .addColumn("other", "maxKey", "STRING(MAX)")
-
-        .build();
+    SpannerSchema schema =
+        SpannerSchema.builder()
+            .addColumn("test", "pk", "STRING(48)")
+            .addKeyPart("test", "pk", false)
+            .addColumn("test", "maxKey", "STRING(MAX)")
+            .addColumn("other", "pk", "INT64")
+            .addKeyPart("other", "pk", true)
+            .addColumn("other", "maxKey", "STRING(MAX)")
+            .build();
 
     assertEquals(2, schema.getTables().size());
     assertEquals(2, schema.getColumns("test").size());

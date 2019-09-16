@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -43,6 +42,10 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
       ParDoEvaluator<InputT> underlying, DoFnLifecycleManager lifecycleManager) {
     this.underlying = underlying;
     this.lifecycleManager = lifecycleManager;
+  }
+
+  public ParDoEvaluator<InputT> getParDoEvaluator() {
+    return underlying;
   }
 
   @Override
@@ -85,5 +88,4 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
       e.addSuppressed(removalException);
     }
   }
-
 }

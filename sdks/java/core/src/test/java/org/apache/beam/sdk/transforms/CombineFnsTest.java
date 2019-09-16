@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -36,8 +35,10 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
@@ -47,6 +48,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,11 +58,9 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link CombineFns}.
- */
+/** Unit tests for {@link CombineFns}. */
 @RunWith(JUnit4.class)
-public class  CombineFnsTest {
+public class CombineFnsTest {
   @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -70,8 +71,8 @@ public class  CombineFnsTest {
 
     TupleTag<Integer> tag = new TupleTag<>();
     CombineFns.compose()
-      .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
-      .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
+        .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
+        .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
   }
 
   @Test
@@ -81,8 +82,8 @@ public class  CombineFnsTest {
 
     TupleTag<Integer> tag = new TupleTag<>();
     CombineFns.compose()
-      .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
-      .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
+        .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
+        .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
   }
 
   @Test
@@ -92,33 +93,29 @@ public class  CombineFnsTest {
 
     TupleTag<UserString> tag = new TupleTag<>();
     CombineFns.compose()
-      .with(
-          new GetUserStringFunction(),
-          new ConcatStringWithContext(null /* view */),
-          tag)
-      .with(
-          new GetUserStringFunction(),
-          new ConcatStringWithContext(null /* view */),
-          tag);
+        .with(new GetUserStringFunction(), new ConcatStringWithContext(null /* view */), tag)
+        .with(new GetUserStringFunction(), new ConcatStringWithContext(null /* view */), tag);
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesSideInputs.class, DataflowPortabilityApiUnsupported.class})
   public void testComposedCombine() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
-    PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
-        Create.timestamped(
-            Arrays.asList(
-                KV.of("a", KV.of(1, UserString.of("1"))),
-                KV.of("a", KV.of(1, UserString.of("1"))),
-                KV.of("a", KV.of(4, UserString.of("4"))),
-                KV.of("b", KV.of(1, UserString.of("1"))),
-                KV.of("b", KV.of(13, UserString.of("13")))),
-            Arrays.asList(0L, 4L, 7L, 10L, 16L))
-        .withCoder(KvCoder.of(
-            StringUtf8Coder.of(),
-            KvCoder.of(BigEndianIntegerCoder.of(), UserStringCoder.of()))));
+    PCollection<KV<String, KV<Integer, UserString>>> perKeyInput =
+        p.apply(
+            Create.timestamped(
+                    Arrays.asList(
+                        KV.of("a", KV.of(1, UserString.of("1"))),
+                        KV.of("a", KV.of(1, UserString.of("1"))),
+                        KV.of("a", KV.of(4, UserString.of("4"))),
+                        KV.of("b", KV.of(1, UserString.of("1"))),
+                        KV.of("b", KV.of(13, UserString.of("13")))),
+                    Arrays.asList(0L, 4L, 7L, 10L, 16L))
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        KvCoder.of(BigEndianIntegerCoder.of(), UserStringCoder.of()))));
 
     TupleTag<Integer> maxIntTag = new TupleTag<>();
     TupleTag<UserString> concatStringTag = new TupleTag<>();
@@ -144,33 +141,33 @@ public class  CombineFnsTest {
                         .with(new GetUserStringFunction(), new ConcatString(), concatStringTag)))
             .apply(
                 "ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
-    PAssert.that(combineGlobally).containsInAnyOrder(
-        KV.of("global", KV.of(13, "111134")));
-    PAssert.that(combinePerKey).containsInAnyOrder(
-        KV.of("a", KV.of(4, "114")),
-        KV.of("b", KV.of(13, "113")));
+    PAssert.that(combineGlobally).containsInAnyOrder(KV.of("global", KV.of(13, "111134")));
+    PAssert.that(combinePerKey)
+        .containsInAnyOrder(KV.of("a", KV.of(4, "114")), KV.of("b", KV.of(13, "113")));
     p.run();
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesSideInputs.class, DataflowPortabilityApiUnsupported.class})
   public void testComposedCombineWithContext() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
     PCollectionView<String> view = p.apply(Create.of("I")).apply(View.asSingleton());
 
-    PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
-        Create.timestamped(
-            Arrays.asList(
-                KV.of("a", KV.of(1, UserString.of("1"))),
-                KV.of("a", KV.of(1, UserString.of("1"))),
-                KV.of("a", KV.of(4, UserString.of("4"))),
-                KV.of("b", KV.of(1, UserString.of("1"))),
-                KV.of("b", KV.of(13, UserString.of("13")))),
-            Arrays.asList(0L, 4L, 7L, 10L, 16L))
-        .withCoder(KvCoder.of(
-            StringUtf8Coder.of(),
-            KvCoder.of(BigEndianIntegerCoder.of(), UserStringCoder.of()))));
+    PCollection<KV<String, KV<Integer, UserString>>> perKeyInput =
+        p.apply(
+            Create.timestamped(
+                    Arrays.asList(
+                        KV.of("a", KV.of(1, UserString.of("1"))),
+                        KV.of("a", KV.of(1, UserString.of("1"))),
+                        KV.of("a", KV.of(4, UserString.of("4"))),
+                        KV.of("b", KV.of(1, UserString.of("1"))),
+                        KV.of("b", KV.of(13, UserString.of("13")))),
+                    Arrays.asList(0L, 4L, 7L, 10L, 16L))
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        KvCoder.of(BigEndianIntegerCoder.of(), UserStringCoder.of()))));
 
     TupleTag<Integer> maxIntTag = new TupleTag<>();
     TupleTag<UserString> concatStringTag = new TupleTag<>();
@@ -205,35 +202,35 @@ public class  CombineFnsTest {
                     .withSideInputs(ImmutableList.of(view)))
             .apply(
                 "ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
-    PAssert.that(combineGlobally).containsInAnyOrder(
-        KV.of("global", KV.of(13, "111134I")));
-    PAssert.that(combinePerKey).containsInAnyOrder(
-        KV.of("a", KV.of(4, "114I")),
-        KV.of("b", KV.of(13, "113I")));
+    PAssert.that(combineGlobally).containsInAnyOrder(KV.of("global", KV.of(13, "111134I")));
+    PAssert.that(combinePerKey)
+        .containsInAnyOrder(KV.of("a", KV.of(4, "114I")), KV.of("b", KV.of(13, "113I")));
     p.run();
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testComposedCombineNullValues() {
-    p.getCoderRegistry().registerCoderForClass(
-        UserString.class, NullableCoder.of(UserStringCoder.of()));
-    p.getCoderRegistry().registerCoderForClass(
-        String.class, NullableCoder.of(StringUtf8Coder.of()));
+    p.getCoderRegistry()
+        .registerCoderForClass(UserString.class, NullableCoder.of(UserStringCoder.of()));
+    p.getCoderRegistry()
+        .registerCoderForClass(String.class, NullableCoder.of(StringUtf8Coder.of()));
 
-    PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
-        Create.timestamped(
-            Arrays.asList(
-                KV.of("a", KV.of(1, UserString.of("1"))),
-                KV.of("a", KV.of(1, UserString.of("1"))),
-                KV.of("a", KV.of(4, UserString.of("4"))),
-                KV.of("b", KV.of(1, UserString.of("1"))),
-                KV.of("b", KV.of(13, UserString.of("13")))),
-            Arrays.asList(0L, 4L, 7L, 10L, 16L))
-        .withCoder(KvCoder.of(
-            NullableCoder.of(StringUtf8Coder.of()),
-            KvCoder.of(
-                BigEndianIntegerCoder.of(), NullableCoder.of(UserStringCoder.of())))));
+    PCollection<KV<String, KV<Integer, UserString>>> perKeyInput =
+        p.apply(
+            Create.timestamped(
+                    Arrays.asList(
+                        KV.of("a", KV.of(1, UserString.of("1"))),
+                        KV.of("a", KV.of(1, UserString.of("1"))),
+                        KV.of("a", KV.of(4, UserString.of("4"))),
+                        KV.of("b", KV.of(1, UserString.of("1"))),
+                        KV.of("b", KV.of(13, UserString.of("13")))),
+                    Arrays.asList(0L, 4L, 7L, 10L, 16L))
+                .withCoder(
+                    KvCoder.of(
+                        NullableCoder.of(StringUtf8Coder.of()),
+                        KvCoder.of(
+                            BigEndianIntegerCoder.of(), NullableCoder.of(UserStringCoder.of())))));
 
     TupleTag<Integer> maxIntTag = new TupleTag<>();
     TupleTag<UserString> concatStringTag = new TupleTag<>();
@@ -248,20 +245,21 @@ public class  CombineFnsTest {
                             new GetUserStringFunction(), new OutputNullString(), concatStringTag)))
             .apply(
                 "ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
-    PAssert.that(combinePerKey).containsInAnyOrder(
-        KV.of("a", KV.of(4, (String) null)),
-        KV.of("b", KV.of(13, (String) null)));
+    PAssert.that(combinePerKey)
+        .containsInAnyOrder(
+            KV.of("a", KV.of(4, (String) null)), KV.of("b", KV.of(13, (String) null)));
     p.run();
   }
 
   @Test
   public void testComposedCombineDisplayData() {
-    SimpleFunction<String, String> extractFn = new SimpleFunction<String, String>() {
-      @Override
-      public String apply(String input) {
-        return input;
-      }
-    };
+    SimpleFunction<String, String> extractFn =
+        new SimpleFunction<String, String>() {
+          @Override
+          public String apply(String input) {
+            return input;
+          }
+        };
 
     DisplayDataCombineFn combineFn1 = new DisplayDataCombineFn("value1");
     DisplayDataCombineFn combineFn2 = new DisplayDataCombineFn("value2");
@@ -325,6 +323,23 @@ public class  CombineFnsTest {
       ret.strValue = strValue;
       return ret;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      UserString that = (UserString) o;
+      return Objects.equal(strValue, that.strValue);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(strValue);
+    }
   }
 
   private static class UserStringCoder extends AtomicCoder<UserString> {
@@ -366,8 +381,7 @@ public class  CombineFnsTest {
     public void verifyDeterministic() throws NonDeterministicException {}
   }
 
-  private static class GetIntegerFunction
-      extends SimpleFunction<KV<Integer, UserString>, Integer> {
+  private static class GetIntegerFunction extends SimpleFunction<KV<Integer, UserString>, Integer> {
     @Override
     public Integer apply(KV<Integer, UserString> input) {
       return input.getKey();
@@ -456,9 +470,10 @@ public class  CombineFnsTest {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       UserString userString = c.element().getValue().get(concatStringTag);
-      KV<Integer, String> value = KV.of(
-          c.element().getValue().get(maxIntTag),
-          userString == null ? null : userString.strValue);
+      KV<Integer, String> value =
+          KV.of(
+              c.element().getValue().get(maxIntTag),
+              userString == null ? null : userString.strValue);
       c.output(KV.of(c.element().getKey(), value));
     }
   }

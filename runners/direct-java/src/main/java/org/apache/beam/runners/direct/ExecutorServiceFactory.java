@@ -20,14 +20,11 @@ package org.apache.beam.runners.direct;
 import java.util.concurrent.ExecutorService;
 
 /**
- * A factory that creates {@link ExecutorService ExecutorServices}.
- * {@link ExecutorService ExecutorServices} created by this factory should be independent of one
- * another (e.g., if any executor is shut down the remaining executors should continue to process
- * work).
+ * A factory that creates {@link ExecutorService ExecutorServices}. {@link ExecutorService
+ * ExecutorServices} created by this factory should be independent of one another (e.g., if any
+ * executor is shut down the remaining executors should continue to process work).
  */
 interface ExecutorServiceFactory {
-  /**
-   * Create a new {@link ExecutorService}.
-   */
+  /** Create a new {@link ExecutorService}. */
   ExecutorService create();
 }

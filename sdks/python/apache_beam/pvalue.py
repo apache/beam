@@ -26,9 +26,14 @@ produced when the pipeline gets executed.
 
 from __future__ import absolute_import
 
+import collections
 import itertools
+import typing
+from builtins import hex
+from builtins import object
 
-from apache_beam import coders
+from past.builtins import unicode
+
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
@@ -58,7 +63,8 @@ class PValue(object):
     (3) Has a value which is meaningful if the transform was executed.
   """
 
-  def __init__(self, pipeline, tag=None, element_type=None, windowing=None):
+  def __init__(self, pipeline, tag=None, element_type=None, windowing=None,
+               is_bounded=True):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -73,6 +79,7 @@ class PValue(object):
     # generating this PValue. The field gets initialized when a transform
     # gets applied.
     self.producer = None
+    self.is_bounded = is_bounded
     if windowing:
       self._windowing = windowing
 
@@ -106,7 +113,7 @@ class PValue(object):
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue):
+class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
@@ -116,6 +123,10 @@ class PCollection(PValue):
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __hash__(self):
     return hash((self.tag, self.producer))
@@ -133,14 +144,30 @@ class PCollection(PValue):
     # of a closure).
     return _InvalidUnpickledPCollection, ()
 
+  @staticmethod
+  def from_(pcoll):
+    """Create a PCollection, using another PCollection as a starting point.
+
+    Transfers relevant attributes.
+    """
+    return PCollection(pcoll.pipeline, is_bounded=pcoll.is_bounded)
+
   def to_runner_api(self, context):
     return beam_runner_api_pb2.PCollection(
-        unique_name='%d%s.%s' % (
-            len(self.producer.full_label), self.producer.full_label, self.tag),
-        coder_id=pickler.dumps(self.element_type),
-        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
+        unique_name=self._unique_name(),
+        coder_id=context.coder_id_from_element_type(self.element_type),
+        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+        if self.is_bounded
+        else beam_runner_api_pb2.IsBounded.UNBOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
+
+  def _unique_name(self):
+    if self.producer:
+      return '%d%s.%s' % (
+          len(self.producer.full_label), self.producer.full_label, self.tag)
+    else:
+      return 'PCollection%s' % id(self)
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -148,9 +175,10 @@ class PCollection(PValue):
     # same object is returned for the same pcollection id.
     return PCollection(
         None,
-        element_type=pickler.loads(proto.coder_id),
+        element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
-            proto.windowing_strategy_id))
+            proto.windowing_strategy_id),
+        is_bounded=proto.is_bounded == beam_runner_api_pb2.IsBounded.BOUNDED)
 
 
 class _InvalidUnpickledPCollection(object):
@@ -258,9 +286,9 @@ class TaggedOutput(object):
   """
 
   def __init__(self, tag, value):
-    if not isinstance(tag, basestring):
+    if not isinstance(tag, (str, unicode)):
       raise TypeError(
-          'Attempting to create a TaggedOutput with non-string tag %s' % tag)
+          'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
     self.tag = tag
     self.value = value
 
@@ -302,15 +330,9 @@ class AsSideInput(object):
     view_options = self._view_options()
     from_runtime_iterable = type(self)._from_runtime_iterable
     return SideInputData(
-        common_urns.ITERABLE_SIDE_INPUT,
+        common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
-        lambda iterable: from_runtime_iterable(iterable, view_options),
-        self._input_element_coder())
-
-  def _input_element_coder(self):
-    return coders.WindowedValueCoder(
-        coders.registry.get_coder(self.pvalue.element_type),
-        window_coder=self.pvalue.windowing.windowfn.get_window_coder())
+        lambda iterable: from_runtime_iterable(iterable, view_options))
 
   def to_runner_api(self, context):
     return self._side_input_data().to_runner_api(context)
@@ -319,6 +341,9 @@ class AsSideInput(object):
   def from_runner_api(proto, context):
     return _UnpickledSideInput(
         SideInputData.from_runner_api(proto, context))
+
+  def requires_keyed_input(self):
+    return False
 
 
 class _UnpickledSideInput(AsSideInput):
@@ -343,21 +368,22 @@ class _UnpickledSideInput(AsSideInput):
 
 class SideInputData(object):
   """All of the data about a side input except for the bound PCollection."""
-  def __init__(self, access_pattern, window_mapping_fn, view_fn, coder):
+  def __init__(self, access_pattern, window_mapping_fn, view_fn):
     self.access_pattern = access_pattern
     self.window_mapping_fn = window_mapping_fn
     self.view_fn = view_fn
-    self.coder = coder
 
-  def to_runner_api(self, unused_context):
+  def to_runner_api(self, context):
     return beam_runner_api_pb2.SideInput(
         access_pattern=beam_runner_api_pb2.FunctionSpec(
             urn=self.access_pattern),
         view_fn=beam_runner_api_pb2.SdkFunctionSpec(
+            environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_VIEWFN,
-                payload=pickler.dumps((self.view_fn, self.coder)))),
+                payload=pickler.dumps(self.view_fn))),
         window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
+            environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_WINDOW_MAPPING_FN,
                 payload=pickler.dumps(self.window_mapping_fn))))
@@ -370,7 +396,7 @@ class SideInputData(object):
     return SideInputData(
         proto.access_pattern.urn,
         pickler.loads(proto.window_mapping_fn.spec.payload),
-        *pickler.loads(proto.view_fn.spec.payload))
+        pickler.loads(proto.view_fn.spec.payload))
 
 
 class AsSingleton(AsSideInput):
@@ -384,9 +410,9 @@ class AsSingleton(AsSideInput):
 
   Wrapping a PCollection side input argument to a PTransform in this container
   (e.g., data.apply('label', MyPTransform(), AsSingleton(my_side_input) )
-  selects the latter behavor.
+  selects the latter behavior.
 
-  The input PCollection must contain exactly one  value per window, unless a
+  The input PCollection must contain exactly one value per window, unless a
   default is given, in which case it may be empty.
   """
   _NO_DEFAULT = object()
@@ -444,10 +470,9 @@ class AsIter(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        common_urns.ITERABLE_SIDE_INPUT,
+        common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
-        lambda iterable: iterable,
-        self._input_element_coder())
+        lambda iterable: iterable)
 
   @property
   def element_type(self):
@@ -475,10 +500,9 @@ class AsList(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        common_urns.ITERABLE_SIDE_INPUT,
+        common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
-        list,
-        self._input_element_coder())
+        list)
 
 
 class AsDict(AsSideInput):
@@ -503,10 +527,38 @@ class AsDict(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        common_urns.ITERABLE_SIDE_INPUT,
+        common_urns.side_inputs.ITERABLE.urn,
         self._window_mapping_fn,
-        dict,
-        self._input_element_coder())
+        dict)
+
+
+class AsMultiMap(AsSideInput):
+  """Marker specifying a PCollection to be used as an indexable side input.
+
+  Similar to AsDict, but multiple values may be associated per key, and
+  the keys are fetched lazily rather than all having to fit in memory.
+
+  Intended for use in side-argument specification---the same places where
+  AsSingleton and AsIter are used, but returns an interface that allows
+  key lookup.
+  """
+
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    # Legacy implementation.
+    result = collections.defaultdict(list)
+    for k, v in it:
+      result[k].append(v)
+    return result
+
+  def _side_input_data(self):
+    return SideInputData(
+        common_urns.side_inputs.MULTIMAP.urn,
+        self._window_mapping_fn,
+        lambda x: x)
+
+  def requires_keyed_input(self):
+    return True
 
 
 class EmptySideInput(object):

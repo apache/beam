@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Flatten.PCollections;
@@ -25,10 +24,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
- * {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten} {@link
+ * PTransform}.
  */
 class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -50,8 +50,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   public void cleanup() throws Exception {}
 
   private <InputT> TransformEvaluator<InputT> createInMemoryEvaluator(
-      final AppliedPTransform<
-              PCollectionList<InputT>, PCollection<InputT>, PCollections<InputT>>
+      final AppliedPTransform<PCollectionList<InputT>, PCollection<InputT>, PCollections<InputT>>
           application) {
     final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(

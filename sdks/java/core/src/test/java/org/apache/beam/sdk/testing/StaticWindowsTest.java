@@ -19,12 +19,12 @@ package org.apache.beam.sdk.testing;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -33,13 +33,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StaticWindows}.
- */
+/** Tests for {@link StaticWindows}. */
 @RunWith(JUnit4.class)
 public class StaticWindowsTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private final IntervalWindow first = new IntervalWindow(new Instant(0), new Instant(100_000L));
   private final IntervalWindow second =

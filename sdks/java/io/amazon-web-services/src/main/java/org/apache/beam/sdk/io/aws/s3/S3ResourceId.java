@@ -15,15 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
+import java.util.Date;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,6 +29,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 class S3ResourceId implements ResourceId {
 
@@ -39,28 +39,29 @@ class S3ResourceId implements ResourceId {
   private static final Pattern S3_URI =
       Pattern.compile("(?<SCHEME>[^:]+)://(?<BUCKET>[^/]+)(/(?<KEY>.*))?");
 
-  /**
-   * Matches a glob containing a wildcard, capturing the portion before the first wildcard.
-   */
+  /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
   private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
   private final String bucket;
   private final String key;
   private final Long size;
+  private final Date lastModified;
 
   private S3ResourceId(
-      String bucket, String key, @Nullable Long size) {
+      String bucket, String key, @Nullable Long size, @Nullable Date lastModified) {
     checkArgument(!Strings.isNullOrEmpty(bucket), "bucket");
+    checkArgument(!bucket.contains("/"), "bucket must not contain '/': [%s]", bucket);
     this.bucket = bucket;
     this.key = checkNotNull(key, "key");
     this.size = size;
+    this.lastModified = lastModified;
   }
 
   static S3ResourceId fromComponents(String bucket, String key) {
     if (!key.startsWith("/")) {
       key = "/" + key;
     }
-    return new S3ResourceId(bucket, key, null);
+    return new S3ResourceId(bucket, key, null, null);
   }
 
   static S3ResourceId fromUri(String uri) {
@@ -89,7 +90,15 @@ class S3ResourceId implements ResourceId {
   }
 
   S3ResourceId withSize(long size) {
-    return new S3ResourceId(bucket, key, size);
+    return new S3ResourceId(bucket, key, size, lastModified);
+  }
+
+  Optional<Date> getLastModified() {
+    return Optional.fromNullable(lastModified);
+  }
+
+  S3ResourceId withLastModified(Date lastModified) {
+    return new S3ResourceId(bucket, key, size, lastModified);
   }
 
   @Override
@@ -119,8 +128,8 @@ class S3ResourceId implements ResourceId {
     }
 
     if (resolveOptions == StandardResolveOptions.RESOLVE_FILE) {
-      checkArgument(!other.endsWith("/"), "Cannot resolve a file with a directory path: [%s]",
-          other);
+      checkArgument(
+          !other.endsWith("/"), "Cannot resolve a file with a directory path: [%s]", other);
       checkArgument(!"..".equals(other), "Cannot resolve parent as file: [%s]", other);
       if (S3_URI.matcher(other).matches()) {
         return fromUri(other);

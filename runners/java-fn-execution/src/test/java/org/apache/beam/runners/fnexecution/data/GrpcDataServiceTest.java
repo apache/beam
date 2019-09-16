@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
@@ -24,10 +23,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertThat;
 
-import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -48,8 +43,13 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -57,18 +57,18 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GrpcDataService}. */
 @RunWith(JUnit4.class)
 public class GrpcDataServiceTest {
-  private static final BeamFnApi.Target TARGET =
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("888").setName("test").build();
+  private static final String PTRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
 
   @Test
-  public void testMessageReceivedBySingleClientWhenThereAreMultipleClients()
-      throws Exception {
+  public void testMessageReceivedBySingleClientWhenThereAreMultipleClients() throws Exception {
     final LinkedBlockingQueue<Elements> clientInboundElements = new LinkedBlockingQueue<>();
     ExecutorService executorService = Executors.newCachedThreadPool();
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
-    GrpcDataService service = GrpcDataService.create(Executors.newCachedThreadPool());
+    GrpcDataService service =
+        GrpcDataService.create(
+            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
@@ -78,6 +78,7 @@ public class GrpcDataServiceTest {
                 () -> {
                   ManagedChannel channel =
                       InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
+                          .directExecutor()
                           .build();
                   StreamObserver<Elements> outboundObserver =
                       BeamFnDataGrpc.newStub(channel)
@@ -90,7 +91,7 @@ public class GrpcDataServiceTest {
 
       for (int i = 0; i < 3; ++i) {
         CloseableFnDataReceiver<WindowedValue<String>> consumer =
-            service.send(LogicalEndpoint.of(Integer.toString(i), TARGET), CODER);
+            service.send(LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID), CODER);
 
         consumer.accept(WindowedValue.valueInGlobalWindow("A" + i));
         consumer.accept(WindowedValue.valueInGlobalWindow("B" + i));
@@ -101,7 +102,8 @@ public class GrpcDataServiceTest {
       for (Future<Void> clientFuture : clientFutures) {
         clientFuture.get();
       }
-      assertThat(clientInboundElements,
+      assertThat(
+          clientInboundElements,
           containsInAnyOrder(elementsWithData("0"), elementsWithData("1"), elementsWithData("2")));
     }
   }
@@ -112,7 +114,9 @@ public class GrpcDataServiceTest {
         new LinkedBlockingQueue<>();
     ExecutorService executorService = Executors.newCachedThreadPool();
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
-    GrpcDataService service = GrpcDataService.create(Executors.newCachedThreadPool());
+    GrpcDataService service =
+        GrpcDataService.create(
+            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
@@ -141,7 +145,9 @@ public class GrpcDataServiceTest {
         serverInboundValues.add(serverInboundValue);
         readFutures.add(
             service.receive(
-                LogicalEndpoint.of(Integer.toString(i), TARGET), CODER, serverInboundValue::add));
+                LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID),
+                CODER,
+                serverInboundValue::add));
       }
       for (InboundDataClient readFuture : readFutures) {
         readFuture.awaitCompletion();
@@ -167,7 +173,7 @@ public class GrpcDataServiceTest {
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
                 .setInstructionReference(id)
-                .setTarget(TARGET)
+                .setPtransformId(PTRANSFORM_ID)
                 .setData(
                     ByteString.copyFrom(
                             encodeToByteArray(CODER, WindowedValue.valueInGlobalWindow("A" + id)))
@@ -179,7 +185,10 @@ public class GrpcDataServiceTest {
                             ByteString.copyFrom(
                                 encodeToByteArray(
                                     CODER, WindowedValue.valueInGlobalWindow("C" + id))))))
-        .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference(id).setTarget(TARGET))
+        .addData(
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionReference(id)
+                .setPtransformId(PTRANSFORM_ID))
         .build();
   }
 }

@@ -21,52 +21,51 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * {@code KvSwap<K, V>} takes a {@code PCollection<KV<K, V>>} and
- * returns a {@code PCollection<KV<V, K>>}, where all the keys and
- * values have been swapped.
+ * {@code KvSwap<K, V>} takes a {@code PCollection<KV<K, V>>} and returns a {@code PCollection<KV<V,
+ * K>>}, where all the keys and values have been swapped.
  *
  * <p>Example of use:
- * <pre> {@code
+ *
+ * <pre>{@code
  * PCollection<String, Long> wordsToCounts = ...;
  * PCollection<Long, String> countsToWords =
  *     wordToCounts.apply(KvSwap.<String, Long>create());
- * } </pre>
+ * }</pre>
  *
- * <p>Each output element has the same timestamp and is in the same windows
- * as its corresponding input element, and the output {@code PCollection}
- * has the same
- * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
- * associated with it as the input.
+ * <p>Each output element has the same timestamp and is in the same windows as its corresponding
+ * input element, and the output {@code PCollection} has the same {@link
+ * org.apache.beam.sdk.transforms.windowing.WindowFn} associated with it as the input.
  *
- * @param <K> the type of the keys in the input {@code PCollection}
- * and the values in the output {@code PCollection}
- * @param <V> the type of the values in the input {@code PCollection}
- * and the keys in the output {@code PCollection}
+ * @param <K> the type of the keys in the input {@code PCollection} and the values in the output
+ *     {@code PCollection}
+ * @param <V> the type of the values in the input {@code PCollection} and the keys in the output
+ *     {@code PCollection}
  */
-public class KvSwap<K, V> extends PTransform<PCollection<KV<K, V>>,
-                                             PCollection<KV<V, K>>> {
+public class KvSwap<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<V, K>>> {
   /**
    * Returns a {@code KvSwap<K, V>} {@code PTransform}.
    *
-   * @param <K> the type of the keys in the input {@code PCollection}
-   * and the values in the output {@code PCollection}
-   * @param <V> the type of the values in the input {@code PCollection}
-   * and the keys in the output {@code PCollection}
+   * @param <K> the type of the keys in the input {@code PCollection} and the values in the output
+   *     {@code PCollection}
+   * @param <V> the type of the values in the input {@code PCollection} and the keys in the output
+   *     {@code PCollection}
    */
   public static <K, V> KvSwap<K, V> create() {
     return new KvSwap<>();
   }
 
-  private KvSwap() { }
+  private KvSwap() {}
 
   @Override
   public PCollection<KV<V, K>> expand(PCollection<KV<K, V>> in) {
-    return
-        in.apply("KvSwap", MapElements.via(new SimpleFunction<KV<K, V>, KV<V, K>>() {
-          @Override
-          public KV<V, K> apply(KV<K, V> kv) {
-            return KV.of(kv.getValue(), kv.getKey());
-          }
-        }));
+    return in.apply(
+        "KvSwap",
+        MapElements.via(
+            new SimpleFunction<KV<K, V>, KV<V, K>>() {
+              @Override
+              public KV<V, K> apply(KV<K, V> kv) {
+                return KV.of(kv.getValue(), kv.getKey());
+              }
+            }));
   }
 }

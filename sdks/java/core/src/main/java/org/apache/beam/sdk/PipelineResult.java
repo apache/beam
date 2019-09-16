@@ -75,7 +75,7 @@ public interface PipelineResult {
    */
   enum State {
 
-    /** The job state could not be obtained or was not specified. */
+    /** The job state was not specified or unknown to a runner. */
     UNKNOWN(false, false),
 
     /** The job has been paused, or has not yet started. */
@@ -94,7 +94,10 @@ public interface PipelineResult {
     CANCELLED(true, false),
 
     /** The job has been updated. */
-    UPDATED(true, true);
+    UPDATED(true, true),
+
+    /** The job state reported by a runner cannot be interpreted by the SDK. */
+    UNRECOGNIZED(false, false);
 
     private final boolean terminal;
 
@@ -105,16 +108,12 @@ public interface PipelineResult {
       this.hasReplacement = hasReplacement;
     }
 
-    /**
-     * @return {@code true} if the job state can no longer complete work.
-     */
+    /** @return {@code true} if the job state can no longer complete work. */
     public final boolean isTerminal() {
       return terminal;
     }
 
-    /**
-     * @return {@code true} if this job state indicates that a replacement job exists.
-     */
+    /** @return {@code true} if this job state indicates that a replacement job exists. */
     public final boolean hasReplacementJob() {
       return hasReplacement;
     }

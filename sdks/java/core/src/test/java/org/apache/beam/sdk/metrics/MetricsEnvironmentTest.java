@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.metrics;
 
 import static org.junit.Assert.assertNull;
@@ -29,9 +28,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
-/**
- * Tests for {@link MetricsEnvironment}.
- */
+/** Tests for {@link MetricsEnvironment}. */
 @RunWith(JUnit4.class)
 public class MetricsEnvironmentTest {
   @After

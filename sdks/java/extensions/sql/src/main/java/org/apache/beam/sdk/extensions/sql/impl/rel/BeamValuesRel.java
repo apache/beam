@@ -15,26 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.autoCastField;
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.Values;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexLiteral;
 
@@ -42,9 +48,10 @@ import org.apache.calcite.rex.RexLiteral;
  * {@code BeamRelNode} to replace a {@code Values} node.
  *
  * <p>{@code BeamValuesRel} will be used in the following SQLs:
+ *
  * <ul>
- *   <li>{@code insert into t (name, desc) values ('hello', 'world')}</li>
- *   <li>{@code select 1, '1', LOCALTIME}</li>
+ *   <li>{@code insert into t (name, desc) values ('hello', 'world')}
+ *   <li>{@code select 1, '1', LOCALTIME}
  * </ul>
  */
 public class BeamValuesRel extends Values implements BeamRelNode {
@@ -55,38 +62,48 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       ImmutableList<ImmutableList<RexLiteral>> tuples,
       RelTraitSet traits) {
     super(cluster, rowType, tuples, traits);
-
   }
 
-  @Override public PCollection<Row> buildBeamPipeline(
-      PCollectionTuple inputPCollections,
-      BeamSqlEnv sqlEnv) throws Exception {
+  @Override
+  public Map<String, String> getPipelineOptions() {
+    return ImmutableMap.of();
+  }
 
-    String stageName = BeamSqlRelUtils.getStageName(this);
-    if (tuples.isEmpty()) {
-      throw new IllegalStateException("Values with empty tuples!");
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 0,
+          "Should not have received input for %s: %s",
+          BeamValuesRel.class.getSimpleName(),
+          pinput);
+
+      Schema schema = CalciteUtils.toSchema(getRowType());
+      List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
+      return pinput.getPipeline().begin().apply(Create.of(rows).withRowSchema(schema));
     }
-
-    RowType rowType = CalciteUtils.toBeamRowType(this.getRowType());
-
-    List<Row> rows =
-        tuples
-            .stream()
-            .map(tuple -> tupleToRow(rowType, tuple))
-            .collect(toList());
-
-    return
-        inputPCollections
-            .getPipeline()
-            .apply(stageName, Create.of(rows))
-            .setCoder(rowType.getRowCoder());
   }
 
-  private Row tupleToRow(RowType rowType, ImmutableList<RexLiteral> tuple) {
-    return
-        IntStream
-            .range(0, tuple.size())
-            .mapToObj(i -> autoCastField(rowType.getFieldCoder(i), tuple.get(i).getValue()))
-            .collect(toRow(rowType));
+  private Row tupleToRow(Schema schema, ImmutableList<RexLiteral> tuple) {
+    return IntStream.range(0, tuple.size())
+        .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
+        .collect(toRow(schema));
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    return NodeStats.create(tuples.size(), 0, tuples.size());
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
+    return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
   }
 }

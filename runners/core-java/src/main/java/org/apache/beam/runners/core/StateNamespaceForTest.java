@@ -20,9 +20,7 @@ package org.apache.beam.runners.core;
 import java.io.IOException;
 import java.util.Objects;
 
-/**
- * A simple {@link StateNamespace} used for testing.
- */
+/** A simple {@link StateNamespace} used for testing. */
 public class StateNamespaceForTest implements StateNamespace {
   private String key;
 

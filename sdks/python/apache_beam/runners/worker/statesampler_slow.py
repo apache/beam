@@ -17,22 +17,38 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+from __future__ import absolute_import
+
+from builtins import object
+
+from apache_beam.runners import common
+from apache_beam.utils import counters
+
 
 class StateSampler(object):
 
   def __init__(self, sampling_period_ms):
-    self._state_stack = [ScopedState(None, self, None)]
+    self._state_stack = [ScopedState(self,
+                                     counters.CounterName('unknown'),
+                                     None)]
     self.state_transition_count = 0
     self.time_since_transition = 0
-    self.started = False
-    self.finished = False
 
   def current_state(self):
-    """Returns the current execution state."""
+    """Returns the current execution state.
+
+    This operation is not thread safe, and should only be called from the
+    execution thread."""
     return self._state_stack[-1]
 
-  def _scoped_state(self, counter_name, output_counter):
-    return ScopedState(self, counter_name, output_counter)
+  def _scoped_state(self,
+                    counter_name,
+                    name_context,
+                    output_counter,
+                    metrics_container=None):
+    assert isinstance(name_context, common.NameContext)
+    return ScopedState(
+        self, counter_name, name_context, output_counter, metrics_container)
 
   def _enter_state(self, state):
     self.state_transition_count += 1
@@ -44,27 +60,32 @@ class StateSampler(object):
 
   def start(self):
     # Sampling not yet supported. Only state tracking at the moment.
-    self.started = True
+    pass
 
   def stop(self):
-    self.finished = True
+    pass
 
-  def get_info(self):
-    """Returns StateSamplerInfo with transition statistics."""
-    return StateSamplerInfo(
-        self.current_state().name, self.transition_count, 0)
+  def reset(self):
+    for state in self._states_by_name.values():
+      state.nsecs = 0
 
 
 class ScopedState(object):
 
-  def __init__(self, sampler, name, counter=None):
+  def __init__(self, sampler, name, step_name_context,
+               counter=None, metrics_container=None):
     self.state_sampler = sampler
     self.name = name
+    self.name_context = step_name_context
     self.counter = counter
     self.nsecs = 0
+    self.metrics_container = metrics_container
 
   def sampled_seconds(self):
     return 1e-9 * self.nsecs
+
+  def sampled_msecs_int(self):
+    return int(1e-6 * self.nsecs)
 
   def __repr__(self):
     return "ScopedState[%s, %s]" % (self.name, self.nsecs)

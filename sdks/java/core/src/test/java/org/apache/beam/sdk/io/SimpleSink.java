@@ -88,17 +88,21 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
 
   static final class SimpleWriteOperation<DestinationT>
       extends WriteOperation<DestinationT, String> {
-    public SimpleWriteOperation(SimpleSink sink, ResourceId tempOutputDirectory) {
+    public SimpleWriteOperation(SimpleSink<DestinationT> sink, ResourceId tempOutputDirectory) {
       super(sink, tempOutputDirectory);
     }
 
-    public SimpleWriteOperation(SimpleSink sink) {
+    public SimpleWriteOperation(SimpleSink<DestinationT> sink) {
       super(sink);
     }
 
     @Override
-    public SimpleWriter<DestinationT> createWriter() throws Exception {
+    public SimpleWriter<DestinationT> createWriter() {
       return new SimpleWriter<>(this);
+    }
+
+    public ResourceId getTempDirectory() {
+      return tempDirectory.get();
     }
   }
 
@@ -108,16 +112,16 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
 
     private WritableByteChannel channel;
 
-    public SimpleWriter(SimpleWriteOperation writeOperation) {
+    public SimpleWriter(SimpleWriteOperation<DestinationT> writeOperation) {
       super(writeOperation, MimeTypes.TEXT);
     }
 
-    private static ByteBuffer wrap(String value) throws Exception {
+    private static ByteBuffer wrap(String value) {
       return ByteBuffer.wrap((value + "\n").getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
-    protected void prepareWrite(WritableByteChannel channel) throws Exception {
+    protected void prepareWrite(WritableByteChannel channel) {
       this.channel = channel;
     }
 

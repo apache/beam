@@ -15,13 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -37,6 +34,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -44,9 +43,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CommittedResult}.
- */
+/** Tests for {@link CommittedResult}. */
 @RunWith(JUnit4.class)
 public class CommittedResultTest implements Serializable {
 
@@ -70,23 +67,24 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getTransformExtractsFromResult() {
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.absent(),
             Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
+    assertThat(result.getExecutable(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
   }
 
   @Test
   public void getUncommittedElementsEqualInput() {
     CommittedBundle<Integer> bundle =
-        bundleFactory.createBundle(created)
+        bundleFactory
+            .createBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.of(bundle),
@@ -98,7 +96,7 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getUncommittedElementsNull() {
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.absent(),
@@ -128,7 +126,7 @@ public class CommittedResultTest implements Serializable {
                         PCollection.IsBounded.UNBOUNDED,
                         VarIntCoder.of()))
                 .commit(Instant.now()));
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.absent(),

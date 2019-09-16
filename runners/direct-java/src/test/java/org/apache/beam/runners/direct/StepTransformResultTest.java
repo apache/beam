@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -28,24 +27,20 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StepTransformResult}.
- */
+/** Tests for {@link StepTransformResult}. */
 @RunWith(JUnit4.class)
 public class StepTransformResultTest {
   private AppliedPTransform<?, ?, ?> transform;
   private BundleFactory bundleFactory;
   private PCollection<Integer> pc;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
@@ -61,7 +56,7 @@ public class StepTransformResultTest {
     TransformResult<Integer> result =
         StepTransformResult.<Integer>withoutHold(transform).addOutput(bundle).build();
 
-    assertThat(result.getOutputBundles(), Matchers.containsInAnyOrder(bundle));
+    assertThat(result.getOutputBundles(), containsInAnyOrder(bundle));
   }
 
   @Test

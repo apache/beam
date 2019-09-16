@@ -18,23 +18,21 @@
 package org.apache.beam.runners.dataflow;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for the
- * {@link DataflowRunner}.
+ * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for the {@link
+ * DataflowRunner}.
  */
 public class DataflowPipelineRegistrar {
-  private DataflowPipelineRegistrar() { }
+  private DataflowPipelineRegistrar() {}
 
-  /**
-   * Register the {@link DataflowPipelineOptions}.
-   */
+  /** Register the {@link DataflowPipelineOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override
@@ -43,9 +41,7 @@ public class DataflowPipelineRegistrar {
     }
   }
 
-  /**
-   * Register the {@link DataflowRunner}.
-   */
+  /** Register the {@link DataflowRunner}. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override

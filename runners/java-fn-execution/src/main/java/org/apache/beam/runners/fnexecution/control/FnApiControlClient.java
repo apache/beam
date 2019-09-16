@@ -17,18 +17,21 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,25 +54,28 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
   private final ResponseStreamObserver responseObserver = new ResponseStreamObserver();
   private final ConcurrentMap<String, CompletableFuture<BeamFnApi.InstructionResponse>>
       outstandingRequests;
+  private final Set<Consumer<FnApiControlClient>> onCloseListeners = ConcurrentHashMap.newKeySet();
+  private final String workerId;
   private AtomicBoolean isClosed = new AtomicBoolean(false);
 
-  private FnApiControlClient(StreamObserver<BeamFnApi.InstructionRequest> requestReceiver) {
+  private FnApiControlClient(String workerId, StreamObserver<InstructionRequest> requestReceiver) {
+    this.workerId = workerId;
     this.requestReceiver = SynchronizedStreamObserver.wrapping(requestReceiver);
     this.outstandingRequests = new ConcurrentHashMap<>();
   }
 
   /**
-   * Returns a {@link FnApiControlClient} which will submit its requests to the provided
-   * observer.
+   * Returns a {@link FnApiControlClient} which will submit its requests to the provided observer.
    *
    * <p>It is the responsibility of the caller to register this object as an observer of incoming
    * responses (this will generally be done as part of fulfilling the contract of a gRPC service).
    */
   public static FnApiControlClient forRequestObserver(
-      StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
-    return new FnApiControlClient(requestObserver);
+      String workerId, StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
+    return new FnApiControlClient(workerId, requestObserver);
   }
 
+  @Override
   public CompletionStage<BeamFnApi.InstructionResponse> handle(
       BeamFnApi.InstructionRequest request) {
     LOG.debug("Sending InstructionRequest {}", request);
@@ -88,37 +94,49 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
     closeAndTerminateOutstandingRequests(new IllegalStateException("Runner closed connection"));
   }
 
+  public String getWorkerId() {
+    return workerId;
+  }
+
   /** Closes this client and terminates any outstanding requests exceptionally. */
   private void closeAndTerminateOutstandingRequests(Throwable cause) {
     if (isClosed.getAndSet(true)) {
       return;
     }
 
-    // Make a copy of the map to make the view of the outstanding requests consistent.
-    Map<String, CompletableFuture<BeamFnApi.InstructionResponse>> outstandingRequestsCopy =
-        new ConcurrentHashMap<>(outstandingRequests);
-    outstandingRequests.clear();
+    try {
+      // Make a copy of the map to make the view of the outstanding requests consistent.
+      Map<String, CompletableFuture<BeamFnApi.InstructionResponse>> outstandingRequestsCopy =
+          new ConcurrentHashMap<>(outstandingRequests);
+      outstandingRequests.clear();
 
-    if (outstandingRequestsCopy.isEmpty()) {
-      requestReceiver.onCompleted();
-      return;
-    }
-    requestReceiver.onError(
-        new StatusRuntimeException(Status.CANCELLED.withDescription(cause.getMessage())));
+      if (outstandingRequestsCopy.isEmpty()) {
+        requestReceiver.onCompleted();
+        return;
+      }
+      requestReceiver.onError(
+          new StatusRuntimeException(Status.CANCELLED.withDescription(cause.getMessage())));
 
-    LOG.error(
-        "{} closed, clearing outstanding requests {}",
-        FnApiControlClient.class.getSimpleName(),
-        outstandingRequestsCopy);
-    for (CompletableFuture<BeamFnApi.InstructionResponse> outstandingRequest :
-        outstandingRequestsCopy.values()) {
-      outstandingRequest.completeExceptionally(cause);
+      LOG.error(
+          "{} closed, clearing outstanding requests {}",
+          FnApiControlClient.class.getSimpleName(),
+          outstandingRequestsCopy);
+      for (CompletableFuture<BeamFnApi.InstructionResponse> outstandingRequest :
+          outstandingRequestsCopy.values()) {
+        outstandingRequest.completeExceptionally(cause);
+      }
+    } finally {
+      for (Consumer<FnApiControlClient> onCloseListener : onCloseListeners) {
+        onCloseListener.accept(this);
+      }
     }
   }
 
-  /**
-   * A private view of this class as a {@link StreamObserver} for connecting as a gRPC listener.
-   */
+  public void onClose(Consumer<FnApiControlClient> onCloseListener) {
+    onCloseListeners.add(onCloseListener);
+  }
+
+  /** A private view of this class as a {@link StreamObserver} for connecting as a gRPC listener. */
   private class ResponseStreamObserver implements StreamObserver<BeamFnApi.InstructionResponse> {
     /**
      * Processes an incoming {@link BeamFnApi.InstructionResponse} by correlating it with the
@@ -135,10 +153,10 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
           responseFuture.complete(response);
         } else {
           responseFuture.completeExceptionally(
-              new RuntimeException(String.format(
-                  "Error received from SDK harness for instruction %s: %s",
-                  response.getInstructionId(),
-                  response.getError())));
+              new RuntimeException(
+                  String.format(
+                      "Error received from SDK harness for instruction %s: %s",
+                      response.getInstructionId(), response.getError())));
         }
       }
     }

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,8 +29,8 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -50,17 +50,16 @@ public class CoderPropertiesTest {
   /** A coder that says it is not deterministic but actually is. */
   public static class NonDeterministicCoder extends AtomicCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
       StringUtf8Coder.of().encode(value, outStream);
     }
 
     @Override
-    public String decode(InputStream inStream)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream) throws CoderException, IOException {
       return StringUtf8Coder.of().decode(inStream);
     }
 
+    @Override
     public void verifyDeterministic() throws NonDeterministicException {
       throw new NonDeterministicException(this, "Not Deterministic");
     }
@@ -71,7 +70,8 @@ public class CoderPropertiesTest {
     try {
       CoderProperties.coderDeterministic(new NonDeterministicCoder(), "TestData", "TestData");
     } catch (AssertionError error) {
-      assertThat(error.getMessage(),
+      assertThat(
+          error.getMessage(),
           CoreMatchers.containsString("Expected that the coder is deterministic"));
       // success!
       return;
@@ -81,45 +81,45 @@ public class CoderPropertiesTest {
 
   @Test
   public void testPassingInNonEqualValuesWithDeterministicCoder() throws Exception {
+    AssertionError error = null;
     try {
       CoderProperties.coderDeterministic(StringUtf8Coder.of(), "AAA", "BBB");
-      fail("Expected AssertionError");
-    } catch (AssertionError error) {
-      assertThat(error.getMessage(),
-          CoreMatchers.containsString("Expected that the passed in values"));
+    } catch (AssertionError e) {
+      error = e;
     }
+    assertNotNull("Expected AssertionError", error);
+    assertThat(
+        error.getMessage(), CoreMatchers.containsString("Expected that the passed in values"));
   }
 
   /** A coder that is non-deterministic because it adds a string to the value. */
   private static class BadDeterminsticCoder extends AtomicCoder<String> {
-    public BadDeterminsticCoder() {
-    }
+    public BadDeterminsticCoder() {}
 
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws IOException, CoderException {
+    public void encode(String value, OutputStream outStream) throws IOException, CoderException {
       StringUtf8Coder.of().encode(value + System.nanoTime(), outStream);
     }
 
     @Override
-    public String decode(InputStream inStream)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream) throws CoderException, IOException {
       return StringUtf8Coder.of().decode(inStream);
     }
 
     @Override
-    public void verifyDeterministic() throws NonDeterministicException { }
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 
   @Test
   public void testBadCoderIsNotDeterministic() throws Exception {
+    AssertionError error = null;
     try {
       CoderProperties.coderDeterministic(new BadDeterminsticCoder(), "TestData", "TestData");
-      fail("Expected AssertionError");
-    } catch (AssertionError error) {
-      assertThat(error.getMessage(),
-          CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"));
+    } catch (AssertionError e) {
+      error = e;
     }
+    assertNotNull("Expected AssertionError", error);
+    assertThat(error.getMessage(), CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"));
   }
 
   @Test
@@ -136,15 +136,13 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
       changedState += 1;
       StringUtf8Coder.of().encode(value + Strings.repeat("A", changedState), outStream);
     }
 
     @Override
-    public String decode(InputStream inStream)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream) throws CoderException, IOException {
       String decodedValue = StringUtf8Coder.of().decode(inStream);
       return decodedValue.substring(0, decodedValue.length() - changedState);
     }
@@ -163,12 +161,15 @@ public class CoderPropertiesTest {
 
   @Test
   public void testBadCoderThatDependsOnChangingState() throws Exception {
+    AssertionError error = null;
     try {
       CoderProperties.coderDecodeEncodeEqual(new StateChangingSerializingCoder(), "TestData");
-      fail("Expected AssertionError");
-    } catch (AssertionError error) {
-      assertThat(error.getMessage(), CoreMatchers.containsString("TestData"));
+    } catch (AssertionError e) {
+      error = e;
     }
+
+    assertNotNull("Expected AssertionError", error);
+    assertThat(error.getMessage(), CoreMatchers.containsString("TestData"));
   }
 
   /** This coder loses information critical to its operation. */
@@ -180,8 +181,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
       if (lostState == 0) {
         throw new RuntimeException("I forgot something...");
       }
@@ -189,8 +189,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public String decode(InputStream inStream)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream) throws CoderException, IOException {
       return StringUtf8Coder.of().decode(inStream);
     }
 
@@ -254,15 +253,17 @@ public class CoderPropertiesTest {
 
   @Test
   public void testCoderWhichConsumesMoreBytesThanItProducesFail() throws IOException {
+    AssertionError error = null;
     try {
       BadCoderThatConsumesMoreBytes coder = new BadCoderThatConsumesMoreBytes();
       byte[] bytes = CoderProperties.encode(coder, Context.NESTED, "TestData");
       CoderProperties.decode(coder, Context.NESTED, bytes);
-      Assert.fail("Expected Assertion Error");
-    } catch (AssertionError error) {
-      assertThat(error.getMessage(),
-          CoreMatchers.containsString("consumed bytes equal to encoded bytes"));
+    } catch (AssertionError e) {
+      error = e;
     }
-  }
 
+    assertNotNull("Expected Assertion Error", error);
+    assertThat(
+        error.getMessage(), CoreMatchers.containsString("consumed bytes equal to encoded bytes"));
+  }
 }

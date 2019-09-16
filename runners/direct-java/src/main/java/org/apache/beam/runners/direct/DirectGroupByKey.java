@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
@@ -36,8 +35,8 @@ class DirectGroupByKey<K, V>
     extends ForwardingPTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
   private final PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> original;
 
-  static final String DIRECT_GBKO_URN = "urn:beam:directrunner:transforms:gbko:v1";
-  static final String DIRECT_GABW_URN = "urn:beam:directrunner:transforms:gabw:v1";
+  static final String DIRECT_GBKO_URN = "beam:directrunner:transforms:gbko:v1";
+  static final String DIRECT_GABW_URN = "beam:directrunner:transforms:gabw:v1";
   private final WindowingStrategy<?, ?> outputWindowingStrategy;
 
   DirectGroupByKey(
@@ -88,8 +87,7 @@ class DirectGroupByKey<K, V>
   }
 
   static final class DirectGroupAlsoByWindow<K, V>
-      extends PTransform<
-          PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+      extends PTransform<PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
     private final WindowingStrategy<?, ?> inputWindowingStrategy;
     private final WindowingStrategy<?, ?> outputWindowingStrategy;
@@ -126,7 +124,9 @@ class DirectGroupByKey<K, V>
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KeyedWorkItem<K, V>> input) {
       KeyedWorkItemCoder<K, V> inputCoder = getKeyedWorkItemCoder(input.getCoder());
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), outputWindowingStrategy, input.isBounded(),
+          input.getPipeline(),
+          outputWindowingStrategy,
+          input.isBounded(),
           KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getElementCoder())));
     }
   }

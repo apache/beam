@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.apex.translation.utils;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.datatorrent.api.Operator;
 import java.io.DataInputStream;
@@ -85,7 +85,6 @@ public interface ApexStreamTuple<T> {
     public String toString() {
       return value.toString();
     }
-
   }
 
   /**
@@ -123,7 +122,6 @@ public interface ApexStreamTuple<T> {
         return (timestamp == other.timestamp) && Objects.equals(this.getValue(), other.getValue());
       }
     }
-
   }
 
   /**
@@ -146,9 +144,7 @@ public interface ApexStreamTuple<T> {
     }
   }
 
-  /**
-   * Coder for {@link ApexStreamTuple}.
-   */
+  /** Coder for {@link ApexStreamTuple}. */
   class ApexStreamTupleCoder<T> extends StructuredCoder<ApexStreamTuple<T>> {
     private static final long serialVersionUID = 1L;
     final Coder<T> valueCoder;
@@ -210,23 +206,19 @@ public interface ApexStreamTuple<T> {
           valueCoder);
     }
 
-    /**
-     * Returns the value coder.
-     */
+    /** Returns the value coder. */
     public Coder<T> getValueCoder() {
       return valueCoder;
     }
-
   }
 
   /**
-   * Central if data tuples received on and emitted from ports should be logged.
-   * Should be called in setup and value cached in operator.
+   * Central if data tuples received on and emitted from ports should be logged. Should be called in
+   * setup and value cached in operator.
    */
   final class Logging {
     public static boolean isDebugEnabled(ApexPipelineOptions options, Operator operator) {
       return options.isTupleTracingEnabled();
     }
   }
-
 }

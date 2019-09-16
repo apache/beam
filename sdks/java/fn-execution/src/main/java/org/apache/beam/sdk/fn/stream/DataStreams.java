@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingInputStream;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,56 +27,160 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingInputStream;
 
 /**
  * {@link #inbound(Iterator)} treats multiple {@link ByteString}s as a single input stream and
- * {@link #outbound(OutputChunkConsumer)} treats a single {@link OutputStream} as multiple
- * {@link ByteString}s.
+ * {@link #outbound(OutputChunkConsumer)} treats a single {@link OutputStream} as multiple {@link
+ * ByteString}s.
  */
-// TODO: Migrate logic from BeamFnDataBufferingOutboundObserver to support Outbound
 public class DataStreams {
+  public static final int DEFAULT_OUTBOUND_BUFFER_LIMIT_BYTES = 1_000_000;
+
   /**
    * Converts multiple {@link ByteString}s into a single {@link InputStream}.
    *
-   * <p>The iterator is accessed lazily. The supplied {@link Iterator} should block until
-   * either it knows that no more values will be provided or it has the next {@link ByteString}.
+   * <p>The iterator is accessed lazily. The supplied {@link Iterator} should block until either it
+   * knows that no more values will be provided or it has the next {@link ByteString}.
+   *
+   * <p>Note that this {@link InputStream} follows the Beam Fn API specification for forcing values
+   * that decode consuming zero bytes to consuming exactly one byte.
    */
   public static InputStream inbound(Iterator<ByteString> bytes) {
     return new Inbound(bytes);
   }
 
   /**
-   * Converts a single {@link OutputStream} into multiple {@link ByteString ByteStrings}.
-   */
-  public static OutputStream outbound(OutputChunkConsumer<ByteString> consumer) {
-    // TODO: Migrate logic from BeamFnDataBufferingOutboundObserver
-    throw new UnsupportedOperationException();
-  }
-
-  /**
-   * Reads chunks of output.
+   * Converts a single element delimited {@link OutputStream} into multiple {@link ByteString
+   * ByteStrings}.
    *
-   * @deprecated Used as a temporary placeholder until implementation of
-   * {@link #outbound(OutputChunkConsumer)}.
+   * <p>Note that users must call {@link ElementDelimitedOutputStream#delimitElement} after each
+   * element.
+   *
+   * <p>Note that this {@link OutputStream} follows the Beam Fn API specification for forcing values
+   * that encode producing zero bytes to produce exactly one byte.
    */
-  @Deprecated
-  public interface OutputChunkConsumer<T> {
-    void read(T chunk) throws Exception;
+  public static ElementDelimitedOutputStream outbound(OutputChunkConsumer<ByteString> consumer) {
+    return outbound(consumer, DEFAULT_OUTBOUND_BUFFER_LIMIT_BYTES);
   }
 
   /**
-   * An input stream which concatenates multiple {@link ByteString}s. Lazily accesses the
-   * first {@link Iterator} on first access of this input stream.
+   * Converts a single element delimited {@link OutputStream} into multiple {@link ByteString
+   * ByteStrings} using the specified maximum chunk size.
+   *
+   * <p>Note that users must call {@link ElementDelimitedOutputStream#delimitElement} after each
+   * element.
+   *
+   * <p>Note that this {@link OutputStream} follows the Beam Fn API specification for forcing values
+   * that encode producing zero bytes to produce exactly one byte.
+   */
+  public static ElementDelimitedOutputStream outbound(
+      OutputChunkConsumer<ByteString> consumer, int maximumChunkSize) {
+    return new ElementDelimitedOutputStream(consumer, maximumChunkSize);
+  }
+
+  /**
+   * An adapter which wraps an {@link OutputChunkConsumer} as an {@link OutputStream}.
+   *
+   * <p>Note that this adapter follows the Beam Fn API specification for forcing values that encode
+   * producing zero bytes to produce exactly one byte.
+   *
+   * <p>Note that users must invoke {@link #delimitElement} at each element boundary.
+   */
+  public static final class ElementDelimitedOutputStream extends OutputStream {
+    private final OutputChunkConsumer<ByteString> consumer;
+    private final ByteString.Output output;
+    private final int maximumChunkSize;
+    int previousPosition;
+
+    public ElementDelimitedOutputStream(
+        OutputChunkConsumer<ByteString> consumer, int maximumChunkSize) {
+      this.consumer = consumer;
+      this.maximumChunkSize = maximumChunkSize;
+      this.output = ByteString.newOutput(maximumChunkSize);
+    }
+
+    public void delimitElement() throws IOException {
+      // If the previous encoding was exactly zero bytes, output a single marker byte as per
+      // https://s.apache.org/beam-fn-api-send-and-receive-data
+      if (previousPosition == output.size()) {
+        write(0);
+      }
+      previousPosition = output.size();
+    }
+
+    @Override
+    public void write(int i) throws IOException {
+      output.write(i);
+      if (maximumChunkSize == output.size()) {
+        internalFlush();
+      }
+    }
+
+    @Override
+    public void write(byte[] b, int offset, int length) throws IOException {
+      int spaceRemaining = maximumChunkSize - output.size();
+      // Fill the first partially filled buffer.
+      if (length > spaceRemaining) {
+        output.write(b, offset, spaceRemaining);
+        offset += spaceRemaining;
+        length -= spaceRemaining;
+        internalFlush();
+      }
+      // Fill buffers completely.
+      while (length > maximumChunkSize) {
+        output.write(b, offset, maximumChunkSize);
+        offset += maximumChunkSize;
+        length -= maximumChunkSize;
+        internalFlush();
+      }
+      // Fill any remainder.
+      output.write(b, offset, length);
+    }
+
+    @Override
+    public void close() throws IOException {
+      if (output.size() > 0) {
+        consumer.read(output.toByteString());
+      }
+      output.close();
+    }
+
+    /** Can only be called if at least one byte has been written. */
+    private void internalFlush() throws IOException {
+      consumer.read(output.toByteString());
+      output.reset();
+      // Set the previous position to an invalid position representing that a previous buffer
+      // was written to.
+      previousPosition = -1;
+    }
+  }
+
+  /**
+   * A callback which is invoked whenever the {@link #outbound} {@link OutputStream} becomes full.
+   *
+   * <p>{@link #outbound(OutputChunkConsumer)}.
+   */
+  public interface OutputChunkConsumer<T> {
+    void read(T chunk) throws IOException;
+  }
+
+  /**
+   * An input stream which concatenates multiple {@link ByteString}s. Lazily accesses the first
+   * {@link Iterator} on first access of this input stream.
    *
    * <p>Closing this input stream has no effect.
    */
   private static class Inbound<T> extends InputStream {
-    private static final InputStream EMPTY_STREAM = new InputStream() {
-      @Override
-      public int read() throws IOException {
-        return -1;
-      }
-    };
+    private static final InputStream EMPTY_STREAM =
+        new InputStream() {
+          @Override
+          public int read() throws IOException {
+            return -1;
+          }
+        };
 
     private final Iterator<ByteString> bytes;
     private InputStream currentStream;
@@ -102,8 +203,9 @@ public class DataStreams {
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
       int remainingLen = len;
-      while ((remainingLen -= ByteStreams.read(
-          currentStream, b, off + len - remainingLen, remainingLen)) > 0) {
+      while ((remainingLen -=
+              ByteStreams.read(currentStream, b, off + len - remainingLen, remainingLen))
+          > 0) {
         if (bytes.hasNext()) {
           currentStream = bytes.next().newInput();
         } else {
@@ -126,13 +228,19 @@ public class DataStreams {
    * first access to {@link #next()} or {@link #hasNext()}.
    */
   public static class DataStreamDecoder<T> implements Iterator<T> {
-    private enum State { READ_REQUIRED, HAS_NEXT, EOF };
+
+    private enum State {
+      READ_REQUIRED,
+      HAS_NEXT,
+      EOF
+    }
 
     private final CountingInputStream countingInputStream;
     private final PushbackInputStream pushbackInputStream;
     private final Coder<T> coder;
     private State currentState;
     private T next;
+
     public DataStreamDecoder(Coder<T> coder, InputStream inputStream) {
       this.currentState = State.READ_REQUIRED;
       this.coder = coder;
@@ -197,8 +305,7 @@ public class DataStreams {
    * <p>The order or values which are appended to this iterator is nondeterministic when multiple
    * threads call {@link #accept(Object)}.
    */
-  public static class BlockingQueueIterator<T>
-      implements AutoCloseable, Iterator<T> {
+  public static class BlockingQueueIterator<T> implements AutoCloseable, Iterator<T> {
     private static final Object POISION_PILL = new Object();
     private final BlockingQueue<T> queue;
 

@@ -17,23 +17,74 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-/**
- * A new method {@link #buildBeamPipeline(PCollectionTuple, BeamSqlEnv)} is added.
- */
+/** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 public interface BeamRelNode extends RelNode {
 
   /**
-   * A {@link BeamRelNode} is a recursive structure, the
-   * {@code BeamQueryPlanner} visits it with a DFS(Depth-First-Search)
-   * algorithm.
+   * Whether the collection of rows represented by this relational expression is bounded (known to
+   * be finite) or unbounded (may or may not be finite).
+   *
+   * @return bounded if and only if all PCollection inputs are bounded
    */
-  PCollection<Row> buildBeamPipeline(
-      PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv)
-      throws Exception;
+  default PCollection.IsBounded isBounded() {
+    return getPCollectionInputs().stream()
+            .allMatch(
+                rel ->
+                    BeamSqlRelUtils.getBeamRelInput(rel).isBounded()
+                        == PCollection.IsBounded.BOUNDED)
+        ? PCollection.IsBounded.BOUNDED
+        : PCollection.IsBounded.UNBOUNDED;
+  }
+
+  default List<RelNode> getPCollectionInputs() {
+    return getInputs();
+  };
+
+  PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
+
+  /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
+  default Map<String, String> getPipelineOptions() {
+    Map<String, String> options = null;
+    for (RelNode input : getInputs()) {
+      Map<String, String> inputOptions = ((BeamRelNode) input).getPipelineOptions();
+      assert inputOptions != null;
+      assert options == null || options == inputOptions;
+      options = inputOptions;
+    }
+    return options;
+  }
+
+  /**
+   * This method is called by {@code
+   * org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats}. This is currently only used in
+   * SQLTransform Path (and not JDBC path). When a RelNode wants to calculate its BeamCost or
+   * estimate its NodeStats, it may need NodeStat of its inputs. However, it should not call this
+   * directly (because maybe its inputs are not physical yet). It should call {@link
+   * org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils#getNodeStats(org.apache.calcite.rel.RelNode,
+   * org.apache.calcite.rel.metadata.RelMetadataQuery)} instead.
+   */
+  NodeStats estimateNodeStats(RelMetadataQuery mq);
+
+  /**
+   * This method is called by {@code
+   * org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.NonCumulativeCostImpl}. This is
+   * currently only used in SQLTransform Path (and not JDBC path). This is needed when Calcite Query
+   * Planner wants to get the cost of a plan. Instead of calling this directly for a node, if we
+   * needed that it should be obtained by calling mq.getNonCumulativeCost. This way RelMetadataQuery
+   * will call this method instead of ComputeSelfCost if the handler is set correctly (see {@code
+   * org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner#convertToBeamRel(String)})
+   */
+  BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq);
 }

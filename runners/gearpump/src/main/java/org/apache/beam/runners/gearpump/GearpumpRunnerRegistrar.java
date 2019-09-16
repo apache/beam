@@ -15,29 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
- * {@link GearpumpRunner}.
+ * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
+ * GearpumpRunner}.
  *
- * {@link AutoService} will register Gearpump's implementations of the {@link PipelineRunner}
- * and {@link PipelineOptions} as available pipeline runner services.
+ * <p>{@link AutoService} will register Gearpump's implementations of the {@link PipelineRunner} and
+ * {@link PipelineOptions} as available pipeline runner services.
  */
 public class GearpumpRunnerRegistrar {
-  private GearpumpRunnerRegistrar() { }
+  private GearpumpRunnerRegistrar() {}
 
-  /**
-   * Registers the {@link GearpumpRunner}.
-   */
+  /** Registers the {@link GearpumpRunner}. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
 
@@ -47,9 +44,7 @@ public class GearpumpRunnerRegistrar {
     }
   }
 
-  /**
-   * Registers the {@link GearpumpPipelineOptions}.
-   */
+  /** Registers the {@link GearpumpPipelineOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
 

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -29,21 +29,26 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
+import com.amazonaws.util.Base64;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.io.aws.options.S3Options;
+import org.apache.beam.sdk.io.aws.options.S3Options.S3UploadBufferSizeBytesFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
-/**
- * A writable S3 object, as a {@link WritableByteChannel}.
- */
+/** A writable S3 object, as a {@link WritableByteChannel}. */
 class S3WritableByteChannel implements WritableByteChannel {
-
   private final AmazonS3 amazonS3;
+  private final S3Options options;
   private final S3ResourceId path;
+
   private final String uploadId;
   private final ByteBuffer uploadBuffer;
   private final List<PartETag> eTags;
@@ -51,22 +56,40 @@ class S3WritableByteChannel implements WritableByteChannel {
   // AWS S3 parts are 1-indexed, not zero-indexed.
   private int partNumber = 1;
   private boolean open = true;
+  private final MessageDigest md5 = md5();
 
-  S3WritableByteChannel(AmazonS3 amazonS3, S3ResourceId path, String contentType,
-      String storageClass, int uploadBufferSizeBytes)
+  S3WritableByteChannel(AmazonS3 amazonS3, S3ResourceId path, String contentType, S3Options options)
       throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
+    this.options = checkNotNull(options);
     this.path = checkNotNull(path, "path");
-    checkArgument(uploadBufferSizeBytes > 0, "uploadBufferSizeBytes");
-    this.uploadBuffer = ByteBuffer.allocate(uploadBufferSizeBytes);
+    checkArgument(
+        atMostOne(
+            options.getSSECustomerKey() != null,
+            options.getSSEAlgorithm() != null,
+            options.getSSEAwsKeyManagementParams() != null),
+        "Either SSECustomerKey (SSE-C) or SSEAlgorithm (SSE-S3)"
+            + " or SSEAwsKeyManagementParams (SSE-KMS) must not be set at the same time.");
+    // Amazon S3 API docs: Each part must be at least 5 MB in size, except the last part.
+    checkArgument(
+        options.getS3UploadBufferSizeBytes()
+            >= S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES,
+        "S3UploadBufferSizeBytes must be at least %s bytes",
+        S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
+    this.uploadBuffer = ByteBuffer.allocate(options.getS3UploadBufferSizeBytes());
     eTags = new ArrayList<>();
 
     ObjectMetadata objectMetadata = new ObjectMetadata();
     objectMetadata.setContentType(contentType);
+    if (options.getSSEAlgorithm() != null) {
+      objectMetadata.setSSEAlgorithm(options.getSSEAlgorithm());
+    }
     InitiateMultipartUploadRequest request =
         new InitiateMultipartUploadRequest(path.getBucket(), path.getKey())
-            .withStorageClass(storageClass)
+            .withStorageClass(options.getS3StorageClass())
             .withObjectMetadata(objectMetadata);
+    request.setSSECustomerKey(options.getSSECustomerKey());
+    request.setSSEAwsKeyManagementParams(options.getSSEAwsKeyManagementParams());
     InitiateMultipartUploadResult result;
     try {
       result = amazonS3.initiateMultipartUpload(request);
@@ -74,6 +97,14 @@ class S3WritableByteChannel implements WritableByteChannel {
       throw new IOException(e);
     }
     uploadId = result.getUploadId();
+  }
+
+  private static MessageDigest md5() {
+    try {
+      return MessageDigest.getInstance("MD5");
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @Override
@@ -90,6 +121,7 @@ class S3WritableByteChannel implements WritableByteChannel {
       byte[] copyBuffer = new byte[bytesWritten];
       sourceBuffer.get(copyBuffer);
       uploadBuffer.put(copyBuffer);
+      md5.update(copyBuffer);
 
       if (!uploadBuffer.hasRemaining() || sourceBuffer.hasRemaining()) {
         flush();
@@ -110,7 +142,10 @@ class S3WritableByteChannel implements WritableByteChannel {
             .withUploadId(uploadId)
             .withPartNumber(partNumber++)
             .withPartSize(uploadBuffer.remaining())
+            .withMD5Digest(Base64.encodeAsString(md5.digest()))
             .withInputStream(inputStream);
+    request.setSSECustomerKey(options.getSSECustomerKey());
+
     UploadPartResult result;
     try {
       result = amazonS3.uploadPart(request);
@@ -118,6 +153,7 @@ class S3WritableByteChannel implements WritableByteChannel {
       throw new IOException(e);
     }
     uploadBuffer.clear();
+    md5.reset();
     eTags.add(result.getPartETag());
   }
 
@@ -143,5 +179,18 @@ class S3WritableByteChannel implements WritableByteChannel {
     } catch (AmazonClientException e) {
       throw new IOException(e);
     }
+  }
+
+  @VisibleForTesting
+  static boolean atMostOne(boolean... values) {
+    boolean one = false;
+    for (boolean value : values) {
+      if (!one && value) {
+        one = true;
+      } else if (value) {
+        return false;
+      }
+    }
+    return true;
   }
 }

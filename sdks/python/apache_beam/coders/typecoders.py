@@ -63,6 +63,11 @@ example, the above function can be decorated::
 
 See apache_beam.typehints.decorators module for more details.
 """
+from __future__ import absolute_import
+
+from builtins import object
+
+from past.builtins import unicode
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
@@ -82,7 +87,6 @@ class CoderRegistry(object):
     """Register coders for all basic and composite types."""
     self._register_coder_internal(int, coders.VarIntCoder)
     self._register_coder_internal(float, coders.FloatCoder)
-    self._register_coder_internal(str, coders.BytesCoder)
     self._register_coder_internal(bytes, coders.BytesCoder)
     self._register_coder_internal(unicode, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
@@ -115,7 +119,8 @@ class CoderRegistry(object):
         raise RuntimeError(
             'Coder registry has no fallback coder. This can happen if the '
             'fast_coders module could not be imported.')
-      if isinstance(typehint, typehints.IterableTypeConstraint):
+      if isinstance(typehint, (typehints.IterableTypeConstraint,
+                               typehints.ListConstraint)):
         return coders.IterableCoder.from_type_hint(typehint, self)
       elif typehint is None:
         # In some old code, None is used for Any.

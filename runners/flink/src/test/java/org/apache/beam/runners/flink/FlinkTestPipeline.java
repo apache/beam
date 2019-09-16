@@ -20,17 +20,14 @@ package org.apache.beam.runners.flink;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * {@link org.apache.beam.sdk.Pipeline} for testing Dataflow programs on the
- * {@link FlinkRunner}.
- */
+/** {@link org.apache.beam.sdk.Pipeline} for testing Beam pipelines on the {@link FlinkRunner}. */
 public class FlinkTestPipeline extends Pipeline {
 
   /**
    * Creates and returns a new test pipeline for batch execution.
    *
-   * <p>Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call
-   * {@link Pipeline#run} to execute the pipeline and check the tests.
+   * <p>Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call {@link Pipeline#run}
+   * to execute the pipeline and check the tests.
    */
   public static FlinkTestPipeline createForBatch() {
     return create(false);
@@ -39,8 +36,8 @@ public class FlinkTestPipeline extends Pipeline {
   /**
    * Creates and returns a new test pipeline for streaming execution.
    *
-   * <p>Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call
-   * {@link Pipeline#run} to execute the pipeline and check the tests.
+   * <p>Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call {@link Pipeline#run}
+   * to execute the pipeline and check the tests.
    *
    * @return The Test Pipeline
    */
@@ -51,8 +48,8 @@ public class FlinkTestPipeline extends Pipeline {
   /**
    * Creates and returns a new test pipeline for streaming or batch execution.
    *
-   * <p>Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call
-   * {@link Pipeline#run} to execute the pipeline and check the tests.
+   * <p>Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call {@link Pipeline#run}
+   * to execute the pipeline and check the tests.
    *
    * @param streaming <code>True</code> for streaming mode, <code>False</code> for batch.
    * @return The Test Pipeline.
@@ -66,4 +63,3 @@ public class FlinkTestPipeline extends Pipeline {
     super(options);
   }
 }
-

@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -34,6 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -98,7 +97,8 @@ public class DirectStreamObserverTest {
             phaser,
             TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
                 .withIsReady(elementsAllowed::get)
-                .build());
+                .build(),
+            0);
 
     // Start all the tasks
     List<Future<String>> results = new ArrayList<>();
@@ -114,9 +114,54 @@ public class DirectStreamObserverTest {
     }
 
     // Have them wait and then flip that we do allow elements and wake up those awaiting
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+    Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
     elementsAllowed.set(true);
     phaser.arrive();
+
+    for (Future<String> result : results) {
+      result.get();
+    }
+    streamObserver.onCompleted();
+  }
+
+  /**
+   * This test specifically covers the case if the outbound observer is being invoked on the same
+   * thread that the inbound observer is. gRPC documentation states:
+   *
+   * <p><i>Note: the onReadyHandler's invocation is serialized on the same thread pool as the
+   * incoming StreamObserver's onNext(), onError(), and onComplete() handlers. Blocking the
+   * onReadyHandler will prevent additional messages from being processed by the incoming
+   * StreamObserver. The onReadyHandler must return in a timely manor or else message processing
+   * throughput will suffer. </i>
+   */
+  @Test
+  public void testIsReadyCheckDoesntBlockIfPhaserCallbackNeverHappens() throws Exception {
+    // Note that we never advance the phaser in this test.
+    final AtomicBoolean elementsAllowed = new AtomicBoolean();
+    final DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
+            new AdvancingPhaser(1),
+            TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
+                .withIsReady(elementsAllowed::get)
+                .build(),
+            0);
+
+    // Start all the tasks
+    List<Future<String>> results = new ArrayList<>();
+    for (final String prefix : ImmutableList.of("0", "1", "2", "3", "4")) {
+      results.add(
+          executor.submit(
+              () -> {
+                for (int i = 0; i < 10; i++) {
+                  streamObserver.onNext(prefix + i);
+                }
+                return prefix;
+              }));
+    }
+
+    // Have them wait and then flip that we do allow elements and wake up those awaiting
+    Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+    elementsAllowed.set(true);
 
     for (Future<String> result : results) {
       result.get();

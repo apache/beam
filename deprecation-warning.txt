@@ -1,0 +1,18 @@
+############################### WARNING ####################################
+##                                                                        ##
+## Deprecation Warning: Gradle command altered.                           ##
+##                                                                        ##
+## You are still using deprecated project namings. Instead of using e.g.  ##
+##                                                                        ##
+##    :beam-sdks-java-core                                                ##
+##                                                                        ##
+## you should now use                                                     ##
+##                                                                        ##
+##    :sdks:java:core                                                     ##
+##                                                                        ##
+## no to reference projects and their tasks. See project-mappings file.   ##
+##                                                                        ##
+## This compatibility layer will be removed soon.                         ##
+##                                                                        ##
+############################### WARNING ####################################
+

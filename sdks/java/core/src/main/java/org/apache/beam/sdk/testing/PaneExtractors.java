@@ -37,8 +37,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * cannot be obtained when the extractor is created.
  */
 final class PaneExtractors {
-  private PaneExtractors() {
-  }
+  private PaneExtractors() {}
 
   static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> onlyPane(
       PAssert.PAssertionSite site) {
@@ -59,6 +58,10 @@ final class PaneExtractors {
 
   static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> earlyPanes() {
     return new ExtractEarlyPanes<>();
+  }
+
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> latePanes() {
+    return new ExtractLatePanes<>();
   }
 
   static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> allPanes() {
@@ -90,7 +93,6 @@ final class PaneExtractors {
     }
   }
 
-
   private static class ExtractOnTimePane<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
@@ -104,7 +106,6 @@ final class PaneExtractors {
       return outputs;
     }
   }
-
 
   private static class ExtractFinalPane<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
@@ -120,7 +121,6 @@ final class PaneExtractors {
     }
   }
 
-
   private static class ExtractAllPanes<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
@@ -132,7 +132,6 @@ final class PaneExtractors {
       return outputs;
     }
   }
-
 
   private static class ExtractNonLatePanes<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
@@ -155,6 +154,20 @@ final class PaneExtractors {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
         if (value.getPane().getTiming() == PaneInfo.Timing.EARLY) {
+          outputs.add(value.getValue());
+        }
+      }
+      return outputs;
+    }
+  }
+
+  private static class ExtractLatePanes<T>
+      extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
+    @Override
+    public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
+      List<T> outputs = new ArrayList<>();
+      for (ValueInSingleWindow<T> value : input) {
+        if (value.getPane().getTiming() == PaneInfo.Timing.LATE) {
           outputs.add(value.getValue());
         }
       }

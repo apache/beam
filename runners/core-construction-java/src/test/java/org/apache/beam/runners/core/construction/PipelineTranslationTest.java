@@ -15,24 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Equivalence;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -50,6 +52,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -105,30 +108,30 @@ public class PipelineTranslationTest {
 
   @Test
   public void testProtoDirectly() {
-    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-    pipeline.traverseTopologically(
-        new PipelineProtoVerificationVisitor(pipelineProto));
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto, false));
   }
 
   @Test
-  public void testProtoAgainstRehydrated() throws Exception {
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-    Pipeline rehydrated = PipelineTranslation.fromProto(pipelineProto);
-
-    rehydrated.traverseTopologically(
-        new PipelineProtoVerificationVisitor(pipelineProto));
+  public void testProtoDirectlyWithViewTransform() {
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, true);
+    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto, true));
   }
 
   private static class PipelineProtoVerificationVisitor extends PipelineVisitor.Defaults {
 
     private final RunnerApi.Pipeline pipelineProto;
+    private boolean useDeprecatedViewTransforms;
     Set<Node> transforms;
     Set<PCollection<?>> pcollections;
-    Set<Equivalence.Wrapper<? extends Coder<?>>> coders;
+    Set<Coder<?>> coders;
     Set<WindowingStrategy<?, ?>> windowingStrategies;
+    int missingViewTransforms = 0;
 
-    public PipelineProtoVerificationVisitor(RunnerApi.Pipeline pipelineProto) {
+    public PipelineProtoVerificationVisitor(
+        RunnerApi.Pipeline pipelineProto, boolean useDeprecatedViewTransforms) {
       this.pipelineProto = pipelineProto;
+      this.useDeprecatedViewTransforms = useDeprecatedViewTransforms;
       transforms = new HashSet<>();
       pcollections = new HashSet<>();
       coders = new HashSet<>();
@@ -141,11 +144,11 @@ public class PipelineTranslationTest {
         assertThat(
             "Unexpected number of PTransforms",
             pipelineProto.getComponents().getTransformsCount(),
-            equalTo(transforms.size()));
+            equalTo(transforms.size() - missingViewTransforms));
         assertThat(
             "Unexpected number of PCollections",
             pipelineProto.getComponents().getPcollectionsCount(),
-            equalTo(pcollections.size()));
+            equalTo(pcollections.size() - missingViewTransforms));
         assertThat(
             "Unexpected number of Coders",
             pipelineProto.getComponents().getCodersCount(),
@@ -156,13 +159,12 @@ public class PipelineTranslationTest {
             equalTo(windowingStrategies.size()));
       } else {
         transforms.add(node);
-        if (PTransformTranslation.COMBINE_TRANSFORM_URN.equals(
+        if (PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN.equals(
             PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
           // Combine translation introduces a coder that is not assigned to any PCollection
           // in the default expansion, and must be explicitly added here.
           try {
-            addCoders(
-                CombineTranslation.getAccumulatorCoder(node.toAppliedPTransform(getPipeline())));
+            addCoders(getAccumulatorCoder(node.toAppliedPTransform(getPipeline())));
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -173,6 +175,11 @@ public class PipelineTranslationTest {
     @Override
     public void visitPrimitiveTransform(Node node) {
       transforms.add(node);
+      if (!useDeprecatedViewTransforms
+          && PTransformTranslation.CREATE_VIEW_TRANSFORM_URN.equals(
+              PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
+        missingViewTransforms += 1;
+      }
     }
 
     @Override
@@ -187,12 +194,38 @@ public class PipelineTranslationTest {
     }
 
     private void addCoders(Coder<?> coder) {
-      coders.add(Equivalence.<Coder<?>>identity().wrap(coder));
+      coders.add(coder);
       if (CoderTranslation.KNOWN_CODER_URNS.containsKey(coder.getClass())) {
         for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
           addCoders(component);
         }
       }
+    }
+  }
+
+  private static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
+      throws IOException {
+    SdkComponents sdkComponents = SdkComponents.create(transform.getPipeline().getOptions());
+    String id =
+        getCombinePayload(transform, sdkComponents)
+            .map(CombinePayload::getAccumulatorCoderId)
+            .orElseThrow(() -> new IOException("Transform does not contain an AccumulatorCoder"));
+    Components components = sdkComponents.toComponents();
+    return CoderTranslation.fromProto(
+        components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
+  }
+
+  private static Optional<CombinePayload> getCombinePayload(
+      AppliedPTransform<?, ?, ?> transform, SdkComponents components) throws IOException {
+    RunnerApi.PTransform proto =
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components);
+
+    // Even if the proto has no spec, calling getSpec still returns a blank spec, which we want to
+    // avoid. It should be clear to the caller whether or not there was a spec in the transform.
+    if (proto.hasSpec()) {
+      return Optional.of(CombinePayload.parseFrom(proto.getSpec().getPayload()));
+    } else {
+      return Optional.empty();
     }
   }
 }

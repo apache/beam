@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.options.SdkHarnessOptions.LogLevel.WARN;
 import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.options.SdkHarnessOptions.SdkHarnessLogLevelOverrides;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -33,8 +33,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link SdkHarnessOptions}. */
 @RunWith(JUnit4.class)
 public class SdkHarnessOptionsTest {
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
@@ -46,31 +47,33 @@ public class SdkHarnessOptionsTest {
 
   @Test
   public void testSdkHarnessLogLevelOverrideForClass() throws Exception {
-    assertEquals("{\"org.junit.Test\":\"WARN\"}",
+    assertEquals(
+        "{\"org.junit.Test\":\"WARN\"}",
         MAPPER.writeValueAsString(
             new SdkHarnessLogLevelOverrides().addOverrideForClass(Test.class, WARN)));
   }
 
   @Test
   public void testSdkHarnessLogLevelOverrideForPackage() throws Exception {
-    assertEquals("{\"org.junit\":\"WARN\"}",
+    assertEquals(
+        "{\"org.junit\":\"WARN\"}",
         MAPPER.writeValueAsString(
-            new SdkHarnessLogLevelOverrides().addOverrideForPackage(
-                Test.class.getPackage(), WARN)));
+            new SdkHarnessLogLevelOverrides()
+                .addOverrideForPackage(Test.class.getPackage(), WARN)));
   }
 
   @Test
   public void testSdkHarnessLogLevelOverrideForName() throws Exception {
-    assertEquals("{\"A\":\"WARN\"}",
-        MAPPER.writeValueAsString(
-            new SdkHarnessLogLevelOverrides().addOverrideForName("A", WARN)));
+    assertEquals(
+        "{\"A\":\"WARN\"}",
+        MAPPER.writeValueAsString(new SdkHarnessLogLevelOverrides().addOverrideForName("A", WARN)));
   }
 
   @Test
   public void testSerializationAndDeserializationOf() throws Exception {
     String testValue = "{\"A\":\"WARN\"}";
-    assertEquals(testValue,
-        MAPPER.writeValueAsString(
-            MAPPER.readValue(testValue, SdkHarnessLogLevelOverrides.class)));
+    assertEquals(
+        testValue,
+        MAPPER.writeValueAsString(MAPPER.readValue(testValue, SdkHarnessLogLevelOverrides.class)));
   }
 }

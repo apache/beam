@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,6 +34,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,9 +43,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link BufferedElementCountingOutputStream}.
- */
+/** Tests for {@link BufferedElementCountingOutputStream}. */
 @RunWith(JUnit4.class)
 public class BufferedElementCountingOutputStreamTest {
   @Rule public final ExpectedException expectedException = ExpectedException.none();
@@ -72,8 +71,10 @@ public class BufferedElementCountingOutputStreamTest {
 
   @Test
   public void testMultipleValuesThatBecomeGreaterThanBuffer() throws Exception {
-    testValues(toBytes("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l",
-        "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"));
+    testValues(
+        toBytes(
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q",
+            "r", "s", "t", "u", "v", "w", "x", "y", "z"));
   }
 
   @Test
@@ -99,7 +100,7 @@ public class BufferedElementCountingOutputStreamTest {
     os.flush();
     os.write(2);
     os.close();
-    assertArrayEquals(new byte[]{ 1, 1, 2, 0 }, bos.toByteArray());
+    assertArrayEquals(new byte[] {1, 1, 2, 0}, bos.toByteArray());
   }
 
   @Test
@@ -107,11 +108,11 @@ public class BufferedElementCountingOutputStreamTest {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     BufferedElementCountingOutputStream os = new BufferedElementCountingOutputStream(bos);
     os.markElementStart();
-    os.write(new byte[]{ 1 });
+    os.write(new byte[] {1});
     os.flush();
-    os.write(new byte[]{ 2 });
+    os.write(new byte[] {2});
     os.close();
-    assertArrayEquals(new byte[]{ 1, 1, 2, 0 }, bos.toByteArray());
+    assertArrayEquals(new byte[] {1, 1, 2, 0}, bos.toByteArray());
   }
 
   @Test
@@ -156,7 +157,7 @@ public class BufferedElementCountingOutputStreamTest {
   public void testWritingBytesWhenFinishedThrows() throws Exception {
     expectedException.expect(IOException.class);
     expectedException.expectMessage("Stream has been finished.");
-    testValues(toBytes("a")).write("b".getBytes());
+    testValues(toBytes("a")).write("b".getBytes(Charsets.UTF_8));
   }
 
   @Test
@@ -168,7 +169,6 @@ public class BufferedElementCountingOutputStreamTest {
     assertEquals(0, BUFFER_POOL.size());
     os.finish();
     assertEquals(1, BUFFER_POOL.size());
-
   }
 
   @Test
@@ -192,16 +192,16 @@ public class BufferedElementCountingOutputStreamTest {
     assertEquals(1, BUFFER_POOL.size());
   }
 
-  private List<byte[]> toBytes(String ... values) {
+  private List<byte[]> toBytes(String... values) {
     ImmutableList.Builder<byte[]> builder = ImmutableList.builder();
     for (String value : values) {
-      builder.add(value.getBytes());
+      builder.add(value.getBytes(Charsets.UTF_8));
     }
     return builder.build();
   }
 
-  private BufferedElementCountingOutputStream
-      testValues(List<byte[]> expectedValues) throws Exception {
+  private BufferedElementCountingOutputStream testValues(List<byte[]> expectedValues)
+      throws Exception {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     BufferedElementCountingOutputStream os = createAndWriteValues(expectedValues, baos);
     os.finish();
@@ -217,7 +217,7 @@ public class BufferedElementCountingOutputStreamTest {
       for (int i = 0; i < count; ++i) {
         values.add(ByteArrayCoder.of().decode(is));
       }
-    } while(count > 0);
+    } while (count > 0);
 
     if (expectedValues.isEmpty()) {
       assertTrue(values.isEmpty());
@@ -226,8 +226,8 @@ public class BufferedElementCountingOutputStreamTest {
     }
   }
 
-  private BufferedElementCountingOutputStream
-      createAndWriteValues(List<byte[]> values, OutputStream output) throws Exception {
+  private BufferedElementCountingOutputStream createAndWriteValues(
+      List<byte[]> values, OutputStream output) throws Exception {
     BufferedElementCountingOutputStream os =
         new BufferedElementCountingOutputStream(output, BUFFER_SIZE);
 

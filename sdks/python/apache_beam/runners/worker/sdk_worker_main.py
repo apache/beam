@@ -16,7 +16,9 @@
 #
 """SDK Fn Harness entry point."""
 
-import BaseHTTPServer
+from __future__ import absolute_import
+
+import http.server
 import json
 import logging
 import os
@@ -24,14 +26,19 @@ import re
 import sys
 import threading
 import traceback
+from builtins import object
 
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.portability.api import endpoints_pb2
-from apache_beam.runners.dataflow.internal import names
+from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
+from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -57,7 +64,7 @@ class StatusServer(object):
         Default is 0 which means any free unsecured port
     """
 
-    class StatusHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+    class StatusHttpHandler(http.server.BaseHTTPRequestHandler):
       """HTTP handler for serving stacktraces of all threads."""
 
       def do_GET(self):  # pylint: disable=invalid-name
@@ -73,7 +80,7 @@ class StatusServer(object):
         """Do not log any messages."""
         pass
 
-    self.httpd = httpd = BaseHTTPServer.HTTPServer(
+    self.httpd = httpd = http.server.HTTPServer(
         ('localhost', status_http_port), StatusHttpHandler)
     logging.info('Status HTTP server running at %s:%s', httpd.server_name,
                  httpd.server_port)
@@ -84,28 +91,36 @@ class StatusServer(object):
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
-    logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-    text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
-                      logging_service_descriptor)
+    try:
+      logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+      text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
+                        logging_service_descriptor)
 
-    # Send all logs to the runner.
-    fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-    # TODO(vikasrk): This should be picked up from pipeline options.
-    logging.getLogger().setLevel(logging.INFO)
-    logging.getLogger().addHandler(fn_log_handler)
+      # Send all logs to the runner.
+      fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
+      # TODO(BEAM-5468): This should be picked up from pipeline options.
+      logging.getLogger().setLevel(logging.INFO)
+      logging.getLogger().addHandler(fn_log_handler)
+      logging.info('Logging handler created.')
+    except Exception:
+      logging.error("Failed to set up logging handler, continuing without.",
+                    exc_info=True)
+      fn_log_handler = None
   else:
     fn_log_handler = None
 
   # Start status HTTP server thread.
-  thread = threading.Thread(target=StatusServer().start)
+  thread = threading.Thread(name='status_http_server',
+                            target=StatusServer().start)
   thread.daemon = True
   thread.setName('status-server-demon')
   thread.start()
 
   if 'PIPELINE_OPTIONS' in os.environ:
-    sdk_pipeline_options = json.loads(os.environ['PIPELINE_OPTIONS'])
+    sdk_pipeline_options = _parse_pipeline_options(
+        os.environ['PIPELINE_OPTIONS'])
   else:
-    sdk_pipeline_options = {}
+    sdk_pipeline_options = PipelineOptions.from_dictionary({})
 
   if 'SEMI_PERSISTENT_DIRECTORY' in os.environ:
     semi_persistent_directory = os.environ['SEMI_PERSISTENT_DIRECTORY']
@@ -113,6 +128,7 @@ def main(unused_argv):
     semi_persistent_directory = None
 
   logging.info('semi_persistent_directory: %s', semi_persistent_directory)
+  _worker_id = os.environ.get('WORKER_ID', None)
 
   try:
     _load_main_session(semi_persistent_directory)
@@ -123,7 +139,7 @@ def main(unused_argv):
 
   try:
     logging.info('Python sdk harness started with pipeline_options: %s',
-                 sdk_pipeline_options)
+                 sdk_pipeline_options.get_all_options(drop_default=True))
     service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
@@ -131,7 +147,11 @@ def main(unused_argv):
     assert not service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
         control_address=service_descriptor.url,
-        worker_count=_get_worker_count(sdk_pipeline_options)).run()
+        worker_count=_get_worker_count(sdk_pipeline_options),
+        worker_id=_worker_id,
+        profiler_factory=profiler.Profile.factory_from_options(
+            sdk_pipeline_options.view_as(ProfilingOptions))
+    ).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
@@ -139,6 +159,21 @@ def main(unused_argv):
   finally:
     if fn_log_handler:
       fn_log_handler.close()
+
+
+def _parse_pipeline_options(options_json):
+  options = json.loads(options_json)
+  # Check the options field first for backward compatibility.
+  if 'options' in options:
+    return PipelineOptions.from_dictionary(options.get('options'))
+  else:
+    # Remove extra urn part from the key.
+    portable_option_regex = r'^beam:option:(?P<key>.*):v1$'
+    return PipelineOptions.from_dictionary({
+        re.match(portable_option_regex, k).group('key')
+        if re.match(portable_option_regex, k) else k: v
+        for k, v in options.items()
+    })
 
 
 def _get_worker_count(pipeline_options):
@@ -154,13 +189,9 @@ def _get_worker_count(pipeline_options):
   future releases.
 
   Returns:
-    an int containing the worker_threads to use. Default is 1
+    an int containing the worker_threads to use. Default is 12
   """
-  pipeline_options = pipeline_options.get(
-      'options') if pipeline_options.has_key('options') else {}
-  experiments = pipeline_options.get(
-      'experiments'
-  ) if pipeline_options and pipeline_options.has_key('experiments') else []
+  experiments = pipeline_options.view_as(DebugOptions).experiments
 
   experiments = experiments if experiments else []
 
@@ -171,7 +202,7 @@ def _get_worker_count(pipeline_options):
           re.match(r'worker_threads=(?P<worker_threads>.*)',
                    experiment).group('worker_threads'))
 
-  return 1
+  return 12
 
 
 def _load_main_session(semi_persistent_directory):

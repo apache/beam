@@ -23,19 +23,56 @@
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for dataflow and docker images.
 #
-# Execute from the root of the repository: sdks/python/container/run_validatescontainer.sh
+# Execute from the root of the repository:
+#     test Python2 container: ./sdks/python/container/run_validatescontainer.sh python2
+#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python35
+#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python36
+#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python37
+
+echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LOCATION, and PROJECT as desired."
+
+if [[ $# != 1 ]]; then
+  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version>"
+  printf "\n\tpython_version: [required] Python version used for container build and run tests."
+  printf " Use 'python2' for Python2, 'python35' for Python3.5, python36 for Python3.6, python37 for Python3.7."
+  exit 1
+fi
 
 set -e
 set -v
 
-# pip install --user installation location.
-LOCAL_PATH=$HOME/.local/bin/
-
 # Where to store integration test outputs.
-GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_LOCATION=${GCS_LOCATION:-gs://temp-storage-for-end-to-end-tests}
 
 # Project for the container and integration test
-PROJECT=apache-beam-testing
+PROJECT=${PROJECT:-apache-beam-testing}
+
+# Other variables branched by Python version.
+if [[ $1 == "python2" ]]; then
+  IMAGE_NAME="python2.7"       # Use this to create CONTAINER_IMAGE variable.
+  CONTAINER_PROJECT="sdks:python:container:py2"  # Use this to build container by Gradle.
+  GRADLE_PY3_FLAG=""        # Use this in Gradle command.
+  PY_INTERPRETER="python"   # Use this in virtualenv command.
+elif [[ $1 == "python35" ]]; then
+  IMAGE_NAME="python3.5"          # Use this to create CONTAINER_IMAGE variable.
+  CONTAINER_PROJECT="sdks:python:container:py35"  # Use this to build container by Gradle.
+  GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
+  PY_INTERPRETER="python3.5"    # Use this in virtualenv command.
+elif [[ $1 == "python36" ]]; then
+  IMAGE_NAME="python3.6"          # Use this to create CONTAINER_IMAGE variable.
+  CONTAINER_PROJECT="sdks:python:container:py36"  # Use this to build container by Gradle.
+  GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
+  PY_INTERPRETER="python3.6"    # Use this in virtualenv command.
+elif [[ $1 == "python37" ]]; then
+  IMAGE_NAME="python3.7"          # Use this to create CONTAINER_IMAGE variable.
+  CONTAINER_PROJECT="sdks:python:container:py37"  # Use this to build container by Gradle.
+  GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
+  PY_INTERPRETER="python3.7"    # Use this in virtualenv command.
+else
+  echo "Must set Python version with one of 'python2', 'python35', 'python36' and 'python37' from commandline."
+  exit 1
+fi
+XUNIT_FILE="nosetests-$IMAGE_NAME.xml"
 
 # Verify in the root of the repository
 test -d sdks/python/container
@@ -46,38 +83,11 @@ command -v gcloud
 docker -v
 gcloud -v
 
-# ensure maven version is 3.5 or above
-TMPDIR=$(mktemp -d)
-MVN=$(which mvn)
-mvn_ver=$($MVN -v | head -1 | awk '{print $3}')
-if [[ "$mvn_ver" < "3.5" ]]
-then
-  pushd $TMPDIR
-  curl http://www.apache.org/dist/maven/maven-3/3.5.2/binaries/apache-maven-3.5.2-bin.tar.gz --output maven.tar.gz
-  tar xf maven.tar.gz
-  MVN="$(pwd)/apache-maven-3.5.2/bin/mvn"
-  popd
-fi
-
-# ensure gcloud is version 186 or above
-gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
-if [[ "$gcloud_ver" < "186" ]]
-then
-  pushd $TMPDIR
-  curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
-  tar xf gcloud.tar.gz
-  ./google-cloud-sdk/install.sh --quiet
-  . ./google-cloud-sdk/path.bash.inc
-  popd
-  gcloud components update --quiet || echo 'gcloud components update failed'
-  gcloud -v
-fi
-
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
-CONTAINER=us.gcr.io/$PROJECT/$USER/python
+CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 echo "Using container $CONTAINER"
-$MVN clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=us.gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
+./gradlew :$CONTAINER_PROJECT:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG $GRADLE_PY3_FLAG --info
 
 # Verify it exists
 docker images | grep $TAG
@@ -85,12 +95,20 @@ docker images | grep $TAG
 # Push the container
 gcloud docker -- push $CONTAINER
 
-# INFRA does not install virtualenv
-pip install virtualenv --user
+function cleanup_container {
+  # Delete the container locally and remotely
+  docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
+  gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  echo "Removed the container"
+}
+trap cleanup_container EXIT
+
+echo ">>> Successfully built and push container $CONTAINER"
 
 # Virtualenv for the rest of the script to run setup & e2e test
-${LOCAL_PATH}/virtualenv sdks/python/container
-. sdks/python/container/bin/activate
+VENV_PATH=sdks/python/container/venv/$PY_INTERPRETER
+virtualenv $VENV_PATH -p $PY_INTERPRETER
+. $VENV_PATH/bin/activate
 cd sdks/python
 pip install -e .[gcp,test]
 
@@ -102,9 +120,12 @@ SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 python setup.py nosetests \
   --attr ValidatesContainer \
-  --nocapture \
+  --nologcapture \
   --processes=1 \
   --process-timeout=900 \
+  --with-xunitmp \
+  --xunitmp-file=$XUNIT_FILE \
+  --ignore-files '.*py3.py$' \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
@@ -114,12 +135,5 @@ python setup.py nosetests \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1"
-
-# Delete the container locally and remotely
-docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
-gcloud container images delete $CONTAINER:$TAG || echo "Failed to delete container"
-
-# Clean up tempdir
-rm -rf $TMPDIR
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

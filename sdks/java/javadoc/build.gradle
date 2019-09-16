@@ -1,0 +1,87 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Aggregate Javadoc is not published to Maven Central. Each Java module that is published
+ * to Maven Cental packages its own Javadoc. To generate aggregated javadocs, run:
+ *   ./gradlew :sdks:java:javadoc:aggregateJavadoc
+ * Generated files will be located under beam/sdks/java/javadoc/build/docs/javadoc and are
+ * used as part of the beam-site source tree.
+ */
+plugins { id 'org.apache.beam.module' }
+applyJavaNature()
+description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
+
+for (p in rootProject.subprojects) {
+  if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+    evaluationDependsOn(p.path)
+  }
+}
+
+ext.getExportedJavadocProjects = {
+  def exportedJavadocProjects = new ArrayList<>();
+  for (p in rootProject.subprojects) {
+    if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+      def subproject = p // project(':' + p.name)
+      if (subproject.ext.properties.containsKey('exportJavadoc') &&
+          subproject.ext.properties.exportJavadoc) {
+        exportedJavadocProjects.add(p.path)
+      }
+    }
+  }
+  return exportedJavadocProjects
+}
+
+task allJavadoc() {
+  def exportedJavadocProjects = getExportedJavadocProjects()
+  dependsOn exportedJavadocProjects.collect { "$it:javadoc" }
+}
+
+task aggregateJavadoc(type: Javadoc) {
+  def createJavadocIOUrlForDependency = {
+    def dependency = dependencies.create(it)
+    return 'https://static.javadoc.io/' + dependency.getGroup() + '/' + dependency.getName() + '/' + dependency.getVersion()
+  }
+
+  def exportedJavadocProjects = getExportedJavadocProjects()
+  source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
+  classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
+  destinationDir = file("${buildDir}/docs/javadoc")
+
+  exclude "org/apache/beam/examples/*"
+  exclude "org/apache/beam/fn/harness/*"
+  exclude "org/apache/beam/runners/apex/translation/*"
+  exclude "org/apache/beam/runners/core/*"
+  exclude "org/apache/beam/runners/dataflow/internal/*"
+  exclude "org/apache/beam/runners/flink/examples/*"
+  exclude "org/apache/beam/runners/flink/translation/*"
+  exclude "org/apache/beam/runners/spark/examples/*"
+  exclude "org/apache/beam/runners/spark/translation/*"
+  exclude "org/apache/beam/sdk/transforms/reflect/*"
+  exclude "org/apache/beam/sdk/runners/*"
+  exclude "org/apache/beam/sdk/util/*"
+
+  options.with {
+    failOnError false
+    title "Apache Beam " + project.version
+    overview 'overview.html'
+    for (dep in project.library.java.values()) {
+      links createJavadocIOUrlForDependency(dep)
+    }
+  }
+}

@@ -18,12 +18,15 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -35,37 +38,161 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * This transform takes in key-value pairs of {@link TableRow} entries and the
- * {@link TableDestination} it should be written to. The BigQuery streaming-write service is used
- * to stream these writes to the appropriate table.
+ * This transform takes in key-value pairs of {@link TableRow} entries and the {@link
+ * TableDestination} it should be written to. The BigQuery streaming-write service is used to stream
+ * these writes to the appropriate table.
  *
  * <p>This transform assumes that all destination tables already exist by the time it sees a write
  * for that table.
  */
-public class StreamingWriteTables extends PTransform<
-    PCollection<KV<TableDestination, TableRow>>, WriteResult> {
+public class StreamingWriteTables<ElementT>
+    extends PTransform<PCollection<KV<TableDestination, ElementT>>, WriteResult> {
   private BigQueryServices bigQueryServices;
   private InsertRetryPolicy retryPolicy;
+  private boolean extendedErrorInfo;
+  private static final String FAILED_INSERTS_TAG_ID = "failedInserts";
+  private final boolean skipInvalidRows;
+  private final boolean ignoreUnknownValues;
+  private final Coder<ElementT> elementCoder;
+  private final SerializableFunction<ElementT, TableRow> toTableRow;
 
   public StreamingWriteTables() {
-    this(new BigQueryServicesImpl(), InsertRetryPolicy.alwaysRetry());
+    this(
+        new BigQueryServicesImpl(),
+        InsertRetryPolicy.alwaysRetry(),
+        false, // extendedErrorInfo
+        false, // skipInvalidRows
+        false, // ignoreUnknownValues
+        null, // elementCoder
+        null); // toTableRow
   }
 
-  private StreamingWriteTables(BigQueryServices bigQueryServices, InsertRetryPolicy retryPolicy) {
+  private StreamingWriteTables(
+      BigQueryServices bigQueryServices,
+      InsertRetryPolicy retryPolicy,
+      boolean extendedErrorInfo,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues,
+      Coder<ElementT> elementCoder,
+      SerializableFunction<ElementT, TableRow> toTableRow) {
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
+    this.extendedErrorInfo = extendedErrorInfo;
+    this.skipInvalidRows = skipInvalidRows;
+    this.ignoreUnknownValues = ignoreUnknownValues;
+    this.elementCoder = elementCoder;
+    this.toTableRow = toTableRow;
   }
 
-  StreamingWriteTables withTestServices(BigQueryServices bigQueryServices) {
-    return new StreamingWriteTables(bigQueryServices, retryPolicy);
+  StreamingWriteTables<ElementT> withTestServices(BigQueryServices bigQueryServices) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow);
   }
 
-  StreamingWriteTables withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
-    return new StreamingWriteTables(bigQueryServices, retryPolicy);
+  StreamingWriteTables<ElementT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow);
+  }
+
+  StreamingWriteTables<ElementT> withExtendedErrorInfo(boolean extendedErrorInfo) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow);
+  }
+
+  StreamingWriteTables<ElementT> withSkipInvalidRows(boolean skipInvalidRows) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow);
+  }
+
+  StreamingWriteTables<ElementT> withIgnoreUnknownValues(boolean ignoreUnknownValues) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow);
+  }
+
+  StreamingWriteTables<ElementT> withElementCoder(Coder<ElementT> elementCoder) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow);
+  }
+
+  StreamingWriteTables<ElementT> withToTableRow(
+      SerializableFunction<ElementT, TableRow> toTableRow) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        elementCoder,
+        toTableRow);
   }
 
   @Override
-  public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
+  public WriteResult expand(PCollection<KV<TableDestination, ElementT>> input) {
+    if (extendedErrorInfo) {
+      TupleTag<BigQueryInsertError> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
+      PCollection<BigQueryInsertError> failedInserts =
+          writeAndGetErrors(
+              input,
+              failedInsertsTag,
+              BigQueryInsertErrorCoder.of(),
+              ErrorContainer.BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER);
+      return WriteResult.withExtendedErrors(input.getPipeline(), failedInsertsTag, failedInserts);
+    } else {
+      TupleTag<TableRow> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
+      PCollection<TableRow> failedInserts =
+          writeAndGetErrors(
+              input,
+              failedInsertsTag,
+              TableRowJsonCoder.of(),
+              ErrorContainer.TABLE_ROW_ERROR_CONTAINER);
+      return WriteResult.in(input.getPipeline(), failedInsertsTag, failedInserts);
+    }
+  }
+
+  private <T> PCollection<T> writeAndGetErrors(
+      PCollection<KV<TableDestination, ElementT>> input,
+      TupleTag<T> failedInsertsTag,
+      AtomicCoder<T> coder,
+      ErrorContainer<T> errorContainer) {
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    int numShards = options.getNumStreamingKeys();
+
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when
     // a VM that runs this code is restarted and the code is re-run.
@@ -78,19 +205,21 @@ public class StreamingWriteTables extends PTransform<
     // We create 50 keys per BigQuery table to generate output on. This is few enough that we
     // get good batching into BigQuery's insert calls, and enough that we can max out the
     // streaming insert quota.
-    PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged =
+    PCollection<KV<ShardedKey<String>, TableRowInfo<ElementT>>> tagged =
         input
-            .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable(50)))
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowJsonCoder.of()))
-            .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds()))
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()));
+            .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable<>(numShards)))
+            .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), elementCoder))
+            .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>()))
+            .setCoder(
+                KvCoder.of(
+                    ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of(elementCoder)));
+
+    TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
 
     // To prevent having the same TableRow processed more than once with regenerated
     // different unique ids, this implementation relies on "checkpointing", which is
     // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
     // performed by Reshuffle.
-    TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
-    TupleTag<TableRow> failedInsertsTag = new TupleTag<>("failedInserts");
     PCollectionTuple tuple =
         tagged
             .apply(Reshuffle.of())
@@ -98,15 +227,23 @@ public class StreamingWriteTables extends PTransform<
             // correctly.
             .apply(
                 "GlobalWindow",
-                Window.<KV<ShardedKey<String>, TableRowInfo>>into(new GlobalWindows())
+                Window.<KV<ShardedKey<String>, TableRowInfo<ElementT>>>into(new GlobalWindows())
                     .triggering(DefaultTrigger.of())
                     .discardingFiredPanes())
             .apply(
                 "StreamingWrite",
-                ParDo.of(new StreamingWriteFn(bigQueryServices, retryPolicy, failedInsertsTag))
+                ParDo.of(
+                        new StreamingWriteFn<>(
+                            bigQueryServices,
+                            retryPolicy,
+                            failedInsertsTag,
+                            errorContainer,
+                            skipInvalidRows,
+                            ignoreUnknownValues,
+                            toTableRow))
                     .withOutputTags(mainOutputTag, TupleTagList.of(failedInsertsTag)));
-    PCollection<TableRow> failedInserts = tuple.get(failedInsertsTag);
-    failedInserts.setCoder(TableRowJsonCoder.of());
-    return WriteResult.in(input.getPipeline(), failedInsertsTag, failedInserts);
+    PCollection<T> failedInserts = tuple.get(failedInsertsTag);
+    failedInserts.setCoder(coder);
+    return failedInserts;
   }
 }

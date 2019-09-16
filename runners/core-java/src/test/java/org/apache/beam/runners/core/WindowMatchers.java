@@ -17,29 +17,24 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Instant;
 
-/**
- * Matchers that are useful for working with Windowing, Timestamps, etc.
- */
+/** Matchers that are useful for working with Windowing, Timestamps, etc. */
 public class WindowMatchers {
 
   public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
-      T value,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo) {
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
 
     Collection<Matcher<? super BoundedWindow>> windowMatchers =
         Lists.newArrayListWithCapacity(windows.size());
@@ -155,8 +150,7 @@ public class WindowMatchers {
     return new TypeSafeMatcher<WindowedValue<? extends T>>() {
       @Override
       public void describeTo(Description description) {
-        description
-            .appendText("WindowedValue(paneInfo = ").appendValue(paneInfo).appendText(")");
+        description.appendText("WindowedValue(paneInfo = ").appendValue(paneInfo).appendText(")");
       }
 
       @Override
@@ -202,10 +196,14 @@ public class WindowMatchers {
     @Override
     public void describeTo(Description description) {
       description
-          .appendText("a WindowedValue(").appendValue(valueMatcher)
-          .appendText(", ").appendValue(timestampMatcher)
-          .appendText(", ").appendValue(windowsMatcher)
-          .appendText(", ").appendValue(paneInfoMatcher)
+          .appendText("a WindowedValue(")
+          .appendValue(valueMatcher)
+          .appendText(", ")
+          .appendValue(timestampMatcher)
+          .appendText(", ")
+          .appendValue(windowsMatcher)
+          .appendText(", ")
+          .appendValue(paneInfoMatcher)
           .appendText(")");
     }
 

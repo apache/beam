@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -23,14 +22,13 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.avro.SchemaBuilder;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -38,6 +36,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -48,9 +47,10 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matchers;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -58,25 +58,27 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CoderTranslation}. */
-@RunWith(Enclosed.class)
 public class CoderTranslationTest {
   private static final Set<StructuredCoder<?>> KNOWN_CODERS =
       ImmutableSet.<StructuredCoder<?>>builder()
           .add(ByteArrayCoder.of())
           .add(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
           .add(VarLongCoder.of())
+          .add(StringUtf8Coder.of())
           .add(IntervalWindowCoder.of())
           .add(IterableCoder.of(ByteArrayCoder.of()))
+          .add(Timer.Coder.of(ByteArrayCoder.of()))
           .add(LengthPrefixCoder.of(IterableCoder.of(VarLongCoder.of())))
           .add(GlobalWindow.Coder.INSTANCE)
           .add(
               FullWindowedValueCoder.of(
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
+          .add(DoubleCoder.of())
           .build();
 
   /**
-   * Tests that all known coders are present in the parameters that will be used by
-   * {@link ToFromProtoTest}.
+   * Tests that all known coders are present in the parameters that will be used by {@link
+   * ToFromProtoTest}.
    */
   @RunWith(JUnit4.class)
   public static class ValidateKnownCodersPresentTest {
@@ -114,10 +116,7 @@ public class CoderTranslationTest {
     }
   }
 
-
-  /**
-   * Tests round-trip coder encodings for both known and unknown {@link Coder coders}.
-   */
+  /** Tests round-trip coder encodings for both known and unknown {@link Coder coders}. */
   @RunWith(Parameterized.class)
   public static class ToFromProtoTest {
     @Parameters(name = "{index}: {0}")
@@ -128,7 +127,9 @@ public class CoderTranslationTest {
               StringUtf8Coder.of(),
               SerializableCoder.of(Record.class),
               new RecordCoder(),
-              KvCoder.of(new RecordCoder(), AvroCoder.of(Record.class)))
+              KvCoder.of(
+                  new RecordCoder(),
+                  AvroCoder.of(SchemaBuilder.record("record").fields().endRecord())))
           .build();
     }
 
@@ -137,19 +138,20 @@ public class CoderTranslationTest {
 
     @Test
     public void toAndFromProto() throws Exception {
-      SdkComponents componentsBuilder = SdkComponents.create();
-      RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, componentsBuilder);
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+      RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, sdkComponents);
 
-      Components encodedComponents = componentsBuilder.toComponents();
+      Components encodedComponents = sdkComponents.toComponents();
       Coder<?> decodedCoder =
           CoderTranslation.fromProto(
               coderProto, RehydratedComponents.forComponents(encodedComponents));
-      assertThat(decodedCoder, Matchers.equalTo(coder));
+      assertThat(decodedCoder, equalTo(coder));
 
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
           assertThat(
-              encodedCoder.getSpec().getSpec().getUrn(),
+              encodedCoder.getSpec().getUrn(),
               not(equalTo(CoderTranslation.JAVA_SERIALIZED_CODER_URN)));
         }
       }
@@ -159,12 +161,10 @@ public class CoderTranslationTest {
 
     private static class RecordCoder extends AtomicCoder<Record> {
       @Override
-      public void encode(Record value, OutputStream outStream)
-          throws CoderException, IOException {}
+      public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
 
       @Override
-      public Record decode(InputStream inStream)
-          throws CoderException, IOException {
+      public Record decode(InputStream inStream) throws CoderException, IOException {
         return new Record();
       }
     }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.not;
@@ -73,7 +72,9 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   @Test
   public void removesOnExceptionInProcessElement() throws Exception {
     ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
-    doThrow(Exception.class).when(underlying).processElement(any(WindowedValue.class));
+    doThrow(IllegalArgumentException.class)
+        .when(underlying)
+        .processElement(any(WindowedValue.class));
 
     DoFn<?, ?> original = lifecycleManager.get();
     assertThat(original, not(nullValue()));
@@ -92,7 +93,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   @Test
   public void removesOnExceptionInOnTimer() throws Exception {
     ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
-    doThrow(Exception.class)
+    doThrow(IllegalArgumentException.class)
         .when(underlying)
         .onTimer(any(TimerData.class), any(BoundedWindow.class));
 
@@ -115,7 +116,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   @Test
   public void removesOnExceptionInFinishBundle() throws Exception {
     ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
-    doThrow(Exception.class).when(underlying).finishBundle();
+    doThrow(IllegalArgumentException.class).when(underlying).finishBundle();
 
     DoFn<?, ?> original = lifecycleManager.get();
     // the LifecycleManager is set when the evaluator starts
@@ -126,7 +127,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     try {
       evaluator.finishBundle();
     } catch (Exception e) {
-      assertThat(lifecycleManager.get(), Matchers.not(Matchers.theInstance(original)));
+      assertThat(lifecycleManager.get(), not(Matchers.theInstance(original)));
       return;
     }
     fail("Expected underlying evaluator to throw on method call");

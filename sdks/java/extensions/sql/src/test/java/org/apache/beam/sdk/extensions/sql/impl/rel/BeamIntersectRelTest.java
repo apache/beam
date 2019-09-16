@@ -15,104 +15,137 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
+import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.rel.RelNode;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Test for {@code BeamIntersectRel}.
- */
+/** Test for {@code BeamIntersectRel}. */
 public class BeamIntersectRelTest extends BaseRelTest {
-  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
 
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void prepare() {
-    sqlEnv.registerTable("ORDER_DETAILS1",
-        MockedBoundedTable.of(
-            SqlTypeCoders.BIGINT, "order_id",
-            SqlTypeCoders.INTEGER, "site_id",
-            SqlTypeCoders.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            1L, 1, 1.0,
-            2L, 2, 2.0,
-            4L, 4, 4.0
-        )
-    );
+    registerTable(
+        "ORDER_DETAILS1",
+        TestBoundedTable.of(
+                Schema.FieldType.INT64, "order_id",
+                Schema.FieldType.INT32, "site_id",
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(
+                1L,
+                1,
+                new BigDecimal(1.0),
+                1L,
+                1,
+                new BigDecimal(1.0),
+                2L,
+                2,
+                new BigDecimal(2.0),
+                4L,
+                4,
+                new BigDecimal(4.0)));
 
-    sqlEnv.registerTable("ORDER_DETAILS2",
-        MockedBoundedTable.of(
-            SqlTypeCoders.BIGINT, "order_id",
-            SqlTypeCoders.INTEGER, "site_id",
-            SqlTypeCoders.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            2L, 2, 2.0,
-            3L, 3, 3.0
-        )
-    );
+    registerTable(
+        "ORDER_DETAILS2",
+        TestBoundedTable.of(
+                Schema.FieldType.INT64, "order_id",
+                Schema.FieldType.INT32, "site_id",
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(
+                1L,
+                1,
+                new BigDecimal(1.0),
+                2L,
+                2,
+                new BigDecimal(2.0),
+                3L,
+                3,
+                new BigDecimal(3.0)));
   }
 
   @Test
-  public void testIntersect() throws Exception {
+  public void testIntersect() {
     String sql = "";
-    sql += "SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS1 "
-        + " INTERSECT "
-        + "SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS2 ";
+    sql +=
+        "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS1 "
+            + " INTERSECT "
+            + "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS2 ";
 
-    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            SqlTypeCoders.BIGINT, "order_id",
-            SqlTypeCoders.INTEGER, "site_id",
-            SqlTypeCoders.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            2L, 2, 2.0
-        ).getRows());
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
+                .getRows());
 
     pipeline.run().waitUntilFinish();
   }
 
   @Test
-  public void testIntersectAll() throws Exception {
+  public void testIntersectAll() {
     String sql = "";
-    sql += "SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS1 "
-        + " INTERSECT ALL "
-        + "SELECT order_id, site_id, price "
-        + "FROM ORDER_DETAILS2 ";
+    sql +=
+        "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS1 "
+            + " INTERSECT ALL "
+            + "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS2 ";
 
-    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
-    PAssert.that(rows).satisfies(new CheckSize(3));
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows).satisfies(new CheckSize(2));
 
-    PAssert.that(rows).containsInAnyOrder(
-        TestUtils.RowsBuilder.of(
-            SqlTypeCoders.BIGINT, "order_id",
-            SqlTypeCoders.INTEGER, "site_id",
-            SqlTypeCoders.DOUBLE, "price"
-        ).addRows(
-            1L, 1, 1.0,
-            1L, 1, 1.0,
-            2L, 2, 2.0
-        ).getRows());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
+                .getRows());
 
     pipeline.run();
+  }
+
+  @Test
+  public void testNodeStatsEstimation() {
+    String sql =
+        "SELECT order_id, site_id, price "
+            + " FROM ORDER_DETAILS1 "
+            + " INTERSECT "
+            + " SELECT order_id, site_id, price "
+            + " FROM ORDER_DETAILS2 ";
+
+    RelNode root = env.parseQuery(sql);
+
+    while (!(root instanceof BeamIntersectRel)) {
+      root = root.getInput(0);
+    }
+
+    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+
+    Assert.assertFalse(estimate.isUnknown());
+    Assert.assertEquals(0d, estimate.getRate(), 0.01);
+
+    Assert.assertEquals(3. / 2., estimate.getRowCount(), 0.01);
+    Assert.assertEquals(3. / 2., estimate.getWindow(), 0.01);
   }
 }

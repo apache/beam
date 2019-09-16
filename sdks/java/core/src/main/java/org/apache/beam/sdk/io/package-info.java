@@ -16,21 +16,23 @@
  * limitations under the License.
  */
 /**
- * Defines transforms for reading and writing common storage formats, including
- * {@link org.apache.beam.sdk.io.AvroIO}, and
- * {@link org.apache.beam.sdk.io.TextIO}.
+ * Defines transforms for reading and writing common storage formats, including {@link
+ * org.apache.beam.sdk.io.AvroIO}, and {@link org.apache.beam.sdk.io.TextIO}.
  *
- * <p>The classes in this package provide {@code Read} transforms that create PCollections
- * from existing storage:
+ * <p>The classes in this package provide {@code Read} transforms that create PCollections from
+ * existing storage:
+ *
  * <pre>{@code
  * PCollection<TableRow> inputData = pipeline.apply(
  *     BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations"));
  * }</pre>
+ *
  * and {@code Write} transforms that persist PCollections to external storage:
- * <pre> {@code
+ *
+ * <pre>{@code
  * PCollection<Integer> numbers = ...;
  * numbers.apply(TextIO.write().to("gs://my_bucket/path/to/numbers"));
- * } </pre>
+ * }</pre>
  */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.io;

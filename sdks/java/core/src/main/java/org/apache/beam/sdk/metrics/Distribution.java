@@ -20,11 +20,11 @@ package org.apache.beam.sdk.metrics;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * A metric that reports information about the distribution of reported values.
- */
+/** A metric that reports information about the distribution of reported values. */
 @Experimental(Kind.METRICS)
 public interface Distribution extends Metric {
   /** Add an observation to this distribution. */
   void update(long value);
+
+  void update(long sum, long count, long min, long max);
 }

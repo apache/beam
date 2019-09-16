@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.net.URI;
 import java.util.Objects;
@@ -26,9 +27,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.hadoop.fs.Path;
 
-/**
- * {@link ResourceId} implementation for the {@link HadoopFileSystem}.
- */
+/** {@link ResourceId} implementation for the {@link HadoopFileSystem}. */
 class HadoopResourceId implements ResourceId {
   private final URI uri;
 
@@ -38,9 +37,11 @@ class HadoopResourceId implements ResourceId {
 
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
+    checkState(
+        isDirectory(), String.format("Expected this resource is a directory, but had [%s].", uri));
     if (resolveOptions == StandardResolveOptions.RESOLVE_DIRECTORY) {
       if (!other.endsWith("/")) {
-        other += '/';
+        other += "/";
       }
       return new HadoopResourceId(uri.resolve(other));
     } else if (resolveOptions == StandardResolveOptions.RESOLVE_FILE) {
@@ -57,6 +58,7 @@ class HadoopResourceId implements ResourceId {
     return new HadoopResourceId(uri.getPath().endsWith("/") ? uri : uri.resolve("."));
   }
 
+  @Override
   public boolean isDirectory() {
     return uri.getPath().endsWith("/");
   }

@@ -22,8 +22,8 @@ import java.io.IOException;
 
 /**
  * {@link ByteArrayOutputStream} special cased to treat writes of a single byte-array specially.
- * When calling {@link #toByteArray()} after writing only one {@code byte[]} using
- * {@link #writeAndOwn(byte[])}, it will return that array directly.
+ * When calling {@link #toByteArray()} after writing only one {@code byte[]} using {@link
+ * #writeAndOwn(byte[])}, it will return that array directly.
  */
 public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
 
@@ -33,14 +33,12 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
    * If true, this stream doesn't allow direct access to the passed in byte-array. It behaves just
    * like a normal {@link ByteArrayOutputStream}.
    *
-   * <p>It is set to true after any write operations other than the first call to
-   * {@link #writeAndOwn(byte[])}.
+   * <p>It is set to true after any write operations other than the first call to {@link
+   * #writeAndOwn(byte[])}.
    */
   private boolean isFallback = false;
 
-  /**
-   * Fall back to the behavior of a normal {@link ByteArrayOutputStream}.
-   */
+  /** Fall back to the behavior of a normal {@link ByteArrayOutputStream}. */
   private void fallback() {
     isFallback = true;
     if (swappedBuffer != null) {
@@ -56,13 +54,13 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   /**
-   * Write {@code b} to the stream and take the ownership of {@code b}.
-   * If the stream is empty, {@code b} itself will be used as the content of the stream and
-   * no content copy will be involved.
+   * Write {@code b} to the stream and take the ownership of {@code b}. If the stream is empty,
+   * {@code b} itself will be used as the content of the stream and no content copy will be
+   * involved.
    *
    * <p><i>Note: After passing any byte array to this method, it must not be modified again.</i>
    */
-  public void writeAndOwn(byte[] b) throws IOException {
+  public synchronized void writeAndOwn(byte[] b) throws IOException {
     if (b.length == 0) {
       return;
     }
@@ -79,19 +77,19 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
-  public void write(byte[] b, int off, int len) {
+  public synchronized void write(byte[] b, int off, int len) {
     fallback();
     super.write(b, off, len);
   }
 
   @Override
-  public void write(int b) {
+  public synchronized void write(int b) {
     fallback();
     super.write(b);
   }
 
   @Override
-  public byte[] toByteArray() {
+  public synchronized byte[] toByteArray() {
     // Note: count == buf.length is not a correct criteria to "return buf;", because the internal
     // buf may be reused after reset().
     if (!isFallback && count > 0) {
@@ -102,7 +100,7 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
-  public void reset() {
+  public synchronized void reset() {
     if (count == 0) {
       return;
     }

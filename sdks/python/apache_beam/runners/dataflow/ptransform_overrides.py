@@ -17,6 +17,8 @@
 
 """Ptransform overrides for DataflowRunner."""
 
+from __future__ import absolute_import
+
 from apache_beam.coders import typecoders
 from apache_beam.pipeline import PTransformOverride
 
@@ -45,4 +47,21 @@ class CreatePTransformOverride(PTransformOverride):
     from apache_beam.runners.dataflow.native_io.streaming_create import \
       StreamingCreate
     coder = typecoders.registry.get_coder(ptransform.get_output_type())
-    return StreamingCreate(ptransform.value, coder)
+    return StreamingCreate(ptransform.values, coder)
+
+
+class ReadPTransformOverride(PTransformOverride):
+  """A ``PTransformOverride`` for ``Read(BoundedSource)``"""
+
+  def matches(self, applied_ptransform):
+    from apache_beam.io import Read
+    from apache_beam.io.iobase import BoundedSource
+    # Only overrides Read(BoundedSource) transform
+    if isinstance(applied_ptransform.transform, Read):
+      if isinstance(applied_ptransform.transform.source, BoundedSource):
+        return True
+    return False
+
+  def get_replacement_transform(self, ptransform):
+    from apache_beam.io.iobase import _SDFBoundedSourceWrapper
+    return _SDFBoundedSourceWrapper(ptransform.source)

@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Supplier;
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -30,12 +28,14 @@ import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 
 /**
- * A {@link WindowFn} that assigns all elements to a static collection of
- * {@link BoundedWindow BoundedWindows}. Side inputs windowed into static windows only support
- * main input windows in the provided collection of windows.
+ * A {@link WindowFn} that assigns all elements to a static collection of {@link BoundedWindow
+ * BoundedWindows}. Side inputs windowed into static windows only support main input windows in the
+ * provided collection of windows.
  */
 final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
   private final Supplier<Collection<BoundedWindow>> windows;

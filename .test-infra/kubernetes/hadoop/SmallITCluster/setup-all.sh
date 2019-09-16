@@ -1,3 +1,4 @@
+#!/bin/sh
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -17,13 +18,10 @@
 # from developer's machine. Once the cluster is working, scripts waits till
 # external cluster endpoint will be available. It prints out configuration line that
 # should be added to /etc/hosts file in order to work with hdfs cluster.
-#
 
-#!/bin/sh
 set -e
 
 kubectl create -f hdfs-single-datanode-cluster.yml
-
 kubectl create -f hdfs-single-datanode-cluster-for-local-dev.yml
 
 external_ip="$(kubectl get svc hadoop-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
@@ -39,4 +37,5 @@ done
 hadoop_master_pod_name="$(kubectl get pods --selector=name=hadoop -o jsonpath='{.items[*].metadata.name}')"
 
 echo "For local tests please add the following entry to /etc/hosts file"
-echo $external_ip$'\t'$hadoop_master_pod_name
+printf "%s\\t%s\\n" "${external_ip}" "${hadoop_master_pod_name}"
+

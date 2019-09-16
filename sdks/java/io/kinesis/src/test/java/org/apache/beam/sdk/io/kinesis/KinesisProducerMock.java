@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
-
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.Metric;
@@ -27,39 +25,51 @@ import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.joda.time.DateTime;
 
-/**
- * Simple mock implementation of {@link IKinesisProducer} for testing.
- */
+/** Simple mock implementation of {@link IKinesisProducer} for testing. */
 public class KinesisProducerMock implements IKinesisProducer {
 
   private boolean isFailedFlush = false;
 
-  private List<UserRecord> addedRecords = newArrayList();
+  private List<UserRecord> addedRecords = Collections.synchronizedList(new ArrayList<>());
 
   private KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
 
-  public KinesisProducerMock(){}
+  private AtomicInteger seqNumber = new AtomicInteger(0);
+
+  public KinesisProducerMock() {}
 
   public KinesisProducerMock(KinesisProducerConfiguration config, boolean isFailedFlush) {
     this.isFailedFlush = isFailedFlush;
+    this.seqNumber.set(0);
   }
 
-  @Override public ListenableFuture<UserRecordResult> addUserRecord(String stream,
-      String partitionKey, ByteBuffer data) {
-    throw new RuntimeException("Not implemented");
+  @Override
+  public ListenableFuture<UserRecordResult> addUserRecord(
+      String stream, String partitionKey, ByteBuffer data) {
+    throw new UnsupportedOperationException("Not implemented");
   }
 
-  @Override public ListenableFuture<UserRecordResult> addUserRecord(UserRecord userRecord) {
-    throw new RuntimeException("Not implemented");
+  @Override
+  public ListenableFuture<UserRecordResult> addUserRecord(UserRecord userRecord) {
+    throw new UnsupportedOperationException("Not implemented");
   }
 
-  @Override public ListenableFuture<UserRecordResult> addUserRecord(String stream,
-      String partitionKey, String explicitHashKey, ByteBuffer data) {
+  @Override
+  public synchronized ListenableFuture<UserRecordResult> addUserRecord(
+      String stream, String partitionKey, String explicitHashKey, ByteBuffer data) {
+    seqNumber.incrementAndGet();
     SettableFuture<UserRecordResult> f = SettableFuture.create();
+    f.set(
+        new UserRecordResult(
+            new ArrayList<>(), String.valueOf(seqNumber.get()), explicitHashKey, !isFailedFlush));
+
     if (kinesisService.getExistedStream().equals(stream)) {
       addedRecords.add(new UserRecord(stream, partitionKey, explicitHashKey, data));
     }
@@ -71,38 +81,39 @@ public class KinesisProducerMock implements IKinesisProducer {
     return addedRecords.size();
   }
 
-  @Override public List<Metric> getMetrics(String metricName, int windowSeconds)
+  @Override
+  public List<Metric> getMetrics(String metricName, int windowSeconds)
       throws InterruptedException, ExecutionException {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
-  @Override public List<Metric> getMetrics(String metricName)
+  @Override
+  public List<Metric> getMetrics(String metricName)
       throws InterruptedException, ExecutionException {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
-  @Override public List<Metric> getMetrics() throws InterruptedException, ExecutionException {
-    throw new RuntimeException("Not implemented");
+  @Override
+  public List<Metric> getMetrics() throws InterruptedException, ExecutionException {
+    throw new UnsupportedOperationException("Not implemented");
   }
 
-  @Override public List<Metric> getMetrics(int windowSeconds)
+  @Override
+  public List<Metric> getMetrics(int windowSeconds)
       throws InterruptedException, ExecutionException {
-    throw new RuntimeException("Not implemented");
+    throw new UnsupportedOperationException("Not implemented");
   }
 
-  @Override public void destroy() {
+  @Override
+  public void destroy() {}
+
+  @Override
+  public void flush(String stream) {
+    throw new UnsupportedOperationException("Not implemented");
   }
 
-  @Override public void flush(String stream) {
-    throw new RuntimeException("Not implemented");
-  }
-
-  @Override public void flush() {
-    if (isFailedFlush) {
-      // don't flush
-      return;
-    }
-
+  @Override
+  public synchronized void flush() {
     DateTime arrival = DateTime.now();
     for (int i = 0; i < addedRecords.size(); i++) {
       UserRecord record = addedRecords.get(i);
@@ -112,9 +123,8 @@ public class KinesisProducerMock implements IKinesisProducer {
     }
   }
 
-  @Override public synchronized void flushSync() {
-    if (getOutstandingRecordsCount() > 0) {
-      flush();
-    }
+  @Override
+  public synchronized void flushSync() {
+    throw new UnsupportedOperationException("Not implemented");
   }
 }

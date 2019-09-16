@@ -15,45 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
- * {@link ApexRunner}.
+ * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
+ * ApexRunner}.
  *
- * {@link AutoService} will register Apex's implementations of the {@link PipelineRunner}
- * and {@link PipelineOptions} as available pipeline runner services.
+ * <p>{@link AutoService} will register Apex's implementations of the {@link PipelineRunner} and
+ * {@link PipelineOptions} as available pipeline runner services.
  */
 public final class ApexRunnerRegistrar {
-    private ApexRunnerRegistrar() {}
+  private ApexRunnerRegistrar() {}
 
-    /**
-     * Registers the {@link ApexRunner}.
-     */
-    @AutoService(PipelineRunnerRegistrar.class)
-    public static class Runner implements PipelineRunnerRegistrar {
-        @Override
-        public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
+  /** Registers the {@link ApexRunner}. */
+  @AutoService(PipelineRunnerRegistrar.class)
+  public static class Runner implements PipelineRunnerRegistrar {
+    @Override
+    public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
       return ImmutableList.of(ApexRunner.class, TestApexRunner.class);
-        }
     }
+  }
 
-    /**
-     * Registers the {@link ApexPipelineOptions}.
-     */
-    @AutoService(PipelineOptionsRegistrar.class)
-    public static class Options implements PipelineOptionsRegistrar {
-        @Override
-        public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+  /** Registers the {@link ApexPipelineOptions}. */
+  @AutoService(PipelineOptionsRegistrar.class)
+  public static class Options implements PipelineOptionsRegistrar {
+    @Override
+    public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
       return ImmutableList.of(ApexPipelineOptions.class);
-        }
     }
+  }
 }

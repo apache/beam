@@ -39,6 +39,7 @@ public class DoFnInvokersTestHelper {
     public void process(ProcessContext c) {}
   }
 
+  @SuppressWarnings("ClassCanBeStatic")
   private class InnerPrivateDoFn extends DoFn<String, String> {
     @ProcessElement
     public void process(ProcessContext c) {}
@@ -49,6 +50,7 @@ public class DoFnInvokersTestHelper {
     public void process(ProcessContext c) {}
   }
 
+  @SuppressWarnings("ClassCanBeStatic")
   class InnerPackagePrivateDoFn extends DoFn<String, String> {
     @ProcessElement
     public void process(ProcessContext c) {}
@@ -143,6 +145,7 @@ public class DoFnInvokersTestHelper {
     public void process(ProcessContext c) {}
   }
 
+  @SuppressWarnings("ClassCanBeStatic")
   private class InnerPrivateDoFnWithTimers extends DoFn<String, String> {
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
@@ -165,6 +168,7 @@ public class DoFnInvokersTestHelper {
     public void process(ProcessContext c) {}
   }
 
+  @SuppressWarnings("ClassCanBeStatic")
   class InnerPackagePrivateDoFnWithTimers extends DoFn<String, String> {
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);

@@ -1,0 +1,141 @@
+/**
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
+/* What/Where/When/How colors. */
+.wwwh-what-dark {
+    color:#ca1;
+    font-weight:bold;
+    font-style:italic;
+}
+
+.wwwh-where-dark {
+    color:#37d;
+    font-weight:bold;
+    font-style:italic;
+}
+
+.wwwh-when-dark {
+    color:#6a4;
+    font-weight:bold;
+    font-style:italic;
+}
+
+.wwwh-how-dark {
+    color:#b55;
+    font-weight:bold;
+    font-style:italic;
+}
+
+/* Capability matrix general sizing, alignment etc. */
+table.cap {
+    border-spacing: 0px;
+    border-collapse: collapse;
+    padding: 2px;
+}
+
+td.cap {
+    border-width: 1px;
+    border-style:solid;
+    vertical-align:text-top;
+    padding:0.5ex;
+}
+
+th.cap, tr.cap, table.cap {
+    border-width: 1px;
+    border-style:solid;
+    vertical-align:text-top;
+    padding:0.5ex;
+}
+
+td.cap-blank {
+    padding:10px;
+}
+
+/* Capability matrix blog-post sizing, alignment etc. */
+table.cap-summary {
+    border-spacing: 0px;
+    border-collapse: collapse;
+    padding: 2px;
+    width:600px;
+}
+
+td.cap-summary {
+    border-width: 1px;
+    border-style:solid;
+    vertical-align:text-top;
+    padding:0.5ex;
+}
+
+th.cap-summary, tr.cap-summary, table.cap-summary {
+    border-width: 1px;
+    border-style:solid;
+    vertical-align:text-top;
+    padding:0.5ex;
+}
+
+td.cap-summary-blank {
+    padding:10px;
+}
+
+/* Capability matrix semantic coloring. */
+th.color-metadata, td.color-metadata {
+    background-color:#fff;
+    border-color:#fff;
+    color:#000;
+}
+
+th.color-capability {
+    background-color:#333;
+    border-color:#222;
+}
+
+th.color-platform {
+    background-color:#333;
+    border-color:#222;
+}
+
+td.color-blank {
+    background-color:#fff;
+    color:#fff;
+}
+
+/* Capability matrix semantic formatting */
+th.format-category {
+    vertical-align:text-top;
+    font-size:20px;
+    text-align:center;
+}
+
+th.format-capability {
+    text-align:right;
+    white-space:nowrap;
+}
+
+th.format-platform {
+    text-align:center;
+}
+
+/* Capability matrix expand/collapse details toggle. */
+div.cap-toggle {
+    border-color:#000;
+    color:#000;
+    padding-top:1.5ex;
+    border-style:solid;
+    border-width:0px;
+    text-align:center;
+    cursor:pointer;
+    position:absolute;
+    font-size:16px;
+    font-weight:normal;
+}

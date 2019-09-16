@@ -15,20 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.data;
 
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * A {@link FnDataReceiver} which forwards all received inputs to a collection of {@link
  * FnDataReceiver receivers}.
  */
 public class MultiplexingFnDataReceiver<T> implements FnDataReceiver<T> {
-  public static <T> FnDataReceiver<T> forConsumers(
-      Collection<FnDataReceiver<T>> consumers) {
+  public static <T> FnDataReceiver<T> forConsumers(Collection<FnDataReceiver<T>> consumers) {
     if (consumers.size() == 1) {
       return Iterables.getOnlyElement(consumers);
     }

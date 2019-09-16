@@ -16,35 +16,29 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
-
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":sdks:java:io:common")
+ext.summary = "IO to read and write on JDBC datasource."
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
-  shadow "org.apache.commons:commons-dbcp2:2.1.1"
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "org.apache.commons:commons-dbcp2:2.6.0"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
-  testCompile project(":sdks:java:io:common").sourceSets.test.output
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.postgres
-  testCompile group: "org.apache.derby", name: "derby", version:"10.12.1.1"
-  testCompile group: "org.apache.derby", name: "derbyclient", version:"10.12.1.1"
-  testCompile group: "org.apache.derby", name: "derbynet", version:"10.12.1.1"
+  testCompile "org.apache.derby:derby:10.14.2.0"
+  testCompile "org.apache.derby:derbyclient:10.14.2.0"
+  testCompile "org.apache.derby:derbynet:10.14.2.0"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

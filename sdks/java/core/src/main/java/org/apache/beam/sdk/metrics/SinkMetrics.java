@@ -20,9 +20,7 @@ package org.apache.beam.sdk.metrics;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * Standard Sink Metrics.
- */
+/** Standard Sink Metrics. */
 @Experimental(Kind.METRICS)
 public class SinkMetrics {
 
@@ -36,18 +34,13 @@ public class SinkMetrics {
   private static final Counter BYTES_WRITTEN_COUNTER =
       Metrics.counter(SINK_NAMESPACE, BYTES_WRITTEN);
 
-  /**
-   * Counter of elements written to a sink.
-   */
+  /** Counter of elements written to a sink. */
   public static Counter elementsWritten() {
     return ELEMENTS_WRITTEN_COUNTER;
   }
 
-  /**
-   * Counter of bytes written to a sink.
-   */
+  /** Counter of bytes written to a sink. */
   public static Counter bytesWritten() {
     return BYTES_WRITTEN_COUNTER;
   }
-
 }

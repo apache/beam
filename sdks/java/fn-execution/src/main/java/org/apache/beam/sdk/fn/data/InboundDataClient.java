@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
 import java.util.concurrent.CancellationException;
@@ -39,14 +38,10 @@ public interface InboundDataClient {
    */
   boolean isDone();
 
-  /**
-   * Cancels the client, causing it to drop any future inbound data.
-   */
+  /** Cancels the client, causing it to drop any future inbound data. */
   void cancel();
 
-  /**
-   * Mark the client as completed.
-   */
+  /** Mark the client as completed. */
   void complete();
 
   /**

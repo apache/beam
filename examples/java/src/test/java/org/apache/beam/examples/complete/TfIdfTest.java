@@ -22,7 +22,6 @@ import java.util.Arrays;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Keys;
@@ -30,32 +29,29 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests of {@link TfIdf}.
- */
+/** Tests of {@link TfIdf}. */
 @RunWith(JUnit4.class)
 public class TfIdfTest {
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   /** Test that the example runs. */
   @Test
-  @Category(ValidatesRunner.class)
   public void testTfIdf() throws Exception {
 
     pipeline.getCoderRegistry().registerCoderForClass(URI.class, StringDelegateCoder.of(URI.class));
 
-    PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = pipeline
-        .apply(Create.of(
-            KV.of(new URI("x"), "a b c d"),
-            KV.of(new URI("y"), "a b c"),
-            KV.of(new URI("z"), "a m n")))
-        .apply(new TfIdf.ComputeTfIdf());
+    PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf =
+        pipeline
+            .apply(
+                Create.of(
+                    KV.of(new URI("x"), "a b c d"),
+                    KV.of(new URI("y"), "a b c"),
+                    KV.of(new URI("z"), "a m n")))
+            .apply(new TfIdf.ComputeTfIdf());
 
     PCollection<String> words = wordToUriAndTfIdf.apply(Keys.create()).apply(Distinct.create());
 

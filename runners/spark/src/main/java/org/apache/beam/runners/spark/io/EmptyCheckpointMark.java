@@ -15,30 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.io;
 
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.UnboundedSource;
 
-
 /**
- * Passing null values to Spark's Java API may cause problems because of Guava preconditions.
- * See: {@link org.apache.spark.api.java.JavaUtils#optionToOptional}
+ * Passing null values to Spark's Java API may cause problems because of Guava preconditions. See:
+ * {@link org.apache.spark.api.java.JavaUtils#optionToOptional}
  */
 public class EmptyCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
   private static final EmptyCheckpointMark INSTANCE = new EmptyCheckpointMark();
   private static final int ID = 2654265; // some constant to serve as identifier.
 
-  private EmptyCheckpointMark() {};
+  private EmptyCheckpointMark() {}
 
   public static EmptyCheckpointMark get() {
     return INSTANCE;
   }
 
   @Override
-  public void finalizeCheckpoint() throws IOException { }
+  public void finalizeCheckpoint() throws IOException {}
 
   @Override
   public boolean equals(Object obj) {

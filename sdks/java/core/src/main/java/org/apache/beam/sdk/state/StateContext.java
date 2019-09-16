@@ -23,24 +23,15 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- */
+/** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
 @Internal
 public interface StateContext<W extends BoundedWindow> {
-  /**
-   * Returns the {@code PipelineOptions} specified with the
-   * {@link PipelineRunner}.
-   */
+  /** Returns the {@code PipelineOptions} specified with the {@link PipelineRunner}. */
   PipelineOptions getPipelineOptions();
 
-  /**
-   * Returns the value of the side input for the corresponding state window.
-   */
+  /** Returns the value of the side input for the corresponding state window. */
   <T> T sideInput(PCollectionView<T> view);
 
-  /**
-   * Returns the window corresponding to the state.
-   */
+  /** Returns the window corresponding to the state. */
   W window();
 }

@@ -15,64 +15,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import com.codahale.metrics.Metric;
-import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
-
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * An adapter between the {@link MetricsContainerStepMap} and Codahale's {@link Metric} interface.
  */
 class SparkBeamMetric implements Metric {
-  private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9\\._-]";
-  private static final String ILLEGAL_CHARACTERS_AND_PERIOD = "[^A-Za-z0-9_-]";
+  private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
 
   Map<String, ?> renderAll() {
     Map<String, Object> metrics = new HashMap<>();
     MetricResults metricResults =
-        asAttemptedOnlyMetricResults(
-            MetricsAccumulator.getInstance().value());
-    MetricQueryResults metricQueryResults =
-        metricResults.queryMetrics(MetricsFilter.builder().build());
-    for (MetricResult<Long> metricResult : metricQueryResults.counters()) {
-      metrics.put(renderName(metricResult), metricResult.attempted());
+        asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
+    MetricQueryResults metricQueryResults = metricResults.allMetrics();
+    for (MetricResult<Long> metricResult : metricQueryResults.getCounters()) {
+      metrics.put(renderName(metricResult), metricResult.getAttempted());
     }
-    for (MetricResult<DistributionResult> metricResult : metricQueryResults.distributions()) {
-      DistributionResult result = metricResult.attempted();
-      metrics.put(renderName(metricResult) + ".count", result.count());
-      metrics.put(renderName(metricResult) + ".sum", result.sum());
-      metrics.put(renderName(metricResult) + ".min", result.min());
-      metrics.put(renderName(metricResult) + ".max", result.max());
-      metrics.put(renderName(metricResult) + ".mean", result.mean());
+    for (MetricResult<DistributionResult> metricResult : metricQueryResults.getDistributions()) {
+      DistributionResult result = metricResult.getAttempted();
+      metrics.put(renderName(metricResult) + ".count", result.getCount());
+      metrics.put(renderName(metricResult) + ".sum", result.getSum());
+      metrics.put(renderName(metricResult) + ".min", result.getMin());
+      metrics.put(renderName(metricResult) + ".max", result.getMax());
+      metrics.put(renderName(metricResult) + ".mean", result.getMean());
     }
-    for (MetricResult<GaugeResult> metricResult : metricQueryResults.gauges()) {
-      metrics.put(renderName(metricResult), metricResult.attempted().value());
+    for (MetricResult<GaugeResult> metricResult : metricQueryResults.getGauges()) {
+      metrics.put(renderName(metricResult), metricResult.getAttempted().getValue());
     }
     return metrics;
   }
 
   @VisibleForTesting
   String renderName(MetricResult<?> metricResult) {
-    String renderedStepName = metricResult.step().replaceAll(ILLEGAL_CHARACTERS_AND_PERIOD, "_");
-    if (renderedStepName.endsWith("_")) {
-      renderedStepName = renderedStepName.substring(0, renderedStepName.length() - 1);
+    MetricKey key = metricResult.getKey();
+    MetricName name = key.metricName();
+    String step = key.stepName();
+
+    ArrayList<String> pieces = new ArrayList<>();
+
+    if (step != null) {
+      step = step.replaceAll(ILLEGAL_CHARACTERS, "_");
+      if (step.endsWith("_")) {
+        step = step.substring(0, step.length() - 1);
+      }
+      pieces.add(step);
     }
-    MetricName metricName = metricResult.name();
-    return (renderedStepName + "." + metricName.namespace() + "." + metricName.name())
-        .replaceAll(ILLEGAL_CHARACTERS, "_");
+
+    pieces.addAll(
+        ImmutableList.of(name.getNamespace(), name.getName()).stream()
+            .map(str -> str.replaceAll(ILLEGAL_CHARACTERS, "_"))
+            .collect(toList()));
+
+    return String.join(".", pieces);
   }
 }

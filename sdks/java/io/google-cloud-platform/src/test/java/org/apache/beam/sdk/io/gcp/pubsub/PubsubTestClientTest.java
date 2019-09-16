@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.Clock;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
@@ -32,13 +29,14 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for PubsubTestClient.
- */
+/** Tests for PubsubTestClient. */
 @RunWith(JUnit4.class)
 public class PubsubTestClientTest {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
@@ -56,10 +54,16 @@ public class PubsubTestClientTest {
     final AtomicLong now = new AtomicLong();
     Clock clock = now::get;
     IncomingMessage expectedIncomingMessage =
-        new IncomingMessage(DATA.getBytes(), null, MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
+        new IncomingMessage(
+            DATA.getBytes(StandardCharsets.UTF_8),
+            null,
+            MESSAGE_TIME,
+            REQ_TIME,
+            ACK_ID,
+            MESSAGE_ID);
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S,
-                                                   Lists.newArrayList(expectedIncomingMessage))) {
+        PubsubTestClient.createFactoryForPull(
+            clock, SUBSCRIPTION, ACK_TIMEOUT_S, Lists.newArrayList(expectedIncomingMessage))) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         now.set(REQ_TIME);
         client.advance();
@@ -95,7 +99,7 @@ public class PubsubTestClientTest {
   @Test
   public void publishOneMessage() throws IOException {
     OutgoingMessage expectedOutgoingMessage =
-        new OutgoingMessage(DATA.getBytes(), null, MESSAGE_TIME, MESSAGE_ID);
+        new OutgoingMessage(DATA.getBytes(StandardCharsets.UTF_8), null, MESSAGE_TIME, MESSAGE_ID);
     try (PubsubTestClientFactory factory =
         PubsubTestClient.createFactoryForPublish(
             TOPIC, Sets.newHashSet(expectedOutgoingMessage), ImmutableList.of())) {

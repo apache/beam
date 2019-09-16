@@ -1,0 +1,114 @@
+import groovy.json.JsonOutput
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  exportJavadoc: false,
+  testShadowJar: true,
+  validateShadowJar: false,
+  shadowClosure: {}
+)
+
+configurations {
+  integrationTest
+}
+
+dependencies {
+  compile project(path: ":sdks:java:extensions:sql", configuration: "shadow")
+  compile "jline:jline:2.14.6"
+  compile "sqlline:sqlline:1.4.0"
+  compile library.java.slf4j_jdk14
+  compile library.java.guava
+  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  // Depending on outputs so integrationTest can run with only test dependencies.
+  // This enables us to test the JDBC jar being loaded on a custom classloader.
+  integrationTest sourceSets.test.output
+  integrationTest sourceSets.main.output
+  integrationTest library.java.junit
+}
+
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+          'beam.version': version,
+  ]
+}
+
+shadowJar {
+  manifest {
+    attributes "Main-Class": "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
+  }
+}
+
+test {
+  doFirst {
+    // Assert everything is in the output or test jar
+    assert classpath.size() == 2
+  }
+}
+
+task shadowJarTest(type: Test, dependsOn: ":sdks:java:extensions:sql:jdbc:shadowJar") {
+  group = "Verification"
+
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  systemProperty "driver.jar", configurations.shadowTestRuntimeClasspath[1]
+
+  include '**/JdbcJarTest.class'
+  classpath = configurations.integrationTest
+  useJUnit { }
+}
+
+task endToEndTest(type: Test) {
+  group = "Verification"
+
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
+          "--project=${gcpProject}",
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  include '**/*IT.class'
+  classpath = project(":sdks:java:extensions:sql:jdbc").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql:jdbc").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+/* Define a common precommit task which depends on all the individual precommits. */
+task preCommit() {
+  dependsOn "shadowJarTest"
+}
+
+/* Define a postcommit task which depends on integration tests. */
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests"
+  dependsOn endToEndTest
+}

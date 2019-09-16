@@ -17,8 +17,8 @@
  */
 
 /**
- * Defines the {@link org.apache.beam.sdk.options.PipelineOptions.DirectRunner}
- * which executes both Bounded and Unbounded {@code Pipelines} on the local machine.
+ * Defines the {@link org.apache.beam.sdk.options.PipelineOptions.DirectRunner} which executes both
+ * Bounded and Unbounded {@code Pipelines} on the local machine.
  *
  * <p>See {@link org.apache.beam.sdk.runners} for more information about Pipeline Runners.
  */

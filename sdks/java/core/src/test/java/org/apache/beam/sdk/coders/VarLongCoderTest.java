@@ -31,20 +31,26 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link VarLongCoder}.
- */
+/** Test case for {@link VarLongCoder}. */
 @RunWith(JUnit4.class)
 public class VarLongCoderTest {
 
   private static final Coder<Long> TEST_CODER = VarLongCoder.of();
 
-  private static final List<Long> TEST_VALUES = Arrays.asList(
-      -11L, -3L, -1L, 0L, 1L, 5L, 13L, 29L,
-      Integer.MAX_VALUE + 131L,
-      Integer.MIN_VALUE - 29L,
-      Long.MAX_VALUE,
-      Long.MIN_VALUE);
+  private static final List<Long> TEST_VALUES =
+      Arrays.asList(
+          -11L,
+          -3L,
+          -1L,
+          0L,
+          1L,
+          5L,
+          13L,
+          29L,
+          Integer.MAX_VALUE + 131L,
+          Integer.MIN_VALUE - 29L,
+          Long.MAX_VALUE,
+          Long.MIN_VALUE);
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -54,30 +60,30 @@ public class VarLongCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "9f__________AQ",
-      "_f__________AQ",
-      "____________AQ",
-      "AA",
-      "AQ",
-      "BQ",
-      "DQ",
-      "HQ",
-      "goGAgAg",
-      "4_____f_____AQ",
-      "__________9_",
-      "gICAgICAgICAAQ");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "9f__________AQ",
+          "_f__________AQ",
+          "____________AQ",
+          "AA",
+          "AQ",
+          "BQ",
+          "DQ",
+          "HQ",
+          "goGAgAg",
+          "4_____f_____AQ",
+          "__________9_",
+          "gICAgICAgICAAQ");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

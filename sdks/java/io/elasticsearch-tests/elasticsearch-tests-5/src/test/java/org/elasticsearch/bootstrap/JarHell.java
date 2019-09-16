@@ -17,23 +17,18 @@
  */
 package org.elasticsearch.bootstrap;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-
 /**
- * We need a real Elasticsearch instance to properly test the IO
- * (split, slice API, scroll API, ...). Starting at ES 5, to have Elasticsearch embedded,
- * we are forced to use Elasticsearch test framework. But this framework checks for class duplicates
- * in classpath and it cannot be deactivated. When the class duplication come from a dependency,
- * then it cannot be avoided. Elasticsearch community does not provide a way of deactivating
- * the jar hell test, so skip it by making this hack. In this case duplicate class is
- * class: org.apache.maven.surefire.report.SafeThrowable
- * jar1: surefire-api-2.20.jar
- * jar2: surefire-junit47-2.20.jar
+ * We need a real Elasticsearch instance to properly test the IO (split, slice API, scroll API,
+ * ...). Starting at ES 5, to have Elasticsearch embedded, we are forced to use Elasticsearch test
+ * framework. But this framework checks for class duplicates in classpath and it cannot be
+ * deactivated. When the class duplication come from a dependency, then it cannot be avoided.
+ * Elasticsearch community does not provide a way of deactivating the jar hell test, so skip it by
+ * making this hack. In this case duplicate class is class:
+ * org.apache.maven.surefire.report.SafeThrowable jar1: surefire-api-2.20.jar jar2:
+ * surefire-junit47-2.20.jar
  */
 class JarHell {
 
-
-  public static void checkJarHell() throws IOException, URISyntaxException {
-  }
+  @SuppressWarnings("EmptyMethod")
+  public static void checkJarHell() {}
 }

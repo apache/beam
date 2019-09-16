@@ -33,8 +33,8 @@ public enum TimeDomain {
   EVENT_TIME,
 
   /**
-   * The {@link #PROCESSING_TIME} domain corresponds to the current to the current (system) time.
-   * This is advanced during execution of the pipeline.
+   * The {@link #PROCESSING_TIME} domain corresponds to the current (system) time. This is advanced
+   * during execution of the pipeline.
    */
   PROCESSING_TIME,
 

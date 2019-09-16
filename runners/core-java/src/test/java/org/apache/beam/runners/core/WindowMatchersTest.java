@@ -19,18 +19,16 @@ package org.apache.beam.runners.core;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WindowMatchers}.
- */
+/** Tests for {@link WindowMatchers}. */
 @RunWith(JUnit4.class)
 public class WindowMatchersTest {
 
@@ -78,5 +76,3 @@ public class WindowMatchersTest {
             PaneInfo.NO_FIRING));
   }
 }
-
-

@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +36,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,7 +117,8 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
       }
     }
     if (node.getTransform() instanceof ParDo.MultiOutput) {
-      consumedViews.addAll(((ParDo.MultiOutput<?, ?>) node.getTransform()).getSideInputs());
+      consumedViews.addAll(
+          ((ParDo.MultiOutput<?, ?>) node.getTransform()).getSideInputs().values());
     } else if (node.getTransform() instanceof ViewOverrideFactory.WriteView) {
       viewWriters.put(
           ((WriteView) node.getTransform()).getView(), node.toAppliedPTransform(getPipeline()));
@@ -149,6 +150,6 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
   public DirectGraph getGraph() {
     checkState(finalized, "Can't get a graph before the Pipeline has been completely traversed");
     return DirectGraph.create(
-        producers, viewWriters, perElementConsumers, allConsumers, rootTransforms, stepNames);
+        producers, viewWriters, perElementConsumers, rootTransforms, stepNames);
   }
 }

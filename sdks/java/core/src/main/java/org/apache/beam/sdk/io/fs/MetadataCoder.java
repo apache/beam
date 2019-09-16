@@ -26,15 +26,24 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 
-/** A {@link Coder} for {@link Metadata}. */
+/**
+ * A {@link Coder} for {@link Metadata}.
+ *
+ * <p>The {@link Metadata#lastModifiedMillis()} field was added after this coder was already
+ * deployed, so this class decodes a default value for backwards compatibility. See {@link
+ * MetadataCoderV2} for retaining timestamp information.
+ */
 public class MetadataCoder extends AtomicCoder<Metadata> {
+  private static final MetadataCoder INSTANCE = new MetadataCoder();
   private static final ResourceIdCoder RESOURCE_ID_CODER = ResourceIdCoder.of();
   private static final VarIntCoder INT_CODER = VarIntCoder.of();
   private static final VarLongCoder LONG_CODER = VarLongCoder.of();
 
-  /** Creates a {@link MetadataCoder}. */
+  private MetadataCoder() {}
+
+  /** Returns the singleton {@link MetadataCoder} instance. */
   public static MetadataCoder of() {
-    return new MetadataCoder();
+    return INSTANCE;
   }
 
   @Override
@@ -46,14 +55,17 @@ public class MetadataCoder extends AtomicCoder<Metadata> {
 
   @Override
   public Metadata decode(InputStream is) throws IOException {
+    return decodeBuilder(is).build();
+  }
+
+  Metadata.Builder decodeBuilder(InputStream is) throws IOException {
     ResourceId resourceId = RESOURCE_ID_CODER.decode(is);
     boolean isReadSeekEfficient = INT_CODER.decode(is) == 1;
     long sizeBytes = LONG_CODER.decode(is);
     return Metadata.builder()
         .setResourceId(resourceId)
         .setIsReadSeekEfficient(isReadSeekEfficient)
-        .setSizeBytes(sizeBytes)
-        .build();
+        .setSizeBytes(sizeBytes);
   }
 
   @Override

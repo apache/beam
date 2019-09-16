@@ -54,6 +54,7 @@ python user_score.py \
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import argparse
 import csv
@@ -87,7 +88,7 @@ class ParseGameEventFn(beam.DoFn):
           'user': row[0],
           'team': row[1],
           'score': int(row[2]),
-          'timestamp': int(row[3]) / 1000.0,
+          'timestamp': int(row[3]) /1000.0,
       }
     except:  # pylint: disable=bare-except
       # Log and count parse errors

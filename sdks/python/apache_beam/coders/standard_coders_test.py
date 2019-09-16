@@ -17,25 +17,29 @@
 
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
+from __future__ import absolute_import
 from __future__ import print_function
 
 import json
 import logging
+import math
 import os.path
 import sys
 import unittest
+from builtins import map
 
 import yaml
 
 from apache_beam.coders import coder_impl
-from apache_beam.coders import coders
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 
-STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
+STANDARD_CODERS_YAML = os.path.normpath(os.path.join(
+    os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
 
 
 def _load_test_cases(test_yaml):
@@ -45,41 +49,46 @@ def _load_test_cases(test_yaml):
   """
   if not os.path.exists(test_yaml):
     raise ValueError('Could not find the test spec: %s' % test_yaml)
-  for ix, spec in enumerate(yaml.load_all(open(test_yaml))):
-    spec['index'] = ix
-    name = spec.get('name', spec['coder']['urn'].split(':')[-2])
-    yield [name, spec]
+  with open(test_yaml, 'rb') as coder_spec:
+    for ix, spec in enumerate(yaml.load_all(coder_spec)):
+      spec['index'] = ix
+      name = spec.get('name', spec['coder']['urn'].split(':')[-2])
+      yield [name, spec]
+
+
+def parse_float(s):
+  x = float(s)
+  if math.isnan(x):
+    # In Windows, float('NaN') has opposite sign from other platforms.
+    # For the purpose of this test, we just need consistency.
+    x = abs(x)
+  return x
 
 
 class StandardCodersTest(unittest.TestCase):
 
-  _urn_to_coder_class = {
-      'urn:beam:coders:bytes:0.1': coders.BytesCoder,
-      'urn:beam:coders:varint:0.1': coders.VarIntCoder,
-      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v)),
-      'urn:beam:coders:interval_window:0.1': coders.IntervalWindowCoder,
-      'urn:beam:coders:stream:0.1': lambda t: coders.IterableCoder(t),
-      'urn:beam:coders:global_window:0.1': coders.GlobalWindowCoder,
-      'urn:beam:coders:windowed_value:0.1':
-          lambda v, w: coders.WindowedValueCoder(v, w)
-  }
-
   _urn_to_json_value_parser = {
-      'urn:beam:coders:bytes:0.1': lambda x: x,
-      'urn:beam:coders:varint:0.1': lambda x: x,
-      'urn:beam:coders:kv:0.1':
+      'beam:coder:bytes:v1': lambda x: x.encode('utf-8'),
+      'beam:coder:string_utf8:v1': lambda x: x,
+      'beam:coder:varint:v1': lambda x: x,
+      'beam:coder:kv:v1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
                                                value_parser(x['value'])),
-      'urn:beam:coders:interval_window:0.1':
+      'beam:coder:interval_window:v1':
           lambda x: IntervalWindow(
               start=Timestamp(micros=(x['end'] - x['span']) * 1000),
               end=Timestamp(micros=x['end'] * 1000)),
-      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x),
-      'urn:beam:coders:global_window:0.1': lambda x: window.GlobalWindow(),
-      'urn:beam:coders:windowed_value:0.1':
+      'beam:coder:iterable:v1': lambda x, parser: list(map(parser, x)),
+      'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
+      'beam:coder:windowed_value:v1':
           lambda x, value_parser, window_parser: windowed_value.create(
               value_parser(x['value']), x['timestamp'] * 1000,
-              tuple([window_parser(w) for w in x['windows']]))
+              tuple([window_parser(w) for w in x['windows']])),
+      'beam:coder:timer:v1':
+          lambda x, payload_parser: dict(
+              payload=payload_parser(x['payload']),
+              timestamp=Timestamp(micros=x['timestamp'] * 1000)),
+      'beam:coder:double:v1': parse_float,
   }
 
   def test_standard_coders(self):
@@ -88,6 +97,15 @@ class StandardCodersTest(unittest.TestCase):
       self._run_standard_coder(name, spec)
 
   def _run_standard_coder(self, name, spec):
+    def assert_equal(actual, expected):
+      """Handle nan values which self.assertEqual fails on."""
+      if (isinstance(actual, float)
+          and isinstance(expected, float)
+          and math.isnan(actual)
+          and math.isnan(expected)):
+        return
+      self.assertEqual(actual, expected)
+
     coder = self.parse_coder(spec['coder'])
     parse_value = self.json_value_parser(spec['coder'])
     nested_list = [spec['nested']] if 'nested' in spec else [True, False]
@@ -101,16 +119,23 @@ class StandardCodersTest(unittest.TestCase):
             self.to_fix[spec['index'], expected_encoded] = actual_encoded
           else:
             self.assertEqual(expected_encoded, actual_encoded)
-            self.assertEqual(decode_nested(coder, expected_encoded, nested),
-                             value)
+            decoded = decode_nested(coder, expected_encoded, nested)
+            assert_equal(decoded, value)
         else:
           # Only verify decoding for a non-deterministic coder
           self.assertEqual(decode_nested(coder, expected_encoded, nested),
                            value)
 
   def parse_coder(self, spec):
-    return self._urn_to_coder_class[spec['urn']](
-        *[self.parse_coder(c) for c in spec.get('components', ())])
+    context = pipeline_context.PipelineContext()
+    coder_id = str(hash(str(spec)))
+    component_ids = [context.coders.get_id(self.parse_coder(c))
+                     for c in spec.get('components', ())]
+    context.coders.put_proto(coder_id, beam_runner_api_pb2.Coder(
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=spec['urn'], payload=spec.get('payload')),
+        component_coder_ids=component_ids))
+    return context.coders.get_by_id(coder_id)
 
   def json_value_parser(self, coder_spec):
     component_parsers = [

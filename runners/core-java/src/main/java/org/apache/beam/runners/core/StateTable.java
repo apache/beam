@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.base.Equivalence;
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +24,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 
 /**
  * Table mapping {@code StateNamespace} and {@code StateTag<?>} to a {@code State} instance.
@@ -42,8 +42,8 @@ public abstract class StateTable {
 
   /**
    * Gets the {@link State} in the specified {@link StateNamespace} with the specified {@link
-   * StateTag}, binding it using the {@link #binderForNamespace} if it is not
-   * already present in this {@link StateTable}.
+   * StateTag}, binding it using the {@link #binderForNamespace} if it is not already present in
+   * this {@link StateTable}.
    */
   public <StateT extends State> StateT get(
       StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
@@ -107,8 +107,8 @@ public abstract class StateTable {
   }
 
   /**
-   * Provide the {@code StateBinder} to use for creating {@code Storage} instances
-   * in the specified {@code namespace}.
+   * Provide the {@code StateBinder} to use for creating {@code Storage} instances in the specified
+   * {@code namespace}.
    */
   protected abstract StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c);
 }

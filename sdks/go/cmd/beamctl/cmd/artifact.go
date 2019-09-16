@@ -42,10 +42,13 @@ var (
 		RunE:  listFn,
 		Args:  cobra.NoArgs,
 	}
+
+	stagingToken string
 )
 
 func init() {
 	artifactCmd.AddCommand(stageCmd, listCmd)
+	stageCmd.PersistentFlags().StringVarP(&stagingToken, "token", "e", "", "Session Storage token")
 }
 
 func stageFn(cmd *cobra.Command, args []string) error {
@@ -65,11 +68,11 @@ func stageFn(cmd *cobra.Command, args []string) error {
 	// (2) Stage files in parallel, commit and print out token
 
 	client := pb.NewArtifactStagingServiceClient(cc)
-	list, err := artifact.MultiStage(ctx, client, 10, files)
+	list, err := artifact.MultiStage(ctx, client, 10, files, stagingToken)
 	if err != nil {
 		return err
 	}
-	token, err := artifact.Commit(ctx, client, list)
+	token, err := artifact.Commit(ctx, client, list, stagingToken)
 	if err != nil {
 		return err
 	}

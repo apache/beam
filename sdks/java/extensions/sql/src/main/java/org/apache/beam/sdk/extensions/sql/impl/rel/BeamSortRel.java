@@ -15,33 +15,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
-import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Top;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollationImpl;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -50,27 +68,28 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
  *
- * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement
- * the {@code Sort} algebra. The following types of ORDER BY are supported:
-
+ * <p>Since Beam does not fully support global sort, it uses {@link Top} to implement the {@code
+ * Sort} algebra. The following types of ORDER BY are supported:
+ *
  * <pre>{@code
- *     select * from t order by id desc limit 10;
- *     select * from t order by id desc limit 10 offset 5;
+ * SELECT * FROM t ORDER BY id DESC LIMIT 10;
+ * SELECT * FROM t ORDER BY id DESC LIMIT 10 OFFSET 5;
  * }</pre>
  *
- * <p>but Order BY without a limit is NOT supported:
+ * <p>but an ORDER BY without a LIMIT is NOT supported. For example, the following will throw an
+ * exception:
  *
  * <pre>{@code
- *   select * from t order by id desc
+ * SELECT * FROM t ORDER BY id DESC;
  * }</pre>
  *
  * <h3>Constraints</h3>
+ *
  * <ul>
- *   <li>Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT`
- *   must fit into the memory of a single machine.</li>
- *   <li>Since `WINDOW`(HOP, TUMBLE, SESSION etc) is always associated with `GroupBy`,
- *   it does not make much sense to use `ORDER BY` with `WINDOW`.
- *   </li>
+ *   <li>Due to the constraints of {@link Top}, the result of a ORDER BY LIMIT must fit into the
+ *       memory of a single machine.
+ *   <li>Since WINDOW (HOP, TUMBLE, SESSION, etc.) is always associated with `GroupBy`, it does not
+ *       make much sense to use ORDER BY with WINDOW.
  * </ul>
  */
 public class BeamSortRel extends Sort implements BeamRelNode {
@@ -119,41 +138,149 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    RelNode input = getInput();
-    PCollection<Row> upstream = BeamSqlRelUtils.getBeamRelInput(input)
-        .buildBeamPipeline(inputPCollections, sqlEnv);
-    Type windowType = upstream.getWindowingStrategy().getWindowFn()
-        .getWindowTypeDescriptor().getType();
-    if (!windowType.equals(GlobalWindow.class)) {
-      throw new UnsupportedOperationException(
-          "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    // Sorting does not change rate or row count of the input.
+    return BeamSqlRelUtils.getNodeStats(this.input, mq);
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(this.input, mq);
+
+    final double rowSize = getRowType().getFieldCount();
+    final double cpu = inputEstimates.getRowCount() * inputEstimates.getRowCount() * rowSize;
+    final double cpuRate = inputEstimates.getRate() * inputEstimates.getWindow() * rowSize;
+    return BeamCostModel.FACTORY.makeCost(cpu, cpuRate);
+  }
+
+  public boolean isLimitOnly() {
+    return fieldIndices.isEmpty();
+  }
+
+  public int getCount() {
+    return count;
+  }
+
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamIOSinkRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> upstream = pinput.get(0);
+
+      // There is a need to separate ORDER BY LIMIT and LIMIT:
+      //  - GroupByKey (used in Top) is not allowed on unbounded data in global window so ORDER BY
+      // ... LIMIT
+      //    works only on bounded data.
+      //  - Just LIMIT operates on unbounded data, but across windows.
+      if (fieldIndices.isEmpty()) {
+        // TODO(https://issues.apache.org/jira/projects/BEAM/issues/BEAM-4702)
+        // Figure out which operations are per-window and which are not.
+
+        return upstream
+            .apply(Window.into(new GlobalWindows()))
+            .apply(new LimitTransform<>(startIndex))
+            .setRowSchema(CalciteUtils.toSchema(getRowType()));
+      } else {
+
+        WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();
+        if (!(windowingStrategy.getWindowFn() instanceof GlobalWindows)) {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "`ORDER BY` is only supported for %s, actual windowing strategy: %s",
+                  GlobalWindows.class.getSimpleName(), windowingStrategy));
+        }
+
+        ReversedBeamSqlRowComparator comparator =
+            new ReversedBeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+
+        // first find the top (offset + count)
+        PCollection<List<Row>> rawStream =
+            upstream
+                .apply(
+                    "extractTopOffsetAndFetch",
+                    Top.of(startIndex + count, comparator).withoutDefaults())
+                .setCoder(ListCoder.of(upstream.getCoder()));
+
+        // strip the `leading offset`
+        if (startIndex > 0) {
+          rawStream =
+              rawStream
+                  .apply(
+                      "stripLeadingOffset",
+                      ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                  .setCoder(ListCoder.of(upstream.getCoder()));
+        }
+
+        return rawStream
+            .apply("flatten", Flatten.iterables())
+            .setSchema(
+                CalciteUtils.toSchema(getRowType()),
+                SerializableFunctions.identity(),
+                SerializableFunctions.identity());
+      }
+    }
+  }
+
+  private class LimitTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private final int startIndex;
+
+    public LimitTransform(int startIndex) {
+      this.startIndex = startIndex;
     }
 
-    BeamSqlRowComparator comparator = new BeamSqlRowComparator(fieldIndices, orientation,
-        nullsFirst);
-    // first find the top (offset + count)
-    PCollection<List<Row>> rawStream =
-        upstream
-            .apply(
-                "extractTopOffsetAndFetch",
-                Top.of(startIndex + count, comparator).withoutDefaults())
-            .setCoder(ListCoder.of(upstream.getCoder()));
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      Coder<T> coder = input.getCoder();
+      PCollection<KV<String, T>> keyedRow =
+          input.apply(WithKeys.of("DummyKey")).setCoder(KvCoder.of(StringUtf8Coder.of(), coder));
 
-    // strip the `leading offset`
-    if (startIndex > 0) {
-      rawStream =
-          rawStream
-              .apply(
-                  "stripLeadingOffset", ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
-              .setCoder(ListCoder.of(upstream.getCoder()));
+      return keyedRow.apply(ParDo.of(new LimitFn<T>(getCount(), startIndex)));
+    }
+  }
+
+  private static class LimitFn<T> extends DoFn<KV<String, T>, T> {
+    private final Integer limitCount;
+    private final Integer startIndex;
+
+    public LimitFn(int c, int s) {
+      limitCount = c;
+      startIndex = s;
     }
 
-    PCollection<Row> orderedStream = rawStream.apply("flatten", Flatten.iterables());
-    orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
+    @StateId("counter")
+    private final StateSpec<ValueState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
 
-    return orderedStream;
+    @StateId("skipped_rows")
+    private final StateSpec<ValueState<Integer>> skippedRowsState =
+        StateSpecs.value(VarIntCoder.of());
+
+    @ProcessElement
+    public void processElement(
+        ProcessContext context,
+        @StateId("counter") ValueState<Integer> counterState,
+        @StateId("skipped_rows") ValueState<Integer> skippedRowsState) {
+      Integer toSkipRows = firstNonNull(skippedRowsState.read(), startIndex);
+      if (toSkipRows == 0) {
+        int current = firstNonNull(counterState.read(), 0);
+        if (current < limitCount) {
+          counterState.write(current + 1);
+          context.output(context.element().getValue());
+        }
+      } else {
+        skippedRowsState.write(toSkipRows - 1);
+      }
+    }
   }
 
   private static class SubListFn<T> extends DoFn<List<T>, List<T>> {
@@ -171,8 +298,13 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation,
-      RexNode offset, RexNode fetch) {
+  @Override
+  public Sort copy(
+      RelTraitSet traitSet,
+      RelNode newInput,
+      RelCollation newCollation,
+      RexNode offset,
+      RexNode fetch) {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
@@ -181,19 +313,21 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
 
-    public BeamSqlRowComparator(List<Integer> fieldsIndices,
-        List<Boolean> orientation,
-        List<Boolean> nullsFirst) {
+    public BeamSqlRowComparator(
+        List<Integer> fieldsIndices, List<Boolean> orientation, List<Boolean> nullsFirst) {
       this.fieldsIndices = fieldsIndices;
       this.orientation = orientation;
       this.nullsFirst = nullsFirst;
     }
 
-    @Override public int compare(Row row1, Row row2) {
+    @Override
+    public int compare(Row row1, Row row2) {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
-        SqlTypeName fieldType = CalciteUtils.getFieldCalciteType(row1.getRowType(), fieldIndex);
+
+        FieldType fieldType = row1.getSchema().getField(fieldIndex).getType();
+        SqlTypeName sqlTypeName = CalciteUtils.toSqlTypeName(fieldType);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
         boolean isValue1Null = (row1.getValue(fieldIndex) == null);
@@ -205,7 +339,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         } else if (!isValue1Null && isValue2Null) {
           fieldRet = 1 * (nullsFirst.get(i) ? -1 : 1);
         } else {
-          switch (fieldType) {
+          switch (sqlTypeName) {
             case TINYINT:
             case SMALLINT:
             case INTEGER:
@@ -221,16 +355,31 @@ public class BeamSortRel extends Sort implements BeamRelNode {
               break;
             default:
               throw new UnsupportedOperationException(
-                  "Data type: " + fieldType + " not supported yet!");
+                  "Data type: " + sqlTypeName + " not supported yet!");
           }
         }
 
-        fieldRet *= (orientation.get(i) ? -1 : 1);
+        fieldRet *= (orientation.get(i) ? 1 : -1);
+
         if (fieldRet != 0) {
           return fieldRet;
         }
       }
       return 0;
+    }
+  }
+
+  private static class ReversedBeamSqlRowComparator implements Comparator<Row>, Serializable {
+    private final BeamSqlRowComparator comparator;
+
+    public ReversedBeamSqlRowComparator(
+        List<Integer> fieldsIndices, List<Boolean> orientation, List<Boolean> nullsFirst) {
+      comparator = new BeamSqlRowComparator(fieldsIndices, orientation, nullsFirst);
+    }
+
+    @Override
+    public int compare(Row row1, Row row2) {
+      return comparator.compare(row2, row1);
     }
   }
 }

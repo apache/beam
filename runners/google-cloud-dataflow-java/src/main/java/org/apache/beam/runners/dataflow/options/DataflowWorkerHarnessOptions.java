@@ -22,25 +22,24 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 
 /**
- * Options that are used exclusively within the Dataflow worker harness.
- * These options have no effect at pipeline creation time.
+ * Options that are used exclusively within the Dataflow worker harness. These options have no
+ * effect at pipeline creation time.
  */
-@Description("[Internal] Options that are used exclusively within the Dataflow worker harness. "
-    + "These options have no effect at pipeline creation time.")
+@Description(
+    "[Internal] Options that are used exclusively within the Dataflow worker harness. "
+        + "These options have no effect at pipeline creation time.")
 @Hidden
 public interface DataflowWorkerHarnessOptions extends DataflowPipelineOptions {
-  /**
-   * The identity of the worker running this pipeline.
-   */
+  /** The identity of the worker running this pipeline. */
   @Description("The identity of the worker running this pipeline.")
   String getWorkerId();
+
   void setWorkerId(String value);
 
-  /**
-   * The identity of the Dataflow job.
-   */
+  /** The identity of the Dataflow job. */
   @Description("The identity of the Dataflow job.")
   String getJobId();
+
   void setJobId(String value);
 
   /**
@@ -51,5 +50,6 @@ public interface DataflowWorkerHarnessOptions extends DataflowPipelineOptions {
   @Description("The size of the worker's in-memory cache, in megabytes.")
   @Default.Integer(100)
   Integer getWorkerCacheMb();
+
   void setWorkerCacheMb(Integer value);
 }

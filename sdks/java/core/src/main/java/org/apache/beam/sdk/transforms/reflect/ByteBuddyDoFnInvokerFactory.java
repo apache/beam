@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -29,37 +29,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.field.FieldDescription;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.modifier.Visibility;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.description.type.TypeList;
-import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
-import net.bytebuddy.implementation.ExceptionMethod;
-import net.bytebuddy.implementation.FixedValue;
-import net.bytebuddy.implementation.Implementation;
-import net.bytebuddy.implementation.Implementation.Context;
-import net.bytebuddy.implementation.MethodDelegation;
-import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import net.bytebuddy.implementation.bytecode.StackManipulation;
-import net.bytebuddy.implementation.bytecode.Throw;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
-import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
-import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import net.bytebuddy.implementation.bytecode.constant.TextConstant;
-import net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import net.bytebuddy.jar.asm.Label;
-import net.bytebuddy.jar.asm.MethodVisitor;
-import net.bytebuddy.jar.asm.Opcodes;
-import net.bytebuddy.jar.asm.Type;
-import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -68,32 +37,83 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.field.FieldDescription;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.method.MethodDescription;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.modifier.Visibility;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeList;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.DynamicType;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.ExceptionMethod;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.FixedValue;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.Implementation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.Implementation.Context;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.MethodDelegation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.Throw;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.Assigner;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.constant.TextConstant;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.jar.asm.Label;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.jar.asm.MethodVisitor;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.jar.asm.Opcodes;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.jar.asm.Type;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
 public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
-  public static final String CONTEXT_PARAMETER_METHOD = "context";
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
+  public static final String ELEMENT_PARAMETER_METHOD = "element";
+  public static final String SCHEMA_ELEMENT_PARAMETER_METHOD = "schemaElement";
+  public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
+  public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
+  public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
+  public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
+  public static final String TAGGED_OUTPUT_PARAMETER_METHOD = "taggedOutputReceiver";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
+  public static final String PANE_INFO_PARAMETER_METHOD = "paneInfo";
   public static final String PIPELINE_OPTIONS_PARAMETER_METHOD = "pipelineOptions";
   public static final String RESTRICTION_TRACKER_PARAMETER_METHOD = "restrictionTracker";
   public static final String STATE_PARAMETER_METHOD = "state";
   public static final String TIMER_PARAMETER_METHOD = "timer";
+  public static final String SIDE_INPUT_PARAMETER_METHOD = "sideInput";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -310,6 +330,10 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .intercept(delegateOrNoop(clazzDescription, signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
             .intercept(delegateOrNoop(clazzDescription, signature.teardown()))
+            .method(ElementMatchers.named("invokeOnWindowExpiration"))
+            .intercept(
+                delegateMethodWithExtraParametersOrNoop(
+                    clazzDescription, signature.onWindowExpiration()))
             .method(ElementMatchers.named("invokeGetInitialRestriction"))
             .intercept(
                 delegateWithDowncastOrThrow(clazzDescription, signature.getInitialRestriction()))
@@ -377,6 +401,14 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         : new DoFnMethodDelegation(doFnType, method.targetMethod());
   }
 
+  /** Delegates method with extra parameters to the given method if available, or does nothing. */
+  private static Implementation delegateMethodWithExtraParametersOrNoop(
+      TypeDescription doFnType, DoFnSignature.MethodWithExtraParameters method) {
+    return (method == null)
+        ? FixedValue.originType()
+        : new DoFnMethodWithExtraParametersDelegation(doFnType, method);
+  }
+
   /** Delegates to the given method if available, or throws UnsupportedOperationException. */
   private static Implementation delegateWithDowncastOrThrow(
       TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
@@ -403,7 +435,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     public DoFnMethodDelegation(TypeDescription doFnType, Method targetMethod) {
       this.doFnType = doFnType;
       this.targetMethod = new MethodDescription.ForLoadedMethod(targetMethod);
-      targetHasReturn = !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
+      this.targetHasReturn =
+          !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
     }
 
     @Override
@@ -495,9 +528,49 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
       return new StackManipulation.Compound(
           Assigner.DEFAULT.assign(
-              targetMethod.getReturnType(),
-              instrumentedMethod.getReturnType(), Typing.STATIC),
+              targetMethod.getReturnType(), instrumentedMethod.getReturnType(), Typing.STATIC),
           MethodReturn.of(instrumentedMethod.getReturnType()));
+    }
+  }
+
+  /**
+   * Implements {@link DoFnInvoker}'s method with extra parameters by delegating to a "target
+   * method" of the wrapped {@link DoFn}.
+   */
+  static class DoFnMethodWithExtraParametersDelegation extends DoFnMethodDelegation {
+    private final DoFnSignature.MethodWithExtraParameters signature;
+
+    public DoFnMethodWithExtraParametersDelegation(
+        TypeDescription clazzDescription, DoFnSignature.MethodWithExtraParameters signature) {
+      super(clazzDescription, signature.targetMethod());
+      this.signature = signature;
+    }
+
+    @Override
+    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
+      // Parameters of the wrapper invoker method:
+      //   DoFn.ArgumentProvider
+      // Parameters of the wrapped DoFn method:
+      //   a dynamic set of allowed "extra" parameters in any order subject to
+      //   validation prior to getting the DoFnSignature
+      ArrayList<StackManipulation> parameters = new ArrayList<>();
+
+      // To load the delegate, push `this` and then access the field
+      StackManipulation pushDelegate =
+          new StackManipulation.Compound(
+              MethodVariableAccess.REFERENCE.loadFrom(0),
+              FieldAccess.forField(delegateField).read());
+
+      StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadFrom(1);
+
+      // Push the extra arguments in their actual order.
+      for (DoFnSignature.Parameter param : signature.extraParameters()) {
+        parameters.add(
+            new StackManipulation.Compound(
+                pushExtraContextFactory,
+                ByteBuddyDoFnInvokerFactory.getExtraContextParameter(param, pushDelegate)));
+      }
+      return new StackManipulation.Compound(parameters);
     }
   }
 
@@ -586,6 +659,79 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
+          public StackManipulation dispatch(ElementParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(ELEMENT_PARAMETER_METHOD, DoFn.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(SchemaElementParameter p) {
+            ForLoadedType elementType = new ForLoadedType(p.elementT().getRawType());
+            ForLoadedType castType =
+                elementType.isPrimitive()
+                    ? new ForLoadedType(Primitives.wrap(p.elementT().getRawType()))
+                    : elementType;
+
+            StackManipulation stackManipulation =
+                new StackManipulation.Compound(
+                    IntegerConstant.forValue(p.index()),
+                    MethodInvocation.invoke(
+                        getExtraContextFactoryMethodDescription(
+                            SCHEMA_ELEMENT_PARAMETER_METHOD, int.class)),
+                    TypeCasting.to(castType));
+            if (elementType.isPrimitive()) {
+              stackManipulation =
+                  new Compound(
+                      stackManipulation,
+                      Assigner.DEFAULT.assign(
+                          elementType.asBoxed().asGenericType(),
+                          elementType.asUnboxed().asGenericType(),
+                          Typing.STATIC));
+            }
+            return stackManipulation;
+          }
+
+          @Override
+          public StackManipulation dispatch(TimestampParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        TIMESTAMP_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(TimeDomainParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        TIME_DOMAIN_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(OutputReceiverParameter p) {
+            String method =
+                p.isRowReceiver() ? OUTPUT_ROW_RECEIVER_METHOD : OUTPUT_PARAMETER_METHOD;
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(method, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(TaggedOutputReceiverParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        TAGGED_OUTPUT_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
           public StackManipulation dispatch(OnTimerContextParameter p) {
             return new StackManipulation.Compound(
                 pushDelegate,
@@ -599,6 +745,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             return new StackManipulation.Compound(
                 simpleExtraContextParameter(WINDOW_PARAMETER_METHOD),
                 TypeCasting.to(new TypeDescription.ForLoadedType(p.windowT().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(PaneInfoParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        PANE_INFO_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override
@@ -634,6 +789,16 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           public StackManipulation dispatch(DoFnSignature.Parameter.PipelineOptionsParameter p) {
             return simpleExtraContextParameter(PIPELINE_OPTIONS_PARAMETER_METHOD);
           }
+
+          @Override
+          public StackManipulation dispatch(SideInputParameter p) {
+            return new StackManipulation.Compound(
+                new TextConstant(p.sideInputId()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        SIDE_INPUT_PARAMETER_METHOD, String.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
+          }
         });
   }
 
@@ -641,7 +806,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * Implements the invoker's {@link DoFnInvoker#invokeProcessElement} method by delegating to the
    * {@link ProcessElement} method.
    */
-  private static final class ProcessElementDelegation extends DoFnMethodDelegation {
+  private static final class ProcessElementDelegation
+      extends DoFnMethodWithExtraParametersDelegation {
     private static final MethodDescription PROCESS_CONTINUATION_STOP_METHOD;
 
     static {
@@ -658,33 +824,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(
         TypeDescription doFnType, DoFnSignature.ProcessElementMethod signature) {
-      super(doFnType, signature.targetMethod());
+      super(doFnType, signature);
       this.signature = signature;
-    }
-
-    @Override
-    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
-      // Parameters of the wrapper invoker method:
-      //   DoFnInvoker.ArgumentProvider
-      // Parameters of the wrapped DoFn method:
-      //   [DoFn.ProcessContext, BoundedWindow, InputProvider, OutputReceiver] in any order
-      ArrayList<StackManipulation> pushParameters = new ArrayList<>();
-
-      // To load the delegate, push `this` and then access the field
-      StackManipulation pushDelegate =
-          new StackManipulation.Compound(
-              MethodVariableAccess.REFERENCE.loadFrom(0),
-              FieldAccess.forField(delegateField).read());
-
-      StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadFrom(1);
-
-      // Push the arguments in their actual order.
-      for (DoFnSignature.Parameter param : signature.extraParameters()) {
-        pushParameters.add(
-            new StackManipulation.Compound(
-                pushExtraContextFactory, getExtraContextParameter(param, pushDelegate)));
-      }
-      return new StackManipulation.Compound(pushParameters);
     }
 
     @Override

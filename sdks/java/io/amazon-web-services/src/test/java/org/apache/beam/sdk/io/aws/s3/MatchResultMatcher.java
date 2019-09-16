@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -34,7 +33,7 @@ import org.hamcrest.Matcher;
  * Hamcrest {@link Matcher} to match {@link MatchResult}. Necessary because {@link
  * MatchResult#metadata()} throws an exception under normal circumstances.
  */
-public class MatchResultMatcher extends BaseMatcher<MatchResult> {
+class MatchResultMatcher extends BaseMatcher<MatchResult> {
 
   private final MatchResult.Status expectedStatus;
   private final List<MatchResult.Metadata> expectedMetadata;
@@ -54,15 +53,16 @@ public class MatchResultMatcher extends BaseMatcher<MatchResult> {
     return new MatchResultMatcher(MatchResult.Status.OK, expectedMetadata, null);
   }
 
-  static MatchResultMatcher create(MatchResult.Metadata expectedMetadata) {
+  private static MatchResultMatcher create(MatchResult.Metadata expectedMetadata) {
     return create(ImmutableList.of(expectedMetadata));
   }
 
   static MatchResultMatcher create(
-      long sizeBytes, ResourceId resourceId, boolean isReadSeekEfficient) {
+      long sizeBytes, long lastModifiedMillis, ResourceId resourceId, boolean isReadSeekEfficient) {
     return create(
         MatchResult.Metadata.builder()
             .setSizeBytes(sizeBytes)
+            .setLastModifiedMillis(lastModifiedMillis)
             .setResourceId(resourceId)
             .setIsReadSeekEfficient(isReadSeekEfficient)
             .build());

@@ -15,378 +15,234 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_GLOBALLY_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import javax.annotation.Nonnull;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
- * Methods for translating between {@link Combine.PerKey} {@link PTransform PTransforms} and {@link
+ * Methods for translating between {@link Combine} {@link PTransform PTransforms} and {@link
  * RunnerApi.CombinePayload} protos.
  */
 public class CombineTranslation {
 
-  public static final String JAVA_SERIALIZED_COMBINE_FN_URN = "urn:beam:combinefn:javasdk:v1";
+  static final String JAVA_SERIALIZED_COMBINE_FN_URN = "beam:combinefn:javasdk:v1";
 
   /** A {@link TransformPayloadTranslator} for {@link Combine.PerKey}. */
-  public static class CombinePayloadTranslator
+  public static class CombinePerKeyPayloadTranslator
       implements PTransformTranslation.TransformPayloadTranslator<Combine.PerKey<?, ?, ?>> {
-    public static TransformPayloadTranslator create() {
-      return new CombinePayloadTranslator();
-    }
-
-    private CombinePayloadTranslator() {}
+    private CombinePerKeyPayloadTranslator() {}
 
     @Override
     public String getUrn(Combine.PerKey<?, ?, ?> transform) {
-      return COMBINE_TRANSFORM_URN;
+      return COMBINE_PER_KEY_TRANSFORM_URN;
     }
 
     @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>> transform, SdkComponents components)
         throws IOException {
-      return FunctionSpec.newBuilder()
-          .setUrn(COMBINE_TRANSFORM_URN)
-          .setPayload(payloadForCombine((AppliedPTransform) transform, components).toByteString())
-          .build();
+      if (transform.getTransform().getSideInputs().isEmpty()) {
+        GlobalCombineFn<?, ?, ?> combineFn = transform.getTransform().getFn();
+        Coder<?> accumulatorCoder =
+            extractAccumulatorCoder(combineFn, (AppliedPTransform) transform);
+        return FunctionSpec.newBuilder()
+            .setUrn(getUrn(transform.getTransform()))
+            .setPayload(combinePayload(combineFn, accumulatorCoder, components).toByteString())
+            .build();
+      } else {
+        // Combines with side inputs are translated as generic composites, which have a blank
+        // FunctionSpec.
+        return null;
+      }
+    }
+
+    private static <K, InputT, AccumT> Coder<AccumT> extractAccumulatorCoder(
+        GlobalCombineFn<InputT, AccumT, ?> combineFn,
+        AppliedPTransform<PCollection<KV<K, InputT>>, ?, Combine.PerKey<K, InputT, ?>> transform)
+        throws IOException {
+      try {
+        @SuppressWarnings("unchecked")
+        PCollection<KV<K, InputT>> mainInput =
+            (PCollection<KV<K, InputT>>)
+                Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(transform));
+        return combineFn.getAccumulatorCoder(
+            transform.getPipeline().getCoderRegistry(),
+            ((KvCoder<K, InputT>) mainInput.getCoder()).getValueCoder());
+      } catch (CannotProvideCoderException e) {
+        throw new IOException("Could not obtain a Coder for the accumulator", e);
+      }
+    }
+  }
+
+  /** A {@link TransformPayloadTranslator} for {@link Combine.Globally}. */
+  public static class CombineGloballyPayloadTranslator
+      implements PTransformTranslation.TransformPayloadTranslator<Combine.Globally<?, ?>> {
+    private CombineGloballyPayloadTranslator() {}
+
+    @Override
+    public String getUrn(Combine.Globally<?, ?> transform) {
+      return COMBINE_GLOBALLY_TRANSFORM_URN;
     }
 
     @Override
-    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, Combine.Globally<?, ?>> transform, SdkComponents components)
         throws IOException {
-      checkArgument(
-          protoTransform.getSpec() != null,
-          "%s received transform with null spec",
-          getClass().getSimpleName());
-      checkArgument(protoTransform.getSpec().getUrn().equals(COMBINE_TRANSFORM_URN));
-      return new RawCombine<>(protoTransform, rehydratedComponents);
+      if (transform.getTransform().getSideInputs().isEmpty()) {
+        return FunctionSpec.newBuilder()
+            .setUrn(getUrn(transform.getTransform()))
+            .setPayload(
+                payloadForCombineGlobally((AppliedPTransform) transform, components).toByteString())
+            .build();
+      } else {
+        // Combines with side inputs are translated as generic composites, which have a blank
+        // FunctionSpec.
+        return null;
+      }
     }
 
-    /** Registers {@link CombinePayloadTranslator}. */
-    @AutoService(TransformPayloadTranslatorRegistrar.class)
-    public static class Registrar implements TransformPayloadTranslatorRegistrar {
-      @Override
-      public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-          getTransformPayloadTranslators() {
-        return Collections.singletonMap(Combine.PerKey.class, new CombinePayloadTranslator());
+    private static <InputT, AccumT> Coder<AccumT> extractAccumulatorCoder(
+        GlobalCombineFn<InputT, AccumT, ?> combineFn,
+        AppliedPTransform<PCollection<InputT>, ?, Combine.Globally<InputT, ?>> transform)
+        throws IOException {
+      try {
+        @SuppressWarnings("unchecked")
+        PCollection<InputT> mainInput =
+            (PCollection<InputT>)
+                Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(transform));
+        return combineFn.getAccumulatorCoder(
+            transform.getPipeline().getCoderRegistry(), mainInput.getCoder());
+      } catch (CannotProvideCoderException e) {
+        throw new IOException("Could not obtain a Coder for the accumulator", e);
       }
+    }
 
-      @Override
-      public Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators() {
-        return Collections.singletonMap(COMBINE_TRANSFORM_URN, new CombinePayloadTranslator());
+    /** Produces a {@link RunnerApi.CombinePayload} from a {@link Combine.Globally}. */
+    @VisibleForTesting
+    static <InputT, OutputT> CombinePayload payloadForCombineGlobally(
+        final AppliedPTransform<
+                PCollection<InputT>, PCollection<OutputT>, Combine.Globally<InputT, OutputT>>
+            transform,
+        final SdkComponents components)
+        throws IOException {
+      GlobalCombineFn<?, ?, ?> combineFn = transform.getTransform().getFn();
+      Coder<?> accumulatorCoder = extractAccumulatorCoder(combineFn, (AppliedPTransform) transform);
+      return combinePayload(combineFn, accumulatorCoder, components);
+    }
+  }
+
+  /** A {@link TransformPayloadTranslator} for {@link Combine.GroupedValues}. */
+  public static class CombineGroupedValuesPayloadTranslator
+      implements PTransformTranslation.TransformPayloadTranslator<Combine.GroupedValues<?, ?, ?>> {
+    private CombineGroupedValuesPayloadTranslator() {}
+
+    @Override
+    public String getUrn(Combine.GroupedValues<?, ?, ?> transform) {
+      return COMBINE_GROUPED_VALUES_TRANSFORM_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, Combine.GroupedValues<?, ?, ?>> transform, SdkComponents components)
+        throws IOException {
+      if (transform.getTransform().getSideInputs().isEmpty()) {
+        GlobalCombineFn<?, ?, ?> combineFn = transform.getTransform().getFn();
+        Coder<?> accumulatorCoder =
+            extractAccumulatorCoder(combineFn, (AppliedPTransform) transform);
+        return FunctionSpec.newBuilder()
+            .setUrn(getUrn(transform.getTransform()))
+            .setPayload(combinePayload(combineFn, accumulatorCoder, components).toByteString())
+            .build();
+      } else {
+        // Combines with side inputs are translated as generic composites, which have a blank
+        // FunctionSpec.
+        return null;
+      }
+    }
+
+    private static <K, InputT, AccumT> Coder<AccumT> extractAccumulatorCoder(
+        GlobalCombineFn<InputT, AccumT, ?> combineFn,
+        AppliedPTransform<
+                PCollection<KV<K, Iterable<InputT>>>, ?, Combine.GroupedValues<K, InputT, ?>>
+            transform)
+        throws IOException {
+      try {
+        @SuppressWarnings("unchecked")
+        PCollection<KV<K, Iterable<InputT>>> mainInput =
+            (PCollection<KV<K, Iterable<InputT>>>)
+                Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(transform));
+        KvCoder<K, Iterable<InputT>> kvCoder = (KvCoder<K, Iterable<InputT>>) mainInput.getCoder();
+        IterableCoder<InputT> iterCoder = (IterableCoder<InputT>) kvCoder.getValueCoder();
+        return combineFn.getAccumulatorCoder(
+            transform.getPipeline().getCoderRegistry(), iterCoder.getElemCoder());
+      } catch (CannotProvideCoderException e) {
+        throw new IOException("Could not obtain a Coder for the accumulator", e);
       }
     }
   }
 
   /**
-   * These methods drive to-proto translation for both Java SDK transforms and rehydrated
-   * transforms.
+   * Registers {@link TransformPayloadTranslator TransformPayloadTranslators} for {@link Combine
+   * Combines}.
    */
-  interface CombineLike {
-    RunnerApi.SdkFunctionSpec getCombineFn();
-
-    Coder<?> getAccumulatorCoder();
-
-    Map<String, RunnerApi.SideInput> getSideInputs();
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class Registrar implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
+          .put(Combine.Globally.class, new CombineGloballyPayloadTranslator())
+          .put(Combine.GroupedValues.class, new CombineGroupedValuesPayloadTranslator())
+          .put(Combine.PerKey.class, new CombinePerKeyPayloadTranslator())
+          .build();
+    }
   }
 
-  /** Produces a {@link RunnerApi.CombinePayload} from a portable {@link CombineLike}. */
-  static RunnerApi.CombinePayload payloadForCombineLike(
-      CombineLike combine, SdkComponents components) throws IOException {
+  /** Produces a {@link RunnerApi.CombinePayload} from a {@link GlobalCombineFn}. */
+  private static CombinePayload combinePayload(
+      GlobalCombineFn<?, ?, ?> combineFn, Coder<?> accumulatorCoder, final SdkComponents components)
+      throws IOException {
     return RunnerApi.CombinePayload.newBuilder()
-        .setAccumulatorCoderId(components.registerCoder(combine.getAccumulatorCoder()))
-        .putAllSideInputs(combine.getSideInputs())
-        .setCombineFn(combine.getCombineFn())
+        .setAccumulatorCoderId(components.registerCoder(accumulatorCoder))
+        .setCombineFn(toProto(combineFn, components))
         .build();
-  }
-
-  static <K, InputT, OutputT> CombinePayload payloadForCombine(
-      final AppliedPTransform<
-              PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
-              Combine.PerKey<K, InputT, OutputT>>
-          combine,
-      final SdkComponents components)
-      throws IOException {
-
-    return payloadForCombineLike(
-        new CombineLike() {
-          @Override
-          public SdkFunctionSpec getCombineFn() {
-            return SdkFunctionSpec.newBuilder()
-                .setEnvironmentId(
-                    components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
-                .setSpec(
-                    FunctionSpec.newBuilder()
-                        .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
-                        .setPayload(
-                            ByteString.copyFrom(
-                                SerializableUtils.serializeToByteArray(
-                                    combine.getTransform().getFn())))
-                        .build())
-                .build();
-          }
-
-          @Override
-          public Coder<?> getAccumulatorCoder() {
-            GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
-            try {
-              return extractAccumulatorCoder(combineFn, (AppliedPTransform) combine);
-            } catch (CannotProvideCoderException e) {
-              throw new IllegalStateException(e);
-            }
-          }
-
-          @Override
-          public Map<String, SideInput> getSideInputs() {
-            Map<String, SideInput> sideInputs = new HashMap<>();
-            for (PCollectionView<?> sideInput : combine.getTransform().getSideInputs()) {
-              sideInputs.put(
-                  sideInput.getTagInternal().getId(),
-                  ParDoTranslation.translateView(sideInput, components));
-            }
-            return sideInputs;
-          }
-        },
-        components);
-  }
-
-  public static List<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> application)
-      throws IOException {
-    PTransform<?, ?> transform = application.getTransform();
-    if (transform instanceof Combine.PerKey) {
-      return ((Combine.PerKey<?, ?, ?>) transform).getSideInputs();
-    }
-
-    SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.PTransform combineProto = PTransformTranslation.toProto(application, sdkComponents);
-    CombinePayload payload = CombinePayload.parseFrom(combineProto.getSpec().getPayload());
-
-    List<PCollectionView<?>> views = new ArrayList<>();
-    RehydratedComponents components =
-        RehydratedComponents.forComponents(sdkComponents.toComponents());
-    for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
-      String sideInputTag = sideInputEntry.getKey();
-      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
-      PCollection<?> originalPCollection =
-          checkNotNull(
-              (PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)),
-              "no input with tag %s",
-              sideInputTag);
-      views.add(
-          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection,
-              combineProto, components));
-    }
-    return views;
-  }
-
-  private static class RawCombine<K, InputT, AccumT, OutputT>
-      extends PTransformTranslation.RawPTransform<
-          PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>
-      implements CombineLike {
-
-    private final RunnerApi.PTransform protoTransform;
-    private final transient RehydratedComponents rehydratedComponents;
-    private final FunctionSpec spec;
-    private final CombinePayload payload;
-    private final Coder<AccumT> accumulatorCoder;
-
-    private RawCombine(RunnerApi.PTransform protoTransform,
-        RehydratedComponents rehydratedComponents) throws IOException {
-      this.protoTransform = protoTransform;
-      this.rehydratedComponents = rehydratedComponents;
-      this.spec = protoTransform.getSpec();
-      this.payload = CombinePayload.parseFrom(spec.getPayload());
-
-      // Eagerly extract the coder to throw a good exception here
-      try {
-        this.accumulatorCoder =
-            (Coder<AccumT>) rehydratedComponents.getCoder(payload.getAccumulatorCoderId());
-      } catch (IOException exc) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Failure extracting accumulator coder with id '%s' for %s",
-                payload.getAccumulatorCoderId(), Combine.class.getSimpleName()),
-            exc);
-      }
-    }
-
-    @Override
-    public String getUrn() {
-      return COMBINE_TRANSFORM_URN;
-    }
-
-    @Nonnull
-    @Override
-    public FunctionSpec getSpec() {
-      return spec;
-    }
-
-    @Override
-    public RunnerApi.FunctionSpec migrate(SdkComponents sdkComponents) throws IOException {
-      return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(COMBINE_TRANSFORM_URN)
-          .setPayload(payloadForCombineLike(this, sdkComponents).toByteString())
-          .build();
-    }
-
-    @Override
-    public SdkFunctionSpec getCombineFn() {
-      return payload.getCombineFn();
-    }
-
-    @Override
-    public Coder<?> getAccumulatorCoder() {
-      return accumulatorCoder;
-    }
-
-    @Override
-    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      Map<TupleTag<?>, PValue> additionalInputs = new HashMap<>();
-      for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
-        try {
-          additionalInputs.put(
-              new TupleTag<>(sideInputEntry.getKey()),
-              rehydratedComponents.getPCollection(
-                  protoTransform.getInputsOrThrow(sideInputEntry.getKey())));
-        } catch (IOException exc) {
-          throw new IllegalStateException(
-              String.format(
-                  "Could not find input with name %s for %s transform",
-                  sideInputEntry.getKey(), Combine.class.getSimpleName()));
-        }
-      }
-      return additionalInputs;
-    }
-
-    @Override
-    public Map<String, SideInput> getSideInputs() {
-      return payload.getSideInputsMap();
-    }
-  }
-
-  @VisibleForTesting
-  static CombinePayload toProto(
-      AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>> combine, SdkComponents sdkComponents)
-      throws IOException {
-    GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
-    try {
-      Coder<?> accumulatorCoder = extractAccumulatorCoder(combineFn, (AppliedPTransform) combine);
-      Map<String, SideInput> sideInputs = new HashMap<>();
-      return RunnerApi.CombinePayload.newBuilder()
-          .setAccumulatorCoderId(sdkComponents.registerCoder(accumulatorCoder))
-          .putAllSideInputs(sideInputs)
-          .setCombineFn(toProto(combineFn, sdkComponents))
-          .build();
-    } catch (CannotProvideCoderException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  private static <K, InputT, AccumT> Coder<AccumT> extractAccumulatorCoder(
-      GlobalCombineFn<InputT, AccumT, ?> combineFn,
-      AppliedPTransform<PCollection<KV<K, InputT>>, ?, Combine.PerKey<K, InputT, ?>> transform)
-      throws CannotProvideCoderException {
-    @SuppressWarnings("unchecked")
-    PCollection<KV<K, InputT>> mainInput =
-        (PCollection<KV<K, InputT>>)
-            Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(transform));
-    KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) mainInput.getCoder();
-    return AppliedCombineFn.withInputCoder(
-            combineFn,
-            transform.getPipeline().getCoderRegistry(),
-            inputCoder,
-            transform.getTransform().getSideInputs(),
-            ((PCollection<?>) Iterables.getOnlyElement(transform.getOutputs().values()))
-                .getWindowingStrategy())
-        .getAccumulatorCoder();
   }
 
   public static SdkFunctionSpec toProto(
       GlobalCombineFn<?, ?, ?> combineFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
                 .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(combineFn)))
                 .build())
         .build();
-  }
-
-  public static Coder<?> getAccumulatorCoder(
-      CombinePayload payload, RehydratedComponents components) throws IOException {
-    String id = payload.getAccumulatorCoderId();
-    return components.getCoder(id);
-  }
-
-  public static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
-      throws IOException {
-    SdkComponents sdkComponents = SdkComponents.create();
-    String id = getCombinePayload(transform, sdkComponents).getAccumulatorCoderId();
-    Components components = sdkComponents.toComponents();
-    return CoderTranslation.fromProto(
-        components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
-  }
-
-  public static GlobalCombineFn<?, ?, ?> getCombineFn(CombinePayload payload) throws IOException {
-    checkArgument(payload.getCombineFn().getSpec().getUrn().equals(JAVA_SERIALIZED_COMBINE_FN_URN));
-    return (GlobalCombineFn<?, ?, ?>)
-        SerializableUtils.deserializeFromByteArray(
-            payload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
-  }
-
-  public static GlobalCombineFn<?, ?, ?> getCombineFn(AppliedPTransform<?, ?, ?> transform)
-      throws IOException {
-    return getCombineFn(getCombinePayload(transform));
-  }
-
-  private static CombinePayload getCombinePayload(AppliedPTransform<?, ?, ?> transform)
-      throws IOException {
-    return getCombinePayload(transform, SdkComponents.create());
-  }
-
-  private static CombinePayload getCombinePayload(
-      AppliedPTransform<?, ?, ?> transform, SdkComponents components) throws IOException {
-    return CombinePayload.parseFrom(
-        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
-            .getSpec()
-            .getPayload());
   }
 }

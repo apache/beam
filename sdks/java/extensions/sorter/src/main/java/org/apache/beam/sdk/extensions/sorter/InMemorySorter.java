@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sorter;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 
 /**
  * Sorts {@code <key, value>} pairs in memory. Based on the configured size of the memory buffer,
@@ -60,16 +59,16 @@ class InMemorySorter implements Sorter {
    * and values.
    *
    * <ul>
-   *   <li> Object reference within {@link ArrayList} (1 word),
-   *   <li> A {@link KV} (2 words),
-   *   <li> Two byte arrays (2 words for array lengths),
-   *   <li> Per-object overhead (JVM-specific, guessing 2 words * 3 objects)
+   *   <li>Object reference within {@link ArrayList} (1 word),
+   *   <li>A {@link KV} (2 words),
+   *   <li>Two byte arrays (2 words for array lengths),
+   *   <li>Per-object overhead (JVM-specific, guessing 2 words * 3 objects)
    * </ul>
    */
   private static final long RECORD_MEMORY_OVERHEAD_ESTIMATE = 11 * NUM_BYTES_PER_WORD;
 
   /** Maximum size of the buffer in bytes. */
-  private long maxBufferSize;
+  private final long maxBufferSize;
 
   /** Current number of stored bytes. Including estimated overhead bytes. */
   private long numBytes;
@@ -78,7 +77,7 @@ class InMemorySorter implements Sorter {
   private boolean sortCalled;
 
   /** The stored records to be sorted. */
-  private ArrayList<KV<byte[], byte[]>> records = new ArrayList<>();
+  private final ArrayList<KV<byte[], byte[]>> records = new ArrayList<>();
 
   /** Private constructor. */
   private InMemorySorter(Options options) {
@@ -100,7 +99,7 @@ class InMemorySorter implements Sorter {
     checkState(!sortCalled, "Records can only be added before sort()");
 
     long recordBytes = estimateRecordBytes(record);
-    if (roomInBuffer(numBytes + recordBytes, records.size() + 1)) {
+    if (roomInBuffer(numBytes + recordBytes, records.size() + 1L)) {
       records.add(record);
       numBytes += recordBytes;
       return true;

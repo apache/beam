@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.cloud.spanner.Mutation;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A bundle of mutations that must be submitted atomically.
@@ -62,5 +63,30 @@ public final class MutationGroup implements Serializable, Iterable<Mutation> {
 
   public List<Mutation> attached() {
     return mutations.subList(1, mutations.size());
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    MutationGroup mutations1 = (MutationGroup) o;
+    return Objects.equal(mutations, mutations1.mutations);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(mutations);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder("MutationGroup(");
+    sb.append(mutations);
+    sb.append(")");
+    return sb.toString();
   }
 }

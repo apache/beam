@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -25,14 +24,13 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link KeyedWorkItems}.
- */
+/** Tests for {@link KeyedWorkItems}. */
 @RunWith(JUnit4.class)
 public class KeyedWorkItemCoderTest {
   @Test
@@ -62,7 +60,8 @@ public class KeyedWorkItemCoderTest {
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
-    CoderProperties.coderSerializable(KeyedWorkItemCoder.of(
-        GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(
+        KeyedWorkItemCoder.of(
+            GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 }

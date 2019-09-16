@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators.utils;
 
 import java.io.Serializable;
@@ -23,9 +22,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 
-/**
- * serializable {@link StepContext} that basically does nothing.
- */
+/** serializable {@link StepContext} that basically does nothing. */
 public class NoOpStepContext implements StepContext, Serializable {
 
   @Override

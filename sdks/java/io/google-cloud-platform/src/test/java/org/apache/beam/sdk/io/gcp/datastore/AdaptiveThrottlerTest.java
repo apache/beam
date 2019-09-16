@@ -29,9 +29,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
-/**
- * Tests for {@link AdaptiveThrottler}.
- */
+/** Tests for {@link AdaptiveThrottler}. */
 @RunWith(JUnit4.class)
 public class AdaptiveThrottlerTest {
 
@@ -49,8 +47,8 @@ public class AdaptiveThrottlerTest {
   public void testNoInitialThrottling() throws Exception {
     AdaptiveThrottler throttler = getThrottler();
     assertThat(throttler.throttlingProbability(START_TIME_MS), equalTo(0.0));
-    assertThat("first request is not throttled",
-        throttler.throttleRequest(START_TIME_MS), equalTo(false));
+    assertThat(
+        "first request is not throttled", throttler.throttleRequest(START_TIME_MS), equalTo(false));
   }
 
   @Test
@@ -72,8 +70,10 @@ public class AdaptiveThrottlerTest {
       throttler.throttleRequest(t);
       // and no successfulRequest.
     }
-    assertThat("check that we set up a non-zero probability of throttling",
-        throttler.throttlingProbability(t), greaterThan(0.0));
+    assertThat(
+        "check that we set up a non-zero probability of throttling",
+        throttler.throttlingProbability(t),
+        greaterThan(0.0));
     for (; t < START_TIME_MS + 2 * SAMPLE_PERIOD_MS; t++) {
       throttler.throttleRequest(t);
       throttler.successfulRequest(t);
@@ -84,11 +84,12 @@ public class AdaptiveThrottlerTest {
   @Test
   public void testThrottlingAfterErrors() throws Exception {
     Random mockRandom = Mockito.mock(Random.class);
-    Mockito.when(mockRandom.nextDouble()).thenReturn(
-        0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
-        0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9);
-    AdaptiveThrottler throttler = new AdaptiveThrottler(
-        SAMPLE_PERIOD_MS, SAMPLE_BUCKET_MS, OVERLOAD_RATIO, mockRandom);
+    Mockito.when(mockRandom.nextDouble())
+        .thenReturn(
+            0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6,
+            0.7, 0.8, 0.9);
+    AdaptiveThrottler throttler =
+        new AdaptiveThrottler(SAMPLE_PERIOD_MS, SAMPLE_BUCKET_MS, OVERLOAD_RATIO, mockRandom);
     for (int i = 0; i < 20; i++) {
       boolean throttled = throttler.throttleRequest(START_TIME_MS + i);
       // 1/3rd of requests succeeding.
@@ -100,8 +101,10 @@ public class AdaptiveThrottlerTest {
       if (i >= 10) {
         // Expect 1/3rd of requests to be throttled. (So 1/3rd throttled, 1/3rd succeeding, 1/3rd
         // tried and failing).
-        assertThat(String.format("for i=%d", i),
-            throttler.throttlingProbability(START_TIME_MS + i), closeTo(0.33, /*error=*/ 0.1));
+        assertThat(
+            String.format("for i=%d", i),
+            throttler.throttlingProbability(START_TIME_MS + i),
+            closeTo(0.33, /*error=*/ 0.1));
         // Requests 10..13 should be throttled, 14..19 not throttled given the mocked random numbers
         // that we fed to throttler.
         assertThat(String.format("for i=%d", i), throttled, equalTo(i < 14));

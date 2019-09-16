@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,15 +52,14 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link PTransformTranslation}.
- */
+/** Tests for {@link PTransformTranslation}. */
 @RunWith(Parameterized.class)
 public class PTransformTranslationTest {
 
@@ -110,6 +107,7 @@ public class PTransformTranslationTest {
     }
 
     abstract AppliedPTransform<?, ?, ?> getTransform();
+
     abstract Collection<ToAndFromProtoSpec> getChildren();
   }
 
@@ -118,7 +116,7 @@ public class PTransformTranslationTest {
 
   @Test
   public void toAndFromProto() throws IOException {
-    SdkComponents components = SdkComponents.create();
+    SdkComponents components = SdkComponents.create(spec.getTransform().getPipeline().getOptions());
     RunnerApi.PTransform converted = convert(spec, components);
     Components protoComponents = components.toComponents();
 
@@ -148,8 +146,8 @@ public class PTransformTranslationTest {
       // Sanity call
       components.getExistingPTransformId(child.getTransform());
     }
-    RunnerApi.PTransform convert = PTransformTranslation
-        .toProto(spec.getTransform(), childTransforms, components);
+    RunnerApi.PTransform convert =
+        PTransformTranslation.toProto(spec.getTransform(), childTransforms, components);
     // Make sure the converted transform is registered. Convert it independently, but if this is a
     // child spec, the child must be in the components.
     components.registerPTransform(spec.getTransform(), childTransforms);
@@ -158,7 +156,8 @@ public class PTransformTranslationTest {
 
   private static class TestDoFn extends DoFn<Long, KV<Long, String>> {
     // Exists to stop the ParDo application from throwing
-    @ProcessElement public void process(ProcessContext context) {}
+    @ProcessElement
+    public void process(ProcessContext context) {}
   }
 
   private static AppliedPTransform<?, ?, ?> generateSequence(Pipeline pipeline) {

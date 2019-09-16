@@ -27,8 +27,7 @@ public class DataflowJobAlreadyUpdatedException extends DataflowJobException {
    * Create a new {@code DataflowJobAlreadyUpdatedException} with the specified {@link
    * DataflowPipelineJob} and message.
    */
-  public DataflowJobAlreadyUpdatedException(
-      DataflowPipelineJob job, String message) {
+  public DataflowJobAlreadyUpdatedException(DataflowPipelineJob job, String message) {
     super(job, message, null);
   }
 }

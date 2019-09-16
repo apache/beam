@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sketching;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
@@ -199,6 +199,11 @@ import org.apache.beam.sdk.values.PCollection;
  *  PCollection<Long> cardinality = hll.apply(ApproximateDistinct.RetrieveCardinality.globally());
  *
  * }</pre>
+ *
+ * Consider using the {@code HllCount.Init} transform in the {@code zetasketch} extension module if
+ * you need to create sketches compatible with Google Cloud BigQuery. For more details about using
+ * {@code HllCount} and the {@code zetasketch} extension module, see
+ * https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7
  *
  * <p><b>Warning: this class is experimental.</b> Its API is subject to change in future versions of
  * Beam. For example, it may be merged with the {@link
@@ -404,8 +409,8 @@ public final class ApproximateDistinct {
       try {
         coder.verifyDeterministic();
       } catch (Coder.NonDeterministicException e) {
-        throw new IllegalArgumentException("Coder must be deterministic to perform this sketch."
-                + e.getMessage(), e);
+        throw new IllegalArgumentException(
+            "Coder must be deterministic to perform this sketch." + e.getMessage(), e);
       }
       return new ApproximateDistinctFn<>(12, 0, coder);
     }
@@ -428,8 +433,8 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns an {@link ApproximateDistinctFn} combiner with a new
-     * sparse representation's precision {@code sp}.
+     * Returns an {@link ApproximateDistinctFn} combiner with a new sparse representation's
+     * precision {@code sp}.
      *
      * <p>Values above 32 are not yet supported by the AddThis version of HyperLogLog+.
      *
@@ -534,9 +539,8 @@ public final class ApproximateDistinct {
    * Utility class that provides {@link DoFn}s to retrieve the cardinality from a {@link
    * HyperLogLogPlus} structure in a global or perKey context.
    */
-  public static class RetrieveCardinality {
-
-    public static <K> DoFn<KV<K, HyperLogLogPlus>, KV<K, Long>> perKey() {
+  private static class RetrieveCardinality {
+    private static <K> DoFn<KV<K, HyperLogLogPlus>, KV<K, Long>> perKey() {
       return new DoFn<KV<K, HyperLogLogPlus>, KV<K, Long>>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
@@ -546,7 +550,7 @@ public final class ApproximateDistinct {
       };
     }
 
-    public static DoFn<HyperLogLogPlus, Long> globally() {
+    private static DoFn<HyperLogLogPlus, Long> globally() {
       return new DoFn<HyperLogLogPlus, Long>() {
         @ProcessElement
         public void apply(ProcessContext c) {

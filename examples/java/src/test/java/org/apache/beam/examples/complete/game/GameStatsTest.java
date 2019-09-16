@@ -35,31 +35,37 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests of GameStats.
- * Because the pipeline was designed for easy readability and explanations, it lacks good
- * modularity for testing. See our testing documentation for better ideas:
+ * Tests of GameStats. Because the pipeline was designed for easy readability and explanations, it
+ * lacks good modularity for testing. See our testing documentation for better ideas:
  * https://beam.apache.org/documentation/pipelines/test-your-pipeline/
  */
 @RunWith(JUnit4.class)
 public class GameStatsTest implements Serializable {
 
   // User scores
-  static final List<KV<String, Integer>> USER_SCORES = Arrays.asList(
-    KV.of("Robot-2", 66), KV.of("Robot-1", 116), KV.of("user7_AndroidGreenKookaburra", 23),
-    KV.of("user7_AndroidGreenKookaburra", 1),
-    KV.of("user19_BisqueBilby", 14), KV.of("user13_ApricotQuokka", 15),
-    KV.of("user18_BananaEmu", 25), KV.of("user6_AmberEchidna", 8),
-    KV.of("user2_AmberQuokka", 6), KV.of("user0_MagentaKangaroo", 4),
-    KV.of("user0_MagentaKangaroo", 3), KV.of("user2_AmberCockatoo", 13),
-    KV.of("user7_AlmondWallaby", 15), KV.of("user6_AmberNumbat", 11),
-    KV.of("user6_AmberQuokka", 4));
+  static final List<KV<String, Integer>> USER_SCORES =
+      Arrays.asList(
+          KV.of("Robot-2", 66),
+          KV.of("Robot-1", 116),
+          KV.of("user7_AndroidGreenKookaburra", 23),
+          KV.of("user7_AndroidGreenKookaburra", 1),
+          KV.of("user19_BisqueBilby", 14),
+          KV.of("user13_ApricotQuokka", 15),
+          KV.of("user18_BananaEmu", 25),
+          KV.of("user6_AmberEchidna", 8),
+          KV.of("user2_AmberQuokka", 6),
+          KV.of("user0_MagentaKangaroo", 4),
+          KV.of("user0_MagentaKangaroo", 3),
+          KV.of("user2_AmberCockatoo", 13),
+          KV.of("user7_AlmondWallaby", 15),
+          KV.of("user6_AmberNumbat", 11),
+          KV.of("user6_AmberQuokka", 4));
 
   // The expected list of 'spammers'.
-  static final List<KV<String, Integer>> SPAMMERS = Arrays.asList(
-      KV.of("Robot-2", 66), KV.of("Robot-1", 116));
+  static final List<KV<String, Integer>> SPAMMERS =
+      Arrays.asList(KV.of("Robot-2", 66), KV.of("Robot-1", 116));
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   /** Test the calculation of 'spammy users'. */
   @Test

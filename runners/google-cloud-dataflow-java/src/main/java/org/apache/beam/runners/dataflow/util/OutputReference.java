@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
 
 /**
- * A representation used by {@link com.google.api.services.dataflow.model.Step}s
- * to reference the output of other {@code Step}s.
+ * A representation used by {@link com.google.api.services.dataflow.model.Step}s to reference the
+ * output of other {@code Step}s.
  */
 public final class OutputReference extends GenericJson {
   @Key("@type")

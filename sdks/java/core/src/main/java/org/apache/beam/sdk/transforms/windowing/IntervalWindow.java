@@ -32,25 +32,17 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
 
 /**
- * An implementation of {@link BoundedWindow} that represents an interval from
- * {@link #start} (inclusive) to {@link #end} (exclusive).
+ * An implementation of {@link BoundedWindow} that represents an interval from {@link #start}
+ * (inclusive) to {@link #end} (exclusive).
  */
-public class IntervalWindow extends BoundedWindow
-    implements Comparable<IntervalWindow> {
-  /**
-   * Start of the interval, inclusive.
-   */
+public class IntervalWindow extends BoundedWindow implements Comparable<IntervalWindow> {
+  /** Start of the interval, inclusive. */
   private final Instant start;
 
-  /**
-   * End of the interval, exclusive.
-   */
+  /** End of the interval, exclusive. */
   private final Instant end;
 
-  /**
-   * Creates a new IntervalWindow that represents the half-open time
-   * interval [start, end).
-   */
+  /** Creates a new IntervalWindow that represents the half-open time interval [start, end). */
   public IntervalWindow(Instant start, Instant end) {
     this.start = start;
     this.end = end;
@@ -61,54 +53,39 @@ public class IntervalWindow extends BoundedWindow
     this.end = start.plus(size);
   }
 
-  /**
-   * Returns the start of this window, inclusive.
-   */
+  /** Returns the start of this window, inclusive. */
   public Instant start() {
     return start;
   }
 
-  /**
-   * Returns the end of this window, exclusive.
-   */
+  /** Returns the end of this window, exclusive. */
   public Instant end() {
     return end;
   }
 
-  /**
-   * Returns the largest timestamp that can be included in this window.
-   */
+  /** Returns the largest timestamp that can be included in this window. */
   @Override
   public Instant maxTimestamp() {
     // end not inclusive
     return end.minus(1);
   }
 
-  /**
-   * Returns whether this window contains the given window.
-   */
+  /** Returns whether this window contains the given window. */
   public boolean contains(IntervalWindow other) {
     return !this.start.isAfter(other.start) && !this.end.isBefore(other.end);
   }
 
-  /**
-   * Returns whether this window is disjoint from the given window.
-   */
+  /** Returns whether this window is disjoint from the given window. */
   public boolean isDisjoint(IntervalWindow other) {
     return !this.end.isAfter(other.start) || !other.end.isAfter(this.start);
   }
 
-  /**
-   * Returns whether this window intersects the given window.
-   */
+  /** Returns whether this window intersects the given window. */
   public boolean intersects(IntervalWindow other) {
     return !isDisjoint(other);
   }
 
-  /**
-   * Returns the minimal window that includes both this window and
-   * the given window.
-   */
+  /** Returns the minimal window that includes both this window and the given window. */
   public IntervalWindow span(IntervalWindow other) {
     return new IntervalWindow(
         new Instant(Math.min(start.getMillis(), other.start.getMillis())),
@@ -127,13 +104,10 @@ public class IntervalWindow extends BoundedWindow
     // The end values are themselves likely to be arithmetic sequence, which
     // is a poor distribution to use for a hashtable, so we
     // add a highly non-linear transformation.
-    return (int)
-        (start.getMillis() + modInverse((int) (end.getMillis() << 1) + 1));
+    return (int) (start.getMillis() + modInverse((int) (end.getMillis() << 1) + 1));
   }
 
-  /**
-   * Compute the inverse of (odd) x mod 2^32.
-   */
+  /** Compute the inverse of (odd) x mod 2^32. */
   private int modInverse(int x) {
     // Cube gives inverse mod 2^4, as x^4 == 1 (mod 2^4) for all odd x.
     int inverse = x * x * x;
@@ -157,16 +131,12 @@ public class IntervalWindow extends BoundedWindow
     return start.compareTo(o.start);
   }
 
-  /**
-   * Returns a {@link Coder} suitable for {@link IntervalWindow}.
-   */
+  /** Returns a {@link Coder} suitable for {@link IntervalWindow}. */
   public static Coder<IntervalWindow> getCoder() {
     return IntervalWindowCoder.of();
   }
 
-  /**
-   * Encodes an {@link IntervalWindow} as a pair of its upper bound and duration.
-   */
+  /** Encodes an {@link IntervalWindow} as a pair of its upper bound and duration. */
   public static class IntervalWindowCoder extends StructuredCoder<IntervalWindow> {
 
     private static final IntervalWindowCoder INSTANCE = new IntervalWindowCoder();
@@ -186,8 +156,7 @@ public class IntervalWindow extends BoundedWindow
     }
 
     @Override
-    public IntervalWindow decode(InputStream inStream)
-        throws IOException, CoderException {
+    public IntervalWindow decode(InputStream inStream) throws IOException, CoderException {
       Instant end = instantCoder.decode(inStream);
       ReadableDuration duration = durationCoder.decode(inStream);
       return new IntervalWindow(end.minus(duration), end);

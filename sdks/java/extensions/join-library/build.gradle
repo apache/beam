@@ -16,15 +16,16 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Join library"
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.junit
+  testRuntimeOnly project(":runners:direct-java")
 }

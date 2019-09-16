@@ -21,10 +21,8 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * An exception that was thrown in user-code. Sets the stack trace
- * from the first time execution enters user code down through the
- * rest of the user's stack frames until the exception is
- * reached.
+ * An exception that was thrown in user-code. Sets the stack trace from the first time execution
+ * enters user code down through the rest of the user's stack frames until the exception is reached.
  */
 public class UserCodeException extends RuntimeException {
 
@@ -54,12 +52,10 @@ public class UserCodeException extends RuntimeException {
   }
 
   /**
-   * Truncates the @{Throwable}'s stack trace to contain only user code,
-   * removing all frames below.
+   * Truncates the @{Throwable}'s stack trace to contain only user code, removing all frames below.
    *
-   * <p>This is to remove infrastructure noise below user code entry point. We do this
-   * by finding common stack frames between the throwable's captured stack and that
-   * of the current thread.
+   * <p>This is to remove infrastructure noise below user code entry point. We do this by finding
+   * common stack frames between the throwable's captured stack and that of the current thread.
    */
   private void truncateStackTrace(Throwable t) {
     StackTraceElement[] currentStack = Thread.currentThread().getStackTrace();
@@ -74,7 +70,8 @@ public class UserCodeException extends RuntimeException {
     }
 
     int commonFrames = 0;
-    while (framesEqual(currentStack[currentStackSize - commonFrames - 1],
+    while (framesEqual(
+        currentStack[currentStackSize - commonFrames - 1],
         throwableStack[throwableStackSize - commonFrames - 1])) {
       commonFrames++;
       if (commonFrames >= Math.min(currentStackSize, throwableStackSize)) {
@@ -82,8 +79,8 @@ public class UserCodeException extends RuntimeException {
       }
     }
 
-    StackTraceElement[] truncatedStack = Arrays.copyOfRange(throwableStack, 0,
-        throwableStackSize - commonFrames);
+    StackTraceElement[] truncatedStack =
+        Arrays.copyOfRange(throwableStack, 0, throwableStackSize - commonFrames);
     t.setStackTrace(truncatedStack);
   }
 

@@ -19,67 +19,105 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.Type;
-import com.google.common.collect.ArrayListMultimap;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
-/**
- * Encapsulates Cloud Spanner Schema.
- */
-class SpannerSchema implements Serializable {
-  private final List<String> tables;
-  private final ArrayListMultimap<String, Column> columns;
-  private final ArrayListMultimap<String, KeyPart> keyParts;
+/** Encapsulates Cloud Spanner Schema. */
+@AutoValue
+abstract class SpannerSchema implements Serializable {
+  abstract ImmutableList<String> tables();
+
+  abstract ImmutableListMultimap<String, Column> columns();
+
+  abstract ImmutableListMultimap<String, KeyPart> keyParts();
+
+  abstract ImmutableTable<String, String, Long> cellsMutatedPerColumn();
+
+  abstract ImmutableMap<String, Long> cellsMutatedPerRow();
 
   public static Builder builder() {
-    return new Builder();
+    return new AutoValue_SpannerSchema.Builder();
   }
 
-  /**
-   * Builder for {@link SpannerSchema}.
-   */
-  static class Builder {
-    private final ArrayListMultimap<String, Column> columns = ArrayListMultimap.create();
-    private final ArrayListMultimap<String, KeyPart> keyParts = ArrayListMultimap.create();
+  /** Builder for {@link SpannerSchema}. */
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract Builder setTables(ImmutableList<String> tablesBuilder);
 
+    abstract ImmutableListMultimap.Builder<String, Column> columnsBuilder();
+
+    abstract ImmutableListMultimap.Builder<String, KeyPart> keyPartsBuilder();
+
+    abstract ImmutableTable.Builder<String, String, Long> cellsMutatedPerColumnBuilder();
+
+    abstract ImmutableMap.Builder<String, Long> cellsMutatedPerRowBuilder();
+
+    abstract ImmutableListMultimap<String, Column> columns();
+
+    abstract ImmutableTable<String, String, Long> cellsMutatedPerColumn();
+
+    @VisibleForTesting
     public Builder addColumn(String table, String name, String type) {
-      addColumn(table, Column.create(name.toLowerCase(), type));
-      return this;
+      return addColumn(table, name, type, 1L);
     }
 
-    private Builder addColumn(String table, Column column) {
-      columns.put(table.toLowerCase(), column);
+    public Builder addColumn(String table, String name, String type, long cellsMutated) {
+      String tableLower = table.toLowerCase();
+      String nameLower = name.toLowerCase();
+
+      columnsBuilder().put(tableLower, Column.create(nameLower, type));
+      cellsMutatedPerColumnBuilder().put(tableLower, nameLower, cellsMutated);
       return this;
     }
 
     public Builder addKeyPart(String table, String column, boolean desc) {
-      keyParts.put(table, KeyPart.create(column.toLowerCase(), desc));
+      keyPartsBuilder().put(table.toLowerCase(), KeyPart.create(column.toLowerCase(), desc));
       return this;
     }
 
-    public SpannerSchema build() {
-      return new SpannerSchema(columns, keyParts);
+    abstract SpannerSchema autoBuild();
+
+    public final SpannerSchema build() {
+      // precompute the number of cells that are mutated for operations affecting
+      // an entire row such as a single key delete.
+      cellsMutatedPerRowBuilder()
+          .putAll(
+              Maps.transformValues(
+                  cellsMutatedPerColumn().rowMap(),
+                  entry -> entry.values().stream().mapToLong(Long::longValue).sum()));
+
+      setTables(ImmutableList.copyOf(columns().keySet()));
+
+      return autoBuild();
     }
   }
 
-  private SpannerSchema(ArrayListMultimap<String, Column> columns,
-      ArrayListMultimap<String, KeyPart> keyParts) {
-    this.columns = columns;
-    this.keyParts = keyParts;
-    tables = new ArrayList<>(columns.keySet());
-  }
-
   public List<String> getTables() {
-    return tables;
+    return tables();
   }
 
   public List<Column> getColumns(String table) {
-    return columns.get(table);
+    return columns().get(table.toLowerCase());
   }
 
   public List<KeyPart> getKeyParts(String table) {
-    return keyParts.get(table);
+    return keyParts().get(table.toLowerCase());
+  }
+
+  /** Return the total number of cells affected when the specified column is mutated. */
+  public long getCellsMutatedPerColumn(String table, String column) {
+    return cellsMutatedPerColumn().row(table.toLowerCase()).getOrDefault(column.toLowerCase(), 1L);
+  }
+
+  /** Return the total number of cells affected with the given row is deleted. */
+  public long getCellsMutatedPerRow(String table) {
+    return cellsMutatedPerRow().getOrDefault(table.toLowerCase(), 1L);
   }
 
   @AutoValue
@@ -110,13 +148,13 @@ class SpannerSchema implements Serializable {
 
     private static Type parseSpannerType(String spannerType) {
       spannerType = spannerType.toUpperCase();
-      if (spannerType.equals("BOOL")) {
+      if ("BOOL".equals(spannerType)) {
         return Type.bool();
       }
-      if (spannerType.equals("INT64")) {
+      if ("INT64".equals(spannerType)) {
         return Type.int64();
       }
-      if (spannerType.equals("FLOAT64")) {
+      if ("FLOAT64".equals(spannerType)) {
         return Type.float64();
       }
       if (spannerType.startsWith("STRING")) {
@@ -125,10 +163,10 @@ class SpannerSchema implements Serializable {
       if (spannerType.startsWith("BYTES")) {
         return Type.bytes();
       }
-      if (spannerType.equals("TIMESTAMP")) {
+      if ("TIMESTAMP".equals(spannerType)) {
         return Type.timestamp();
       }
-      if (spannerType.equals("DATE")) {
+      if ("DATE".equals(spannerType)) {
         return Type.date();
       }
 

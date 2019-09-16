@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.PTransform;
 
-/**
- * Translates {@link PTransform} to Gearpump functions.
- */
+/** Translates {@link PTransform} to Gearpump functions. */
 public interface TransformTranslator<T extends PTransform> extends Serializable {
   void translate(T transform, TranslationContext context);
 }

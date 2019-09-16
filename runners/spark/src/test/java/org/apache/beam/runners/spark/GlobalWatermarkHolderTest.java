@@ -32,20 +32,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-
-/**
- * A test suite for the propagation of watermarks in the Spark runner.
- */
+/** A test suite for the propagation of watermarks in the Spark runner. */
 public class GlobalWatermarkHolderTest {
 
-  @Rule
-  public ClearWatermarksRule clearWatermarksRule = new ClearWatermarksRule();
+  @Rule public ClearWatermarksRule clearWatermarksRule = new ClearWatermarksRule();
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Rule
-  public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
+  @Rule public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
 
   // only needed in-order to get context from the SparkContextFactory.
   private static final SparkPipelineOptions options =
@@ -60,14 +54,14 @@ public class GlobalWatermarkHolderTest {
 
     Instant instant = new Instant(0);
     // low == high.
-    GlobalWatermarkHolder.add(1,
+    GlobalWatermarkHolder.add(
+        1,
         new SparkWatermarks(
-            instant.plus(Duration.millis(5)),
-            instant.plus(Duration.millis(5)),
-            instant));
+            instant.plus(Duration.millis(5)), instant.plus(Duration.millis(5)), instant));
     GlobalWatermarkHolder.advance();
     // low < high.
-    GlobalWatermarkHolder.add(1,
+    GlobalWatermarkHolder.add(
+        1,
         new SparkWatermarks(
             instant.plus(Duration.millis(10)),
             instant.plus(Duration.millis(15)),
@@ -78,17 +72,21 @@ public class GlobalWatermarkHolderTest {
     SparkWatermarks currentWatermarks = GlobalWatermarkHolder.get(0L).get(1);
     assertThat(currentWatermarks.getLowWatermark(), equalTo(instant.plus(Duration.millis(10))));
     assertThat(currentWatermarks.getHighWatermark(), equalTo(instant.plus(Duration.millis(15))));
-    assertThat(currentWatermarks.getSynchronizedProcessingTime(),
+    assertThat(
+        currentWatermarks.getSynchronizedProcessingTime(),
         equalTo(instant.plus(Duration.millis(100))));
 
     // assert illegal watermark advance.
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
         RegexMatcher.matches(
-            "Low watermark " + INSTANT_PATTERN + " cannot be later then high watermark "
-            + INSTANT_PATTERN));
+            "Low watermark "
+                + INSTANT_PATTERN
+                + " cannot be later then high watermark "
+                + INSTANT_PATTERN));
     // low > high -> not allowed!
-    GlobalWatermarkHolder.add(1,
+    GlobalWatermarkHolder.add(
+        1,
         new SparkWatermarks(
             instant.plus(Duration.millis(25)),
             instant.plus(Duration.millis(20)),
@@ -101,22 +99,20 @@ public class GlobalWatermarkHolderTest {
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
 
     Instant instant = new Instant(0);
-    GlobalWatermarkHolder.add(1,
+    GlobalWatermarkHolder.add(
+        1,
         new SparkWatermarks(
-            instant.plus(Duration.millis(5)),
-            instant.plus(Duration.millis(10)),
-            instant));
+            instant.plus(Duration.millis(5)), instant.plus(Duration.millis(10)), instant));
     GlobalWatermarkHolder.advance();
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Synchronized processing time must advance.");
     // no actual advancement of watermarks - fine by Watermarks
     // but not by synchronized processing time.
-    GlobalWatermarkHolder.add(1,
+    GlobalWatermarkHolder.add(
+        1,
         new SparkWatermarks(
-            instant.plus(Duration.millis(5)),
-            instant.plus(Duration.millis(10)),
-            instant));
+            instant.plus(Duration.millis(5)), instant.plus(Duration.millis(10)), instant));
     GlobalWatermarkHolder.advance();
   }
 
@@ -125,16 +121,14 @@ public class GlobalWatermarkHolderTest {
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
 
     Instant instant = new Instant(0);
-    GlobalWatermarkHolder.add(1,
+    GlobalWatermarkHolder.add(
+        1,
         new SparkWatermarks(
-            instant.plus(Duration.millis(5)),
-            instant.plus(Duration.millis(10)),
-            instant));
-    GlobalWatermarkHolder.add(2,
+            instant.plus(Duration.millis(5)), instant.plus(Duration.millis(10)), instant));
+    GlobalWatermarkHolder.add(
+        2,
         new SparkWatermarks(
-            instant.plus(Duration.millis(3)),
-            instant.plus(Duration.millis(6)),
-            instant));
+            instant.plus(Duration.millis(3)), instant.plus(Duration.millis(6)), instant));
 
     GlobalWatermarkHolder.advance();
 

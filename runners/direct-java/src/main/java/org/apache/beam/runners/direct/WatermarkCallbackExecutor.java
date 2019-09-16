@@ -17,38 +17,37 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Ordering;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.joda.time.Instant;
 
 /**
  * Executes callbacks that occur based on the progression of the watermark per-step.
  *
- * <p>Callbacks are registered by calls to
- * {@link #callOnGuaranteedFiring(AppliedPTransform, BoundedWindow, WindowingStrategy, Runnable)},
- * and are executed after a call to {@link #fireForWatermark(AppliedPTransform, Instant)} with the
- * same {@link AppliedPTransform} and a watermark sufficient to ensure that the trigger for the
- * windowing strategy would have been produced.
+ * <p>Callbacks are registered by calls to {@link #callOnGuaranteedFiring(AppliedPTransform,
+ * BoundedWindow, WindowingStrategy, Runnable)}, and are executed after a call to {@link
+ * #fireForWatermark(AppliedPTransform, Instant)} with the same {@link AppliedPTransform} and a
+ * watermark sufficient to ensure that the trigger for the windowing strategy would have been
+ * produced.
  *
  * <p>NOTE: {@link WatermarkCallbackExecutor} does not track the latest observed watermark for any
- * {@link AppliedPTransform} - any call to
- * {@link #callOnGuaranteedFiring(AppliedPTransform, BoundedWindow, WindowingStrategy, Runnable)}
- * that could have potentially already fired should be followed by a call to
- * {@link #fireForWatermark(AppliedPTransform, Instant)} for the same transform with the current
- * value of the watermark.
+ * {@link AppliedPTransform} - any call to {@link #callOnGuaranteedFiring(AppliedPTransform,
+ * BoundedWindow, WindowingStrategy, Runnable)} that could have potentially already fired should be
+ * followed by a call to {@link #fireForWatermark(AppliedPTransform, Instant)} for the same
+ * transform with the current value of the watermark.
  */
 class WatermarkCallbackExecutor {
-  /**
-   * Create a new {@link WatermarkCallbackExecutor}.
-   */
+  /** Create a new {@link WatermarkCallbackExecutor}. */
   public static WatermarkCallbackExecutor create(Executor executor) {
     return new WatermarkCallbackExecutor(executor);
   }
@@ -63,9 +62,9 @@ class WatermarkCallbackExecutor {
   }
 
   /**
-   * Execute the provided {@link Runnable} after the next call to
-   * {@link #fireForWatermark(AppliedPTransform, Instant)} where the window is guaranteed to have
-   * produced output.
+   * Execute the provided {@link Runnable} after the next call to {@link
+   * #fireForWatermark(AppliedPTransform, Instant)} where the window is guaranteed to have produced
+   * output.
    */
   public void callOnGuaranteedFiring(
       AppliedPTransform<?, ?, ?> step,
@@ -89,9 +88,8 @@ class WatermarkCallbackExecutor {
   }
 
   /**
-   * Execute the provided {@link Runnable} after the next call to
-   * {@link #fireForWatermark(AppliedPTransform, Instant)} where the window
-   * is guaranteed to be expired.
+   * Execute the provided {@link Runnable} after the next call to {@link
+   * #fireForWatermark(AppliedPTransform, Instant)} where the window is guaranteed to be expired.
    */
   public void callOnWindowExpiration(
       AppliedPTransform<?, ?, ?> step,
@@ -166,8 +164,11 @@ class WatermarkCallbackExecutor {
 
   private static class CallbackOrdering extends Ordering<WatermarkCallback>
       implements Serializable {
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public int compare(WatermarkCallback left, WatermarkCallback right) {
+    public int compare(@Nonnull WatermarkCallback left, @Nonnull WatermarkCallback right) {
       return ComparisonChain.start()
           .compare(left.fireAfter, right.fireAfter)
           .compare(left.callback, right.callback, Ordering.arbitrary())

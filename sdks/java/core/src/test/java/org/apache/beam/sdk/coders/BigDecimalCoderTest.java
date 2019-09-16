@@ -20,21 +20,18 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
-import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link BigDecimalCoder}.
- */
+/** Test case for {@link BigDecimalCoder}. */
 @RunWith(JUnit4.class)
 public class BigDecimalCoderTest {
 
@@ -42,7 +39,7 @@ public class BigDecimalCoderTest {
 
   private static final Coder<BigDecimal> TEST_CODER = BigDecimalCoder.of();
 
-  private static final List<BigDecimal> TEST_VALUES =
+  private static final ImmutableList<BigDecimal> TEST_VALUES =
       ImmutableList.of(
           new BigDecimal(Double.MIN_VALUE).divide(BigDecimal.TEN),
           new BigDecimal(Double.MIN_VALUE),
@@ -62,10 +59,10 @@ public class BigDecimalCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS =
+  private static final ImmutableList<String> TEST_ENCODINGS =
       ImmutableList.of(
           "swg12KOw51bHBNnjNkPn-wPiaWQ_AsohTe-mXyOGWcybUGt9TKi2FHqY2OH-gV0_GWqRbjNAGsSskI7K3xf9JmT"
               + "jf1ySZXuvF9S9PsgV3kT-sgypaRw_i1MK_orzcJVg_s3cEGTjTY1_Xor3JM9UBVKiQy3Vpulf7aN9LMki"
@@ -102,9 +99,10 @@ public class BigDecimalCoderTest {
     for (BigDecimal value : TEST_VALUES) {
       TEST_CODER.registerByteSizeObserver(value, observer);
       observer.advance();
-      assertThat(observer.getSumAndReset(),
-          equalTo((long) CoderUtils.encodeToByteArray(
-              TEST_CODER, value, Coder.Context.NESTED).length));
+      assertThat(
+          observer.getSumAndReset(),
+          equalTo(
+              (long) CoderUtils.encodeToByteArray(TEST_CODER, value, Coder.Context.NESTED).length));
     }
   }
 

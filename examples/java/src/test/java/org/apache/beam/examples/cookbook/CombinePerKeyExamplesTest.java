@@ -33,40 +33,36 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CombinePerKeyExamplesTest {
 
-  private static final TableRow row1 = new TableRow()
-      .set("corpus", "king_lear").set("word", "snuffleupaguses");
-  private static final TableRow row2 = new TableRow()
-      .set("corpus", "macbeth").set("word", "antidisestablishmentarianism");
-  private static final TableRow row3 = new TableRow()
-      .set("corpus", "king_lear").set("word", "antidisestablishmentarianism");
-  private static final TableRow row4 = new TableRow()
-      .set("corpus", "macbeth").set("word", "bob");
-  private static final TableRow row5 = new TableRow()
-      .set("corpus", "king_lear").set("word", "hi");
+  private static final TableRow row1 =
+      new TableRow().set("corpus", "king_lear").set("word", "snuffleupaguses");
+  private static final TableRow row2 =
+      new TableRow().set("corpus", "macbeth").set("word", "antidisestablishmentarianism");
+  private static final TableRow row3 =
+      new TableRow().set("corpus", "king_lear").set("word", "antidisestablishmentarianism");
+  private static final TableRow row4 = new TableRow().set("corpus", "macbeth").set("word", "bob");
+  private static final TableRow row5 = new TableRow().set("corpus", "king_lear").set("word", "hi");
 
-  static final TableRow[] ROWS_ARRAY = new TableRow[] {
-    row1, row2, row3, row4, row5
-  };
+  static final TableRow[] ROWS_ARRAY = new TableRow[] {row1, row2, row3, row4, row5};
 
   private static final KV<String, String> tuple1 = KV.of("snuffleupaguses", "king_lear");
   private static final KV<String, String> tuple2 = KV.of("antidisestablishmentarianism", "macbeth");
-  private static final KV<String, String> tuple3 = KV.of("antidisestablishmentarianism",
-      "king_lear");
+  private static final KV<String, String> tuple3 =
+      KV.of("antidisestablishmentarianism", "king_lear");
 
-  private static final KV<String, String> combinedTuple1 = KV.of("antidisestablishmentarianism",
-      "king_lear,macbeth");
+  private static final KV<String, String> combinedTuple1 =
+      KV.of("antidisestablishmentarianism", "king_lear,macbeth");
   private static final KV<String, String> combinedTuple2 = KV.of("snuffleupaguses", "king_lear");
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  static final KV<String, String>[] COMBINED_TUPLES_ARRAY = new KV[] {
-    combinedTuple1, combinedTuple2
-  };
+  static final KV<String, String>[] COMBINED_TUPLES_ARRAY =
+      new KV[] {combinedTuple1, combinedTuple2};
 
-  private static final TableRow resultRow1 = new TableRow()
-      .set("word", "snuffleupaguses").set("all_plays", "king_lear");
-  private static final TableRow resultRow2 = new TableRow()
-      .set("word", "antidisestablishmentarianism")
-      .set("all_plays", "king_lear,macbeth");
+  private static final TableRow resultRow1 =
+      new TableRow().set("word", "snuffleupaguses").set("all_plays", "king_lear");
+  private static final TableRow resultRow2 =
+      new TableRow()
+          .set("word", "antidisestablishmentarianism")
+          .set("all_plays", "king_lear,macbeth");
 
   @Test
   public void testExtractLargeWordsFn() throws Exception {

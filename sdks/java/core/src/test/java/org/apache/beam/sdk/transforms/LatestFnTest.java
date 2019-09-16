@@ -23,13 +23,13 @@ import static org.hamcrest.Matchers.isOneOf;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,9 +37,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link Latest.LatestFn}.
- * */
+/** Unit tests for {@link Latest.LatestFn}. */
 @RunWith(JUnit4.class)
 public class LatestFnTest {
   private static final Instant INSTANT = new Instant(100);
@@ -51,8 +49,7 @@ public class LatestFnTest {
   private static final TimestampedValue<Long> TV_PLUS_TEN =
       TimestampedValue.of(VALUE + 10, INSTANT.plus(10));
 
-  @Rule
-  public final ExpectedException thrown = ExpectedException.none();
+  @Rule public final ExpectedException thrown = ExpectedException.none();
 
   private final Latest.LatestFn<Long> fn = new Latest.LatestFn<>();
   private final Instant baseTimestamp = Instant.now();
@@ -94,8 +91,10 @@ public class LatestFnTest {
     TimestampedValue<Long> accum = TimestampedValue.of(100L, INSTANT);
     TimestampedValue<Long> input = TimestampedValue.of(200L, INSTANT);
 
-    assertThat("Latest for values with the same timestamp is chosen arbitrarily",
-        fn.addInput(accum, input), isOneOf(accum, input));
+    assertThat(
+        "Latest for values with the same timestamp is chosen arbitrarily",
+        fn.addInput(accum, input),
+        isOneOf(accum, input));
   }
 
   @Test
@@ -120,11 +119,7 @@ public class LatestFnTest {
 
   @Test
   public void testMergeAccumulatorsMultipleValues() {
-    Iterable<TimestampedValue<Long>> accums = Lists.newArrayList(
-        TV,
-        TV_PLUS_TEN,
-        TV_MINUS_TEN
-    );
+    Iterable<TimestampedValue<Long>> accums = Lists.newArrayList(TV, TV_PLUS_TEN, TV_MINUS_TEN);
 
     assertEquals(TV_PLUS_TEN, fn.mergeAccumulators(accums));
   }
@@ -149,8 +144,8 @@ public class LatestFnTest {
   @Test
   public void testMergeAccumulatorsAllDefaultAccumulators() {
     TimestampedValue<Long> defaultAccum = fn.createAccumulator();
-    assertEquals(defaultAccum, fn.mergeAccumulators(
-        Lists.newArrayList(defaultAccum, defaultAccum)));
+    assertEquals(
+        defaultAccum, fn.mergeAccumulators(Lists.newArrayList(defaultAccum, defaultAccum)));
   }
 
   @Test
@@ -185,9 +180,13 @@ public class LatestFnTest {
     TimestampedValue.TimestampedValueCoder<Long> inputCoder =
         TimestampedValue.TimestampedValueCoder.of(VarLongCoder.of());
 
-    assertThat("Default output coder should handle null values",
-        fn.getDefaultOutputCoder(registry, inputCoder), instanceOf(NullableCoder.class));
-    assertThat("Default accumulator coder should handle null values",
-        fn.getAccumulatorCoder(registry, inputCoder), instanceOf(NullableCoder.class));
+    assertThat(
+        "Default output coder should handle null values",
+        fn.getDefaultOutputCoder(registry, inputCoder),
+        instanceOf(NullableCoder.class));
+    assertThat(
+        "Default accumulator coder should handle null values",
+        fn.getAccumulatorCoder(registry, inputCoder),
+        instanceOf(NullableCoder.class));
   }
 }

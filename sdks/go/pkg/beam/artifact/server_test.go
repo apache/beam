@@ -16,13 +16,13 @@
 package artifact
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"golang.org/x/net/context"
@@ -73,21 +73,20 @@ type server struct {
 }
 
 func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) error {
-	id, err := grpcx.ReadWorkerID(ps.Context())
-	if err != nil {
-		return fmt.Errorf("expected worker id: %v", err)
-	}
-
 	// Read header
 
 	header, err := ps.Recv()
 	if err != nil {
-		return fmt.Errorf("failed to receive header: %v", err)
+		return errors.Wrap(err, "failed to receive header")
 	}
 	if header.GetMetadata() == nil {
-		return fmt.Errorf("expected header as first message: %v", header)
+		return errors.Errorf("expected header as first message: %v", header)
 	}
-	key := header.GetMetadata().Name
+	key := header.GetMetadata().GetMetadata().Name
+	if header.GetMetadata().GetStagingSessionToken() == "" {
+		return errors.New("missing staging session token")
+	}
+	token := header.GetMetadata().GetStagingSessionToken()
 
 	// Read chunks
 
@@ -102,10 +101,10 @@ func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) err
 		}
 
 		if msg.GetData() == nil {
-			return fmt.Errorf("expected data: %v", msg)
+			return errors.Errorf("expected data: %v", msg)
 		}
 		if len(msg.GetData().GetData()) == 0 {
-			return fmt.Errorf("expected non-empty data: %v", msg)
+			return errors.Errorf("expected non-empty data: %v", msg)
 		}
 		chunks = append(chunks, msg.GetData().GetData())
 	}
@@ -114,7 +113,7 @@ func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) err
 	// that are already committed, but real implementations should manage artifacts in a
 	// way that makes that impossible.
 
-	m := s.getManifest(id, true)
+	m := s.getManifest(token, true)
 	m.mu.Lock()
 	m.m[key] = &data{chunks: chunks}
 	m.mu.Unlock()
@@ -123,12 +122,12 @@ func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) err
 }
 
 func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestRequest) (*pb.CommitManifestResponse, error) {
-	id, err := grpcx.ReadWorkerID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("expected worker id: %v", err)
+	token := req.GetStagingSessionToken()
+	if token == "" {
+		return nil, errors.New("missing staging session token")
 	}
 
-	m := s.getManifest(id, true)
+	m := s.getManifest(token, true)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -137,7 +136,7 @@ func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestReque
 	artifacts := req.GetManifest().GetArtifact()
 	for _, md := range artifacts {
 		if _, ok := m.m[md.Name]; !ok {
-			return nil, fmt.Errorf("artifact %v not staged", md.Name)
+			return nil, errors.Errorf("artifact %v not staged", md.Name)
 		}
 	}
 
@@ -148,18 +147,18 @@ func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestReque
 	}
 	m.md = req.GetManifest()
 
-	return &pb.CommitManifestResponse{StagingToken: id}, nil
+	return &pb.CommitManifestResponse{RetrievalToken: token}, nil
 }
 
 func (s *server) GetManifest(ctx context.Context, req *pb.GetManifestRequest) (*pb.GetManifestResponse, error) {
-	id, err := grpcx.ReadWorkerID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("expected worker id: %v", err)
+	token := req.GetRetrievalToken()
+	if token == "" {
+		return nil, errors.New("missing retrieval token")
 	}
 
-	m := s.getManifest(id, false)
+	m := s.getManifest(token, false)
 	if m == nil || m.md == nil {
-		return nil, fmt.Errorf("manifest for %v not found", id)
+		return nil, errors.Errorf("manifest for %v not found", token)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -168,14 +167,14 @@ func (s *server) GetManifest(ctx context.Context, req *pb.GetManifestRequest) (*
 }
 
 func (s *server) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetrievalService_GetArtifactServer) error {
-	id, err := grpcx.ReadWorkerID(stream.Context())
-	if err != nil {
-		return fmt.Errorf("expected worker id: %v", err)
+	token := req.GetRetrievalToken()
+	if token == "" {
+		return errors.New("missing retrieval token")
 	}
 
-	m := s.getManifest(id, false)
+	m := s.getManifest(token, false)
 	if m == nil || m.md == nil {
-		return fmt.Errorf("manifest for %v not found", id)
+		return errors.Errorf("manifest for %v not found", token)
 	}
 
 	// Validate artifact and grab chunks so that we can stream them without
@@ -185,7 +184,7 @@ func (s *server) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetri
 	elm, ok := m.m[req.GetName()]
 	if !ok || elm.md == nil {
 		m.mu.Unlock()
-		return fmt.Errorf("manifest for %v does not contain artifact %v", id, req.GetName())
+		return errors.Errorf("manifest for %v does not contain artifact %v", token, req.GetName())
 	}
 	chunks := elm.chunks
 	m.mu.Unlock()
@@ -200,14 +199,14 @@ func (s *server) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetri
 	return nil
 }
 
-func (s *server) getManifest(id string, create bool) *manifest {
+func (s *server) getManifest(token string, create bool) *manifest {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	ret, ok := s.m[id]
+	ret, ok := s.m[token]
 	if !ok && create {
 		ret = &manifest{m: make(map[string]*data)}
-		s.m[id] = ret
+		s.m[token] = ret
 	}
 	return ret
 }

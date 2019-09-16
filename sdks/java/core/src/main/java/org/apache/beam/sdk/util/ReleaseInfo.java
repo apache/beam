@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,16 +36,12 @@ import org.slf4j.LoggerFactory;
 public abstract class ReleaseInfo implements Serializable {
   private static final String PROPERTIES_PATH = "/org/apache/beam/sdk/sdk.properties";
 
-  /**
-   * Returns an instance of {@link ReleaseInfo}.
-   */
+  /** Returns an instance of {@link ReleaseInfo}. */
   public static ReleaseInfo getReleaseInfo() {
     return LazyInit.INSTANCE;
   }
 
-  /**
-   * Returns an immutable map of all properties pertaining to this release.
-   */
+  /** Returns an immutable map of all properties pertaining to this release. */
   public abstract Map<String, String> getProperties();
 
   /** Provides the SDK name. */
@@ -65,6 +61,7 @@ public abstract class ReleaseInfo implements Serializable {
 
   private static class LazyInit {
     private static final ReleaseInfo INSTANCE;
+
     static {
       Properties properties = new Properties();
       try (InputStream in = ReleaseInfo.class.getResourceAsStream(PROPERTIES_PATH)) {

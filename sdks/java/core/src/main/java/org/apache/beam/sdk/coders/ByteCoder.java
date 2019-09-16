@@ -24,9 +24,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link ByteCoder} encodes {@link Byte} values in 1 byte using Java serialization.
- */
+/** A {@link ByteCoder} encodes {@link Byte} values in 1 byte using Java serialization. */
 public class ByteCoder extends AtomicCoder<Byte> {
 
   public static ByteCoder of() {
@@ -41,8 +39,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
   private ByteCoder() {}
 
   @Override
-  public void encode(Byte value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Byte value, OutputStream outStream) throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Byte");
     }
@@ -50,8 +47,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
   }
 
   @Override
-  public Byte decode(InputStream inStream)
-      throws IOException, CoderException {
+  public Byte decode(InputStream inStream) throws IOException, CoderException {
     try {
       // value will be between 0-255, -1 for EOF
       int value = inStream.read();
@@ -69,8 +65,8 @@ public class ByteCoder extends AtomicCoder<Byte> {
   /**
    * {@inheritDoc}
    *
-   * {@link ByteCoder} will never throw a {@link Coder.NonDeterministicException}; bytes can always
-   * be encoded deterministically.
+   * <p>{@link ByteCoder} will never throw a {@link Coder.NonDeterministicException}; bytes can
+   * always be encoded deterministically.
    */
   @Override
   public void verifyDeterministic() {}
@@ -106,8 +102,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
    * @return {@code 1}, the byte size of a {@link Byte} encoded using Java serialization.
    */
   @Override
-  protected long getEncodedElementByteSize(Byte value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Byte value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot estimate size for unsupported null value");
     }

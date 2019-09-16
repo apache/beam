@@ -17,29 +17,24 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.util.SerializableThrowable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 
-/**
- * Output of {@link PAssert}. Passed to a conclude function to act upon.
- */
+/** Output of {@link PAssert}. Passed to a conclude function to act upon. */
 @DefaultCoder(SerializableCoder.class)
 public final class SuccessOrFailure implements Serializable {
 
   private final boolean isSuccess;
-  @Nullable
-  private final PAssert.PAssertionSite site;
-  @Nullable
-  private final SerializableThrowable throwable;
+  @Nullable private final PAssert.PAssertionSite site;
+  @Nullable private final SerializableThrowable throwable;
 
   private SuccessOrFailure(
-      boolean isSuccess,
-      @Nullable PAssert.PAssertionSite site,
-      @Nullable Throwable throwable) {
+      boolean isSuccess, @Nullable PAssert.PAssertionSite site, @Nullable Throwable throwable) {
     this.isSuccess = isSuccess;
     this.site = site;
     this.throwable = new SerializableThrowable(throwable);
@@ -58,8 +53,8 @@ public final class SuccessOrFailure implements Serializable {
     return new SuccessOrFailure(true, null, null);
   }
 
-  public static SuccessOrFailure failure(@Nullable PAssert.PAssertionSite site,
-      @Nullable Throwable t) {
+  public static SuccessOrFailure failure(
+      @Nullable PAssert.PAssertionSite site, @Nullable Throwable t) {
     return new SuccessOrFailure(false, site, t);
   }
 
@@ -70,5 +65,24 @@ public final class SuccessOrFailure implements Serializable {
         .addValue(throwable)
         .omitNullValues()
         .toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SuccessOrFailure that = (SuccessOrFailure) o;
+    return isSuccess == that.isSuccess
+        && Objects.equal(site, that.site)
+        && Objects.equal(throwable, that.throwable);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(isSuccess, site, throwable);
   }
 }

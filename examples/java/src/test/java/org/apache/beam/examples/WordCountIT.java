@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.examples;
 
 import java.util.Date;
@@ -31,23 +30,20 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end tests of WordCount.
- */
+/** End-to-end tests of WordCount. */
 @RunWith(JUnit4.class)
 public class WordCountIT {
   private static final String DEFAULT_INPUT =
       "gs://apache-beam-samples/shakespeare/winterstale-personae";
-  private static final String DEFAULT_OUTPUT_CHECKSUM = "508517575eba8d8d5a54f7f0080a00951cfe84ca";
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "ebf895e7324e8a3edc72e7bcc96fa2ba7f690def";
 
   /**
    * Options for the WordCount Integration Test.
    *
-   * <p>Define expected output file checksum to verify WordCount pipeline result
-   * with customized input.
+   * <p>Define expected output file checksum to verify WordCount pipeline result with customized
+   * input.
    */
-  public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
-  }
+  public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {}
 
   @BeforeClass
   public static void setUp() {
@@ -59,14 +55,17 @@ public class WordCountIT {
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
     options.setInputFile(DEFAULT_INPUT);
-    options.setOutput(FileSystems.matchNewResource(options.getTempRoot(), true)
-        .resolve(String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
-            StandardResolveOptions.RESOLVE_DIRECTORY)
-        .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
-        .resolve("results", StandardResolveOptions.RESOLVE_FILE).toString());
+    options.setOutput(
+        FileSystems.matchNewResource(options.getTempRoot(), true)
+            .resolve(
+                String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("results", StandardResolveOptions.RESOLVE_FILE)
+            .toString());
     options.setOnSuccessMatcher(
         new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*-of-*"));
 
-    WordCount.main(TestPipeline.convertToArgs(options));
+    WordCount.runWordCount(options);
   }
 }

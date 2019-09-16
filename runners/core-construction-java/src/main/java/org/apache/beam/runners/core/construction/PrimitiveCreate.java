@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import com.google.common.collect.Iterables;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -32,10 +30,9 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
-/**
- * An implementation of {@link Create} that returns a primitive {@link PCollection}.
- */
+/** An implementation of {@link Create} that returns a primitive {@link PCollection}. */
 public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {
   private final Create.Values<T> transform;
   private final Coder<T> coder;
@@ -55,9 +52,7 @@ public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {
     return transform.getElements();
   }
 
-  /**
-   * A {@link PTransformOverrideFactory} that creates instances of {@link PrimitiveCreate}.
-   */
+  /** A {@link PTransformOverrideFactory} that creates instances of {@link PrimitiveCreate}. */
   public static class Factory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Values<T>> {
     @Override
@@ -78,4 +73,3 @@ public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {
     }
   }
 }
-

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Utilities useful when executing a pipeline on a single machine.
- */
+/** Utilities useful when executing a pipeline on a single machine. */
 package org.apache.beam.runners.local;

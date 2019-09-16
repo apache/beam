@@ -20,10 +20,11 @@ package org.apache.beam.sdk.io.kinesis;
 import com.google.common.testing.EqualsTester;
 import java.util.NoSuchElementException;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-/**
- * Tests {@link CustomOptional}.
- */
+/** Tests {@link CustomOptional}. */
+@RunWith(JUnit4.class)
 public class CustomOptionalTest {
 
   @Test(expected = NoSuchElementException.class)
@@ -37,6 +38,7 @@ public class CustomOptionalTest {
         .addEqualityGroup(CustomOptional.absent(), CustomOptional.absent())
         .addEqualityGroup(CustomOptional.of(3), CustomOptional.of(3))
         .addEqualityGroup(CustomOptional.of(11))
-        .addEqualityGroup(CustomOptional.of("3")).testEquals();
+        .addEqualityGroup(CustomOptional.of("3"))
+        .testEquals();
   }
 }

@@ -22,33 +22,28 @@ import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.values.PCollectionView;
 
-/**
- * Factory that produces {@code Combine.Context} based on different inputs.
- */
+/** Factory that produces {@code Combine.Context} based on different inputs. */
 public class CombineContextFactory {
 
-  private static final Context NULL_CONTEXT = new Context() {
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      throw new IllegalArgumentException("cannot call getPipelineOptions() in a null context");
-    }
+  private static final Context NULL_CONTEXT =
+      new Context() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          throw new IllegalArgumentException("cannot call getPipelineOptions() in a null context");
+        }
 
-    @Override
-    public <T> T sideInput(PCollectionView<T> view) {
-      throw new IllegalArgumentException("cannot call sideInput() in a null context");
-    }
-  };
+        @Override
+        public <T> T sideInput(PCollectionView<T> view) {
+          throw new IllegalArgumentException("cannot call sideInput() in a null context");
+        }
+      };
 
-  /**
-   * Returns a fake {@code Combine.Context} for tests.
-   */
+  /** Returns a fake {@code Combine.Context} for tests. */
   public static Context nullContext() {
     return NULL_CONTEXT;
   }
 
-  /**
-   * Returns a {@code Combine.Context} that wraps a {@link StateContext}.
-   */
+  /** Returns a {@code Combine.Context} that wraps a {@link StateContext}. */
   public static Context createFromStateContext(final StateContext<?> c) {
     return new Context() {
       @Override
@@ -62,5 +57,4 @@ public class CombineContextFactory {
       }
     };
   }
-
 }

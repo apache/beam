@@ -17,47 +17,47 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 
 /**
- * {@code BeamPCollectionTable} converts a {@code PCollection<BeamSqlRow>} as a virtual table,
- * then a downstream query can query directly.
+ * {@code BeamPCollectionTable} converts a {@code PCollection<Row>} as a virtual table, then a
+ * downstream query can query directly.
  */
-public class BeamPCollectionTable extends BaseBeamTable {
-  private BeamIOType ioType;
-  private transient PCollection<Row> upstream;
+public class BeamPCollectionTable<InputT> extends BaseBeamTable {
+  private transient PCollection<InputT> upstream;
 
-  protected BeamPCollectionTable(RowType beamRowType) {
-    super(beamRowType);
-  }
-
-  public BeamPCollectionTable(PCollection<Row> upstream,
-      RowType beamRowType){
-    this(beamRowType);
-    ioType = upstream.isBounded().equals(IsBounded.BOUNDED)
-        ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
+  public BeamPCollectionTable(PCollection<InputT> upstream) {
+    super(upstream.getSchema());
+    if (!upstream.hasSchema()) {
+      throw new RuntimeException("SQL can only run over PCollections that have schemas.");
+    }
     this.upstream = upstream;
   }
 
   @Override
-  public BeamIOType getSourceType() {
-    return ioType;
+  public PCollection.IsBounded isBounded() {
+    return upstream.isBounded();
   }
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    return upstream;
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    assert begin.getPipeline() == upstream.getPipeline();
+    return upstream.apply(Convert.toRows());
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
+  public POutput buildIOWriter(PCollection<Row> input) {
     throw new IllegalArgumentException("cannot use [BeamPCollectionTable] as target");
   }
 
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    return BeamTableStatistics.BOUNDED_UNKNOWN;
+  }
 }

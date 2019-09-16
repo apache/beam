@@ -24,9 +24,7 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
-import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -46,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -54,62 +53,58 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Reshuffle}.
- */
+/** Tests for {@link Reshuffle}. */
 @RunWith(JUnit4.class)
 public class ReshuffleTest implements Serializable {
 
-  private static final List<KV<String, Integer>> ARBITRARY_KVS = ImmutableList.of(
-        KV.of("k1", 3),
-        KV.of("k5", Integer.MAX_VALUE),
-        KV.of("k5", Integer.MIN_VALUE),
-        KV.of("k2", 66),
-        KV.of("k1", 4),
-        KV.of("k2", -33),
-        KV.of("k3", 0));
+  private static final ImmutableList<KV<String, Integer>> ARBITRARY_KVS =
+      ImmutableList.of(
+          KV.of("k1", 3),
+          KV.of("k5", Integer.MAX_VALUE),
+          KV.of("k5", Integer.MIN_VALUE),
+          KV.of("k2", 66),
+          KV.of("k1", 4),
+          KV.of("k2", -33),
+          KV.of("k3", 0));
 
   // TODO: test with more than one value per key
-  private static final List<KV<String, Integer>> GBK_TESTABLE_KVS = ImmutableList.of(
-        KV.of("k1", 3),
-        KV.of("k2", 4));
+  private static final ImmutableList<KV<String, Integer>> GBK_TESTABLE_KVS =
+      ImmutableList.of(KV.of("k1", 3), KV.of("k2", 4));
 
   private static class AssertThatHasExpectedContents
       implements SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> {
     @Override
     public Void apply(Iterable<KV<String, Iterable<Integer>>> actual) {
-      assertThat(actual, containsInAnyOrder(
-          isKv(is("k1"), containsInAnyOrder(3)),
-          isKv(is("k2"), containsInAnyOrder(4))));
+      assertThat(
+          actual,
+          containsInAnyOrder(
+              isKv(is("k1"), containsInAnyOrder(3)), isKv(is("k2"), containsInAnyOrder(4))));
       return null;
     }
   }
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   @Category(ValidatesRunner.class)
   public void testJustReshuffle() {
 
-    PCollection<KV<String, Integer>> input = pipeline
-        .apply(Create.of(ARBITRARY_KVS)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.of(ARBITRARY_KVS).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PCollection<KV<String, Integer>> output = input.apply(Reshuffle.of());
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
-    assertEquals(
-        input.getWindowingStrategy(),
-        output.getWindowingStrategy());
+    assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
 
     pipeline.run();
   }
 
   /**
-   * Tests that timestamps are preserved after applying a {@link Reshuffle} with the default
-   * {@link WindowingStrategy}.
+   * Tests that timestamps are preserved after applying a {@link Reshuffle} with the default {@link
+   * WindowingStrategy}.
    */
   @Test
   @Category(ValidatesRunner.class)
@@ -169,9 +164,7 @@ public class ReshuffleTest implements Serializable {
 
     PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
-    assertEquals(
-        input.getWindowingStrategy(),
-        output.getWindowingStrategy());
+    assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
 
     pipeline.run();
   }
@@ -192,9 +185,7 @@ public class ReshuffleTest implements Serializable {
 
     PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
-    assertEquals(
-        input.getWindowingStrategy(),
-        output.getWindowingStrategy());
+    assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
 
     pipeline.run();
   }
@@ -215,9 +206,7 @@ public class ReshuffleTest implements Serializable {
 
     PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
-    assertEquals(
-        input.getWindowingStrategy(),
-        output.getWindowingStrategy());
+    assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
 
     pipeline.run();
   }
@@ -237,13 +226,10 @@ public class ReshuffleTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
-    assertEquals(
-        input.getWindowingStrategy(),
-        output.getWindowingStrategy());
+    assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
 
     pipeline.run();
   }
-
 
   @Test
   @Category(ValidatesRunner.class)
@@ -260,9 +246,7 @@ public class ReshuffleTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
-    assertEquals(
-        input.getWindowingStrategy(),
-        output.getWindowingStrategy());
+    assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
 
     pipeline.run();
   }

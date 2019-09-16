@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
@@ -24,10 +23,7 @@ import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * Wraps elements from Create.Values into an {@link UnboundedSource}.
- * mainly used for testing
- */
+/** Wraps elements from Create.Values into an {@link UnboundedSource}. mainly used for testing */
 class CreateValuesTranslator<T> implements TransformTranslator<PrimitiveCreate<T>> {
   private static final long serialVersionUID = 1451000241832745629L;
 

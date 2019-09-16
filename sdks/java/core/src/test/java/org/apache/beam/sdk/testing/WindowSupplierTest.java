@@ -19,7 +19,6 @@ package org.apache.beam.sdk.testing;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -37,9 +37,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WindowSupplier}.
- */
+/** Tests for {@link WindowSupplier}. */
 @RunWith(JUnit4.class)
 public class WindowSupplierTest {
   private final IntervalWindow window = new IntervalWindow(new Instant(0L), new Instant(100L));
@@ -71,15 +69,13 @@ public class WindowSupplierTest {
 
   private static class FailingCoder extends AtomicCoder<BoundedWindow> {
     @Override
-    public void encode(
-        BoundedWindow value, OutputStream outStream)
+    public void encode(BoundedWindow value, OutputStream outStream)
         throws CoderException, IOException {
       throw new CoderException("Test Encode Exception");
     }
 
     @Override
-    public BoundedWindow decode(
-        InputStream inStream) throws CoderException, IOException {
+    public BoundedWindow decode(InputStream inStream) throws CoderException, IOException {
       throw new CoderException("Test Decode Exception");
     }
   }

@@ -19,17 +19,15 @@ package org.apache.beam.runners.apex.translation.utils;
 
 import com.datatorrent.api.StreamCodec;
 import com.datatorrent.netlet.util.Slice;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
-/**
- * The Apex {@link StreamCodec} adapter for using Beam {@link Coder}.
- */
+/** The Apex {@link StreamCodec} adapter for using Beam {@link Coder}. */
 public class CoderAdapterStreamCodec implements StreamCodec<Object>, Serializable {
   private static final long serialVersionUID = 1L;
   private final Coder<? super Object> coder;
@@ -45,8 +43,8 @@ public class CoderAdapterStreamCodec implements StreamCodec<Object>, Serializabl
 
   @Override
   public Object fromByteArray(Slice fragment) {
-    ByteArrayInputStream bis = new ByteArrayInputStream(fragment.buffer, fragment.offset,
-        fragment.length);
+    ByteArrayInputStream bis =
+        new ByteArrayInputStream(fragment.buffer, fragment.offset, fragment.length);
     try {
       return coder.decode(bis, Context.OUTER);
     } catch (IOException e) {
@@ -69,5 +67,4 @@ public class CoderAdapterStreamCodec implements StreamCodec<Object>, Serializabl
   public int getPartition(Object o) {
     return o.hashCode();
   }
-
 }

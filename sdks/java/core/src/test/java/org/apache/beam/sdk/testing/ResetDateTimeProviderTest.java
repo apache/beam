@@ -31,8 +31,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ResetDateTimeProviderTest {
   private static final String TEST_TIME = "2014-12-08T19:07:06.698Z";
-  private static final long TEST_TIME_MS =
-      ISODateTimeFormat.dateTime().parseMillis(TEST_TIME);
+  private static final long TEST_TIME_MS = ISODateTimeFormat.dateTime().parseMillis(TEST_TIME);
 
   @Rule public ResetDateTimeProvider resetDateTimeProviderRule = new ResetDateTimeProvider();
 

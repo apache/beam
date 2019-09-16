@@ -31,7 +31,6 @@
 
     <bigquery.version>@bigquery.version@</bigquery.version>
     <google-clients.version>@google-clients.version@</google-clients.version>
-    <guava.version>@guava.version@</guava.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
@@ -46,6 +45,8 @@
     <spark.version>@spark.version@</spark.version>
     <hadoop.version>@hadoop.version@</hadoop.version>
     <maven-surefire-plugin.version>@maven-surefire-plugin.version@</maven-surefire-plugin.version>
+    <nemo.version>@nemo.version@</nemo.version>
+    <flink.artifact.name>@flink.artifact.name@</flink.artifact.name>
   </properties>
 
   <repositories>
@@ -167,6 +168,22 @@
       </dependencies>
     </profile>
 
+   <profile>
+      <id>portable-runner</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <!-- Makes the PortableRunner available when running a pipeline. -->
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-reference-java</artifactId>
+          <version>${beam.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
     <profile>
       <id>apex-runner</id>
       <!-- Makes the ApexRunner available when running a pipeline. -->
@@ -232,7 +249,10 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.11</artifactId>
+          <!-- Please see the Flink Runner page for an up-to-date list
+               of supported Flink versions and their artifact names:
+               https://beam.apache.org/documentation/runners/flink/ -->
+          <artifactId>${flink.artifact.name}</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -244,7 +264,7 @@
       <!-- Makes the SparkRunner available when running a pipeline. Additionally,
            overrides some Spark dependencies to Beam-compatible versions. -->
       <properties>
-        <netty.version>4.0.43.Final</netty.version>
+        <netty.version>4.1.17.Final</netty.version>
       </properties>
       <dependencies>
         <dependency>
@@ -295,6 +315,66 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>gearpump-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-gearpump</artifactId>
+          <version>${beam.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>samza-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-samza</artifactId>
+          <version>${beam.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>nemo-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.nemo</groupId>
+          <artifactId>nemo-compiler-frontend-beam</artifactId>
+          <version>${nemo.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <version>${hadoop.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-api</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-log4j12</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>jet-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-jet-experimental</artifactId>
+          <version>${beam.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
   </profiles>
 
   <dependencies>
@@ -375,12 +455,6 @@
       <version>${joda.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
-    </dependency>
-
     <!-- Add slf4j API frontend binding with JUL backend -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -400,7 +474,13 @@
          which is used in the main code of DebuggingWordCount example. -->
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <artifactId>hamcrest-core</artifactId>
+      <version>${hamcrest.version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
       <version>${hamcrest.version}</version>
     </dependency>
 
@@ -420,7 +500,7 @@
     
     <dependency>
       <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
+      <artifactId>mockito-core</artifactId>
       <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>

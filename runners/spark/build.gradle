@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+import groovy.json.JsonOutput
+
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Spark"
@@ -25,11 +27,13 @@ description = "Apache Beam :: Runners :: Spark"
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
  */
-evaluationDependsOn(":model:fn-execution")
-evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":sdks:java:io:hadoop-format")
+
+configurations {
+  validatesRunner
+}
 
 test {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
@@ -42,47 +46,53 @@ test {
                   ]"""
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
+  maxParallelForks 4
   useJUnit {
-    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
     excludeCategories "org.apache.beam.runners.spark.StreamingTest"
+    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
   }
 }
 
 dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
-  shadow library.java.guava
-  shadow library.java.jackson_annotations
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow library.java.commons_text
-  shadow "io.dropwizard.metrics:metrics-core:3.1.2"
-  shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:core-java")
+  compile project(":runners:java-fn-execution")
+  compile library.java.jackson_annotations
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.args4j
   provided library.java.spark_core
   provided library.java.spark_streaming
   provided library.java.spark_network_common
   provided library.java.hadoop_common
-  provided library.java.hadoop_mapreduce_client_core
-  provided library.java.commons_compress
   provided library.java.commons_lang3
   provided library.java.commons_io_2x
   provided library.java.hamcrest_core
-  provided "org.apache.zookeeper:zookeeper:3.4.6"
-  provided "org.scala-lang:scala-library:2.11.8"
+  provided library.java.hamcrest_library
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  testCompile project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  runtimeOnly library.java.jackson_module_scala
+  runtimeOnly "org.scala-lang:scala-library:2.11.8"
+  testCompile project(":sdks:java:io:kafka")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":model:fn-execution").sourceSets.test.output
-  testCompile project(":runners:core-java").sourceSets.test.output
+  // SparkStateInternalsTest extends abstract StateInternalsTest
+  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile project(":sdks:java:harness")
   testCompile library.java.avro
+  testCompile library.java.kafka
   testCompile library.java.kafka_clients
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.jackson_dataformat_yaml
-  testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
+  testCompile "org.apache.zookeeper:zookeeper:3.4.11"
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(":sdks:java:io:hadoop-format")
+  validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
+  validatesRunner project(path: ":examples:java", configuration: "testRuntime")
+  validatesRunner project(path: project.path, configuration: "testRuntime")
+  validatesRunner project(project.path)
+  validatesRunner project(path: project.path, configuration: "provided")
 }
 
 configurations.testRuntimeClasspath {
@@ -90,5 +100,74 @@ configurations.testRuntimeClasspath {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
+configurations.validatesRunner {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+task validatesRunnerBatch(type: Test) {
+  group = "Verification"
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+          "--streaming=false",
+          "--enableSparkMetricSinks=false",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+
+  classpath = configurations.validatesRunner
+  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+    // Unbounded
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    // Metrics
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    // SDF
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    // Portability
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+  }
+  jvmArgs '-Xmx3g'
+}
+
+task validatesRunnerStreaming(type: Test) {
+  group = "Verification"
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+          "--forceStreaming=true",
+          "--enableSparkMetricSinks=true",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+
+  classpath = configurations.validatesRunner
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  useJUnit {
+    includeCategories 'org.apache.beam.runners.spark.StreamingTest'
+  }
+}
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates Spark runner"
+  dependsOn validatesRunnerBatch
+  dependsOn validatesRunnerStreaming
+}
+
 // Generates :runners:spark:runQuickstartJavaSpark
-createJavaQuickstartValidationTask(name: 'Spark')
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')

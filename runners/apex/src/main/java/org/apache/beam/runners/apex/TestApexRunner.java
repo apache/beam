@@ -25,9 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.joda.time.Duration;
 
-/**
- * Apex {@link PipelineRunner} for testing.
- */
+/** Apex {@link PipelineRunner} for testing. */
 public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   private static final int RUN_WAIT_MILLIS = 20000;
@@ -35,24 +33,24 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   private TestApexRunner(ApexPipelineOptions options) {
     options.setEmbeddedExecution(true);
-    //options.setEmbeddedExecutionDebugMode(false);
+    // options.setEmbeddedExecutionDebugMode(false);
     this.delegate = ApexRunner.fromOptions(options);
   }
 
   public static TestApexRunner fromOptions(PipelineOptions options) {
-    ApexPipelineOptions apexOptions = PipelineOptionsValidator
-        .validate(ApexPipelineOptions.class, options);
+    ApexPipelineOptions apexOptions =
+        PipelineOptionsValidator.validate(ApexPipelineOptions.class, options);
     return new TestApexRunner(apexOptions);
   }
 
   public static DAG translate(Pipeline pipeline, ApexPipelineOptions options) {
     ApexRunner delegate = new ApexRunner(options);
     delegate.translateOnly = true;
-    DAG dag = delegate.run(pipeline).getApexDAG();
-    return dag;
+    return delegate.run(pipeline).getApexDAG();
   }
 
   @Override
+  @SuppressWarnings("Finally")
   public ApexRunnerResult run(Pipeline pipeline) {
     ApexRunnerResult result = delegate.run(pipeline);
     try {
@@ -67,5 +65,4 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
       }
     }
   }
-
 }

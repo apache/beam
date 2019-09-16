@@ -16,26 +16,21 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(exportJavadoc: false)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
-
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":sdks:java:io:common")
+ext.summary = "Integration tests for reading/writing using file-based sources/sinks."
 
 dependencies {
-  shadowTest project(":sdks:java:core")
-  shadowTest project(":runners:direct-java").sourceSets.test.output
-  shadowTest project(":sdks:java:io:common")
-  shadowTest project(":sdks:java:io:common").sourceSets.test.output
-  shadowTest library.java.guava
-  shadowTest library.java.junit
-  shadowTest library.java.hamcrest_core
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:io:xml", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:io:parquet", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.jaxb_api
 }

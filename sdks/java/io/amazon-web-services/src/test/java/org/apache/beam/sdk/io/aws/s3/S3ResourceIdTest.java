@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.s3;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY;
@@ -23,6 +22,7 @@ import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RE
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
@@ -39,14 +39,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests {@link S3ResourceId}.
- */
+/** Tests {@link S3ResourceId}. */
 @RunWith(JUnit4.class)
 public class S3ResourceIdTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   static final class TestCase {
 
@@ -55,7 +52,10 @@ public class S3ResourceIdTest {
     final StandardResolveOptions resolveOptions;
     final String expectedResult;
 
-    TestCase(String baseUri, String relativePath, StandardResolveOptions resolveOptions,
+    TestCase(
+        String baseUri,
+        String relativePath,
+        StandardResolveOptions resolveOptions,
         String expectedResult) {
       this.baseUri = baseUri;
       this.relativePath = relativePath;
@@ -66,18 +66,17 @@ public class S3ResourceIdTest {
 
   // Each test case is an expected URL, then the components used to build it.
   // Empty components result in a double slash.
-  static final List<TestCase> PATH_TEST_CASES =
+  private static final List<TestCase> PATH_TEST_CASES =
       Arrays.asList(
-          new TestCase("s3://bucket/", "", RESOLVE_DIRECTORY,
-              "s3://bucket/"),
+          new TestCase("s3://bucket/", "", RESOLVE_DIRECTORY, "s3://bucket/"),
           new TestCase("s3://bucket", "", RESOLVE_DIRECTORY, "s3://bucket/"),
           new TestCase("s3://bucket", "path/to/dir", RESOLVE_DIRECTORY, "s3://bucket/path/to/dir/"),
           new TestCase("s3://bucket", "path/to/object", RESOLVE_FILE, "s3://bucket/path/to/object"),
-          new TestCase("s3://bucket/path/to/dir/", "..", RESOLVE_DIRECTORY, "s3://bucket/path/to/")
-      );
+          new TestCase(
+              "s3://bucket/path/to/dir/", "..", RESOLVE_DIRECTORY, "s3://bucket/path/to/"));
 
   @Test
-  public void testResolve() throws Exception {
+  public void testResolve() {
     for (TestCase testCase : PATH_TEST_CASES) {
       ResourceId resourceId = S3ResourceId.fromUri(testCase.baseUri);
       ResourceId resolved = resourceId.resolve(testCase.relativePath, testCase.resolveOptions);
@@ -87,50 +86,45 @@ public class S3ResourceIdTest {
     // Tests for common gcs paths.
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa"),
-        S3ResourceId.fromUri("s3://bucket/tmp/")
-            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
+        S3ResourceId.fromUri("s3://bucket/tmp/").resolve("aa", RESOLVE_FILE));
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa/bb/cc/"),
         S3ResourceId.fromUri("s3://bucket/tmp/")
-            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
-            .resolve("bb", StandardResolveOptions.RESOLVE_DIRECTORY)
-            .resolve("cc", StandardResolveOptions.RESOLVE_DIRECTORY));
+            .resolve("aa", RESOLVE_DIRECTORY)
+            .resolve("bb", RESOLVE_DIRECTORY)
+            .resolve("cc", RESOLVE_DIRECTORY));
 
     // Tests absolute path.
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa"),
-        S3ResourceId.fromUri("s3://bucket/tmp/bb/")
-            .resolve("s3://bucket/tmp/aa", StandardResolveOptions.RESOLVE_FILE));
+        S3ResourceId.fromUri("s3://bucket/tmp/bb/").resolve("s3://bucket/tmp/aa", RESOLVE_FILE));
 
     // Tests bucket with no ending '/'.
     assertEquals(
         S3ResourceId.fromUri("s3://my-bucket/tmp"),
-        S3ResourceId.fromUri("s3://my-bucket")
-            .resolve("tmp", StandardResolveOptions.RESOLVE_FILE));
+        S3ResourceId.fromUri("s3://my-bucket").resolve("tmp", RESOLVE_FILE));
 
     // Tests path with unicode
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/输出 目录/输出 文件01.txt"),
-        S3ResourceId.fromUri("s3://bucket/输出 目录/")
-            .resolve("输出 文件01.txt", StandardResolveOptions.RESOLVE_FILE));
+        S3ResourceId.fromUri("s3://bucket/输出 目录/").resolve("输出 文件01.txt", RESOLVE_FILE));
   }
 
   @Test
-  public void testResolveInvalidInputs() throws Exception {
+  public void testResolveInvalidInputs() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Cannot resolve a file with a directory path: [tmp/]");
-    S3ResourceId.fromUri("s3://my_bucket/").resolve("tmp/", StandardResolveOptions.RESOLVE_FILE);
+    S3ResourceId.fromUri("s3://my_bucket/").resolve("tmp/", RESOLVE_FILE);
   }
 
   @Test
-  public void testResolveInvalidNotDirectory() throws Exception {
-    ResourceId tmpDir = S3ResourceId.fromUri("s3://my_bucket/")
-        .resolve("tmp dir", StandardResolveOptions.RESOLVE_FILE);
+  public void testResolveInvalidNotDirectory() {
+    ResourceId tmpDir = S3ResourceId.fromUri("s3://my_bucket/").resolve("tmp dir", RESOLVE_FILE);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
         "Expected this resource to be a directory, but was [s3://my_bucket/tmp dir]");
-    tmpDir.resolve("aa", StandardResolveOptions.RESOLVE_FILE);
+    tmpDir.resolve("aa", RESOLVE_FILE);
   }
 
   @Test
@@ -148,7 +142,7 @@ public class S3ResourceIdTest {
   }
 
   @Test
-  public void testGetCurrentDirectory() throws Exception {
+  public void testGetCurrentDirectory() {
     // Tests gcs paths.
     assertEquals(
         S3ResourceId.fromUri("s3://my_bucket/tmp dir/"),
@@ -169,7 +163,7 @@ public class S3ResourceIdTest {
   }
 
   @Test
-  public void testIsDirectory() throws Exception {
+  public void testIsDirectory() {
     assertTrue(S3ResourceId.fromUri("s3://my_bucket/tmp dir/").isDirectory());
     assertTrue(S3ResourceId.fromUri("s3://my_bucket/").isDirectory());
     assertTrue(S3ResourceId.fromUri("s3://my_bucket").isDirectory());
@@ -177,21 +171,21 @@ public class S3ResourceIdTest {
   }
 
   @Test
-  public void testInvalidPathNoBucket() throws Exception {
+  public void testInvalidPathNoBucket() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid S3 URI: [s3://]");
     S3ResourceId.fromUri("s3://");
   }
 
   @Test
-  public void testInvalidPathNoBucketAndSlash() throws Exception {
+  public void testInvalidPathNoBucketAndSlash() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid S3 URI: [s3:///]");
     S3ResourceId.fromUri("s3:///");
   }
 
   @Test
-  public void testGetScheme() throws Exception {
+  public void testGetScheme() {
     // Tests gcs paths.
     assertEquals("s3", S3ResourceId.fromUri("s3://my_bucket/tmp dir/").getScheme());
 
@@ -200,17 +194,17 @@ public class S3ResourceIdTest {
   }
 
   @Test
-  public void testGetFilename() throws Exception {
-    assertEquals(S3ResourceId.fromUri("s3://my_bucket/").getFilename(), null);
-    assertEquals(S3ResourceId.fromUri("s3://my_bucket/abc").getFilename(), "abc");
-    assertEquals(S3ResourceId.fromUri("s3://my_bucket/abc/").getFilename(), "abc");
-    assertEquals(S3ResourceId.fromUri("s3://my_bucket/abc/def").getFilename(), "def");
-    assertEquals(S3ResourceId.fromUri("s3://my_bucket/abc/def/").getFilename(), "def");
-    assertEquals(S3ResourceId.fromUri("s3://my_bucket/abc/xyz.txt").getFilename(), "xyz.txt");
+  public void testGetFilename() {
+    assertNull(S3ResourceId.fromUri("s3://my_bucket/").getFilename());
+    assertEquals("abc", S3ResourceId.fromUri("s3://my_bucket/abc").getFilename());
+    assertEquals("abc", S3ResourceId.fromUri("s3://my_bucket/abc/").getFilename());
+    assertEquals("def", S3ResourceId.fromUri("s3://my_bucket/abc/def").getFilename());
+    assertEquals("def", S3ResourceId.fromUri("s3://my_bucket/abc/def/").getFilename());
+    assertEquals("xyz.txt", S3ResourceId.fromUri("s3://my_bucket/abc/xyz.txt").getFilename());
   }
 
   @Test
-  public void testParentRelationship() throws Exception {
+  public void testParentRelationship() {
     S3ResourceId path = S3ResourceId.fromUri("s3://bucket/dir/subdir/object");
     assertEquals("bucket", path.getBucket());
     assertEquals("dir/subdir/object", path.getKey());
@@ -225,13 +219,13 @@ public class S3ResourceIdTest {
     assertFalse(parent.getKey().startsWith(path.getKey()));
 
     // s3://bucket/
-    S3ResourceId grandParent = ((S3ResourceId) parent.resolve("..", RESOLVE_DIRECTORY));
+    S3ResourceId grandParent = (S3ResourceId) parent.resolve("..", RESOLVE_DIRECTORY);
     assertEquals("bucket", grandParent.getBucket());
     assertEquals("", grandParent.getKey());
   }
 
   @Test
-  public void testBucketParsing() throws Exception {
+  public void testBucketParsing() {
     S3ResourceId path = S3ResourceId.fromUri("s3://bucket");
     S3ResourceId path2 = S3ResourceId.fromUri("s3://bucket/");
 
@@ -240,7 +234,7 @@ public class S3ResourceIdTest {
   }
 
   @Test
-  public void testS3ResourceIdToString() throws Exception {
+  public void testS3ResourceIdToString() {
     String filename = "s3://some-bucket/some/file.txt";
     S3ResourceId path = S3ResourceId.fromUri(filename);
     assertEquals(filename, path.toString());
@@ -274,23 +268,20 @@ public class S3ResourceIdTest {
     assertNotEquals(b, a);
   }
 
+  @Test
   public void testInvalidS3ResourceId() {
     thrown.expect(IllegalArgumentException.class);
     S3ResourceId.fromUri("file://invalid/s3/path");
   }
 
+  @Test
   public void testInvalidBucket() {
     thrown.expect(IllegalArgumentException.class);
     S3ResourceId.fromComponents("invalid/", "");
   }
 
-  public void testInvalidBucketWithUnderscore() {
-    thrown.expect(IllegalArgumentException.class);
-    S3ResourceId.fromComponents("invalid_bucket", "");
-  }
-
   @Test
-  public void testResourceIdTester() throws Exception {
+  public void testResourceIdTester() {
     S3Options options = PipelineOptionsFactory.create().as(S3Options.class);
     options.setAwsRegion("us-west-1");
     FileSystems.setDefaultPipelineOptions(options);

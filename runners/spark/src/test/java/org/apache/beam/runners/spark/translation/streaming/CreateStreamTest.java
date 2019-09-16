@@ -18,12 +18,15 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
@@ -67,22 +70,18 @@ import org.junit.rules.ExpectedException;
 /**
  * A test suite to test Spark runner implementation of triggers and panes.
  *
- * <p>Since Spark is a micro-batch engine, and will process any test-sized input
- * within the same (first) batch, it is important to make sure inputs are ingested across
- * micro-batches using {@link org.apache.spark.streaming.dstream.QueueInputDStream}.
- * This test suite uses {@link CreateStream} to construct such
- * {@link org.apache.spark.streaming.dstream.QueueInputDStream} and advance the system's WMs.
- * //TODO: add synchronized/processing time trigger.
+ * <p>Since Spark is a micro-batch engine, and will process any test-sized input within the same
+ * (first) batch, it is important to make sure inputs are ingested across micro-batches using {@link
+ * org.apache.spark.streaming.dstream.QueueInputDStream}. This test suite uses {@link CreateStream}
+ * to construct such {@link org.apache.spark.streaming.dstream.QueueInputDStream} and advance the
+ * system's WMs. //TODO: add synchronized/processing time trigger.
  */
 @Category(StreamingTest.class)
 public class CreateStreamTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
-  @Rule
-  public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
-  @Rule
-  public final transient ExpectedException thrown = ExpectedException.none();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
+  @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testLateDataAccumulating() throws IOException {
@@ -97,9 +96,7 @@ public class CreateStreamTest implements Serializable {
                 TimestampedValue.of(3, instant))
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(20)))
             // These elements are late but within the allowed lateness
-            .nextBatch(
-                TimestampedValue.of(4, instant),
-                TimestampedValue.of(5, instant))
+            .nextBatch(TimestampedValue.of(4, instant), TimestampedValue.of(5, instant))
             // These elements are droppably late
             .advanceNextBatchWatermarkToInfinity()
             .nextBatch(
@@ -107,15 +104,19 @@ public class CreateStreamTest implements Serializable {
                 TimestampedValue.of(-2, instant),
                 TimestampedValue.of(-3, instant));
 
-    PCollection<Integer> windowed = p
-        .apply(source)
-        .apply(Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5))).triggering(
-            AfterWatermark.pastEndOfWindow()
-                .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
-                    .plusDelayOf(Duration.standardMinutes(2)))
-                .withLateFirings(AfterPane.elementCountAtLeast(1)))
-            .accumulatingFiredPanes()
-            .withAllowedLateness(Duration.standardMinutes(5), Window.ClosingBehavior.FIRE_ALWAYS));
+    PCollection<Integer> windowed =
+        p.apply(source)
+            .apply(
+                Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
+                    .triggering(
+                        AfterWatermark.pastEndOfWindow()
+                            .withEarlyFirings(
+                                AfterProcessingTime.pastFirstElementInPane()
+                                    .plusDelayOf(Duration.standardMinutes(2)))
+                            .withLateFirings(AfterPane.elementCountAtLeast(1)))
+                    .accumulatingFiredPanes()
+                    .withAllowedLateness(
+                        Duration.standardMinutes(5), Window.ClosingBehavior.FIRE_ALWAYS));
     PCollection<Integer> triggered =
         windowed
             .apply(WithKeys.of(1))
@@ -127,12 +128,8 @@ public class CreateStreamTest implements Serializable {
     PCollection<Integer> sum = windowed.apply(Sum.integersGlobally().withoutDefaults());
 
     IntervalWindow window = new IntervalWindow(instant, instant.plus(Duration.standardMinutes(5L)));
-    PAssert.that(triggered)
-        .inFinalPane(window)
-        .containsInAnyOrder(1, 2, 3, 4, 5);
-    PAssert.that(triggered)
-        .inOnTimePane(window)
-        .containsInAnyOrder(1, 2, 3);
+    PAssert.that(triggered).inFinalPane(window).containsInAnyOrder(1, 2, 3, 4, 5);
+    PAssert.that(triggered).inOnTimePane(window).containsInAnyOrder(1, 2, 3);
     PAssert.that(count)
         .inWindow(window)
         .satisfies(
@@ -159,16 +156,15 @@ public class CreateStreamTest implements Serializable {
   public void testDiscardingMode() throws IOException {
     CreateStream<String> source =
         CreateStream.of(StringUtf8Coder.of(), batchDuration())
-                    .nextBatch(
-                        TimestampedValue.of("firstPane", new Instant(100)),
-                        TimestampedValue.of("alsoFirstPane", new Instant(200)))
-                    .advanceWatermarkForNextBatch(new Instant(1001L))
-                    .nextBatch(
-                        TimestampedValue.of("onTimePane", new Instant(500)))
-                    .advanceNextBatchWatermarkToInfinity()
-                    .nextBatch(
-                        TimestampedValue.of("finalLatePane", new Instant(750)),
-                        TimestampedValue.of("alsoFinalLatePane", new Instant(250)));
+            .nextBatch(
+                TimestampedValue.of("firstPane", new Instant(100)),
+                TimestampedValue.of("alsoFirstPane", new Instant(200)))
+            .advanceWatermarkForNextBatch(new Instant(1001L))
+            .nextBatch(TimestampedValue.of("onTimePane", new Instant(500)))
+            .advanceNextBatchWatermarkToInfinity()
+            .nextBatch(
+                TimestampedValue.of("finalLatePane", new Instant(750)),
+                TimestampedValue.of("alsoFinalLatePane", new Instant(250)));
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
@@ -208,13 +204,13 @@ public class CreateStreamTest implements Serializable {
     Instant lateElementTimestamp = new Instant(-1_000_000);
     CreateStream<String> source =
         CreateStream.of(StringUtf8Coder.of(), batchDuration())
-                    .emptyBatch()
-                    .advanceWatermarkForNextBatch(new Instant(0))
-                    .emptyBatch()
-                    .nextBatch(
-                        TimestampedValue.of("late", lateElementTimestamp),
-                        TimestampedValue.of("onTime", new Instant(100)))
-                    .advanceNextBatchWatermarkToInfinity();
+            .emptyBatch()
+            .advanceWatermarkForNextBatch(new Instant(0))
+            .emptyBatch()
+            .nextBatch(
+                TimestampedValue.of("late", lateElementTimestamp),
+                TimestampedValue.of("onTime", new Instant(100)))
+            .advanceNextBatchWatermarkToInfinity();
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
@@ -230,9 +226,7 @@ public class CreateStreamTest implements Serializable {
             .apply(Values.create())
             .apply(Flatten.iterables());
 
-    PAssert.that(values)
-        .inWindow(windowFn.assignWindow(lateElementTimestamp))
-        .empty();
+    PAssert.that(values).inWindow(windowFn.assignWindow(lateElementTimestamp)).empty();
     PAssert.that(values)
         .inWindow(windowFn.assignWindow(new Instant(100)))
         .containsInAnyOrder("onTime");
@@ -278,16 +272,20 @@ public class CreateStreamTest implements Serializable {
 
     PCollection<String> createStrings =
         p.apply("CreateStrings", source)
-            .apply("WindowStrings",
-                Window.<String>configure().triggering(AfterPane.elementCountAtLeast(2))
+            .apply(
+                "WindowStrings",
+                Window.<String>configure()
+                    .triggering(AfterPane.elementCountAtLeast(2))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createStrings).containsInAnyOrder("foo", "bar");
 
     PCollection<Integer> createInts =
         p.apply("CreateInts", other)
-            .apply("WindowInts",
-                Window.<Integer>configure().triggering(AfterPane.elementCountAtLeast(4))
+            .apply(
+                "WindowInts",
+                Window.<Integer>configure()
+                    .triggering(AfterPane.elementCountAtLeast(4))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createInts).containsInAnyOrder(1, 2, 3, 4);
@@ -311,27 +309,29 @@ public class CreateStreamTest implements Serializable {
         CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(1)))
-            .nextBatch(
-                TimestampedValue.of(4, instant))
+            .nextBatch(TimestampedValue.of(4, instant))
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(2)))
-            .nextBatch(
-                TimestampedValue.of(5, instant))
+            .nextBatch(TimestampedValue.of(5, instant))
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
             .emptyBatch()
             .advanceNextBatchWatermarkToInfinity();
 
-    PCollection<Integer> windowed1 = p
-        .apply("CreateStream1", source1)
-        .apply("Window1", Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
-            .triggering(AfterWatermark.pastEndOfWindow())
-            .accumulatingFiredPanes()
-            .withAllowedLateness(Duration.ZERO));
-    PCollection<Integer> windowed2 = p
-        .apply("CreateStream2", source2)
-        .apply("Window2", Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
-            .triggering(AfterWatermark.pastEndOfWindow())
-            .accumulatingFiredPanes()
-            .withAllowedLateness(Duration.ZERO));
+    PCollection<Integer> windowed1 =
+        p.apply("CreateStream1", source1)
+            .apply(
+                "Window1",
+                Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .accumulatingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO));
+    PCollection<Integer> windowed2 =
+        p.apply("CreateStream2", source2)
+            .apply(
+                "Window2",
+                Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .accumulatingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO));
 
     PCollectionList<Integer> pCollectionList = PCollectionList.of(windowed1).and(windowed2);
     PCollection<Integer> flattened = pCollectionList.apply(Flatten.pCollections());
@@ -349,10 +349,10 @@ public class CreateStreamTest implements Serializable {
   }
 
   /**
-   * Test multiple output {@link ParDo} in streaming pipelines.
-   * This is currently needed as a test for https://issues.apache.org/jira/browse/BEAM-2029 since
-   * {@link org.apache.beam.sdk.testing.ValidatesRunner} tests do not currently run for Spark runner
-   * in streaming mode.
+   * Test multiple output {@link ParDo} in streaming pipelines. This is currently needed as a test
+   * for https://issues.apache.org/jira/browse/BEAM-2029 since {@link
+   * org.apache.beam.sdk.testing.ValidatesRunner} tests do not currently run for Spark runner in
+   * streaming mode.
    */
   @Test
   public void testMultiOutputParDo() throws IOException {
@@ -372,16 +372,20 @@ public class CreateStreamTest implements Serializable {
     final TupleTag<Integer> mainTag = new TupleTag<>();
     final TupleTag<Integer> additionalTag = new TupleTag<>();
 
-    PCollectionTuple outputs = inputs.apply(ParDo.of(new DoFn<Integer, Integer>() {
+    PCollectionTuple outputs =
+        inputs.apply(
+            ParDo.of(
+                    new DoFn<Integer, Integer>() {
 
-      @SuppressWarnings("unused")
-      @ProcessElement
-      public void process(ProcessContext context) {
-        Integer element = context.element();
-        context.output(element);
-        context.output(additionalTag, element + 1);
-      }
-    }).withOutputTags(mainTag, TupleTagList.of(additionalTag)));
+                      @SuppressWarnings("unused")
+                      @ProcessElement
+                      public void process(ProcessContext context) {
+                        Integer element = context.element();
+                        context.output(element);
+                        context.output(additionalTag, element + 1);
+                      }
+                    })
+                .withOutputTags(mainTag, TupleTagList.of(additionalTag)));
 
     PCollection<Integer> output1 = outputs.get(mainTag).setCoder(VarIntCoder.of());
     PCollection<Integer> output2 = outputs.get(additionalTag).setCoder(VarIntCoder.of());
@@ -390,6 +394,33 @@ public class CreateStreamTest implements Serializable {
     PAssert.that(output2).containsInAnyOrder(2, 3, 4);
 
     p.run();
+  }
+
+  /**
+   * Test that {@link ParDo} aligns both setup and teardown calls in streaming pipelines. See
+   * https://issues.apache.org/jira/browse/BEAM-6859.
+   */
+  @Test
+  public void testParDoCallsSetupAndTeardown() {
+    Instant instant = new Instant(0);
+
+    p.apply(
+            CreateStream.of(VarIntCoder.of(), batchDuration())
+                .emptyBatch()
+                .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
+                .nextBatch(
+                    TimestampedValue.of(1, instant),
+                    TimestampedValue.of(2, instant),
+                    TimestampedValue.of(3, instant))
+                .advanceNextBatchWatermarkToInfinity())
+        .apply(ParDo.of(new LifecycleDoFn()));
+
+    p.run();
+
+    assertThat(
+        "Function should have been torn down",
+        LifecycleDoFn.teardownCalls.intValue(),
+        is(equalTo(LifecycleDoFn.setupCalls.intValue())));
   }
 
   @Test
@@ -408,9 +439,7 @@ public class CreateStreamTest implements Serializable {
         CreateStream.of(VarIntCoder.of(), batchDuration())
             .advanceWatermarkForNextBatch(new Instant(0L));
     thrown.expect(IllegalArgumentException.class);
-    source
-        .advanceWatermarkForNextBatch(new Instant(-1L))
-        .advanceNextBatchWatermarkToInfinity();
+    source.advanceWatermarkForNextBatch(new Instant(-1L)).advanceNextBatchWatermarkToInfinity();
   }
 
   @Test
@@ -425,5 +454,27 @@ public class CreateStreamTest implements Serializable {
   private Duration batchDuration() {
     return Duration.millis(
         (p.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
+  }
+
+  private static class LifecycleDoFn extends DoFn<Integer, Integer> {
+    static AtomicInteger setupCalls = new AtomicInteger(0);
+    static AtomicInteger teardownCalls = new AtomicInteger(0);
+
+    @Setup
+    public void setup() {
+      setupCalls.incrementAndGet();
+    }
+
+    @Teardown
+    public void teardown() {
+      teardownCalls.incrementAndGet();
+    }
+
+    @SuppressWarnings("unused")
+    @ProcessElement
+    public void process(ProcessContext context) {
+      Integer element = context.element();
+      context.output(element);
+    }
   }
 }

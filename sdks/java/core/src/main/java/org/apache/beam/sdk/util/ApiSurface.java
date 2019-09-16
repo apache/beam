@@ -19,22 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static org.hamcrest.Matchers.anyOf;
 
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.Sets;
-import com.google.common.reflect.Invokable;
-import com.google.common.reflect.Parameter;
-import com.google.common.reflect.TypeToken;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -51,6 +35,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Invokable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Parameter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
@@ -66,14 +66,14 @@ import org.slf4j.LoggerFactory;
  * protected occurrence of:
  *
  * <ul>
- * <li>superclasses
- * <li>interfaces implemented
- * <li>actual type arguments to generic types
- * <li>array component types
- * <li>method return types
- * <li>method parameter types
- * <li>type variable bounds
- * <li>wildcard bounds
+ *   <li>superclasses
+ *   <li>interfaces implemented
+ *   <li>actual type arguments to generic types
+ *   <li>array component types
+ *   <li>method return types
+ *   <li>method parameter types
+ *   <li>type variable bounds
+ *   <li>wildcard bounds
  * </ul>
  *
  * <p>Exposure is a transitive property. The resulting map excludes primitives and array classes
@@ -260,7 +260,7 @@ public class ApiSurface {
         final boolean noAbandoned =
             verifyNoAbandoned(apiSurface, classMatchers, mismatchDescription);
 
-        return noDisallowed & noAbandoned;
+        return noDisallowed && noAbandoned;
       }
 
       @Override
@@ -774,18 +774,4 @@ public class ApiSurface {
 
   ////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * All classes transitively reachable via only public method signatures of the SDK.
-   *
-   * <p>Note that our idea of "public" does not include various internal-only APIs.
-   */
-  public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
-    return ApiSurface.ofPackage("org.apache.beam", classLoader)
-        .pruningPattern("org[.]apache[.]beam[.].*Test")
-        // Exposes Guava, but not intended for users
-        .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
-         // test only
-        .pruningClassName("org.apache.beam.sdk.testing.InterceptingUrlClassLoader")
-        .pruningPrefix("java");
-  }
 }

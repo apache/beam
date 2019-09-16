@@ -34,9 +34,7 @@ public class DefaultTrigger extends Trigger {
     super();
   }
 
-  /**
-   * Returns the default trigger.
-   */
+  /** Returns the default trigger. */
   public static DefaultTrigger of() {
     return new DefaultTrigger();
   }

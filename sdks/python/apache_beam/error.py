@@ -17,6 +17,8 @@
 
 """Python Dataflow error classes."""
 
+from __future__ import absolute_import
+
 
 class BeamError(Exception):
   """Base class for all Beam errors."""

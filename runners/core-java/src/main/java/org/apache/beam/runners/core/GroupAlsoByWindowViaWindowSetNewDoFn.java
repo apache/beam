@@ -32,8 +32,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * A general {@link GroupAlsoByWindowsAggregators}. This delegates all of the logic to the
- * {@link ReduceFnRunner}.
+ * A general {@link GroupAlsoByWindowsAggregators}. This delegates all of the logic to the {@link
+ * ReduceFnRunner}.
  */
 @SystemDoFnInternal
 public class GroupAlsoByWindowViaWindowSetNewDoFn<
@@ -52,8 +52,13 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
           DoFnRunners.OutputManager outputManager,
           TupleTag<KV<K, OutputT>> mainTag) {
     return new GroupAlsoByWindowViaWindowSetNewDoFn<>(
-            strategy, stateInternalsFactory, timerInternalsFactory, sideInputReader,
-            reduceFn, outputManager, mainTag);
+        strategy,
+        stateInternalsFactory,
+        timerInternalsFactory,
+        sideInputReader,
+        reduceFn,
+        outputManager,
+        mainTag);
   }
 
   private final WindowingStrategy<Object, W> windowingStrategy;
@@ -65,13 +70,13 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
   private TupleTag<KV<K, OutputT>> mainTag;
 
   public GroupAlsoByWindowViaWindowSetNewDoFn(
-          WindowingStrategy<?, W> windowingStrategy,
-          StateInternalsFactory<K> stateInternalsFactory,
-          TimerInternalsFactory<K> timerInternalsFactory,
-          SideInputReader sideInputReader,
-          SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn,
-          DoFnRunners.OutputManager outputManager,
-          TupleTag<KV<K, OutputT>> mainTag) {
+      WindowingStrategy<?, W> windowingStrategy,
+      StateInternalsFactory<K> stateInternalsFactory,
+      TimerInternalsFactory<K> timerInternalsFactory,
+      SideInputReader sideInputReader,
+      SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn,
+      DoFnRunners.OutputManager outputManager,
+      TupleTag<KV<K, OutputT>> mainTag) {
     this.timerInternalsFactory = timerInternalsFactory;
     this.sideInputReader = sideInputReader;
     this.outputManager = outputManager;
@@ -87,23 +92,21 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     return new OutputWindowedValue<KV<K, OutputT>>() {
       @Override
       public void outputWindowedValue(
-              KV<K, OutputT> output,
-              Instant timestamp,
-              Collection<? extends BoundedWindow> windows,
-              PaneInfo pane) {
-        outputManager.output(mainTag,
-                WindowedValue.of(output, timestamp, windows, pane));
+          KV<K, OutputT> output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo pane) {
+        outputManager.output(mainTag, WindowedValue.of(output, timestamp, windows, pane));
       }
 
       @Override
       public <AdditionalOutputT> void outputWindowedValue(
-              TupleTag<AdditionalOutputT> tag,
-              AdditionalOutputT output,
-              Instant timestamp,
-              Collection<? extends BoundedWindow> windows,
-              PaneInfo pane) {
-        outputManager.output(tag,
-                WindowedValue.of(output, timestamp, windows, pane));
+          TupleTag<AdditionalOutputT> tag,
+          AdditionalOutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo pane) {
+        outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
       }
     };
   }

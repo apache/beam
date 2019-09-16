@@ -19,7 +19,12 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+from __future__ import absolute_import
+
 import re
+from builtins import object
+
+from past.builtins import unicode
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -72,6 +77,9 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_TEST_MATCHER_UNPICKLABLE = (
       'Invalid value (%s) for option: %s. Please make sure the test matcher '
       'is unpicklable.')
+  ERR_INVALID_TRANSFORM_NAME_MAPPING = (
+      'Invalid transform name mapping format. Please make sure the mapping is '
+      'string key-value pairs. Invalid pair: (%s:%s)')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -99,7 +107,7 @@ class PipelineOptionsValidator(object):
     """
     errors = []
     for cls in self.OPTIONS:
-      if 'validate' in cls.__dict__:
+      if 'validate' in cls.__dict__ and callable(cls.__dict__['validate']):
         errors.extend(self.options.view_as(cls).validate(self))
     return errors
 
@@ -167,6 +175,20 @@ class PipelineOptionsValidator(object):
       elif not self.is_full_string_match(self.PROJECT_ID_PATTERN, project):
         errors.extend(
             self._validate_error(self.ERR_INVALID_PROJECT_ID, project))
+    if view.update:
+      if not view.job_name:
+        errors.extend(self._validate_error(
+            'Existing job name must be provided when updating a pipeline.'))
+    if view.transform_name_mapping:
+      if not view.update or not self.options.view_as(StandardOptions).streaming:
+        errors.append('Transform name mapping option is only useful when '
+                      '--update and --streaming is specified')
+      for _, (key, value) in enumerate(view.transform_name_mapping.items()):
+        if not isinstance(key, (str, unicode)) \
+            or not isinstance(value, (str, unicode)):
+          errors.extend(self._validate_error(
+              self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
+          break
     return errors
 
   def validate_optional_argument_positive(self, view, arg_name):

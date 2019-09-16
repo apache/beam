@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
@@ -30,12 +29,12 @@ import static org.apache.beam.runners.direct.MultiStepCombine.DIRECT_MERGE_ACCUM
 import static org.apache.beam.runners.direct.ParDoMultiOverrideFactory.DIRECT_STATEFUL_PAR_DO_URN;
 import static org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DIRECT_TEST_STREAM_URN;
 import static org.apache.beam.runners.direct.ViewOverrideFactory.DIRECT_WRITE_VIEW_URN;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
@@ -44,8 +43,11 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,35 +55,46 @@ import org.slf4j.LoggerFactory;
  * A {@link TransformEvaluatorFactory} that delegates to primitive {@link TransformEvaluatorFactory}
  * implementations based on the type of {@link PTransform} of the application.
  */
-class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
+class TransformEvaluatorRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
 
-  public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
+  /**
+   * Create the {@link TransformEvaluatorRegistry} that executes a {@link Pipeline} written with the
+   * Java SDK by directly invoking the classes of that SDK.
+   *
+   * <p>This is the legacy implementation of the {@link DirectRunner} engine.
+   */
+  public static TransformEvaluatorRegistry javaSdkNativeRegistry(
+      EvaluationContext ctxt, PipelineOptions options) {
     ImmutableMap<String, TransformEvaluatorFactory> primitives =
         ImmutableMap.<String, TransformEvaluatorFactory>builder()
             // Beam primitives
-            .put(READ_TRANSFORM_URN, new ReadEvaluatorFactory(ctxt))
+            .put(READ_TRANSFORM_URN, new ReadEvaluatorFactory(ctxt, options))
             .put(
                 PAR_DO_TRANSFORM_URN,
                 new ParDoEvaluatorFactory<>(
                     ctxt,
                     ParDoEvaluator.defaultRunnerFactory(),
-                    ParDoEvaluatorFactory.basicDoFnCacheLoader()))
+                    ParDoEvaluatorFactory.basicDoFnCacheLoader(),
+                    options))
             .put(FLATTEN_TRANSFORM_URN, new FlattenEvaluatorFactory(ctxt))
             .put(ASSIGN_WINDOWS_TRANSFORM_URN, new WindowEvaluatorFactory(ctxt))
+            .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory(ctxt))
 
             // Runner-specific primitives
             .put(DIRECT_WRITE_VIEW_URN, new ViewEvaluatorFactory(ctxt))
-            .put(DIRECT_STATEFUL_PAR_DO_URN, new StatefulParDoEvaluatorFactory<>(ctxt))
+            .put(DIRECT_STATEFUL_PAR_DO_URN, new StatefulParDoEvaluatorFactory<>(ctxt, options))
             .put(DIRECT_GBKO_URN, new GroupByKeyOnlyEvaluatorFactory(ctxt))
-            .put(DIRECT_GABW_URN, new GroupAlsoByWindowEvaluatorFactory(ctxt))
+            .put(DIRECT_GABW_URN, new GroupAlsoByWindowEvaluatorFactory(ctxt, options))
             .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory(ctxt))
             .put(
                 DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN,
                 new MultiStepCombine.MergeAndExtractAccumulatorOutputEvaluatorFactory(ctxt))
 
             // Runners-core primitives
-            .put(SPLITTABLE_PROCESS_URN, new SplittableProcessElementsEvaluatorFactory<>(ctxt))
+            .put(
+                SPLITTABLE_PROCESS_URN,
+                new SplittableProcessElementsEvaluatorFactory<>(ctxt, options))
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
@@ -116,11 +129,6 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
               TransformPayloadTranslator.NotSerializable.forUrn(SPLITTABLE_PROCESS_URN))
           .build();
     }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
-    }
   }
 
   /**
@@ -145,27 +153,22 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   private final AtomicBoolean finished = new AtomicBoolean(false);
 
   private TransformEvaluatorRegistry(
-      @SuppressWarnings("rawtypes")
-      Map<String, TransformEvaluatorFactory> factories) {
+      @SuppressWarnings("rawtypes") Map<String, TransformEvaluatorFactory> factories) {
     this.factories = factories;
   }
 
-  @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
-      throws Exception {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
 
     String urn = PTransformTranslation.urnForTransform(application.getTransform());
 
     TransformEvaluatorFactory factory =
-        checkNotNull(
-            factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
+        checkNotNull(factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
     return factory.forApplication(application, inputBundle);
   }
 
-  @Override
   public void cleanup() throws Exception {
     Collection<Exception> thrownInCleanup = new ArrayList<>();
     for (TransformEvaluatorFactory factory : factories.values()) {

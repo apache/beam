@@ -15,25 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Iterables;
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
- * An execution-time only {@link PTransform} which represents an SDK harness reading from a
- * {@link RemoteGrpcPort}.
+ * An execution-time only {@link PTransform} which represents an SDK harness reading from a {@link
+ * RemoteGrpcPort}.
  */
 @AutoValue
 public abstract class RemoteGrpcPortRead {
-  public static final String URN = "urn:org.apache.beam:source:runner:0.1";
+  public static final String URN = "beam:source:runner:0.1";
   private static final String LOCAL_OUTPUT_ID = "local_output";
 
   public static RemoteGrpcPortRead readFromPort(RemoteGrpcPort port, String outputPCollectionId) {
@@ -64,5 +63,6 @@ public abstract class RemoteGrpcPortRead {
   }
 
   public abstract RemoteGrpcPort getPort();
+
   abstract String getOutputPCollectionId();
 }

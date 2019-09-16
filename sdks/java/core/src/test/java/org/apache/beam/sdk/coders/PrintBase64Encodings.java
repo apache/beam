@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * A command-line utility for printing the base-64 encodings of test values, for generating exact
@@ -30,20 +30,14 @@ import org.apache.beam.sdk.util.CoderUtils;
  *
  * <p>For internal use only.
  *
- * <p>Example invocation via maven:
- * {@code
- *   mvn test-compile exec:java \
- *       -Dexec.classpathScope=test \
- *       -Dexec.mainClass=org.apache.beam.sdk.coders.PrintBase64Encodings
- *       -Dexec.args='org.apache.beam.sdk.coders.BigEndianIntegerCoderTest.TEST_CODER \
- *           org.apache.beam.sdk.coders.BigEndianIntegerCoderTest.TEST_VALUES'
- * }
+ * <p>Example invocation via maven: {@code mvn test-compile exec:java \ -Dexec.classpathScope=test \
+ * -Dexec.mainClass=org.apache.beam.sdk.coders.PrintBase64Encodings
+ * -Dexec.args='org.apache.beam.sdk.coders.BigEndianIntegerCoderTest.TEST_CODER \
+ * org.apache.beam.sdk.coders.BigEndianIntegerCoderTest.TEST_VALUES' }
  */
 public class PrintBase64Encodings {
 
-  /**
-   * Gets a field even if it is private, which the test data generally will be.
-   */
+  /** Gets a field even if it is private, which the test data generally will be. */
   private static Field getField(Class<?> clazz, String fieldName) throws Exception {
     for (Field field : clazz.getDeclaredFields()) {
       if (field.getName().equals(fieldName)) {

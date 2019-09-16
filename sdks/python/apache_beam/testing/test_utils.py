@@ -20,11 +20,14 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import hashlib
 import imp
 import os
 import shutil
 import tempfile
+from builtins import object
 
 from mock import Mock
 from mock import patch
@@ -72,11 +75,14 @@ class TempDir(object):
 
 
 def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):
-  """Compute a hash value from a list of string."""
+  """Compute a hash value of a list of objects by hashing their string
+  representations."""
+  content = [str(x).encode('utf-8') if not isinstance(x, bytes) else x
+             for x in content]
   content.sort()
   m = hashlib.new(hashing_alg)
   for elem in content:
-    m.update(str(elem))
+    m.update(elem)
   return m.hexdigest()
 
 
@@ -129,3 +135,63 @@ def delete_files(file_paths):
     raise RuntimeError('Clean up failed. Invalid file path: %s.' %
                        file_paths)
   FileSystems.delete(file_paths)
+
+
+def cleanup_subscriptions(sub_client, subs):
+  """Cleanup PubSub subscriptions if exist."""
+  for sub in subs:
+    sub_client.delete_subscription(sub.name)
+
+
+def cleanup_topics(pub_client, topics):
+  """Cleanup PubSub topics if exist."""
+  for topic in topics:
+    pub_client.delete_topic(topic.name)
+
+
+class PullResponseMessage(object):
+  """Data representing a pull request response.
+
+  Utility class for ``create_pull_response``.
+  """
+  def __init__(self, data, attributes=None,
+               publish_time_secs=None, publish_time_nanos=None, ack_id=None):
+    self.data = data
+    self.attributes = attributes
+    self.publish_time_secs = publish_time_secs
+    self.publish_time_nanos = publish_time_nanos
+    self.ack_id = ack_id
+
+
+def create_pull_response(responses):
+  """Create an instance of ``google.cloud.pubsub.types.ReceivedMessage``.
+
+  Used to simulate the response from pubsub.SubscriberClient().pull().
+
+  Args:
+    responses: list of ``PullResponseMessage``
+
+  Returns:
+    An instance of ``google.cloud.pubsub.types.PullResponse`` populated with
+    responses.
+  """
+  from google.cloud import pubsub
+
+  res = pubsub.types.PullResponse()
+  for response in responses:
+    received_message = res.received_messages.add()
+
+    message = received_message.message
+    message.data = response.data
+    if response.attributes is not None:
+      for k, v in response.attributes.items():
+        message.attributes[k] = v
+    if response.publish_time_secs is not None:
+      message.publish_time.seconds = response.publish_time_secs
+    if response.publish_time_nanos is not None:
+      message.publish_time.nanos = response.publish_time_nanos
+
+    if response.ack_id is not None:
+      received_message.ack_id = response.ack_id
+
+  return res

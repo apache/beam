@@ -22,8 +22,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +30,8 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,46 +49,47 @@ public class DelegateCoderTest implements Serializable {
   private static final TypeDescriptor<Set<Integer>> SET_INTEGER_TYPE_DESCRIPTOR =
       new TypeDescriptor<Set<Integer>>() {};
 
-  private static final DelegateCoder<Set<Integer>, List<Integer>> TEST_CODER = DelegateCoder.of(
-      ListCoder.of(VarIntCoder.of()),
-      new DelegateCoder.CodingFunction<Set<Integer>, List<Integer>>() {
-        @Override
-        public List<Integer> apply(Set<Integer> input) {
-          return Lists.newArrayList(input);
-        }
+  private static final DelegateCoder<Set<Integer>, List<Integer>> TEST_CODER =
+      DelegateCoder.of(
+          ListCoder.of(VarIntCoder.of()),
+          new DelegateCoder.CodingFunction<Set<Integer>, List<Integer>>() {
+            @Override
+            public List<Integer> apply(Set<Integer> input) {
+              return Lists.newArrayList(input);
+            }
 
-        @Override
-        public boolean equals(Object o) {
-          return o != null && this.getClass() == o.getClass();
-        }
+            @Override
+            public boolean equals(Object o) {
+              return o != null && this.getClass() == o.getClass();
+            }
 
-        @Override
-        public int hashCode() {
-          return this.getClass().hashCode();
-        }
-      },
-      new DelegateCoder.CodingFunction<List<Integer>, Set<Integer>>() {
-        @Override
-        public Set<Integer> apply(List<Integer> input) {
-          return Sets.newHashSet(input);
-        }
+            @Override
+            public int hashCode() {
+              return this.getClass().hashCode();
+            }
+          },
+          new DelegateCoder.CodingFunction<List<Integer>, Set<Integer>>() {
+            @Override
+            public Set<Integer> apply(List<Integer> input) {
+              return Sets.newHashSet(input);
+            }
 
-        @Override
-        public boolean equals(Object o) {
-          return o != null && this.getClass() == o.getClass();
-        }
+            @Override
+            public boolean equals(Object o) {
+              return o != null && this.getClass() == o.getClass();
+            }
 
-        @Override
-        public int hashCode() {
-          return this.getClass().hashCode();
-        }
-      }, SET_INTEGER_TYPE_DESCRIPTOR);
+            @Override
+            public int hashCode() {
+              return this.getClass().hashCode();
+            }
+          },
+          SET_INTEGER_TYPE_DESCRIPTOR);
 
   @Test
   public void testDeterministic() throws Exception {
     for (Set<Integer> value : TEST_VALUES) {
-      CoderProperties.coderDeterministic(
-          TEST_CODER, value, Sets.newHashSet(value));
+      CoderProperties.coderDeterministic(TEST_CODER, value, Sets.newHashSet(value));
     }
   }
 

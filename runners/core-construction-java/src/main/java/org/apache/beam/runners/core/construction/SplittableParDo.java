@@ -17,23 +17,37 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Maps;
+import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
+import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
+import org.apache.beam.runners.core.construction.ReadTranslation.UnboundedReadPayloadTranslator;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -50,6 +64,9 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.joda.time.Instant;
 
 /**
  * A utility transform that executes a <a
@@ -57,12 +74,12 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * network of simpler transforms:
  *
  * <ol>
- * <li>Pair each element with an initial restriction
- * <li>Split each restriction into sub-restrictions
- * <li>Explode windows, since splitting within each window has to happen independently
- * <li>Assign a unique key to each element/restriction pair
- * <li>Process the keyed element/restriction pairs in a runner-specific way with the splittable
- *     {@link DoFn}'s {@link DoFn.ProcessElement} method.
+ *   <li>Pair each element with an initial restriction
+ *   <li>Split each restriction into sub-restrictions
+ *   <li>Explode windows, since splitting within each window has to happen independently
+ *   <li>Assign a unique key to each element/restriction pair
+ *   <li>Process the keyed element/restriction pairs in a runner-specific way with the splittable
+ *       {@link DoFn}'s {@link DoFn.ProcessElement} method.
  * </ol>
  *
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
@@ -71,6 +88,27 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo<InputT, OutputT, RestrictionT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
+  /**
+   * A {@link PTransformOverrideFactory} that overrides a <a
+   * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a> with {@link SplittableParDo}.
+   */
+  public static class OverrideFactory<InputT, OutputT>
+      implements PTransformOverrideFactory<
+          PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
+    @Override
+    public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
+        AppliedPTransform<PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
+            transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform), forAppliedParDo(transform));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
+      return ReplacementOutputs.tagged(outputs, newOutput);
+    }
+  }
 
   private final DoFn<InputT, OutputT> doFn;
   private final List<PCollectionView<?>> sideInputs;
@@ -79,13 +117,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   private final Map<TupleTag<?>, Coder<?>> outputTagsToCoders;
 
   public static final String SPLITTABLE_PROCESS_URN =
-      "urn:beam:runners_core:transforms:splittable_process:v1";
-
-  public static final String SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN =
-      "urn:beam:runners_core:transforms:splittable_process_keyed_elements:v1";
+      "beam:runners_core:transforms:splittable_process:v1";
 
   public static final String SPLITTABLE_GBKIKWI_URN =
-      "urn:beam:runners_core:transforms:splittable_gbkikwi:v1";
+      "beam:runners_core:transforms:splittable_gbkikwi:v1";
 
   private SplittableParDo(
       DoFn<InputT, OutputT> doFn,
@@ -137,7 +172,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
     Coder<KV<InputT, RestrictionT>> splitCoder = KvCoder.of(input.getCoder(), restrictionCoder);
 
-    PCollection<KV<String, KV<InputT, RestrictionT>>> keyedRestrictions =
+    PCollection<KV<byte[], KV<InputT, RestrictionT>>> keyedRestrictions =
         input
             .apply(
                 "Pair with initial restriction",
@@ -187,7 +222,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * {@link KV KVs} keyed with arbitrary but globally unique keys.
    */
   public static class ProcessKeyedElements<InputT, OutputT, RestrictionT>
-      extends RawPTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
@@ -258,7 +293,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
+    public PCollectionTuple expand(PCollection<KV<byte[], KV<InputT, RestrictionT>>> input) {
       return createPrimitiveOutputFor(
           input, fn, mainOutputTag, additionalOutputTags, outputTagsToCoders, windowingStrategy);
     }
@@ -289,16 +324,96 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
     }
+  }
 
+  /** Registers {@link UnboundedReadPayloadTranslator} and {@link BoundedReadPayloadTranslator}. */
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
-    public String getUrn() {
-      return SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN;
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
+          .put(ProcessKeyedElements.class, new ProcessKeyedElementsTranslator())
+          .build();
+    }
+  }
+
+  /** A translator for {@link ProcessKeyedElements}. */
+  public static class ProcessKeyedElementsTranslator
+      implements PTransformTranslation.TransformPayloadTranslator<ProcessKeyedElements<?, ?, ?>> {
+
+    public static TransformPayloadTranslator create() {
+      return new ProcessKeyedElementsTranslator();
     }
 
-    @Nullable
+    private ProcessKeyedElementsTranslator() {}
+
     @Override
-    public RunnerApi.FunctionSpec getSpec() {
-      return null;
+    public String getUrn(ProcessKeyedElements<?, ?, ?> transform) {
+      return PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, ProcessKeyedElements<?, ?, ?>> transform, SdkComponents components)
+        throws IOException {
+      ProcessKeyedElements<?, ?, ?> pke = transform.getTransform();
+      final DoFn<?, ?> fn = pke.getFn();
+      final DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+      final String restrictionCoderId = components.registerCoder(pke.getRestrictionCoder());
+
+      ParDoPayload payload =
+          ParDoTranslation.payloadForParDoLike(
+              new ParDoLike() {
+                @Override
+                public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
+                  // Schemas not yet supported on splittable DoFn.
+                  return ParDoTranslation.translateDoFn(
+                      fn,
+                      pke.getMainOutputTag(),
+                      Collections.emptyMap(),
+                      DoFnSchemaInformation.create(),
+                      newComponents);
+                }
+
+                @Override
+                public List<Parameter> translateParameters() {
+                  return ParDoTranslation.translateParameters(
+                      signature.processElement().extraParameters());
+                }
+
+                @Override
+                public Map<String, SideInput> translateSideInputs(SdkComponents components) {
+                  return ParDoTranslation.translateSideInputs(pke.getSideInputs(), components);
+                }
+
+                @Override
+                public Map<String, StateSpec> translateStateSpecs(SdkComponents components) {
+                  // SDFs don't have state.
+                  return ImmutableMap.of();
+                }
+
+                @Override
+                public Map<String, TimerSpec> translateTimerSpecs(SdkComponents components) {
+                  // SDFs don't have timers.
+                  return ImmutableMap.of();
+                }
+
+                @Override
+                public boolean isSplittable() {
+                  return true;
+                }
+
+                @Override
+                public String translateRestrictionCoderId(SdkComponents newComponents) {
+                  return restrictionCoderId;
+                }
+              },
+              components);
+      return RunnerApi.FunctionSpec.newBuilder()
+          .setUrn(getUrn(pke))
+          .setPayload(payload.toByteString())
+          .build();
     }
   }
 
@@ -307,10 +422,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * collection is effectively the same elements as input, but the per-key state and timers are now
    * effectively per-element.
    */
-  private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, String> {
+  private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, byte[]> {
     @Override
-    public String apply(T input) {
-      return UUID.randomUUID().toString();
+    public byte[] apply(T input) {
+      byte[] key = new byte[128];
+      ThreadLocalRandom.current().nextBytes(key);
+      return key;
     }
   }
 
@@ -331,12 +448,19 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @Setup
     public void setup() {
       invoker = DoFnInvokers.invokerFor(fn);
+      invoker.invokeSetup();
     }
 
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output(
           KV.of(context.element(), invoker.invokeGetInitialRestriction(context.element())));
+    }
+
+    @Teardown
+    public void tearDown() {
+      invoker.invokeTeardown();
+      invoker = null;
     }
   }
 
@@ -355,13 +479,32 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @Setup
     public void setup() {
       invoker = DoFnInvokers.invokerFor(splittableFn);
+      invoker.invokeSetup();
     }
 
     @ProcessElement
     public void processElement(final ProcessContext c) {
       final InputT element = c.element().getKey();
       invoker.invokeSplitRestriction(
-          element, c.element().getValue(), part -> c.output(KV.of(element, part)));
+          element,
+          c.element().getValue(),
+          new OutputReceiver<RestrictionT>() {
+            @Override
+            public void output(RestrictionT part) {
+              c.output(KV.of(element, part));
+            }
+
+            @Override
+            public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
+              throw new UnsupportedOperationException();
+            }
+          });
+    }
+
+    @Teardown
+    public void tearDown() {
+      invoker.invokeTeardown();
+      invoker = null;
     }
   }
 }

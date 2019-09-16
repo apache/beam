@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import logging
 import unittest
+from builtins import range
 from concurrent import futures
 
 import grpc
@@ -103,7 +104,7 @@ class SdkWorkerTest(unittest.TestCase):
       harness.run()
 
       for worker in harness.workers.queue:
-        self.assertEqual(worker.fns,
+        self.assertEqual(worker.bundle_processor_cache.fns,
                          {item.id: item
                           for item in process_bundle_descriptors})
 

@@ -14,14 +14,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package org.apache.beam.sdk.values;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -39,13 +37,9 @@ public abstract class TaggedPValue {
     return of(Iterables.getOnlyElement(value.expand().keySet()), value);
   }
 
-  /**
-   * Returns the local tag associated with the {@link PValue}.
-   */
+  /** Returns the local tag associated with the {@link PValue}. */
   public abstract TupleTag<?> getTag();
 
-  /**
-   * Returns the {@link PValue}.
-   */
+  /** Returns the {@link PValue}. */
   public abstract PValue getValue();
 }

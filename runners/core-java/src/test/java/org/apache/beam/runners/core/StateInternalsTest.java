@@ -17,17 +17,17 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -47,18 +47,18 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
+import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Tests for {@link StateInternals}.
- */
+/** Tests for {@link StateInternals}. */
 public abstract class StateInternalsTest {
 
   private static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
@@ -68,9 +68,12 @@ public abstract class StateInternalsTest {
 
   private static final StateTag<ValueState<String>> STRING_VALUE_ADDR =
       StateTags.value("stringValue", StringUtf8Coder.of());
-  private static final StateTag<CombiningState<Integer, int[], Integer>>
-      SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
-          "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
+  private static final StateTag<CombiningState<Integer, int[], Integer>> SUM_INTEGER_ADDR =
+      StateTags.combiningValueFromInputInternal("sumInteger", VarIntCoder.of(), Sum.ofIntegers());
+  private static final StateTag<CombiningState<Integer, Integer, Integer>>
+      SUM_INTEGER_CONTEXT_ADDR =
+          StateTags.combiningValueWithContext(
+              "sumIntegerWithContext", VarIntCoder.of(), new SummingContextFn());
   private static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
   private static final StateTag<SetState<String>> STRING_SET_ADDR =
@@ -106,9 +109,7 @@ public abstract class StateInternalsTest {
 
     // State instances are cached, but depend on the namespace.
     assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), equalTo(value));
-    assertThat(
-        underTest.state(NAMESPACE_2, STRING_VALUE_ADDR),
-        Matchers.not(equalTo(value)));
+    assertThat(underTest.state(NAMESPACE_2, STRING_VALUE_ADDR), not(equalTo(value)));
 
     assertThat(value.read(), Matchers.nullValue());
     value.write("hello");
@@ -230,7 +231,6 @@ public abstract class StateInternalsTest {
     value.clear();
     assertThat(value.read(), Matchers.emptyIterable());
     assertThat(underTest.state(NAMESPACE_1, STRING_SET_ADDR), equalTo(value));
-
   }
 
   @Test
@@ -299,35 +299,41 @@ public abstract class StateInternalsTest {
       return new MapEntry<>(k, v);
     }
 
+    @Override
     public final K getKey() {
       return key;
     }
+
+    @Override
     public final V getValue() {
       return value;
     }
 
+    @Override
     public final String toString() {
       return key + "=" + value;
     }
 
+    @Override
     public final int hashCode() {
       return Objects.hashCode(key) ^ Objects.hashCode(value);
     }
 
+    @Override
     public final V setValue(V newValue) {
       V oldValue = value;
       value = newValue;
       return oldValue;
     }
 
+    @Override
     public final boolean equals(Object o) {
       if (o == this) {
         return true;
       }
       if (o instanceof Map.Entry) {
         Map.Entry<?, ?> e = (Map.Entry<?, ?>) o;
-        if (Objects.equals(key, e.getKey())
-            && Objects.equals(value, e.getValue())) {
+        if (Objects.equals(key, e.getKey()) && Objects.equals(value, e.getValue())) {
           return true;
         }
       }
@@ -350,8 +356,8 @@ public abstract class StateInternalsTest {
     value.put("B", 2);
     value.put("A", 11);
     assertThat(value.putIfAbsent("B", 22).read(), equalTo(2));
-    assertThat(value.entries().read(), containsInAnyOrder(MapEntry.of("A", 11),
-        MapEntry.of("B", 2)));
+    assertThat(
+        value.entries().read(), containsInAnyOrder(MapEntry.of("A", 11), MapEntry.of("B", 2)));
 
     // remove
     value.remove("A");
@@ -424,10 +430,11 @@ public abstract class StateInternalsTest {
 
   @Test
   public void testMergeCombiningValueIntoSource() throws Exception {
-    CombiningState<Integer, int[], Integer> value1 =
-        underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
-    CombiningState<Integer, int[], Integer> value2 =
-        underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
+    CombiningState<Integer, int[], Integer> value1 = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+    CombiningState<Integer, int[], Integer> value2 = underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
+
+    assertThat(value1.getAccum(), Matchers.is(notNullValue()));
+    assertThat(value2.getAccum(), Matchers.is(notNullValue()));
 
     value1.add(5);
     value2.add(10);
@@ -445,12 +452,62 @@ public abstract class StateInternalsTest {
 
   @Test
   public void testMergeCombiningValueIntoNewNamespace() throws Exception {
-    CombiningState<Integer, int[], Integer> value1 =
-        underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
-    CombiningState<Integer, int[], Integer> value2 =
-        underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
-    CombiningState<Integer, int[], Integer> value3 =
-        underTest.state(NAMESPACE_3, SUM_INTEGER_ADDR);
+    CombiningState<Integer, int[], Integer> value1 = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+    CombiningState<Integer, int[], Integer> value2 = underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
+    CombiningState<Integer, int[], Integer> value3 = underTest.state(NAMESPACE_3, SUM_INTEGER_ADDR);
+
+    assertThat(value1.getAccum(), Matchers.is(notNullValue()));
+    assertThat(value2.getAccum(), Matchers.is(notNullValue()));
+    assertThat(value3.getAccum(), Matchers.is(notNullValue()));
+
+    value1.add(5);
+    value2.add(10);
+    value1.add(6);
+
+    StateMerging.mergeCombiningValues(Arrays.asList(value1, value2), value3);
+
+    // Merging clears the old values and updates the result value.
+    assertThat(value1.read(), equalTo(0));
+    assertThat(value2.read(), equalTo(0));
+    assertThat(value3.read(), equalTo(21));
+  }
+
+  @Test
+  public void testMergeCombiningWithContextValueIntoSource() throws Exception {
+    CombiningState<Integer, Integer, Integer> value1 =
+        underTest.state(NAMESPACE_1, SUM_INTEGER_CONTEXT_ADDR);
+    CombiningState<Integer, Integer, Integer> value2 =
+        underTest.state(NAMESPACE_2, SUM_INTEGER_CONTEXT_ADDR);
+
+    assertThat(value1.getAccum(), Matchers.is(notNullValue()));
+    assertThat(value2.getAccum(), Matchers.is(notNullValue()));
+
+    value1.add(5);
+    value2.add(10);
+    value1.add(6);
+
+    assertThat(value1.read(), equalTo(11));
+    assertThat(value2.read(), equalTo(10));
+
+    // Merging clears the old values and updates the result value.
+    StateMerging.mergeCombiningValues(Arrays.asList(value1, value2), value1);
+
+    assertThat(value1.read(), equalTo(21));
+    assertThat(value2.read(), equalTo(0));
+  }
+
+  @Test
+  public void testMergeCombiningWithContextValueIntoNewNamespace() throws Exception {
+    CombiningState<Integer, Integer, Integer> value1 =
+        underTest.state(NAMESPACE_1, SUM_INTEGER_CONTEXT_ADDR);
+    CombiningState<Integer, Integer, Integer> value2 =
+        underTest.state(NAMESPACE_2, SUM_INTEGER_CONTEXT_ADDR);
+    CombiningState<Integer, Integer, Integer> value3 =
+        underTest.state(NAMESPACE_3, SUM_INTEGER_CONTEXT_ADDR);
+
+    assertThat(value1.getAccum(), Matchers.is(notNullValue()));
+    assertThat(value2.getAccum(), Matchers.is(notNullValue()));
+    assertThat(value3.getAccum(), Matchers.is(notNullValue()));
 
     value1.add(5);
     value2.add(10);
@@ -466,8 +523,7 @@ public abstract class StateInternalsTest {
 
   @Test
   public void testWatermarkEarliestState() throws Exception {
-    WatermarkHoldState value =
-        underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
+    WatermarkHoldState value = underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
 
     // State instances are cached, but depend on the namespace.
     assertEquals(value, underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR));
@@ -490,8 +546,7 @@ public abstract class StateInternalsTest {
 
   @Test
   public void testWatermarkLatestState() throws Exception {
-    WatermarkHoldState value =
-        underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR);
+    WatermarkHoldState value = underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR);
 
     // State instances are cached, but depend on the namespace.
     assertEquals(value, underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR));
@@ -531,8 +586,7 @@ public abstract class StateInternalsTest {
 
   @Test
   public void testWatermarkStateIsEmpty() throws Exception {
-    WatermarkHoldState value =
-        underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
+    WatermarkHoldState value = underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
 
     assertThat(value.isEmpty().read(), Matchers.is(true));
     ReadableState<Boolean> readFuture = value.isEmpty();
@@ -541,48 +595,6 @@ public abstract class StateInternalsTest {
 
     value.clear();
     assertThat(readFuture.read(), Matchers.is(true));
-  }
-
-  @Test
-  public void testMergeEarliestWatermarkIntoSource() throws Exception {
-    WatermarkHoldState value1 =
-        underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
-    WatermarkHoldState value2 =
-        underTest.state(NAMESPACE_2, WATERMARK_EARLIEST_ADDR);
-
-    value1.add(new Instant(3000));
-    value2.add(new Instant(5000));
-    value1.add(new Instant(4000));
-    value2.add(new Instant(2000));
-
-    // Merging clears the old values and updates the merged value.
-    StateMerging.mergeWatermarks(Arrays.asList(value1, value2), value1, WINDOW_1);
-
-    assertThat(value1.read(), equalTo(new Instant(2000)));
-    assertThat(value2.read(), equalTo(null));
-  }
-
-  @Test
-  public void testMergeLatestWatermarkIntoSource() throws Exception {
-    WatermarkHoldState value1 =
-        underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR);
-    WatermarkHoldState value2 =
-        underTest.state(NAMESPACE_2, WATERMARK_LATEST_ADDR);
-    WatermarkHoldState value3 =
-        underTest.state(NAMESPACE_3, WATERMARK_LATEST_ADDR);
-
-    value1.add(new Instant(3000));
-    value2.add(new Instant(5000));
-    value1.add(new Instant(4000));
-    value2.add(new Instant(2000));
-
-    // Merging clears the old values and updates the result value.
-    StateMerging.mergeWatermarks(Arrays.asList(value1, value2), value3, WINDOW_1);
-
-    // Merging clears the old values and updates the result value.
-    assertThat(value3.read(), equalTo(new Instant(5000)));
-    assertThat(value1.read(), equalTo(null));
-    assertThat(value2.read(), equalTo(null));
   }
 
   @Test
@@ -667,6 +679,34 @@ public abstract class StateInternalsTest {
     @Override
     public int hashCode() {
       return super.hashCode();
+    }
+  }
+
+  private static class SummingContextFn
+      extends CombineWithContext.CombineFnWithContext<Integer, Integer, Integer> {
+
+    @Override
+    public Integer createAccumulator(CombineWithContext.Context c) {
+      return 0;
+    }
+
+    @Override
+    public Integer addInput(Integer accumulator, Integer input, CombineWithContext.Context c) {
+      return accumulator + input;
+    }
+
+    @Override
+    public Integer mergeAccumulators(Iterable<Integer> accumulators, CombineWithContext.Context c) {
+      int sum = createAccumulator(c);
+      for (Integer accumulator : accumulators) {
+        sum += accumulator;
+      }
+      return sum;
+    }
+
+    @Override
+    public Integer extractOutput(Integer accumulator, CombineWithContext.Context c) {
+      return accumulator;
     }
   }
 }

@@ -17,16 +17,15 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /**
- * A {@link SideInputReader} representing a well-defined set of views, but not storing
- * any values for them. Used to check if a side input is present when the data itself
- * comes from elsewhere.
+ * A {@link SideInputReader} representing a well-defined set of views, but not storing any values
+ * for them. Used to check if a side input is present when the data itself comes from elsewhere.
  */
 public class NullSideInputReader implements SideInputReader {
 

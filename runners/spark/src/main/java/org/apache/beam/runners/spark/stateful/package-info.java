@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Spark-specific stateful operators.
- */
+/** Spark-specific stateful operators. */
 package org.apache.beam.runners.spark.stateful;

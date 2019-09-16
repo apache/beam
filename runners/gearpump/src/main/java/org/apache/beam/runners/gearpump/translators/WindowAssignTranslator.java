@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.Iterables;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
+import io.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -29,13 +29,10 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
-/**
- * {@link Window.Assign} is translated to Gearpump flatMap function.
- */
+/** {@link Window.Assign} is translated to Gearpump flatMap function. */
 @SuppressWarnings("unchecked")
 public class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>> {
 
@@ -49,17 +46,14 @@ public class WindowAssignTranslator<T> implements TransformTranslator<Window.Ass
     WindowingStrategy<?, ?> outputStrategy = output.getWindowingStrategy();
     WindowFn<T, BoundedWindow> windowFn = (WindowFn<T, BoundedWindow>) outputStrategy.getWindowFn();
     JavaStream<WindowedValue<T>> outputStream =
-        inputStream
-            .flatMap(new AssignWindows(windowFn), "assign_windows");
+        inputStream.flatMap(new AssignWindows(windowFn), "assign_windows");
 
     context.setOutputStream(output, outputStream);
   }
 
-  /**
-   * A Function used internally by Gearpump to wrap the actual Beam's WindowFn.
-   */
-  protected static class AssignWindows<T> extends
-      FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
+  /** A Function used internally by Gearpump to wrap the actual Beam's WindowFn. */
+  protected static class AssignWindows<T>
+      extends FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
 
     private static final long serialVersionUID = 7284565861938681360L;
     private final WindowFn<T, BoundedWindow> windowFn;
@@ -71,24 +65,26 @@ public class WindowAssignTranslator<T> implements TransformTranslator<Window.Ass
     @Override
     public Iterator<WindowedValue<T>> flatMap(final WindowedValue<T> value) {
       try {
-        Collection<BoundedWindow> windows = windowFn.assignWindows(windowFn.new AssignContext() {
-          @Override
-          public T element() {
-            return value.getValue();
-          }
+        Collection<BoundedWindow> windows =
+            windowFn.assignWindows(
+                windowFn.new AssignContext() {
+                  @Override
+                  public T element() {
+                    return value.getValue();
+                  }
 
-          @Override
-          public Instant timestamp() {
-            return value.getTimestamp();
-          }
+                  @Override
+                  public Instant timestamp() {
+                    return value.getTimestamp();
+                  }
 
-          @Override
-          public BoundedWindow window() {
-            return Iterables.getOnlyElement(value.getWindows());
-          }
-        });
+                  @Override
+                  public BoundedWindow window() {
+                    return Iterables.getOnlyElement(value.getWindows());
+                  }
+                });
         List<WindowedValue<T>> values = new ArrayList<>(windows.size());
-        for (BoundedWindow win: windows) {
+        for (BoundedWindow win : windows) {
           values.add(
               WindowedValue.of(value.getValue(), value.getTimestamp(), win, value.getPane()));
         }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -26,6 +25,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * Static utility methods that provide {@link GlobalCombineFnRunner} implementations for different
@@ -163,8 +163,7 @@ public class GlobalCombineFnRunners {
         SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
       return combineFnWithContext.createAccumulator(
-          createFromComponents(
-              options, sideInputReader, Iterables.getOnlyElement(windows)));
+          createFromComponents(options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
 
     @Override
@@ -177,8 +176,7 @@ public class GlobalCombineFnRunners {
       return combineFnWithContext.addInput(
           accumulator,
           input,
-          createFromComponents(
-              options, sideInputReader, Iterables.getOnlyElement(windows)));
+          createFromComponents(options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
 
     @Override
@@ -189,8 +187,7 @@ public class GlobalCombineFnRunners {
         Collection<? extends BoundedWindow> windows) {
       return combineFnWithContext.mergeAccumulators(
           accumulators,
-          createFromComponents(
-              options, sideInputReader, Iterables.getOnlyElement(windows)));
+          createFromComponents(options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
 
     @Override
@@ -201,8 +198,7 @@ public class GlobalCombineFnRunners {
         Collection<? extends BoundedWindow> windows) {
       return combineFnWithContext.extractOutput(
           accumulator,
-          createFromComponents(
-              options, sideInputReader, Iterables.getOnlyElement(windows)));
+          createFromComponents(options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
 
     @Override
@@ -213,8 +209,7 @@ public class GlobalCombineFnRunners {
         Collection<? extends BoundedWindow> windows) {
       return combineFnWithContext.compact(
           accumulator,
-          createFromComponents(
-              options, sideInputReader, Iterables.getOnlyElement(windows)));
+          createFromComponents(options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
   }
 }

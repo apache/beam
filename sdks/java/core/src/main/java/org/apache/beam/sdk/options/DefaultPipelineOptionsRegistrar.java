@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.options;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A {@link PipelineOptionsRegistrar} containing the {@link PipelineOptions} subclasses available by
@@ -35,6 +34,7 @@ public class DefaultPipelineOptionsRegistrar implements PipelineOptionsRegistrar
         .add(StreamingOptions.class)
         .add(ExperimentalOptions.class)
         .add(SdkHarnessOptions.class)
+        .add(PortablePipelineOptions.class)
         .build();
   }
 }

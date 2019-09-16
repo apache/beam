@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Internal implementation of the Beam runner for Apache Spark.
- */
+/** Internal implementation of the Beam runner for Apache Spark. */
 package org.apache.beam.runners.spark;

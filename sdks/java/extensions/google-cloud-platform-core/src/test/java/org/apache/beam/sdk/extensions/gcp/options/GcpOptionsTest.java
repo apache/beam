@@ -32,8 +32,6 @@ import com.google.api.services.cloudresourcemanager.CloudResourceManager.Project
 import com.google.api.services.cloudresourcemanager.CloudResourceManager.Projects.Get;
 import com.google.api.services.cloudresourcemanager.model.Project;
 import com.google.api.services.storage.model.Bucket;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -42,15 +40,16 @@ import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions.DefaultProjectFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions.GcpTempLocationFactory;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
@@ -60,12 +59,11 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GcpOptions}. */
-@RunWith(Enclosed.class)
 public class GcpOptionsTest {
 
   /** Tests for the majority of methods. */
   @RunWith(JUnit4.class)
-  public static class Common {
+  public static class CommonTests {
     @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
     @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
     @Rule public ExpectedException thrown = ExpectedException.none();
@@ -74,8 +72,7 @@ public class GcpOptionsTest {
     public void testGetProjectFromCloudSdkConfigEnv() throws Exception {
       Map<String, String> environment =
           ImmutableMap.of("CLOUDSDK_CONFIG", tmpFolder.getRoot().getAbsolutePath());
-      assertEquals("test-project",
-          runGetProjectTest(tmpFolder.newFile("properties"), environment));
+      assertEquals("test-project", runGetProjectTest(tmpFolder.newFile("properties"), environment));
     }
 
     @Test
@@ -83,28 +80,31 @@ public class GcpOptionsTest {
       Map<String, String> environment =
           ImmutableMap.of("APPDATA", tmpFolder.getRoot().getAbsolutePath());
       System.setProperty("os.name", "windows");
-      assertEquals("test-project",
-          runGetProjectTest(new File(tmpFolder.newFolder("gcloud"), "properties"),
-              environment));
+      assertEquals(
+          "test-project",
+          runGetProjectTest(new File(tmpFolder.newFolder("gcloud"), "properties"), environment));
     }
 
     @Test
     public void testGetProjectFromUserHomeEnvOld() throws Exception {
       Map<String, String> environment = ImmutableMap.of();
       System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
-      assertEquals("test-project",
+      assertEquals(
+          "test-project",
           runGetProjectTest(
-              new File(tmpFolder.newFolder(".config", "gcloud"), "properties"),
-              environment));
+              new File(tmpFolder.newFolder(".config", "gcloud"), "properties"), environment));
     }
 
     @Test
     public void testGetProjectFromUserHomeEnv() throws Exception {
       Map<String, String> environment = ImmutableMap.of();
       System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
-      assertEquals("test-project", runGetProjectTest(
-          new File(tmpFolder.newFolder(".config", "gcloud", "configurations"), "config_default"),
-          environment));
+      assertEquals(
+          "test-project",
+          runGetProjectTest(
+              new File(
+                  tmpFolder.newFolder(".config", "gcloud", "configurations"), "config_default"),
+              environment));
     }
 
     @Test
@@ -113,9 +113,12 @@ public class GcpOptionsTest {
       System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
       makePropertiesFileWithProject(
           new File(tmpFolder.newFolder(".config", "gcloud"), "properties"), "old-project");
-      assertEquals("test-project", runGetProjectTest(
-          new File(tmpFolder.newFolder(".config", "gcloud", "configurations"), "config_default"),
-          environment));
+      assertEquals(
+          "test-project",
+          runGetProjectTest(
+              new File(
+                  tmpFolder.newFolder(".config", "gcloud", "configurations"), "config_default"),
+              environment));
     }
 
     @Test
@@ -173,12 +176,15 @@ public class GcpOptionsTest {
 
     private static void makePropertiesFileWithProject(File path, String projectId)
         throws IOException {
-      String properties = String.format("[core]%n"
-          + "account = test-account@google.com%n"
-          + "project = %s%n"
-          + "%n"
-          + "[dataflow]%n"
-          + "magic = true%n", projectId);
+      String properties =
+          String.format(
+              "[core]%n"
+                  + "account = test-account@google.com%n"
+                  + "project = %s%n"
+                  + "%n"
+                  + "[dataflow]%n"
+                  + "magic = true%n",
+              projectId);
       Files.write(properties, path, StandardCharsets.UTF_8);
     }
 
@@ -193,7 +199,7 @@ public class GcpOptionsTest {
 
   /** Tests related to determining the GCP temp location. */
   @RunWith(JUnit4.class)
-  public static class GcpTempLocation {
+  public static class GcpTempLocationTest {
     @Rule public ExpectedException thrown = ExpectedException.none();
     @Mock private GcsUtil mockGcsUtil;
     @Mock private CloudResourceManager mockCrmClient;
@@ -235,8 +241,9 @@ public class GcpOptionsTest {
     @Test
     public void testCreateBucketCreateBucketFails() throws Exception {
       doReturn(fakeProject).when(mockGet).execute();
-      doThrow(new IOException("badness")).when(
-          mockGcsUtil).createBucket(any(String.class), any(Bucket.class));
+      doThrow(new IOException("badness"))
+          .when(mockGcsUtil)
+          .createBucket(any(String.class), any(Bucket.class));
 
       thrown.expect(RuntimeException.class);
       thrown.expectMessage("Unable create default bucket");
@@ -246,8 +253,7 @@ public class GcpOptionsTest {
     @Test
     public void testCannotGetBucketOwner() throws Exception {
       doReturn(fakeProject).when(mockGet).execute();
-      when(mockGcsUtil.bucketOwner(any(GcsPath.class)))
-          .thenThrow(new IOException("badness"));
+      when(mockGcsUtil.bucketOwner(any(GcsPath.class))).thenThrow(new IOException("badness"));
 
       thrown.expect(RuntimeException.class);
       thrown.expectMessage("Unable to determine the owner");
@@ -261,6 +267,16 @@ public class GcpOptionsTest {
 
       thrown.expect(IllegalArgumentException.class);
       thrown.expectMessage("Bucket owner does not match the project");
+      GcpTempLocationFactory.tryCreateDefaultBucket(options, mockCrmClient);
+    }
+
+    @Test
+    public void testCreateBucketCreateWithKmsFails() throws Exception {
+      doReturn(fakeProject).when(mockGet).execute();
+      options.as(GcpOptions.class).setDataflowKmsKey("kms_key");
+
+      thrown.expect(RuntimeException.class);
+      thrown.expectMessage("dataflowKmsKey");
       GcpTempLocationFactory.tryCreateDefaultBucket(options, mockCrmClient);
     }
 

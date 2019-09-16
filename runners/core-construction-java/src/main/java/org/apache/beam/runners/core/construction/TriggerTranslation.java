@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -44,6 +42,8 @@ import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampTransform;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -188,8 +188,7 @@ public class TriggerTranslation implements Serializable {
     private RunnerApi.Trigger convertSpecific(Repeatedly v) {
       return RunnerApi.Trigger.newBuilder()
           .setRepeat(
-              RunnerApi.Trigger.Repeat.newBuilder()
-                  .setSubtrigger(toProto(v.getRepeatedTrigger())))
+              RunnerApi.Trigger.Repeat.newBuilder().setSubtrigger(toProto(v.getRepeatedTrigger())))
           .build();
     }
 
@@ -264,8 +263,7 @@ public class TriggerTranslation implements Serializable {
           if (triggerProto.getAfterEndOfWindow().hasLateFirings()) {
             trigger =
                 trigger.withLateFirings(
-                    (OnceTrigger)
-                        fromProto(triggerProto.getAfterEndOfWindow().getLateFirings()));
+                    (OnceTrigger) fromProto(triggerProto.getAfterEndOfWindow().getLateFirings()));
           }
           return trigger;
         } else {
@@ -289,8 +287,7 @@ public class TriggerTranslation implements Serializable {
               break;
             case TIMESTAMPTRANSFORM_NOT_SET:
               throw new IllegalArgumentException(
-                  String.format(
-                      "Required field 'timestamp_transform' not set in %s", transform));
+                  String.format("Required field 'timestamp_transform' not set in %s", transform));
             default:
               throw new IllegalArgumentException(
                   String.format(

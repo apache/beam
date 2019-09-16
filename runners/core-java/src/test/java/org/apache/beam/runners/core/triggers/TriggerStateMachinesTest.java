@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
@@ -240,8 +240,7 @@ public class TriggerStateMachinesTest {
                     .setFinally(subtrigger2))
             .build();
     OrFinallyStateMachine machine =
-        (OrFinallyStateMachine)
-            TriggerStateMachines.stateMachineForTrigger(trigger);
+        (OrFinallyStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(machine, equalTo(submachine1.orFinally(submachine2)));
   }
@@ -250,12 +249,10 @@ public class TriggerStateMachinesTest {
   public void testRepeatedlyTranslation() {
     RunnerApi.Trigger trigger =
         RunnerApi.Trigger.newBuilder()
-            .setRepeat(
-                RunnerApi.Trigger.Repeat.newBuilder()
-                    .setSubtrigger(subtrigger1)).build();
+            .setRepeat(RunnerApi.Trigger.Repeat.newBuilder().setSubtrigger(subtrigger1))
+            .build();
     RepeatedlyStateMachine machine =
-        (RepeatedlyStateMachine)
-            TriggerStateMachines.stateMachineForTrigger(trigger);
+        (RepeatedlyStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(machine, equalTo(RepeatedlyStateMachine.forever(submachine1)));
   }

@@ -23,6 +23,8 @@ import argparse
 import logging
 import re
 
+from past.builtins import unicode
+
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
@@ -36,7 +38,6 @@ class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
 
   def __init__(self):
-    super(WordExtractingDoFn, self).__init__()
     self.words_counter = Metrics.counter(self.__class__, 'words')
     self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
     self.word_lengths_dist = Metrics.distribution(
@@ -57,7 +58,7 @@ class WordExtractingDoFn(beam.DoFn):
     text_line = element.strip()
     if not text_line:
       self.empty_line_counter.inc(1)
-    words = re.findall(r'[A-Za-z\']+', text_line)
+    words = re.findall(r'[\w\']+', text_line, re.UNICODE)
     for w in words:
       self.words_counter.inc()
       self.word_lengths_counter.inc(len(w))
@@ -102,7 +103,7 @@ def run(argv=None):
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
     (word, count) = word_count
-    return '%s: %s' % (word, count)
+    return '%s: %d' % (word, count)
 
   output = counts | 'format' >> beam.Map(format_result)
 
@@ -120,13 +121,13 @@ def run(argv=None):
     query_result = result.metrics().query(empty_lines_filter)
     if query_result['counters']:
       empty_lines_counter = query_result['counters'][0]
-      logging.info('number of empty lines: %d', empty_lines_counter.committed)
+      logging.info('number of empty lines: %d', empty_lines_counter.result)
 
     word_lengths_filter = MetricsFilter().with_name('word_len_dist')
     query_result = result.metrics().query(word_lengths_filter)
     if query_result['distributions']:
       word_lengths_dist = query_result['distributions'][0]
-      logging.info('average word length: %d', word_lengths_dist.committed.mean)
+      logging.info('average word length: %d', word_lengths_dist.result.mean)
 
 
 if __name__ == '__main__':

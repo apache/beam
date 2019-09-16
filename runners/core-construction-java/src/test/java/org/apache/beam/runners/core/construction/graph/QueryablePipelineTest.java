@@ -15,19 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -62,6 +62,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -81,7 +82,7 @@ public class QueryablePipelineTest {
   @Test
   public void fromEmptyComponents() {
     // Not that it's hugely useful, but it shouldn't throw.
-    QueryablePipeline p = QueryablePipeline.fromComponents(Components.getDefaultInstance());
+    QueryablePipeline p = QueryablePipeline.forPrimitivesIn(Components.getDefaultInstance());
     assertThat(p.getRootTransforms(), emptyIterable());
   }
 
@@ -90,11 +91,68 @@ public class QueryablePipelineTest {
     Components components =
         Components.newBuilder()
             .putTransforms(
-                "root", PTransform.newBuilder().putOutputs("output", "output.out").build())
+                "root",
+                PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                            .build())
+                    .putOutputs("output", "output.out")
+                    .build())
             .build();
 
     thrown.expect(IllegalArgumentException.class);
-    QueryablePipeline.fromComponents(components);
+    QueryablePipeline.forPrimitivesIn(components).getComponents();
+  }
+
+  @Test
+  public void forTransformsWithMalformedGraph() {
+    Components components =
+        Components.newBuilder()
+            .putTransforms(
+                "root", PTransform.newBuilder().putOutputs("output", "output.out").build())
+            .putPcollections(
+                "output.out",
+                RunnerApi.PCollection.newBuilder().setUniqueName("output.out").build())
+            .putTransforms(
+                "consumer", PTransform.newBuilder().putInputs("input", "output.out").build())
+            .build();
+
+    thrown.expect(IllegalArgumentException.class);
+    // Consumer consumes a PCollection which isn't produced.
+    QueryablePipeline.forTransforms(ImmutableSet.of("consumer"), components);
+  }
+
+  @Test
+  public void forTransformsWithSubgraph() {
+    Components components =
+        Components.newBuilder()
+            .putTransforms(
+                "root", PTransform.newBuilder().putOutputs("output", "output.out").build())
+            .putPcollections(
+                "output.out",
+                RunnerApi.PCollection.newBuilder().setUniqueName("output.out").build())
+            .putTransforms(
+                "consumer", PTransform.newBuilder().putInputs("input", "output.out").build())
+            .putTransforms(
+                "ignored", PTransform.newBuilder().putInputs("input", "output.out").build())
+            .build();
+
+    QueryablePipeline pipeline =
+        QueryablePipeline.forTransforms(ImmutableSet.of("root", "consumer"), components);
+
+    assertThat(
+        pipeline.getRootTransforms(),
+        contains(PipelineNode.pTransform("root", components.getTransformsOrThrow("root"))));
+
+    Set<PTransformNode> consumers =
+        pipeline.getPerElementConsumers(
+            PipelineNode.pCollection(
+                "output.out", components.getPcollectionsOrThrow("output.out")));
+
+    assertThat(
+        consumers,
+        contains(PipelineNode.pTransform("consumer", components.getTransformsOrThrow("consumer"))));
   }
 
   @Test
@@ -106,7 +164,7 @@ public class QueryablePipelineTest {
     p.apply("BoundedRead", Read.from(CountingSource.upTo(100L)));
 
     Components components = PipelineTranslation.toProto(p).getComponents();
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
     assertThat(qp.getRootTransforms(), hasSize(2));
     for (PTransformNode rootTransform : qp.getRootTransforms()) {
@@ -139,7 +197,7 @@ public class QueryablePipelineTest {
             .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     Components components = PipelineTranslation.toProto(p).getComponents();
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
     String mainInputName =
         getOnlyElement(
@@ -149,21 +207,23 @@ public class QueryablePipelineTest {
                 .values());
     PCollectionNode mainInput =
         PipelineNode.pCollection(mainInputName, components.getPcollectionsOrThrow(mainInputName));
-    String sideInputName =
+    PTransform parDoTransform = components.getTransformsOrThrow("par_do");
+    String sideInputLocalName =
         getOnlyElement(
-            components
-                .getTransformsOrThrow("par_do")
-                .getInputsMap()
-                .values()
-                .stream()
-                .filter(pcollectionName -> !pcollectionName.equals(mainInputName))
+            parDoTransform.getInputsMap().entrySet().stream()
+                .filter(entry -> !entry.getValue().equals(mainInputName))
+                .map(Map.Entry::getKey)
                 .collect(Collectors.toSet()));
+    String sideInputCollectionId = parDoTransform.getInputsOrThrow(sideInputLocalName);
     PCollectionNode sideInput =
-        PipelineNode.pCollection(sideInputName, components.getPcollectionsOrThrow(sideInputName));
+        PipelineNode.pCollection(
+            sideInputCollectionId, components.getPcollectionsOrThrow(sideInputCollectionId));
     PTransformNode parDoNode =
         PipelineNode.pTransform("par_do", components.getTransformsOrThrow("par_do"));
+    SideInputReference sideInputRef =
+        SideInputReference.of(parDoNode, sideInputLocalName, sideInput);
 
-    assertThat(qp.getSideInputs(parDoNode), contains(sideInput));
+    assertThat(qp.getSideInputs(parDoNode), contains(sideInputRef));
     assertThat(qp.getPerElementConsumers(mainInput), contains(parDoNode));
     assertThat(qp.getPerElementConsumers(sideInput), not(contains(parDoNode)));
   }
@@ -179,7 +239,15 @@ public class QueryablePipelineTest {
         Components.newBuilder()
             .putPcollections("read_pc", RunnerApi.PCollection.getDefaultInstance())
             .putPcollections("pardo_out", RunnerApi.PCollection.getDefaultInstance())
-            .putTransforms("root", PTransform.newBuilder().putOutputs("out", "read_pc").build())
+            .putTransforms(
+                "root",
+                PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                            .build())
+                    .putOutputs("out", "read_pc")
+                    .build())
             .putTransforms(
                 "multiConsumer",
                 PTransform.newBuilder()
@@ -198,13 +266,15 @@ public class QueryablePipelineTest {
                     .build())
             .build();
 
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
     PCollectionNode multiInputPc =
         PipelineNode.pCollection("read_pc", components.getPcollectionsOrThrow("read_pc"));
     PTransformNode multiConsumerPT =
         PipelineNode.pTransform("multiConsumer", components.getTransformsOrThrow("multiConsumer"));
+    SideInputReference sideInputRef =
+        SideInputReference.of(multiConsumerPT, "side_in", multiInputPc);
     assertThat(qp.getPerElementConsumers(multiInputPc), contains(multiConsumerPT));
-    assertThat(qp.getSideInputs(multiConsumerPT), contains(multiInputPc));
+    assertThat(qp.getSideInputs(multiConsumerPT), contains(sideInputRef));
   }
 
   /**
@@ -221,7 +291,7 @@ public class QueryablePipelineTest {
     // This breaks if the way that IDs are assigned to PTransforms changes in PipelineTranslation
     String readOutput =
         getOnlyElement(components.getTransformsOrThrow("BoundedRead").getOutputsMap().values());
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
     Set<PTransformNode> consumers =
         qp.getPerElementConsumers(
             PipelineNode.pCollection(readOutput, components.getPcollectionsOrThrow(readOutput)));
@@ -239,7 +309,7 @@ public class QueryablePipelineTest {
     PCollectionList.of(longs).and(longs).and(longs).apply("flatten", Flatten.pCollections());
 
     Components components = PipelineTranslation.toProto(p).getComponents();
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
     String longsOutputName =
         getOnlyElement(
@@ -275,7 +345,7 @@ public class QueryablePipelineTest {
     PCollectionList.of(longs).and(longs).and(longs).apply("flatten", Flatten.pCollections());
 
     Components components = PipelineTranslation.toProto(p).getComponents();
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
     PTransformNode environmentalRead =
         PipelineNode.pTransform("BoundedRead", components.getTransformsOrThrow("BoundedRead"));
@@ -303,9 +373,10 @@ public class QueryablePipelineTest {
             ParDo.of(new TestFn()).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     Components originalComponents = PipelineTranslation.toProto(p).getComponents();
-    Components primitiveComponents = QueryablePipeline.retainOnlyPrimitives(originalComponents);
+    Collection<String> primitiveComponents =
+        QueryablePipeline.getPrimitiveTransformIds(originalComponents);
 
-    assertThat(primitiveComponents, equalTo(originalComponents));
+    assertThat(primitiveComponents, equalTo(originalComponents.getTransformsMap().keySet()));
   }
 
   @Test
@@ -323,28 +394,14 @@ public class QueryablePipelineTest {
         });
 
     Components originalComponents = PipelineTranslation.toProto(p).getComponents();
-    Components primitiveComponents = QueryablePipeline.retainOnlyPrimitives(originalComponents);
+    Collection<String> primitiveComponents =
+        QueryablePipeline.getPrimitiveTransformIds(originalComponents);
 
     // Read, Window.Assign, ParDo. This will need to be updated if the expansions change.
-    assertThat(primitiveComponents.getTransformsCount(), equalTo(3));
-    for (Map.Entry<String, RunnerApi.PTransform> transformEntry :
-        primitiveComponents.getTransformsMap().entrySet()) {
-      assertThat(
-          originalComponents.getTransformsMap(),
-          hasEntry(transformEntry.getKey(), transformEntry.getValue()));
+    assertThat(primitiveComponents, hasSize(3));
+    for (String transformId : primitiveComponents) {
+      assertThat(originalComponents.getTransformsMap(), hasKey(transformId));
     }
-
-    // Other components should be unchanged
-    assertThat(
-        primitiveComponents.getPcollectionsCount(),
-        equalTo(originalComponents.getPcollectionsCount()));
-    assertThat(
-        primitiveComponents.getWindowingStrategiesCount(),
-        equalTo(originalComponents.getWindowingStrategiesCount()));
-    assertThat(primitiveComponents.getCodersCount(), equalTo(originalComponents.getCodersCount()));
-    assertThat(
-        primitiveComponents.getEnvironmentsCount(),
-        equalTo(originalComponents.getEnvironmentsCount()));
   }
 
   /** This method doesn't do any pruning for reachability, but this may not require a test. */
@@ -372,18 +429,7 @@ public class QueryablePipelineTest {
             .putEnvironments("extra-env", RunnerApi.Environment.getDefaultInstance())
             .putPcollections("extra-pc", RunnerApi.PCollection.getDefaultInstance())
             .build();
-    Components primitiveComponents = QueryablePipeline.retainOnlyPrimitives(augmentedComponents);
-
-    // Other components should be unchanged
-    assertThat(
-        primitiveComponents.getPcollectionsCount(),
-        equalTo(augmentedComponents.getPcollectionsCount()));
-    assertThat(
-        primitiveComponents.getWindowingStrategiesCount(),
-        equalTo(augmentedComponents.getWindowingStrategiesCount()));
-    assertThat(primitiveComponents.getCodersCount(), equalTo(augmentedComponents.getCodersCount()));
-    assertThat(
-        primitiveComponents.getEnvironmentsCount(),
-        equalTo(augmentedComponents.getEnvironmentsCount()));
+    Collection<String> primitiveComponents =
+        QueryablePipeline.getPrimitiveTransformIds(augmentedComponents);
   }
 }

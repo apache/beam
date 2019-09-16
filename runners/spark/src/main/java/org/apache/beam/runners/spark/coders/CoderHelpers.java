@@ -15,31 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.coders;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
-/**
- * Serialization utility class.
- */
+/** Serialization utility class. */
 public final class CoderHelpers {
-  private CoderHelpers() {
-  }
+  private CoderHelpers() {}
 
   /**
    * Utility method for serializing an object using the specified coder.
@@ -52,7 +50,7 @@ public final class CoderHelpers {
   public static <T> byte[] toByteArray(T value, Coder<T> coder) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
-      coder.encode(value, baos, new Coder.Context(true));
+      coder.encode(value, baos);
     } catch (IOException e) {
       throw new IllegalStateException("Error encoding value: " + value, e);
     }
@@ -63,12 +61,12 @@ public final class CoderHelpers {
    * Utility method for serializing a Iterable of values using the specified coder.
    *
    * @param values Values to serialize.
-   * @param coder  Coder to serialize with.
+   * @param coder Coder to serialize with.
    * @param <T> type of value that is serialized
    * @return List of bytes representing serialized objects.
    */
   public static <T> List<byte[]> toByteArrays(Iterable<T> values, Coder<T> coder) {
-    List<byte[]> res = new LinkedList<>();
+    List<byte[]> res = new ArrayList<>();
     for (T value : values) {
       res.add(toByteArray(value, coder));
     }
@@ -79,14 +77,14 @@ public final class CoderHelpers {
    * Utility method for deserializing a byte array using the specified coder.
    *
    * @param serialized bytearray to be deserialized.
-   * @param coder      Coder to deserialize with.
-   * @param <T>        Type of object to be returned.
+   * @param coder Coder to deserialize with.
+   * @param <T> Type of object to be returned.
    * @return Deserialized object.
    */
   public static <T> T fromByteArray(byte[] serialized, Coder<T> coder) {
     ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
     try {
-      return coder.decode(bais, new Coder.Context(true));
+      return coder.decode(bais);
     } catch (IOException e) {
       throw new IllegalStateException("Error decoding bytes for coder: " + coder, e);
     }
@@ -96,14 +94,13 @@ public final class CoderHelpers {
    * Utility method for deserializing a Iterable of byte arrays using the specified coder.
    *
    * @param serialized bytearrays to be deserialized.
-   * @param coder      Coder to deserialize with.
-   * @param <T>        Type of object to be returned.
+   * @param coder Coder to deserialize with.
+   * @param <T> Type of object to be returned.
    * @return Iterable of deserialized objects.
    */
   public static <T> Iterable<T> fromByteArrays(
       Collection<byte[]> serialized, final Coder<T> coder) {
-    return serialized
-        .stream()
+    return serialized.stream()
         .map(bytes -> fromByteArray(checkNotNull(bytes, "Cannot decode null values."), coder))
         .collect(Collectors.toList());
   }
@@ -112,7 +109,7 @@ public final class CoderHelpers {
    * A function wrapper for converting an object to a bytearray.
    *
    * @param coder Coder to serialize with.
-   * @param <T>   The type of the object being serialized.
+   * @param <T> The type of the object being serialized.
    * @return A function that accepts an object and returns its coder-serialized form.
    */
   public static <T> Function<T, byte[]> toByteFunction(final Coder<T> coder) {
@@ -123,7 +120,7 @@ public final class CoderHelpers {
    * A function wrapper for converting a byte array to an object.
    *
    * @param coder Coder to deserialize with.
-   * @param <T>   The type of the object being deserialized.
+   * @param <T> The type of the object being deserialized.
    * @return A function that accepts a byte array and returns its corresponding object.
    */
   public static <T> Function<byte[], T> fromByteFunction(final Coder<T> coder) {
@@ -135,8 +132,8 @@ public final class CoderHelpers {
    *
    * @param keyCoder Coder to serialize keys.
    * @param valueCoder Coder to serialize values.
-   * @param <K>   The type of the key being serialized.
-   * @param <V>   The type of the value being serialized.
+   * @param <K> The type of the key being serialized.
+   * @param <V> The type of the value being serialized.
    * @return A function that accepts a key-value pair and returns a pair of byte arrays.
    */
   public static <K, V> PairFunction<Tuple2<K, V>, ByteArray, byte[]> toByteFunction(
@@ -147,33 +144,55 @@ public final class CoderHelpers {
   }
 
   /**
-   * A function wrapper for converting a byte array pair to a key-value pair.
+   * A function for converting a byte array pair to a key-value pair.
    *
-   * @param keyCoder Coder to deserialize keys.
-   * @param valueCoder Coder to deserialize values.
-   * @param <K>   The type of the key being deserialized.
-   * @param <V>   The type of the value being deserialized.
-   * @return A function that accepts a pair of byte arrays and returns a key-value pair.
+   * @param <K> The type of the key being deserialized.
+   * @param <V> The type of the value being deserialized.
    */
-  public static <K, V> PairFunction<Tuple2<ByteArray, byte[]>, K, V> fromByteFunction(
-      final Coder<K> keyCoder, final Coder<V> valueCoder) {
-    return tuple ->
-        new Tuple2<>(
-            fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
+  public static class FromByteFunction<K, V>
+      implements PairFunction<Tuple2<ByteArray, byte[]>, K, V>,
+          org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function<
+              Tuple2<ByteArray, byte[]>, Tuple2<K, V>> {
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+
+    /**
+     * @param keyCoder Coder to deserialize keys.
+     * @param valueCoder Coder to deserialize values.
+     */
+    public FromByteFunction(final Coder<K> keyCoder, final Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public Tuple2<K, V> call(Tuple2<ByteArray, byte[]> tuple) {
+      return new Tuple2<>(
+          fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
+    }
+
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
+    @Override
+    public Tuple2<K, V> apply(@Nonnull Tuple2<ByteArray, byte[]> tuple) {
+      return call(tuple);
+    }
   }
 
   /**
-   * A function wrapper for converting a byte array pair to a key-value pair, where
-   * values are {@link Iterable}.
+   * A function wrapper for converting a byte array pair to a key-value pair, where values are
+   * {@link Iterable}.
    *
    * @param keyCoder Coder to deserialize keys.
    * @param valueCoder Coder to deserialize values.
-   * @param <K>   The type of the key being deserialized.
-   * @param <V>   The type of the value being deserialized.
+   * @param <K> The type of the key being deserialized.
+   * @param <V> The type of the value being deserialized.
    * @return A function that accepts a pair of byte arrays and returns a key-value pair.
    */
-  public static <K, V> PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>>
-      fromByteFunctionIterable(final Coder<K> keyCoder, final Coder<V> valueCoder) {
+  public static <K, V>
+      PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>> fromByteFunctionIterable(
+          final Coder<K> keyCoder, final Coder<V> valueCoder) {
     return tuple ->
         new Tuple2<>(
             fromByteArray(tuple._1().getValue(), keyCoder),

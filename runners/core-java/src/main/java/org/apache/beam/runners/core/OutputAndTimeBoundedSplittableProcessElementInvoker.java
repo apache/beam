@@ -17,22 +17,25 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.Futures;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -40,7 +43,10 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -50,12 +56,8 @@ import org.joda.time.Instant;
  * outputs), or runs for the given duration.
  */
 public class OutputAndTimeBoundedSplittableProcessElementInvoker<
-        InputT,
-        OutputT,
-        RestrictionT,
-        PositionT,
-        TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
-    extends SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT> {
+        InputT, OutputT, RestrictionT, PositionT>
+    extends SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT> {
   private final DoFn<InputT, OutputT> fn;
   private final PipelineOptions pipelineOptions;
   private final OutputWindowedValue<OutputT> output;
@@ -101,68 +103,116 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
   public Result invokeProcessElement(
       DoFnInvoker<InputT, OutputT> invoker,
       final WindowedValue<InputT> element,
-      final TrackerT tracker) {
+      final RestrictionTracker<RestrictionT, PositionT> tracker) {
     final ProcessContext processContext = new ProcessContext(element, tracker);
-    tracker.setClaimObserver(processContext);
-    DoFn.ProcessContinuation cont = invoker.invokeProcessElement(
-        new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
-          @Override
-          public DoFn<InputT, OutputT>.ProcessContext processContext(
-              DoFn<InputT, OutputT> doFn) {
-            return processContext;
-          }
 
-          @Override
-          public RestrictionTracker<?, ?> restrictionTracker() {
-            return tracker;
-          }
+    DoFn.ProcessContinuation cont =
+        invoker.invokeProcessElement(
+            new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
+              @Override
+              public DoFn<InputT, OutputT>.ProcessContext processContext(
+                  DoFn<InputT, OutputT> doFn) {
+                return processContext;
+              }
 
-          // Unsupported methods below.
+              @Override
+              public InputT element(DoFn<InputT, OutputT> doFn) {
+                return processContext.element();
+              }
 
-          @Override
-          public BoundedWindow window() {
-            throw new UnsupportedOperationException(
-                "Access to window of the element not supported in Splittable DoFn");
-          }
+              @Override
+              public Object sideInput(String tagId) {
+                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+              }
 
-          @Override
-          public PipelineOptions pipelineOptions() {
-            return pipelineOptions;
-          }
+              @Override
+              public Object schemaElement(int index) {
+                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+              }
 
-          @Override
-          public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
-            throw new IllegalStateException(
-                "Should not access startBundleContext() from @"
-                    + DoFn.ProcessElement.class.getSimpleName());
-          }
+              @Override
+              public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                return processContext.timestamp();
+              }
 
-          @Override
-          public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
-            throw new IllegalStateException(
-                "Should not access finishBundleContext() from @"
-                    + DoFn.ProcessElement.class.getSimpleName());
-          }
+              @Override
+              public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Access to time domain not supported in ProcessElement");
+              }
 
-          @Override
-          public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(
-              DoFn<InputT, OutputT> doFn) {
-            throw new UnsupportedOperationException(
-                "Access to timers not supported in Splittable DoFn");
-          }
+              @Override
+              public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+                return DoFnOutputReceivers.windowedReceiver(processContext, null);
+              }
 
-          @Override
-          public State state(String stateId) {
-            throw new UnsupportedOperationException(
-                "Access to state not supported in Splittable DoFn");
-          }
+              @Override
+              public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+              }
 
-          @Override
-          public Timer timer(String timerId) {
-            throw new UnsupportedOperationException(
-                "Access to timers not supported in Splittable DoFn");
-          }
-        });
+              @Override
+              public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+                return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
+              }
+
+              @Override
+              public RestrictionTracker<?, ?> restrictionTracker() {
+                return processContext.tracker;
+              }
+
+              // Unsupported methods below.
+
+              @Override
+              public BoundedWindow window() {
+                throw new UnsupportedOperationException(
+                    "Access to window of the element not supported in Splittable DoFn");
+              }
+
+              @Override
+              public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Access to pane of the element not supported in Splittable DoFn");
+              }
+
+              @Override
+              public PipelineOptions pipelineOptions() {
+                return pipelineOptions;
+              }
+
+              @Override
+              public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+                throw new IllegalStateException(
+                    "Should not access startBundleContext() from @"
+                        + DoFn.ProcessElement.class.getSimpleName());
+              }
+
+              @Override
+              public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+                throw new IllegalStateException(
+                    "Should not access finishBundleContext() from @"
+                        + DoFn.ProcessElement.class.getSimpleName());
+              }
+
+              @Override
+              public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(
+                  DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Access to timers not supported in Splittable DoFn");
+              }
+
+              @Override
+              public State state(String stateId) {
+                throw new UnsupportedOperationException(
+                    "Access to state not supported in Splittable DoFn");
+              }
+
+              @Override
+              public Timer timer(String timerId) {
+                throw new UnsupportedOperationException(
+                    "Access to timers not supported in Splittable DoFn");
+              }
+            });
     processContext.cancelScheduledCheckpoint();
     @Nullable KV<RestrictionT, Instant> residual = processContext.getTakenCheckpoint();
     if (cont.shouldResume()) {
@@ -178,7 +228,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         // restriction that describes exactly the work that wasn't done in the current call.
         if (processContext.numClaimedBlocks > 0) {
           residual = checkNotNull(processContext.takeCheckpointNow());
-          tracker.checkDone();
+          processContext.tracker.checkDone();
         } else {
           // The call returned resume() without trying to claim any blocks, i.e. it is unaware
           // of any work to be done at the moment, but more might emerge later. This is a valid
@@ -206,14 +256,14 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         // ProcessElement call.
         // In other words, if we took a checkpoint *after* ProcessElement completed (like in the
         // branch above), it would have been equivalent to this one.
-        tracker.checkDone();
+        processContext.tracker.checkDone();
       }
     } else {
       // The ProcessElement call returned stop() - that means the tracker's current restriction
       // has been fully processed by the call. A checkpoint may or may not have been taken in
       // "residual"; if it was, then we'll need to process it; if no, then we don't - nothing
       // special needs to be done.
-      tracker.checkDone();
+      processContext.tracker.checkDone();
     }
     if (residual == null) {
       // Can only be true if cont.shouldResume() is false and no checkpoint was taken.
@@ -225,9 +275,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext
-      implements RestrictionTracker.ClaimObserver<PositionT> {
+      implements RestrictionTrackers.ClaimObserver<PositionT> {
     private final WindowedValue<InputT> element;
-    private final TrackerT tracker;
+    private final RestrictionTracker<RestrictionT, PositionT> tracker;
     private int numClaimedBlocks;
     private boolean hasClaimFailed;
 
@@ -245,17 +295,17 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     private @Nullable Future<?> scheduledCheckpoint;
     private @Nullable Instant lastReportedWatermark;
 
-    public ProcessContext(WindowedValue<InputT> element, TrackerT tracker) {
+    public ProcessContext(
+        WindowedValue<InputT> element, RestrictionTracker<RestrictionT, PositionT> tracker) {
       fn.super();
       this.element = element;
-      this.tracker = tracker;
+      this.tracker = RestrictionTrackers.observe(tracker, this);
     }
 
     @Override
     public void onClaimed(PositionT position) {
       checkState(
-          !hasClaimFailed,
-          "Must not call tryClaim() after it has previously returned false");
+          !hasClaimFailed, "Must not call tryClaim() after it has previously returned false");
       if (numClaimedBlocks == 0) {
         // Claiming first block: can schedule the checkpoint now.
         // We don't schedule it right away to prevent checkpointing before any blocks are claimed,
@@ -271,8 +321,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public void onClaimFailed(PositionT position) {
       checkState(
-          !hasClaimFailed,
-          "Must not call tryClaim() after it has previously returned false");
+          !hasClaimFailed, "Must not call tryClaim() after it has previously returned false");
       hasClaimFailed = true;
     }
 
@@ -366,8 +415,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
       noteOutput();
-      output.outputWindowedValue(
-          tag, value, timestamp, element.getWindows(), element.getPane());
+      output.outputWindowedValue(tag, value, timestamp, element.getWindows(), element.getPane());
     }
 
     private void noteOutput() {

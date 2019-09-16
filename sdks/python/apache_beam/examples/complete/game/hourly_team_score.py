@@ -65,6 +65,7 @@ python hourly_team_score.py \
 """
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import argparse
@@ -158,39 +159,32 @@ class TeamScoresDict(beam.DoFn):
 
 class WriteToBigQuery(beam.PTransform):
   """Generate, format, and write BigQuery table row information."""
-  def __init__(self, table_name, dataset, schema):
+  def __init__(self, table_name, dataset, schema, project):
     """Initializes the transform.
     Args:
       table_name: Name of the BigQuery table to use.
       dataset: Name of the dataset to use.
       schema: Dictionary in the format {'column_name': 'bigquery_type'}
+      project: Name of the Cloud project containing BigQuery table.
     """
     super(WriteToBigQuery, self).__init__()
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
+    self.project = project
 
   def get_schema(self):
     """Build the output table schema."""
     return ', '.join(
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
-  def get_table(self, pipeline):
-    """Utility to construct an output table reference."""
-    project = pipeline.options.view_as(GoogleCloudOptions).project
-    return '%s:%s.%s' % (project, self.dataset, self.table_name)
-
   def expand(self, pcoll):
-    table = self.get_table(pcoll.pipeline)
     return (
         pcoll
         | 'ConvertToRow' >> beam.Map(
             lambda elem: {col: elem[col] for col in self.schema})
-        | beam.io.Write(beam.io.BigQuerySink(
-            table,
-            schema=self.get_schema(),
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
+        | beam.io.WriteToBigQuery(
+            self.table_name, self.dataset, self.project, self.get_schema()))
 
 
 # [START main]
@@ -298,7 +292,7 @@ def run(argv=None):
              'team': 'STRING',
              'total_score': 'INTEGER',
              'window_start': 'STRING',
-         }))
+         }, options.view_as(GoogleCloudOptions).project))
 # [END main]
 
 

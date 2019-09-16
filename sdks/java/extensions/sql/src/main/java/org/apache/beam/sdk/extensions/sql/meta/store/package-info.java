@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Meta stores.
- */
+/** Meta stores. */
 package org.apache.beam.sdk.extensions.sql.meta.store;

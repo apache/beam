@@ -29,23 +29,21 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for SerializableConfiguration.
- */
+/** Tests for SerializableConfiguration. */
 @RunWith(JUnit4.class)
 public class SerializableConfigurationTest {
-  @Rule public  final ExpectedException thrown = ExpectedException.none();
+  @Rule public final ExpectedException thrown = ExpectedException.none();
   private static final SerializableConfiguration DEFAULT_SERIALIZABLE_CONF =
-          new SerializableConfiguration(new Configuration());
+      new SerializableConfiguration(new Configuration());
 
   @Test
-  public void testSerializationDeserialization() throws Exception {
+  public void testSerializationDeserialization() {
     Configuration conf = new Configuration();
     conf.set("hadoop.silly.test", "test-value");
     byte[] object = SerializationUtils.serialize(new SerializableConfiguration(conf));
     SerializableConfiguration serConf = SerializationUtils.deserialize(object);
     assertNotNull(serConf);
-    assertEquals(serConf.get().get("hadoop.silly.test"), "test-value");
+    assertEquals("test-value", serConf.get().get("hadoop.silly.test"));
   }
 
   @Test
@@ -57,11 +55,11 @@ public class SerializableConfigurationTest {
   }
 
   @Test
-  public void testCreateNewConfiguration() throws Exception {
+  public void testCreateNewConfiguration() {
     Configuration confFromNull = SerializableConfiguration.newConfiguration(null);
     assertNotNull(confFromNull);
     Configuration conf =
-            SerializableConfiguration.newConfiguration(new SerializableConfiguration(confFromNull));
+        SerializableConfiguration.newConfiguration(new SerializableConfiguration(confFromNull));
     assertNotNull(conf);
   }
 

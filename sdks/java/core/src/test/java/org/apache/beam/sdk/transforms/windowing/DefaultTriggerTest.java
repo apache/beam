@@ -25,17 +25,20 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests the {@link DefaultTrigger}, which should be equivalent to
- * {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
+ * Tests the {@link DefaultTrigger}, which should be equivalent to {@code
+ * Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
  */
 @RunWith(JUnit4.class)
 public class DefaultTriggerTest {
 
   @Test
   public void testFireDeadline() throws Exception {
-    assertEquals(new Instant(9), DefaultTrigger.of().getWatermarkThatGuaranteesFiring(
-        new IntervalWindow(new Instant(0), new Instant(10))));
-    assertEquals(GlobalWindow.INSTANCE.maxTimestamp(),
+    assertEquals(
+        new Instant(9),
+        DefaultTrigger.of()
+            .getWatermarkThatGuaranteesFiring(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertEquals(
+        GlobalWindow.INSTANCE.maxTimestamp(),
         DefaultTrigger.of().getWatermarkThatGuaranteesFiring(GlobalWindow.INSTANCE));
   }
 

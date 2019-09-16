@@ -15,25 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 
-/**
- * Tests for {@link GearpumpRunnerRegistrar}.
- */
+/** Tests for {@link GearpumpRunnerRegistrar}. */
 public class GearpumpRunnerRegistrarTest {
 
   @Test
   public void testFullName() {
-    String[] args =
-      new String[] {String.format("--runner=%s", GearpumpRunner.class.getName())};
+    String[] args = new String[] {String.format("--runner=%s", GearpumpRunner.class.getName())};
     PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
     assertEquals(opts.getRunner(), GearpumpRunner.class);
   }
@@ -41,7 +37,7 @@ public class GearpumpRunnerRegistrarTest {
   @Test
   public void testClassName() {
     String[] args =
-      new String[] {String.format("--runner=%s", GearpumpRunner.class.getSimpleName())};
+        new String[] {String.format("--runner=%s", GearpumpRunner.class.getSimpleName())};
     PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
     assertEquals(opts.getRunner(), GearpumpRunner.class);
   }
@@ -49,7 +45,7 @@ public class GearpumpRunnerRegistrarTest {
   @Test
   public void testOptions() {
     assertEquals(
-      ImmutableList.of(GearpumpPipelineOptions.class),
-      new GearpumpRunnerRegistrar.Options().getPipelineOptions());
+        ImmutableList.of(GearpumpPipelineOptions.class),
+        new GearpumpRunnerRegistrar.Options().getPipelineOptions());
   }
 }

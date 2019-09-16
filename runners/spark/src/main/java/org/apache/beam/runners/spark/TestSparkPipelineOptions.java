@@ -25,31 +25,32 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
-
-/**
- * A {@link SparkPipelineOptions} for tests.
- */
+/** A {@link SparkPipelineOptions} for tests. */
 public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipelineOptions {
 
   @Description("A special flag that forces streaming in tests.")
   @Default.Boolean(false)
   boolean isForceStreaming();
+
   void setForceStreaming(boolean forceStreaming);
 
   @Description("A hard-coded expected number of assertions for this test pipeline.")
   @Nullable
   Integer getExpectedAssertions();
+
   void setExpectedAssertions(Integer expectedAssertions);
 
-  @Description("A watermark (time in millis) that causes a pipeline that reads "
-      + "from an unbounded source to stop.")
+  @Description(
+      "A watermark (time in millis) that causes a pipeline that reads "
+          + "from an unbounded source to stop.")
   @Default.InstanceFactory(DefaultStopPipelineWatermarkFactory.class)
   Long getStopPipelineWatermark();
+
   void setStopPipelineWatermark(Long stopPipelineWatermark);
 
   /**
-   * A factory to provide the default watermark to stop a pipeline that reads
-   * from an unbounded source.
+   * A factory to provide the default watermark to stop a pipeline that reads from an unbounded
+   * source.
    */
   class DefaultStopPipelineWatermarkFactory implements DefaultValueFactory<Long> {
     @Override
@@ -57,5 +58,4 @@ public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipe
       return BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
     }
   }
-
 }

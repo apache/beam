@@ -19,18 +19,16 @@ package org.apache.beam.sdk.transforms.join;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the UnionCoder.
- */
+/** Tests the UnionCoder. */
 @RunWith(JUnit4.class)
 public class UnionCoderTest {
   @Test

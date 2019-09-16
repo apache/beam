@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.not;
@@ -24,7 +25,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -48,13 +49,11 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class LocalResourceIdTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
-  public void testResolveInUnix() throws Exception {
+  public void testResolveInUnix() {
     if (SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -62,8 +61,7 @@ public class LocalResourceIdTest {
     // Tests for local files without the scheme.
     assertEquals(
         toResourceIdentifier("/root/tmp/aa"),
-        toResourceIdentifier("/root/tmp/")
-            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
+        toResourceIdentifier("/root/tmp/").resolve("aa", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("/root/tmp/aa/bb/cc/"),
         toResourceIdentifier("/root/tmp/")
@@ -80,12 +78,11 @@ public class LocalResourceIdTest {
     // Tests empty authority and path.
     assertEquals(
         toResourceIdentifier("file:/aa"),
-        toResourceIdentifier("file:///")
-            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
+        toResourceIdentifier("file:///").resolve("aa", StandardResolveOptions.RESOLVE_FILE));
   }
 
   @Test
-  public void testResolveNormalizationInUnix() throws Exception {
+  public void testResolveNormalizationInUnix() {
     if (SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -141,35 +138,34 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testResolveHandleBadInputsInUnix() throws Exception {
+  public void testResolveHandleBadInputsInUnix() {
     if (SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
     }
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
-        toResourceIdentifier("/root/")
-            .resolve("tmp/", StandardResolveOptions.RESOLVE_DIRECTORY));
+        toResourceIdentifier("/root/").resolve("tmp/", StandardResolveOptions.RESOLVE_DIRECTORY));
   }
 
   @Test
-  public void testResolveInvalidInputs() throws Exception {
+  public void testResolveInvalidInputs() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("The resolved file: [tmp/] should not end with '/'.");
     toResourceIdentifier("/root/").resolve("tmp/", StandardResolveOptions.RESOLVE_FILE);
   }
 
   @Test
-  public void testResolveInvalidNotDirectory() throws Exception {
-    ResourceId tmp = toResourceIdentifier("/root/")
-        .resolve("tmp", StandardResolveOptions.RESOLVE_FILE);
+  public void testResolveInvalidNotDirectory() {
+    ResourceId tmp =
+        toResourceIdentifier("/root/").resolve("tmp", StandardResolveOptions.RESOLVE_FILE);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Expected the path is a directory, but had [/root/tmp].");
     tmp.resolve("aa", StandardResolveOptions.RESOLVE_FILE);
   }
 
   @Test
-  public void testResolveInWindowsOS() throws Exception {
+  public void testResolveInWindowsOS() {
     if (!SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -194,40 +190,32 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testGetCurrentDirectoryInUnix() throws Exception {
+  public void testGetCurrentDirectoryInUnix() {
     // Tests for local files without the scheme.
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
         toResourceIdentifier("/root/tmp/").getCurrentDirectory());
-    assertEquals(
-        toResourceIdentifier("/"),
-        toResourceIdentifier("/").getCurrentDirectory());
+    assertEquals(toResourceIdentifier("/"), toResourceIdentifier("/").getCurrentDirectory());
 
     // Tests path without parent.
-    assertEquals(
-        toResourceIdentifier("./"),
-        toResourceIdentifier("output").getCurrentDirectory());
+    assertEquals(toResourceIdentifier("./"), toResourceIdentifier("output").getCurrentDirectory());
   }
 
   @Test
-  public void testGetScheme() throws Exception {
+  public void testGetScheme() {
     // Tests for local files without the scheme.
     assertEquals("file", toResourceIdentifier("/root/tmp/").getScheme());
   }
 
   @Test
-  public void testEquals() throws Exception {
-    assertEquals(
-        toResourceIdentifier("/root/tmp/"),
-        toResourceIdentifier("/root/tmp/"));
+  public void testEquals() {
+    assertEquals(toResourceIdentifier("/root/tmp/"), toResourceIdentifier("/root/tmp/"));
 
-    assertNotEquals(
-        toResourceIdentifier("/root/tmp"),
-        toResourceIdentifier("/root/tmp/"));
+    assertNotEquals(toResourceIdentifier("/root/tmp"), toResourceIdentifier("/root/tmp/"));
   }
 
   @Test
-  public void testIsDirectory() throws Exception {
+  public void testIsDirectory() {
     assertTrue(toResourceIdentifier("/").isDirectory());
     assertTrue(toResourceIdentifier("/root/tmp/").isDirectory());
     assertFalse(toResourceIdentifier("/root").isDirectory());
@@ -250,22 +238,19 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testGetFilename() throws Exception {
-    assertEquals(toResourceIdentifier("/").getFilename(), null);
-    assertEquals(toResourceIdentifier("/root/tmp").getFilename(),
-        "tmp");
-    assertEquals(toResourceIdentifier("/root/tmp/").getFilename(),
-        "tmp");
-    assertEquals(toResourceIdentifier("/root/tmp/xyz.txt").getFilename(),
-        "xyz.txt");
+  public void testGetFilename() {
+    assertNull(toResourceIdentifier("/").getFilename());
+    assertEquals("tmp", toResourceIdentifier("/root/tmp").getFilename());
+    assertEquals("tmp", toResourceIdentifier("/root/tmp/").getFilename());
+    assertEquals("xyz.txt", toResourceIdentifier("/root/tmp/xyz.txt").getFilename());
   }
 
   @Test
-  public void testResourceIdTester() throws Exception {
+  public void testResourceIdTester() {
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("/tmp/foo/"));
   }
 
-  private LocalResourceId toResourceIdentifier(String str) throws Exception {
+  private LocalResourceId toResourceIdentifier(String str) {
     boolean isDirectory;
     if (SystemUtils.IS_OS_WINDOWS) {
       isDirectory = str.endsWith("\\");

@@ -19,10 +19,13 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.TimerInternals.TimerData;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
@@ -33,17 +36,17 @@ import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 
-/**
- * Flink operator for executing window {@link DoFn DoFns}.
- */
+/** Flink operator for executing window {@link DoFn DoFns}. */
 public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
 
@@ -52,7 +55,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   public WindowDoFnOperator(
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
       String stepName,
-      Coder<WindowedValue<KeyedWorkItem<K, InputT>>> inputCoder,
+      Coder<WindowedValue<KeyedWorkItem<K, InputT>>> windowedInputCoder,
       TupleTag<KV<K, OutputT>> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
@@ -60,11 +63,14 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
-      Coder<K> keyCoder) {
+      Coder<K> keyCoder,
+      KeySelector<WindowedValue<KeyedWorkItem<K, InputT>>, ?> keySelector) {
     super(
         null,
         stepName,
-        inputCoder,
+        windowedInputCoder,
+        null,
+        Collections.emptyMap(),
         mainOutputTag,
         additionalOutputTags,
         outputManagerFactory,
@@ -72,25 +78,35 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         sideInputTagMapping,
         sideInputs,
         options,
-        keyCoder);
+        keyCoder,
+        keySelector,
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
 
     this.systemReduceFn = systemReduceFn;
+  }
 
+  @Override
+  protected DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> createWrappingDoFnRunner(
+      DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner) {
+    // When the doFn is this, we know it came from WindowDoFnOperator and
+    //   InputT = KeyedWorkItem<K, V>
+    //   OutputT = KV<K, V>
+    //
+    // for some K, V
+
+    return DoFnRunners.lateDataDroppingRunner(
+        (DoFnRunner) doFnRunner, timerInternals, windowingStrategy);
   }
 
   @Override
   protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
-    StateInternalsFactory<K> stateInternalsFactory =
-        key -> {
-          // this will implicitly be keyed by the key of the incoming
-          // element or by the key of a firing timer
-          return (StateInternals) keyedStateInternals;
-        };
-    TimerInternalsFactory<K> timerInternalsFactory =
-        key -> {
-          // this will implicitly be keyed like the StateInternalsFactory
-          return timerInternals;
-        };
+    // this will implicitly be keyed by the key of the incoming
+    // element or by the key of a firing timer
+    StateInternalsFactory<K> stateInternalsFactory = key -> (StateInternals) keyedStateInternals;
+
+    // this will implicitly be keyed like the StateInternalsFactory
+    TimerInternalsFactory<K> timerInternalsFactory = key -> timerInternals;
 
     // we have to do the unchecked cast because GroupAlsoByWindowViaWindowSetDoFn.create
     // has the window type as generic parameter while WindowingStrategy is almost always
@@ -98,18 +114,23 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     @SuppressWarnings("unchecked")
     DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
         GroupAlsoByWindowViaWindowSetNewDoFn.create(
-            windowingStrategy, stateInternalsFactory, timerInternalsFactory, sideInputReader,
-                (SystemReduceFn) systemReduceFn, outputManager, mainOutputTag);
+            windowingStrategy,
+            stateInternalsFactory,
+            timerInternalsFactory,
+            sideInputReader,
+            (SystemReduceFn) systemReduceFn,
+            outputManager,
+            mainOutputTag);
     return doFn;
   }
 
   @Override
-  public void fireTimer(InternalTimer<?, TimerData> timer) {
+  protected void fireTimer(InternalTimer<ByteBuffer, TimerData> timer) {
+    timerInternals.cleanupPendingTimer(timer.getNamespace());
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(
                 (K) keyedStateInternals.getKey(),
                 Collections.singletonList(timer.getNamespace()))));
   }
-
 }

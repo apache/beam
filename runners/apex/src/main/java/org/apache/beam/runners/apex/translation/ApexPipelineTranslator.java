@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.DAG;
@@ -44,39 +43,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link ApexPipelineTranslator} translates {@link Pipeline} objects
- * into Apex logical plan {@link DAG}.
+ * {@link ApexPipelineTranslator} translates {@link Pipeline} objects into Apex logical plan {@link
+ * DAG}.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private static final Logger LOG = LoggerFactory.getLogger(ApexPipelineTranslator.class);
 
   /**
-   * A map from {@link PTransform} subclass to the corresponding
-   * {@link TransformTranslator} to use to translate that transform.
+   * A map from {@link PTransform} subclass to the corresponding {@link TransformTranslator} to use
+   * to translate that transform.
    */
-  private static final Map<Class<? extends PTransform>, TransformTranslator>
-      transformTranslators = new HashMap<>();
+  private static final Map<Class<? extends PTransform>, TransformTranslator> transformTranslators =
+      new HashMap<>();
 
   private final TranslationContext translationContext;
 
   static {
     // register TransformTranslators
     registerTransformTranslator(ParDo.MultiOutput.class, new ParDoTranslator<>());
-    registerTransformTranslator(SplittableParDoViaKeyedWorkItems.ProcessElements.class,
+    registerTransformTranslator(
+        SplittableParDoViaKeyedWorkItems.ProcessElements.class,
         new ParDoTranslator.SplittableProcessElementsTranslator());
-    registerTransformTranslator(GBKIntoKeyedWorkItems.class,
-        new GBKIntoKeyedWorkItemsTranslator());
+    registerTransformTranslator(GBKIntoKeyedWorkItems.class, new GBKIntoKeyedWorkItemsTranslator());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
-    registerTransformTranslator(Flatten.PCollections.class,
-        new FlattenPCollectionTranslator());
+    registerTransformTranslator(Flatten.PCollections.class, new FlattenPCollectionTranslator());
     registerTransformTranslator(PrimitiveCreate.class, new CreateValuesTranslator());
-    registerTransformTranslator(CreateApexPCollectionView.class,
-        new CreateApexPCollectionViewTranslator());
-    registerTransformTranslator(CreatePCollectionView.class,
-        new CreatePCollectionViewTranslator());
+    registerTransformTranslator(
+        CreateApexPCollectionView.class, new CreateApexPCollectionViewTranslator());
+    registerTransformTranslator(CreatePCollectionView.class, new CreatePCollectionViewTranslator());
     registerTransformTranslator(Window.Assign.class, new WindowAssignTranslator());
   }
 
@@ -106,8 +103,7 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     PTransform transform = node.getTransform();
     TransformTranslator translator = getTransformTranslator(transform.getClass());
     if (null == translator) {
-      throw new UnsupportedOperationException(
-          "no translator registered for " + transform);
+      throw new UnsupportedOperationException("no translator registered for " + transform);
     }
     translationContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
     translator.translate(transform, translationContext);
@@ -119,25 +115,23 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   }
 
   /**
-   * Records that instances of the specified PTransform class
-   * should be translated by default by the corresponding
-   * {@link TransformTranslator}.
+   * Records that instances of the specified PTransform class should be translated by default by the
+   * corresponding {@link TransformTranslator}.
    */
   private static <TransformT extends PTransform> void registerTransformTranslator(
       Class<TransformT> transformClass,
       TransformTranslator<? extends TransformT> transformTranslator) {
     if (transformTranslators.put(transformClass, transformTranslator) != null) {
-      throw new IllegalArgumentException(
-          "defining multiple translators for " + transformClass);
+      throw new IllegalArgumentException("defining multiple translators for " + transformClass);
     }
   }
 
   /**
-   * Returns the {@link TransformTranslator} to use for instances of the
-   * specified PTransform class, or null if none registered.
+   * Returns the {@link TransformTranslator} to use for instances of the specified PTransform class,
+   * or null if none registered.
    */
   private <TransformT extends PTransform<?, ?>>
-  TransformTranslator<TransformT> getTransformTranslator(Class<TransformT> transformClass) {
+      TransformTranslator<TransformT> getTransformTranslator(Class<TransformT> transformClass) {
     return transformTranslators.get(transformClass);
   }
 
@@ -147,10 +141,10 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     @Override
     public void translate(Read.Bounded<T> transform, TranslationContext context) {
       // TODO: adapter is visibleForTesting
-      BoundedToUnboundedSourceAdapter unboundedSource = new BoundedToUnboundedSourceAdapter<>(
-          transform.getSource());
-      ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
-          unboundedSource, true, context.getPipelineOptions());
+      BoundedToUnboundedSourceAdapter unboundedSource =
+          new BoundedToUnboundedSourceAdapter<>(transform.getSource());
+      ApexReadUnboundedInputOperator<T, ?> operator =
+          new ApexReadUnboundedInputOperator<>(unboundedSource, true, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
     }
   }
@@ -180,18 +174,15 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   }
 
   private static class GBKIntoKeyedWorkItemsTranslator<K, InputT>
-    implements TransformTranslator<GBKIntoKeyedWorkItems<K, InputT>> {
+      implements TransformTranslator<GBKIntoKeyedWorkItems<K, InputT>> {
 
     @Override
-    public void translate(
-        GBKIntoKeyedWorkItems<K, InputT> transform, TranslationContext context) {
+    public void translate(GBKIntoKeyedWorkItems<K, InputT> transform, TranslationContext context) {
       // https://issues.apache.org/jira/browse/BEAM-1850
-      ApexProcessFnOperator<KV<K, InputT>> operator = ApexProcessFnOperator.toKeyedWorkItems(
-          context.getPipelineOptions());
+      ApexProcessFnOperator<KV<K, InputT>> operator =
+          ApexProcessFnOperator.toKeyedWorkItems(context.getPipelineOptions());
       context.addOperator(operator, operator.outputPort);
       context.addStream(context.getInput(), operator.inputPort);
     }
-
   }
-
 }

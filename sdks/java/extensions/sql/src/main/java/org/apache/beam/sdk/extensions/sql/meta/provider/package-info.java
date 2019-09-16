@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Table providers.
- */
+/** Table providers. */
 package org.apache.beam.sdk.extensions.sql.meta.provider;

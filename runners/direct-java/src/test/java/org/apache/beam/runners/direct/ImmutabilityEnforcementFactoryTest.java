@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -36,13 +38,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ImmutabilityEnforcementFactory}.
- */
+/** Tests for {@link ImmutabilityEnforcementFactory}. */
 @RunWith(JUnit4.class)
 public class ImmutabilityEnforcementFactoryTest implements Serializable {
-  @Rule public transient TestPipeline p =
-      TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule
+  public transient TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   private transient ImmutabilityEnforcementFactory factory;
   private transient BundleFactory bundleFactory;
@@ -54,13 +55,12 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     factory = new ImmutabilityEnforcementFactory();
     bundleFactory = ImmutableListBundleFactory.create();
     pcollection =
-        p.apply(Create.of("foo".getBytes(), "spamhameggs".getBytes()))
+        p.apply(Create.of("foo".getBytes(UTF_8), "spamhameggs".getBytes(UTF_8)))
             .apply(
                 ParDo.of(
                     new DoFn<byte[], byte[]>() {
                       @ProcessElement
-                      public void processElement(ProcessContext c)
-                          throws Exception {
+                      public void processElement(ProcessContext c) throws Exception {
                         c.element()[0] = 'b';
                       }
                     }));
@@ -71,7 +71,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
 
   @Test
   public void unchangedSucceeds() {
-    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes());
+    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes(UTF_8));
     CommittedBundle<byte[]> elements =
         bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 
@@ -86,7 +86,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
 
   @Test
   public void mutatedDuringProcessElementThrows() {
-    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes());
+    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes(UTF_8));
     CommittedBundle<byte[]> elements =
         bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 
@@ -107,7 +107,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
   @Test
   public void mutatedAfterProcessElementFails() {
 
-    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes());
+    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes(UTF_8));
     CommittedBundle<byte[]> elements =
         bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 

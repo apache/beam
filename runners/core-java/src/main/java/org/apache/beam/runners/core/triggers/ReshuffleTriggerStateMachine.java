@@ -20,8 +20,7 @@ package org.apache.beam.runners.core.triggers;
 import org.apache.beam.sdk.transforms.Reshuffle;
 
 /**
- * The trigger used with {@link Reshuffle} which triggers on every element
- * and never buffers state.
+ * The trigger used with {@link Reshuffle} which triggers on every element and never buffers state.
  */
 public class ReshuffleTriggerStateMachine extends TriggerStateMachine {
 
@@ -34,10 +33,10 @@ public class ReshuffleTriggerStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public void onElement(TriggerStateMachine.OnElementContext c) { }
+  public void onElement(TriggerStateMachine.OnElementContext c) {}
 
   @Override
-  public void onMerge(TriggerStateMachine.OnMergeContext c) { }
+  public void onMerge(TriggerStateMachine.OnMergeContext c) {}
 
   @Override
   public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {
@@ -45,7 +44,7 @@ public class ReshuffleTriggerStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public void onFire(TriggerStateMachine.TriggerContext context) throws Exception { }
+  public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {}
 
   @Override
   public String toString() {

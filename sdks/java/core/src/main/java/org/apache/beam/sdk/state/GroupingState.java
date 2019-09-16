@@ -36,8 +36,8 @@ public interface GroupingState<InputT, OutputT> extends ReadableState<OutputT>, 
   /**
    * Add a value to the buffer.
    *
-   * <p>Elements added will not be reflected in {@code OutputT} objects returned by
-   * previous calls to {@link #read}.
+   * <p>Elements added will not be reflected in {@code OutputT} objects returned by previous calls
+   * to {@link #read}.
    */
   void add(InputT value);
 

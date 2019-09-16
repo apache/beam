@@ -29,8 +29,6 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +55,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -67,9 +67,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link BoundedReadEvaluatorFactory}.
- */
+/** Tests for {@link BoundedReadEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class BoundedReadEvaluatorFactoryTest {
   private BoundedSource<Long> source;
@@ -79,8 +77,8 @@ public class BoundedReadEvaluatorFactoryTest {
   private BundleFactory bundleFactory;
   private AppliedPTransform<?, ?, ?> longsProducer;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  private PipelineOptions options;
 
   @Before
   public void setup() {
@@ -88,9 +86,10 @@ public class BoundedReadEvaluatorFactoryTest {
     source = CountingSource.upTo(10L);
     longs = p.apply(Read.from(source));
 
+    options = PipelineOptionsFactory.create();
     factory =
         new BoundedReadEvaluatorFactory(
-            context, Long.MAX_VALUE /* minimum size for dynamic splits */);
+            context, options, Long.MAX_VALUE /* minimum size for dynamic splits */);
     bundleFactory = ImmutableListBundleFactory.create();
     longsProducer = DirectGraphs.getProducer(longs);
   }
@@ -102,12 +101,11 @@ public class BoundedReadEvaluatorFactoryTest {
     when(context.createBundle(longs)).thenReturn(outputBundle);
 
     Collection<CommittedBundle<?>> initialInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context)
+        new BoundedReadEvaluatorFactory.InputProvider(context, options)
             .getInitialInputs(longsProducer, 1);
     List<WindowedValue<?>> outputs = new ArrayList<>();
     for (CommittedBundle<?> shardBundle : initialInputs) {
-      TransformEvaluator<?> evaluator =
-          factory.forApplication(longsProducer, null);
+      TransformEvaluator<?> evaluator = factory.forApplication(longsProducer, null);
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
@@ -126,13 +124,13 @@ public class BoundedReadEvaluatorFactoryTest {
 
     assertThat(
         outputs,
-        Matchers.containsInAnyOrder(
+        containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
   @Test
   public void boundedSourceEvaluatorProducesDynamicSplits() throws Exception {
-    BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, 0L);
+    BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, options, 0L);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     int numElements = 10;
@@ -140,11 +138,11 @@ public class BoundedReadEvaluatorFactoryTest {
     for (int i = 0; i < numElements; i++) {
       elems[i] = (long) i;
     }
-    PCollection<Long> read =
-        p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
+    PCollection<Long> read = p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
     Collection<CommittedBundle<?>> unreadInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(transform, 1);
+        new BoundedReadEvaluatorFactory.InputProvider(context, options)
+            .getInitialInputs(transform, 1);
 
     Collection<WindowedValue<?>> outputs = new ArrayList<>();
     int numIterations = 0;
@@ -187,7 +185,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
   @Test
   public void boundedSourceEvaluatorDynamicSplitsUnsplittable() throws Exception {
-    BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, 0L);
+    BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, options, 0L);
 
     PCollection<Long> read =
         p.apply(Read.from(SourceTestUtils.toUnsplittableSource(CountingSource.upTo(10L))));
@@ -196,14 +194,14 @@ public class BoundedReadEvaluatorFactoryTest {
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(transform, 1);
+        new BoundedReadEvaluatorFactory.InputProvider(context, options)
+            .getInitialInputs(transform, 1);
 
     UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(read);
     when(context.createBundle(read)).thenReturn(outputBundle);
     List<WindowedValue<?>> outputs = new ArrayList<>();
     for (CommittedBundle<?> shardBundle : initialInputs) {
-      TransformEvaluator<?> evaluator =
-          factory.forApplication(transform, null);
+      TransformEvaluator<?> evaluator = factory.forApplication(transform, null);
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
@@ -222,7 +220,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     assertThat(
         outputs,
-        Matchers.containsInAnyOrder(
+        containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
@@ -230,7 +228,7 @@ public class BoundedReadEvaluatorFactoryTest {
   public void getInitialInputsSplitsIntoBundles() throws Exception {
     when(context.createRootBundle()).thenAnswer(invocation -> bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context)
+        new BoundedReadEvaluatorFactory.InputProvider(context, options)
             .getInitialInputs(longsProducer, 3);
 
     assertThat(initialInputs, hasSize(allOf(greaterThanOrEqualTo(3), lessThanOrEqualTo(4))));
@@ -245,9 +243,8 @@ public class BoundedReadEvaluatorFactoryTest {
       sources.add(shard.getValue().getSource());
     }
 
-    SourceTestUtils.assertSourcesEqualReferenceSource(source,
-        (List<? extends BoundedSource<Long>>) sources,
-        PipelineOptionsFactory.create());
+    SourceTestUtils.assertSourcesEqualReferenceSource(
+        source, (List<? extends BoundedSource<Long>>) sources, PipelineOptionsFactory.create());
   }
 
   @Test
@@ -282,7 +279,7 @@ public class BoundedReadEvaluatorFactoryTest {
     }
     assertThat(
         outputElems,
-        Matchers.containsInAnyOrder(
+        containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 

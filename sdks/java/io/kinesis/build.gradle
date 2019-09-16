@@ -16,36 +16,39 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis"
+ext.summary = "Library to read Kinesis streams."
 
 test {
   // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.
   forkEvery 1
 }
 
-def aws_version = "1.11.255"
-
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow library.java.findbugs_jsr305
-  shadow library.java.jackson_dataformat_cbor
-  shadow "com.amazonaws:aws-java-sdk-core:$aws_version"
-  shadow "com.amazonaws:aws-java-sdk-kinesis:$aws_version"
-  shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_version"
-  shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
-  shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
-  shadow "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.jackson_dataformat_cbor
+  compile library.java.aws_java_sdk_cloudwatch
+  compile library.java.aws_java_sdk_core
+  compile library.java.aws_java_sdk_kinesis
+  compile "com.amazonaws:amazon-kinesis-client:1.10.0"
+  compile "com.amazonaws:amazon-kinesis-producer:0.13.1"
+  compile "commons-lang:commons-lang:2.6"
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
-  testCompile "org.assertj:assertj-core:2.5.0"
+  testCompile library.java.hamcrest_library
+  testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
+  testCompile "org.assertj:assertj-core:3.11.1"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

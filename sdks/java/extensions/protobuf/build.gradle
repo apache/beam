@@ -16,19 +16,21 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+plugins { id 'org.apache.beam.module' }
 applyJavaNature()
 applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
+ext.summary = "Add support to Apache Beam for Google Protobuf."
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.protobuf_java
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.protobuf_java
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
+  testRuntimeOnly library.java.slf4j_jdk14
 }

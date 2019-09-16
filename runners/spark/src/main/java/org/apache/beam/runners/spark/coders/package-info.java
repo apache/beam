@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Beam coders and coder-related utilities for running on Apache Spark.
- */
+/** Beam coders and coder-related utilities for running on Apache Spark. */
 package org.apache.beam.runners.spark.coders;

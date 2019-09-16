@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+plugins { id 'org.apache.beam.module' }
 applyGoNature()
 applyDockerNature()
 
@@ -25,7 +25,12 @@ description = "Apache Beam :: SDKs :: Python :: Container"
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:build"
+resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
+
+configurations {
+  sdkSourceTarball
+  sdkHarnessLauncher
+}
 
 dependencies {
   golang {
@@ -34,26 +39,25 @@ dependencies {
     build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
     test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
+  sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
 }
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/python/boot'
-  build {
-    // TODO(herohde): build local platform + linux-amd64, if possible.
-    targetPlatform = ['linux-amd64']
-    outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
+  goBuild {
+    // Build for linux and mac.
+    targetPlatform = ['linux-amd64', 'darwin-amd64']
+    outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
   }
 }
 
-docker {
-  String repositoryRoot
-  if (rootProject.hasProperty(["docker-repository-root"])) {
-    repositoryRoot = rootProject["docker-repository-root"]
-  } else {
-    repositoryRoot = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
-  }
-  name "${repositoryRoot}/python:latest"
-  files "./build/"
+task buildAll {
+  dependsOn ':sdks:python:container:py2:docker'
+  dependsOn ':sdks:python:container:py35:docker'
+  dependsOn ':sdks:python:container:py36:docker'
+  dependsOn ':sdks:python:container:py37:docker'
 }
-// Ensure that making the docker image builds any required artifacts
-dockerPrepare.dependsOn build
+
+artifacts {
+  sdkHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
+}

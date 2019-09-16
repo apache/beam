@@ -72,13 +72,24 @@ has some examples.
 """
 
 
+from __future__ import absolute_import
+
+import os
 import sys
+import warnings
 
 
-if not (sys.version_info[0] == 2 and sys.version_info[1] == 7):
+if sys.version_info[0] == 3:
+  warnings.warn(
+      'Some syntactic constructs of Python 3 are not yet fully supported by '
+      'Apache Beam.')
+elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
+  pass
+else:
   raise RuntimeError(
-      'The Apache Beam SDK for Python is supported only on Python 2.7. '
-      'It is not supported on Python ['+ str(sys.version_info) + '].')
+      'The Apache Beam SDK for Python is only supported on Python 2.7 or '
+      'Python 3. It is not supported on Python [' +
+      str(sys.version_info) + '].')
 
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler

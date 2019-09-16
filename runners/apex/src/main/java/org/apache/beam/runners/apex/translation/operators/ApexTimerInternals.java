@@ -20,10 +20,6 @@ package org.apache.beam.runners.apex.translation.operators;
 import com.datatorrent.netlet.util.Slice;
 import com.esotericsoftware.kryo.DefaultSerializer;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -37,15 +33,18 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
 
 /**
  * An implementation of Beam's {@link TimerInternals}.
  *
  * <p>Assumes that the current key is set prior to accessing the state.<br>
- * This implementation stores timer data in heap memory and is serialized
- * during checkpointing, it will only work with a small number of timers.
- * @param <K>
+ * This implementation stores timer data in heap memory and is serialized during checkpointing, it
+ * will only work with a small number of timers.
  */
 @DefaultSerializer(JavaSerializer.class)
 class ApexTimerInternals<K> implements TimerInternals, Serializable {
@@ -63,8 +62,8 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
     this.processingTimeTimers = new TimerSet(timerDataCoder);
   }
 
-  public void setContext(K key, Coder<K> keyCoder, Instant inputWatermark,
-      Instant outputWatermark) {
+  public void setContext(
+      K key, Coder<K> keyCoder, Instant inputWatermark, Instant outputWatermark) {
     this.currentKey = key;
     this.keyCoder = keyCoder;
     this.currentInputWatermark = inputWatermark;
@@ -77,8 +76,8 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
   }
 
   @Override
-  public void setTimer(StateNamespace namespace, String timerId, Instant target,
-      TimeDomain timeDomain) {
+  public void setTimer(
+      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
     TimerData timerData = TimerData.of(timerId, namespace, target, timeDomain);
     setTimer(timerData);
   }
@@ -129,15 +128,15 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
   }
 
   /**
-   * Fire the timers that are ready. These are the timers
-   * that are registered to be triggered at a time before the current time.
-   * Timer processing may register new timers, which can cause the returned
-   * timestamp to be before the the current time. The caller may repeat
-   * the call until such backdated timers are cleared.
+   * Fire the timers that are ready. These are the timers that are registered to be triggered at a
+   * time before the current time. Timer processing may register new timers, which can cause the
+   * returned timestamp to be before the the current time. The caller may repeat the call until such
+   * backdated timers are cleared.
+   *
    * @return minimum timestamp of registered timers.
    */
-  public long fireReadyTimers(long currentTime,
-      TimerProcessor<K> timerProcessor, TimeDomain timeDomain) {
+  public long fireReadyTimers(
+      long currentTime, TimerProcessor<K> timerProcessor, TimeDomain timeDomain) {
     TimerSet timers = getTimerSet(timeDomain);
 
     // move minTimestamp first,
@@ -149,16 +148,15 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
     // which would lead to concurrent modification exception.
     Multimap<Slice, TimerInternals.TimerData> toFire = HashMultimap.create();
 
-    Iterator<Map.Entry<Slice, Set<Slice>>> it =
-        timers.activeTimers.entrySet().iterator();
+    Iterator<Map.Entry<Slice, Set<Slice>>> it = timers.activeTimers.entrySet().iterator();
     while (it.hasNext()) {
       Map.Entry<Slice, Set<Slice>> keyWithTimers = it.next();
 
       Iterator<Slice> timerIt = keyWithTimers.getValue().iterator();
       while (timerIt.hasNext()) {
         try {
-          TimerData timerData = CoderUtils.decodeFromByteArray(timers.timerDataCoder,
-              timerIt.next().buffer);
+          TimerData timerData =
+              CoderUtils.decodeFromByteArray(timers.timerDataCoder, timerIt.next().buffer);
           if (timerData.getTimestamp().isBefore(currentTime)) {
             toFire.put(keyWithTimers.getKey(), timerData);
             timerIt.remove();
@@ -231,10 +229,9 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
       Iterator<Slice> timerIt = timersForKey.iterator();
       while (timerIt.hasNext()) {
         try {
-          TimerData timerData = CoderUtils.decodeFromByteArray(timerDataCoder,
-              timerIt.next().buffer);
-          ComparisonChain chain =
-              ComparisonChain.start().compare(timerData.getTimerId(), timerId);
+          TimerData timerData =
+              CoderUtils.decodeFromByteArray(timerDataCoder, timerIt.next().buffer);
+          ComparisonChain chain = ComparisonChain.start().compare(timerData.getTimerId(), timerId);
           if (chain.result() == 0 && !timerData.getNamespace().equals(namespace)) {
             // Obtaining the stringKey may be expensive; only do so if required
             chain = chain.compare(timerData.getNamespace().stringKey(), namespace.stringKey());
@@ -275,7 +272,5 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
     protected Map<Slice, Set<Slice>> getMap() {
       return activeTimers;
     }
-
   }
-
 }

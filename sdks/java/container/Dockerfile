@@ -23,6 +23,11 @@ ADD target/slf4j-api.jar /opt/apache/beam/jars/
 ADD target/slf4j-jdk14.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
 
+# Required to run cross-language pipelines with KafkaIO
+# TODO May be removed once custom environments are supported
+ADD target/beam-sdks-java-io-kafka.jar /opt/apache/beam/jars/
+ADD target/kafka-clients.jar /opt/apache/beam/jars/
+
 ADD target/linux_amd64/boot /opt/apache/beam/
 
 ENTRYPOINT ["/opt/apache/beam/boot"]

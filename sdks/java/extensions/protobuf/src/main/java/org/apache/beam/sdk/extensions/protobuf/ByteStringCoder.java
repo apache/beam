@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import com.google.common.io.ByteStreams;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 
 /**
  * A {@link Coder} for {@link ByteString} objects based on their encoded Protocol Buffer form.
@@ -40,17 +40,16 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
     return INSTANCE;
   }
 
-  /***************************/
-
+  /** ************************ */
   private static final ByteStringCoder INSTANCE = new ByteStringCoder();
+
   private static final TypeDescriptor<ByteString> TYPE_DESCRIPTOR =
       new TypeDescriptor<ByteString>() {};
 
   private ByteStringCoder() {}
 
   @Override
-  public void encode(ByteString value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(ByteString value, OutputStream outStream) throws IOException, CoderException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -89,7 +88,7 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
   @Override
   protected long getEncodedElementByteSize(ByteString value) throws Exception {
     int size = value.size();
-    return VarInt.getLength(size) + size;
+    return (long) VarInt.getLength(size) + size;
   }
 
   @Override

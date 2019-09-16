@@ -17,49 +17,48 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Stopwatch;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
-/**
- * Tests {@link ShardReadersPool}.
- */
-@RunWith(MockitoJUnitRunner.class)
+/** Tests {@link ShardReadersPool}. */
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class ShardReadersPoolTest {
 
   private static final int TIMEOUT_IN_MILLIS = (int) TimeUnit.SECONDS.toMillis(10);
 
-  @Mock
-  private ShardRecordsIterator firstIterator, secondIterator, thirdIterator, fourthIterator;
-  @Mock
-  private ShardCheckpoint firstCheckpoint, secondCheckpoint;
-  @Mock
-  private SimplifiedKinesisClient kinesis;
-  @Mock
-  private KinesisRecord a, b, c, d;
+  @Mock private ShardRecordsIterator firstIterator, secondIterator, thirdIterator, fourthIterator;
+  @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
+  @Mock private SimplifiedKinesisClient kinesis;
+  @Mock private KinesisRecord a, b, c, d;
+  @Mock private WatermarkPolicyFactory factory;
 
+  private KinesisReaderCheckpoint checkpoint;
   private ShardReadersPool shardReadersPool;
+  private final Instant now = Instant.now();
 
   @Before
   public void setUp() throws TransientKinesisException {
@@ -75,9 +74,14 @@ public class ShardReadersPoolTest {
     when(secondIterator.getCheckpoint()).thenReturn(secondCheckpoint);
     when(thirdIterator.getShardId()).thenReturn("shard3");
     when(fourthIterator.getShardId()).thenReturn("shard4");
-    KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
-        Arrays.asList(firstCheckpoint, secondCheckpoint));
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
+
+    WatermarkPolicy policy = WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+
+    checkpoint = new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
+    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint, factory));
+
+    when(factory.createWatermarkPolicy()).thenReturn(policy);
+
     doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
     doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
   }
@@ -92,7 +96,7 @@ public class ShardReadersPoolTest {
       throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch())
         .thenReturn(Collections.emptyList())
-        .thenReturn(asList(a, b))
+        .thenReturn(ImmutableList.of(a, b))
         .thenReturn(Collections.emptyList());
     when(secondIterator.readNextBatch())
         .thenReturn(singletonList(c))
@@ -113,10 +117,8 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldReturnAbsentOptionalWhenNoRecords()
       throws TransientKinesisException, KinesisShardClosedException {
-    when(firstIterator.readNextBatch())
-        .thenReturn(Collections.emptyList());
-    when(secondIterator.readNextBatch())
-        .thenReturn(Collections.emptyList());
+    when(firstIterator.readNextBatch()).thenReturn(Collections.emptyList());
+    when(secondIterator.readNextBatch()).thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
     CustomOptional<KinesisRecord> nextRecord = shardReadersPool.nextRecord();
@@ -127,7 +129,7 @@ public class ShardReadersPoolTest {
   public void shouldCheckpointReadRecords()
       throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch())
-        .thenReturn(asList(a, b))
+        .thenReturn(ImmutableList.of(a, b))
         .thenReturn(Collections.emptyList());
     when(secondIterator.readNextBatch())
         .thenReturn(singletonList(c))
@@ -141,7 +143,7 @@ public class ShardReadersPoolTest {
       if (nextRecord.isPresent()) {
         recordsFound++;
         KinesisRecord kinesisRecord = nextRecord.get();
-        if (kinesisRecord.getShardId().equals("shard1")) {
+        if ("shard1".equals(kinesisRecord.getShardId())) {
           verify(firstIterator).ackRecord(kinesisRecord);
         } else {
           verify(secondIterator).ackRecord(kinesisRecord);
@@ -153,10 +155,13 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldInterruptKinesisReadingAndStopShortly()
       throws TransientKinesisException, KinesisShardClosedException {
-    when(firstIterator.readNextBatch()).thenAnswer((Answer<List<KinesisRecord>>) invocation -> {
-      Thread.sleep(TimeUnit.MINUTES.toMillis(1));
-      return Collections.emptyList();
-    });
+    when(firstIterator.readNextBatch())
+        .thenAnswer(
+            (Answer<List<KinesisRecord>>)
+                invocation -> {
+                  Thread.sleep(TIMEOUT_IN_MILLIS / 2);
+                  return Collections.emptyList();
+                });
     shardReadersPool.start();
 
     Stopwatch stopwatch = Stopwatch.createStarted();
@@ -167,41 +172,24 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldInterruptPuttingRecordsToQueueAndStopShortly()
       throws TransientKinesisException, KinesisShardClosedException {
-    when(firstIterator.readNextBatch()).thenReturn(asList(a, b, c));
-    KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
-        Arrays.asList(firstCheckpoint, secondCheckpoint));
-    ShardReadersPool shardReadersPool = new ShardReadersPool(kinesis, checkpoint, 2);
+    when(firstIterator.readNextBatch()).thenReturn(ImmutableList.of(a, b, c));
+    KinesisReaderCheckpoint checkpoint =
+        new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
+
+    WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    ShardReadersPool shardReadersPool =
+        new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory, 2);
     shardReadersPool.start();
 
     Stopwatch stopwatch = Stopwatch.createStarted();
     shardReadersPool.stop();
     assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS)).isLessThan(TIMEOUT_IN_MILLIS);
-
-  }
-
-  @Test
-  public void shouldDetectThatNotAllShardsAreUpToDate() throws TransientKinesisException {
-    when(firstIterator.isUpToDate()).thenReturn(true);
-    when(secondIterator.isUpToDate()).thenReturn(false);
-    shardReadersPool.start();
-
-    assertThat(shardReadersPool.allShardsUpToDate()).isFalse();
-  }
-
-  @Test
-  public void shouldDetectThatAllShardsAreUpToDate() throws TransientKinesisException {
-    when(firstIterator.isUpToDate()).thenReturn(true);
-    when(secondIterator.isUpToDate()).thenReturn(true);
-    shardReadersPool.start();
-
-    assertThat(shardReadersPool.allShardsUpToDate()).isTrue();
   }
 
   @Test
   public void shouldStopReadingShardAfterReceivingShardClosedException() throws Exception {
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
-    when(firstIterator.findSuccessiveShardRecordIterators())
-        .thenReturn(Collections.emptyList());
+    when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
 
@@ -214,7 +202,7 @@ public class ShardReadersPoolTest {
       throws Exception {
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators())
-        .thenReturn(asList(thirdIterator, fourthIterator));
+        .thenReturn(ImmutableList.of(thirdIterator, fourthIterator));
 
     shardReadersPool.start();
 
@@ -225,8 +213,7 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldStopReadersPoolWhenLastShardReaderStopped() throws Exception {
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
-    when(firstIterator.findSuccessiveShardRecordIterators())
-        .thenReturn(Collections.emptyList());
+    when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
 
@@ -247,10 +234,12 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldReturnAbsentOptionalWhenStartedWithNoIterators() throws Exception {
-    KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
-        Collections.emptyList());
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
-    doReturn(firstIterator).when(shardReadersPool)
+    KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(Collections.emptyList());
+    WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    shardReadersPool =
+        Mockito.spy(new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory));
+    doReturn(firstIterator)
+        .when(shardReadersPool)
         .createShardIterator(eq(kinesis), any(ShardCheckpoint.class));
 
     shardReadersPool.start();
@@ -265,7 +254,7 @@ public class ShardReadersPoolTest {
     when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(emptyList);
 
     shardReadersPool.start();
-    verify(shardReadersPool).startReadingShards(Arrays.asList(firstIterator, secondIterator));
+    verify(shardReadersPool).startReadingShards(ImmutableList.of(firstIterator, secondIterator));
     verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS)).startReadingShards(emptyList);
 
     KinesisReaderCheckpoint checkpointMark = shardReadersPool.getCheckpointMark();
@@ -273,5 +262,22 @@ public class ShardReadersPoolTest {
         .extracting("shardId", String.class)
         .containsOnly("shard2")
         .doesNotContain("shard1");
+  }
+
+  @Test
+  public void shouldReturnTheLeastWatermarkOfAllShards() throws TransientKinesisException {
+    Instant threeMin = now.minus(Duration.standardMinutes(3));
+    Instant twoMin = now.minus(Duration.standardMinutes(2));
+
+    when(firstIterator.getShardWatermark()).thenReturn(threeMin).thenReturn(now);
+    when(secondIterator.getShardWatermark()).thenReturn(twoMin);
+
+    shardReadersPool.start();
+
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(threeMin);
+    assertThat(shardReadersPool.getWatermark()).isEqualTo(twoMin);
+
+    verify(firstIterator, times(2)).getShardWatermark();
+    verify(secondIterator, times(2)).getShardWatermark();
   }
 }

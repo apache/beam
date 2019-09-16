@@ -16,8 +16,11 @@
 #
 
 """Unit tests for the windowing classes."""
+from __future__ import absolute_import
+from __future__ import division
 
 import unittest
+from builtins import range
 
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -77,6 +80,7 @@ class WindowTest(unittest.TestCase):
                         IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP))
     self.assertNotEqual(IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP),
                         GlobalWindow())
+    self.assertTrue(GlobalWindow().max_timestamp() < MAX_TIMESTAMP)
 
   def test_fixed_windows(self):
     # Test windows with offset: 2, 7, 12, 17, ...
@@ -236,7 +240,7 @@ class WindowTest(unittest.TestCase):
                 # We add a 'key' to each value representing the index of the
                 # window. This is important since there is no guarantee of
                 # order for the elements of a PCollection.
-                | Map(lambda v: (v / 5, v)))
+                | Map(lambda v: (v // 5, v)))
       # Sum all elements associated with a key and window. Although it
       # is called CombinePerKey it is really CombinePerKeyAndWindow the
       # same way GroupByKey is really GroupByKeyAndWindow.

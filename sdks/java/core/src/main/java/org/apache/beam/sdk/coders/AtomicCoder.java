@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.coders;
 
 import java.util.Collections;
@@ -26,8 +25,8 @@ import java.util.List;
  *
  * <p>Unless the behavior is overridden, atomic coders are presumed to be deterministic.
  *
- * <p>All atomic coders of the same class are considered to be equal to each other. As a result,
- * an {@link AtomicCoder} should have no associated configuration (instance variables, etc).
+ * <p>All atomic coders of the same class are considered to be equal to each other. As a result, an
+ * {@link AtomicCoder} should have no associated configuration (instance variables, etc).
  *
  * @param <T> the type of the values being transcoded
  */
@@ -37,8 +36,8 @@ public abstract class AtomicCoder<T> extends StructuredCoder<T> {
    *
    * <p>Unless overridden, does not throw. An {@link AtomicCoder} is presumed to be deterministic
    *
-   * @throws NonDeterministicException if overridden to indicate that this sublcass of
-   *         {@link AtomicCoder} is not deterministic
+   * @throws NonDeterministicException if overridden to indicate that this sublcass of {@link
+   *     AtomicCoder} is not deterministic
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {}

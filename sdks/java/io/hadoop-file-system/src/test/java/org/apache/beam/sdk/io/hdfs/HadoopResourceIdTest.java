@@ -31,16 +31,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Tests for {@link HadoopResourceId}.
- */
+/** Tests for {@link HadoopResourceId}. */
 public class HadoopResourceIdTest {
 
   private MiniDFSCluster hdfsCluster;
   private URI hdfsClusterBaseUri;
 
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Before
   public void setUp() throws Exception {
@@ -57,12 +54,12 @@ public class HadoopResourceIdTest {
   }
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     hdfsCluster.shutdown();
   }
 
   @Test
-  public void testResourceIdTester() throws Exception {
+  public void testResourceIdTester() {
     ResourceId baseDirectory =
         FileSystems.matchNewResource(
             "hdfs://" + hdfsClusterBaseUri.getPath(), true /* isDirectory */);

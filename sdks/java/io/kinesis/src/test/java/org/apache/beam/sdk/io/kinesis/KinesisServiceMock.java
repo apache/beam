@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -38,13 +38,9 @@ public class KinesisServiceMock {
 
   private KinesisServiceMock() {}
 
-  public static KinesisServiceMock getInstance() {
+  public static synchronized KinesisServiceMock getInstance() {
     if (instance == null) {
-      synchronized (KinesisServiceMock.class) {
-        if (instance == null) {
-          instance = new KinesisServiceMock();
-        }
-      }
+      instance = new KinesisServiceMock();
     }
     return instance;
   }

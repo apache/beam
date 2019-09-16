@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.testing.EqualsTester;
 import java.util.Collections;
 import java.util.List;
@@ -33,15 +32,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.hamcrest.Matchers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for PCollectionLists.
- */
+/** Tests for PCollectionLists. */
 @RunWith(JUnit4.class)
 public class PCollectionListTest {
   @Test
@@ -54,7 +51,7 @@ public class PCollectionListTest {
           exn.toString(),
           containsString(
               "must either have a non-empty list of PCollections, "
-              + "or must first call empty(Pipeline)"));
+                  + "or must first call empty(Pipeline)"));
     }
   }
 
@@ -74,9 +71,7 @@ public class PCollectionListTest {
     // Build a PCollectionList from a list. This should have the same order as the input list.
     PCollectionList<Long> pcList = PCollectionList.of(counts);
     // Contains is the order-dependent matcher
-    assertThat(
-        pcList.getAll(),
-        contains(boundedCount, maxReadTimeCount, unboundedCount));
+    assertThat(pcList.getAll(), contains(boundedCount, maxReadTimeCount, unboundedCount));
 
     // A list that is expanded with builder methods has the added value at the end
     PCollectionList<Long> withOneCreate = pcList.and(createTwo);
@@ -109,8 +104,7 @@ public class PCollectionListTest {
     PCollection<Long> createOne = p.apply("CreateOne", Create.of(1L, 2L, 3L));
 
     PCollectionList<Long> list = PCollectionList.of(createOne).and(createOne).and(createOne);
-    assertThat(
-        list.expand().values(), Matchers.containsInAnyOrder(createOne, createOne, createOne));
+    assertThat(list.expand().values(), containsInAnyOrder(createOne, createOne, createOne));
   }
 
   @Test
@@ -121,15 +115,15 @@ public class PCollectionListTest {
     PCollection<String> third = p.apply("Syntactic", Create.of("eggs", "baz"));
 
     EqualsTester tester = new EqualsTester();
-//    tester.addEqualityGroup(PCollectionList.empty(p), PCollectionList.empty(p));
-//    tester.addEqualityGroup(PCollectionList.of(first).and(second));
+    //    tester.addEqualityGroup(PCollectionList.empty(p), PCollectionList.empty(p));
+    //    tester.addEqualityGroup(PCollectionList.of(first).and(second));
     // Constructors should all produce equivalent
     tester.addEqualityGroup(
         PCollectionList.of(first).and(second).and(third),
         PCollectionList.of(first).and(second).and(third),
-//        PCollectionList.<String>empty(p).and(first).and(second).and(third),
-//        PCollectionList.of(ImmutableList.of(first, second, third)),
-//        PCollectionList.of(first).and(ImmutableList.of(second, third)),
+        //        PCollectionList.<String>empty(p).and(first).and(second).and(third),
+        //        PCollectionList.of(ImmutableList.of(first, second, third)),
+        //        PCollectionList.of(first).and(ImmutableList.of(second, third)),
         PCollectionList.of(ImmutableList.of(first, second)).and(third));
     // Order is considered
     tester.addEqualityGroup(PCollectionList.of(first).and(third).and(second));

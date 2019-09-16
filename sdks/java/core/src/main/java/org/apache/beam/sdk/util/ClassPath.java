@@ -17,25 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.Beta;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Predicate;
-import com.google.common.base.Splitter;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
-import com.google.common.collect.MultimapBuilder;
-import com.google.common.collect.SetMultimap;
-import com.google.common.collect.Sets;
-import com.google.common.io.ByteSource;
-import com.google.common.io.CharSource;
-import com.google.common.io.Resources;
-import com.google.common.reflect.Reflection;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -53,6 +37,22 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Beta;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CharMatcher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Reflection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,16 +61,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>Warning:</b> Currently only {@link URLClassLoader} and only {@code file://} urls are
  * supported.
- * </p>
  *
- * <p>Based on Ben Yu's implementation in
- * <a href="https://github.com/google/guava/blob/896c51abd32e136621c13d56b6130d0a72f4957a/guava/src/com/google/common/reflect/ClassPath.java">Guava</a>.
- * </p>
+ * <p>Based on Ben Yu's implementation in <a
+ * href="https://github.com/google/guava/blob/896c51abd32e136621c13d56b6130d0a72f4957a/guava/src/com/google/common/reflect/ClassPath.java">Guava</a>.
  *
- * <p><b>Note:</b> Internalised here to avoid a forced upgrade to
- * <a href="https://github.com/google/guava/releases/tag/v21.0">Guava 21.0 which requires
- * Java 8.</a>
- * </p>
+ * <p><b>Note:</b> Internalised here to avoid a forced upgrade to <a
+ * href="https://github.com/google/guava/releases/tag/v21.0">Guava 21.0 which requires Java 8.</a>
  */
 @Beta
 final class ClassPath {
@@ -143,8 +139,8 @@ final class ClassPath {
   }
 
   /**
-   * Returns all top level classes whose package name is {@code packageName} or starts with
-   * {@code packageName} followed by a '.'.
+   * Returns all top level classes whose package name is {@code packageName} or starts with {@code
+   * packageName} followed by a '.'.
    */
   public ImmutableSet<ClassInfo> getTopLevelClassesRecursive(String packageName) {
     checkNotNull(packageName);
@@ -277,8 +273,7 @@ final class ClassPath {
     /**
      * Returns the simple name of the underlying class as given in the source code.
      *
-     * <p>Behaves identically to {@link Class#getSimpleName()} but does not require the class
-     * to be
+     * <p>Behaves identically to {@link Class#getSimpleName()} but does not require the class to be
      * loaded.
      */
     public String getSimpleName() {
@@ -330,10 +325,8 @@ final class ClassPath {
   }
 
   /**
-   * Abstract class that scans through the class path represented by a {@link ClassLoader} and
-   * calls
-   * {@link #scanDirectory} and {@link #scanJarFile} for directories and jar files on the class
-   * path
+   * Abstract class that scans through the class path represented by a {@link ClassLoader} and calls
+   * {@link #scanDirectory} and {@link #scanJarFile} for directories and jar files on the class path
    * respectively.
    */
   abstract static class Scanner {
@@ -400,16 +393,14 @@ final class ClassPath {
     }
 
     /**
-     * Returns the class path URIs specified by the {@code Class-Path} manifest attribute,
-     * according
-     * to
-     * <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#Main_Attributes">
-     * JAR File Specification</a>. If {@code manifest} is null, it means the jar file has no
-     * manifest, and an empty set will be returned.
+     * Returns the class path URIs specified by the {@code Class-Path} manifest attribute, according
+     * to <a
+     * href="http://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#Main_Attributes">JAR
+     * File Specification</a>. If {@code manifest} is null, it means the jar file has no manifest,
+     * and an empty set will be returned.
      */
     @VisibleForTesting
-    static ImmutableSet<File> getClassPathFromManifest(File jarFile,
-                                                       @Nullable Manifest manifest) {
+    static ImmutableSet<File> getClassPathFromManifest(File jarFile, @Nullable Manifest manifest) {
       if (manifest == null) {
         return ImmutableSet.of();
       }
@@ -426,7 +417,7 @@ final class ClassPath {
             LOG.warn("Invalid Class-Path entry: " + path);
             continue;
           }
-          if (url.getProtocol().equals("file")) {
+          if ("file".equals(url.getProtocol())) {
             builder.add(toFile(url));
           }
         }
@@ -445,7 +436,7 @@ final class ClassPath {
       if (classloader instanceof URLClassLoader) {
         URLClassLoader urlClassLoader = (URLClassLoader) classloader;
         for (URL entry : urlClassLoader.getURLs()) {
-          if (entry.getProtocol().equals("file")) {
+          if ("file".equals(entry.getProtocol())) {
             File file = toFile(entry);
             if (!entries.containsKey(file)) {
               entries.put(file, classloader);
@@ -457,9 +448,9 @@ final class ClassPath {
     }
 
     /**
-     * Returns the absolute uri of the Class-Path entry value as specified in
-     * <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#Main_Attributes">
-     * JAR File Specification</a>. Even though the specification only talks about relative urls,
+     * Returns the absolute uri of the Class-Path entry value as specified in <a
+     * href="http://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#Main_Attributes">JAR
+     * File Specification</a>. Even though the specification only talks about relative urls,
      * absolute urls are actually supported too (for example, in Maven surefire plugin).
      */
     @VisibleForTesting
@@ -529,11 +520,11 @@ final class ClassPath {
 
   @VisibleForTesting
   static File toFile(URL url) {
-    checkArgument(url.getProtocol().equals("file"));
+    checkArgument("file".equals(url.getProtocol()));
     try {
-      return new File(url.toURI());  // Accepts escaped characters like %20.
-    } catch (URISyntaxException e) {  // URL.toURI() doesn't escape chars.
-      return new File(url.getPath());  // Accepts non-escaped chars like space.
+      return new File(url.toURI()); // Accepts escaped characters like %20.
+    } catch (URISyntaxException e) { // URL.toURI() doesn't escape chars.
+      return new File(url.getPath()); // Accepts non-escaped chars like space.
     }
   }
 }

@@ -17,38 +17,43 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -59,6 +64,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -79,16 +89,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
- * Kafka version 0.9 and 0.10 are supported. If you need a specific version of Kafka
- * client(e.g. 0.9 for 0.9 servers, or 0.10 for security features), specify explicit
- * kafka-client dependency.
  *
  * <h3>Reading from Kafka topics</h3>
  *
- * <p>KafkaIO source returns unbounded collection of Kafka records as
- * {@code PCollection<KafkaRecord<K, V>>}. A {@link KafkaRecord} includes basic
- * metadata like topic-partition and offset, along with key and value associated with a Kafka
- * record.
+ * <p>KafkaIO source returns unbounded collection of Kafka records as {@code
+ * PCollection<KafkaRecord<K, V>>}. A {@link KafkaRecord} includes basic metadata like
+ * topic-partition and offset, along with key and value associated with a Kafka record.
  *
  * <p>Although most applications consume a single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
@@ -97,146 +103,168 @@ import org.slf4j.LoggerFactory;
  * one or more topics to consume, and key and value deserializers. For example:
  *
  * <pre>{@code
+ * pipeline
+ *   .apply(KafkaIO.<Long, String>read()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      .withValueDeserializer(StringDeserializer.class)
  *
- *  pipeline
- *    .apply(KafkaIO.<Long, String>read()
- *       .withBootstrapServers("broker_1:9092,broker_2:9092")
- *       .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
- *       .withKeyDeserializer(LongDeserializer.class)
- *       .withValueDeserializer(StringDeserializer.class)
+ *      // Above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
  *
- *       // above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
+ *      // Rest of the settings are optional :
  *
- *       // rest of the settings are optional :
+ *      // you can further customize KafkaConsumer used to read the records by adding more
+ *      // settings for ConsumerConfig. e.g :
+ *      .withConsumerConfigUpdates(ImmutableMap.of("group.id", "my_beam_app_1"))
  *
- *       // you can further customize KafkaConsumer used to read the records by adding more
- *       // settings for ConsumerConfig. e.g :
- *       .updateConsumerProperties(ImmutableMap.of("receive.buffer.bytes", 1024 * 1024))
+ *      // set event times and watermark based on 'LogAppendTime'. To provide a custom
+ *      // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
+ *      // Use withCreateTime() with topics that have 'CreateTime' timestamps.
+ *      .withLogAppendTime()
  *
- *       // custom function for calculating record timestamp (default is processing time)
- *       .withTimestampFn(new MyTimestampFunction())
+ *      // restrict reader to committed messages on Kafka (see method documentation).
+ *      .withReadCommitted()
  *
- *       // custom function for watermark (default is record timestamp)
- *       .withWatermarkFn(new MyWatermarkFunction())
+ *      // offset consumed by the pipeline can be committed back.
+ *      .commitOffsetsInFinalize()
  *
- *       // restrict reader to committed messages on Kafka (see method documentation).
- *       .withReadCommitted()
- *
- *       // finally, if you don't need Kafka metadata, you can drop it
- *       .withoutMetadata() // PCollection<KV<Long, String>>
- *    )
- *    .apply(Values.<String>create()) // PCollection<String>
- *     ...
+ *      // finally, if you don't need Kafka metadata, you can drop it.g
+ *      .withoutMetadata() // PCollection<KV<Long, String>>
+ *   )
+ *   .apply(Values.<String>create()) // PCollection<String>
+ *    ...
  * }</pre>
  *
- * <p>Kafka provides deserializers for common types in
- * {@link org.apache.kafka.common.serialization}. In addition to deserializers, Beam runners need
- * {@link Coder} to materialize key and value objects if necessary.
- * In most cases, you don't need to specify {@link Coder} for key and value in the resulting
- * collection because the coders are inferred from deserializer types. However, in cases when
- * coder inference fails, they can be specified explicitly along with deserializers using
- * {@link Read#withKeyDeserializerAndCoder(Class, Coder)} and
- * {@link Read#withValueDeserializerAndCoder(Class, Coder)}. Note that Kafka messages are
- * interpreted using key and value <i>deserializers</i>.
+ * <p>Kafka provides deserializers for common types in {@link
+ * org.apache.kafka.common.serialization}. In addition to deserializers, Beam runners need {@link
+ * Coder} to materialize key and value objects if necessary. In most cases, you don't need to
+ * specify {@link Coder} for key and value in the resulting collection because the coders are
+ * inferred from deserializer types. However, in cases when coder inference fails, they can be
+ * specified explicitly along with deserializers using {@link
+ * Read#withKeyDeserializerAndCoder(Class, Coder)} and {@link
+ * Read#withValueDeserializerAndCoder(Class, Coder)}. Note that Kafka messages are interpreted using
+ * key and value <i>deserializers</i>.
  *
  * <h3>Partition Assignment and Checkpointing</h3>
+ *
  * The Kafka partitions are evenly distributed among splits (workers).
  *
- * <p>Checkpointing is fully supported and each split can resume from previous checkpoint
- * (to the extent supported by runner).
- * See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for more details on
- * splits and checkpoint support.
+ * <p>Checkpointing is fully supported and each split can resume from previous checkpoint (to the
+ * extent supported by runner). See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for
+ * more details on splits and checkpoint support.
  *
  * <p>When the pipeline starts for the first time, or without any checkpoint, the source starts
  * consuming from the <em>latest</em> offsets. You can override this behavior to consume from the
- * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through
- * {@link Read#updateConsumerProperties(Map)}.
- * You can also enable offset auto_commit in Kafka to resume from last committed.
+ * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through {@link
+ * Read#withConsumerConfigUpdates(Map)}. You can also enable offset auto_commit in Kafka to resume
+ * from last committed.
  *
  * <p>In summary, KafkaIO.read follows below sequence to set initial offset:<br>
  * 1. {@link KafkaCheckpointMark} provided by runner;<br>
- * 2. Consumer offset stored in Kafka when
- * {@code ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG = true};<br>
+ * 2. Consumer offset stored in Kafka when {@code ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG = true};
+ * <br>
  * 3. Start from <em>latest</em> offset by default;
  *
  * <h3>Writing to Kafka</h3>
  *
- * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write
- * just the values. To configure a Kafka sink, you must specify at the minimum Kafka
- * <tt>bootstrapServers</tt>, the topic to write to, and key and value serializers. For example:
+ * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write just the
+ * values or native Kafka producer records using {@link
+ * org.apache.kafka.clients.producer.ProducerRecord}. To configure a Kafka sink, you must specify at
+ * the minimum Kafka <tt>bootstrapServers</tt>, the topic to write to, and key and value
+ * serializers. For example:
  *
  * <pre>{@code
+ * PCollection<KV<Long, String>> kvColl = ...;
+ * kvColl.apply(KafkaIO.<Long, String>write()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("results")
  *
- *  PCollection<KV<Long, String>> kvColl = ...;
- *  kvColl.apply(KafkaIO.<Long, String>write()
- *       .withBootstrapServers("broker_1:9092,broker_2:9092")
- *       .withTopic("results")
+ *      .withKeySerializer(LongSerializer.class)
+ *      .withValueSerializer(StringSerializer.class)
  *
- *       .withKeySerializer(LongSerializer.class)
- *       .withValueSerializer(StringSerializer.class)
+ *      // You can further customize KafkaProducer used to write the records by adding more
+ *      // settings for ProducerConfig. e.g, to enable compression :
+ *      .withProducerConfigUpdates(ImmutableMap.of("compression.type", "gzip"))
  *
- *       // you can further customize KafkaProducer used to write the records by adding more
- *       // settings for ProducerConfig. e.g, to enable compression :
- *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
+ *      // You set publish timestamp for the Kafka records.
+ *      .withInputTimestamp() // element timestamp is used while publishing to Kafka
+ *      // or you can also set a custom timestamp with a function.
+ *      .withPublishTimestampFunction((elem, elemTs) -> ...)
  *
- *       // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
- *       .withEOS(20, "eos-sink-group-id");
- *    );
+ *      // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
+ *      .withEOS(20, "eos-sink-group-id");
+ *   );
  * }</pre>
  *
  * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
  * <pre>{@code
- *  PCollection<String> strings = ...;
- *  strings.apply(KafkaIO.<Void, String>write()
- *      .withBootstrapServers("broker_1:9092,broker_2:9092")
- *      .withTopic("results")
- *      .withValueSerializer(StringSerializer.class) // just need serializer for value
- *      .values()
- *    );
+ * PCollection<String> strings = ...;
+ * strings.apply(KafkaIO.<Void, String>write()
+ *     .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *     .withTopic("results")
+ *     .withValueSerializer(StringSerializer.class) // just need serializer for value
+ *     .values()
+ *   );
+ * }</pre>
+ *
+ * <p>Also, if you want to write Kafka {@link ProducerRecord} then you should use {@link
+ * KafkaIO#writeRecords()}:
+ *
+ * <pre>{@code
+ * PCollection<ProducerRecord<Long, String>> records = ...;
+ * records.apply(KafkaIO.<Long, String>writeRecords()
+ *     .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *     .withTopic("results")
+ *     .withKeySerializer(LongSerializer.class)
+ *     .withValueSerializer(StringSerializer.class)
+ *   );
  * }</pre>
  *
  * <h3>Advanced Kafka Configuration</h3>
- * KafkaIO allows setting most of the properties in {@link ConsumerConfig} for source or in
- * {@link ProducerConfig} for sink. E.g. if you would like to enable offset
- * <em>auto commit</em> (for external monitoring or other purposes), you can set
- * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  *
- * <h3>Event Timestamp and Watermark</h3>
- * By default record timestamp and watermark are based on processing time in KafkaIO reader.
- * This can be overridden by providing {@code WatermarkFn} with
- * {@link Read#withWatermarkFn(SerializableFunction)}, and {@code TimestampFn} with
- * {@link Read#withTimestampFn(SerializableFunction)}.<br>
- * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
- * otherwise it is set to processing time.
+ * KafkaIO allows setting most of the properties in {@link ConsumerConfig} for source or in {@link
+ * ProducerConfig} for sink. E.g. if you would like to enable offset <em>auto commit</em> (for
+ * external monitoring or other purposes), you can set <tt>"group.id"</tt>,
+ * <tt>"enable.auto.commit"</tt>, etc.
+ *
+ * <h3>Event Timestamps and Watermark</h3>
+ *
+ * By default, record timestamp (event time) is set to processing time in KafkaIO reader and source
+ * watermark is current wall time. If a topic has Kafka server-side ingestion timestamp enabled
+ * ('LogAppendTime'), it can enabled with {@link Read#withLogAppendTime()}. A custom timestamp
+ * policy can be provided by implementing {@link TimestampPolicyFactory}. See {@link
+ * Read#withTimestampPolicyFactory(TimestampPolicyFactory)} for more information.
+ *
+ * <h3>Supported Kafka Client Versions</h3>
+ *
+ * KafkaIO relies on <i>kafka-clients</i> for all its interactions with the Kafka cluster.
+ * <i>kafka-clients</i> versions 0.10.1 and newer are supported at runtime. The older versions 0.9.x
+ * - 0.10.0.0 are also supported, but are deprecated and likely be removed in near future. Please
+ * ensure that the version included with the application is compatible with the version of your
+ * Kafka cluster. Kafka client usually fails to initialize with a clear error message in case of
+ * incompatibility.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**
-   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
-   * configuration should set with {@link Read#withBootstrapServers(String)} and
-   * {@link Read#withTopics(List)}. Other optional settings include key and value
-   * {@link Deserializer}s, custom timestamp and watermark functions.
+   * A specific instance of uninitialized {@link #read()} where key and values are bytes. See
+   * #read().
    */
   public static Read<byte[], byte[]> readBytes() {
-    return new AutoValue_KafkaIO_Read.Builder<byte[], byte[]>()
-        .setTopics(new ArrayList<>())
-        .setTopicPartitions(new ArrayList<>())
-        .setKeyDeserializer(ByteArrayDeserializer.class)
-        .setValueDeserializer(ByteArrayDeserializer.class)
-        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
-        .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
-        .setMaxNumRecords(Long.MAX_VALUE)
-        .build();
+    return KafkaIO.<byte[], byte[]>read()
+        .withKeyDeserializer(ByteArrayDeserializer.class)
+        .withValueDeserializer(ByteArrayDeserializer.class);
   }
 
   /**
-   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
-   * configuration should set with {@link Read#withBootstrapServers(String)} and
-   * {@link Read#withTopics(List)}. Other optional settings include key and value
-   * {@link Deserializer}s, custom timestamp and watermark functions.
+   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka configuration
+   * should set with {@link Read#withBootstrapServers(String)} and {@link Read#withTopics(List)}.
+   * Other optional settings include key and value {@link Deserializer}s, custom timestamp and
+   * watermark functions.
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
@@ -246,17 +274,35 @@ public class KafkaIO {
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCommitOffsetsInFinalizeEnabled(false)
+        .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .build();
   }
 
   /**
    * Creates an uninitialized {@link Write} {@link PTransform}. Before use, Kafka configuration
-   * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic}
-   * along with {@link Deserializer}s for (optional) key and values.
+   * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic} along
+   * with {@link Deserializer}s for (optional) key and values.
    */
   public static <K, V> Write<K, V> write() {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
-        .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
+        .setWriteRecordsTransform(
+            new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
+                .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
+                .setEOS(false)
+                .setNumShards(0)
+                .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
+                .build())
+        .build();
+  }
+
+  /**
+   * Creates an uninitialized {@link WriteRecords} {@link PTransform}. Before use, Kafka
+   * configuration should be set with {@link WriteRecords#withBootstrapServers(String)} and {@link
+   * WriteRecords#withTopic} along with {@link Deserializer}s for (optional) key and values.
+   */
+  public static <K, V> WriteRecords<K, V> writeRecords() {
+    return new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
+        .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
         .setNumShards(0)
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
@@ -273,71 +319,211 @@ public class KafkaIO {
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
     abstract Map<String, Object> getConsumerConfig();
+
     abstract List<String> getTopics();
+
     abstract List<TopicPartition> getTopicPartitions();
-    @Nullable abstract Coder<K> getKeyCoder();
-    @Nullable abstract Coder<V> getValueCoder();
-    @Nullable abstract Class<? extends Deserializer<K>> getKeyDeserializer();
-    @Nullable abstract Class<? extends Deserializer<V>> getValueDeserializer();
+
+    @Nullable
+    abstract Coder<K> getKeyCoder();
+
+    @Nullable
+    abstract Coder<V> getValueCoder();
+
+    @Nullable
+    abstract Class<? extends Deserializer<K>> getKeyDeserializer();
+
+    @Nullable
+    abstract Class<? extends Deserializer<V>> getValueDeserializer();
+
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
-    @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getTimestampFn();
-    @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
+
+    @Nullable
+    abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
 
     abstract long getMaxNumRecords();
-    @Nullable abstract Duration getMaxReadTime();
 
-    @Nullable abstract Instant getStartReadTime();
+    @Nullable
+    abstract Duration getMaxReadTime();
+
+    @Nullable
+    abstract Instant getStartReadTime();
+
     abstract boolean isCommitOffsetsInFinalizeEnabled();
+
+    abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
+
+    @Nullable
+    abstract Map<String, Object> getOffsetConsumerConfig();
 
     abstract Builder<K, V> toBuilder();
 
+    @Experimental
     @AutoValue.Builder
-    abstract static class Builder<K, V> {
+    abstract static class Builder<K, V>
+        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
+
       abstract Builder<K, V> setTopics(List<String> topics);
+
       abstract Builder<K, V> setTopicPartitions(List<TopicPartition> topicPartitions);
+
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
+
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
+
       abstract Builder<K, V> setKeyDeserializer(Class<? extends Deserializer<K>> keyDeserializer);
+
       abstract Builder<K, V> setValueDeserializer(
           Class<? extends Deserializer<V>> valueDeserializer);
+
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
-      abstract Builder<K, V> setTimestampFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
+
       abstract Builder<K, V> setWatermarkFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
+
       abstract Builder<K, V> setMaxNumRecords(long maxNumRecords);
+
       abstract Builder<K, V> setMaxReadTime(Duration maxReadTime);
+
       abstract Builder<K, V> setStartReadTime(Instant startReadTime);
+
       abstract Builder<K, V> setCommitOffsetsInFinalizeEnabled(boolean commitOffsetInFinalize);
 
+      abstract Builder<K, V> setTimestampPolicyFactory(
+          TimestampPolicyFactory<K, V> timestampPolicyFactory);
+
+      abstract Builder<K, V> setOffsetConsumerConfig(Map<String, Object> offsetConsumerConfig);
+
       abstract Read<K, V> build();
+
+      @Override
+      public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
+          External.Configuration config) {
+        ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
+        for (byte[] topic : config.topics) {
+          listBuilder.add(utf8String(topic));
+        }
+        setTopics(listBuilder.build());
+
+        String keyDeserializerClassName = utf8String(config.keyDeserializer);
+        Class keyDeserializer = resolveClass(keyDeserializerClassName);
+        setKeyDeserializer(keyDeserializer);
+        setKeyCoder(resolveCoder(keyDeserializer));
+
+        String valueDeserializerClassName = utf8String(config.valueDeserializer);
+        Class valueDeserializer = resolveClass(valueDeserializerClassName);
+        setValueDeserializer(valueDeserializer);
+        setValueCoder(resolveCoder(valueDeserializer));
+
+        Map<String, Object> consumerConfig = new HashMap<>();
+        for (KV<byte[], byte[]> kv : config.consumerConfig) {
+          String key = utf8String(kv.getKey());
+          String value = utf8String(kv.getValue());
+          consumerConfig.put(key, value);
+        }
+        // Key and Value Deserializers always have to be in the config.
+        consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
+        consumerConfig.put(
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer.getName());
+        setConsumerConfig(consumerConfig);
+
+        // Set required defaults
+        setTopicPartitions(Collections.emptyList());
+        setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN);
+        setMaxNumRecords(Long.MAX_VALUE);
+        setCommitOffsetsInFinalizeEnabled(false);
+        setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+        // We do not include Metadata until we can encode KafkaRecords cross-language
+        return build().withoutMetadata();
+      }
+
+      private static Coder resolveCoder(Class deserializer) {
+        for (Method method : deserializer.getDeclaredMethods()) {
+          if (method.getName().equals("deserialize")) {
+            Class<?> returnType = method.getReturnType();
+            if (returnType.equals(Object.class)) {
+              continue;
+            }
+            if (returnType.equals(byte[].class)) {
+              return ByteArrayCoder.of();
+            } else if (returnType.equals(Integer.class)) {
+              return VarIntCoder.of();
+            } else if (returnType.equals(Long.class)) {
+              return VarLongCoder.of();
+            } else {
+              throw new RuntimeException("Couldn't infer Coder from " + deserializer);
+            }
+          }
+        }
+        throw new RuntimeException("Couldn't resolve coder for Deserializer: " + deserializer);
+      }
     }
 
     /**
-     * Sets the bootstrap servers for the Kafka consumer.
+     * Exposes {@link KafkaIO.TypedWithoutMetadata} as an external transform for cross-language
+     * usage.
      */
+    @Experimental
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:kafka:read:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_KafkaIO_Read.Builder.class);
+      }
+
+      /** Parameters class to expose the Read transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        private Iterable<KV<byte[], byte[]>> consumerConfig;
+        private Iterable<byte[]> topics;
+        private byte[] keyDeserializer;
+        private byte[] valueDeserializer;
+
+        public void setConsumerConfig(Iterable<KV<byte[], byte[]>> consumerConfig) {
+          this.consumerConfig = consumerConfig;
+        }
+
+        public void setTopics(Iterable<byte[]> topics) {
+          this.topics = topics;
+        }
+
+        public void setKeyDeserializer(byte[] keyDeserializer) {
+          this.keyDeserializer = keyDeserializer;
+        }
+
+        public void setValueDeserializer(byte[] valueDeserializer) {
+          this.valueDeserializer = valueDeserializer;
+        }
+      }
+    }
+
+    /** Sets the bootstrap servers for the Kafka consumer. */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
-      return updateConsumerProperties(
+      return withConsumerConfigUpdates(
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
      * Sets the topic to read from.
      *
-     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description
-     * of how the partitions are distributed among the splits.
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
+     * partitions are distributed among the splits.
      */
     public Read<K, V> withTopic(String topic) {
       return withTopics(ImmutableList.of(topic));
     }
 
     /**
-     * Sets a list of topics to read from. All the partitions from each
-     * of the topics are read.
+     * Sets a list of topics to read from. All the partitions from each of the topics are read.
      *
-     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description
-     * of how the partitions are distributed among the splits.
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
+     * partitions are distributed among the splits.
      */
     public Read<K, V> withTopics(List<String> topics) {
       checkState(
@@ -346,11 +532,11 @@ public class KafkaIO {
     }
 
     /**
-     * Sets a list of partitions to read from. This allows reading only a subset
-     * of partitions for one or more topics when (if ever) needed.
+     * Sets a list of partitions to read from. This allows reading only a subset of partitions for
+     * one or more topics when (if ever) needed.
      *
-     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description
-     * of how the partitions are distributed among the splits.
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
+     * partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
       checkState(getTopics().isEmpty(), "Only topics or topicPartitions can be set, not both");
@@ -406,9 +592,8 @@ public class KafkaIO {
     }
 
     /**
-     * A factory to create Kafka {@link Consumer} from consumer configuration.
-     * This is useful for supporting another version of Kafka consumer.
-     * Default is {@link KafkaConsumer}.
+     * A factory to create Kafka {@link Consumer} from consumer configuration. This is useful for
+     * supporting another version of Kafka consumer. Default is {@link KafkaConsumer}.
      */
     public Read<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
@@ -417,62 +602,132 @@ public class KafkaIO {
 
     /**
      * Update consumer configuration with new properties.
+     *
+     * @deprecated as of version 2.13. Use {@link #withConsumerConfigUpdates(Map)} instead
      */
+    @Deprecated
     public Read<K, V> updateConsumerProperties(Map<String, Object> configUpdates) {
-      Map<String, Object> config = updateKafkaProperties(getConsumerConfig(),
-          IGNORED_CONSUMER_PROPERTIES, configUpdates);
+      Map<String, Object> config =
+          updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
       return toBuilder().setConsumerConfig(config).build();
     }
 
     /**
-     * Similar to {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxNumRecords(long)}.
-     * Mainly used for tests and demo applications.
+     * Similar to {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxNumRecords(long)}. Mainly used
+     * for tests and demo applications.
      */
     public Read<K, V> withMaxNumRecords(long maxNumRecords) {
       return toBuilder().setMaxNumRecords(maxNumRecords).build();
     }
 
     /**
-     * Use timestamp to set up start offset.
-     * It is only supported by Kafka Client 0.10.1.0 onwards and the message format version
-     * after 0.10.0.
+     * Use timestamp to set up start offset. It is only supported by Kafka Client 0.10.1.0 onwards
+     * and the message format version after 0.10.0.
      *
-     * <p>Note that this take priority over start offset configuration
-     * {@code ConsumerConfig.AUTO_OFFSET_RESET_CONFIG} and any auto committed offsets.
+     * <p>Note that this take priority over start offset configuration {@code
+     * ConsumerConfig.AUTO_OFFSET_RESET_CONFIG} and any auto committed offsets.
      *
-     * <p>This results in hard failures in either of the following two cases :
-     * 1. If one of more partitions do not contain any messages with timestamp larger than or
-     * equal to desired timestamp.
-     * 2. If the message format version in a partition is before 0.10.0, i.e. the messages do
-     * not have timestamps.
+     * <p>This results in hard failures in either of the following two cases : 1. If one of more
+     * partitions do not contain any messages with timestamp larger than or equal to desired
+     * timestamp. 2. If the message format version in a partition is before 0.10.0, i.e. the
+     * messages do not have timestamps.
      */
     public Read<K, V> withStartReadTime(Instant startReadTime) {
       return toBuilder().setStartReadTime(startReadTime).build();
     }
 
     /**
-     * Similar to
-     * {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxReadTime(Duration)}.
-     * Mainly used for tests and demo
-     * applications.
+     * Similar to {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxReadTime(Duration)}. Mainly
+     * used for tests and demo applications.
      */
     public Read<K, V> withMaxReadTime(Duration maxReadTime) {
       return toBuilder().setMaxReadTime(maxReadTime).build();
     }
 
     /**
-     * A function to assign a timestamp to a record. Default is processing timestamp.
+     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.LogAppendTimePolicy}. The
+     * policy assigns Kafka's log append time (server side ingestion time) to each record. The
+     * watermark for each Kafka partition is the timestamp of the last record read. If a partition
+     * is idle, the watermark advances to couple of seconds behind wall time. Every record consumed
+     * from Kafka is expected to have its timestamp type set to 'LOG_APPEND_TIME'.
+     *
+     * <p>In Kafka, log append time needs to be enabled for each topic, and all the subsequent
+     * records wil have their timestamp set to log append time. If a record does not have its
+     * timestamp type set to 'LOG_APPEND_TIME' for any reason, it's timestamp is set to previous
+     * record timestamp or latest watermark, whichever is larger.
+     *
+     * <p>The watermark for the entire source is the oldest of each partition's watermark. If one of
+     * the readers falls behind possibly due to uneven distribution of records among Kafka
+     * partitions, it ends up holding the watermark for the entire source.
      */
-    public Read<K, V> withTimestampFn2(
-        SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn) {
-      checkArgument(timestampFn != null, "timestampFn can not be null");
-      return toBuilder().setTimestampFn(timestampFn).build();
+    public Read<K, V> withLogAppendTime() {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
     }
 
     /**
-     * A function to calculate watermark after a record. Default is last record timestamp
-     * @see #withTimestampFn(SerializableFunction)
+     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}. This is
+     * the default timestamp policy. It assigns processing time to each record. Specifically, this
+     * is the timestamp when the record becomes 'current' in the reader. The watermark aways
+     * advances to current time. If server side time (log append time) is enabled in Kafka, {@link
+     * #withLogAppendTime()} is recommended over this.
      */
+    public Read<K, V> withProcessingTime() {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+    }
+
+    /**
+     * Sets the timestamps policy based on {@link KafkaTimestampType#CREATE_TIME} timestamp of the
+     * records. It is an error if a record's timestamp type is not {@link
+     * KafkaTimestampType#CREATE_TIME}. The timestamps within a partition are expected to be roughly
+     * monotonically increasing with a cap on out of order delays (e.g. 'max delay' of 1 minute).
+     * The watermark at any time is '({@code Min(now(), Max(event timestamp so far)) - max delay})'.
+     * However, watermark is never set in future and capped to 'now - max delay'. In addition,
+     * watermark advanced to 'now - max delay' when a partition is idle.
+     *
+     * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent record
+     *     is expected to be after {@code current record timestamp - maxDelay}.
+     */
+    public Read<K, V> withCreateTime(Duration maxDelay) {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(maxDelay));
+    }
+
+    /**
+     * Provide custom {@link TimestampPolicyFactory} to set event times and watermark for each
+     * partition. {@link TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)} is
+     * invoked for each partition when the reader starts.
+     *
+     * @see #withLogAppendTime()
+     * @see #withCreateTime(Duration)
+     * @see #withProcessingTime()
+     */
+    public Read<K, V> withTimestampPolicyFactory(
+        TimestampPolicyFactory<K, V> timestampPolicyFactory) {
+      return toBuilder().setTimestampPolicyFactory(timestampPolicyFactory).build();
+    }
+
+    /**
+     * A function to assign a timestamp to a record. Default is processing timestamp.
+     *
+     * @deprecated as of version 2.4. Use {@link
+     *     #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
+     */
+    @Deprecated
+    public Read<K, V> withTimestampFn2(
+        SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn) {
+      checkArgument(timestampFn != null, "timestampFn can not be null");
+      return toBuilder()
+          .setTimestampPolicyFactory(TimestampPolicyFactory.withTimestampFn(timestampFn))
+          .build();
+    }
+
+    /**
+     * A function to calculate watermark after a record. Default is last record timestamp.
+     *
+     * @see #withTimestampFn(SerializableFunction)
+     * @deprecated as of version 2.4. Use {@link
+     *     #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
+     */
+    @Deprecated
     public Read<K, V> withWatermarkFn2(
         SerializableFunction<KafkaRecord<K, V>, Instant> watermarkFn) {
       checkArgument(watermarkFn != null, "watermarkFn can not be null");
@@ -481,48 +736,88 @@ public class KafkaIO {
 
     /**
      * A function to assign a timestamp to a record. Default is processing timestamp.
+     *
+     * @deprecated as of version 2.4. Use {@link
+     *     #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
      */
+    @Deprecated
     public Read<K, V> withTimestampFn(SerializableFunction<KV<K, V>, Instant> timestampFn) {
       checkArgument(timestampFn != null, "timestampFn can not be null");
       return withTimestampFn2(unwrapKafkaAndThen(timestampFn));
     }
 
     /**
-     * A function to calculate watermark after a record. Default is last record timestamp
+     * A function to calculate watermark after a record. Default is last record timestamp.
+     *
      * @see #withTimestampFn(SerializableFunction)
+     * @deprecated as of version 2.4. Use {@link
+     *     #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
      */
+    @Deprecated
     public Read<K, V> withWatermarkFn(SerializableFunction<KV<K, V>, Instant> watermarkFn) {
       checkArgument(watermarkFn != null, "watermarkFn can not be null");
       return withWatermarkFn2(unwrapKafkaAndThen(watermarkFn));
     }
 
     /**
-     * Sets "isolation_level" to "read_committed" in Kafka consumer configuration. This is
-     * ensures that the consumer does not read uncommitted messages. Kafka version 0.11
-     * introduced transactional writes. Applications requiring end-to-end exactly-once
-     * semantics should only read committed messages. See JavaDoc for {@link KafkaConsumer}
-     * for more description.
+     * Sets "isolation_level" to "read_committed" in Kafka consumer configuration. This is ensures
+     * that the consumer does not read uncommitted messages. Kafka version 0.11 introduced
+     * transactional writes. Applications requiring end-to-end exactly-once semantics should only
+     * read committed messages. See JavaDoc for {@link KafkaConsumer} for more description.
      */
     public Read<K, V> withReadCommitted() {
-      return updateConsumerProperties(ImmutableMap.of("isolation.level", "read_committed"));
+      return withConsumerConfigUpdates(ImmutableMap.of("isolation.level", "read_committed"));
     }
 
     /**
-     * Finalized offsets are committed to Kafka. See {@link CheckpointMark#finalizeCheckpoint()}.
-     * It helps with minimizing gaps or duplicate processing of records while restarting a pipeline
-     * from scratch. But it does not provide hard processing guarantees. There
-     * could be a short delay to commit after {@link CheckpointMark#finalizeCheckpoint()} is
-     * invoked, as reader might be blocked on reading from Kafka. Note that it is independent of
-     * 'AUTO_COMMIT' Kafka consumer configuration. Usually either this or AUTO_COMMIT in Kafka
-     * consumer is enabled, but not both.
+     * Finalized offsets are committed to Kafka. See {@link CheckpointMark#finalizeCheckpoint()}. It
+     * helps with minimizing gaps or duplicate processing of records while restarting a pipeline
+     * from scratch. But it does not provide hard processing guarantees. There could be a short
+     * delay to commit after {@link CheckpointMark#finalizeCheckpoint()} is invoked, as reader might
+     * be blocked on reading from Kafka. Note that it is independent of 'AUTO_COMMIT' Kafka consumer
+     * configuration. Usually either this or AUTO_COMMIT in Kafka consumer is enabled, but not both.
      */
     public Read<K, V> commitOffsetsInFinalize() {
       return toBuilder().setCommitOffsetsInFinalizeEnabled(true).build();
     }
 
     /**
-     * Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata.
+     * Set additional configuration for the backend offset consumer. It may be required for a
+     * secured Kafka cluster, especially when you see similar WARN log message 'exception while
+     * fetching latest offset for partition {}. will be retried'.
+     *
+     * <p>In {@link KafkaIO#read()}, there're two consumers running in the backend actually:<br>
+     * 1. the main consumer, which reads data from kafka;<br>
+     * 2. the secondary offset consumer, which is used to estimate backlog, by fetching latest
+     * offset;<br>
+     *
+     * <p>By default, offset consumer inherits the configuration from main consumer, with an
+     * auto-generated {@link ConsumerConfig#GROUP_ID_CONFIG}. This may not work in a secured Kafka
+     * which requires more configurations.
      */
+    public Read<K, V> withOffsetConsumerConfigOverrides(Map<String, Object> offsetConsumerConfig) {
+      return toBuilder().setOffsetConsumerConfig(offsetConsumerConfig).build();
+    }
+
+    /**
+     * Update configuration for the backend main consumer. Note that the default consumer properties
+     * will not be completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>In {@link KafkaIO#read()}, there're two consumers running in the backend actually:<br>
+     * 1. the main consumer, which reads data from kafka;<br>
+     * 2. the secondary offset consumer, which is used to estimate backlog, by fetching latest
+     * offset;<br>
+     *
+     * <p>By default, main consumer uses the configuration from {@link
+     * #DEFAULT_CONSUMER_PROPERTIES}.
+     */
+    public Read<K, V> withConsumerConfigUpdates(Map<String, Object> configUpdates) {
+      Map<String, Object> config =
+          updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
+      return toBuilder().setConsumerConfig(config).build();
+    }
+
+    /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
     }
@@ -532,32 +827,40 @@ public class KafkaIO {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
+      checkArgument(
+          getTopics().size() > 0 || getTopicPartitions().size() > 0,
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
       checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
       ConsumerSpEL consumerSpEL = new ConsumerSpEL();
 
       if (!consumerSpEL.hasOffsetsForTimes()) {
-        LOG.warn("Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
-                   + "may not be supported in next release of Apache Beam. "
-                   + "Please upgrade your Kafka client version.", AppInfoParser.getVersion());
+        LOG.warn(
+            "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
+                + "may not be supported in next release of Apache Beam. "
+                + "Please upgrade your Kafka client version.",
+            AppInfoParser.getVersion());
       }
       if (getStartReadTime() != null) {
-        checkArgument(consumerSpEL.hasOffsetsForTimes(),
+        checkArgument(
+            consumerSpEL.hasOffsetsForTimes(),
             "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
-                + "current version of Kafka Client is " + AppInfoParser.getVersion()
+                + "current version of Kafka Client is "
+                + AppInfoParser.getVersion()
                 + ". If you are building with maven, set \"kafka.clients.version\" "
                 + "maven property to 0.10.1.0 or newer.");
       }
       if (isCommitOffsetsInFinalizeEnabled()) {
-        checkArgument(getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
-          "commitOffsetsInFinalize() is enabled, but group.id in Kafka consumer config "
-              + "is not set. Offset management requires group.id.");
+        checkArgument(
+            getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
+            "commitOffsetsInFinalize() is enabled, but group.id in Kafka consumer config "
+                + "is not set. Offset management requires group.id.");
         if (Boolean.TRUE.equals(
-          getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))) {
-          LOG.warn("'{}' in consumer config is enabled even though commitOffsetsInFinalize() "
-              + "is set. You need only one of them.", ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
+            getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))) {
+          LOG.warn(
+              "'{}' in consumer config is enabled even though commitOffsetsInFinalize() "
+                  + "is set. You need only one of them.",
+              ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
         }
       }
 
@@ -581,18 +884,13 @@ public class KafkaIO {
       // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
           org.apache.beam.sdk.io.Read.from(
-              toBuilder()
-                  .setKeyCoder(keyCoder)
-                  .setValueCoder(valueCoder)
-                  .build()
-                  .makeSource());
+              toBuilder().setKeyCoder(keyCoder).setValueCoder(valueCoder).build().makeSource());
 
       PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
       if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
-        transform = unbounded
-            .withMaxReadTime(getMaxReadTime())
-            .withMaxNumRecords(getMaxNumRecords());
+        transform =
+            unbounded.withMaxReadTime(getMaxReadTime()).withMaxNumRecords(getMaxNumRecords());
       }
 
       return input.getPipeline().apply(transform);
@@ -608,22 +906,22 @@ public class KafkaIO {
       return new KafkaUnboundedSource<>(this, -1);
     }
 
-    // utility method to convert KafkRecord<K, V> to user KV<K, V> before applying user functions
-    private static <KeyT, ValueT, OutT> SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT>
-    unwrapKafkaAndThen(final SerializableFunction<KV<KeyT, ValueT>, OutT> fn) {
+    // utility method to convert KafkaRecord<K, V> to user KV<K, V> before applying user functions
+    private static <KeyT, ValueT, OutT>
+        SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT> unwrapKafkaAndThen(
+            final SerializableFunction<KV<KeyT, ValueT>, OutT> fn) {
       return record -> fn.apply(record.getKV());
     }
     ///////////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * A set of properties that are not required or don't make sense for our consumer.
-     */
-    private static final Map<String, String> IGNORED_CONSUMER_PROPERTIES = ImmutableMap.of(
-        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
-        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"
-        // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
-        //     lets allow these, applications can have better resume point for restarts.
-        );
+    /** A set of properties that are not required or don't make sense for our consumer. */
+    private static final Map<String, String> IGNORED_CONSUMER_PROPERTIES =
+        ImmutableMap.of(
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"
+            // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
+            //     lets allow these, applications can have better resume point for restarts.
+            );
 
     // set config defaults
     private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
@@ -663,15 +961,18 @@ public class KafkaIO {
       if (topics.size() > 0) {
         builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
       } else if (topicPartitions.size() > 0) {
-        builder.add(DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
-            .withLabel("Topic Partition/s"));
+        builder.add(
+            DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
+                .withLabel("Topic Partition/s"));
       }
       Set<String> ignoredConsumerPropertiesKeys = IGNORED_CONSUMER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getConsumerConfig().entrySet()) {
         String key = conf.getKey();
         if (!ignoredConsumerPropertiesKeys.contains(key)) {
-          Object value = DisplayData.inferType(conf.getValue()) != null
-              ? conf.getValue() : String.valueOf(conf.getValue());
+          Object value =
+              DisplayData.inferType(conf.getValue()) != null
+                  ? conf.getValue()
+                  : String.valueOf(conf.getValue());
           builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(value)));
         }
       }
@@ -679,9 +980,9 @@ public class KafkaIO {
   }
 
   /**
-   * A {@link PTransform} to read from Kafka topics. Similar to {@link KafkaIO.Read}, but
-   * removes Kafka metatdata and returns a {@link PCollection} of {@link KV}.
-   * See {@link KafkaIO} for more information on usage and configuration of reader.
+   * A {@link PTransform} to read from Kafka topics. Similar to {@link KafkaIO.Read}, but removes
+   * Kafka metatdata and returns a {@link PCollection} of {@link KV}. See {@link KafkaIO} for more
+   * information on usage and configuration of reader.
    */
   public static class TypedWithoutMetadata<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
     private final Read<K, V> read;
@@ -695,13 +996,15 @@ public class KafkaIO {
     public PCollection<KV<K, V>> expand(PBegin begin) {
       return begin
           .apply(read)
-          .apply("Remove Kafka Metadata",
-              ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
-                @ProcessElement
-                public void processElement(ProcessContext ctx) {
-                  ctx.output(ctx.element().getKV());
-                }
-              }));
+          .apply(
+              "Remove Kafka Metadata",
+              ParDo.of(
+                  new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext ctx) {
+                      ctx.output(ctx.element().getKV());
+                    }
+                  }));
     }
 
     @Override
@@ -716,8 +1019,8 @@ public class KafkaIO {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIO.class);
 
   /**
-   * Returns a new config map which is merge of current config and updates.
-   * Verifies the updates do not includes ignored properties.
+   * Returns a new config map which is merge of current config and updates. Verifies the updates do
+   * not includes ignored properties.
    */
   private static Map<String, Object> updateKafkaProperties(
       Map<String, Object> currentConfig,
@@ -725,8 +1028,11 @@ public class KafkaIO {
       Map<String, Object> updates) {
 
     for (String key : updates.keySet()) {
-      checkArgument(!ignoredProperties.containsKey(key),
-          "No need to configure '%s'. %s", key, ignoredProperties.get(key));
+      checkArgument(
+          !ignoredProperties.containsKey(key),
+          "No need to configure '%s'. %s",
+          key,
+          ignoredProperties.get(key));
     }
 
     Map<String, Object> config = new HashMap<>(currentConfig);
@@ -738,61 +1044,93 @@ public class KafkaIO {
   /** Static class, prevent instantiation. */
   private KafkaIO() {}
 
-
   //////////////////////// Sink Support \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
   /**
-   * A {@link PTransform} to write to a Kafka topic. See {@link KafkaIO} for more
-   * information on usage and configuration.
+   * A {@link PTransform} to write to a Kafka topic with ProducerRecord's. See {@link KafkaIO} for
+   * more information on usage and configuration.
    */
   @AutoValue
-  public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
-    @Nullable abstract String getTopic();
+  public abstract static class WriteRecords<K, V>
+      extends PTransform<PCollection<ProducerRecord<K, V>>, PDone> {
+    // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
+    // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,
+    // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
+    // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
+
+    @Nullable
+    abstract String getTopic();
+
     abstract Map<String, Object> getProducerConfig();
+
     @Nullable
     abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
 
-    @Nullable abstract Class<? extends Serializer<K>> getKeySerializer();
-    @Nullable abstract Class<? extends Serializer<V>> getValueSerializer();
+    @Nullable
+    abstract Class<? extends Serializer<K>> getKeySerializer();
+
+    @Nullable
+    abstract Class<? extends Serializer<V>> getValueSerializer();
+
+    @Nullable
+    abstract KafkaPublishTimestampFunction<ProducerRecord<K, V>> getPublishTimestampFunction();
 
     // Configuration for EOS sink
     abstract boolean isEOS();
-    @Nullable abstract String getSinkGroupId();
+
+    @Nullable
+    abstract String getSinkGroupId();
+
     abstract int getNumShards();
-    @Nullable abstract
-    SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> getConsumerFactoryFn();
+
+    @Nullable
+    abstract SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
+        getConsumerFactoryFn();
 
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setTopic(String topic);
+
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
+
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
+
       abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
+
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
+
+      abstract Builder<K, V> setPublishTimestampFunction(
+          KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction);
+
       abstract Builder<K, V> setEOS(boolean eosEnabled);
+
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
+
       abstract Builder<K, V> setNumShards(int numShards);
+
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> fn);
-      abstract Write<K, V> build();
+
+      abstract WriteRecords<K, V> build();
     }
 
     /**
-     * Returns a new {@link Write} transform with Kafka producer pointing to
-     * {@code bootstrapServers}.
+     * Returns a new {@link Write} transform with Kafka producer pointing to {@code
+     * bootstrapServers}.
      */
-    public Write<K, V> withBootstrapServers(String bootstrapServers) {
-      return updateProducerProperties(
+    public WriteRecords<K, V> withBootstrapServers(String bootstrapServers) {
+      return withProducerConfigUpdates(
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
-     * Sets the Kafka topic to write to.
+     * Sets the default Kafka topic to write to. Use {@code ProducerRecords} to set topic name per
+     * published record.
      */
-    public Write<K, V> withTopic(String topic) {
+    public WriteRecords<K, V> withTopic(String topic) {
       return toBuilder().setTopic(topic).build();
     }
 
@@ -802,119 +1140,139 @@ public class KafkaIO {
      * <p>A key is optional while writing to Kafka. Note when a key is set, its hash is used to
      * determine partition in Kafka (see {@link ProducerRecord} for more details).
      */
-    public Write<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
+    public WriteRecords<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
       return toBuilder().setKeySerializer(keySerializer).build();
     }
 
-    /**
-     * Sets a {@link Serializer} for serializing value to bytes.
-     */
-    public Write<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
+    /** Sets a {@link Serializer} for serializing value to bytes. */
+    public WriteRecords<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
       return toBuilder().setValueSerializer(valueSerializer).build();
     }
 
     /**
      * Adds the given producer properties, overriding old values of properties with the same key.
+     *
+     * @deprecated as of version 2.13. Use {@link #withProducerConfigUpdates(Map)} instead.
      */
-    public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
-      Map<String, Object> config = updateKafkaProperties(getProducerConfig(),
-          IGNORED_PRODUCER_PROPERTIES, configUpdates);
+    @Deprecated
+    public WriteRecords<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
+      Map<String, Object> config =
+          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
       return toBuilder().setProducerConfig(config).build();
     }
 
     /**
-     * Sets a custom function to create Kafka producer. Primarily used
-     * for tests. Default is {@link KafkaProducer}
+     * Update configuration for the producer. Note that the default producer properties will not be
+     * completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>By default, the producer uses the configuration from {@link #DEFAULT_PRODUCER_PROPERTIES}.
      */
-    public Write<K, V> withProducerFactoryFn(
+    public WriteRecords<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
+      Map<String, Object> config =
+          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
+      return toBuilder().setProducerConfig(config).build();
+    }
+
+    /**
+     * Sets a custom function to create Kafka producer. Primarily used for tests. Default is {@link
+     * KafkaProducer}
+     */
+    public WriteRecords<K, V> withProducerFactoryFn(
         SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
       return toBuilder().setProducerFactoryFn(producerFactoryFn).build();
     }
 
     /**
+     * The timestamp for each record being published is set to timestamp of the element in the
+     * pipeline. This is equivalent to {@code withPublishTimestampFunction((e, ts) -> ts)}. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline is
+     * processing messages from the past, they might be deleted immediately by Kafka after being
+     * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
+    public WriteRecords<K, V> withInputTimestamp() {
+      return withPublishTimestampFunction(KafkaPublishTimestampFunction.withElementTimestamp());
+    }
+
+    /**
+     * A function to provide timestamp for records being published. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline is
+     * processing messages from the past, they might be deleted immediately by Kafka after being
+     * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     *
+     * @deprecated use {@code ProducerRecords} to set publish timestamp.
+     */
+    @Deprecated
+    public WriteRecords<K, V> withPublishTimestampFunction(
+        KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction) {
+      return toBuilder().setPublishTimestampFunction(timestampFunction).build();
+    }
+
+    /**
      * Provides exactly-once semantics while writing to Kafka, which enables applications with
      * end-to-end exactly-once guarantees on top of exactly-once semantics <i>within</i> Beam
-     * pipelines. It ensures that records written to sink are committed on Kafka exactly once,
-     * even in the case of retries during pipeline execution even when some processing is retried.
+     * pipelines. It ensures that records written to sink are committed on Kafka exactly once, even
+     * in the case of retries during pipeline execution even when some processing is retried.
      * Retries typically occur when workers restart (as in failure recovery), or when the work is
      * redistributed (as in an autoscaling event).
      *
      * <p>Beam runners typically provide exactly-once semantics for results of a pipeline, but not
-     * for side effects from user code in transform.  If a transform such as Kafka sink writes
-     * to an external system, those writes might occur more than once. When EOS is enabled here,
-     * the sink transform ties checkpointing semantics in compatible Beam runners and transactions
-     * in Kafka (version 0.11+) to ensure a record is written only once. As the implementation
-     * relies on runners checkpoint semantics, not all the runners are compatible. The sink throws
-     * an exception during initialization if the runner is not whitelisted. Flink runner is
-     * one of the runners whose checkpoint semantics are not compatible with current
-     * implementation (hope to provide a solution in near future). Dataflow runner and Spark
-     * runners are whitelisted as compatible.
+     * for side effects from user code in transform. If a transform such as Kafka sink writes to an
+     * external system, those writes might occur more than once. When EOS is enabled here, the sink
+     * transform ties checkpointing semantics in compatible Beam runners and transactions in Kafka
+     * (version 0.11+) to ensure a record is written only once. As the implementation relies on
+     * runners checkpoint semantics, not all the runners are compatible. The sink throws an
+     * exception during initialization if the runner is not whitelisted. Flink runner is one of the
+     * runners whose checkpoint semantics are not compatible with current implementation (hope to
+     * provide a solution in near future). Dataflow runner and Spark runners are whitelisted as
+     * compatible.
      *
      * <p>Note on performance: Exactly-once sink involves two shuffles of the records. In addition
      * to cost of shuffling the records among workers, the records go through 2
-     * serialization-deserialization cycles. Depending on volume and cost of serialization,
-     * the CPU cost might be noticeable. The CPU cost can be reduced by writing byte arrays
-     * (i.e. serializing them to byte before writing to Kafka sink).
+     * serialization-deserialization cycles. Depending on volume and cost of serialization, the CPU
+     * cost might be noticeable. The CPU cost can be reduced by writing byte arrays (i.e.
+     * serializing them to byte before writing to Kafka sink).
      *
      * @param numShards Sets sink parallelism. The state metadata stored on Kafka is stored across
-     *    this many virtual partitions using {@code sinkGroupId}. A good rule of thumb is to set
-     *    this to be around number of partitions in Kafka topic.
-     *
+     *     this many virtual partitions using {@code sinkGroupId}. A good rule of thumb is to set
+     *     this to be around number of partitions in Kafka topic.
      * @param sinkGroupId The <i>group id</i> used to store small amount of state as metadata on
-     *    Kafka. It is similar to <i>consumer group id</i> used with a {@link KafkaConsumer}. Each
-     *    job should use a unique group id so that restarts/updates of job preserve the state to
-     *    ensure exactly-once semantics. The state is committed atomically with sink transactions
-     *    on Kafka. See {@link KafkaProducer#sendOffsetsToTransaction(Map, String)} for more
-     *    information. The sink performs multiple sanity checks during initialization to catch
-     *    common mistakes so that it does not end up using state that does not <i>seem</i> to
-     *    be written by the same job.
+     *     Kafka. It is similar to <i>consumer group id</i> used with a {@link KafkaConsumer}. Each
+     *     job should use a unique group id so that restarts/updates of job preserve the state to
+     *     ensure exactly-once semantics. The state is committed atomically with sink transactions
+     *     on Kafka. See {@link KafkaProducer#sendOffsetsToTransaction(Map, String)} for more
+     *     information. The sink performs multiple sanity checks during initialization to catch
+     *     common mistakes so that it does not end up using state that does not <i>seem</i> to be
+     *     written by the same job.
      */
-    public Write<K, V> withEOS(int numShards, String sinkGroupId) {
+    public WriteRecords<K, V> withEOS(int numShards, String sinkGroupId) {
       KafkaExactlyOnceSink.ensureEOSSupport();
       checkArgument(numShards >= 1, "numShards should be >= 1");
       checkArgument(sinkGroupId != null, "sinkGroupId is required for exactly-once sink");
-      return toBuilder()
-        .setEOS(true)
-        .setNumShards(numShards)
-        .setSinkGroupId(sinkGroupId)
-        .build();
+      return toBuilder().setEOS(true).setNumShards(numShards).setSinkGroupId(sinkGroupId).build();
     }
 
     /**
      * When exactly-once semantics are enabled (see {@link #withEOS(int, String)}), the sink needs
-     * to fetch previously stored state with Kafka topic. Fetching the metadata requires a
-     * consumer. Similar to {@link Read#withConsumerFactoryFn(SerializableFunction)}, a factory
-     * function can be supplied if required in a specific case.
-     * The default is {@link KafkaConsumer}.
+     * to fetch previously stored state with Kafka topic. Fetching the metadata requires a consumer.
+     * Similar to {@link Read#withConsumerFactoryFn(SerializableFunction)}, a factory function can
+     * be supplied if required in a specific case. The default is {@link KafkaConsumer}.
      */
-    public Write<K, V> withConsumerFactoryFn(
+    public WriteRecords<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
       return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
     }
 
-    /**
-     * Writes just the values to Kafka. This is useful for writing collections of values rather
-     * thank {@link KV}s.
-     */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public PTransform<PCollection<V>, PDone> values() {
-      return new KafkaValueWrite<>(
-          toBuilder()
-          .setKeySerializer((Class) StringSerializer.class)
-          .build()
-      );
-    }
-
     @Override
-    public PDone expand(PCollection<KV<K, V>> input) {
+    public PDone expand(PCollection<ProducerRecord<K, V>> input) {
       checkArgument(
-        getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
-        "withBootstrapServers() is required");
-      checkArgument(getTopic() != null, "withTopic() is required");
+          getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
+          "withBootstrapServers() is required");
+
       checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
 
       if (isEOS()) {
+        checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
         KafkaExactlyOnceSink.ensureEOSSupport();
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
@@ -930,19 +1288,21 @@ public class KafkaIO {
       return PDone.in(input.getPipeline());
     }
 
+    @Override
     public void validate(PipelineOptions options) {
       if (isEOS()) {
         String runner = options.getRunner().getName();
-        if (runner.equals("org.apache.beam.runners.direct.DirectRunner")
-          || runner.startsWith("org.apache.beam.runners.dataflow.")
-          || runner.startsWith("org.apache.beam.runners.spark.")) {
+        if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
+            || runner.startsWith("org.apache.beam.runners.dataflow.")
+            || runner.startsWith("org.apache.beam.runners.spark.")
+            || runner.startsWith("org.apache.beam.runners.flink.")) {
           return;
         }
         throw new UnsupportedOperationException(
-          runner + " is not whitelisted among runners compatible with Kafka exactly-once sink. "
-          + "This implementation of exactly-once sink relies on specific checkpoint guarantees. "
-          + "Only the runners with known to have compatible checkpoint semantics are whitelisted."
-        );
+            runner
+                + " is not whitelisted among runners compatible with Kafka exactly-once sink. "
+                + "This implementation of exactly-once sink relies on specific checkpoint guarantees. "
+                + "Only the runners with known to have compatible checkpoint semantics are whitelisted.");
       }
     }
 
@@ -950,13 +1310,11 @@ public class KafkaIO {
     private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
         ImmutableMap.of(ProducerConfig.RETRIES_CONFIG, 3);
 
-    /**
-     * A set of properties that are not required or don't make sense for our producer.
-     */
-    private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES = ImmutableMap.of(
-        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Use withKeySerializer instead",
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializer instead"
-     );
+    /** A set of properties that are not required or don't make sense for our producer. */
+    private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES =
+        ImmutableMap.of(
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Use withKeySerializer instead",
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializer instead");
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -966,10 +1324,282 @@ public class KafkaIO {
       for (Map.Entry<String, Object> conf : getProducerConfig().entrySet()) {
         String key = conf.getKey();
         if (!ignoredProducerPropertiesKeys.contains(key)) {
-          Object value = DisplayData.inferType(conf.getValue()) != null
-              ? conf.getValue() : String.valueOf(conf.getValue());
+          Object value =
+              DisplayData.inferType(conf.getValue()) != null
+                  ? conf.getValue()
+                  : String.valueOf(conf.getValue());
           builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(value)));
         }
+      }
+    }
+  }
+
+  /**
+   * A {@link PTransform} to write to a Kafka topic with KVs . See {@link KafkaIO} for more
+   * information on usage and configuration.
+   */
+  @AutoValue
+  public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
+    // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
+    // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,
+    // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
+    // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
+
+    @Nullable
+    abstract String getTopic();
+
+    abstract WriteRecords<K, V> getWriteRecordsTransform();
+
+    abstract Builder<K, V> toBuilder();
+
+    @Experimental
+    @AutoValue.Builder
+    abstract static class Builder<K, V>
+        implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
+      abstract Builder<K, V> setTopic(String topic);
+
+      abstract Builder<K, V> setWriteRecordsTransform(WriteRecords<K, V> transform);
+
+      abstract Write<K, V> build();
+
+      @Override
+      public PTransform<PCollection<KV<K, V>>, PDone> buildExternal(
+          External.Configuration configuration) {
+        String topic = utf8String(configuration.topic);
+        setTopic(topic);
+
+        Map<String, Object> producerConfig = new HashMap<>();
+        for (KV<byte[], byte[]> kv : configuration.producerConfig) {
+          String key = utf8String(kv.getKey());
+          String value = utf8String(kv.getValue());
+          producerConfig.put(key, value);
+        }
+        Class keySerializer = resolveClass(utf8String(configuration.keySerializer));
+        Class valSerializer = resolveClass(utf8String(configuration.valueSerializer));
+
+        WriteRecords<K, V> writeRecords =
+            KafkaIO.<K, V>writeRecords()
+                .withProducerConfigUpdates(producerConfig)
+                .withKeySerializer(keySerializer)
+                .withValueSerializer(valSerializer)
+                .withTopic(topic);
+        setWriteRecordsTransform(writeRecords);
+
+        return build();
+      }
+    }
+
+    /** Exposes {@link KafkaIO.Write} as an external transform for cross-language usage. */
+    @Experimental
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:kafka:write:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_KafkaIO_Write.Builder.class);
+      }
+
+      /** Parameters class to expose the Write transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        private Iterable<KV<byte[], byte[]>> producerConfig;
+        private byte[] topic;
+        private byte[] keySerializer;
+        private byte[] valueSerializer;
+
+        public void setProducerConfig(Iterable<KV<byte[], byte[]>> producerConfig) {
+          this.producerConfig = producerConfig;
+        }
+
+        public void setTopic(byte[] topic) {
+          this.topic = topic;
+        }
+
+        public void setKeySerializer(byte[] keySerializer) {
+          this.keySerializer = keySerializer;
+        }
+
+        public void setValueSerializer(byte[] valueSerializer) {
+          this.valueSerializer = valueSerializer;
+        }
+      }
+    }
+
+    /** Used mostly to reduce using of boilerplate of wrapping {@link WriteRecords} methods. */
+    private Write<K, V> withWriteRecordsTransform(WriteRecords<K, V> transform) {
+      return toBuilder().setWriteRecordsTransform(transform).build();
+    }
+
+    /**
+     * Wrapper method over {@link WriteRecords#withBootstrapServers(String)}, used to keep the
+     * compatibility with old API based on KV type of element.
+     */
+    public Write<K, V> withBootstrapServers(String bootstrapServers) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withBootstrapServers(bootstrapServers));
+    }
+
+    /**
+     * Wrapper method over {@link WriteRecords#withTopic(String)}, used to keep the compatibility
+     * with old API based on KV type of element.
+     */
+    public Write<K, V> withTopic(String topic) {
+      return toBuilder()
+          .setTopic(topic)
+          .setWriteRecordsTransform(getWriteRecordsTransform().withTopic(topic))
+          .build();
+    }
+
+    /**
+     * Wrapper method over {@link WriteRecords#withKeySerializer(Class)}, used to keep the
+     * compatibility with old API based on KV type of element.
+     */
+    public Write<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
+      return withWriteRecordsTransform(getWriteRecordsTransform().withKeySerializer(keySerializer));
+    }
+
+    /**
+     * Wrapper method over {@link WriteRecords#withValueSerializer(Class)}, used to keep the
+     * compatibility with old API based on KV type of element.
+     */
+    public Write<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withValueSerializer(valueSerializer));
+    }
+
+    /**
+     * Wrapper method over {@link WriteRecords#withProducerFactoryFn(SerializableFunction)}, used to
+     * keep the compatibility with old API based on KV type of element.
+     */
+    public Write<K, V> withProducerFactoryFn(
+        SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withProducerFactoryFn(producerFactoryFn));
+    }
+
+    /**
+     * Wrapper method over {@link WriteRecords#withInputTimestamp()}, used to keep the compatibility
+     * with old API based on KV type of element.
+     */
+    public Write<K, V> withInputTimestamp() {
+      return withWriteRecordsTransform(getWriteRecordsTransform().withInputTimestamp());
+    }
+
+    /**
+     * Wrapper method over {@link
+     * WriteRecords#withPublishTimestampFunction(KafkaPublishTimestampFunction)}, used to keep the
+     * compatibility with old API based on KV type of element.
+     *
+     * @deprecated use {@link WriteRecords} and {@code ProducerRecords} to set publish timestamp.
+     */
+    @Deprecated
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Write<K, V> withPublishTimestampFunction(
+        KafkaPublishTimestampFunction<KV<K, V>> timestampFunction) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform()
+              .withPublishTimestampFunction(new PublishTimestampFunctionKV(timestampFunction)));
+    }
+
+    /**
+     * Wrapper method over {@link WriteRecords#withEOS(int, String)}, used to keep the compatibility
+     * with old API based on KV type of element.
+     */
+    public Write<K, V> withEOS(int numShards, String sinkGroupId) {
+      return withWriteRecordsTransform(getWriteRecordsTransform().withEOS(numShards, sinkGroupId));
+    }
+
+    /**
+     * Wrapper method over {@link WriteRecords#withConsumerFactoryFn(SerializableFunction)}, used to
+     * keep the compatibility with old API based on KV type of element.
+     */
+    public Write<K, V> withConsumerFactoryFn(
+        SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withConsumerFactoryFn(consumerFactoryFn));
+    }
+
+    /**
+     * Adds the given producer properties, overriding old values of properties with the same key.
+     *
+     * @deprecated as of version 2.13. Use {@link #withProducerConfigUpdates(Map)} instead.
+     */
+    @Deprecated
+    public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().updateProducerProperties(configUpdates));
+    }
+
+    /**
+     * Update configuration for the producer. Note that the default producer properties will not be
+     * completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>By default, the producer uses the configuration from {@link
+     * WriteRecords#DEFAULT_PRODUCER_PROPERTIES}.
+     */
+    public Write<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withProducerConfigUpdates(configUpdates));
+    }
+
+    @Override
+    public PDone expand(PCollection<KV<K, V>> input) {
+      checkArgument(getTopic() != null, "withTopic() is required");
+
+      KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
+      return input
+          .apply(
+              "Kafka ProducerRecord",
+              MapElements.via(
+                  new SimpleFunction<KV<K, V>, ProducerRecord<K, V>>() {
+                    @Override
+                    public ProducerRecord<K, V> apply(KV<K, V> element) {
+                      return new ProducerRecord<>(getTopic(), element.getKey(), element.getValue());
+                    }
+                  }))
+          .setCoder(ProducerRecordCoder.of(kvCoder.getKeyCoder(), kvCoder.getValueCoder()))
+          .apply(getWriteRecordsTransform());
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      getWriteRecordsTransform().validate(options);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      getWriteRecordsTransform().populateDisplayData(builder);
+    }
+
+    /**
+     * Writes just the values to Kafka. This is useful for writing collections of values rather
+     * thank {@link KV}s.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public PTransform<PCollection<V>, PDone> values() {
+      return new KafkaValueWrite<K, V>(this.withKeySerializer((Class) StringSerializer.class));
+    }
+
+    /**
+     * Wrapper class which allows to use {@code KafkaPublishTimestampFunction<KV<K, V>} with {@link
+     * WriteRecords#withPublishTimestampFunction(KafkaPublishTimestampFunction)}.
+     */
+    private static class PublishTimestampFunctionKV<K, V>
+        implements KafkaPublishTimestampFunction<ProducerRecord<K, V>> {
+
+      private KafkaPublishTimestampFunction<KV<K, V>> fn;
+
+      public PublishTimestampFunctionKV(KafkaPublishTimestampFunction<KV<K, V>> fn) {
+        this.fn = fn;
+      }
+
+      @Override
+      public Instant getTimestamp(ProducerRecord<K, V> e, Instant ts) {
+        return fn.getTimestamp(KV.of(e.key(), e.value()), ts);
       }
     }
   }
@@ -1008,7 +1638,6 @@ public class KafkaIO {
     }
   }
 
-
   private static class NullOnlyCoder<T> extends AtomicCoder<T> {
     @Override
     public void encode(T value, OutputStream outStream) {
@@ -1021,7 +1650,6 @@ public class KafkaIO {
       return null;
     }
   }
-
 
   /**
    * Attempt to infer a {@link Coder} by extracting the type of the deserialized-class from the
@@ -1051,14 +1679,27 @@ public class KafkaIO {
           return NullableCoder.of(coderRegistry.getCoder(clazz));
         } catch (CannotProvideCoderException e) {
           throw new RuntimeException(
-              String.format("Unable to automatically infer a Coder for "
-                                + "the Kafka Deserializer %s: no coder registered for type %s",
-                            deserializer, clazz));
+              String.format(
+                  "Unable to automatically infer a Coder for "
+                      + "the Kafka Deserializer %s: no coder registered for type %s",
+                  deserializer, clazz));
         }
       }
     }
 
-    throw new RuntimeException(String.format(
-        "Could not extract the Kafka Deserializer type from %s", deserializer));
+    throw new RuntimeException(
+        String.format("Could not extract the Kafka Deserializer type from %s", deserializer));
+  }
+
+  private static String utf8String(byte[] bytes) {
+    return new String(bytes, Charsets.UTF_8);
+  }
+
+  private static Class resolveClass(String className) {
+    try {
+      return Class.forName(className);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Could not find class: " + className);
+    }
   }
 }

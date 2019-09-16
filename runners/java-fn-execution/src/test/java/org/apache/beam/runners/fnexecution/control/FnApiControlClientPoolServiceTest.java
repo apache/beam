@@ -23,12 +23,23 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import io.grpc.stub.StreamObserver;
-import java.util.concurrent.BlockingQueue;
+import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -37,11 +48,25 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FnApiControlClientPoolServiceTest {
 
-  // For ease of straight-line testing, we use a LinkedBlockingQueue; in practice a SynchronousQueue
-  // for matching incoming connections and server threads is likely.
-  private final BlockingQueue<FnApiControlClient> pool = new LinkedBlockingQueue<>();
-  private FnApiControlClientPoolService controlService =
-      FnApiControlClientPoolService.offeringClientsToPool(pool);
+  private final ControlClientPool pool = MapControlClientPool.create();
+  private final FnApiControlClientPoolService controlService =
+      FnApiControlClientPoolService.offeringClientsToPool(
+          pool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
+  private GrpcFnServer<FnApiControlClientPoolService> server;
+  private BeamFnControlGrpc.BeamFnControlStub stub;
+
+  @Before
+  public void setup() throws IOException {
+    server = GrpcFnServer.allocatePortAndCreateFor(controlService, InProcessServerFactory.create());
+    stub =
+        BeamFnControlGrpc.newStub(
+            InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl()).build());
+  }
+
+  @After
+  public void teardown() throws Exception {
+    server.close();
+  }
 
   @Test
   public void testIncomingConnection() throws Exception {
@@ -49,7 +74,8 @@ public class FnApiControlClientPoolServiceTest {
     StreamObserver<BeamFnApi.InstructionResponse> responseObserver =
         controlService.control(requestObserver);
 
-    FnApiControlClient client = pool.take();
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
+    InstructionRequestHandler client = pool.getSource().take("", Duration.ofSeconds(2));
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
@@ -62,5 +88,36 @@ public class FnApiControlClientPoolServiceTest {
     responseObserver.onNext(
         BeamFnApi.InstructionResponse.newBuilder().setInstructionId(id).build());
     MoreFutures.get(responseFuture);
+  }
+
+  @Test
+  public void testCloseCompletesClients() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicBoolean sawComplete = new AtomicBoolean();
+    stub.control(
+        new StreamObserver<InstructionRequest>() {
+          @Override
+          public void onNext(InstructionRequest value) {
+            Assert.fail("Should never see a request");
+          }
+
+          @Override
+          public void onError(Throwable t) {
+            latch.countDown();
+          }
+
+          @Override
+          public void onCompleted() {
+            sawComplete.set(true);
+            latch.countDown();
+          }
+        });
+
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
+    pool.getSource().take("", Duration.ofSeconds(2));
+    server.close();
+
+    latch.await();
+    assertThat(sawComplete.get(), is(true));
   }
 }

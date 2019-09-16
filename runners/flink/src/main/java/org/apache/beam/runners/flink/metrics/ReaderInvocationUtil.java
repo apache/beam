@@ -26,10 +26,9 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Util for invoking {@link Source.Reader} methods that might require a
- * {@link MetricsContainerImpl} to be active.
- * Source.Reader decorator which registers {@link MetricsContainerImpl}.
- * It update metrics to Flink metric and accumulator in start and advance.
+ * Util for invoking {@link Source.Reader} methods that might require a {@link MetricsContainerImpl}
+ * to be active. Source.Reader decorator which registers {@link MetricsContainerImpl}. It update
+ * metrics to Flink metric and accumulator in start and advance.
  */
 public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT>> {
 
@@ -38,9 +37,7 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
   private final Boolean enableMetrics;
 
   public ReaderInvocationUtil(
-      String stepName,
-      PipelineOptions options,
-      FlinkMetricContainer container) {
+      String stepName, PipelineOptions options, FlinkMetricContainer container) {
     FlinkPipelineOptions flinkPipelineOptions = options.as(FlinkPipelineOptions.class);
     this.stepName = stepName;
     enableMetrics = flinkPipelineOptions.getEnableMetrics();
@@ -50,22 +47,22 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
   public boolean invokeStart(ReaderT reader) throws IOException {
     if (enableMetrics) {
       try (Closeable ignored =
-               MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+          MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
         boolean result = reader.start();
-        container.updateMetrics();
+        container.updateMetrics(stepName);
         return result;
       }
     } else {
       return reader.start();
     }
-
   }
+
   public boolean invokeAdvance(ReaderT reader) throws IOException {
     if (enableMetrics) {
       try (Closeable ignored =
-               MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+          MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
         boolean result = reader.advance();
-        container.updateMetrics();
+        container.updateMetrics(stepName);
         return result;
       }
     } else {

@@ -25,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link AfterEach}.
- */
+/** Tests for {@link AfterEach}. */
 @RunWith(JUnit4.class)
 public class AfterEachTest {
 
@@ -35,12 +33,13 @@ public class AfterEachTest {
   public void testFireDeadline() throws Exception {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
-    assertEquals(new Instant(9),
-        AfterEach.inOrder(AfterWatermark.pastEndOfWindow(),
-                          AfterPane.elementCountAtLeast(4))
+    assertEquals(
+        new Instant(9),
+        AfterEach.inOrder(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(4))
             .getWatermarkThatGuaranteesFiring(window));
 
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterEach.inOrder(AfterPane.elementCountAtLeast(2), AfterWatermark.pastEndOfWindow())
             .getWatermarkThatGuaranteesFiring(window));
   }
@@ -51,17 +50,16 @@ public class AfterEachTest {
     OnceTrigger trigger2 = AfterWatermark.pastEndOfWindow();
     Trigger afterEach = AfterEach.inOrder(trigger1, trigger2);
     assertEquals(
-        Repeatedly.forever(AfterFirst.of(
-            trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger())),
+        Repeatedly.forever(
+            AfterFirst.of(trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger())),
         afterEach.getContinuationTrigger());
   }
 
   @Test
   public void testToString() {
-    Trigger trigger = AfterEach.inOrder(
-        StubTrigger.named("t1"),
-        StubTrigger.named("t2"),
-        StubTrigger.named("t3"));
+    Trigger trigger =
+        AfterEach.inOrder(
+            StubTrigger.named("t1"), StubTrigger.named("t2"), StubTrigger.named("t3"));
 
     assertEquals("AfterEach.inOrder(t1, t2, t3)", trigger.toString());
   }

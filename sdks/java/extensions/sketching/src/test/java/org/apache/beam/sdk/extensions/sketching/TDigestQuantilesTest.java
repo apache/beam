@@ -71,7 +71,8 @@ public class TDigestQuantilesTest {
 
   @Test
   public void globally() {
-    PCollection<KV<Double, Double>> col = tp.apply(Create.of(stream))
+    PCollection<KV<Double, Double>> col =
+        tp.apply(Create.of(stream))
             .apply(TDigestQuantiles.globally().withCompression(compression))
             .apply(ParDo.of(new RetrieveQuantiles(quantiles)));
 
@@ -81,10 +82,11 @@ public class TDigestQuantilesTest {
 
   @Test
   public void perKey() {
-    PCollection<KV<Double, Double>> col = tp.apply(Create.of(stream))
-            .apply(WithKeys.<Integer, Double>of(1))
+    PCollection<KV<Double, Double>> col =
+        tp.apply(Create.of(stream))
+            .apply(WithKeys.of(1))
             .apply(TDigestQuantiles.<Integer>perKey().withCompression(compression))
-            .apply(Values.<MergingDigest>create())
+            .apply(Values.create())
             .apply(ParDo.of(new RetrieveQuantiles(quantiles)));
 
     PAssert.that("Verify Accuracy", col).satisfies(new VerifyAccuracy());
@@ -102,22 +104,21 @@ public class TDigestQuantilesTest {
     Assert.assertTrue("Encode and Decode", encodeDecodeEquals(tDigest));
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testMergeAccum() {
-      Random rd = new Random(1234);
-      List<MergingDigest> accums = new ArrayList<>();
-      for (int i = 0; i < 3; i++) {
-          MergingDigest std = new MergingDigest(100);
-          for (int j = 0; j < 1000; j++) {
-              std.add(rd.nextDouble());
-          }
-          accums.add(std);
+    Random rd = new Random(1234);
+    List<MergingDigest> accums = new ArrayList<>();
+    for (int i = 0; i < 3; i++) {
+      MergingDigest std = new MergingDigest(100);
+      for (int j = 0; j < 1000; j++) {
+        std.add(rd.nextDouble());
       }
-      TDigestQuantilesFn fn = TDigestQuantilesFn.create(100);
-      MergingDigest res = fn.mergeAccumulators(accums);
+      accums.add(std);
+    }
+    TDigestQuantilesFn fn = TDigestQuantilesFn.create(100);
+    MergingDigest res = fn.mergeAccumulators(accums);
   }
 
   private <T> boolean encodeDecodeEquals(MergingDigest tDigest) throws IOException {
@@ -150,11 +151,12 @@ public class TDigestQuantilesTest {
   static class RetrieveQuantiles extends DoFn<MergingDigest, KV<Double, Double>> {
     private final double[] quantiles;
 
-    public RetrieveQuantiles(double[] quantiles) {
+    RetrieveQuantiles(double[] quantiles) {
       this.quantiles = quantiles;
     }
 
-    @ProcessElement public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
       for (double q : quantiles) {
         c.output(KV.of(q, c.element().quantile(q)));
       }
@@ -162,17 +164,21 @@ public class TDigestQuantilesTest {
   }
 
   static class VerifyAccuracy implements SerializableFunction<Iterable<KV<Double, Double>>, Void> {
+    final double expectedError = 3D / compression;
 
-    double expectedError = 3D / compression;
-
+    @Override
     public Void apply(Iterable<KV<Double, Double>> input) {
       for (KV<Double, Double> pair : input) {
         double expectedValue = pair.getKey() * (size + 1);
-        boolean isAccurate = Math.abs(pair.getValue() - expectedValue)
-                / size <= expectedError;
-        Assert.assertTrue("not accurate enough : \nQuantile " + pair.getKey()
-                        + " is " + pair.getValue() + " and not " + expectedValue,
-                isAccurate);
+        boolean isAccurate = Math.abs(pair.getValue() - expectedValue) / size <= expectedError;
+        Assert.assertTrue(
+            "not accurate enough : \nQuantile "
+                + pair.getKey()
+                + " is "
+                + pair.getValue()
+                + " and not "
+                + expectedValue,
+            isAccurate);
       }
       return null;
     }

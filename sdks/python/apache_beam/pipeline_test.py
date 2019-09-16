@@ -17,16 +17,21 @@
 
 """Unit tests for the Pipeline class."""
 
+from __future__ import absolute_import
+
 import copy
 import logging
 import platform
 import unittest
+from builtins import object
+from builtins import range
 from collections import defaultdict
 
 import mock
 
 import apache_beam as beam
 from apache_beam import typehints
+from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
@@ -49,6 +54,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -84,9 +90,22 @@ class FakeSource(NativeSource):
     return FakeSource._Reader(self._vals)
 
 
+class FakeUnboundedSource(NativeSource):
+  """Fake unbounded source. Does not work at runtime"""
+
+  def reader(self):
+    return None
+
+  def is_bounded(self):
+    return False
+
+
 class DoubleParDo(beam.PTransform):
   def expand(self, input):
     return input | 'Inner' >> beam.Map(lambda a: a * 2)
+
+  def to_runner_api_parameter(self, context):
+    return self.to_runner_api_pickled(context)
 
 
 class TripleParDo(beam.PTransform):
@@ -159,6 +178,55 @@ class PipelineTest(unittest.TestCase):
 
     pcoll4 = pcoll3 | 'do2' >> FlatMap(set)
     assert_that(pcoll4, equal_to([11, 12, 12, 12, 13]), label='pcoll4')
+    pipeline.run()
+
+  def test_maptuple_builtin(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | Create([('e1', 'e2')])
+    side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
+    side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
+
+    # A test function with a tuple input, an auxiliary parameter,
+    # and some side inputs.
+    fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
+        e1, e2, t, s1, s2)
+    assert_that(pcoll | 'NoSides' >> beam.core.MapTuple(fn),
+                equal_to([('e1', 'e2', MIN_TIMESTAMP, None, None)]),
+                label='NoSidesCheck')
+    assert_that(pcoll | 'StaticSides' >> beam.core.MapTuple(fn, 's1', 's2'),
+                equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
+                label='StaticSidesCheck')
+    assert_that(pcoll | 'DynamicSides' >> beam.core.MapTuple(fn, side1, side2),
+                equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
+                label='DynamicSidesCheck')
+    assert_that(pcoll | 'MixedSides' >> beam.core.MapTuple(fn, s2=side2),
+                equal_to([('e1', 'e2', MIN_TIMESTAMP, None, 's2')]),
+                label='MixedSidesCheck')
+    pipeline.run()
+
+  def test_flatmaptuple_builtin(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | Create([('e1', 'e2')])
+    side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
+    side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
+
+    # A test function with a tuple input, an auxiliary parameter,
+    # and some side inputs.
+    fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
+        e1, e2, t, s1, s2)
+    assert_that(pcoll | 'NoSides' >> beam.core.FlatMapTuple(fn),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, None, None]),
+                label='NoSidesCheck')
+    assert_that(pcoll | 'StaticSides' >> beam.core.FlatMapTuple(fn, 's1', 's2'),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
+                label='StaticSidesCheck')
+    assert_that(pcoll
+                | 'DynamicSides' >> beam.core.FlatMapTuple(fn, side1, side2),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
+                label='DynamicSidesCheck')
+    assert_that(pcoll | 'MixedSides' >> beam.core.FlatMapTuple(fn, s2=side2),
+                equal_to(['e1', 'e2', MIN_TIMESTAMP, None, 's2']),
+                label='MixedSidesCheck')
     pipeline.run()
 
   def test_create_singleton_pcollection(self):
@@ -252,6 +320,7 @@ class PipelineTest(unittest.TestCase):
         ['a-x', 'b-x', 'c-x'],
         sorted(['a', 'b', 'c'] | 'AddSuffix' >> AddSuffix('-x')))
 
+  @unittest.skip("Fails on some platforms with new urllib3.")
   def test_memory_usage(self):
     try:
       import resource
@@ -327,7 +396,7 @@ class PipelineTest(unittest.TestCase):
       def get_replacement_transform(self, ptransform):
         if isinstance(ptransform, DoubleParDo):
           return TripleParDo()
-        raise ValueError('Unsupported type of transform: %r', ptransform)
+        raise ValueError('Unsupported type of transform: %r' % ptransform)
 
     def get_overrides(unused_pipeline_options):
       return [MyParDoOverride()]
@@ -368,7 +437,89 @@ class PipelineTest(unittest.TestCase):
                | 'NoOp' >> beam.Map(lambda x: x))
 
       p.replace_all([override])
-      self.assertEquals(pcoll.producer.inputs[0].element_type, expected_type)
+      self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
+
+  def test_kv_ptransform_honor_type_hints(self):
+
+    # The return type of this DoFn cannot be inferred by the default
+    # Beam type inference
+    class StatefulDoFn(DoFn):
+      BYTES_STATE = BagStateSpec('bytes', BytesCoder())
+
+      def return_recursive(self, count):
+        if count == 0:
+          return ["some string"]
+        else:
+          self.return_recursive(count-1)
+
+      def process(self, element, counter=DoFn.StateParam(BYTES_STATE)):
+        return self.return_recursive(1)
+
+    p = TestPipeline()
+    pcoll = (p
+             | beam.Create([(1, 1), (2, 2), (3, 3)])
+             | beam.GroupByKey()
+             | beam.ParDo(StatefulDoFn()))
+    p.run()
+    self.assertEqual(pcoll.element_type, typehints.Any)
+
+    p = TestPipeline()
+    pcoll = (p
+             | beam.Create([(1, 1), (2, 2), (3, 3)])
+             | beam.GroupByKey()
+             | beam.ParDo(StatefulDoFn()).with_output_types(str))
+    p.run()
+    self.assertEqual(pcoll.element_type, str)
+
+  def test_track_pcoll_unbounded(self):
+    pipeline = TestPipeline()
+    pcoll1 = pipeline | 'read' >> Read(FakeUnboundedSource())
+    pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
+    pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
+    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll3.is_bounded, False)
+
+  def test_track_pcoll_bounded(self):
+    pipeline = TestPipeline()
+    pcoll1 = pipeline | 'label1' >> Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
+    pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
+    self.assertIs(pcoll1.is_bounded, True)
+    self.assertIs(pcoll2.is_bounded, True)
+    self.assertIs(pcoll3.is_bounded, True)
+
+  def test_track_pcoll_bounded_flatten(self):
+    pipeline = TestPipeline()
+    pcoll1_a = pipeline | 'label_a' >> Create([1, 2, 3])
+    pcoll2_a = pcoll1_a | 'do_a' >> FlatMap(lambda x: [x + 1])
+
+    pcoll1_b = pipeline | 'label_b' >> Create([1, 2, 3])
+    pcoll2_b = pcoll1_b | 'do_b' >> FlatMap(lambda x: [x + 1])
+
+    merged = (pcoll2_a, pcoll2_b) | beam.Flatten()
+
+    self.assertIs(pcoll1_a.is_bounded, True)
+    self.assertIs(pcoll2_a.is_bounded, True)
+    self.assertIs(pcoll1_b.is_bounded, True)
+    self.assertIs(pcoll2_b.is_bounded, True)
+    self.assertIs(merged.is_bounded, True)
+
+  def test_track_pcoll_unbounded_flatten(self):
+    pipeline = TestPipeline()
+    pcoll1_bounded = pipeline | 'label1' >> Create([1, 2, 3])
+    pcoll2_bounded = pcoll1_bounded | 'do1' >> FlatMap(lambda x: [x + 1])
+
+    pcoll1_unbounded = pipeline | 'read' >> Read(FakeUnboundedSource())
+    pcoll2_unbounded = pcoll1_unbounded | 'do2' >> FlatMap(lambda x: [x + 1])
+
+    merged = (pcoll2_bounded, pcoll2_unbounded) | beam.Flatten()
+
+    self.assertIs(pcoll1_bounded.is_bounded, True)
+    self.assertIs(pcoll2_bounded.is_bounded, True)
+    self.assertIs(pcoll1_unbounded.is_bounded, False)
+    self.assertIs(pcoll2_unbounded.is_bounded, False)
+    self.assertIs(merged.is_bounded, False)
 
 
 class DoFnTest(unittest.TestCase):
@@ -474,29 +625,29 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_flag_parsing(self):
     options = Breakfast(['--slices=3', '--style=sunny side up', '--ignored'])
-    self.assertEquals(3, options.slices)
-    self.assertEquals('sunny side up', options.style)
+    self.assertEqual(3, options.slices)
+    self.assertEqual('sunny side up', options.style)
 
   def test_keyword_parsing(self):
     options = Breakfast(
         ['--slices=3', '--style=sunny side up', '--ignored'],
         slices=10)
-    self.assertEquals(10, options.slices)
-    self.assertEquals('sunny side up', options.style)
+    self.assertEqual(10, options.slices)
+    self.assertEqual('sunny side up', options.style)
 
   def test_attribute_setting(self):
     options = Breakfast(slices=10)
-    self.assertEquals(10, options.slices)
+    self.assertEqual(10, options.slices)
     options.slices = 20
-    self.assertEquals(20, options.slices)
+    self.assertEqual(20, options.slices)
 
   def test_view_as(self):
     generic_options = PipelineOptions(['--slices=3'])
-    self.assertEquals(3, generic_options.view_as(Bacon).slices)
-    self.assertEquals(3, generic_options.view_as(Breakfast).slices)
+    self.assertEqual(3, generic_options.view_as(Bacon).slices)
+    self.assertEqual(3, generic_options.view_as(Breakfast).slices)
 
     generic_options.view_as(Breakfast).slices = 10
-    self.assertEquals(10, generic_options.view_as(Bacon).slices)
+    self.assertEqual(10, generic_options.view_as(Bacon).slices)
 
     with self.assertRaises(AttributeError):
       generic_options.slices  # pylint: disable=pointless-statement
@@ -506,53 +657,24 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_defaults(self):
     options = Breakfast(['--slices=3'])
-    self.assertEquals(3, options.slices)
-    self.assertEquals('scrambled', options.style)
+    self.assertEqual(3, options.slices)
+    self.assertEqual('scrambled', options.style)
 
   def test_dir(self):
     options = Breakfast()
-    self.assertEquals(
+    self.assertEqual(
         set(['from_dictionary', 'get_all_options', 'slices', 'style',
              'view_as', 'display_data']),
-        set([attr for attr in dir(options) if not attr.startswith('_')]))
-    self.assertEquals(
+        set([attr for attr in dir(options) if not attr.startswith('_') and
+             attr != 'next']))
+    self.assertEqual(
         set(['from_dictionary', 'get_all_options', 'style', 'view_as',
              'display_data']),
         set([attr for attr in dir(options.view_as(Eggs))
-             if not attr.startswith('_')]))
+             if not attr.startswith('_') and attr != 'next']))
 
 
 class RunnerApiTest(unittest.TestCase):
-
-  def test_simple(self):
-    """Tests serializing, deserializing, and running a simple pipeline.
-
-    More extensive tests are done at pipeline.run for each suitable test.
-    """
-    p = beam.Pipeline()
-    p | beam.Create([None]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
-    proto = p.to_runner_api()
-
-    p2 = Pipeline.from_runner_api(proto, p.runner, p._options)
-    p2.run()
-
-  def test_pickling(self):
-    class MyPTransform(beam.PTransform):
-      pickle_count = [0]
-
-      def expand(self, p):
-        self.p = p
-        return p | beam.Create([None])
-
-      def __reduce__(self):
-        self.pickle_count[0] += 1
-        return str, ()
-
-    p = beam.Pipeline()
-    for k in range(20):
-      p | 'Iter%s' % k >> MyPTransform()  # pylint: disable=expression-not-assigned
-    p.to_runner_api()
-    self.assertEqual(MyPTransform.pickle_count[0], 20)
 
   def test_parent_pointer(self):
     class MyPTransform(beam.PTransform):
@@ -563,10 +685,11 @@ class RunnerApiTest(unittest.TestCase):
 
     p = beam.Pipeline()
     p | MyPTransform()  # pylint: disable=expression-not-assigned
-    p = Pipeline.from_runner_api(Pipeline.to_runner_api(p), None, None)
+    p = Pipeline.from_runner_api(
+        Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
-    self.assertEquals(p.transforms_stack[0].parts[0].parent,
-                      p.transforms_stack[0])
+    self.assertEqual(p.transforms_stack[0].parts[0].parent,
+                     p.transforms_stack[0])
 
 
 class DirectRunnerRetryTests(unittest.TestCase):

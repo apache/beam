@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.gcp.datastore;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * {@link DatastoreIO} provides an API for reading from and writing to
- * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
+ * {@link DatastoreIO} provides an API for reading from and writing to <a
+ * href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
  * versions of the Cloud Datastore Client libraries.
  *
  * <p>To use the v1 version see {@link DatastoreV1}.

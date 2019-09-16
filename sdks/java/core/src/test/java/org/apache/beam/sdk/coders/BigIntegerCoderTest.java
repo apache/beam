@@ -20,21 +20,18 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.math.BigInteger;
-import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link BigIntegerCoder}.
- */
+/** Test case for {@link BigIntegerCoder}. */
 @RunWith(JUnit4.class)
 public class BigIntegerCoderTest {
 
@@ -42,7 +39,7 @@ public class BigIntegerCoderTest {
 
   private static final Coder<BigInteger> TEST_CODER = BigIntegerCoder.of();
 
-  private static final List<BigInteger> TEST_VALUES =
+  private static final ImmutableList<BigInteger> TEST_VALUES =
       ImmutableList.of(
           BigInteger.valueOf(Integer.MIN_VALUE).subtract(BigInteger.valueOf(Integer.MAX_VALUE)),
           BigInteger.valueOf(Integer.MIN_VALUE).subtract(BigInteger.ONE),
@@ -60,10 +57,10 @@ public class BigIntegerCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS =
+  private static final ImmutableList<String> TEST_ENCODINGS =
       ImmutableList.of("_wAAAAE", "_3____8", "_w", "AA", "AQ", "AIAAAAA", "BP____Y");
 
   @Test
@@ -79,8 +76,8 @@ public class BigIntegerCoderTest {
       observer.advance();
       assertThat(
           observer.getSumAndReset(),
-          equalTo((long) CoderUtils.encodeToByteArray(
-              TEST_CODER, value, Coder.Context.NESTED).length));
+          equalTo(
+              (long) CoderUtils.encodeToByteArray(TEST_CODER, value, Coder.Context.NESTED).length));
     }
   }
 

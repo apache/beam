@@ -17,12 +17,10 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.collect.Sets;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
-/**
- * An implementation of {@link FinishedTriggers} atop a user-provided mutable {@link Set}.
- */
+/** An implementation of {@link FinishedTriggers} atop a user-provided mutable {@link Set}. */
 public class FinishedTriggersSet implements FinishedTriggers {
 
   private final Set<ExecutableTriggerStateMachine> finishedTriggers;
@@ -35,9 +33,7 @@ public class FinishedTriggersSet implements FinishedTriggers {
     return new FinishedTriggersSet(finishedTriggers);
   }
 
-  /**
-   * Returns a mutable {@link Set} of the underlying triggers that are finished.
-   */
+  /** Returns a mutable {@link Set} of the underlying triggers that are finished. */
   public Set<ExecutableTriggerStateMachine> getFinishedTriggers() {
     return finishedTriggers;
   }
@@ -68,5 +64,4 @@ public class FinishedTriggersSet implements FinishedTriggers {
   public FinishedTriggersSet copy() {
     return fromSet(Sets.newHashSet(finishedTriggers));
   }
-
 }

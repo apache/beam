@@ -23,15 +23,21 @@ context.
 Cells depend on a 'dirty-bit' in the CellCommitState class that tracks whether
 a cell's updates have been committed.
 """
+
+from __future__ import absolute_import
 from __future__ import division
 
 import threading
 import time
+from builtins import object
+
+from google.protobuf import timestamp_pb2
 
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import metrics_pb2
 
 __all__ = ['DistributionResult', 'GaugeResult']
 
@@ -140,7 +146,11 @@ class CounterCell(Counter, MetricCell):
   """
   def __init__(self, *args):
     super(CounterCell, self).__init__(*args)
-    self.value = 0
+    self.value = CounterAggregator.identity_element()
+
+  def reset(self):
+    self.commit = CellCommitState()
+    self.value = CounterAggregator.identity_element()
 
   def combine(self, other):
     result = CounterCell()
@@ -156,6 +166,18 @@ class CounterCell(Counter, MetricCell):
     with self._lock:
       return self.value
 
+  def to_runner_api_monitoring_info(self):
+    """Returns a Metric with this counter value for use in a MonitoringInfo."""
+    # TODO(ajamato): Update this code to be consistent with Gauges
+    # and Distributions. Since there is no CounterData class this method
+    # was added to CounterCell. Consider adding a CounterData class or
+    # removing the GaugeData and DistributionData classes.
+    return metrics_pb2.Metric(
+        counter_data=metrics_pb2.CounterData(
+            int64_value=self.get_cumulative()
+        )
+    )
+
 
 class DistributionCell(Distribution, MetricCell):
   """For internal use only; no backwards-compatibility guarantees.
@@ -170,7 +192,11 @@ class DistributionCell(Distribution, MetricCell):
   """
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
-    self.data = DistributionAggregator.zero()
+    self.data = DistributionAggregator.identity_element()
+
+  def reset(self):
+    self.commit = CellCommitState()
+    self.data = DistributionAggregator.identity_element()
 
   def combine(self, other):
     result = DistributionCell()
@@ -211,7 +237,11 @@ class GaugeCell(Gauge, MetricCell):
   """
   def __init__(self, *args):
     super(GaugeCell, self).__init__(*args)
-    self.data = GaugeAggregator.zero()
+    self.data = GaugeAggregator.identity_element()
+
+  def reset(self):
+    self.commit = CellCommitState()
+    self.data = GaugeAggregator.identity_element()
 
   def combine(self, other):
     result = GaugeCell()
@@ -243,8 +273,12 @@ class DistributionResult(object):
     else:
       return False
 
+  def __hash__(self):
+    return hash(self.data)
+
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<DistributionResult(sum={}, count={}, min={}, max={})>'.format(
@@ -290,8 +324,12 @@ class GaugeResult(object):
     else:
       return False
 
+  def __hash__(self):
+    return hash(self.data)
+
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<GaugeResult(value={}, timestamp={})>'.format(
@@ -324,8 +362,12 @@ class GaugeData(object):
   def __eq__(self, other):
     return self.value == other.value and self.timestamp == other.timestamp
 
+  def __hash__(self):
+    return hash((self.value, self.timestamp))
+
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<GaugeData(value={}, timestamp={})>'.format(
@@ -348,7 +390,26 @@ class GaugeData(object):
   def singleton(value, timestamp=None):
     return GaugeData(value, timestamp=timestamp)
 
-  #TODO(pabloem) - Add to_runner_api, and from_runner_api
+  def to_runner_api(self):
+    seconds = int(self.timestamp)
+    nanos = int((self.timestamp - seconds) * 10**9)
+    gauge_timestamp = timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
+    return beam_fn_api_pb2.Metrics.User.GaugeData(
+        value=self.value, timestamp=gauge_timestamp)
+
+  @staticmethod
+  def from_runner_api(proto):
+    gauge_timestamp = (proto.timestamp.seconds +
+                       float(proto.timestamp.nanos) / 10**9)
+    return GaugeData(proto.value, timestamp=gauge_timestamp)
+
+  def to_runner_api_monitoring_info(self):
+    """Returns a Metric with this value for use in a MonitoringInfo."""
+    return metrics_pb2.Metric(
+        counter_data=metrics_pb2.CounterData(
+            int64_value=self.value
+        )
+    )
 
 
 class DistributionData(object):
@@ -373,8 +434,12 @@ class DistributionData(object):
             self.min == other.min and
             self.max == other.max)
 
+  def __hash__(self):
+    return hash((self.sum, self.count, self.min, self.max))
+
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<DistributionData(sum={}, count={}, min={}, max={})>'.format(
@@ -412,12 +477,25 @@ class DistributionData(object):
   def from_runner_api(proto):
     return DistributionData(proto.sum, proto.count, proto.min, proto.max)
 
+  def to_runner_api_monitoring_info(self):
+    """Returns a Metric with this value for use in a MonitoringInfo."""
+    return metrics_pb2.Metric(
+        distribution_data=metrics_pb2.DistributionData(
+            int_distribution_data=metrics_pb2.IntDistributionData(
+                count=self.count, sum=self.sum, min=self.min, max=self.max)))
+
 
 class MetricAggregator(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Base interface for aggregating metric data during pipeline execution."""
-  def zero(self):
+
+  def identity_element(self):
+    """Returns the identical element of an Aggregation.
+
+    For the identity element, it must hold that
+     Aggregator.combine(any_element, identity_element) == any_element.
+    """
     raise NotImplementedError
 
   def combine(self, updates):
@@ -435,7 +513,7 @@ class CounterAggregator(MetricAggregator):
   Values aggregated should be ``int`` objects.
   """
   @staticmethod
-  def zero():
+  def identity_element():
     return 0
 
   def combine(self, x, y):
@@ -453,7 +531,7 @@ class DistributionAggregator(MetricAggregator):
   Values aggregated should be ``DistributionData`` objects.
   """
   @staticmethod
-  def zero():
+  def identity_element():
     return DistributionData(0, 0, None, None)
 
   def combine(self, x, y):
@@ -471,7 +549,7 @@ class GaugeAggregator(MetricAggregator):
   Values aggregated should be ``GaugeData`` objects.
   """
   @staticmethod
-  def zero():
+  def identity_element():
     return GaugeData(None, timestamp=0)
 
   def combine(self, x, y):

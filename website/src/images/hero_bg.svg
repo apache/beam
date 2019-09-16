@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<!-- Generator: Adobe Illustrator 19.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="334 84 1280 625" style="enable-background:new 334 84 1280 625;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:url(#Rectangle_1_);}
+	.st1{opacity:0.418;fill:url(#Rectangle_3_);enable-background:new    ;}
+	.st2{opacity:0.3426;fill:url(#SVGID_1_);enable-background:new    ;}
+</style>
+<title>Group 6</title>
+<desc>Created with Sketch.</desc>
+<g id="Group-6">
+	
+		<linearGradient id="Rectangle_1_" gradientUnits="userSpaceOnUse" x1="1335.1388" y1="1.0528" x2="1336.1388" y2="5.280000e-02" gradientTransform="matrix(1280 0 0 625 -1708744 2)">
+		<stop  offset="0" style="stop-color:#FBA43B"/>
+		<stop  offset="1" style="stop-color:#F76B1C"/>
+	</linearGradient>
+	<polygon id="Rectangle" class="st0" points="334,84 1614,84 1614,513 334,709 	"/>
+	
+		<linearGradient id="Rectangle_3_" gradientUnits="userSpaceOnUse" x1="1335.2172" y1="1.2515" x2="1336.2172" y2="0.2515" gradientTransform="matrix(1280 0 0 326 -1708744 301)">
+		<stop  offset="0" style="stop-color:#FBDA61"/>
+		<stop  offset="0.3622" style="stop-color:#F9B248;stop-opacity:0.6378"/>
+		<stop  offset="1" style="stop-color:#F76B1C;stop-opacity:0"/>
+	</linearGradient>
+	<polygon id="Rectangle_2_" class="st1" points="334,579 1614,383 1614,513 334,709 	"/>
+	
+		<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="924.5751" y1="448.575" x2="1380.4249" y2="-7.275" gradientTransform="matrix(1 0 0 -1 0 794)">
+		<stop  offset="0" style="stop-color:#FBDA61;stop-opacity:0"/>
+		<stop  offset="1" style="stop-color:#F76B1C"/>
+	</linearGradient>
+	<polygon class="st2" points="1614,437.7 691,579 691,709 1614,567.7 	"/>
+</g>
+</svg>

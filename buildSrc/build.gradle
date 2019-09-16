@@ -1,0 +1,96 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Plugins for configuring _this build_ of the module
+plugins {
+  id 'java-gradle-plugin'
+  id 'groovy'
+  id "com.diffplug.gradle.spotless" version "3.24.0"
+}
+
+// Define the set of repositories required to fetch and enable plugins.
+repositories {
+  jcenter()
+  maven { url "https://plugins.gradle.org/m2/" }
+  maven {
+    url "https://repo.spring.io/plugins-release/"
+    content { includeGroup "io.spring.gradle" }
+  }
+}
+
+// Dependencies on other plugins used when this plugin is invoked
+dependencies {
+  compile gradleApi()
+  compile localGroovy()
+  compile 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
+  compile 'gradle.plugin.com.github.spotbugs:spotbugs-gradle-plugin:2.0.0'                            // Enable spotbugs
+
+  runtime "net.ltgt.gradle:gradle-apt-plugin:0.20"                                                    // Enable a Java annotation processor
+  runtime "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                          // Enable proto code generation
+  runtime "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                            // Enable provided and optional configurations
+  runtime "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                   // Enable Avro code generation
+  runtime "com.diffplug.spotless:spotless-plugin-gradle:3.24.0"                                       // Enable a code formatting plugin
+  runtime "gradle.plugin.com.github.blindpirate:gogradle:0.11.4"                                      // Enable Go code compilation
+  runtime "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.20.1"                             // Enable building Docker containers
+  runtime "gradle.plugin.com.dorongold.plugins:task-tree:1.3.1"                                       // Adds a 'taskTree' task to print task dependency tree
+  runtime "com.github.jengelman.gradle.plugins:shadow:4.0.3"                                          // Enable shading Java dependencies
+  runtime "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                     // Enable the JavaCC parser generator
+  runtime "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0" // Enable creating an offline repository
+  runtime "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                           // Enable errorprone Java static analysis
+  runtime "org.ajoberstar.grgit:grgit-gradle:3.0.0"                                                   // Enable website git publish to asf-site branch
+  runtime "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                       // Enable docker compose tasks
+  runtime "ca.cutterslade.gradle:gradle-dependency-analyze:1.3.1"                                     // Enable dep analysis
+  runtime "gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11"                                  // Enable dep vulnerability analysis
+}
+
+// Because buildSrc is built and tested automatically _before_ gradle
+// does anything else, it is not possible to spotlessApply because
+// spotlessCheck fails before that. So this hack allows disabling
+// the check for the moment of application.
+//
+// ./gradlew :buildSrc:spotlessApply -PdisableSpotlessCheck=true
+def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
+        project.disableSpotlessCheck == 'true'
+
+spotless {
+  enforceCheck !disableSpotlessCheck
+  groovy {
+    excludeJava()
+    greclipse().configFile('greclipse.properties')
+  }
+  groovyGradle {
+    greclipse().configFile('greclipse.properties')
+  }
+}
+
+gradlePlugin {
+  plugins {
+    beamModule {
+      id = 'org.apache.beam.module'
+      implementationClass = 'org.apache.beam.gradle.BeamModulePlugin'
+    }
+    vendorJava {
+      id = 'org.apache.beam.vendor-java'
+      implementationClass = 'org.apache.beam.gradle.VendorJavaPlugin'
+    }
+    beamJenkins {
+      id = 'org.apache.beam.jenkins'
+      implementationClass = 'org.apache.beam.gradle.BeamJenkinsPlugin'
+    }
+  }
+}

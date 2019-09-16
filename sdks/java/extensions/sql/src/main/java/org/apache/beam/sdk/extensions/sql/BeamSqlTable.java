@@ -15,41 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 
-/**
- * This interface defines a Beam Sql Table.
- */
+/** This interface defines a Beam Sql Table. */
 public interface BeamSqlTable {
-  /**
-   * In Beam SQL, there's no difference between a batch query and a streaming
-   * query. {@link BeamIOType} is used to validate the sources.
-   */
-  BeamIOType getSourceType();
+  /** create a {@code PCollection<Row>} from source. */
+  PCollection<Row> buildIOReader(PBegin begin);
+
+  /** create a {@code IO.write()} instance to write to target. */
+  POutput buildIOWriter(PCollection<Row> input);
+
+  /** Whether this table is bounded (known to be finite) or unbounded (may or may not be finite). */
+  PCollection.IsBounded isBounded();
+
+  /** Get the schema info of the table. */
+  Schema getSchema();
 
   /**
-   * create a {@code PCollection<BeamSqlRow>} from source.
-   *
+   * Estimates the number of rows or the rate for unbounded Tables. If it is not possible to
+   * estimate the row count or rate it will return BeamTableStatistics.BOUNDED_UNKNOWN.
    */
-  PCollection<Row> buildIOReader(Pipeline pipeline);
-
-  /**
-   * create a {@code IO.write()} instance to write to target.
-   *
-   */
-   PTransform<? super PCollection<Row>, PDone> buildIOWriter();
-
-  /**
-   * Get the schema info of the table.
-   */
-   RowType getRowType();
+  BeamTableStatistics getTableStatistics(PipelineOptions options);
 }

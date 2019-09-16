@@ -17,6 +17,8 @@
 
 """Test for the minimal wordcount example."""
 
+from __future__ import absolute_import
+
 import collections
 import logging
 import re
@@ -34,7 +36,7 @@ class WordCountMinimalTest(unittest.TestCase):
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       return f.name
 
   def test_basics(self):
@@ -52,7 +54,7 @@ class WordCountMinimalTest(unittest.TestCase):
         match = re.search(r'([a-z]+): ([0-9]+)', line)
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
-    self.assertEqual(sorted(results), sorted(expected_words.iteritems()))
+    self.assertEqual(sorted(results), sorted(expected_words.items()))
 
 
 if __name__ == '__main__':

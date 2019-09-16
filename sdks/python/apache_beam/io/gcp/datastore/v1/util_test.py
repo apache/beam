@@ -16,6 +16,8 @@
 #
 
 """Tests for util.py."""
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.io.gcp.datastore.v1 import util
@@ -61,6 +63,41 @@ class MovingSumTest(unittest.TestCase):
     ms.add(MovingSumTest.TIMESTAMP+6, 7)
     self.assertEqual(10, ms.sum(MovingSumTest.TIMESTAMP+7))
     self.assertEqual(2, ms.count(MovingSumTest.TIMESTAMP+7))
+
+
+class DynamicWriteBatcherTest(unittest.TestCase):
+
+  def setUp(self):
+    self._batcher = util.DynamicBatchSizer()
+
+  # If possible, keep these test cases aligned with the Java test cases in
+  # DatastoreV1Test.java
+  def test_no_data(self):
+    self.assertEqual(util.WRITE_BATCH_INITIAL_SIZE,
+                     self._batcher.get_batch_size(0))
+
+  def test_fast_queries(self):
+    self._batcher.report_latency(0, 1000, 200)
+    self._batcher.report_latency(0, 1000, 200)
+    self.assertEqual(util.WRITE_BATCH_MAX_SIZE,
+                     self._batcher.get_batch_size(0))
+
+  def test_slow_queries(self):
+    self._batcher.report_latency(0, 10000, 200)
+    self._batcher.report_latency(0, 10000, 200)
+    self.assertEqual(100, self._batcher.get_batch_size(0))
+
+  def test_size_not_below_minimum(self):
+    self._batcher.report_latency(0, 30000, 50)
+    self._batcher.report_latency(0, 30000, 50)
+    self.assertEqual(util.WRITE_BATCH_MIN_SIZE,
+                     self._batcher.get_batch_size(0))
+
+  def test_sliding_window(self):
+    self._batcher.report_latency(0, 30000, 50)
+    self._batcher.report_latency(50000, 5000, 200)
+    self._batcher.report_latency(100000, 5000, 200)
+    self.assertEqual(200, self._batcher.get_batch_size(150000))
 
 
 if __name__ == '__main__':

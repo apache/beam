@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation.operators;
 
 import com.datatorrent.api.Context.OperatorContext;
@@ -25,7 +24,6 @@ import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.base.Throwables;
 import java.io.IOException;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
@@ -37,40 +35,44 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Apex input operator that wraps Beam {@link UnboundedSource}.
- */
-public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
-    extends UnboundedSource.CheckpointMark> implements InputOperator {
-  private static final Logger LOG = LoggerFactory.getLogger(
-      ApexReadUnboundedInputOperator.class);
+/** Apex input operator that wraps Beam {@link UnboundedSource}. */
+public class ApexReadUnboundedInputOperator<
+        OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+    implements InputOperator {
+  private static final Logger LOG = LoggerFactory.getLogger(ApexReadUnboundedInputOperator.class);
   private boolean traceTuples = false;
   private long outputWatermark = 0;
 
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions pipelineOptions;
+
   @Bind(JavaSerializer.class)
   private final UnboundedSource<OutputT, CheckpointMarkT> source;
+
   private final boolean isBoundedSource;
   private transient UnboundedSource.UnboundedReader<OutputT> reader;
   private transient boolean available = false;
+
   @OutputPortFieldAnnotation(optional = true)
   public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<OutputT>>> output =
       new DefaultOutputPort<>();
 
-  public ApexReadUnboundedInputOperator(UnboundedSource<OutputT, CheckpointMarkT> source,
-      ApexPipelineOptions options) {
+  public ApexReadUnboundedInputOperator(
+      UnboundedSource<OutputT, CheckpointMarkT> source, ApexPipelineOptions options) {
     this.pipelineOptions = new SerializablePipelineOptions(options);
     this.source = source;
     this.isBoundedSource = false;
   }
 
-  public ApexReadUnboundedInputOperator(UnboundedSource<OutputT, CheckpointMarkT> source,
-      boolean isBoundedSource, ApexPipelineOptions options) {
+  public ApexReadUnboundedInputOperator(
+      UnboundedSource<OutputT, CheckpointMarkT> source,
+      boolean isBoundedSource,
+      ApexPipelineOptions options) {
     this.pipelineOptions = new SerializablePipelineOptions(options);
     this.source = source;
     this.isBoundedSource = isBoundedSource;
@@ -78,7 +80,9 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
 
   @SuppressWarnings("unused") // for Kryo
   private ApexReadUnboundedInputOperator() {
-    this.pipelineOptions = null; this.source = null; this.isBoundedSource = false;
+    this.pipelineOptions = null;
+    this.source = null;
+    this.isBoundedSource = false;
   }
 
   @Override
@@ -154,13 +158,13 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
         if (traceTuples) {
           LOG.debug("\nemitting '{}' timestamp {}\n", data, timestamp);
         }
-        output.emit(DataTuple.of(WindowedValue.of(
-            data, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+        output.emit(
+            DataTuple.of(
+                WindowedValue.of(data, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
       }
     } catch (Exception e) {
       Throwables.propagateIfPossible(e);
       throw new RuntimeException(e);
     }
   }
-
 }

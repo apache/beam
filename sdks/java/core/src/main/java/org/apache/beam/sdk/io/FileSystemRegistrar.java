@@ -27,19 +27,19 @@ import org.apache.beam.sdk.options.PipelineOptions;
 /**
  * A registrar that creates {@link FileSystem} instances from {@link PipelineOptions}.
  *
- * <p>{@link FileSystem} creators have the ability to provide a registrar by creating
- * a {@link ServiceLoader} entry and a concrete implementation of this interface.
+ * <p>{@link FileSystem} creators have the ability to provide a registrar by creating a {@link
+ * ServiceLoader} entry and a concrete implementation of this interface.
  *
- * <p>It is optional but recommended to use one of the many build time tools such as
- * {@link AutoService} to generate the necessary META-INF files automatically.
+ * <p>It is optional but recommended to use one of the many build time tools such as {@link
+ * AutoService} to generate the necessary META-INF files automatically.
  */
 @Experimental(Kind.FILESYSTEM)
 public interface FileSystemRegistrar {
   /**
    * Create zero or more {@link FileSystem filesystems} from the given {@link PipelineOptions}.
    *
-   * <p>Each {@link FileSystem#getScheme() scheme} is required to be unique among all
-   * {@link FileSystem}s registered by all {@link FileSystemRegistrar}s.
+   * <p>Each {@link FileSystem#getScheme() scheme} is required to be unique among all {@link
+   * FileSystem}s registered by all {@link FileSystemRegistrar}s.
    */
   Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options);
 }

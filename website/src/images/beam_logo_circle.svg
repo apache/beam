@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 43.2 (39069) - http://www.bohemiancoding.com/sketch -->
+    <title>Group 3</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="2.79267203e-05%" y1="49.999466%" x2="100.00014%" y2="49.999466%" id="linearGradient-1">
+            <stop stop-color="#FFC400" offset="0%"></stop>
+            <stop stop-color="#FECD00" offset="13.695%"></stop>
+            <stop stop-color="#FED400" offset="36.528%"></stop>
+            <stop stop-color="#FED600" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="-92.6181005%" y1="50.0006594%" x2="99.9998965%" y2="50.0006594%" id="linearGradient-2">
+            <stop stop-color="#FFFF00" stop-opacity="0.7" offset="0%"></stop>
+            <stop stop-color="#FFF600" stop-opacity="0.66022" offset="13.194%"></stop>
+            <stop stop-color="#FEEF00" stop-opacity="0.62592" offset="31.385%"></stop>
+            <stop stop-color="#FEEA00" stop-opacity="0.60587" offset="54.652%"></stop>
+            <stop stop-color="#FEE900" stop-opacity="0.6" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Design---Desktop-Landscape" transform="translate(-115.000000, -2421.000000)">
+            <g id="Group-5" transform="translate(115.000000, 2421.000000)">
+                <g id="Group-3">
+                    <circle id="Oval-2" fill="#FFFFFF" cx="32" cy="32" r="32"></circle>
+                    <g id="beam-logo-3-color-nameless" transform="translate(20.425532, 15.659574)" fill-rule="nonzero">
+                        <g id="Layer_1">
+                            <polygon id="Shape" fill="#FEE900" points="0.13289689 11.241305 8.33767594 16.3415603 17.1963993 10.8348369 17.1963993 6.53503546 0.13289689 1.23733333"></polygon>
+                            <polygon id="Shape" fill="#FFC400" points="0.13289689 1.23733333 0.13289689 11.241305 0.13289689 11.3758865 0.13289689 21.4415887 17.1963993 10.8348369 17.1963993 6.53503546"></polygon>
+                            <polygon id="Shape" fill="url(#linearGradient-1)" opacity="0.75" points="0.13289689 11.3663546 0.13289689 21.4322837 8.33767594 16.3320284 0.13289689 11.232"></polygon>
+                            <polygon id="Shape" fill="#FFC400" points="0.13289689 11.241305 0.13289689 21.4415887 0.13289689 31.3443404 17.1963993 26.1480851 17.1963993 21.8480567"></polygon>
+                            <polygon id="Shape" fill="#FFE082" points="0.0572831424 23.0729078 0.0572831424 24.9134752 17.1963993 26.4249645 17.1963993 21.5614184"></polygon>
+                            <polygon id="Shape" fill="#FFE082" points="0 7.82139007 0 9.66195745 17.1168903 11.1734468 17.1168903 6.30990071"></polygon>
+                            <polygon id="Shape" fill="#FEE900" points="0.13289689 1.23733333 17.1963993 6.53503546 17.1963993 6.53503546"></polygon>
+                            <polygon id="Shape" fill="url(#linearGradient-2)" points="8.33767594 16.3415603 17.1963993 10.8348369 8.33767594 16.3415603"></polygon>
+                            <path d="M15.246889,23.9931348 C15.2468836,24.5052527 15.4522753,24.9963971 15.8178793,25.3585192 C16.1834833,25.7206413 16.6793503,25.9240769 17.1963925,25.9240715 L17.1963925,22.0622003 C16.1197144,22.0622053 15.2468954,22.9267108 15.246889,23.9931348 Z" id="Shape" fill="#FFFFFF"></path>
+                            <path d="M15.246889,8.74171234 C15.2468836,9.25383026 15.4522753,9.74497473 15.8178793,10.1070968 C16.1834833,10.4692188 16.6793503,10.6726545 17.1963925,10.6726491 L17.1963925,6.81078241 C16.1197162,6.81078742 15.2468979,7.67529016 15.246889,8.74171234 Z" id="Shape" fill="#FFFFFF"></path>
+                            <path d="M23.3198573,20.6618576 C23.1011447,19.8865692 22.7536265,19.1527617 22.2915584,18.4905373 C21.8192278,17.821481 21.2298805,17.2414996 20.5513584,16.7779926 C19.7976452,16.2691723 18.9602397,15.8942247 18.0766602,15.6699484 C19.6434443,15.0134763 20.8337116,14.0882398 21.6474622,12.8942389 C22.4595056,11.7058093 22.8853345,10.2998971 22.8678612,8.8649827 C22.9013019,7.50750871 22.6352101,6.15916236 22.088162,4.91407433 C21.5868989,3.82507909 20.8128094,2.88113422 19.839455,2.17194213 C18.7591986,1.41022163 17.5382241,0.866395918 16.246056,0.571431489 C14.6765683,0.20354292 13.0675924,0.0268887702 11.4548619,0.0453923404 L0.177467758,0.0453923404 L0.177467758,1.30324652 L16.8798779,6.45739574 C17.0686231,6.51820458 17.1963929,6.69244842 17.1963925,6.88903716 L17.1963925,10.5826542 C17.1963925,10.7468816 17.1068293,10.8983004 16.9621938,10.9785986 L8.40479574,16.3415308 L16.9621938,21.7044857 C17.1068312,21.7847817 17.1963972,21.9361997 17.1963993,22.1004278 L17.1963993,25.7940448 C17.1963997,25.9906336 17.06863,26.1648774 16.8798848,26.2256862 L0.177467758,31.3798309 L0.177467758,32.6376987 L12.2458619,32.6376987 C13.8598743,32.6589296 15.4688959,32.4554785 17.0257597,32.0333095 C18.3347667,31.6807579 19.5574646,31.067577 20.6191588,30.2312261 C21.6046822,29.4346515 22.3802251,28.4130032 22.8791574,27.254055 C23.4228284,25.945127 23.6882512,24.539247 23.6588566,23.1241782 C23.6613753,22.2918257 23.5472879,21.463152 23.3198573,20.6618576 L23.3198573,20.6618576 Z" id="Shape" stroke="#FF6D00" stroke-width="0.4" fill="#FF6D00"></path>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

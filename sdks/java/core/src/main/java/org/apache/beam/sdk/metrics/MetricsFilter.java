@@ -18,14 +18,12 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
-/**
- * Simple POJO representing a filter for querying metrics.
- */
+/** Simple POJO representing a filter for querying metrics. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricsFilter {
@@ -39,25 +37,25 @@ public abstract class MetricsFilter {
   }
 
   protected abstract ImmutableSet<String> immutableSteps();
+
   protected abstract ImmutableSet<MetricNameFilter> immutableNames();
 
   public static Builder builder() {
     return new AutoValue_MetricsFilter.Builder();
   }
 
-  /**
-   * Builder for creating a {@link MetricsFilter}.
-   */
+  /** Builder for creating a {@link MetricsFilter}. */
   @AutoValue.Builder
   public abstract static class Builder {
 
     protected abstract ImmutableSet.Builder<MetricNameFilter> immutableNamesBuilder();
+
     protected abstract ImmutableSet.Builder<String> immutableStepsBuilder();
 
     /**
      * Add a {@link MetricNameFilter}.
      *
-     * <p>If no name filters are specified then all metric names will be inculded.
+     * <p>If no name filters are specified then all metric names will be included
      *
      * <p>If one or more name filters are specified, then only metrics that match one or more of the
      * filters will be included.
@@ -72,8 +70,8 @@ public abstract class MetricsFilter {
      *
      * <p>If no steps are specified then metrics will be included for all steps.
      *
-     * <p>If one or more steps are specified, then metrics will be included if they are part of
-     * any of the specified steps.
+     * <p>If one or more steps are specified, then metrics will be included if they are part of any
+     * of the specified steps.
      *
      * <p>The step names of metrics are identified as a path within the pipeline. So for example, a
      * transform that is applied with the name "bar" in a composite that was applied with the name
@@ -81,7 +79,7 @@ public abstract class MetricsFilter {
      *
      * <p>Step name filters may be either a full name (such as "foo/bar/baz") or a partial name such
      * as "foo", "bar" or "foo/bar". However, each component of the step name must be completely
-     * matched, so the filter "foo" will not match the step name such as "fool/bar/foot".
+     * matched, so the filter "foo" will not match a step name such as "fool/bar/foot"
      */
     public Builder addStep(String step) {
       immutableStepsBuilder().add(step);

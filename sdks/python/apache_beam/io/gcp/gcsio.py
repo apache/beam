@@ -20,20 +20,20 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-import cStringIO
+from __future__ import absolute_import
+
 import errno
-import fnmatch
 import io
 import logging
 import multiprocessing
-import os
 import re
+import sys
 import threading
 import time
 import traceback
+from builtins import object
 
-import httplib2
-
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import PipeStream
@@ -75,10 +75,6 @@ except ImportError:
 # +---------------+------------+-------------+-------------+-------------+
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
-# This is the number of seconds the library will wait for GCS operations to
-# complete.
-DEFAULT_HTTP_TIMEOUT_SECONDS = 60
-
 # This is the number of seconds the library will wait for a partial-file read
 # operation from GCS to complete before retrying.
 DEFAULT_READ_SEGMENT_TIMEOUT_SECONDS = 60
@@ -91,49 +87,22 @@ WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 # GcsIO.delete_batch().
 MAX_BATCH_OPERATION_SIZE = 100
 
-
-def proxy_info_from_environment_var(proxy_env_var):
-  """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
-
-  Args:
-    proxy_env_var: environment variable string to read, http_proxy or
-       https_proxy (in lower case).
-       Example: http://myproxy.domain.com:8080
-
-  Returns:
-    httplib2.ProxyInfo constructed from the environment string.
-  """
-  proxy_url = os.environ.get(proxy_env_var)
-  if not proxy_url:
-    return None
-  proxy_protocol = proxy_env_var.lower().split('_')[0]
-  if not re.match('^https?://', proxy_url, flags=re.IGNORECASE):
-    logging.warn("proxy_info_from_url requires a protocol, which is always "
-                 "http or https.")
-    proxy_url = proxy_protocol + '://' + proxy_url
-  return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
+# Batch endpoint URL for GCS.
+# We have to specify an API specific endpoint here since Google APIs global
+# batch endpoints will be deprecated on 03/25/2019.
+# See https://developers.googleblog.com/2018/03/discontinuing-support-for-json-rpc-and.html.  # pylint: disable=line-too-long
+# Currently apitools library uses a global batch endpoint by default:
+# https://github.com/google/apitools/blob/master/apitools/base/py/batch.py#L152
+# TODO: remove this constant and it's usage after apitools move to using an API
+# specific batch endpoint or after Beam gcsio module start using a GCS client
+# library that does not use global batch endpoints.
+GCS_BATCH_ENDPOINT = 'https://www.googleapis.com/batch/storage/v1'
 
 
-def get_new_http():
-  """Creates and returns a new httplib2.Http instance.
-
-  Returns:
-    An initialized httplib2.Http instance.
-  """
-  proxy_info = None
-  for proxy_env_var in ['http_proxy', 'https_proxy']:
-    if os.environ.get(proxy_env_var):
-      proxy_info = proxy_info_from_environment_var(proxy_env_var)
-      break
-  # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
-  return httplib2.Http(proxy_info=proxy_info,
-                       timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
-
-
-def parse_gcs_path(gcs_path):
+def parse_gcs_path(gcs_path, object_optional=False):
   """Return the bucket and object names of the given gs:// path."""
-  match = re.match('^gs://([^/]+)/(.+)$', gcs_path)
-  if match is None:
+  match = re.match('^gs://([^/]+)/(.*)$', gcs_path)
+  if match is None or (match.group(2) == '' and not object_optional):
     raise ValueError('GCS path must be in the form gs://<bucket>/<object>.')
   return match.group(1), match.group(2)
 
@@ -146,33 +115,23 @@ class GcsIOError(IOError, retry.PermanentException):
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
 
-  def __new__(cls, storage_client=None):
-    if storage_client:
-      # This path is only used for testing.
-      return super(GcsIO, cls).__new__(cls)
-    else:
-      # Create a single storage client for each thread.  We would like to avoid
-      # creating more than one storage client for each thread, since each
-      # initialization requires the relatively expensive step of initializing
-      # credentaials.
-      local_state = threading.local()
-      if getattr(local_state, 'gcsio_instance', None) is None:
-        credentials = auth.get_service_credentials()
-        storage_client = storage.StorageV1(
-            credentials=credentials,
-            get_credentials=False,
-            http=get_new_http())
-        local_state.gcsio_instance = (
-            super(GcsIO, cls).__new__(cls, storage_client))
-        local_state.gcsio_instance.client = storage_client
-      return local_state.gcsio_instance
-
   def __init__(self, storage_client=None):
-    # We must do this check on storage_client because the client attribute may
-    # have already been set in __new__ for the singleton case when
-    # storage_client is None.
-    if storage_client is not None:
-      self.client = storage_client
+    if storage_client is None:
+      storage_client = storage.StorageV1(
+          credentials=auth.get_service_credentials(),
+          get_credentials=False,
+          http=get_new_http(),
+          response_encoding=None if sys.version_info[0] < 3 else 'utf8')
+    self.client = storage_client
+    self._rewrite_cb = None
+
+  def _set_rewrite_response_callback(self, callback):
+    """For testing purposes only. No backward compatibility guarantees.
+
+    Args:
+      callback: A function that receives ``storage.RewriteResponse``.
+    """
+    self._rewrite_cb = callback
 
   def open(self,
            filename,
@@ -196,7 +155,7 @@ class GcsIO(object):
     if mode == 'r' or mode == 'rb':
       downloader = GcsDownloader(self.client, filename,
                                  buffer_size=read_buffer_size)
-      return io.BufferedReader(DownloaderStream(downloader, mode=mode),
+      return io.BufferedReader(DownloaderStream(downloader, read_buffer_size=read_buffer_size, mode=mode),
                                buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
       uploader = GcsUploader(self.client, filename, mime_type)
@@ -204,40 +163,6 @@ class GcsIO(object):
                                buffer_size=128 * 1024)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
-
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def glob(self, pattern, limit=None):
-    """Return the GCS path names matching a given path name pattern.
-
-    Path name patterns are those recognized by fnmatch.fnmatch().  The path
-    can contain glob characters (*, ?, and [...] sets).
-
-    Args:
-      pattern: GCS file path pattern in the form gs://<bucket>/<name_pattern>.
-      limit: Maximal number of path names to return.
-        All matching paths are returned if set to None.
-
-    Returns:
-      list of GCS file paths matching the given pattern.
-    """
-    bucket, name_pattern = parse_gcs_path(pattern)
-    # Get the prefix with which we can list objects in the given bucket.
-    prefix = re.match('^[^[*?]*', name_pattern).group(0)
-    request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
-    object_paths = []
-    while True:
-      response = self.client.objects.List(request)
-      for item in response.items:
-        if fnmatch.fnmatch(item.name, name_pattern):
-          object_paths.append('gs://%s/%s' % (item.bucket, item.name))
-      if response.nextPageToken:
-        request.pageToken = response.nextPageToken
-        if limit is not None and len(object_paths) >= limit:
-          break
-      else:
-        break
-    return object_paths[:limit]
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -274,7 +199,9 @@ class GcsIO(object):
     if not paths:
       return []
     batch_request = BatchApiRequest(
-        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
+        batch_url=GCS_BATCH_ENDPOINT,
+        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
+        response_encoding='utf-8')
     for path in paths:
       bucket, object_path = parse_gcs_path(path)
       request = storage.StorageObjectsDeleteRequest(
@@ -295,39 +222,60 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def copy(self, src, dest):
+  def copy(self, src, dest, dest_kms_key_name=None,
+           max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
     Args:
       src: GCS file path pattern in the form gs://<bucket>/<name>.
       dest: GCS file path pattern in the form gs://<bucket>/<name>.
+      dest_kms_key_name: Experimental. No backwards compatibility guarantees.
+        Encrypt dest with this Cloud KMS key. If None, will use dest bucket
+        encryption defaults.
+      max_bytes_rewritten_per_call: Experimental. No backwards compatibility
+        guarantees. Each rewrite API call will return after these many bytes.
+        Used for testing.
+
+    Raises:
+      TimeoutError on timeout.
     """
     src_bucket, src_path = parse_gcs_path(src)
     dest_bucket, dest_path = parse_gcs_path(dest)
-    request = storage.StorageObjectsCopyRequest(
+    request = storage.StorageObjectsRewriteRequest(
         sourceBucket=src_bucket,
         sourceObject=src_path,
         destinationBucket=dest_bucket,
-        destinationObject=dest_path)
-    try:
-      self.client.objects.Copy(request)
-    except HttpError as http_error:
-      if http_error.status_code == 404:
-        # This is a permanent error that should not be retried. Note that
-        # FileBasedSink.finalize_write expects an IOError when the source
-        # file does not exist.
-        raise GcsIOError(errno.ENOENT, 'Source file not found: %s' % src)
-      raise
+        destinationObject=dest_path,
+        destinationKmsKeyName=dest_kms_key_name,
+        maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
+    response = self.client.objects.Rewrite(request)
+    while not response.done:
+      logging.debug(
+          'Rewrite progress: %d of %d bytes, %s to %s',
+          response.totalBytesRewritten, response.objectSize, src, dest)
+      request.rewriteToken = response.rewriteToken
+      response = self.client.objects.Rewrite(request)
+      if self._rewrite_cb is not None:
+        self._rewrite_cb(response)
+
+    logging.debug('Rewrite done: %s to %s', src, dest)
 
   # We intentionally do not decorate this method with a retry, as retrying is
   # handled in BatchApiRequest.Execute().
-  def copy_batch(self, src_dest_pairs):
+  def copy_batch(self, src_dest_pairs, dest_kms_key_name=None,
+                 max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
     Args:
       src_dest_pairs: list of (src, dest) tuples of gs://<bucket>/<name> files
                       paths to copy from src to dest, not to exceed
                       MAX_BATCH_OPERATION_SIZE in length.
+      dest_kms_key_name: Experimental. No backwards compatibility guarantees.
+        Encrypt dest with this Cloud KMS key. If None, will use dest bucket
+        encryption defaults.
+      max_bytes_rewritten_per_call: Experimental. No backwards compatibility
+        guarantees. Each rewrite call will return after these many bytes. Used
+        primarily for testing.
 
     Returns: List of tuples of (src, dest, exception) in the same order as the
              src_dest_pairs argument, where exception is None if the operation
@@ -335,30 +283,52 @@ class GcsIO(object):
     """
     if not src_dest_pairs:
       return []
-    batch_request = BatchApiRequest(
-        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
-    for src, dest in src_dest_pairs:
-      src_bucket, src_path = parse_gcs_path(src)
-      dest_bucket, dest_path = parse_gcs_path(dest)
-      request = storage.StorageObjectsCopyRequest(
+    pair_to_request = {}
+    for pair in src_dest_pairs:
+      src_bucket, src_path = parse_gcs_path(pair[0])
+      dest_bucket, dest_path = parse_gcs_path(pair[1])
+      request = storage.StorageObjectsRewriteRequest(
           sourceBucket=src_bucket,
           sourceObject=src_path,
           destinationBucket=dest_bucket,
-          destinationObject=dest_path)
-      batch_request.Add(self.client.objects, 'Copy', request)
-    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
-    result_statuses = []
-    for i, api_call in enumerate(api_calls):
-      src, dest = src_dest_pairs[i]
-      exception = None
-      if api_call.is_error:
-        exception = api_call.exception
-        # Translate 404 to the appropriate not found exception.
-        if isinstance(exception, HttpError) and exception.status_code == 404:
-          exception = (
-              GcsIOError(errno.ENOENT, 'Source file not found: %s' % src))
-      result_statuses.append((src, dest, exception))
-    return result_statuses
+          destinationObject=dest_path,
+          destinationKmsKeyName=dest_kms_key_name,
+          maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
+      pair_to_request[pair] = request
+    pair_to_status = {}
+    while True:
+      pairs_in_batch = list(set(src_dest_pairs) - set(pair_to_status))
+      if not pairs_in_batch:
+        break
+      batch_request = BatchApiRequest(
+          batch_url=GCS_BATCH_ENDPOINT,
+          retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
+          response_encoding='utf-8')
+      for pair in pairs_in_batch:
+        batch_request.Add(self.client.objects, 'Rewrite', pair_to_request[pair])
+      api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+      for pair, api_call in zip(pairs_in_batch, api_calls):
+        src, dest = pair
+        response = api_call.response
+        if self._rewrite_cb is not None:
+          self._rewrite_cb(response)
+        if api_call.is_error:
+          exception = api_call.exception
+          # Translate 404 to the appropriate not found exception.
+          if isinstance(exception, HttpError) and exception.status_code == 404:
+            exception = (
+                GcsIOError(errno.ENOENT, 'Source file not found: %s' % src))
+          pair_to_status[pair] = exception
+        elif not response.done:
+          logging.debug(
+              'Rewrite progress: %d of %d bytes, %s to %s',
+              response.totalBytesRewritten, response.objectSize, src, dest)
+          pair_to_request[pair].rewriteToken = response.rewriteToken
+        else:
+          logging.debug('Rewrite done: %s to %s', src, dest)
+          pair_to_status[pair] = None
+
+    return [(pair[0], pair[1], pair_to_status[pair]) for pair in src_dest_pairs]
 
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
@@ -372,7 +342,7 @@ class GcsIO(object):
     """
     assert src.endswith('/')
     assert dest.endswith('/')
-    for entry in self.glob(src + '*'):
+    for entry in self.list_prefix(src):
       rel_path = entry[len(src):]
       self.copy(entry, dest + rel_path)
 
@@ -413,6 +383,19 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def checksum(self, path):
+    """Looks up the checksum of a GCS object.
+
+    Args:
+      path: GCS file path pattern in the form gs://<bucket>/<name>.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    return self.client.objects.Get(request).crc32c
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def size(self, path):
     """Returns the size of a single GCS object.
 
@@ -428,15 +411,49 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def size_of_files_in_glob(self, pattern, limit=None):
-    """Returns the size of all the files in the glob as a dictionary
+  def kms_key(self, path):
+    """Returns the KMS key of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: KMS key name of the GCS object as a string, or None if it doesn't
+      have one.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    return self.client.objects.Get(request).kmsKeyName
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def last_updated(self, path):
+    """Returns the last updated epoch time of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: last updated time of the GCS object in second.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    datetime = self.client.objects.Get(request).updated
+    return (time.mktime(datetime.timetuple()) - time.timezone
+            + datetime.microsecond / 1000000.0)
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def list_prefix(self, path):
+    """Lists files matching the prefix.
 
     Args:
-      pattern: a file path pattern that reads the size of all the files
+      path: GCS file path pattern in the form gs://<bucket>/[name].
+
+    Returns:
+      Dictionary of file name -> size.
     """
-    bucket, name_pattern = parse_gcs_path(pattern)
-    # Get the prefix with which we can list objects in the given bucket.
-    prefix = re.match('^[^[*?]*', name_pattern).group(0)
+    bucket, prefix = parse_gcs_path(path, object_optional=True)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_sizes = {}
     counter = 0
@@ -445,23 +462,17 @@ class GcsIO(object):
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
-        if fnmatch.fnmatch(item.name, name_pattern):
-          file_name = 'gs://%s/%s' % (item.bucket, item.name)
-          file_sizes[file_name] = item.size
-          counter += 1
-        if limit is not None and counter >= limit:
-          break
+        file_name = 'gs://%s/%s' % (item.bucket, item.name)
+        file_sizes[file_name] = item.size
+        counter += 1
         if counter % 10000 == 0:
           logging.info("Finished computing size of: %s files", len(file_sizes))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
-        if limit is not None and len(file_sizes) >= limit:
-          break
       else:
         break
-    logging.info(
-        "Finished the size estimation of the input at %s files. " +\
-        "Estimation took %s seconds", counter, time.time() - start_time)
+    logging.info("Finished listing %s files in %s seconds.",
+                 counter, time.time() - start_time)
     return file_sizes
 
 
@@ -490,9 +501,10 @@ class GcsDownloader(Downloader):
     self._get_request.generation = metadata.generation
 
     # Initialize read buffer state.
-    self._download_stream = cStringIO.StringIO()
+    self._download_stream = io.BytesIO()
     self._downloader = transfer.Download(
-        self._download_stream, auto_transfer=False, chunksize=self._buffer_size)
+        self._download_stream, auto_transfer=False, chunksize=self._buffer_size,
+        num_retries=20)
     self._client.objects.Get(self._get_request, download=self._downloader)
 
   @retry.with_exponential_backoff(
@@ -505,6 +517,7 @@ class GcsDownloader(Downloader):
     return self._size
 
   def get_range(self, start, end):
+    self._download_stream.seek(0)
     self._download_stream.truncate(0)
     self._downloader.GetRange(start, end - 1)
     return self._download_stream.getvalue()

@@ -27,18 +27,12 @@ import org.apache.beam.sdk.util.WindowedValue;
  * @param <ElemT> the element type
  */
 public interface KeyedWorkItem<K, ElemT> {
-  /**
-   * Returns the key.
-   */
+  /** Returns the key. */
   K key();
 
-  /**
-   * Returns an iterable containing the timers.
-   */
+  /** Returns an iterable containing the timers. */
   Iterable<TimerData> timersIterable();
 
-  /**
-   * Returns an iterable containing the elements.
-   */
+  /** Returns an iterable containing the elements. */
   Iterable<WindowedValue<ElemT>> elementsIterable();
 }

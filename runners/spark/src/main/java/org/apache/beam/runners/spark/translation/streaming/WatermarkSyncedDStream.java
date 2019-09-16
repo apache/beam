@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
@@ -40,9 +40,7 @@ import org.slf4j.LoggerFactory;
  * requested, this input source will wait until the time of the batch which set the watermark has
  * caught up and the following holds:
  *
- * {@code
- * CURRENT_BATCH_TIME - TIME_OF_BATCH_WHICH_SET_THE_WATERMARK <= BATCH_DURATION
- * }
+ * <p>{@code CURRENT_BATCH_TIME - TIME_OF_BATCH_WHICH_SET_THE_WATERMARK <= BATCH_DURATION }
  *
  * <p>In other words, this input source will stall and will NOT generate RDDs when the watermark is
  * too far behind. Once the watermark has caught up with the current batch time, an RDD will be
@@ -69,9 +67,10 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   private final Long batchDuration;
   private volatile boolean isFirst = true;
 
-  public WatermarkSyncedDStream(final Queue<JavaRDD<WindowedValue<T>>> rdds,
-                                final Long batchDuration,
-                                final StreamingContext ssc) {
+  public WatermarkSyncedDStream(
+      final Queue<JavaRDD<WindowedValue<T>>> rdds,
+      final Long batchDuration,
+      final StreamingContext ssc) {
     super(ssc, JavaSparkContext$.MODULE$.fakeClassTag());
     this.rdds = rdds;
     this.batchDuration = batchDuration;
@@ -111,10 +110,11 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   public scala.Option<RDD<WindowedValue<T>>> compute(final Time validTime) {
     final long batchTime = validTime.milliseconds();
 
-    LOG.trace("BEFORE waiting for watermark sync, "
-                  + "LastWatermarkedBatchTime: {}, current batch time: {}",
-              GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
-              batchTime);
+    LOG.trace(
+        "BEFORE waiting for watermark sync, "
+            + "LastWatermarkedBatchTime: {}, current batch time: {}",
+        GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
+        batchTime);
 
     final Stopwatch stopwatch = Stopwatch.createStarted();
 
@@ -122,16 +122,18 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
 
     stopwatch.stop();
 
-    LOG.info("Waited {} millis for watermarks to sync up with the current batch ({})",
-             stopwatch.elapsed(TimeUnit.MILLISECONDS),
-             batchTime);
+    LOG.info(
+        "Waited {} millis for watermarks to sync up with the current batch ({})",
+        stopwatch.elapsed(TimeUnit.MILLISECONDS),
+        batchTime);
 
     LOG.info("Watermarks are now: {}", GlobalWatermarkHolder.get(batchDuration));
 
-    LOG.trace("AFTER waiting for watermark sync, "
-                  + "LastWatermarkedBatchTime: {}, current batch time: {}",
-              GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
-              batchTime);
+    LOG.trace(
+        "AFTER waiting for watermark sync, "
+            + "LastWatermarkedBatchTime: {}, current batch time: {}",
+        GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
+        batchTime);
 
     final RDD<WindowedValue<T>> rdd = generateRdd();
     isFirst = false;
@@ -139,12 +141,8 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   }
 
   @Override
-  public void start() {
-
-  }
+  public void start() {}
 
   @Override
-  public void stop() {
-
-  }
+  public void stop() {}
 }

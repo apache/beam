@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
 import static org.mockito.Matchers.argThat;
@@ -26,6 +25,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.gearpump.streaming.dsl.api.functions.MapFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
+import io.gearpump.streaming.source.DataSource;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,9 +38,6 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.source.DataSource;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 
@@ -48,9 +47,9 @@ public class FlattenPCollectionsTranslatorTest {
   private FlattenPCollectionsTranslator translator = new FlattenPCollectionsTranslator();
   private Flatten.PCollections transform = mock(Flatten.PCollections.class);
 
-  class UnboundedSourceWrapperMatcher extends ArgumentMatcher<DataSource> {
+  private static class UnboundedSourceWrapperMatcher implements ArgumentMatcher<DataSource> {
     @Override
-    public boolean matches(Object o) {
+    public boolean matches(DataSource o) {
       return o instanceof UnboundedSourceWrapper;
     }
   }
@@ -149,6 +148,6 @@ public class FlattenPCollectionsTranslatorTest {
 
     translator.translate(transform, translationContext);
     verify(javaStream1).map(any(MapFunction.class), eq("dummy"));
-    verify(javaStream1).merge(any(JavaStream.class), eq(1), eq(transformName));
+    verify(javaStream1).merge(eq(null), eq(1), eq(transformName));
   }
 }

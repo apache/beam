@@ -17,46 +17,107 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import com.google.common.base.Joiner;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-/**
- * BeamRelNode to replace a {@code TableScan} node.
- *
- */
+/** BeamRelNode to replace a {@code TableScan} node. */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
+  public static final double CONSTANT_WINDOW_SIZE = 10d;
+  private final BeamSqlTable beamTable;
+  private final BeamCalciteTable calciteTable;
+  private final Map<String, String> pipelineOptions;
 
-  public BeamIOSourceRel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table) {
-    super(cluster, traitSet, table);
+  public BeamIOSourceRel(
+      RelOptCluster cluster,
+      RelOptTable table,
+      BeamSqlTable beamTable,
+      Map<String, String> pipelineOptions,
+      BeamCalciteTable calciteTable) {
+    super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
+    this.beamTable = beamTable;
+    this.calciteTable = calciteTable;
+    this.pipelineOptions = pipelineOptions;
   }
 
   @Override
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
-
-    TupleTag<Row> sourceTupleTag = new TupleTag<>(sourceName);
-    if (inputPCollections.has(sourceTupleTag)) {
-      //choose PCollection from input PCollectionTuple if exists there.
-      PCollection<Row> sourceStream = inputPCollections
-          .get(new TupleTag<Row>(sourceName));
-      return sourceStream;
+  public double estimateRowCount(RelMetadataQuery mq) {
+    BeamTableStatistics rowCountStatistics = calciteTable.getStatistic();
+    if (beamTable.isBounded() == PCollection.IsBounded.BOUNDED) {
+      return rowCountStatistics.getRowCount();
     } else {
-      //If not, the source PColection is provided with BaseBeamTable.buildIOReader().
-      BeamSqlTable sourceTable = sqlEnv.findTable(sourceName);
-      return sourceTable.buildIOReader(inputPCollections.getPipeline())
-          .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
+      return rowCountStatistics.getRate();
     }
   }
 
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    BeamTableStatistics rowCountStatistics = calciteTable.getStatistic();
+    double window =
+        (beamTable.isBounded() == PCollection.IsBounded.BOUNDED)
+            ? rowCountStatistics.getRowCount()
+            : CONSTANT_WINDOW_SIZE;
+    return NodeStats.create(rowCountStatistics.getRowCount(), rowCountStatistics.getRate(), window);
+  }
+
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return beamTable.isBounded();
+  }
+
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> input) {
+      checkArgument(
+          input.size() == 0,
+          "Should not have received input for %s: %s",
+          BeamIOSourceRel.class.getSimpleName(),
+          input);
+      return beamTable.buildIOReader(input.getPipeline().begin());
+    }
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    // We should technically avoid this function. This happens if we are in JDBC path or the
+    // costFactory is not set correctly.
+    double rowCount = this.estimateRowCount(mq);
+    return planner.getCostFactory().makeCost(rowCount, rowCount, rowCount);
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
+    return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
+  }
+
+  protected BeamSqlTable getBeamSqlTable() {
+    return beamTable;
+  }
+
+  @Override
+  public Map<String, String> getPipelineOptions() {
+    return pipelineOptions;
+  }
 }

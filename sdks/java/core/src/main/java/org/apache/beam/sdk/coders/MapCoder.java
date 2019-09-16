@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.collect.Maps;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -32,21 +31,18 @@ import java.util.Map.Entry;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
- * A {@link Coder} for {@link Map Maps} that encodes them according to provided
- * coders for keys and values.
+ * A {@link Coder} for {@link Map Maps} that encodes them according to provided coders for keys and
+ * values.
  *
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
 public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
-  /**
-   * Produces a MapCoder with the given keyCoder and valueCoder.
-   */
-  public static <K, V> MapCoder<K, V> of(
-      Coder<K> keyCoder,
-      Coder<V> valueCoder) {
+  /** Produces a MapCoder with the given keyCoder and valueCoder. */
+  public static <K, V> MapCoder<K, V> of(Coder<K> keyCoder, Coder<V> valueCoder) {
     return new MapCoder<>(keyCoder, valueCoder);
   }
 
@@ -69,17 +65,13 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   }
 
   @Override
-  public void encode(Map<K, V> map, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Map<K, V> map, OutputStream outStream) throws IOException, CoderException {
     encode(map, outStream, Context.NESTED);
   }
 
   @Override
-  public void encode(
-      Map<K, V> map,
-      OutputStream outStream,
-      Context context)
-      throws IOException, CoderException  {
+  public void encode(Map<K, V> map, OutputStream outStream, Context context)
+      throws IOException, CoderException {
     if (map == null) {
       throw new CoderException("cannot encode a null Map");
     }
@@ -145,19 +137,37 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   /**
    * {@inheritDoc}
    *
-   * @throws NonDeterministicException always. Not all maps have a deterministic encoding.
-   * For example, {@code HashMap} comparison does not depend on element order, so
-   * two {@code HashMap} instances may be equal but produce different encodings.
+   * @throws NonDeterministicException always. Not all maps have a deterministic encoding. For
+   *     example, {@code HashMap} comparison does not depend on element order, so two {@code
+   *     HashMap} instances may be equal but produce different encodings.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    throw new NonDeterministicException(this,
-        "Ordering of entries in a Map may be non-deterministic.");
+    throw new NonDeterministicException(
+        this, "Ordering of entries in a Map may be non-deterministic.");
   }
 
   @Override
-  public void registerByteSizeObserver(
-      Map<K, V> map, ElementByteSizeObserver observer)
+  public boolean consistentWithEquals() {
+    return keyCoder.consistentWithEquals() && valueCoder.consistentWithEquals();
+  }
+
+  @Override
+  public Object structuralValue(Map<K, V> value) {
+    if (consistentWithEquals()) {
+      return value;
+    } else {
+      Map<Object, Object> ret = Maps.newHashMapWithExpectedSize(value.size());
+      for (Map.Entry<K, V> entry : value.entrySet()) {
+        ret.put(
+            keyCoder.structuralValue(entry.getKey()), valueCoder.structuralValue(entry.getValue()));
+      }
+      return ret;
+    }
+  }
+
+  @Override
+  public void registerByteSizeObserver(Map<K, V> map, ElementByteSizeObserver observer)
       throws Exception {
     observer.update(4L);
     if (map.isEmpty()) {

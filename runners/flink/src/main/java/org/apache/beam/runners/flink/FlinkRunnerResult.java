@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -29,8 +28,8 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
 /**
- * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This
- * has methods to query to job runtime and the final values of the accumulators.
+ * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This has methods to query
+ * to job runtime and the final values of the accumulators.
  */
 public class FlinkRunnerResult implements PipelineResult {
 
@@ -53,15 +52,13 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public String toString() {
-    return "FlinkRunnerResult{"
-        + "accumulators=" + accumulators
-        + ", runtime=" + runtime
-        + '}';
+    return "FlinkRunnerResult{" + "accumulators=" + accumulators + ", runtime=" + runtime + '}';
   }
 
   @Override
-  public State cancel() throws IOException {
-    throw new UnsupportedOperationException("FlinkRunnerResult does not support cancel.");
+  public State cancel() {
+    // We can only be called here when we are done.
+    return State.DONE;
   }
 
   @Override
@@ -76,7 +73,10 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return asAttemptedOnlyMetricResults(
-        (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME));
+    return asAttemptedOnlyMetricResults(getMetricsContainerStepMap());
+  }
+
+  MetricsContainerStepMap getMetricsContainerStepMap() {
+    return (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME);
   }
 }

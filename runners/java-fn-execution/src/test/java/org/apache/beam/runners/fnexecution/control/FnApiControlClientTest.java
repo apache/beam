@@ -24,13 +24,14 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 
-import io.grpc.stub.StreamObserver;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,6 +39,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link FnApiControlClient}. */
@@ -52,7 +54,7 @@ public class FnApiControlClientTest {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    client = FnApiControlClient.forRequestObserver(mockObserver);
+    client = FnApiControlClient.forRequestObserver("DUMMY", mockObserver);
   }
 
   @Test
@@ -136,6 +138,7 @@ public class FnApiControlClientTest {
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
 
     class FrazzleException extends Exception {}
+
     client.asResponseObserver().onError(new FrazzleException());
 
     thrown.expect(ExecutionException.class);
@@ -156,5 +159,20 @@ public class FnApiControlClientTest {
     thrown.expectCause(isA(IllegalStateException.class));
     thrown.expectMessage("closed");
     MoreFutures.get(responseFuture);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void testOnCloseMultipleListener() throws Exception {
+    Consumer<FnApiControlClient> mockConsumer1 = Mockito.mock(Consumer.class);
+    Consumer<FnApiControlClient> mockConsumer2 = Mockito.mock(Consumer.class);
+
+    client.onClose(mockConsumer1);
+    client.onClose(mockConsumer2);
+
+    client.close();
+
+    verify(mockConsumer1).accept(client);
+    verify(mockConsumer2).accept(client);
   }
 }

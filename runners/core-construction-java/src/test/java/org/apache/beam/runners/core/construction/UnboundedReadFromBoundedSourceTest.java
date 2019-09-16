@@ -18,12 +18,10 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -60,6 +58,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -69,28 +70,22 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link UnboundedReadFromBoundedSource}.
- */
+/** Unit tests for {@link UnboundedReadFromBoundedSource}. */
 @RunWith(JUnit4.class)
 public class UnboundedReadFromBoundedSourceTest {
 
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
   public void testCheckpointCoderNulls() throws Exception {
     CheckpointCoder<String> coder = new CheckpointCoder<>(StringUtf8Coder.of());
     Checkpoint<String> emptyCheckpoint = new Checkpoint<>(null, null);
-    Checkpoint<String> decodedEmptyCheckpoint = CoderUtils.decodeFromByteArray(
-        coder,
-        CoderUtils.encodeToByteArray(coder, emptyCheckpoint));
+    Checkpoint<String> decodedEmptyCheckpoint =
+        CoderUtils.decodeFromByteArray(coder, CoderUtils.encodeToByteArray(coder, emptyCheckpoint));
     assertNull(decodedEmptyCheckpoint.getResidualElements());
     assertNull(decodedEmptyCheckpoint.getResidualSource());
   }
@@ -108,8 +103,7 @@ public class UnboundedReadFromBoundedSourceTest {
     UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
         new BoundedToUnboundedSourceAdapter<>(boundedSource);
 
-    PCollection<Long> output =
-        p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
+    PCollection<Long> output = p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
 
     // Count == numElements
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numElements);
@@ -150,14 +144,12 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   private <T> void testBoundedToUnboundedSourceAdapterCheckpoint(
-      BoundedSource<T> boundedSource,
-      List<T> expectedElements) throws Exception {
+      BoundedSource<T> boundedSource, List<T> expectedElements) throws Exception {
     BoundedToUnboundedSourceAdapter<T> unboundedSource =
         new BoundedToUnboundedSourceAdapter<>(boundedSource);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    BoundedToUnboundedSourceAdapter<T>.Reader reader =
-        unboundedSource.createReader(options, null);
+    BoundedToUnboundedSourceAdapter<T>.Reader reader = unboundedSource.createReader(options, null);
 
     List<T> actual = Lists.newArrayList();
     for (boolean hasNext = reader.start(); hasNext; hasNext = reader.advance()) {
@@ -169,8 +161,9 @@ public class UnboundedReadFromBoundedSourceTest {
       }
     }
     Checkpoint<T> checkpointDone = reader.getCheckpointMark();
-    assertTrue(checkpointDone.getResidualElements() == null
-        || checkpointDone.getResidualElements().isEmpty());
+    assertTrue(
+        checkpointDone.getResidualElements() == null
+            || checkpointDone.getResidualElements().isEmpty());
 
     assertEquals(expectedElements.size(), actual.size());
     assertEquals(Sets.newHashSet(expectedElements), Sets.newHashSet(actual));
@@ -203,25 +196,23 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   private <T> void testBoundedToUnboundedSourceAdapterCheckpointRestart(
-      BoundedSource<T> boundedSource,
-      List<T> expectedElements) throws Exception {
+      BoundedSource<T> boundedSource, List<T> expectedElements) throws Exception {
     BoundedToUnboundedSourceAdapter<T> unboundedSource =
         new BoundedToUnboundedSourceAdapter<>(boundedSource);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    BoundedToUnboundedSourceAdapter<T>.Reader reader =
-        unboundedSource.createReader(options, null);
+    BoundedToUnboundedSourceAdapter<T>.Reader reader = unboundedSource.createReader(options, null);
 
     List<T> actual = Lists.newArrayList();
-    for (boolean hasNext = reader.start(); hasNext;) {
+    for (boolean hasNext = reader.start(); hasNext; ) {
       actual.add(reader.getCurrent());
       // checkpoint every 9 elements
       if (actual.size() % 9 == 0) {
         Checkpoint<T> checkpoint = reader.getCheckpointMark();
         Coder<Checkpoint<T>> checkpointCoder = unboundedSource.getCheckpointMarkCoder();
-        Checkpoint<T> decodedCheckpoint = CoderUtils.decodeFromByteArray(
-            checkpointCoder,
-            CoderUtils.encodeToByteArray(checkpointCoder, checkpoint));
+        Checkpoint<T> decodedCheckpoint =
+            CoderUtils.decodeFromByteArray(
+                checkpointCoder, CoderUtils.encodeToByteArray(checkpointCoder, checkpoint));
         reader.close();
         checkpoint.finalizeCheckpoint();
 
@@ -234,8 +225,9 @@ public class UnboundedReadFromBoundedSourceTest {
       }
     }
     Checkpoint<T> checkpointDone = reader.getCheckpointMark();
-    assertTrue(checkpointDone.getResidualElements() == null
-        || checkpointDone.getResidualElements().isEmpty());
+    assertTrue(
+        checkpointDone.getResidualElements() == null
+            || checkpointDone.getResidualElements().isEmpty());
 
     assertEquals(expectedElements.size(), actual.size());
     assertEquals(Sets.newHashSet(expectedElements), Sets.newHashSet(actual));
@@ -254,6 +246,26 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   @Test
+  public void testInvokesSplitWithDefaultNumSplitsTooLarge() throws Exception {
+    UnboundedSource<Long, ?> unboundedCountingSource =
+        new BoundedToUnboundedSourceAdapter<Long>(CountingSource.upTo(1));
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<?> splits = unboundedCountingSource.split(100, options);
+    assertEquals(1, splits.size());
+    assertNotEquals(splits.get(0), unboundedCountingSource);
+  }
+
+  @Test
+  public void testInvokingSplitProducesAtLeastOneSplit() throws Exception {
+    UnboundedSource<Long, ?> unboundedCountingSource =
+        new BoundedToUnboundedSourceAdapter<Long>(CountingSource.upTo(0));
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<?> splits = unboundedCountingSource.split(100, options);
+    assertEquals(1, splits.size());
+    assertNotEquals(splits.get(0), unboundedCountingSource);
+  }
+
+  @Test
   public void testReadFromCheckpointBeforeStart() throws Exception {
     thrown.expect(NoSuchElementException.class);
 
@@ -268,9 +280,7 @@ public class UnboundedReadFromBoundedSourceTest {
     unboundedSource.createReader(options, checkpoint).getCurrent();
   }
 
-  /**
-   * Generate byte array of given size.
-   */
+  /** Generate byte array of given size. */
   private static byte[] generateInput(int size) {
     // Arbitrary but fixed seed
     Random random = new Random(285930);
@@ -279,18 +289,14 @@ public class UnboundedReadFromBoundedSourceTest {
     return buff;
   }
 
-  /**
-   * Writes a single output file.
-   */
+  /** Writes a single output file. */
   private static void writeFile(File file, byte[] input) throws IOException {
     try (OutputStream os = new FileOutputStream(file)) {
       os.write(input);
     }
   }
 
-  /**
-   * Unsplittable source for use in tests.
-   */
+  /** Unsplittable source for use in tests. */
   private static class UnsplittableSource extends FileBasedSource<Byte> {
     public UnsplittableSource(String fileOrPatternSpec, long minBundleSize) {
       super(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);

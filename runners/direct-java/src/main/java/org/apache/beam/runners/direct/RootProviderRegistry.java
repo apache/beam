@@ -17,36 +17,50 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
 import static org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DIRECT_TEST_STREAM_URN;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A {@link RootInputProvider} that delegates to primitive {@link RootInputProvider} implementations
  * based on the type of {@link PTransform} of the application.
  */
 class RootProviderRegistry {
-  public static RootProviderRegistry defaultRegistry(EvaluationContext context) {
-    ImmutableMap.Builder<String, RootInputProvider<?, ?, ?>>
-        defaultProviders = ImmutableMap.builder();
-    defaultProviders
-        .put(PTransformTranslation.READ_TRANSFORM_URN, ReadEvaluatorFactory.inputProvider(context))
-        .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory.InputProvider(context))
-        .put(FLATTEN_TRANSFORM_URN, new EmptyInputProvider());
-    return new RootProviderRegistry(defaultProviders.build());
+  /** Returns a {@link RootProviderRegistry} that supports the Java SDK root transforms. */
+  public static RootProviderRegistry javaNativeRegistry(
+      EvaluationContext context, PipelineOptions options) {
+    return new RootProviderRegistry(
+        ImmutableMap.<String, RootInputProvider<?, ?, ?>>builder()
+            .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory.ImpulseRootProvider(context))
+            .put(
+                PTransformTranslation.READ_TRANSFORM_URN,
+                ReadEvaluatorFactory.inputProvider(context, options))
+            .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory.InputProvider(context))
+            .put(FLATTEN_TRANSFORM_URN, new EmptyInputProvider())
+            .build());
+  }
+
+  /** Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive. */
+  public static RootProviderRegistry impulseRegistry(EvaluationContext context) {
+    return new RootProviderRegistry(
+        ImmutableMap.<String, RootInputProvider<?, ?, ?>>builder()
+            .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory.ImpulseRootProvider(context))
+            .build());
   }
 
   private final Map<String, RootInputProvider<?, ?, ?>> providers;
 
-  private RootProviderRegistry(
-      Map<String, RootInputProvider<?, ?, ?>> providers) {
+  private RootProviderRegistry(Map<String, RootInputProvider<?, ?, ?>> providers) {
     this.providers = providers;
   }
 

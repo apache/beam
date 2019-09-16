@@ -24,8 +24,8 @@ import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /**
- * {@link WritableByteChannelFactory} implementation useful for testing that creates a
- * {@link WritableByteChannel} that writes everything twice.
+ * {@link WritableByteChannelFactory} implementation useful for testing that creates a {@link
+ * WritableByteChannel} that writes everything twice.
  */
 public class DrunkWritableByteChannelFactory implements WritableByteChannelFactory {
   @Override
@@ -48,9 +48,7 @@ public class DrunkWritableByteChannelFactory implements WritableByteChannelFacto
     return "DRUNK";
   }
 
-  /**
-   * WritableByteChannel that writes everything twice.
-   */
+  /** WritableByteChannel that writes everything twice. */
   private static class DrunkWritableByteChannel implements WritableByteChannel {
     protected final WritableByteChannel channel;
 

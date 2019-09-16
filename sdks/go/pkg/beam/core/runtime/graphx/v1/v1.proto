@@ -1,0 +1,244 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing graph serialization (v1)
+ *
+ * We need to serialize types and function symbols to be able to recreate
+ * UserFns on the worker side, in particular. We use protos for compactness.
+ */
+syntax = "proto3";
+
+package v1;
+
+// Type represents a serializable reflect.Type.
+message Type {
+    // Kind is mostly identical to reflect.TypeKind, expect we handle certain
+    // types specially, such as "error".
+    enum Kind {
+        INVALID = 0;
+
+        // Primitive.
+        BOOL = 1;
+        INT = 2;
+        INT8 = 3;
+        INT16 = 4;
+        INT32 = 5;
+        INT64 = 6;
+        UINT = 7;
+        UINT8 = 8;
+        UINT16 = 9;
+        UINT32 = 10;
+        UINT64 = 11;
+        STRING = 12;
+        FLOAT32 = 13;
+        FLOAT64 = 14;
+
+        // Non-primitive types.
+        SLICE = 20;
+        STRUCT = 21;
+        FUNC = 22;
+        CHAN = 23;
+        PTR = 24;
+        SPECIAL = 25;
+
+        EXTERNAL = 26;
+    }
+    // (Required) Type kind.
+    Kind kind = 1;
+
+    // (Optional) Element type (if SLICE, PTR or CHAN)
+    Type element = 2;
+
+    // StructField matches reflect.StructField.
+    message StructField {
+        string name = 1;
+        string pkg_path = 2;
+        Type type = 3;
+        string tag = 4;
+        int64 offset = 5;
+        repeated int32 index = 6;
+        bool anonymous = 7;
+    }
+    // (Optional) Fields (if STRUCT).
+    repeated StructField fields = 3;
+
+    // (Optional) Parameter types (if FUNC).
+    repeated Type parameter_types = 4;
+    // (Optional) Return types (if FUNC).
+    repeated Type return_types = 5;
+    // (Optional) Is variadic (if FUNC).
+    bool is_variadic = 6;
+
+    // ChanDir matches reflect.ChanDir.
+    enum ChanDir {
+        RECV = 0;
+        SEND = 1;
+        BOTH = 2;
+    }
+    // (Optional) Channel direction (if CHAN).
+    ChanDir chan_dir = 7;
+
+    enum Special {
+        ILLEGAL = 0;
+
+        // Go
+        ERROR = 1;
+        CONTEXT = 2;
+        TYPE = 3;
+
+        // Beam
+        EVENTTIME = 10;
+        WINDOW = 22;
+
+        KV = 11;
+        COGBK = 13;
+        WINDOWEDVALUE = 14;
+
+        T = 15;
+        U = 16;
+        V = 17;
+        W = 18;
+        X = 19;
+        Y = 20;
+        Z = 21;
+    }
+    // (Optional) Special type (if SPECIAL)
+    Special special = 8;
+
+    // (Optional) Key for external types.
+    // External types are types that are not directly serialized using
+    // the types above, but rather indirectly serialized.  The wire format
+    // holds a lookup key into a registry to reify the types in a worker from a
+    // registry. The main usage of external serialization is to preserve
+    // methods attached to types.
+    string external_key = 9;
+}
+
+// FullType represents a serialized typex.FullType
+message FullType {
+    Type type = 1;
+    repeated FullType components = 2;
+}
+
+// UserFn represents a serialized function reference. The
+// implementation is notably not serialized and must be present (and
+// somehow discoverable from the symbol name) on the decoding side.
+message UserFn {
+    // (Required) Symbol name of function.
+    string name = 1;
+    // (Required) Function type.
+    Type type = 2;
+}
+
+// DynFn represents a serialized function generator.
+message DynFn {
+    // (Required) Name of the generated function.
+    string name = 1;
+    // (Required) Type of the generated function.
+    Type type = 2;
+    // (Required) Input to generator.
+    bytes data = 3;
+    // (Required) Symbol name of generator (of type []byte ->
+    // []reflect.Value -> []reflect.Value).
+    string gen = 4;
+}
+
+// Fn represents a serialized function reference or struct.
+message Fn {
+    // (Optional) Function reference.
+    UserFn fn = 1;
+    // (Optional) Struct type.
+    Type type = 2;
+    // (Optional) JSON-serialized value, if struct.
+    string opt = 3;
+    // (Optional) Function generator, if dynamic function.
+    DynFn dynfn = 4;
+}
+
+// WindowFn represents a window fn.
+message WindowFn {
+    string kind = 1;
+    int64 size_ms = 2;
+    int64 period_ms = 3;
+    int64 gap_ms = 4;
+}
+
+// CustomCoder
+message CustomCoder {
+    // (Required) Name of the coder. For informational purposes only.
+    string name = 1;
+    // (Required) Concrete type being coded.
+    Type type = 2;
+
+    // (Required) Encoding function.
+    UserFn enc = 3;
+    // (Required) Decoding function.
+    UserFn dec = 4;
+}
+
+// NOTE(herohde) 4/4/2017: we use (json) CoderRef to serialize coder to
+// inform the service, which may change it at the edges (notably adding
+// LengthPrefix). We thus have to be careful using the right one.
+
+// MultiEdge represents a partly-serialized MultiEdge. It does not include
+// node information, because runners manipulate the graph structure.
+message MultiEdge {
+    Fn fn = 1;
+    string opcode = 4;
+    WindowFn window_fn = 5;
+
+    message Inbound {
+        enum InputKind {
+            INVALID = 0;
+
+            MAIN = 1;
+            SINGLETON = 2;
+            SLICE = 3;
+            MAP = 4;
+            MULTIMAP = 5;
+            ITER = 6;
+            REITER = 7;
+        }
+
+        InputKind kind = 1;
+        FullType type = 2;
+    }
+    repeated Inbound inbound = 2;
+
+    message Outbound {
+        FullType type = 1;
+    }
+    repeated Outbound outbound = 3;
+}
+
+// InjectPayload is the payload for the built-in Inject function.
+message InjectPayload {
+    int32 n = 1;
+}
+
+// TransformPayload represents the full payload for transforms, both
+// user defined and built-in.
+message TransformPayload {
+    // urn is included here. It is also present in the model pipeline, but
+    // not when submitting through Dataflow yet.
+    string urn = 1;
+
+    MultiEdge edge = 2;
+    InjectPayload inject = 3;
+}

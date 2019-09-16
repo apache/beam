@@ -29,8 +29,7 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
-import com.google.common.collect.Iterables;
-import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Properties;
 import org.apache.beam.sdk.testing.PAssert;
@@ -38,6 +37,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -130,36 +131,19 @@ public class KinesisMockWriteTest {
   }
 
   @Test
-  public void testNotExistedStream() {
-    Iterable<byte[]> data = Arrays.asList("1".getBytes());
-    p.apply(Create.of(data))
-        .apply(
-            KinesisIO.write()
-                .withStreamName(STREAM)
-                .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider(false))
-        );
-
-    thrown.expect(RuntimeException.class);
-    p.run().waitUntilFinish();
-  }
-
-  @Test
   public void testSetInvalidProperty() {
     Properties properties = new Properties();
     properties.setProperty("KinesisPort", "qwe");
 
-    Iterable<byte[]> data = Arrays.asList("1".getBytes());
-    p.apply(Create.of(data))
-        .apply(
-            KinesisIO.write()
-                .withStreamName(STREAM)
-                .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider())
-                .withProducerProperties(properties));
+    KinesisIO.Write write =
+        KinesisIO.write()
+            .withStreamName(STREAM)
+            .withPartitionKey(PARTITION_KEY)
+            .withAWSClientsProvider(new FakeKinesisProvider())
+            .withProducerProperties(properties);
 
-    thrown.expect(RuntimeException.class);
-    p.run().waitUntilFinish();
+    thrown.expect(IllegalArgumentException.class);
+    write.expand(null);
   }
 
   @Test
@@ -171,7 +155,11 @@ public class KinesisMockWriteTest {
     properties.setProperty("KinesisPort", "4567");
     properties.setProperty("VerifyCertificate", "false");
 
-    Iterable<byte[]> data = Arrays.asList("1".getBytes(), "2".getBytes(), "3".getBytes());
+    Iterable<byte[]> data =
+        ImmutableList.of(
+            "1".getBytes(StandardCharsets.UTF_8),
+            "2".getBytes(StandardCharsets.UTF_8),
+            "3".getBytes(StandardCharsets.UTF_8));
     p.apply(Create.of(data))
         .apply(
             KinesisIO.write()
@@ -186,14 +174,14 @@ public class KinesisMockWriteTest {
 
   @Test
   public void testWriteFailed() {
-    Iterable<byte[]> data = Arrays.asList("1".getBytes());
+    Iterable<byte[]> data = ImmutableList.of("1".getBytes(StandardCharsets.UTF_8));
     p.apply(Create.of(data))
         .apply(
             KinesisIO.write()
                 .withStreamName(STREAM)
                 .withPartitionKey(PARTITION_KEY)
                 .withAWSClientsProvider(new FakeKinesisProvider().setFailedFlush(true))
-                .withRetries(1));
+                .withRetries(2));
 
     thrown.expect(RuntimeException.class);
     p.run().waitUntilFinish();
@@ -203,7 +191,9 @@ public class KinesisMockWriteTest {
   public void testWriteAndReadFromMockKinesis() {
     KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
 
-    Iterable<byte[]> data = Arrays.asList("1".getBytes(), "2".getBytes());
+    Iterable<byte[]> data =
+        ImmutableList.of(
+            "1".getBytes(StandardCharsets.UTF_8), "2".getBytes(StandardCharsets.UTF_8));
     p.apply(Create.of(data))
         .apply(
             KinesisIO.write()
@@ -245,8 +235,7 @@ public class KinesisMockWriteTest {
     private boolean isExistingStream = true;
     private boolean isFailedFlush = false;
 
-    public FakeKinesisProvider() {
-    }
+    public FakeKinesisProvider() {}
 
     public FakeKinesisProvider(boolean isExistingStream) {
       this.isExistingStream = isExistingStream;

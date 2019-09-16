@@ -156,11 +156,33 @@ public class OffsetRangeTrackerTest {
   }
 
   @Test
-  public void testCheckDoneWhenExplicitlyMarkedDone() {
-    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
-    assertTrue(tracker.tryClaim(150L));
-    assertTrue(tracker.tryClaim(175L));
-    tracker.markDone();
-    tracker.checkDone();
+  public void testBacklogUnstarted() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
+    assertEquals(200, tracker.getSize(), 0.001);
+
+    tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    assertEquals(100, tracker.getSize(), 0.001);
+  }
+
+  @Test
+  public void testBacklogFinished() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
+    tracker.tryClaim(300L);
+    assertEquals(0, tracker.getSize(), 0.001);
+
+    tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    tracker.tryClaim(300L);
+    assertEquals(0., tracker.getSize(), 0.001);
+  }
+
+  @Test
+  public void testBacklogPartiallyCompleted() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
+    tracker.tryClaim(150L);
+    assertEquals(50., tracker.getSize(), 0.001);
+
+    tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    tracker.tryClaim(150L);
+    assertEquals(50., tracker.getSize(), 0.001);
   }
 }

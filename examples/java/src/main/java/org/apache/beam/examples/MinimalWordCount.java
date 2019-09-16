@@ -93,9 +93,9 @@ public class MinimalWordCount {
         // Concept #2: Apply a FlatMapElements transform the PCollection of text lines.
         // This transform splits the lines in PCollection<String>, where each element is an
         // individual word in Shakespeare's collected texts.
-        .apply(FlatMapElements
-            .into(TypeDescriptors.strings())
-            .via((String word) -> Arrays.asList(word.split("[^\\p{L}]+"))))
+        .apply(
+            FlatMapElements.into(TypeDescriptors.strings())
+                .via((String word) -> Arrays.asList(word.split("[^\\p{L}]+"))))
         // We use a Filter transform to avoid empty word
         .apply(Filter.by((String word) -> !word.isEmpty()))
         // Concept #3: Apply the Count transform to our PCollection of individual words. The Count
@@ -104,9 +104,11 @@ public class MinimalWordCount {
         .apply(Count.perElement())
         // Apply a MapElements transform that formats our PCollection of word counts into a
         // printable string, suitable for writing to an output file.
-        .apply(MapElements
-            .into(TypeDescriptors.strings())
-            .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
+        .apply(
+            MapElements.into(TypeDescriptors.strings())
+                .via(
+                    (KV<String, Long> wordCount) ->
+                        wordCount.getKey() + ": " + wordCount.getValue()))
         // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
         // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
         // formatted strings) to a series of text files.

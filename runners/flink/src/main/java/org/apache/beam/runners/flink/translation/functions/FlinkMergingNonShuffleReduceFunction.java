@@ -33,12 +33,12 @@ import org.apache.flink.util.Collector;
 /**
  * Special version of {@link FlinkReduceFunction} that supports merging windows.
  *
- * <p>This is different from the pair of function for the non-merging windows case
- * in that we cannot do combining before the shuffle because elements would not
- * yet be in their correct windows for side-input access.
+ * <p>This is different from the pair of function for the non-merging windows case in that we cannot
+ * do combining before the shuffle because elements would not yet be in their correct windows for
+ * side-input access.
  */
 public class FlinkMergingNonShuffleReduceFunction<
-    K, InputT, AccumT, OutputT, W extends BoundedWindow>
+        K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends RichGroupReduceFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>> {
 
   private final CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
@@ -61,13 +61,12 @@ public class FlinkMergingNonShuffleReduceFunction<
     this.sideInputs = sideInputs;
 
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
-
   }
 
   @Override
   public void reduce(
-      Iterable<WindowedValue<KV<K, InputT>>> elements,
-      Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
+      Iterable<WindowedValue<KV<K, InputT>>> elements, Collector<WindowedValue<KV<K, OutputT>>> out)
+      throws Exception {
 
     PipelineOptions options = serializedOptions.get();
 
@@ -89,5 +88,4 @@ public class FlinkMergingNonShuffleReduceFunction<
         elements,
         out);
   }
-
 }

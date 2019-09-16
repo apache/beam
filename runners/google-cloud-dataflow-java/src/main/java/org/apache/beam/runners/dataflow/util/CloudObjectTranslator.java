@@ -15,27 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
+
+import org.apache.beam.runners.core.construction.SdkComponents;
 
 /**
  * A translator that takes an object and creates a {@link CloudObject} which can be converted back
  * to the original object.
  */
 public interface CloudObjectTranslator<T> {
-  /**
-   * Converts the provided object into an equivalent {@link CloudObject}.
-   */
-  CloudObject toCloudObject(T target);
+  /** Converts the provided object into an equivalent {@link CloudObject}. */
+  CloudObject toCloudObject(T target, SdkComponents sdkComponents);
 
-  /**
-   * Converts back into the original object from a provided {@link CloudObject}.
-   */
+  /** Converts back into the original object from a provided {@link CloudObject}. */
   T fromCloudObject(CloudObject cloudObject);
 
-  /**
-   * Gets the class this {@link CloudObjectTranslator} is capable of converting.
-   */
+  /** Gets the class this {@link CloudObjectTranslator} is capable of converting. */
   Class<? extends T> getSupportedClass();
 
   /**

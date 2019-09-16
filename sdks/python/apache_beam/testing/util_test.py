@@ -17,14 +17,18 @@
 
 """Unit tests for testing utilities."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam import Create
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_empty
+from apache_beam.testing.util import is_not_empty
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -36,6 +40,14 @@ class UtilTest(unittest.TestCase):
     with TestPipeline() as p:
       assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
 
+  def test_assert_that_passes_order_does_not_matter(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([1, 2, 3]), equal_to([2, 1, 3]))
+
+  def test_assert_that_passes_order_does_not_matter_with_negatives(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([1, -2, 3]), equal_to([-2, 1, 3]))
+
   def test_assert_that_passes_empty_equal_to(self):
     with TestPipeline() as p:
       assert_that(p | Create([]), equal_to([]))
@@ -44,18 +56,18 @@ class UtilTest(unittest.TestCase):
     with TestPipeline() as p:
       assert_that(p | Create([]), is_empty())
 
-  def test_windowed_value_passes(self):
-    expected = [TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()])
-                for v in [1, 2, 3]]
-    with TestPipeline() as p:
-      assert_that(p | Create([2, 3, 1]), equal_to(expected), reify_windows=True)
-
   def test_assert_that_fails(self):
     with self.assertRaises(Exception):
       with TestPipeline() as p:
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
-  def test_windowed_value_assert_fail_unmatched_value(self):
+  def test_reified_value_passes(self):
+    expected = [TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()])
+                for v in [1, 2, 3]]
+    with TestPipeline() as p:
+      assert_that(p | Create([2, 3, 1]), equal_to(expected), reify_windows=True)
+
+  def test_reified_value_assert_fail_unmatched_value(self):
     expected = [TestWindowedValue(v + 1, MIN_TIMESTAMP, [GlobalWindow()])
                 for v in [1, 2, 3]]
     with self.assertRaises(Exception):
@@ -63,7 +75,7 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create([2, 3, 1]), equal_to(expected),
                     reify_windows=True)
 
-  def test_windowed_value_assert_fail_unmatched_timestamp(self):
+  def test_reified_value_assert_fail_unmatched_timestamp(self):
     expected = [TestWindowedValue(v, 1, [GlobalWindow()])
                 for v in [1, 2, 3]]
     with self.assertRaises(Exception):
@@ -71,7 +83,7 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create([2, 3, 1]), equal_to(expected),
                     reify_windows=True)
 
-  def test_windowed_value_assert_fail_unmatched_window(self):
+  def test_reified_value_assert_fail_unmatched_window(self):
     expected = [TestWindowedValue(v, MIN_TIMESTAMP, [IntervalWindow(0, 1)])
                 for v in [1, 2, 3]]
     with self.assertRaises(Exception):
@@ -88,6 +100,15 @@ class UtilTest(unittest.TestCase):
     with self.assertRaises(Exception):
       with TestPipeline() as p:
         assert_that(p | Create([1, 2, 3]), is_empty())
+
+  def test_assert_that_passes_is_not_empty(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([1, 2, 3]), is_not_empty())
+
+  def test_assert_that_fails_on_empty_expected(self):
+    with self.assertRaises(BeamAssertException):
+      with TestPipeline() as p:
+        assert_that(p | Create([]), is_not_empty())
 
 
 if __name__ == '__main__':

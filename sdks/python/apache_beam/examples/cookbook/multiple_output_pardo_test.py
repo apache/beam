@@ -17,6 +17,8 @@
 
 """Test for the multiple_output_pardo example."""
 
+from __future__ import absolute_import
+
 import logging
 import re
 import tempfile
@@ -35,7 +37,7 @@ class MultipleOutputParDo(unittest.TestCase):
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       return f.name
 
   def get_wordcount_results(self, result_path):

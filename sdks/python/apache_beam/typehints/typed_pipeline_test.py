@@ -16,7 +16,10 @@
 #
 
 """Unit tests for the type-hint objects and decorators."""
-import inspect
+
+from __future__ import absolute_import
+
+import sys
 import typing
 import unittest
 
@@ -28,6 +31,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
+from apache_beam.typehints.decorators import get_signature
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
@@ -56,11 +60,16 @@ class MainInputTest(unittest.TestCase):
     result = ['1', '10', '100'] | beam.Map(int, 16)
     self.assertEqual([1, 16, 256], sorted(result))
 
+  @unittest.skipIf(
+      sys.version_info.major >= 3 and sys.version_info < (3, 7, 0),
+      'Function signatures for builtins are not available in Python 3 before '
+      'version 3.7.')
+  def test_non_function_fails(self):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(str.upper)
 
   def test_loose_bounds(self):
-    @typehints.with_input_types(typehints.Union[int, float])
+    @typehints.with_input_types(typing.Union[int, float])
     @typehints.with_output_types(str)
     def format_number(x):
       return '%g' % x
@@ -77,11 +86,25 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.ParDo(MyDoFn())
     self.assertEqual(['1', '2', '3'], sorted(result))
 
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                 r'requires.*int.*got.*str'):
       ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                 r'requires.*int.*got.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
+
+  @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
+  def test_typed_callable_iterable_output(self):
+    # TODO(BEAM-7981): 2.7 and 3.x both erroneously strip the Iterable, but the
+    #   test only fails in 3.x.
+    @typehints.with_input_types(int)
+    @typehints.with_output_types(typehints.Iterable[str])
+    def do_fn(element):
+      return [[str(element)] * 2]
+
+    result = [1, 2] | beam.ParDo(do_fn)
+    self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
   def test_typed_dofn_instance(self):
     class MyDoFn(beam.DoFn):
@@ -97,6 +120,13 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
+
+  def test_filter_type_hint(self):
+    @typehints.with_input_types(int)
+    def filter_fn(data):
+      return data % 2
+
+    self.assertEqual([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
 
 
 class NativeTypesTest(unittest.TestCase):
@@ -151,8 +181,10 @@ class SideInputTest(unittest.TestCase):
       ['a', 'bb', 'c'] | beam.Map(repeat, times='z')
     with self.assertRaises(typehints.TypeCheckError):
       ['a', 'bb', 'c'] | beam.Map(repeat, 3, 4)
-    if not inspect.getargspec(repeat).defaults:
-      with self.assertRaises(typehints.TypeCheckError):
+    if all(param.default == param.empty
+           for param in get_signature(repeat).parameters.values()):
+      with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                   r'(takes exactly|missing a required)'):
         ['a', 'bb', 'c'] | beam.Map(repeat)
 
   def test_basic_side_input_hint(self):
@@ -177,7 +209,7 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str)
     def repeat(s, times=3):
       return s * times
-    # No type checking on dfault arg.
+    # No type checking on default arg.
     self._run_repeat_test_good(repeat)
 
   @OptionsContext(pipeline_type_check=True)
@@ -208,7 +240,7 @@ class SideInputTest(unittest.TestCase):
       main_input | 'bis' >> beam.Map(repeat, pvalue.AsSingleton(bad_side_input))
 
   def test_deferred_side_input_iterable(self):
-    @typehints.with_input_types(str, typehints.Iterable[str])
+    @typehints.with_input_types(str, typing.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
     with TestPipeline() as p:
@@ -272,6 +304,36 @@ class CustomTransformTest(unittest.TestCase):
       self.test_input | self.CustomTransform().with_input_types(int)
     with self.assertRaises(typehints.TypeCheckError):
       self.test_input | self.CustomTransform().with_output_types(int)
+
+
+class AnnotationsTest(unittest.TestCase):
+
+  def test_pardo_wrapper_builtin_method(self):
+    th = beam.ParDo(str.strip).get_type_hints()
+    if sys.version_info < (3, 7):
+      self.assertEqual(th.input_types, ((str,), {}))
+    else:
+      # Python 3.7+ has annotations for CPython builtins
+      # (_MethodDescriptorType).
+      self.assertEqual(th.input_types, ((str, typehints.Any), {}))
+    self.assertEqual(th.output_types, ((typehints.Any,), {}))
+
+  def test_pardo_wrapper_builtin_type(self):
+    th = beam.ParDo(list).get_type_hints()
+    if sys.version_info < (3, 7):
+      self.assertEqual(th.input_types, (
+          (typehints.Any, typehints.decorators._ANY_VAR_POSITIONAL),
+          {'__unknown__keywords': typehints.decorators._ANY_VAR_KEYWORD}))
+    else:
+      # Python 3.7+ supports signatures for builtins like 'list'.
+      self.assertEqual(th.input_types, ((typehints.Any, ), {}))
+
+    self.assertEqual(th.output_types, ((typehints.Any,), {}))
+
+  def test_pardo_wrapper_builtin_func(self):
+    th = beam.ParDo(len).get_type_hints()
+    self.assertIsNone(th.input_types)
+    self.assertIsNone(th.output_types)
 
 
 if __name__ == '__main__':

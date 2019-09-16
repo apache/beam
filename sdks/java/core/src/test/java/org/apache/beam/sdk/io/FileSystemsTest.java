@@ -18,14 +18,11 @@
 package org.apache.beam.sdk.io;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +35,10 @@ import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,28 +47,33 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FileSystems}.
- */
+/** Tests for {@link FileSystems}. */
 @RunWith(JUnit4.class)
 public class FileSystemsTest {
 
-  @Rule
-  public TemporaryFolder temporaryFolder = new TemporaryFolder();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public ExpectedException thrown = ExpectedException.none();
   private LocalFileSystem localFileSystem = new LocalFileSystem();
 
   @Test
   public void testGetLocalFileSystem() throws Exception {
-    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("~/home/").getScheme())
-        instanceof LocalFileSystem);
-    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("file://home").getScheme())
-        instanceof LocalFileSystem);
-    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("FILE://home").getScheme())
-        instanceof LocalFileSystem);
-    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("File://home").getScheme())
-        instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(toLocalResourceId("~/home/").getScheme())
+            instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(toLocalResourceId("file://home").getScheme())
+            instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(toLocalResourceId("FILE://home").getScheme())
+            instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(toLocalResourceId("File://home").getScheme())
+            instanceof LocalFileSystem);
+    if (SystemUtils.IS_OS_WINDOWS) {
+      assertTrue(
+          FileSystems.getFileSystemInternal(toLocalResourceId("c:\\home\\").getScheme())
+              instanceof LocalFileSystem);
+    }
   }
 
   @Test
@@ -128,12 +134,10 @@ public class FileSystemsTest {
     assertTrue(srcPath1.toFile().exists());
     assertTrue(srcPath3.toFile().exists());
     assertThat(
-        Files.readLines(srcPath1.toFile(), StandardCharsets.UTF_8),
-        containsInAnyOrder("content1"));
+        Files.readLines(srcPath1.toFile(), StandardCharsets.UTF_8), containsInAnyOrder("content1"));
     assertFalse(destPath2.toFile().exists());
     assertThat(
-        Files.readLines(srcPath3.toFile(), StandardCharsets.UTF_8),
-        containsInAnyOrder("content3"));
+        Files.readLines(srcPath3.toFile(), StandardCharsets.UTF_8), containsInAnyOrder("content3"));
   }
 
   @Test
@@ -182,6 +186,19 @@ public class FileSystemsTest {
         containsInAnyOrder("content3"));
   }
 
+  @Test
+  public void testValidMatchNewResourceForLocalFileSystem() {
+    assertEquals("file", FileSystems.matchNewResource("/tmp/f1", false).getScheme());
+    assertEquals("file", FileSystems.matchNewResource("tmp/f1", false).getScheme());
+    assertEquals("file", FileSystems.matchNewResource("c:\\tmp\\f1", false).getScheme());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testInvalidSchemaMatchNewResource() {
+    assertEquals("file", FileSystems.matchNewResource("invalidschema://tmp/f1", false));
+    assertEquals("file", FileSystems.matchNewResource("c:/tmp/f1", false));
+  }
+
   private List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {
     return FluentIterable.from(paths)
         .transform(path -> (ResourceId) LocalResourceId.fromPath(path, isDirectory))
@@ -189,11 +206,12 @@ public class FileSystemsTest {
   }
 
   private void createFileWithContent(Path path, String content) throws Exception {
-    try (Writer writer = Channels.newWriter(
-        localFileSystem.create(
-            LocalResourceId.fromPath(path, false /* isDirectory */),
-            CreateOptions.StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build()),
-        StandardCharsets.UTF_8.name())) {
+    try (Writer writer =
+        Channels.newWriter(
+            localFileSystem.create(
+                LocalResourceId.fromPath(path, false /* isDirectory */),
+                CreateOptions.StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build()),
+            StandardCharsets.UTF_8.name())) {
       writer.write(content);
     }
   }

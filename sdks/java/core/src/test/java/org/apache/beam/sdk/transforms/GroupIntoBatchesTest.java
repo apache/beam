@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -91,13 +91,13 @@ public class GroupIntoBatchesTest implements Serializable {
             .apply(GroupIntoBatches.ofSize(BATCH_SIZE))
             // set output coder
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
-    PAssert.that("Incorrect batch size in one ore more elements", collection)
+    PAssert.that("Incorrect batch size in one or more elements", collection)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
 
               private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
                 for (KV<String, Iterable<String>> element : listToCheck) {
-                  if (Iterables.size(element.getValue()) != BATCH_SIZE){
+                  if (Iterables.size(element.getValue()) != BATCH_SIZE) {
                     return false;
                   }
                 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.test;
 
 import static org.junit.Assert.assertFalse;
@@ -76,10 +75,7 @@ public class TestStreamsTest {
   public void testOnErrorConsumerIsCalled() {
     RuntimeException throwable = new RuntimeException();
     final Collection<Throwable> onErrorWasCalled = new ArrayList<>();
-    TestStreams.withOnNext(null)
-        .withOnError(onErrorWasCalled::add)
-        .build()
-        .onError(throwable);
+    TestStreams.withOnNext(null).withOnError(onErrorWasCalled::add).build().onError(throwable);
     assertThat(onErrorWasCalled, Matchers.contains(throwable));
   }
 }

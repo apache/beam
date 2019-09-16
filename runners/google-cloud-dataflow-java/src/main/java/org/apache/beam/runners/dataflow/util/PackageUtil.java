@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.google.api.client.util.BackOff;
@@ -26,18 +26,12 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.hash.Funnels;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
-import com.google.common.io.ByteSource;
-import com.google.common.io.CountingOutputStream;
-import com.google.common.io.Files;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -54,15 +48,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
-import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.Seconds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,9 +75,7 @@ class PackageUtil implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PackageUtil.class);
 
-  /**
-   * A reasonable upper bound on the number of jars required to launch a Dataflow job.
-   */
+  /** A reasonable upper bound on the number of jars required to launch a Dataflow job. */
   private static final int SANE_CLASSPATH_SIZE = 1000;
 
   private static final int DEFAULT_THREAD_POOL_SIZE = 32;
@@ -90,9 +91,7 @@ class PackageUtil implements Closeable {
   private static final FluentBackoff BACKOFF_FACTORY =
       FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(Duration.standardSeconds(5));
 
-  /**
-   * Translates exceptions from API calls.
-   */
+  /** Translates exceptions from API calls. */
   private static final ApiErrorExtractor ERROR_EXTRACTOR = new ApiErrorExtractor();
 
   private final ExecutorService executorService;
@@ -103,8 +102,9 @@ class PackageUtil implements Closeable {
 
   public static PackageUtil withDefaultThreadPool() {
     return PackageUtil.withExecutorService(
-        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(DEFAULT_THREAD_POOL_SIZE,
-            MoreExecutors.platformThreadFactory())));
+        MoreExecutors.listeningDecorator(
+            Executors.newFixedThreadPool(
+                DEFAULT_THREAD_POOL_SIZE, MoreExecutors.platformThreadFactory())));
   }
 
   public static PackageUtil withExecutorService(ExecutorService executorService) {
@@ -116,9 +116,8 @@ class PackageUtil implements Closeable {
     executorService.shutdown();
   }
 
-
   /** Utility comparator used in uploading packages efficiently. */
-  private static class PackageUploadOrder implements Comparator<PackageAttributes> {
+  private static class PackageUploadOrder implements Comparator<PackageAttributes>, Serializable {
     @Override
     public int compare(PackageAttributes o1, PackageAttributes o2) {
       // Smaller size compares high so that bigger packages are uploaded first.
@@ -224,7 +223,8 @@ class PackageUtil implements Closeable {
               "Upload failed, will NOT retry staging of package: {}",
               sourceDescription,
               ioException);
-          throw new RuntimeException("Could not stage %s to %s", ioException);
+          throw new RuntimeException(
+              String.format("Could not stage %s to %s", sourceDescription, target), ioException);
         } else {
           LOG.warn(
               "Upload attempt failed, sleeping before retrying staging of package: {}",
@@ -314,15 +314,19 @@ class PackageUtil implements Closeable {
       final String stagingPath,
       final Sleeper retrySleeper,
       final CreateOptions createOptions) {
-    LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
-        + "prepare for execution.", classpathElements.size());
+    LOG.info(
+        "Uploading {} files from PipelineOptions.filesToStage to staging location to "
+            + "prepare for execution.",
+        classpathElements.size());
+    Instant start = Instant.now();
 
     if (classpathElements.size() > SANE_CLASSPATH_SIZE) {
-      LOG.warn("Your classpath contains {} elements, which Google Cloud Dataflow automatically "
-            + "copies to all workers. Having this many entries on your classpath may be indicative "
-            + "of an issue in your pipeline. You may want to consider trimming the classpath to "
-            + "necessary dependencies only, using --filesToStage pipeline option to override "
-            + "what files are being staged, or bundling several dependencies into one.",
+      LOG.warn(
+          "Your classpath contains {} elements, which Google Cloud Dataflow automatically "
+              + "copies to all workers. Having this many entries on your classpath may be indicative "
+              + "of an issue in your pipeline. You may want to consider trimming the classpath to "
+              + "necessary dependencies only, using --filesToStage pipeline option to override "
+              + "what files are being staged, or bundling several dependencies into one.",
           classpathElements.size());
     }
 
@@ -385,9 +389,12 @@ class PackageUtil implements Closeable {
         }
       } while (!finished);
       List<DataflowPackage> stagedPackages = MoreFutures.get(stagingFutures);
+      Instant done = Instant.now();
       LOG.info(
-          "Staging files complete: {} files cached, {} files newly uploaded",
-          numCached.get(), numUploaded.get());
+          "Staging files complete: {} files cached, {} files newly uploaded in {} seconds",
+          numCached.get(),
+          numUploaded.get(),
+          Seconds.secondsBetween(start, done).getSeconds());
       return stagedPackages;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -401,6 +408,7 @@ class PackageUtil implements Closeable {
    * Returns a unique name for a file with a given content hash.
    *
    * <p>Directory paths are removed. Example:
+   *
    * <pre>
    * dir="a/b/c/d", contentHash="f000" => d-f000.jar
    * file="a/b/c/d.txt", contentHash="f000" => d-f000.txt
@@ -433,9 +441,7 @@ class PackageUtil implements Closeable {
     }
   }
 
-  /**
-   * Holds the metadata necessary to stage a file or confirm that a staged file has not changed.
-   */
+  /** Holds the metadata necessary to stage a file or confirm that a staged file has not changed. */
   @AutoValue
   abstract static class PackageAttributes {
 
@@ -507,6 +513,7 @@ class PackageUtil implements Closeable {
     public abstract File getSource();
 
     /** @return the bytes to be uploaded, if any */
+    @SuppressWarnings("mutable")
     @Nullable
     public abstract byte[] getBytes();
 

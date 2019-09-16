@@ -38,12 +38,8 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-/**
- * Wrapper for executing a {@link Source} as a Flink {@link InputFormat}.
- */
-public class SourceInputFormat<T>
-    extends RichInputFormat<WindowedValue<T>, SourceInputSplit<T>> {
+/** Wrapper for executing a {@link Source} as a Flink {@link InputFormat}. */
+public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
   private final String stepName;
@@ -73,11 +69,7 @@ public class SourceInputFormat<T>
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
     FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
 
-    readerInvoker =
-        new ReaderInvocationUtil<>(
-            stepName,
-            serializedOptions.get(),
-            metricContainer);
+    readerInvoker = new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 
     reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
     inputAvailable = readerInvoker.invokeStart(reader);
@@ -133,7 +125,6 @@ public class SourceInputFormat<T>
     return new DefaultInputSplitAssigner(sourceInputSplits);
   }
 
-
   @Override
   public boolean reachedEnd() throws IOException {
     return !inputAvailable;
@@ -146,10 +137,7 @@ public class SourceInputFormat<T>
       final Instant timestamp = reader.getCurrentTimestamp();
       // advance reader to have a record ready next time
       inputAvailable = readerInvoker.invokeAdvance(reader);
-      return WindowedValue.of(
-          current,
-          timestamp,
-          GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+      return WindowedValue.of(current, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
     }
 
     return null;

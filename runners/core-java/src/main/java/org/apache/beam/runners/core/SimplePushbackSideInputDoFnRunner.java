@@ -17,17 +17,18 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -57,6 +58,11 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
     this.underlying = underlying;
     this.views = views;
     this.sideInputReader = sideInputReader;
+  }
+
+  @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return underlying.getFn();
   }
 
   @Override
@@ -92,8 +98,7 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
       return false;
     }
     for (PCollectionView<?> view : views) {
-      BoundedWindow sideInputWindow =
-          view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
+      BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
       if (!sideInputReader.isReady(view, sideInputWindow)) {
         return false;
       }
@@ -103,7 +108,10 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
 
   @Override
   public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, Instant outputTimestamp,
+      String timerId,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     underlying.onTimer(timerId, window, timestamp, outputTimestamp, timeDomain);
   }
@@ -114,4 +122,3 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
     underlying.finishBundle();
   }
 }
-

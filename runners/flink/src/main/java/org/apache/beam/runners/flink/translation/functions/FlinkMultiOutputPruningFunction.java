@@ -24,8 +24,8 @@ import org.apache.flink.util.Collector;
 
 /**
  * A {@link FlatMapFunction} function that filters out those elements that don't belong in this
- * output. We need this to implement MultiOutput ParDo functions in combination with
- * {@link FlinkDoFnFunction}.
+ * output. We need this to implement MultiOutput ParDo functions in combination with {@link
+ * FlinkDoFnFunction}.
  */
 public class FlinkMultiOutputPruningFunction<T>
     implements FlatMapFunction<WindowedValue<RawUnionValue>, WindowedValue<T>> {
@@ -39,8 +39,8 @@ public class FlinkMultiOutputPruningFunction<T>
   @Override
   @SuppressWarnings("unchecked")
   public void flatMap(
-      WindowedValue<RawUnionValue> windowedValue,
-      Collector<WindowedValue<T>> collector) throws Exception {
+      WindowedValue<RawUnionValue> windowedValue, Collector<WindowedValue<T>> collector)
+      throws Exception {
     int unionTag = windowedValue.getValue().getUnionTag();
     if (unionTag == ourOutputTag) {
       collector.collect(

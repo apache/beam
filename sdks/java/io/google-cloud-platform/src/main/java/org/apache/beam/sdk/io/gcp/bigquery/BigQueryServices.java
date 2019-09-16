@@ -28,49 +28,46 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
-interface BigQueryServices extends Serializable {
+public interface BigQueryServices extends Serializable {
 
-  /**
-   * Returns a real, mock, or fake {@link JobService}.
-   */
+  /** Returns a real, mock, or fake {@link JobService}. */
   JobService getJobService(BigQueryOptions bqOptions);
 
-  /**
-   * Returns a real, mock, or fake {@link DatasetService}.
-   */
+  /** Returns a real, mock, or fake {@link DatasetService}. */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
 
-  /**
-   * An interface for the Cloud BigQuery load service.
-   */
-  interface JobService {
-    /**
-     * Start a BigQuery load job.
-     */
+  /** Returns a real, mock, or fake {@link StorageClient}. */
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
+
+  /** An interface for the Cloud BigQuery load service. */
+  public interface JobService {
+    /** Start a BigQuery load job. */
     void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
-    /**
-     * Start a BigQuery extract job.
-     */
+    /** Start a BigQuery extract job. */
     void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException;
 
-    /**
-     * Start a BigQuery query job.
-     */
+    /** Start a BigQuery query job. */
     void startQueryJob(JobReference jobRef, JobConfigurationQuery query)
         throws IOException, InterruptedException;
 
-    /**
-     * Start a BigQuery copy job.
-     */
+    /** Start a BigQuery copy job. */
     void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
         throws IOException, InterruptedException;
 
@@ -79,13 +76,10 @@ interface BigQueryServices extends Serializable {
      *
      * <p>Returns null if the {@code maxAttempts} retries reached.
      */
-    Job pollJob(JobReference jobRef, int maxAttempts)
-        throws InterruptedException, IOException;
+    Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException;
 
-    /**
-     * Dry runs the query in the given project.
-     */
-    JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
+    /** Dry runs the query in the given project. */
+    JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig, String location)
         throws InterruptedException, IOException;
 
     /**
@@ -96,10 +90,8 @@ interface BigQueryServices extends Serializable {
     Job getJob(JobReference jobRef) throws IOException, InterruptedException;
   }
 
-  /**
-   * An interface to get, create and delete Cloud BigQuery datasets and tables.
-   */
-  interface DatasetService {
+  /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
+  public interface DatasetService {
     /**
      * Gets the specified {@link Table} resource by table ID.
      *
@@ -108,14 +100,16 @@ interface BigQueryServices extends Serializable {
     @Nullable
     Table getTable(TableReference tableRef) throws InterruptedException, IOException;
 
-    /**
-     * Creates the specified table if it does not exist.
-     */
+    @Nullable
+    Table getTable(TableReference tableRef, List<String> selectedFields)
+        throws InterruptedException, IOException;
+
+    /** Creates the specified table if it does not exist. */
     void createTable(Table table) throws InterruptedException, IOException;
 
     /**
-     * Deletes the table specified by tableId from the dataset.
-     * If the table contains data, all the data will be deleted.
+     * Deletes the table specified by tableId from the dataset. If the table contains data, all the
+     * data will be deleted.
      */
     void deleteTable(TableReference tableRef) throws IOException, InterruptedException;
 
@@ -126,11 +120,8 @@ interface BigQueryServices extends Serializable {
      */
     boolean isTableEmpty(TableReference tableRef) throws IOException, InterruptedException;
 
-    /**
-     * Gets the specified {@link Dataset} resource by dataset ID.
-     */
-    Dataset getDataset(String projectId, String datasetId)
-        throws IOException, InterruptedException;
+    /** Gets the specified {@link Dataset} resource by dataset ID. */
+    Dataset getDataset(String projectId, String datasetId) throws IOException, InterruptedException;
 
     /**
      * Create a {@link Dataset} with the given {@code location}, {@code description} and default
@@ -149,20 +140,25 @@ interface BigQueryServices extends Serializable {
      *
      * <p>Before you can delete a dataset, you must delete all its tables.
      */
-    void deleteDataset(String projectId, String datasetId)
-        throws IOException, InterruptedException;
+    void deleteDataset(String projectId, String datasetId) throws IOException, InterruptedException;
 
     /**
      * Inserts {@link TableRow TableRows} with the specified insertIds if not null.
      *
-     * <p>If any insert fail permanently according to the retry policy, those rows are added
-     * to failedInserts.
+     * <p>If any insert fail permanently according to the retry policy, those rows are added to
+     * failedInserts.
      *
      * <p>Returns the total bytes count of {@link TableRow TableRows}.
      */
-    long insertAll(TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
-                   @Nullable List<String> insertIdList, InsertRetryPolicy retryPolicy,
-                   List<ValueInSingleWindow<TableRow>> failedInserts)
+    <T> long insertAll(
+        TableReference ref,
+        List<ValueInSingleWindow<TableRow>> rowList,
+        @Nullable List<String> insertIdList,
+        InsertRetryPolicy retryPolicy,
+        List<ValueInSingleWindow<T>> failedInserts,
+        ErrorContainer<T> errorContainer,
+        boolean skipInvalidRows,
+        boolean ignoreUnknownValues)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */
@@ -170,4 +166,37 @@ interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
   }
 
+  /**
+   * Container for reading data from streaming endpoints.
+   *
+   * <p>An implementation does not need to be thread-safe.
+   */
+  interface BigQueryServerStream<T> extends Iterable<T>, Serializable {
+    /**
+     * Cancels the stream, releasing any client- and server-side resources. This method may be
+     * called multiple times and from any thread.
+     */
+    void cancel();
+  }
+
+  /** An interface representing a client object for making calls to the BigQuery Storage API. */
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  interface StorageClient extends AutoCloseable {
+    /** Create a new read session against an existing table. */
+    ReadSession createReadSession(CreateReadSessionRequest request);
+
+    /** Read rows in the context of a specific read stream. */
+    BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request);
+
+    SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
+
+    /**
+     * Close the client object.
+     *
+     * <p>The override is required since {@link AutoCloseable} allows the close method to raise an
+     * exception.
+     */
+    @Override
+    void close();
+  }
 }

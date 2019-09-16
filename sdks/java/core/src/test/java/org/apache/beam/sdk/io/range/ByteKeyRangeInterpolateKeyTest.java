@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -30,9 +30,8 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Combinatorial tests for {@link ByteKeyRange#interpolateKey}, which also checks
- * {@link ByteKeyRange#estimateFractionForKey} by converting the interpolated keys back to
- * fractions.
+ * Combinatorial tests for {@link ByteKeyRange#interpolateKey}, which also checks {@link
+ * ByteKeyRange#estimateFractionForKey} by converting the interpolated keys back to fractions.
  */
 @RunWith(Parameterized.class)
 public class ByteKeyRangeInterpolateKeyTest {

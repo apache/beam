@@ -15,31 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.apex.translation.operators.ApexFlattenOperator;
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
 import org.apache.beam.runners.apex.translation.utils.ValuesSource;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
-/**
- * {@link Flatten.PCollections} translation to Apex operator.
- */
-class FlattenPCollectionTranslator<T> implements
-    TransformTranslator<Flatten.PCollections<T>> {
+/** {@link Flatten.PCollections} translation to Apex operator. */
+class FlattenPCollectionTranslator<T> implements TransformTranslator<Flatten.PCollections<T>> {
   private static final long serialVersionUID = 1L;
 
   @Override
@@ -49,10 +44,10 @@ class FlattenPCollectionTranslator<T> implements
     if (inputCollections.isEmpty()) {
       // create a dummy source that never emits anything
       @SuppressWarnings("unchecked")
-      UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(Collections.EMPTY_LIST,
-          (Coder<T>) VoidCoder.of());
-      ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
-          unboundedSource, context.getPipelineOptions());
+      UnboundedSource<T, ?> unboundedSource =
+          new ValuesSource<>(Collections.EMPTY_LIST, VoidCoder.of());
+      ApexReadUnboundedInputOperator<T, ?> operator =
+          new ApexReadUnboundedInputOperator<>(unboundedSource, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
     } else if (inputCollections.size() == 1) {
       context.addAlias(context.getOutput(), inputCollections.get(0));
@@ -78,18 +73,21 @@ class FlattenPCollectionTranslator<T> implements
   }
 
   /**
-   * Flatten the given collections into the given result collection. Translates
-   * into a cascading merge with 2 input ports per operator. The optional union
-   * tags can be used to identify the source in the result stream, used to
-   * channel multiple side inputs to a single Apex operator port.
+   * Flatten the given collections into the given result collection. Translates into a cascading
+   * merge with 2 input ports per operator. The optional union tags can be used to identify the
+   * source in the result stream, used to channel multiple side inputs to a single Apex operator
+   * port.
    *
    * @param collections
    * @param unionTags
    * @param finalCollection
    * @param context
    */
-  static <T> void flattenCollections(List<PCollection<T>> collections, Map<PCollection<?>,
-      Integer> unionTags, PCollection<T> finalCollection, TranslationContext context) {
+  static <T> void flattenCollections(
+      List<PCollection<T>> collections,
+      Map<PCollection<?>, Integer> unionTags,
+      PCollection<T> finalCollection,
+      TranslationContext context) {
     List<PCollection<T>> remainingCollections = Lists.newArrayList();
     PCollection<T> firstCollection = null;
     while (!collections.isEmpty()) {
@@ -106,7 +104,7 @@ class FlattenPCollectionTranslator<T> implements
           operator.data2Tag = (unionTag != null) ? unionTag : 0;
 
           if (!collection.getCoder().equals(firstCollection.getCoder())) {
-              throw new UnsupportedOperationException("coders don't match");
+            throw new UnsupportedOperationException("coders don't match");
           }
 
           if (collections.size() > 2) {
@@ -138,5 +136,4 @@ class FlattenPCollectionTranslator<T> implements
       }
     }
   }
-
 }

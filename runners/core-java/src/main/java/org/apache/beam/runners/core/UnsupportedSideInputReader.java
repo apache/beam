@@ -20,10 +20,7 @@ package org.apache.beam.runners.core;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
-
-/**
- * An implementation of a {@link SideInputReader} that actually does not support side-inputs.
- */
+/** An implementation of a {@link SideInputReader} that actually does not support side-inputs. */
 public class UnsupportedSideInputReader implements SideInputReader {
   private final String transformName;
 

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing Xml files.
- */
+/** Transforms for reading and writing Xml files. */
 package org.apache.beam.sdk.io.xml;

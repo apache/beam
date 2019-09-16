@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
@@ -35,8 +34,6 @@ public interface MetricCell<DataT> extends Serializable {
    */
   DirtyState getDirty();
 
-  /**
-   * Return the cumulative value of this metric.
-   */
+  /** Return the cumulative value of this metric. */
   DataT getCumulative();
 }

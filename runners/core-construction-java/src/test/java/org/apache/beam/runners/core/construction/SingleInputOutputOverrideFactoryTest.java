@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
@@ -52,13 +51,15 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
           PCollection<? extends Integer>, PCollection<Integer>, MapElements<Integer, Integer>>
       factory =
           new SingleInputOutputOverrideFactory<
-              PCollection<? extends Integer>, PCollection<Integer>,
+              PCollection<? extends Integer>,
+              PCollection<Integer>,
               MapElements<Integer, Integer>>() {
             @Override
             public PTransformReplacement<PCollection<? extends Integer>, PCollection<Integer>>
                 getReplacementTransform(
                     AppliedPTransform<
-                            PCollection<? extends Integer>, PCollection<Integer>,
+                            PCollection<? extends Integer>,
+                            PCollection<Integer>,
                             MapElements<Integer, Integer>>
                         transform) {
               return PTransformReplacement.of(
@@ -67,12 +68,13 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
             }
           };
 
-  private SimpleFunction<Integer, Integer> fn = new SimpleFunction<Integer, Integer>() {
-      @Override
-      public Integer apply(Integer input) {
-        return input - 1;
-      }
-    };
+  private SimpleFunction<Integer, Integer> fn =
+      new SimpleFunction<Integer, Integer>() {
+        @Override
+        public Integer apply(Integer input) {
+          return input - 1;
+        }
+      };
 
   @Test
   public void testMapOutputs() {
@@ -96,8 +98,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
     PCollection<Integer> output = input.apply("Map", MapElements.via(fn));
     PCollection<Integer> reappliedOutput = input.apply("ReMap", MapElements.via(fn));
     thrown.expect(IllegalArgumentException.class);
-    Map<PValue, ReplacementOutput> replacementMap =
-        factory.mapOutputs(
-            PCollectionList.of(output).and(input).and(reappliedOutput).expand(), reappliedOutput);
+    factory.mapOutputs(
+        PCollectionList.of(output).and(input).and(reappliedOutput).expand(), reappliedOutput);
   }
 }

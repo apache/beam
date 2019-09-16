@@ -40,15 +40,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests of AutoComplete.
- */
+/** Tests of AutoComplete. */
 @RunWith(Parameterized.class)
 public class AutoCompleteTest implements Serializable {
   private boolean recursive;
 
-  @Rule
-  public transient TestPipeline p = TestPipeline.create();
+  @Rule public transient TestPipeline p = TestPipeline.create();
 
   public AutoCompleteTest(Boolean recursive) {
     this.recursive = recursive;
@@ -56,25 +53,23 @@ public class AutoCompleteTest implements Serializable {
 
   @Parameterized.Parameters
   public static Collection<Object[]> testRecursive() {
-    return Arrays.asList(new Object[][] {
-        { true },
-        { false }
-      });
+    return Arrays.asList(new Object[][] {{true}, {false}});
   }
 
   @Test
   public void testAutoComplete() {
-    List<String> words = Arrays.asList(
-        "apple",
-        "apple",
-        "apricot",
-        "banana",
-        "blackberry",
-        "blackberry",
-        "blackberry",
-        "blueberry",
-        "blueberry",
-        "cherry");
+    List<String> words =
+        Arrays.asList(
+            "apple",
+            "apple",
+            "apricot",
+            "banana",
+            "blackberry",
+            "blackberry",
+            "blackberry",
+            "blueberry",
+            "blueberry",
+            "cherry");
 
     PCollection<String> input = p.apply(Create.of(words));
 
@@ -83,14 +78,15 @@ public class AutoCompleteTest implements Serializable {
             .apply(new ComputeTopCompletions(2, recursive))
             .apply(Filter.by(element -> element.getKey().length() <= 2));
 
-    PAssert.that(output).containsInAnyOrder(
-        KV.of("a", parseList("apple:2", "apricot:1")),
-        KV.of("ap", parseList("apple:2", "apricot:1")),
-        KV.of("b", parseList("blackberry:3", "blueberry:2")),
-        KV.of("ba", parseList("banana:1")),
-        KV.of("bl", parseList("blackberry:3", "blueberry:2")),
-        KV.of("c", parseList("cherry:1")),
-        KV.of("ch", parseList("cherry:1")));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            KV.of("a", parseList("apple:2", "apricot:1")),
+            KV.of("ap", parseList("apple:2", "apricot:1")),
+            KV.of("b", parseList("blackberry:3", "blueberry:2")),
+            KV.of("ba", parseList("banana:1")),
+            KV.of("bl", parseList("blackberry:3", "blueberry:2")),
+            KV.of("c", parseList("cherry:1")),
+            KV.of("ch", parseList("cherry:1")));
     p.run().waitUntilFinish();
   }
 
@@ -101,23 +97,25 @@ public class AutoCompleteTest implements Serializable {
     PCollection<String> input = p.apply(Create.of(words));
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
-      input.apply(new ComputeTopCompletions(2, recursive));
+        input.apply(new ComputeTopCompletions(2, recursive));
 
-    PAssert.that(output).containsInAnyOrder(
-        KV.of("x", parseList("x:3", "xy:2")),
-        KV.of("xy", parseList("xy:2", "xyz:1")),
-        KV.of("xyz", parseList("xyz:1")));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            KV.of("x", parseList("x:3", "xy:2")),
+            KV.of("xy", parseList("xy:2", "xyz:1")),
+            KV.of("xyz", parseList("xyz:1")));
     p.run().waitUntilFinish();
   }
 
   @Test
   public void testWindowedAutoComplete() {
-    List<TimestampedValue<String>> words = Arrays.asList(
-        TimestampedValue.of("xA", new Instant(1)),
-        TimestampedValue.of("xA", new Instant(1)),
-        TimestampedValue.of("xB", new Instant(1)),
-        TimestampedValue.of("xB", new Instant(2)),
-        TimestampedValue.of("xB", new Instant(2)));
+    List<TimestampedValue<String>> words =
+        Arrays.asList(
+            TimestampedValue.of("xA", new Instant(1)),
+            TimestampedValue.of("xA", new Instant(1)),
+            TimestampedValue.of("xB", new Instant(1)),
+            TimestampedValue.of("xB", new Instant(2)),
+            TimestampedValue.of("xB", new Instant(2)));
 
     PCollection<String> input = p.apply(Create.timestamped(words));
 
@@ -126,27 +124,28 @@ public class AutoCompleteTest implements Serializable {
             .apply(Window.into(SlidingWindows.of(new Duration(2))))
             .apply(new ComputeTopCompletions(2, recursive));
 
-    PAssert.that(output).containsInAnyOrder(
-        // Window [0, 2)
-        KV.of("x", parseList("xA:2", "xB:1")),
-        KV.of("xA", parseList("xA:2")),
-        KV.of("xB", parseList("xB:1")),
+    PAssert.that(output)
+        .containsInAnyOrder(
+            // Window [0, 2)
+            KV.of("x", parseList("xA:2", "xB:1")),
+            KV.of("xA", parseList("xA:2")),
+            KV.of("xB", parseList("xB:1")),
 
-        // Window [1, 3)
-        KV.of("x", parseList("xB:3", "xA:2")),
-        KV.of("xA", parseList("xA:2")),
-        KV.of("xB", parseList("xB:3")),
+            // Window [1, 3)
+            KV.of("x", parseList("xB:3", "xA:2")),
+            KV.of("xA", parseList("xA:2")),
+            KV.of("xB", parseList("xB:3")),
 
-        // Window [2, 3)
-        KV.of("x", parseList("xB:2")),
-        KV.of("xB", parseList("xB:2")));
+            // Window [2, 3)
+            KV.of("x", parseList("xB:2")),
+            KV.of("xB", parseList("xB:2")));
     p.run().waitUntilFinish();
   }
 
   private static List<CompletionCandidate> parseList(String... entries) {
     List<CompletionCandidate> all = new ArrayList<>();
     for (String s : entries) {
-      String[] countValue = s.split(":");
+      String[] countValue = s.split(":", -1);
       all.add(new CompletionCandidate(countValue[0], Integer.valueOf(countValue[1])));
     }
     return all;

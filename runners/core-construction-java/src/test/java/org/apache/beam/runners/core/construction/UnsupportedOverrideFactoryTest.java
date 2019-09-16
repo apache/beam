@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.Collections;
@@ -27,17 +26,14 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link UnsupportedOverrideFactory}.
- */
+/** Tests for {@link UnsupportedOverrideFactory}. */
 @RunWith(JUnit4.class)
 public class UnsupportedOverrideFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private final String message = "my_error_message";
   private TestPipeline pipeline = TestPipeline.create();
-  private UnsupportedOverrideFactory factory =
-      UnsupportedOverrideFactory.withMessage(message);
+  private UnsupportedOverrideFactory factory = UnsupportedOverrideFactory.withMessage(message);
 
   @Test
   public void getReplacementTransformThrows() {

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,8 +42,7 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   private BigIntegerCoder() {}
 
   @Override
-  public void encode(BigInteger value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(BigInteger value, OutputStream outStream) throws IOException, CoderException {
     encode(value, outStream, Context.NESTED);
   }
 

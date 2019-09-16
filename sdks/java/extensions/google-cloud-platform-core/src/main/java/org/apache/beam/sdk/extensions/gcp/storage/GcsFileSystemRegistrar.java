@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -28,19 +27,16 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-/**
- * {@link AutoService} registrar for the {@link GcsFileSystem}.
- */
+/** {@link AutoService} registrar for the {@link GcsFileSystem}. */
 @AutoService(FileSystemRegistrar.class)
 @Experimental(Kind.FILESYSTEM)
 public class GcsFileSystemRegistrar implements FileSystemRegistrar {
 
   @Override
   public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
-    checkNotNull(
-        options,
-        "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
+    checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
     return ImmutableList.of(new GcsFileSystem(options.as(GcsOptions.class)));
   }
 }

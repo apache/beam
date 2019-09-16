@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.auto.service.AutoService;
@@ -28,8 +27,8 @@ import org.apache.beam.sdk.coders.Coder;
  * the Dataflow Runner by creating a {@link ServiceLoader} entry and a concrete implementation of
  * this interface.
  *
- * <p>It is optional but recommended to use one of the many build time tools such as
- * {@link AutoService} to generate the necessary META-INF files automatically.
+ * <p>It is optional but recommended to use one of the many build time tools such as {@link
+ * AutoService} to generate the necessary META-INF files automatically.
  */
 public interface CoderCloudObjectTranslatorRegistrar {
   /**

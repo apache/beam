@@ -17,13 +17,19 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -32,7 +38,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
-import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -43,11 +49,14 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -57,8 +66,10 @@ public class DistinctTest {
 
   @Rule public final TestPipeline p = TestPipeline.create();
 
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDistinct() {
     List<String> strings = Arrays.asList("k1", "k5", "k5", "k2", "k1", "k2", "k3");
 
@@ -71,7 +82,7 @@ public class DistinctTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDistinctEmpty() {
     List<String> strings = Arrays.asList();
 
@@ -98,14 +109,14 @@ public class DistinctTest {
         values.put(kv.getKey(), kv.getValue());
       }
       assertEquals(2, values.size());
-      assertTrue(values.get("k1").equals("v1") || values.get("k1").equals("v2"));
+      assertTrue("v1".equals(values.get("k1")) || "v2".equals(values.get("k1")));
       assertEquals("v1", values.get("k2"));
       return null;
     }
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDistinctWithRepresentativeValue() {
     List<KV<String, String>> strings =
         Arrays.asList(KV.of("k1", "v1"), KV.of("k1", "v2"), KV.of("k2", "v1"));
@@ -125,7 +136,7 @@ public class DistinctTest {
   @Rule public TestPipeline windowedDistinctPipeline = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWindowedDistinct() {
     Instant base = new Instant(0);
     TestStream<String> values =
@@ -167,7 +178,7 @@ public class DistinctTest {
   @Rule public TestPipeline triggeredDistinctPipeline = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinct() {
     Instant base = new Instant(0);
     TestStream<String> values =
@@ -203,7 +214,7 @@ public class DistinctTest {
   @Rule public TestPipeline triggeredDistinctRepresentativePipeline = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinctRepresentativeValues() {
     Instant base = new Instant(0);
     TestStream<KV<Integer, String>> values =
@@ -244,7 +255,7 @@ public class DistinctTest {
    * the on-time firing occurred.
    */
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinctRepresentativeValuesEmpty() {
     Instant base = new Instant(0);
     TestStream<KV<Integer, String>> values =
@@ -272,5 +283,56 @@ public class DistinctTest {
 
     PAssert.that(distinctValues).containsInAnyOrder(KV.of(1, "k1"));
     triggeredDistinctRepresentativePipeline.run();
+  }
+
+  @Test
+  public void withLambdaRepresentativeValuesFnNoTypeDescriptorShouldThrow() {
+
+    Multimap<Integer, String> predupedContents = HashMultimap.create();
+    predupedContents.put(3, "foo");
+    predupedContents.put(4, "foos");
+    predupedContents.put(6, "barbaz");
+    predupedContents.put(6, "bazbar");
+    PCollection<String> dupes =
+        p.apply(Create.of("foo", "foos", "barbaz", "barbaz", "bazbar", "foo"));
+
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("Unable to return a default Coder for RemoveRepresentativeDupes");
+
+    // Thrown when applying a transform to the internal WithKeys that withRepresentativeValueFn is
+    // implemented with
+    dupes.apply("RemoveRepresentativeDupes", Distinct.withRepresentativeValueFn(String::length));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void withLambdaRepresentativeValuesFnAndTypeDescriptorShouldApplyFn() {
+
+    PCollection<String> dupes =
+        p.apply(Create.of("foo", "foos", "barbaz", "barbaz", "bazbar", "foo"));
+    PCollection<String> deduped =
+        dupes.apply(
+            Distinct.withRepresentativeValueFn(String::length)
+                .withRepresentativeType(TypeDescriptor.of(Integer.class)));
+
+    PAssert.that(deduped)
+        .satisfies(
+            (Iterable<String> strs) -> {
+              Multimap<Integer, String> predupedContents = HashMultimap.create();
+              predupedContents.put(3, "foo");
+              predupedContents.put(4, "foos");
+              predupedContents.put(6, "barbaz");
+              predupedContents.put(6, "bazbar");
+
+              Set<Integer> seenLengths = new HashSet<>();
+              for (String s : strs) {
+                assertThat(predupedContents.values(), hasItem(s));
+                assertThat(seenLengths, not(contains(s.length())));
+                seenLengths.add(s.length());
+              }
+              return null;
+            });
+
+    p.run();
   }
 }

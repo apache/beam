@@ -17,10 +17,8 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -34,11 +32,11 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 
-/**
- * An implementation of {@link TimerInternals} for the SparkRunner.
- */
+/** An implementation of {@link TimerInternals} for the SparkRunner. */
 public class SparkTimerInternals implements TimerInternals {
   private final Instant highWatermark;
   private final Instant synchronizedProcessingTime;
@@ -55,10 +53,10 @@ public class SparkTimerInternals implements TimerInternals {
 
   /** Build the {@link TimerInternals} according to the feeding streams. */
   public static SparkTimerInternals forStreamFromSources(
-      List<Integer> sourceIds,
-      Map<Integer, SparkWatermarks> watermarks) {
+      List<Integer> sourceIds, Map<Integer, SparkWatermarks> watermarks) {
     // if watermarks are invalid for the specific ids, use defaults.
-    if (watermarks == null || watermarks.isEmpty()
+    if (watermarks == null
+        || watermarks.isEmpty()
         || Collections.disjoint(sourceIds, watermarks.keySet())) {
       return new SparkTimerInternals(
           BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(0));
@@ -68,14 +66,18 @@ public class SparkTimerInternals implements TimerInternals {
     Instant slowestHighWatermark = BoundedWindow.TIMESTAMP_MAX_VALUE;
     // synchronized processing time should clearly be synchronized.
     Instant synchronizedProcessingTime = null;
-    for (Integer sourceId: sourceIds) {
+    for (Integer sourceId : sourceIds) {
       SparkWatermarks sparkWatermarks = watermarks.get(sourceId);
       if (sparkWatermarks != null) {
         // keep slowest WMs.
-        slowestLowWatermark = slowestLowWatermark.isBefore(sparkWatermarks.getLowWatermark())
-            ? slowestLowWatermark : sparkWatermarks.getLowWatermark();
-        slowestHighWatermark = slowestHighWatermark.isBefore(sparkWatermarks.getHighWatermark())
-            ? slowestHighWatermark : sparkWatermarks.getHighWatermark();
+        slowestLowWatermark =
+            slowestLowWatermark.isBefore(sparkWatermarks.getLowWatermark())
+                ? slowestLowWatermark
+                : sparkWatermarks.getLowWatermark();
+        slowestHighWatermark =
+            slowestHighWatermark.isBefore(sparkWatermarks.getHighWatermark())
+                ? slowestHighWatermark
+                : sparkWatermarks.getHighWatermark();
         if (synchronizedProcessingTime == null) {
           // firstime set.
           synchronizedProcessingTime = sparkWatermarks.getSynchronizedProcessingTime();
@@ -91,7 +93,7 @@ public class SparkTimerInternals implements TimerInternals {
         slowestLowWatermark, slowestHighWatermark, synchronizedProcessingTime);
   }
 
-  /** Build a global {@link TimerInternals} for all feeding streams.*/
+  /** Build a global {@link TimerInternals} for all feeding streams. */
   public static SparkTimerInternals global(Map<Integer, SparkWatermarks> watermarks) {
     return watermarks == null
         ? forStreamFromSources(Collections.emptyList(), null)
@@ -153,10 +155,7 @@ public class SparkTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(
-      StateNamespace namespace,
-      String timerId,
-      Instant target,
-      TimeDomain timeDomain) {
+      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Setting a timer by ID not yet supported.");
   }
 
@@ -177,8 +176,15 @@ public class SparkTimerInternals implements TimerInternals {
 
   @Override
   public String toString() {
-    return "SparkTimerInternals{" + "highWatermark=" + highWatermark
-        + ", synchronizedProcessingTime=" + synchronizedProcessingTime + ", timers=" + timers
-        + ", inputWatermark=" + inputWatermark + '}';
+    return "SparkTimerInternals{"
+        + "highWatermark="
+        + highWatermark
+        + ", synchronizedProcessingTime="
+        + synchronizedProcessingTime
+        + ", timers="
+        + timers
+        + ", inputWatermark="
+        + inputWatermark
+        + '}';
   }
 }

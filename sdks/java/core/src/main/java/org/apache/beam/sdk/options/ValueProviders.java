@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
@@ -31,8 +31,8 @@ public class ValueProviders {
    * Given {@code serializedOptions} as a JSON-serialized {@link PipelineOptions}, updates the
    * values according to the provided values in {@code runtimeValues}.
    *
-   * @deprecated Use {@link org.apache.beam.sdk.testing.TestPipeline#newProvider}
-   * for testing {@link ValueProvider} code.
+   * @deprecated Use {@link org.apache.beam.sdk.testing.TestPipeline#newProvider} for testing {@link
+   *     ValueProvider} code.
    */
   @Deprecated
   public static String updateSerializedOptions(

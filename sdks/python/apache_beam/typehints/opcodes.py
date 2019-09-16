@@ -29,11 +29,12 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import inspect
+import logging
 import sys
 import types
 from functools import reduce
 
-import six
+from past.builtins import unicode
 
 from . import typehints
 from .trivial_inference import BoundMethod
@@ -152,15 +153,16 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
   base = state.stack.pop()
-  if base in (str, six.text_type):
+  if base in (str, unicode):
     out = base
   elif (isinstance(index, Const) and isinstance(index.value, int)
-        and isinstance(base, typehints.TupleHint.TupleConstraint)):
-    const_index = index.value
-    if -len(base.tuple_types) < const_index < len(base.tuple_types):
-      out = base.tuple_types[const_index]
-    else:
+        and isinstance(base, typehints.IndexableTypeConstraint)):
+    try:
+      out = base._constraint_for_index(index.value)
+    except IndexError:
       out = element_type(base)
+  elif index == slice and isinstance(base, typehints.IndexableTypeConstraint):
+    out = base
   else:
     out = element_type(base)
   state.stack.append(out)
@@ -204,6 +206,14 @@ def list_append(state, arg):
   new_element_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = List[Union[element_type(state.stack[-arg]),
                                  new_element_type]]
+
+
+def map_add(state, arg):
+  new_key_type = Const.unwrap(state.stack.pop())
+  new_value_type = Const.unwrap(state.stack.pop())
+  state.stack[-arg] = Dict[
+      Union[state.stack[-arg].key_type, new_key_type],
+      Union[state.stack[-arg].value_type, new_value_type]]
 
 
 load_locals = push_value(Dict[str, Any])
@@ -270,7 +280,9 @@ def build_list(state, arg):
     state.stack[-arg:] = [List[reduce(union, state.stack[-arg:], Union[()])]]
 
 
-build_map = push_value(Dict[Any, Any])
+# A Dict[Union[], Union[]] is the type of an empty dict.
+def build_map(state, unused_arg):
+  state.stack.append(Dict[Union[()], Union[()]])
 
 
 def load_attr(state, arg):
@@ -292,6 +304,20 @@ def load_attr(state, arg):
     state.stack.append(Const(BoundMethod(func, o)))
   else:
     state.stack.append(Any)
+
+
+def load_method(state, arg):
+  """Like load_attr. Replaces TOS object with method and TOS."""
+  o = state.stack.pop()
+  name = state.get_name(arg)
+  if isinstance(o, Const):
+    method = Const(getattr(o.value, name))
+  elif isinstance(o, typehints.AnyTypeConstraint):
+    method = typehints.Any
+  else:
+    method = Const(BoundMethod(getattr(o, name), o))
+
+  state.stack.append(method)
 
 
 def compare_op(state, unused_arg):
@@ -332,20 +358,13 @@ def delete_fast(state, arg):
   state.vars[arg] = Any  # really an error
 
 
-def load_closure(state, unused_arg):
-  state.stack.append(Any)  # really a Cell
+def load_closure(state, arg):
+  state.stack.append(state.get_closure(arg))
 
 
 def load_deref(state, arg):
   state.stack.append(state.closure_type(arg))
 # raise_varargs
-
-
-def call_function(state, arg, has_var=False, has_kw=False):
-  # TODO(robertwb): Recognize builtins and dataflow objects
-  # (especially special return values).
-  pop_count = (arg & 0xF) + (arg & 0xF0) // 8 + 1 + has_var + has_kw
-  state.stack[-pop_count:] = [Any]
 
 
 def make_function(state, arg):
@@ -356,11 +375,36 @@ def make_function(state, arg):
   if sys.version_info[0] == 2:
     func_code = state.stack[-1].value
     func = types.FunctionType(func_code, globals)
-  else:
+    # argc is the number of default parameters. Ignored here.
+    pop_count = 1 + arg
+  else:  # Python 3.x
     func_name = state.stack[-1].value
     func_code = state.stack[-2].value
-    func = types.FunctionType(func_code, globals, name=func_name)
-  state.stack.append(Const(func))
+    pop_count = 2
+    closure = None
+    if sys.version_info[:2] == (3, 5):
+      # https://docs.python.org/3.5/library/dis.html#opcode-MAKE_FUNCTION
+      num_default_pos_args = (arg & 0xff)
+      num_default_kwonly_args = ((arg >> 8) & 0xff)
+      num_annotations = ((arg >> 16) & 0x7fff)
+      pop_count += (num_default_pos_args + 2 * num_default_kwonly_args +
+                    num_annotations + num_annotations > 0)
+    elif sys.version_info >= (3, 6):
+      # arg contains flags, with corresponding stack values if positive.
+      # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
+      pop_count += bin(arg).count('1')
+      if arg & 0x08:
+        # Convert types in Tuple constraint to a tuple of CPython cells.
+        # https://stackoverflow.com/a/44670295
+        closure = tuple(
+            (lambda _: lambda: _)(t).__closure__[0]
+            for t in state.stack[-3].tuple_types)
+
+    func = types.FunctionType(func_code, globals, name=func_name,
+                              closure=closure)
+
+  assert pop_count <= len(state.stack)
+  state.stack[-pop_count:] = [Const(func)]
 
 
 def make_closure(state, arg):
@@ -368,16 +412,39 @@ def make_closure(state, arg):
 
 
 def build_slice(state, arg):
-  state.stack[-arg:] = [Any]  # a slice object
+  state.stack[-arg:] = [slice]  # a slice object
 
 
-def call_function_var(state, arg):
-  call_function(state, arg, has_var=True)
+def _unpack_lists(state, arg):
+  """Extract inner types of Lists and Tuples.
+
+  Pops arg count items from the stack, concatenates their inner types into 1
+  list, and returns that list.
+  Example: if stack[-arg:] == [[i1, i2], [i3]], the output is [i1, i2, i3]
+  """
+  types = []
+  for i in range(arg, 0, -1):
+    type_constraint = state.stack[-i]
+    if isinstance(type_constraint, typehints.IndexableTypeConstraint):
+      types.extend(type_constraint._inner_types())
+    else:
+      logging.debug('Unhandled type_constraint: %r', type_constraint)
+      types.append(typehints.Any)
+  state.stack[-arg:] = []
+  return types
 
 
-def call_function_kw(state, arg):
-  call_function(state, arg, has_kw=True)
+def build_list_unpack(state, arg):
+  """Joins arg count iterables from the stack into a single list."""
+  state.stack.append(List[Union[_unpack_lists(state, arg)]])
 
 
-def call_function_var_wk(state, arg):
-  call_function(state, arg, has_var=True, has_kw=True)
+def build_tuple_unpack(state, arg):
+  """Joins arg count iterables from the stack into a single tuple."""
+  state.stack.append(Tuple[_unpack_lists(state, arg)])
+
+
+def build_tuple_unpack_with_call(state, arg):
+  """Same as build_tuple_unpack, with an extra fn argument at the bottom of the
+  stack, which remains untouched."""
+  build_tuple_unpack(state, arg)

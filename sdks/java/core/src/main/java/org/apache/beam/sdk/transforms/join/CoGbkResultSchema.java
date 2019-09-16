@@ -24,11 +24,10 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * A schema for the results of a {@link CoGroupByKey}.  This maintains the full
- * set of {@link TupleTag}s for the results of a {@link CoGroupByKey} and
- * facilitates mapping between {@link TupleTag}s and
- * {@link RawUnionValue} tags (which are used as secondary keys in the
- * {@link CoGroupByKey}).
+ * A schema for the results of a {@link CoGroupByKey}. This maintains the full set of {@link
+ * TupleTag}s for the results of a {@link CoGroupByKey} and facilitates mapping between {@link
+ * TupleTag}s and {@link RawUnionValue} tags (which are used as secondary keys in the {@link
+ * CoGroupByKey}).
  */
 public class CoGbkResultSchema implements Serializable {
 
@@ -42,15 +41,10 @@ public class CoGbkResultSchema implements Serializable {
     return new CoGbkResultSchema(tupleTags);
   }
 
-  /**
-   * Maps TupleTags to union tags.  This avoids needing to encode the tags
-   * themselves.
-   */
+  /** Maps TupleTags to union tags. This avoids needing to encode the tags themselves. */
   private final HashMap<TupleTag<?>, Integer> tagMap = new HashMap<>();
 
-  /**
-   * Builds a schema from a tuple of {@code TupleTag<?>}s.
-   */
+  /** Builds a schema from a tuple of {@code TupleTag<?>}s. */
   public CoGbkResultSchema(TupleTagList tupleTagList) {
     this.tupleTagList = tupleTagList;
     int index = -1;
@@ -61,31 +55,25 @@ public class CoGbkResultSchema implements Serializable {
   }
 
   /**
-   * Returns the index for the given tuple tag, if the tag is present in this
-   * schema, -1 if it isn't.
+   * Returns the index for the given tuple tag, if the tag is present in this schema, -1 if it
+   * isn't.
    */
   public int getIndex(TupleTag<?> tag) {
     Integer index = tagMap.get(tag);
     return index == null ? -1 : index;
   }
 
-  /**
-   * Returns the tuple tag at the given index.
-   */
+  /** Returns the tuple tag at the given index. */
   public TupleTag<?> getTag(int index) {
     return tupleTagList.get(index);
   }
 
-  /**
-   * Returns the number of columns for this schema.
-   */
+  /** Returns the number of columns for this schema. */
   public int size() {
     return tupleTagList.getAll().size();
   }
 
-  /**
-   * Returns the TupleTagList tuple associated with this schema.
-   */
+  /** Returns the TupleTagList tuple associated with this schema. */
   public TupleTagList getTupleTagList() {
     return tupleTagList;
   }

@@ -17,8 +17,11 @@
 
 """Tests for vcfio module."""
 
+from __future__ import absolute_import
+
 import logging
 import os
+import sys
 import unittest
 from itertools import chain
 from itertools import permutations
@@ -74,9 +77,10 @@ def get_full_dir():
 def _variant_comparator(v1, v2):
   if v1.reference_name == v2.reference_name:
     if v1.start == v2.start:
-      return cmp(v1.end, v2.end)
-    return cmp(v1.start, v2.start)
-  return cmp(v1.reference_name, v2.reference_name)
+      return (v1.end > v2.end) - (v1.end < v2.end)
+    return (v1.start > v2.start) - (v1.start < v2.start)
+  return (v1.reference_name > v2.reference_name) - \
+      (v1.reference_name < v2.reference_name)
 
 
 # Helper method for verifying equal count on PCollection.
@@ -89,6 +93,9 @@ def _count_equals_to(expected_count):
   return _count_equal
 
 
+@unittest.skipIf(sys.version_info[0] == 3,
+                 'VCF io will be ported to Python 3 after switch to Nucleus. '
+                 'See BEAM-5628')
 class VcfSourceTest(unittest.TestCase):
 
   # Distribution should skip tests that need VCF files due to large size

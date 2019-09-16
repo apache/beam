@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -33,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LateDataUtils}.
- */
+/** Tests for {@link LateDataUtils}. */
 @RunWith(JUnit4.class)
 public class LateDataUtilsTest {
   @Test
@@ -56,14 +53,10 @@ public class LateDataUtilsTest {
   @Test
   public void garbageCollectionTimeAfterEndOfGlobalWindow() {
     FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(5));
-    WindowingStrategy<?, ?> strategy =
-        WindowingStrategy.globalDefault()
-            .withWindowFn(windowFn);
+    WindowingStrategy<?, ?> strategy = WindowingStrategy.globalDefault().withWindowFn(windowFn);
 
     IntervalWindow window = windowFn.assignWindow(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
-    assertThat(
-        window.maxTimestamp(),
-        equalTo(GlobalWindow.INSTANCE.maxTimestamp()));
+    assertThat(window.maxTimestamp(), equalTo(GlobalWindow.INSTANCE.maxTimestamp()));
     assertThat(
         LateDataUtils.garbageCollectionTime(window, strategy),
         equalTo(GlobalWindow.INSTANCE.maxTimestamp()));

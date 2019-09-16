@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.values.KV;
@@ -67,8 +66,8 @@ class ReifyTimestamps {
           ParDo.of(
               new DoFn<T, T>() {
                 @ProcessElement
-                public void process(ProcessContext c) {
-                  c.output(c.element());
+                public void process(@Element T element, OutputReceiver<T> r) {
+                  r.output(element);
                 }
               }));
     }

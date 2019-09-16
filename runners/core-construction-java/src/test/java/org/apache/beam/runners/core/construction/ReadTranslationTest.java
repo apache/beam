@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -23,7 +22,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeThat;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -43,16 +41,14 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.hamcrest.Matchers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link ReadTranslation}.
- */
+/** Tests for {@link ReadTranslation}. */
 @RunWith(Parameterized.class)
 public class ReadTranslationTest {
 
@@ -74,10 +70,12 @@ public class ReadTranslationTest {
     assumeThat(source, instanceOf(BoundedSource.class));
     BoundedSource<?> boundedSource = (BoundedSource<?>) this.source;
     Read.Bounded<?> boundedRead = Read.from(boundedSource);
-    ReadPayload payload = ReadTranslation.toProto(boundedRead, SdkComponents.create());
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    ReadPayload payload = ReadTranslation.toProto(boundedRead, components);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.BOUNDED));
     BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
-    assertThat(deserializedSource, Matchers.equalTo(source));
+    assertThat(deserializedSource, equalTo(source));
   }
 
   @Test
@@ -85,10 +83,12 @@ public class ReadTranslationTest {
     assumeThat(source, instanceOf(UnboundedSource.class));
     UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) this.source;
     Read.Unbounded<?> unboundedRead = Read.from(unboundedSource);
-    ReadPayload payload = ReadTranslation.toProto(unboundedRead, SdkComponents.create());
+    SdkComponents components = SdkComponents.create();
+    // No environment set for unbounded sources
+    ReadPayload payload = ReadTranslation.toProto(unboundedRead, components);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
-    assertThat(deserializedSource, Matchers.equalTo(source));
+    assertThat(deserializedSource, equalTo(source));
   }
 
   private static class TestBoundedSource extends BoundedSource<String> {
@@ -157,7 +157,7 @@ public class ReadTranslationTest {
       return TestUnboundedSource.class.hashCode();
     }
 
-    private class TestCheckpointMarkCoder extends AtomicCoder<CheckpointMark> {
+    private static class TestCheckpointMarkCoder extends AtomicCoder<CheckpointMark> {
       @Override
       public void encode(CheckpointMark value, OutputStream outStream)
           throws CoderException, IOException {

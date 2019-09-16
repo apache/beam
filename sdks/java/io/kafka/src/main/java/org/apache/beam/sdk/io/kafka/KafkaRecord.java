@@ -17,30 +17,39 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import java.io.Serializable;
 import java.util.Arrays;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.kafka.common.header.Headers;
 
 /**
  * KafkaRecord contains key and value of the record as well as metadata for the record (topic name,
  * partition id, and offset).
  */
-public class KafkaRecord<K, V> implements Serializable {
+public class KafkaRecord<K, V> {
+  // This is based on {@link ConsumerRecord} received from Kafka Consumer.
+  // The primary difference is that this contains deserialized key and value, and runtime
+  // Kafka version agnostic (e.g. Kafka version 0.9.x does not have timestamp fields).
 
   private final String topic;
   private final int partition;
   private final long offset;
+  private final Headers headers;
   private final KV<K, V> kv;
   private final long timestamp;
+  private final KafkaTimestampType timestampType;
 
   public KafkaRecord(
       String topic,
       int partition,
       long offset,
       long timestamp,
+      KafkaTimestampType timestampType,
+      @Nullable Headers headers,
       K key,
       V value) {
-    this(topic, partition, offset, timestamp, KV.of(key, value));
+    this(topic, partition, offset, timestamp, timestampType, headers, KV.of(key, value));
   }
 
   public KafkaRecord(
@@ -48,11 +57,15 @@ public class KafkaRecord<K, V> implements Serializable {
       int partition,
       long offset,
       long timestamp,
+      KafkaTimestampType timestampType,
+      @Nullable Headers headers,
       KV<K, V> kv) {
     this.topic = topic;
     this.partition = partition;
     this.offset = offset;
     this.timestamp = timestamp;
+    this.timestampType = timestampType;
+    this.headers = headers;
     this.kv = kv;
   }
 
@@ -68,6 +81,15 @@ public class KafkaRecord<K, V> implements Serializable {
     return offset;
   }
 
+  public Headers getHeaders() {
+    if (!ConsumerSpEL.hasHeaders()) {
+      throw new RuntimeException(
+          "The version kafka-clients does not support record headers, "
+              + "please use version 0.11.0.0 or newer");
+    }
+    return headers;
+  }
+
   public KV<K, V> getKV() {
     return kv;
   }
@@ -76,9 +98,13 @@ public class KafkaRecord<K, V> implements Serializable {
     return timestamp;
   }
 
+  public KafkaTimestampType getTimestampType() {
+    return timestampType;
+  }
+
   @Override
   public int hashCode() {
-    return Arrays.deepHashCode(new Object[]{topic, partition, offset, timestamp, kv});
+    return Arrays.deepHashCode(new Object[] {topic, partition, offset, timestamp, headers, kv});
   }
 
   @Override
@@ -90,6 +116,7 @@ public class KafkaRecord<K, V> implements Serializable {
           && partition == other.partition
           && offset == other.offset
           && timestamp == other.timestamp
+          && Objects.equal(headers, other.headers)
           && kv.equals(other.kv);
     } else {
       return false;

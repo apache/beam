@@ -20,8 +20,6 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Lists;
-import com.google.common.primitives.UnsignedBytes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,6 +27,8 @@ import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -81,25 +81,25 @@ public class InstantCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "gAAAAAAAAAA",
-      "gAAAAAAAAAE",
-      "f_________8",
-      "f________wE",
-      "gAAAAAAAAQA",
-      "AAAAAAAAAAA",
-      "__________8");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "gAAAAAAAAAA",
+          "gAAAAAAAAAE",
+          "f_________8",
+          "f________wE",
+          "gAAAAAAAAQA",
+          "AAAAAAAAAAA",
+          "__________8");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

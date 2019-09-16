@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * {@link org.apache.beam.sdk.transforms.PTransform} used in a BeamSql pipeline.
- */
+/** {@link org.apache.beam.sdk.transforms.PTransform} used in a BeamSql pipeline. */
 package org.apache.beam.sdk.extensions.sql.impl.transform;

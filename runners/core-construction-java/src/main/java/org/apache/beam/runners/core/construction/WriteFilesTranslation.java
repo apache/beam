@@ -15,18 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -51,6 +46,10 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * Utility methods for translating a {@link WriteFiles} to and from {@link RunnerApi}
@@ -59,8 +58,7 @@ import org.apache.beam.sdk.values.TupleTag;
 public class WriteFilesTranslation {
 
   /** The URN for an unknown Java {@link FileBasedSink}. */
-  public static final String CUSTOM_JAVA_FILE_BASED_SINK_URN =
-      "urn:beam:file_based_sink:javasdk:0.1";
+  public static final String CUSTOM_JAVA_FILE_BASED_SINK_URN = "beam:file_based_sink:javasdk:0.1";
 
   @VisibleForTesting
   static WriteFilesPayload payloadForWriteFiles(
@@ -131,7 +129,8 @@ public class WriteFilesTranslation {
 
   public static <UserT, DestinationT, OutputT> FileBasedSink<UserT, DestinationT, OutputT> getSink(
       AppliedPTransform<
-              PCollection<UserT>, WriteFilesResult<DestinationT>,
+              PCollection<UserT>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
@@ -141,11 +140,12 @@ public class WriteFilesTranslation {
 
   public static <UserT, DestinationT> List<PCollectionView<?>> getDynamicDestinationSideInputs(
       AppliedPTransform<
-              PCollection<UserT>, WriteFilesResult<DestinationT>,
+              PCollection<UserT>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(transform.getPipeline().getOptions());
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(transform, sdkComponents);
     List<PCollectionView<?>> views = Lists.newArrayList();
     Map<String, SideInput> sideInputs = getWriteFilesPayload(transform).getSideInputsMap();
@@ -168,7 +168,8 @@ public class WriteFilesTranslation {
 
   public static <T, DestinationT> boolean isWindowedWrites(
       AppliedPTransform<
-              PCollection<T>, WriteFilesResult<DestinationT>,
+              PCollection<T>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
@@ -177,7 +178,8 @@ public class WriteFilesTranslation {
 
   public static <T, DestinationT> boolean isRunnerDeterminedSharding(
       AppliedPTransform<
-              PCollection<T>, WriteFilesResult<DestinationT>,
+              PCollection<T>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
@@ -186,12 +188,14 @@ public class WriteFilesTranslation {
 
   private static <T, DestinationT> WriteFilesPayload getWriteFilesPayload(
       AppliedPTransform<
-              PCollection<T>, WriteFilesResult<DestinationT>,
+              PCollection<T>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
+    SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
     return WriteFilesPayload.parseFrom(
-        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
             .getPayload());
   }
@@ -286,14 +290,8 @@ public class WriteFilesTranslation {
           .setPayload(payloadForWriteFiles(transform.getTransform(), components).toByteString())
           .build();
     }
-
-    @Override
-    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      return new RawWriteFiles(protoTransform, rehydratedComponents);
-    }
   }
+
   /** Registers {@link WriteFilesTranslator}. */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
@@ -301,11 +299,6 @@ public class WriteFilesTranslation {
     public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
-    }
-
-    @Override
-    public Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.singletonMap(WRITE_FILES_TRANSFORM_URN, new WriteFilesTranslator());
     }
   }
 

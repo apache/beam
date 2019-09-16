@@ -73,7 +73,7 @@ public class JavaBinCodecCoderTest {
   }
 
   @Test
-  public void testEncodedTypeDescriptor() throws Exception {
+  public void testEncodedTypeDescriptor() {
     assertThat(
         TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(SolrDocument.class)));
   }

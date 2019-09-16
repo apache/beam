@@ -20,14 +20,14 @@ package org.apache.beam.sdk.io.hdfs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import java.net.URI;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
@@ -38,9 +38,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link HadoopFileSystemRegistrar}.
- */
+/** Tests for {@link HadoopFileSystemRegistrar}. */
 @RunWith(JUnit4.class)
 public class HadoopFileSystemRegistrarTest {
 
@@ -59,7 +57,7 @@ public class HadoopFileSystemRegistrarTest {
   }
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     hdfsCluster.shutdown();
   }
 
@@ -67,11 +65,12 @@ public class HadoopFileSystemRegistrarTest {
   public void testServiceLoader() {
     HadoopFileSystemOptions options = PipelineOptionsFactory.as(HadoopFileSystemOptions.class);
     options.setHdfsConfiguration(ImmutableList.of(configuration));
-    for (FileSystemRegistrar registrar
-        : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
+    for (FileSystemRegistrar registrar :
+        Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof HadoopFileSystemRegistrar) {
         Iterable<FileSystem> fileSystems = registrar.fromOptions(options);
-        assertEquals(hdfsClusterBaseUri.getScheme(),
+        assertEquals(
+            hdfsClusterBaseUri.getScheme(),
             ((HadoopFileSystem) Iterables.getOnlyElement(fileSystems)).getScheme());
         return;
       }

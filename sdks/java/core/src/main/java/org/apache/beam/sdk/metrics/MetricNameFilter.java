@@ -17,16 +17,14 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * The name of a metric.
- */
+/** The name of a metric. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricNameFilter {

@@ -20,20 +20,28 @@
 Triggers control when in processing time windows get emitted.
 """
 
+from __future__ import absolute_import
+
 import collections
 import copy
-import itertools
 import logging
 import numbers
 from abc import ABCMeta
 from abc import abstractmethod
+from builtins import object
 
+from future.moves.itertools import zip_longest
+from future.utils import iteritems
+from future.utils import with_metaclass
+
+from apache_beam.coders import coder_impl
 from apache_beam.coders import observable
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
@@ -59,22 +67,17 @@ __all__ = [
 
 
 class AccumulationMode(object):
-  """Controls what to do with data when a trigger fires multiple times.
-  """
+  """Controls what to do with data when a trigger fires multiple times."""
   DISCARDING = beam_runner_api_pb2.AccumulationMode.DISCARDING
   ACCUMULATING = beam_runner_api_pb2.AccumulationMode.ACCUMULATING
   # TODO(robertwb): Provide retractions of previous outputs.
   # RETRACTING = 3
 
 
-class _StateTag(object):
+class _StateTag(with_metaclass(ABCMeta, object)):
   """An identifier used to store and retrieve typed, combinable state.
 
-  The given tag must be unique for this stage.  If CombineFn is None then
-  all elements will be returned as a list, otherwise the given CombineFn
-  will be applied (possibly incrementally and eagerly) when adding elements.
-  """
-  __metaclass__ = ABCMeta
+  The given tag must be unique for this step."""
 
   def __init__(self, tag):
     self.tag = tag
@@ -90,8 +93,21 @@ class _ValueStateTag(_StateTag):
     return _ValueStateTag(prefix + self.tag)
 
 
+class _SetStateTag(_StateTag):
+  """StateTag pointing to an element."""
+
+  def __repr__(self):
+    return 'SetStateTag({tag})'.format(tag=self.tag)
+
+  def with_prefix(self, prefix):
+    return _SetStateTag(prefix + self.tag)
+
+
 class _CombiningValueStateTag(_StateTag):
-  """StateTag pointing to an element, accumulated with a combiner."""
+  """StateTag pointing to an element, accumulated with a combiner.
+
+  The given tag must be unique for this step. The given CombineFn will be
+  applied (possibly incrementally and eagerly) when adding elements."""
 
   # TODO(robertwb): Also store the coder (perhaps extracted from the combine_fn)
   def __init__(self, tag, combine_fn):
@@ -107,6 +123,15 @@ class _CombiningValueStateTag(_StateTag):
 
   def with_prefix(self, prefix):
     return _CombiningValueStateTag(prefix + self.tag, self.combine_fn)
+
+  def without_extraction(self):
+    class NoExtractionCombineFn(core.CombineFn):
+      create_accumulator = self.combine_fn.create_accumulator
+      add_input = self.combine_fn.add_input
+      merge_accumulators = self.combine_fn.merge_accumulators
+      compact = self.combine_fn.compact
+      extract_output = staticmethod(lambda x: x)
+    return _CombiningValueStateTag(self.tag, NoExtractionCombineFn())
 
 
 class _ListStateTag(_StateTag):
@@ -135,12 +160,11 @@ class _WatermarkHoldStateTag(_StateTag):
 
 # pylint: disable=unused-argument
 # TODO(robertwb): Provisional API, Java likely to change as well.
-class TriggerFn(object):
+class TriggerFn(with_metaclass(ABCMeta, object)):
   """A TriggerFn determines when window (panes) are emitted.
 
   See https://beam.apache.org/documentation/programming-guide/#triggers
   """
-  __metaclass__ = ABCMeta
 
   @abstractmethod
   def on_element(self, element, window, context):
@@ -228,6 +252,10 @@ class TriggerFn(object):
   def to_runner_api(self, unused_context):
     pass
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
 
 class DefaultTrigger(TriggerFn):
   """Semantically Repeatedly(AfterWatermark()), but more optimized."""
@@ -259,6 +287,9 @@ class DefaultTrigger(TriggerFn):
   def __eq__(self, other):
     return type(self) == type(other)
 
+  def __hash__(self):
+    return hash(type(self))
+
   @staticmethod
   def from_runner_api(proto, context):
     return DefaultTrigger()
@@ -275,6 +306,7 @@ class AfterProcessingTime(TriggerFn):
   """
 
   def __init__(self, delay=0):
+    """Initialize a processing time trigger with a delay in seconds."""
     self.delay = delay
 
   def __repr__(self):
@@ -305,12 +337,12 @@ class AfterProcessingTime(TriggerFn):
             proto.after_processing_time
             .timestamp_transforms[0]
             .delay
-            .delay_millis))
+            .delay_millis) // 1000)
 
   def to_runner_api(self, context):
     delay_proto = beam_runner_api_pb2.TimestampTransform(
         delay=beam_runner_api_pb2.TimestampTransform.Delay(
-            delay_millis=self.delay))
+            delay_millis=self.delay * 1000))
     return beam_runner_api_pb2.Trigger(
         after_processing_time=beam_runner_api_pb2.Trigger.AfterProcessingTime(
             timestamp_transforms=[delay_proto]))
@@ -445,6 +477,9 @@ class AfterCount(TriggerFn):
   def __eq__(self, other):
     return type(self) == type(other) and self.count == other.count
 
+  def __hash__(self):
+    return hash(self.count)
+
   def on_element(self, element, window, context):
     context.add_state(self.COUNT_TAG, 1)
 
@@ -483,6 +518,9 @@ class Repeatedly(TriggerFn):
   def __eq__(self, other):
     return type(self) == type(other) and self.underlying == other.underlying
 
+  def __hash__(self):
+    return hash(self.underlying)
+
   def on_element(self, element, window, context):
     self.underlying.on_element(element, window, context)
 
@@ -511,9 +549,7 @@ class Repeatedly(TriggerFn):
             subtrigger=self.underlying.to_runner_api(context)))
 
 
-class _ParallelTriggerFn(TriggerFn):
-
-  __metaclass__ = ABCMeta
+class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):
 
   def __init__(self, *triggers):
     self.triggers = triggers
@@ -524,6 +560,9 @@ class _ParallelTriggerFn(TriggerFn):
 
   def __eq__(self, other):
     return type(self) == type(other) and self.triggers == other.triggers
+
+  def __hash__(self):
+    return hash(self.triggers)
 
   @abstractmethod
   def combine_op(self, trigger_results):
@@ -618,6 +657,9 @@ class AfterEach(TriggerFn):
 
   def __eq__(self, other):
     return type(self) == type(other) and self.triggers == other.triggers
+
+  def __hash__(self):
+    return hash(self.triggers)
 
   def on_element(self, element, window, context):
     ix = context.get_state(self.INDEX_TAG)
@@ -723,6 +765,9 @@ class NestedContext(object):
     self._outer = outer
     self._prefix = prefix
 
+  def get_current_time(self):
+    return self._outer.get_current_time()
+
   def set_timer(self, name, time_domain, timestamp):
     self._outer.set_timer(self._prefix + name, time_domain, timestamp)
 
@@ -740,13 +785,11 @@ class NestedContext(object):
 
 
 # pylint: disable=unused-argument
-class SimpleState(object):
+class SimpleState(with_metaclass(ABCMeta, object)):
   """Basic state storage interface used for triggering.
 
   Only timers must hold the watermark (by their timestamp).
   """
-
-  __metaclass__ = ABCMeta
 
   @abstractmethod
   def set_timer(self, window, name, time_domain, timestamp):
@@ -772,7 +815,7 @@ class SimpleState(object):
   def clear_state(self, window, tag):
     pass
 
-  def at(self, window, clock=None):
+  def at(self, window, clock):
     return TriggerContext(self, window, clock)
 
 
@@ -815,26 +858,25 @@ class MergeableStateAdapter(SimpleState):
     if isinstance(tag, _ValueStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
+    elif isinstance(tag, _CombiningValueStateTag):
+      tag = tag.without_extraction()
     self.raw_state.add_state(self._get_id(window), tag, value)
 
   def get_state(self, window, tag):
+    if isinstance(tag, _CombiningValueStateTag):
+      original_tag, tag = tag, tag.without_extraction()
     values = [self.raw_state.get_state(window_id, tag)
               for window_id in self._get_ids(window)]
     if isinstance(tag, _ValueStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
     elif isinstance(tag, _CombiningValueStateTag):
-      # TODO(robertwb): Strip combine_fn.extract_output from raw_state tag.
-      if not values:
-        accumulator = tag.combine_fn.create_accumulator()
-      elif len(values) == 1:
-        accumulator = values[0]
-      else:
-        accumulator = tag.combine_fn.merge_accumulators(values)
-        # TODO(robertwb): Store the merged value in the first tag.
-      return tag.combine_fn.extract_output(accumulator)
+      return original_tag.combine_fn.extract_output(
+          original_tag.combine_fn.merge_accumulators(values))
     elif isinstance(tag, _ListStateTag):
       return [v for vs in values for v in vs]
+    elif isinstance(tag, _SetStateTag):
+      return {v for vs in values for v in vs}
     elif isinstance(tag, _WatermarkHoldStateTag):
       return tag.timestamp_combiner_impl.combine_all(values)
     else:
@@ -859,7 +901,7 @@ class MergeableStateAdapter(SimpleState):
           self._persist_window_ids()
 
   def known_windows(self):
-    return self.window_ids.keys()
+    return list(self.window_ids)
 
   def get_window(self, window_id):
     for window, ids in self.window_ids.items():
@@ -902,7 +944,12 @@ def create_trigger_driver(windowing,
   # TODO(robertwb): We can do more if we know elements are in timestamp
   # sorted order.
   if windowing.is_default() and is_batch:
-    driver = DefaultGlobalBatchTriggerDriver()
+    driver = DiscardingGlobalTriggerDriver()
+  elif (windowing.windowfn == GlobalWindows()
+        and windowing.triggerfn == AfterCount(1)
+        and windowing.accumulation_mode == AccumulationMode.DISCARDING):
+    # Here we also just pass through all the values every time.
+    driver = DiscardingGlobalTriggerDriver()
   else:
     driver = GeneralTriggerDriver(windowing, clock)
 
@@ -913,10 +960,8 @@ def create_trigger_driver(windowing,
   return driver
 
 
-class TriggerDriver(object):
+class TriggerDriver(with_metaclass(ABCMeta, object)):
   """Breaks a series of bundle and timer firings into window (pane)s."""
-
-  __metaclass__ = ABCMeta
 
   @abstractmethod
   def process_elements(self, state, windowed_values, output_watermark):
@@ -963,21 +1008,26 @@ class _UnwindowedValues(observable.ObservableMixin):
     if isinstance(other, collections.Iterable):
       return all(
           a == b
-          for a, b in itertools.izip_longest(self, other, fillvalue=object()))
+          for a, b in zip_longest(self, other, fillvalue=object()))
     else:
       return NotImplemented
 
+  def __hash__(self):
+    return hash(tuple(self))
+
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
 
-class DefaultGlobalBatchTriggerDriver(TriggerDriver):
-  """Breaks a bundles into window (pane)s according to the default triggering.
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _UnwindowedValues)
+
+
+class DiscardingGlobalTriggerDriver(TriggerDriver):
+  """Groups all received values together.
   """
   GLOBAL_WINDOW_TUPLE = (GlobalWindow(),)
-
-  def __init__(self):
-    pass
 
   def process_elements(self, state, windowed_values, unused_output_watermark):
     yield WindowedValue(
@@ -1042,7 +1092,7 @@ class GeneralTriggerDriver(TriggerDriver):
     # First handle merging.
     if self.is_merging:
       old_windows = set(state.known_windows())
-      all_windows = old_windows.union(windows_to_elements.keys())
+      all_windows = old_windows.union(list(windows_to_elements))
 
       if all_windows != old_windows:
         merged_away = {}
@@ -1056,7 +1106,7 @@ class GeneralTriggerDriver(TriggerDriver):
             state.merge(to_be_merged, merge_result)
             # using the outer self argument.
             self.trigger_fn.on_merge(
-                to_be_merged, merge_result, state.at(merge_result))
+                to_be_merged, merge_result, state.at(merge_result, self.clock))
 
         self.window_fn.merge(TriggerMergeContext(all_windows))
 
@@ -1083,6 +1133,7 @@ class GeneralTriggerDriver(TriggerDriver):
             for unused_value, timestamp in elements)
            if element_output_time >= output_watermark))
       if output_time is not None:
+        state.clear_state(window, self.WATERMARK_HOLD)
         state.add_state(window, self.WATERMARK_HOLD, output_time)
 
       context = state.at(window, self.clock)
@@ -1183,8 +1234,11 @@ class InMemoryUnmergedState(UnmergedState):
     if isinstance(tag, _ValueStateTag):
       self.state[window][tag.tag] = value
     elif isinstance(tag, _CombiningValueStateTag):
+      # TODO(robertwb): Store merged accumulators.
       self.state[window][tag.tag].append(value)
     elif isinstance(tag, _ListStateTag):
+      self.state[window][tag.tag].append(value)
+    elif isinstance(tag, _SetStateTag):
       self.state[window][tag.tag].append(value)
     elif isinstance(tag, _WatermarkHoldStateTag):
       self.state[window][tag.tag].append(value)
@@ -1198,6 +1252,8 @@ class InMemoryUnmergedState(UnmergedState):
     elif isinstance(tag, _CombiningValueStateTag):
       return tag.combine_fn.apply(values)
     elif isinstance(tag, _ListStateTag):
+      return values
+    elif isinstance(tag, _SetStateTag):
       return values
     elif isinstance(tag, _WatermarkHoldStateTag):
       return tag.timestamp_combiner_impl.combine_all(values)
@@ -1243,7 +1299,7 @@ class InMemoryUnmergedState(UnmergedState):
 
   def get_earliest_hold(self):
     earliest_hold = MAX_TIMESTAMP
-    for unused_window, tagged_states in self.state.iteritems():
+    for unused_window, tagged_states in iteritems(self.state):
       # TODO(BEAM-2519): currently, this assumes that the watermark hold tag is
       # named "watermark".  This is currently only true because the only place
       # watermark holds are set is in the GeneralTriggerDriver, where we use

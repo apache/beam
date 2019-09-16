@@ -17,19 +17,18 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
-import com.google.common.collect.Iterators;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
-import com.google.common.util.concurrent.SettableFuture;
-import com.google.protobuf.ByteString;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -40,16 +39,20 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams.BlockingQueueIterator;
 import org.apache.beam.sdk.fn.stream.DataStreams.DataStreamDecoder;
+import org.apache.beam.sdk.fn.stream.DataStreams.ElementDelimitedOutputStream;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataStreams}. */
-@RunWith(Enclosed.class)
 public class DataStreamsTest {
 
   /** Tests for {@link DataStreams.Inbound}. */
@@ -89,8 +92,8 @@ public class DataStreamsTest {
       iterator.accept("B");
       iterator.close();
 
-      assertEquals(Arrays.asList("A", "B"),
-          Arrays.asList(Iterators.toArray(iterator, String.class)));
+      assertEquals(
+          Arrays.asList("A", "B"), Arrays.asList(Iterators.toArray(iterator, String.class)));
     }
 
     @Test(timeout = 10_000)
@@ -159,6 +162,51 @@ public class DataStreamsTest {
 
       thrown.expect(NoSuchElementException.class);
       decoder.next();
+    }
+  }
+
+  /** Tests for {@link ElementDelimitedOutputStream delimited streams}. */
+  @RunWith(JUnit4.class)
+  public static class ElementDelimitedOutputStreamTest {
+    @Test
+    public void testNothingWritten() throws Exception {
+      List<ByteString> output = new ArrayList<>();
+      ElementDelimitedOutputStream outputStream = new ElementDelimitedOutputStream(output::add, 3);
+      outputStream.close();
+      assertThat(output, hasSize(0));
+    }
+
+    @Test
+    public void testEmptyElementsArePadded() throws Exception {
+      List<ByteString> output = new ArrayList<>();
+      ElementDelimitedOutputStream outputStream = new ElementDelimitedOutputStream(output::add, 3);
+      outputStream.delimitElement();
+      outputStream.delimitElement();
+      outputStream.delimitElement();
+      outputStream.delimitElement();
+      outputStream.delimitElement();
+      outputStream.close();
+      assertThat(
+          output, contains(ByteString.copyFrom(new byte[3]), ByteString.copyFrom(new byte[2])));
+    }
+
+    @Test
+    public void testNonEmptyElementsAreChunked() throws Exception {
+      List<ByteString> output = new ArrayList<>();
+      ElementDelimitedOutputStream outputStream = new ElementDelimitedOutputStream(output::add, 3);
+      outputStream.write(new byte[] {0x01, 0x02});
+      outputStream.delimitElement();
+      outputStream.write(new byte[] {0x03, 0x04, 0x05, 0x06, 0x07, 0x08});
+      outputStream.delimitElement();
+      outputStream.write(0x09);
+      outputStream.delimitElement();
+      outputStream.close();
+      assertThat(
+          output,
+          contains(
+              ByteString.copyFrom(new byte[] {0x01, 0x02, 0x03}),
+              ByteString.copyFrom(new byte[] {0x04, 0x05, 0x06}),
+              ByteString.copyFrom(new byte[] {0x07, 0x08, 0x09})));
     }
   }
 }

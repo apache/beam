@@ -17,59 +17,131 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import com.google.common.base.Joiner;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableModify;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 
-/**
- * BeamRelNode to replace a {@code TableModify} node.
- *
- */
-public class BeamIOSinkRel extends TableModify implements BeamRelNode {
-  public BeamIOSinkRel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table,
-      Prepare.CatalogReader catalogReader, RelNode child, Operation operation,
-      List<String> updateColumnList, List<RexNode> sourceExpressionList, boolean flattened) {
-    super(cluster, traits, table, catalogReader, child, operation, updateColumnList,
-        sourceExpressionList, flattened);
+/** BeamRelNode to replace a {@code TableModify} node. */
+public class BeamIOSinkRel extends TableModify
+    implements BeamRelNode, RelStructuredTypeFlattener.SelfFlatteningRel {
+
+  private final BeamSqlTable sqlTable;
+  private final Map<String, String> pipelineOptions;
+  private boolean isFlattening = false;
+
+  public BeamIOSinkRel(
+      RelOptCluster cluster,
+      RelOptTable table,
+      Prepare.CatalogReader catalogReader,
+      RelNode child,
+      Operation operation,
+      List<String> updateColumnList,
+      List<RexNode> sourceExpressionList,
+      boolean flattened,
+      BeamSqlTable sqlTable,
+      Map<String, String> pipelineOptions) {
+    super(
+        cluster,
+        cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
+        table,
+        catalogReader,
+        child,
+        operation,
+        updateColumnList,
+        sourceExpressionList,
+        flattened);
+    this.sqlTable = sqlTable;
+    this.pipelineOptions = pipelineOptions;
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    return BeamSqlRelUtils.getNodeStats(this.input, mq);
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(this.input, mq);
+    return BeamCostModel.FACTORY.makeCost(inputEstimates.getRowCount(), inputEstimates.getRate());
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new BeamIOSinkRel(getCluster(), traitSet, getTable(), getCatalogReader(), sole(inputs),
-        getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened());
+    boolean flattened = isFlattened() || isFlattening;
+    BeamIOSinkRel newRel =
+        new BeamIOSinkRel(
+            getCluster(),
+            getTable(),
+            getCatalogReader(),
+            sole(inputs),
+            getOperation(),
+            getUpdateColumnList(),
+            getSourceExpressionList(),
+            flattened,
+            sqlTable,
+            pipelineOptions);
+    newRel.traitSet = traitSet;
+    return newRel;
   }
 
-  /**
-   * Note that {@code BeamIOSinkRel} returns the input PCollection,
-   * which is the persisted PCollection.
-   */
   @Override
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    RelNode input = getInput();
-    String stageName = BeamSqlRelUtils.getStageName(this);
-
-    PCollection<Row> upstream =
-        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
-
-    String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
-
-    BeamSqlTable targetTable = sqlEnv.findTable(sourceName);
-
-    upstream.apply(stageName, targetTable.buildIOWriter());
-
-    return upstream;
+  public void flattenRel(RelStructuredTypeFlattener flattener) {
+    // rewriteGeneric calls this.copy. Setting isFlattining passes
+    // this context into copy for modification of the flattened flag.
+    isFlattening = true;
+    flattener.rewriteGeneric(this);
+    isFlattening = false;
   }
 
+  @Override
+  public void register(RelOptPlanner planner) {
+    planner.addRule(BeamIOSinkRule.INSTANCE);
+    super.register(planner);
+  }
+
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamIOSinkRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> input = pinput.get(0);
+
+      sqlTable.buildIOWriter(input);
+
+      return input;
+    }
+  }
+
+  @Override
+  public Map<String, String> getPipelineOptions() {
+    return pipelineOptions;
+  }
 }

@@ -23,8 +23,8 @@ import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
 /**
- * This {@link TestRule} resets the date time provider in Joda to the system date
- * time provider after tests.
+ * This {@link TestRule} resets the date time provider in Joda to the system date time provider
+ * after tests.
  */
 public class ResetDateTimeProvider extends ExternalResource {
   public void setDateTimeFixed(String iso8601) {

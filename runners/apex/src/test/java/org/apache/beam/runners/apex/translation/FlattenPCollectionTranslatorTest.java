@@ -15,12 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.DAG;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,14 +36,14 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Integration test for {@link FlattenPCollectionTranslator}.
- */
+/** Integration test for {@link FlattenPCollectionTranslator}. */
 public class FlattenPCollectionTranslatorTest {
   private static final Logger LOG = LoggerFactory.getLogger(FlattenPCollectionTranslatorTest.class);
 
@@ -56,9 +53,7 @@ public class FlattenPCollectionTranslatorTest {
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    String[][] collections = {
-        {"1"}, {"2"}, {"3"}, {"4"}, {"5"}
-    };
+    String[][] collections = {{"1"}, {"2"}, {"3"}, {"4"}, {"5"}};
 
     Set<String> expected = Sets.newHashSet();
     List<PCollection<String>> pcList = new ArrayList<>();
@@ -106,5 +101,4 @@ public class FlattenPCollectionTranslatorTest {
     Assert.assertNotNull(
         dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));
   }
-
 }

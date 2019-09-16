@@ -31,9 +31,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link AfterAllStateMachine}.
- */
+/** Tests for {@link AfterAllStateMachine}. */
 @RunWith(JUnit4.class)
 public class AfterAllStateMachineTest {
 
@@ -41,11 +39,12 @@ public class AfterAllStateMachineTest {
 
   @Test
   public void testT1FiresFirst() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterAllStateMachine.of(
-            AfterPaneStateMachine.elementCountAtLeast(1),
-            AfterPaneStateMachine.elementCountAtLeast(2)),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterAllStateMachine.of(
+                AfterPaneStateMachine.elementCountAtLeast(1),
+                AfterPaneStateMachine.elementCountAtLeast(2)),
+            FixedWindows.of(Duration.millis(100)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
 
@@ -60,11 +59,12 @@ public class AfterAllStateMachineTest {
 
   @Test
   public void testT2FiresFirst() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterAllStateMachine.of(
-            AfterPaneStateMachine.elementCountAtLeast(2),
-            AfterPaneStateMachine.elementCountAtLeast(1)),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterAllStateMachine.of(
+                AfterPaneStateMachine.elementCountAtLeast(2),
+                AfterPaneStateMachine.elementCountAtLeast(1)),
+            FixedWindows.of(Duration.millis(100)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
 
@@ -83,13 +83,14 @@ public class AfterAllStateMachineTest {
    */
   @Test
   public void testOnMergeRewinds() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterEachStateMachine.inOrder(
-            AfterAllStateMachine.of(
-                AfterWatermarkStateMachine.pastEndOfWindow(),
-                AfterPaneStateMachine.elementCountAtLeast(1)),
-            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(1))),
-        Sessions.withGapDuration(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterEachStateMachine.inOrder(
+                AfterAllStateMachine.of(
+                    AfterWatermarkStateMachine.pastEndOfWindow(),
+                    AfterPaneStateMachine.elementCountAtLeast(1)),
+                RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(1))),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
     IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));

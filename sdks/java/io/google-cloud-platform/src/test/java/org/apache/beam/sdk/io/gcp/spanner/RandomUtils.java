@@ -19,17 +19,14 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import java.util.Random;
 
-/**
- * Useful randomness related utilities.
- */
-public class RandomUtils {
+/** Useful randomness related utilities. */
+class RandomUtils {
 
   private static final char[] ALPHANUMERIC = "1234567890abcdefghijklmnopqrstuvwxyz".toCharArray();
 
-  private RandomUtils() {
-  }
+  private RandomUtils() {}
 
-  public static String randomAlphaNumeric(int length) {
+  static String randomAlphaNumeric(int length) {
     Random random = new Random();
     char[] result = new char[length];
     for (int i = 0; i < length; i++) {
@@ -37,5 +34,4 @@ public class RandomUtils {
     }
     return new String(result);
   }
-
 }

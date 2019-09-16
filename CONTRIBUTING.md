@@ -19,6 +19,11 @@
 
 # How to Contribute
 
-The Apache Beam community welcomes contributions from anyone with a passion for
-data processing! Please see our [contribution guide](https://beam.apache.org/contribute/contribution-guide/)
-for details.
+The Apache Beam community welcomes contributions from anyone!
+Please see our [contribution guide](https://beam.apache.org/contribute/contribution-guide/)
+for details, such as:
+
+* Sharing your intent with the community
+* Development setup and testing your changes
+* Submitting a pull request and finding a reviewer
+

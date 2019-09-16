@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators.io;
 
 import java.io.ByteArrayInputStream;
@@ -33,9 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
-/**
- * unbounded source that reads from a Java {@link Iterable}.
- */
+/** unbounded source that reads from a Java {@link Iterable}. */
 public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
 
   private static final long serialVersionUID = 9113026175795235710L;
@@ -56,7 +53,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     }
   }
 
-  private Iterable<T> decode(byte[] bytes) throws IOException{
+  private Iterable<T> decode(byte[] bytes) throws IOException {
     try (ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)) {
       return iterableCoder.decode(inputStream, Coder.Context.OUTER);
     } catch (IOException ex) {
@@ -71,8 +68,8 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   }
 
   @Override
-  public UnboundedReader<T> createReader(PipelineOptions options,
-      @Nullable CheckpointMark checkpointMark) {
+  public UnboundedReader<T> createReader(
+      PipelineOptions options, @Nullable CheckpointMark checkpointMark) {
     try {
       return new ValuesReader<>(decode(values), this);
     } catch (IOException e) {
@@ -97,8 +94,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     private transient Iterator<T> iterator;
     private T current;
 
-    ValuesReader(Iterable<T> values,
-        UnboundedSource<T, CheckpointMark> source) {
+    ValuesReader(Iterable<T> values, UnboundedSource<T, CheckpointMark> source) {
       this.values = values;
       this.source = source;
     }
@@ -132,8 +128,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
 
     @Override
     public Instant getWatermark() {

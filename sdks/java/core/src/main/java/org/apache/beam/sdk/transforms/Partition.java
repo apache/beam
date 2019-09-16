@@ -27,14 +27,14 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * {@code Partition} takes a {@code PCollection<T>} and a
- * {@code PartitionFn}, uses the {@code PartitionFn} to split the
- * elements of the input {@code PCollection} into {@code N} partitions, and
- * returns a {@code PCollectionList<T>} that bundles {@code N}
- * {@code PCollection<T>}s containing the split elements.
+ * {@code Partition} takes a {@code PCollection<T>} and a {@code PartitionFn}, uses the {@code
+ * PartitionFn} to split the elements of the input {@code PCollection} into {@code N} partitions,
+ * and returns a {@code PCollectionList<T>} that bundles {@code N} {@code PCollection<T>}s
+ * containing the split elements.
  *
  * <p>Example of use:
- * <pre> {@code
+ *
+ * <pre>{@code
  * PCollection<Student> students = ...;
  * // Split students up into 10 partitions, by percentile:
  * PCollectionList<Student> studentsByPercentile =
@@ -47,20 +47,16 @@ import org.apache.beam.sdk.values.TupleTagList;
  *   PCollection<Student> partition = studentsByPercentile.get(i);
  *   ...
  * }
- * } </pre>
+ * }</pre>
  *
- * <p>By default, the {@code Coder} of each of the
- * {@code PCollection}s in the output {@code PCollectionList} is the
- * same as the {@code Coder} of the input {@code PCollection}.
+ * <p>By default, the {@code Coder} of each of the {@code PCollection}s in the output {@code
+ * PCollectionList} is the same as the {@code Coder} of the input {@code PCollection}.
  *
- * <p>Each output element has the same timestamp and is in the same windows
- * as its corresponding input element, and each output {@code PCollection}
- * has the same
- * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
- * associated with it as the input.
+ * <p>Each output element has the same timestamp and is in the same windows as its corresponding
+ * input element, and each output {@code PCollection} has the same {@link
+ * org.apache.beam.sdk.transforms.windowing.WindowFn} associated with it as the input.
  *
- * @param <T> the type of the elements of the input and output
- * {@code PCollection}s
+ * @param <T> the type of the elements of the input and output {@code PCollection}s
  */
 public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>> {
 
@@ -75,25 +71,20 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
      *
      * @param elem the element to be partitioned
      * @param numPartitions the total number of partitions ({@code >= 1})
-     * @return index of the selected partition (in the range
-     * {@code [0..numPartitions-1]})
+     * @return index of the selected partition (in the range {@code [0..numPartitions-1]})
      */
     int partitionFor(T elem, int numPartitions);
   }
 
   /**
-   * Returns a new {@code Partition} {@code PTransform} that divides
-   * its input {@code PCollection} into the given number of partitions,
-   * using the given partitioning function.
+   * Returns a new {@code Partition} {@code PTransform} that divides its input {@code PCollection}
+   * into the given number of partitions, using the given partitioning function.
    *
-   * @param numPartitions the number of partitions to divide the input
-   * {@code PCollection} into
-   * @param partitionFn the function to invoke on each element to
-   * choose its output partition
+   * @param numPartitions the number of partitions to divide the input {@code PCollection} into
+   * @param partitionFn the function to invoke on each element to choose its output partition
    * @throws IllegalArgumentException if {@code numPartitions <= 0}
    */
-  public static <T> Partition<T> of(
-      int numPartitions, PartitionFn<? super T> partitionFn) {
+  public static <T> Partition<T> of(int numPartitions, PartitionFn<? super T> partitionFn) {
     return new Partition<>(new PartitionDoFn<T>(numPartitions, partitionFn));
   }
 
@@ -103,10 +94,8 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
   public PCollectionList<T> expand(PCollection<T> in) {
     final TupleTagList outputTags = partitionDoFn.getOutputTags();
 
-    PCollectionTuple outputs = in.apply(
-        ParDo
-        .of(partitionDoFn)
-        .withOutputTags(new TupleTag<Void>(){}, outputTags));
+    PCollectionTuple outputs =
+        in.apply(ParDo.of(partitionDoFn).withOutputTags(new TupleTag<Void>() {}, outputTags));
 
     PCollectionList<T> pcs = PCollectionList.empty(in.getPipeline());
     Coder<T> coder = in.getCoder();
@@ -163,17 +152,19 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      X input = c.element();
+    public void processElement(@Element X input, MultiOutputReceiver r) {
       int partition = partitionFn.partitionFor(input, numPartitions);
       if (0 <= partition && partition < numPartitions) {
         @SuppressWarnings("unchecked")
         TupleTag<X> typedTag = (TupleTag<X>) outputTags.get(partition);
-        c.output(typedTag, input);
+        r.get(typedTag).output(input);
       } else {
         throw new IndexOutOfBoundsException(
             "Partition function returned out of bounds index: "
-            + partition + " not in [0.." + numPartitions + ")");
+                + partition
+                + " not in [0.."
+                + numPartitions
+                + ")");
       }
     }
 
@@ -181,10 +172,10 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("numPartitions", numPartitions)
-            .withLabel("Partition Count"))
-          .add(DisplayData.item("partitionFn", partitionFn.getClass())
-            .withLabel("Partition Function"));
+          .add(DisplayData.item("numPartitions", numPartitions).withLabel("Partition Count"))
+          .add(
+              DisplayData.item("partitionFn", partitionFn.getClass())
+                  .withLabel("Partition Function"));
     }
   }
 }

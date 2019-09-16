@@ -15,13 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io;
 
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import com.google.common.io.BaseEncoding;
 import java.io.Serializable;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -31,14 +26,17 @@ import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /** Always returns a constant {@link FilenamePolicy}, {@link Schema}, metadata, and codec. */
 class ConstantAvroDestination<UserT, OutputT>
     extends DynamicAvroDestinations<UserT, Void, OutputT> {
   private static class SchemaFunction implements Serializable, Function<String, Schema> {
-    @Nullable
     @Override
-    public Schema apply(@Nullable String input) {
+    public Schema apply(String input) {
       return new Schema.Parser().parse(input);
     }
   }

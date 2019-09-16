@@ -29,6 +29,16 @@ automatically in the web docs. The naming convention for the tags is to have as
 prefix the PATH_TO_HTML where they are included followed by a descriptive
 string. The tags can contain only letters, digits and _.
 """
+from __future__ import absolute_import
+from __future__ import division
+
+import argparse
+import base64
+from builtins import object
+from builtins import range
+from decimal import Decimal
+
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import iobase
@@ -436,7 +446,7 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_count]
 
       # [START examples_wordcount_minimal_map]
-      | beam.Map(lambda word_count: '%s: %s' % (word_count[0], word_count[1]))
+      | beam.MapTuple(lambda word, count: '%s: %s' % (word, count))
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]
@@ -471,11 +481,10 @@ def examples_wordcount_wordcount(renames):
                           default='gs://my-bucket/input')
 
   options = PipelineOptions(argv)
+  word_count_options = options.view_as(WordCountOptions)
   with beam.Pipeline(options=options) as p:
+    lines = p | beam.io.ReadFromText(word_count_options.input)
     # [END examples_wordcount_wordcount_options]
-
-    lines = p | beam.io.ReadFromText(
-        'gs://dataflow-samples/shakespeare/kinglear.txt')
 
     # [START examples_wordcount_wordcount_composite]
     class CountWords(beam.PTransform):
@@ -626,6 +635,63 @@ def examples_wordcount_debugging(renames):
     p.visit(SnippetUtils.RenameFiles(renames))
 
 
+def examples_wordcount_streaming(argv):
+  import apache_beam as beam
+  from apache_beam import window
+  from apache_beam.io import ReadFromPubSub
+  from apache_beam.io import WriteStringsToPubSub
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import StandardOptions
+
+  # Parse out arguments.
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--output_topic', required=True,
+      help=('Output PubSub topic of the form '
+            '"projects/<PROJECT>/topic/<TOPIC>".'))
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument(
+      '--input_topic',
+      help=('Input PubSub topic of the form '
+            '"projects/<PROJECT>/topics/<TOPIC>".'))
+  group.add_argument(
+      '--input_subscription',
+      help=('Input PubSub subscription of the form '
+            '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(StandardOptions).streaming = True
+
+  with TestPipeline(options=pipeline_options) as p:
+    # [START example_wordcount_streaming_read]
+    # Read from Pub/Sub into a PCollection.
+    if known_args.input_subscription:
+      lines = p | beam.io.ReadFromPubSub(
+          subscription=known_args.input_subscription)
+    else:
+      lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+    # [END example_wordcount_streaming_read]
+
+    output = (
+        lines
+        | 'DecodeUnicode' >> beam.FlatMap(
+            lambda encoded: encoded.decode('utf-8'))
+        | 'ExtractWords' >> beam.FlatMap(
+            lambda x: __import__('re').findall(r'[A-Za-z\']+', x))
+        | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
+        | beam.WindowInto(window.FixedWindows(15, 0))
+        | 'Group' >> beam.GroupByKey()
+        | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
+        | 'Format' >> beam.Map(
+            lambda word_and_count: '%s: %d' % word_and_count))
+
+    # [START example_wordcount_streaming_write]
+    # Write to Pub/Sub
+    output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+    # [END example_wordcount_streaming_write]
+
+
 def examples_ptransforms_templated(renames):
   # [START examples_ptransforms_templated]
   import apache_beam as beam
@@ -687,22 +753,22 @@ class CountingSource(iobase.BoundedSource):
     return OffsetRangeTracker(start_position, stop_position)
 
   def read(self, range_tracker):
-    for i in range(self._count):
+    for i in range(range_tracker.start_position(),
+                   range_tracker.stop_position()):
       if not range_tracker.try_claim(i):
         return
       self.records_read.inc()
       yield i
 
-  def split(self, desired_bundle_size, start_position=None,
-            stop_position=None):
+  def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if start_position is None:
       start_position = 0
     if stop_position is None:
       stop_position = self._count
 
     bundle_start = start_position
-    while bundle_start < self._count:
-      bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+    while bundle_start < stop_position:
+      bundle_stop = min(stop_position, bundle_start + desired_bundle_size)
       yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
                                 source=self,
                                 start_position=bundle_start,
@@ -811,7 +877,10 @@ class SimpleKVSink(iobase.Sink):
     table_name = 'table' + uid
     return SimpleKVWriter(self._simplekv, access_token, table_name)
 
-  def finalize_write(self, access_token, table_names):
+  def pre_finalize(self, init_result, writer_results):
+    pass
+
+  def finalize_write(self, access_token, table_names, pre_finalize_result):
     for i, table_name in enumerate(table_names):
       self._simplekv.rename_table(
           access_token, table_name, self._final_table_name + str(i))
@@ -983,7 +1052,8 @@ def model_datastoreio():
   def to_entity(content):
     entity = entity_pb2.Entity()
     googledatastore.helper.add_key_path(entity.key, kind, str(uuid.uuid4()))
-    googledatastore.helper.add_properties(entity, {'content': unicode(content)})
+    googledatastore.helper.add_properties(entity,
+                                          {'content': unicode(content)})
     return entity
 
   entities = musicians | 'To Entity' >> beam.Map(to_entity)
@@ -1012,6 +1082,22 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
       datasetId='samples',
       tableId='weather_stations')
   # [END model_bigqueryio_table_spec_object]
+
+  # [START model_bigqueryio_data_types]
+  bigquery_data = [{
+      'string': 'abc',
+      'bytes': base64.b64encode(b'\xab\xac'),
+      'integer': 5,
+      'float': 0.5,
+      'numeric': Decimal('5'),
+      'boolean': True,
+      'timestamp': '2018-12-31 12:44:31.744957 UTC',
+      'date': '2018-12-31',
+      'time': '12:44:31',
+      'datetime': '2018-12-31T12:44:31',
+      'geography': 'POINT(30 10)'
+  }]
+  # [END model_bigqueryio_data_types]
 
   # [START model_bigqueryio_read_table]
   max_temperatures = (
@@ -1048,21 +1134,10 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [END model_bigqueryio_schema]
 
   # [START model_bigqueryio_schema_object]
-  from apache_beam.io.gcp.internal.clients import bigquery
-
-  table_schema = bigquery.TableSchema()
-
-  source_field = bigquery.TableFieldSchema()
-  source_field.name = 'source'
-  source_field.type = 'STRING'
-  source_field.mode = 'NULLABLE'
-  table_schema.fields.append(source_field)
-
-  quote_field = bigquery.TableFieldSchema()
-  quote_field.name = 'quote'
-  quote_field.type = 'STRING'
-  quote_field.mode = 'REQUIRED'
-  table_schema.fields.append(quote_field)
+  table_schema = {'fields': [
+      {'name': 'source', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'quote', 'type': 'STRING', 'mode': 'REQUIRED'}
+  ]}
   # [END model_bigqueryio_schema_object]
 
   if write_project and write_dataset and write_table:
@@ -1070,7 +1145,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
 
   # [START model_bigqueryio_write_input]
   quotes = p | beam.Create([
-      {'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'},
+      {'source': 'Mahatma Gandhi', 'quote': 'My life is my message.'},
       {'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."},
   ])
   # [END model_bigqueryio_write_input]
@@ -1278,3 +1353,69 @@ class Count(beam.PTransform):
         | 'PairWithOne' >> beam.Map(lambda v: (v, 1))
         | beam.CombinePerKey(sum))
 # [END model_library_transforms_count]
+
+
+def file_process_pattern_access_metadata():
+
+  import apache_beam as beam
+  from apache_beam.io import fileio
+
+  # [START FileProcessPatternAccessMetadataSnip1]
+  with beam.Pipeline() as p:
+    readable_files = (p
+                      | fileio.MatchFiles('hdfs://path/to/*.txt')
+                      | fileio.ReadMatches()
+                      | beam.Reshuffle())
+    files_and_contents = (readable_files
+                          | beam.Map(lambda x: (x.metadata.path,
+                                                x.read_utf8())))
+  # [END FileProcessPatternAccessMetadataSnip1]
+
+
+def accessing_valueprovider_info_after_run():
+  # [START AccessingValueProviderInfoAfterRunSnip1]
+  import logging
+
+  import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.utils.value_provider import RuntimeValueProvider
+  from apache_beam.io import WriteToText
+
+  class MyOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_value_provider_argument('--string_value', type=str)
+
+  class LogValueProvidersFn(beam.DoFn):
+    def __init__(self, string_vp):
+      self.string_vp = string_vp
+
+    # Define the DoFn that logs the ValueProvider value.
+    # The DoFn is called when creating the pipeline branch.
+    # This example logs the ValueProvider value, but
+    # you could store it by pushing it to an external database.
+    def process(self, an_int):
+      logging.info('The string_value is %s' % self.string_vp.get())
+      # Another option (where you don't need to pass the value at all) is:
+      logging.info('The string value is %s' %
+                   RuntimeValueProvider.get_value('string_value', str, ''))
+
+  pipeline_options = PipelineOptions()
+  # Create pipeline.
+  p = beam.Pipeline(options=pipeline_options)
+
+  my_options = pipeline_options.view_as(MyOptions)
+  # Add a branch for logging the ValueProvider value.
+  _ = (p
+       | beam.Create([None])
+       | 'LogValueProvs' >> beam.ParDo(
+           LogValueProvidersFn(my_options.string_value)))
+
+  # The main pipeline.
+  result_pc = (p
+               | "main_pc" >> beam.Create([1, 2, 3])
+               | beam.combiners.Sum.Globally())
+
+  p.run().wait_until_finish()
+
+  # [END AccessingValueProviderInfoAfterRunSnip1]

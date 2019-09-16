@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Kafka serializers and deserializers.
- */
+/** Kafka serializers and deserializers. */
 package org.apache.beam.sdk.io.kafka.serialization;

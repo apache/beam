@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import threading
+from builtins import object
 
 from apache_beam import pipeline
 from apache_beam import pvalue
@@ -94,14 +95,14 @@ class WatermarkManager(object):
 
   def update_watermarks(self, completed_committed_bundle, applied_ptransform,
                         completed_timers, outputs, unprocessed_bundles,
-                        keyed_earliest_holds):
+                        keyed_earliest_holds, side_inputs_container):
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     self._update_pending(
         completed_committed_bundle, applied_ptransform, completed_timers,
         outputs, unprocessed_bundles)
     tw = self.get_watermarks(applied_ptransform)
     tw.hold(keyed_earliest_holds)
-    self._refresh_watermarks(applied_ptransform)
+    return self._refresh_watermarks(applied_ptransform, side_inputs_container)
 
   def _update_pending(self, input_committed_bundle, applied_ptransform,
                       completed_timers, output_committed_bundles,
@@ -128,8 +129,9 @@ class WatermarkManager(object):
     if input_committed_bundle and input_committed_bundle.has_elements():
       completed_tw.remove_pending(input_committed_bundle)
 
-  def _refresh_watermarks(self, applied_ptransform):
+  def _refresh_watermarks(self, applied_ptransform, side_inputs_container):
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
+    unblocked_tasks = []
     tw = self.get_watermarks(applied_ptransform)
     if tw.refresh():
       for pval in applied_ptransform.outputs.values():
@@ -141,18 +143,28 @@ class WatermarkManager(object):
           if v in self._value_to_consumers:  # If there are downstream consumers
             consumers = self._value_to_consumers[v]
             for consumer in consumers:
-              self._refresh_watermarks(consumer)
+              unblocked_tasks.extend(
+                  self._refresh_watermarks(consumer, side_inputs_container))
+      # Notify the side_inputs_container.
+      unblocked_tasks.extend(
+          side_inputs_container
+          .update_watermarks_for_transform_and_unblock_tasks(
+              applied_ptransform, tw))
+    return unblocked_tasks
 
   def extract_all_timers(self):
     """Extracts fired timers for all transforms
     and reports if there are any timers set."""
     all_timers = []
     has_realtime_timer = False
-    for applied_ptransform, tw in self._transform_to_watermarks.iteritems():
+    for applied_ptransform, tw in self._transform_to_watermarks.items():
       fired_timers, had_realtime_timer = tw.extract_transform_timers()
       if fired_timers:
+        # We should sort the timer firings, so they are fired in order.
+        fired_timers.sort(key=lambda ft: ft.timestamp)
         all_timers.append((applied_ptransform, fired_timers))
-      if had_realtime_timer:
+      if (had_realtime_timer
+          and tw.output_watermark < WatermarkManager.WATERMARK_POS_INF):
         has_realtime_timer = True
     return all_timers, has_realtime_timer
 
@@ -194,7 +206,7 @@ class _TransformWatermarks(object):
 
   def hold(self, keyed_earliest_holds):
     with self._lock:
-      for key, hold_value in keyed_earliest_holds.iteritems():
+      for key, hold_value in keyed_earliest_holds.items():
         self._keyed_earliest_holds[key] = hold_value
         if (hold_value is None or
             hold_value == WatermarkManager.WATERMARK_POS_INF):
@@ -212,6 +224,14 @@ class _TransformWatermarks(object):
         self._pending.remove(completed)
 
   def refresh(self):
+    """Refresh the watermark for a given transform.
+
+    This method looks at the watermark coming from all input PTransforms, and
+    the timestamp of the minimum element, as well as any watermark holds.
+
+    Returns:
+      True if the watermark has advanced, and False if it has not.
+    """
     with self._lock:
       min_pending_timestamp = WatermarkManager.WATERMARK_POS_INF
       has_pending_elements = False
@@ -256,7 +276,7 @@ class _TransformWatermarks(object):
     with self._lock:
       fired_timers = []
       has_realtime_timer = False
-      for encoded_key, state in self._keyed_states.iteritems():
+      for encoded_key, state in self._keyed_states.items():
         timers, had_realtime_timer = state.get_timers(
             watermark=self._input_watermark,
             processing_time=self._clock.time())

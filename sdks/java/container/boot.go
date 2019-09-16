@@ -85,13 +85,14 @@ func main() {
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 
-	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, dir)
+	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
 	if err != nil {
 		log.Fatalf("Failed to retrieve staged files: %v", err)
 	}
 
 	// (3) Invoke the Java harness, preserving artifact ordering in classpath.
 
+	os.Setenv("HARNESS_ID", *id)
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *loggingEndpoint}))
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *controlEndpoint}))
@@ -101,8 +102,20 @@ func main() {
 		filepath.Join(jarsDir, "slf4j-api.jar"),
 		filepath.Join(jarsDir, "slf4j-jdk14.jar"),
 		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
+		filepath.Join(jarsDir, "beam-sdks-java-io-kafka.jar"),
+		filepath.Join(jarsDir, "kafka-clients.jar"),
 	}
+
+	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
 	for _, md := range artifacts {
+		if hasWorkerExperiment {
+			if strings.HasPrefix(md.Name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
+				continue
+			}
+			if md.Name == "dataflow-worker.jar" {
+				continue
+			}
+		}
 		cp = append(cp, filepath.Join(dir, filepath.FromSlash(md.Name)))
 	}
 

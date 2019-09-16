@@ -18,29 +18,29 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-/**
- * Tests {@link KinesisRecordCoder}.
- */
+/** Tests {@link KinesisRecordCoder}. */
+@RunWith(JUnit4.class)
 public class KinesisRecordCoderTest {
 
   @Test
   public void encodingAndDecodingWorks() throws Exception {
-    KinesisRecord record = new KinesisRecord(
-        ByteBuffer.wrap("data".getBytes()),
-        "sequence",
-        128L,
-        "partition",
-        Instant.now(),
-        Instant.now(),
-        "stream",
-        "shard"
-    );
-    CoderProperties.coderDecodeEncodeEqual(
-        new KinesisRecordCoder(), record
-    );
+    KinesisRecord record =
+        new KinesisRecord(
+            ByteBuffer.wrap("data".getBytes(StandardCharsets.UTF_8)),
+            "sequence",
+            128L,
+            "partition",
+            Instant.now(),
+            Instant.now(),
+            "stream",
+            "shard");
+    CoderProperties.coderDecodeEncodeEqual(new KinesisRecordCoder(), record);
   }
 }

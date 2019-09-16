@@ -15,22 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.io.BaseEncoding;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.protobuf.ByteString;
-import io.grpc.Channel;
-import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.security.MessageDigest;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,7 +40,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
@@ -55,11 +50,22 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.Artifac
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ThrowingSupplier;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A client to stage files on an {@link ArtifactStagingServiceGrpc ArtifactService}. */
 public class ArtifactServiceStager {
   // 2 MB per file-request
   private static final int DEFAULT_BUFFER_SIZE = 2 * 1024 * 1024;
+
+  private static final Logger LOG = LoggerFactory.getLogger(ArtifactServiceStager.class);
 
   public static ArtifactServiceStager overChannel(Channel channel) {
     return overChannel(channel, DEFAULT_BUFFER_SIZE);
@@ -87,26 +93,43 @@ public class ArtifactServiceStager {
     this.bufferSize = bufferSize;
   }
 
-  public void stage(Iterable<File> files) throws IOException, InterruptedException {
-    final Map<File, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
-    for (File file : files) {
-      futures.put(file, MoreFutures.supplyAsync(new StagingCallable(file), executorService));
+  /**
+   * Stages the given artifact files to the staging service.
+   *
+   * @return The artifact staging token returned by the service
+   */
+  public String stage(String stagingSessionToken, Collection<StagedFile> files)
+      throws IOException, InterruptedException {
+    final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
+    LOG.info("Staging {} files (token: {})", files.size(), stagingSessionToken);
+    for (StagedFile file : files) {
+      futures.put(
+          file,
+          MoreFutures.supplyAsync(new StagingCallable(stagingSessionToken, file), executorService));
     }
     CompletionStage<StagingResult> stagingResult =
         MoreFutures.allAsList(futures.values())
             .thenApply(ignored -> new ExtractStagingResultsCallable(futures).call());
-    stageManifest(stagingResult);
+    return stageManifest(stagingSessionToken, stagingResult);
   }
 
-  private void stageManifest(CompletionStage<StagingResult> stagingFuture)
+  private String stageManifest(
+      String stagingSessionToken, CompletionStage<StagingResult> stagingFuture)
       throws InterruptedException {
     try {
       StagingResult stagingResult = MoreFutures.get(stagingFuture);
       if (stagingResult.isSuccess()) {
+        LOG.info(
+            "Staged {} files (token: {})", stagingResult.getMetadata().size(), stagingSessionToken);
         Manifest manifest =
             Manifest.newBuilder().addAllArtifact(stagingResult.getMetadata()).build();
-        blockingStub.commitManifest(
-            CommitManifestRequest.newBuilder().setManifest(manifest).build());
+        CommitManifestResponse response =
+            blockingStub.commitManifest(
+                CommitManifestRequest.newBuilder()
+                    .setStagingSessionToken(stagingSessionToken)
+                    .setManifest(manifest)
+                    .build());
+        return response.getRetrievalToken();
       } else {
         RuntimeException failure =
             new RuntimeException(
@@ -124,9 +147,11 @@ public class ArtifactServiceStager {
   }
 
   private class StagingCallable implements ThrowingSupplier<ArtifactMetadata> {
-    private final File file;
+    private final String stagingSessionToken;
+    private final StagedFile file;
 
-    private StagingCallable(File file) {
+    private StagingCallable(String stagingSessionToken, StagedFile file) {
+      this.stagingSessionToken = stagingSessionToken;
       this.file = file;
     }
 
@@ -135,22 +160,29 @@ public class ArtifactServiceStager {
       // TODO: Add Retries
       PutArtifactResponseObserver responseObserver = new PutArtifactResponseObserver();
       StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
-      ArtifactMetadata metadata = ArtifactMetadata.newBuilder().setName(file.getName()).build();
-      requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(metadata).build());
+      ArtifactMetadata metadata =
+          ArtifactMetadata.newBuilder().setName(file.getStagingName()).build();
+      PutArtifactMetadata putMetadata =
+          PutArtifactMetadata.newBuilder()
+              .setMetadata(metadata)
+              .setStagingSessionToken(stagingSessionToken)
+              .build();
+      requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(putMetadata).build());
 
-      MessageDigest md5Digest = MessageDigest.getInstance("MD5");
-      FileChannel channel = new FileInputStream(file).getChannel();
+      Hasher hasher = Hashing.sha256().newHasher();
+      FileChannel channel = new FileInputStream(file.getFile()).getChannel();
       ByteBuffer readBuffer = ByteBuffer.allocate(bufferSize);
       while (!responseObserver.isTerminal() && channel.position() < channel.size()) {
         readBuffer.clear();
         channel.read(readBuffer);
         readBuffer.flip();
-        md5Digest.update(readBuffer);
+        ByteString chunk = ByteString.copyFrom(readBuffer);
+        // TODO: Use Guava 23.0's putBytes(ByteBuffer).
+        hasher.putBytes(chunk.toByteArray());
         readBuffer.rewind();
         PutArtifactRequest request =
             PutArtifactRequest.newBuilder()
-                .setData(
-                    ArtifactChunk.newBuilder().setData(ByteString.copyFrom(readBuffer)).build())
+                .setData(ArtifactChunk.newBuilder().setData(chunk).build())
                 .build();
         requestObserver.onNext(request);
       }
@@ -160,7 +192,7 @@ public class ArtifactServiceStager {
       if (responseObserver.err.get() != null) {
         throw new RuntimeException(responseObserver.err.get());
       }
-      return metadata.toBuilder().setMd5(BaseEncoding.base64().encode(md5Digest.digest())).build();
+      return metadata.toBuilder().setSha256(hasher.hash().toString()).build();
     }
 
     private class PutArtifactResponseObserver implements StreamObserver<PutArtifactResponse> {
@@ -193,18 +225,19 @@ public class ArtifactServiceStager {
   }
 
   private static class ExtractStagingResultsCallable implements Callable<StagingResult> {
-    private final Map<File, CompletionStage<ArtifactMetadata>> futures;
+    private final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures;
 
     private ExtractStagingResultsCallable(
-        Map<File, CompletionStage<ArtifactMetadata>> futures) {
+        Map<StagedFile, CompletionStage<ArtifactMetadata>> futures) {
       this.futures = futures;
     }
 
     @Override
     public StagingResult call() {
       Set<ArtifactMetadata> metadata = new HashSet<>();
-      Map<File, Throwable> failures = new HashMap<>();
-      for (Entry<File, CompletionStage<ArtifactMetadata>> stagedFileResult : futures.entrySet()) {
+      Map<StagedFile, Throwable> failures = new HashMap<>();
+      for (Entry<StagedFile, CompletionStage<ArtifactMetadata>> stagedFileResult :
+          futures.entrySet()) {
         try {
           metadata.add(MoreFutures.get(stagedFileResult.getValue()));
         } catch (ExecutionException ee) {
@@ -222,15 +255,27 @@ public class ArtifactServiceStager {
     }
   }
 
+  /** A file along with a staging name. */
+  @AutoValue
+  public abstract static class StagedFile {
+    public static StagedFile of(File file, String stagingName) {
+      return new AutoValue_ArtifactServiceStager_StagedFile(file, stagingName);
+    }
+
+    /** The file to stage. */
+    public abstract File getFile();
+    /** Staging handle to this file. */
+    public abstract String getStagingName();
+  }
+
   @AutoValue
   abstract static class StagingResult {
     static StagingResult success(Set<ArtifactMetadata> metadata) {
       return new AutoValue_ArtifactServiceStager_StagingResult(metadata, Collections.emptyMap());
     }
 
-    static StagingResult failure(Map<File, Throwable> failures) {
-      return new AutoValue_ArtifactServiceStager_StagingResult(
-          null, failures);
+    static StagingResult failure(Map<StagedFile, Throwable> failures) {
+      return new AutoValue_ArtifactServiceStager_StagingResult(null, failures);
     }
 
     boolean isSuccess() {
@@ -240,6 +285,6 @@ public class ArtifactServiceStager {
     @Nullable
     abstract Set<ArtifactMetadata> getMetadata();
 
-    abstract Map<File, Throwable> getFailures();
+    abstract Map<StagedFile, Throwable> getFailures();
   }
 }

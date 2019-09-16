@@ -15,25 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * This class provides the most general way of specifying dynamic BigQuery table destinations.
@@ -48,7 +48,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * <pre>{@code
  * events.apply(BigQueryIO.<UserEvent>write()
  *  .to(new DynamicDestinations<UserEvent, String>() {
- *        public String getDestination(ValueInSingleWindow<String> element) {
+ *        public String getDestination(ValueInSingleWindow<UserEvent> element) {
  *          return element.getValue().getUserId();
  *        }
  *        public TableDestination getTable(String user) {
@@ -66,8 +66,8 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * }</pre>
  *
  * <p>An instance of {@link DynamicDestinations} can also use side inputs using {@link
- * #sideInput(PCollectionView)}. The side inputs must be present in {@link #getSideInputs()}.
- * Side inputs are accessed in the global window, so they must be globally windowed.
+ * #sideInput(PCollectionView)}. The side inputs must be present in {@link #getSideInputs()}. Side
+ * inputs are accessed in the global window, so they must be globally windowed.
  *
  * <p>{@code DestinationT} is expected to provide proper hash and equality members. Ideally it will
  * be a compact type with an efficient coder, as these objects may be used as a key in a {@link
@@ -79,6 +79,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   }
 
   @Nullable private transient SideInputAccessor sideInputAccessor;
+  @Nullable private transient PipelineOptions options;
 
   static class SideInputAccessorViaProcessContext implements SideInputAccessor {
     private DoFn<?, ?>.ProcessContext processContext;
@@ -93,6 +94,12 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     }
   }
 
+  /** Get the current PipelineOptions if set. */
+  @Nullable
+  PipelineOptions getPipelineOptions() {
+    return options;
+  }
+
   /**
    * Specifies that this object needs access to one or more side inputs. This side inputs must be
    * globally windowed, as they will be accessed from the global window.
@@ -101,26 +108,21 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     return Lists.newArrayList();
   }
 
-
   /**
-   * Returns the value of a given side input. The view must be present in {@link
-   * #getSideInputs()}.
+   * Returns the value of a given side input. The view must be present in {@link #getSideInputs()}.
    */
   protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
-      checkState(
-          getSideInputs().contains(view),
-          "View %s not declared in getSideInputs() (%s)",
-          view,
-          getSideInputs());
+    checkState(
+        getSideInputs().contains(view),
+        "View %s not declared in getSideInputs() (%s)",
+        view,
+        getSideInputs());
     return sideInputAccessor.sideInput(view);
   }
 
-  final void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
-    this.sideInputAccessor = sideInputAccessor;
-  }
-
-  final void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
+  void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
     this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
+    this.options = context.getPipelineOptions();
   }
 
   /**
@@ -130,26 +132,21 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   public abstract DestinationT getDestination(ValueInSingleWindow<T> element);
 
   /**
-   * Returns the coder for {@link DestinationT}. If this is not overridden, then
-   * {@link BigQueryIO} will look in the coder registry for a suitable coder. This must be a
-   * deterministic coder, as {@link DestinationT} will be used as a key type in a
-   * {@link org.apache.beam.sdk.transforms.GroupByKey}.
+   * Returns the coder for {@link DestinationT}. If this is not overridden, then {@link BigQueryIO}
+   * will look in the coder registry for a suitable coder. This must be a deterministic coder, as
+   * {@link DestinationT} will be used as a key type in a {@link
+   * org.apache.beam.sdk.transforms.GroupByKey}.
    */
   @Nullable
   public Coder<DestinationT> getDestinationCoder() {
     return null;
   }
 
-  /**
-   * Returns a {@link TableDestination} object for the destination. May not return null.
-   */
+  /** Returns a {@link TableDestination} object for the destination. May not return null. */
   public abstract TableDestination getTable(DestinationT destination);
 
-  /**
-   * Returns the table schema for the destination. May not return null.
-   */
+  /** Returns the table schema for the destination. May not return null. */
   public abstract TableSchema getSchema(DestinationT destination);
-
 
   // Gets the destination coder. If the user does not provide one, try to find one in the coder
   // registry. If no coder can be found, throws CannotProvideCoderException.
@@ -171,7 +168,8 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     } catch (CannotProvideCoderException e) {
       throw new CannotProvideCoderException(
           "Failed to infer coder for DestinationT from type "
-              + descriptor + ", please provide it explicitly by overriding getDestinationCoder()",
+              + descriptor
+              + ", please provide it explicitly by overriding getDestinationCoder()",
           e);
     }
   }

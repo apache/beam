@@ -15,33 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
+import io.gearpump.streaming.dsl.api.functions.FilterFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.gearpump.streaming.dsl.api.functions.FilterFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
 /**
- * {@link ParDo.MultiOutput} is translated to Gearpump flatMap function
- * with {@link DoFn} wrapped in {@link DoFnFunction}. The outputs are
- * further filtered with Gearpump filter function by output tag
+ * {@link ParDo.MultiOutput} is translated to Gearpump flatMap function with {@link DoFn} wrapped in
+ * {@link DoFnFunction}. The outputs are further filtered with Gearpump filter function by output
+ * tag
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class ParDoMultiOutputTranslator<InputT, OutputT> implements
-    TransformTranslator<ParDo.MultiOutput<InputT, OutputT>> {
+public class ParDoMultiOutputTranslator<InputT, OutputT>
+    implements TransformTranslator<ParDo.MultiOutput<InputT, OutputT>> {
 
   private static final long serialVersionUID = -6023461558200028849L;
 
@@ -49,37 +52,54 @@ public class ParDoMultiOutputTranslator<InputT, OutputT> implements
   public void translate(ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
     PCollection<InputT> inputT = (PCollection<InputT>) context.getInput();
     JavaStream<WindowedValue<InputT>> inputStream = context.getInputStream(inputT);
-    Collection<PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Collection<PCollectionView<?>> sideInputs = transform.getSideInputs().values();
     Map<String, PCollectionView<?>> tagsToSideInputs =
         TranslatorUtils.getTagsToSideInputs(sideInputs);
 
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     final TupleTag<OutputT> mainOutput = transform.getMainOutputTag();
     List<TupleTag<?>> sideOutputs = new ArrayList<>(outputs.size() - 1);
-    for (TupleTag<?> tag: outputs.keySet()) {
+    Map<TupleTag<?>, Coder<?>> outputCoders = new HashMap<>();
+    for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
+      TupleTag<?> tag = entry.getKey();
       if (tag != null && !tag.getId().equals(mainOutput.getId())) {
         sideOutputs.add(tag);
       }
+      if (entry.getValue() instanceof PCollection) {
+        PCollection<?> pCollection = (PCollection<?>) entry.getValue();
+        outputCoders.put(tag, pCollection.getCoder());
+      }
     }
 
-    JavaStream<TranslatorUtils.RawUnionValue> unionStream = TranslatorUtils.withSideInputStream(
-        context, inputStream, tagsToSideInputs);
+    JavaStream<TranslatorUtils.RawUnionValue> unionStream =
+        TranslatorUtils.withSideInputStream(context, inputStream, tagsToSideInputs);
+
+    DoFnSchemaInformation doFnSchemaInformation;
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+
+    Map<String, PCollectionView<?>> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
     JavaStream<TranslatorUtils.RawUnionValue> outputStream =
-        TranslatorUtils.toList(unionStream).flatMap(
-            new DoFnFunction<>(
-                context.getPipelineOptions(),
-                transform.getFn(),
-                inputT.getWindowingStrategy(),
-                sideInputs,
-                tagsToSideInputs,
-                mainOutput,
-                sideOutputs), transform.getName());
-    for (Map.Entry<TupleTag<?>, PValue> output: outputs.entrySet()) {
-      JavaStream<WindowedValue<OutputT>> taggedStream = outputStream
-          .filter(new FilterByOutputTag(output.getKey().getId()),
-              "filter_by_output_tag")
-          .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
+        TranslatorUtils.toList(unionStream)
+            .flatMap(
+                new DoFnFunction<>(
+                    context.getPipelineOptions(),
+                    transform.getFn(),
+                    inputT.getWindowingStrategy(),
+                    sideInputs,
+                    tagsToSideInputs,
+                    mainOutput,
+                    outputCoders,
+                    sideOutputs,
+                    doFnSchemaInformation,
+                    sideInputMapping),
+                transform.getName());
+    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      JavaStream<WindowedValue<OutputT>> taggedStream =
+          outputStream
+              .filter(new FilterByOutputTag(output.getKey().getId()), "filter_by_output_tag")
+              .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
       context.setOutputStream(output.getValue(), taggedStream);
     }
   }

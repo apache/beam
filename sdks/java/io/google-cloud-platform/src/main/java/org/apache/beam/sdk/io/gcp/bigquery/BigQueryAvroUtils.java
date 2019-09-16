@@ -17,88 +17,159 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Verify.verify;
-import static com.google.common.base.Verify.verifyNotNull;
+import static java.time.temporal.ChronoField.HOUR_OF_DAY;
+import static java.time.temporal.ChronoField.MINUTE_OF_HOUR;
+import static java.time.temporal.ChronoField.NANO_OF_SECOND;
+import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verifyNotNull;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.BaseEncoding;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
  * A set of utilities for working with Avro files.
  *
- * <p>These utilities are based on the <a
- * href="https://avro.apache.org/docs/1.8.1/spec.html">Avro 1.8.1</a> specification.
+ * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
+ * 1.8.1</a> specification.
  */
 class BigQueryAvroUtils {
 
-  public static final ImmutableMap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
-      ImmutableMap.<String, Type>builder()
+  /**
+   * Defines the valid mapping between BigQuery types and native Avro types.
+   *
+   * <p>Some BigQuery types are duplicated here since slightly different Avro records are produced
+   * when exporting data in Avro format and when reading data directly using the read API.
+   */
+  static final ImmutableMultimap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
+      ImmutableMultimap.<String, Type>builder()
           .put("STRING", Type.STRING)
+          .put("GEOGRAPHY", Type.STRING)
           .put("BYTES", Type.BYTES)
           .put("INTEGER", Type.LONG)
           .put("FLOAT", Type.DOUBLE)
+          .put("NUMERIC", Type.BYTES)
           .put("BOOLEAN", Type.BOOLEAN)
           .put("TIMESTAMP", Type.LONG)
           .put("RECORD", Type.RECORD)
           .put("DATE", Type.STRING)
+          .put("DATE", Type.INT)
           .put("DATETIME", Type.STRING)
           .put("TIME", Type.STRING)
+          .put("TIME", Type.LONG)
           .build();
+
   /**
    * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
    * immutable.
    */
   private static final DateTimeFormatter DATE_AND_SECONDS_FORMATTER =
       DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
-  // Package private for BigQueryTableRowIterator to use.
-  static String formatTimestamp(String timestamp) {
-    // timestamp is in "seconds since epoch" format, with scientific notation.
-    // e.g., "1.45206229112345E9" to mean "2016-01-06 06:38:11.123456 UTC".
-    // Separate into seconds and microseconds.
-    double timestampDoubleMicros = Double.parseDouble(timestamp) * 1000000;
-    long timestampMicros = (long) timestampDoubleMicros;
-    long seconds = timestampMicros / 1000000;
-    int micros = (int) (timestampMicros % 1000000);
-    String dayAndTime = DATE_AND_SECONDS_FORMATTER.print(seconds * 1000);
 
-    // No sub-second component.
+  @VisibleForTesting
+  static String formatTimestamp(Long timestampMicro) {
+    // timestampMicro is in "microseconds since epoch" format,
+    // e.g., 1452062291123456L means "2016-01-06 06:38:11.123456 UTC".
+    // Separate into seconds and microseconds.
+    long timestampSec = timestampMicro / 1_000_000;
+    long micros = timestampMicro % 1_000_000;
+    if (micros < 0) {
+      micros += 1_000_000;
+      timestampSec -= 1;
+    }
+    String dayAndTime = DATE_AND_SECONDS_FORMATTER.print(timestampSec * 1000);
+
     if (micros == 0) {
       return String.format("%s UTC", dayAndTime);
     }
+    return String.format("%s.%06d UTC", dayAndTime, micros);
+  }
 
-    // Sub-second component.
-    int digits = 6;
-    int subsecond = micros;
-    while (subsecond % 10 == 0) {
-      digits--;
-      subsecond /= 10;
+  /**
+   * This method formats a BigQuery DATE value into a String matching the format used by JSON
+   * export. Date records are stored in "days since epoch" format, and BigQuery uses the proleptic
+   * Gregorian calendar.
+   */
+  private static String formatDate(int date) {
+    return LocalDate.ofEpochDay(date).format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+  }
+
+  private static final java.time.format.DateTimeFormatter ISO_LOCAL_TIME_FORMATTER_MICROS =
+      new DateTimeFormatterBuilder()
+          .appendValue(HOUR_OF_DAY, 2)
+          .appendLiteral(':')
+          .appendValue(MINUTE_OF_HOUR, 2)
+          .appendLiteral(':')
+          .appendValue(SECOND_OF_MINUTE, 2)
+          .appendLiteral('.')
+          .appendFraction(NANO_OF_SECOND, 6, 6, false)
+          .toFormatter();
+
+  private static final java.time.format.DateTimeFormatter ISO_LOCAL_TIME_FORMATTER_MILLIS =
+      new DateTimeFormatterBuilder()
+          .appendValue(HOUR_OF_DAY, 2)
+          .appendLiteral(':')
+          .appendValue(MINUTE_OF_HOUR, 2)
+          .appendLiteral(':')
+          .appendValue(SECOND_OF_MINUTE, 2)
+          .appendLiteral('.')
+          .appendFraction(NANO_OF_SECOND, 3, 3, false)
+          .toFormatter();
+
+  private static final java.time.format.DateTimeFormatter ISO_LOCAL_TIME_FORMATTER_SECONDS =
+      new DateTimeFormatterBuilder()
+          .appendValue(HOUR_OF_DAY, 2)
+          .appendLiteral(':')
+          .appendValue(MINUTE_OF_HOUR, 2)
+          .appendLiteral(':')
+          .appendValue(SECOND_OF_MINUTE, 2)
+          .toFormatter();
+
+  /**
+   * This method formats a BigQuery TIME value into a String matching the format used by JSON
+   * export. Time records are stored in "microseconds since midnight" format.
+   */
+  private static String formatTime(long timeMicros) {
+    java.time.format.DateTimeFormatter formatter;
+    if (timeMicros % 1000000 == 0) {
+      formatter = ISO_LOCAL_TIME_FORMATTER_SECONDS;
+    } else if (timeMicros % 1000 == 0) {
+      formatter = ISO_LOCAL_TIME_FORMATTER_MILLIS;
+    } else {
+      formatter = ISO_LOCAL_TIME_FORMATTER_MICROS;
     }
-    String formatString = String.format("%%0%dd", digits);
-    String fractionalSeconds = String.format(formatString, subsecond);
-    return String.format("%s.%s UTC", dayAndTime, fractionalSeconds);
+    return LocalTime.ofNanoOfDay(timeMicros * 1000).format(formatter);
   }
 
   /**
    * Utility function to convert from an Avro {@link GenericRecord} to a BigQuery {@link TableRow}.
    *
-   * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">
-   * "Avro format"</a> for more information.
+   * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">"Avro
+   * format"</a> for more information.
    */
   static TableRow convertGenericRecordToTableRow(GenericRecord record, TableSchema schema) {
     return convertGenericRecordToTableRow(record, schema.getFields());
@@ -118,6 +189,7 @@ class BigQueryAvroUtils {
         row.set(field.name(), convertedValue);
       }
     }
+
     return row;
   }
 
@@ -128,7 +200,7 @@ class BigQueryAvroUtils {
     String mode = firstNonNull(fieldSchema.getMode(), "NULLABLE");
     switch (mode) {
       case "REQUIRED":
-        return convertRequiredField(schema.getType(), fieldSchema, v);
+        return convertRequiredField(schema.getType(), schema.getLogicalType(), fieldSchema, v);
       case "REPEATED":
         return convertRepeatedField(schema, fieldSchema, v);
       case "NULLABLE":
@@ -150,60 +222,92 @@ class BigQueryAvroUtils {
     // REPEATED fields are represented as Avro arrays.
     if (v == null) {
       // Handle the case of an empty repeated field.
-      return ImmutableList.of();
+      return new ArrayList<>();
     }
     @SuppressWarnings("unchecked")
     List<Object> elements = (List<Object>) v;
-    ImmutableList.Builder<Object> values = ImmutableList.builder();
+    ArrayList<Object> values = new ArrayList<>();
     Type elementType = schema.getElementType().getType();
+    LogicalType elementLogicalType = schema.getElementType().getLogicalType();
     for (Object element : elements) {
-      values.add(convertRequiredField(elementType, fieldSchema, element));
+      values.add(convertRequiredField(elementType, elementLogicalType, fieldSchema, element));
     }
-    return values.build();
+    return values;
   }
 
   private static Object convertRequiredField(
-      Type avroType, TableFieldSchema fieldSchema, Object v) {
+      Type avroType, LogicalType avroLogicalType, TableFieldSchema fieldSchema, Object v) {
     // REQUIRED fields are represented as the corresponding Avro types. For example, a BigQuery
     // INTEGER type maps to an Avro LONG type.
     checkNotNull(v, "REQUIRED field %s should not be null", fieldSchema.getName());
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the type field
     // is required, so it may not be null.
     String bqType = fieldSchema.getType();
-    Type expectedAvroType = BIG_QUERY_TO_AVRO_TYPES.get(bqType);
-    verifyNotNull(expectedAvroType, "Unsupported BigQuery type: %s", bqType);
+    ImmutableCollection<Type> expectedAvroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bqType);
+    verifyNotNull(expectedAvroTypes, "Unsupported BigQuery type: %s", bqType);
     verify(
-        avroType == expectedAvroType,
-        "Expected Avro schema type %s, not %s, for BigQuery %s field %s",
-        expectedAvroType,
-        avroType,
+        expectedAvroTypes.contains(avroType),
+        "Expected Avro schema types %s for BigQuery %s field %s, but received %s",
+        expectedAvroTypes,
         bqType,
-        fieldSchema.getName());
-    switch (fieldSchema.getType()) {
+        fieldSchema.getName(),
+        avroType);
+    // For historical reasons, don't validate avroLogicalType except for with NUMERIC.
+    // BigQuery represents NUMERIC in Avro format as BYTES with a DECIMAL logical type.
+    switch (bqType) {
       case "STRING":
-      case "DATE":
       case "DATETIME":
-      case "TIME":
+      case "GEOGRAPHY":
         // Avro will use a CharSequence to represent String objects, but it may not always use
         // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
         verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
         return v.toString();
+      case "DATE":
+        if (avroType == Type.INT) {
+          verify(v instanceof Integer, "Expected Integer, got %s", v.getClass());
+          verifyNotNull(avroLogicalType, "Expected Date logical type");
+          verify(avroLogicalType instanceof LogicalTypes.Date, "Expected Date logical type");
+          return formatDate((Integer) v);
+        } else {
+          verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
+          return v.toString();
+        }
+      case "TIME":
+        if (avroType == Type.LONG) {
+          verify(v instanceof Long, "Expected Long, got %s", v.getClass());
+          verifyNotNull(avroLogicalType, "Expected TimeMicros logical type");
+          verify(
+              avroLogicalType instanceof LogicalTypes.TimeMicros,
+              "Expected TimeMicros logical type");
+          return formatTime((Long) v);
+        } else {
+          verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
+          return v.toString();
+        }
       case "INTEGER":
         verify(v instanceof Long, "Expected Long, got %s", v.getClass());
         return ((Long) v).toString();
       case "FLOAT":
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
         return v;
+      case "NUMERIC":
+        // NUMERIC data types are represented as BYTES with the DECIMAL logical type. They are
+        // converted back to Strings with precision and scale determined by the logical type.
+        verify(v instanceof ByteBuffer, "Expected ByteBuffer, got %s", v.getClass());
+        verifyNotNull(avroLogicalType, "Expected Decimal logical type");
+        verify(avroLogicalType instanceof LogicalTypes.Decimal, "Expected Decimal logical type");
+        BigDecimal numericValue =
+            new Conversions.DecimalConversion()
+                .fromBytes((ByteBuffer) v, Schema.create(avroType), avroLogicalType);
+        return numericValue.toString();
       case "BOOLEAN":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
         return v;
       case "TIMESTAMP":
-        // TIMESTAMP data types are represented as Avro LONG types. They are converted back to
-        // Strings with variable-precision (up to six digits) to match the JSON files export
-        // by BigQuery.
+        // TIMESTAMP data types are represented as Avro LONG types, microseconds since the epoch.
+        // Values may be negative since BigQuery timestamps start at 0001-01-01 00:00:00 UTC.
         verify(v instanceof Long, "Expected Long, got %s", v.getClass());
-        Double doubleValue = ((Long) v) / 1000000.0;
-        return formatTimestamp(doubleValue.toString());
+        return formatTimestamp((Long) v);
       case "RECORD":
         verify(v instanceof GenericRecord, "Expected GenericRecord, got %s", v.getClass());
         return convertGenericRecordToTableRow((GenericRecord) v, fieldSchema.getFields());
@@ -217,8 +321,7 @@ class BigQueryAvroUtils {
         throw new UnsupportedOperationException(
             String.format(
                 "Unexpected BigQuery field schema type %s for field named %s",
-                fieldSchema.getType(),
-                fieldSchema.getName()));
+                fieldSchema.getType(), fieldSchema.getName()));
     }
   }
 
@@ -244,9 +347,10 @@ class BigQueryAvroUtils {
 
     Type firstType = unionTypes.get(0).getType();
     if (!firstType.equals(Type.NULL)) {
-      return convertRequiredField(firstType, fieldSchema, v);
+      return convertRequiredField(firstType, unionTypes.get(0).getLogicalType(), fieldSchema, v);
     }
-    return convertRequiredField(unionTypes.get(1).getType(), fieldSchema, v);
+    return convertRequiredField(
+        unionTypes.get(1).getType(), unionTypes.get(1).getLogicalType(), fieldSchema, v);
   }
 
   static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
@@ -263,7 +367,7 @@ class BigQueryAvroUtils {
   }
 
   private static Field convertField(TableFieldSchema bigQueryField) {
-    Type avroType = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
+    Type avroType = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType()).iterator().next();
     Schema elementSchema;
     if (avroType == Type.RECORD) {
       elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields());
@@ -271,11 +375,11 @@ class BigQueryAvroUtils {
       elementSchema = Schema.create(avroType);
     }
     Schema fieldSchema;
-    if (bigQueryField.getMode() == null || bigQueryField.getMode().equals("NULLABLE")) {
+    if (bigQueryField.getMode() == null || "NULLABLE".equals(bigQueryField.getMode())) {
       fieldSchema = Schema.createUnion(Schema.create(Type.NULL), elementSchema);
-    } else if (bigQueryField.getMode().equals("REQUIRED")) {
+    } else if ("REQUIRED".equals(bigQueryField.getMode())) {
       fieldSchema = elementSchema;
-    } else if (bigQueryField.getMode().equals("REPEATED")) {
+    } else if ("REPEATED".equals(bigQueryField.getMode())) {
       fieldSchema = Schema.createArray(elementSchema);
     } else {
       throw new IllegalArgumentException(

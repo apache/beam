@@ -1,0 +1,156 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+.hero-bg
+  background-image: url(../images/hero_bg_flat.svg)
+  background-repeat: no-repeat
+  background-size: cover
+  background-position: top center
+  margin-top: -50px
+  +md
+    background-size: 100%
+    padding-bottom: $pad
+
+.hero
+  padding-top: $pad-xl
+  margin-bottom: $pad-md
+  position: relative
+  z-index: 1
+  +md
+    padding-top: $pad-sm
+    margin-bottom: $pad-xl
+
+  .hero__content
+    position: relative
+    z-index: 1
+
+  .hero__image
+    bottom: 0
+    content: ''
+    left: 0
+    line-height: 0
+    position: absolute
+    right: 0
+    top: 0
+    z-index: 0
+    img
+      position: absolute
+      bottom: 0
+      width: 100%
+
+  .hero__title
+    +type-h1
+    color: #fff
+    max-width: 500px
+    margin: 0 auto $pad
+    text-align: center
+    +md
+      margin: 0 0 $pad
+      text-align: left
+
+  .hero__ctas
+    text-align: center
+    margin-bottom: $pad-md
+    +md
+      margin-bottom: 0
+      text-align: left
+
+    &--first
+      margin-bottom: $pad
+      +md
+        margin-bottom: $pad-sm
+
+  .hero__subtitle
+    +type-h3
+    color: #fff
+    max-width: 540px
+    margin: 0 auto $pad
+    font-weight: $font-weight-semibold
+    text-align: center
+    +md
+      margin: 0 0 $pad-md
+      text-align: left
+
+  .hero__blog
+    .hero__blog__title
+      +type-h4
+      font-weight: $font-weight-bold
+      margin-bottom: $pad
+      text-align: center
+      +md
+        color: #fff
+        text-align: left
+        margin-bottom: $pad/2
+
+  .hero__blog__cards
+    +md
+      display: flex
+      margin: 0 -10px
+
+    .hero__blog__cards__card
+      background-color: #fff
+      color: inherit
+      box-shadow: $box-shadow
+      padding: 20px
+      display: block
+      transition: transform 300ms ease, box-shadow 300ms ease
+      position: relative
+      max-width: 300px
+      margin: 0 auto $pad
+      +md
+        margin: 0 10px
+
+      &:before
+        background-image: url(../images/card_border.svg)
+        background-position: top
+        background-repeat: no-repeat
+        background-size: cover
+        content: ' '
+        display: block
+        height: 2px
+        position: absolute
+        width: 100%
+        left: 0
+        top: 0
+
+      &:hover
+        text-decoration: none
+        transform: translateY(-8px)
+        box-shadow: $box-shadow-hover
+
+    .hero__blog__cards__card__title
+      +type-body
+      margin-bottom: $pad
+
+    .hero__blog__cards__card__date
+      +type-body-sm
+      font-weight: $font-weight-semibold
+      text-transform: uppercase
+      letter-spacing: 1px
+
+  .hero__cols
+    +md
+      display: flex
+      min-height: 500px
+
+      .hero__cols__col
+        width: 50%
+        display: flex
+        align-items: flex-end
+
+        &:first-child
+          align-items: center

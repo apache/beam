@@ -17,19 +17,16 @@
  */
 package org.apache.beam.fn.harness;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Multimap;
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
-import org.apache.beam.fn.harness.fn.ThrowingRunnable;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -38,24 +35,22 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Executes flatten PTransforms. */
-public class FlattenRunner<InputT>{
+public class FlattenRunner<InputT> {
   /** A registrar which provides a factory to handle flatten PTransforms. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
-  public static class Registrar implements
-      PTransformRunnerFactory.Registrar {
+  public static class Registrar implements PTransformRunnerFactory.Registrar {
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
-      return ImmutableMap.of(
-          PTransformTranslation.FLATTEN_TRANSFORM_URN, new Factory());
+      return ImmutableMap.of(PTransformTranslation.FLATTEN_TRANSFORM_URN, new Factory());
     }
   }
 
   /** A factory for {@link FlattenRunner}. */
-  static class Factory<InputT> implements
-      PTransformRunnerFactory<FlattenRunner<InputT>> {
+  static class Factory<InputT> implements PTransformRunnerFactory<FlattenRunner<InputT>> {
     @Override
     public FlattenRunner<InputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
@@ -67,23 +62,22 @@ public class FlattenRunner<InputT>{
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction)
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
+        BundleSplitListener splitListener)
         throws IOException {
 
       // Give each input a MultiplexingFnDataReceiver to all outputs of the flatten.
-      ImmutableSet.Builder<FnDataReceiver<WindowedValue<InputT>>> consumersBuilder =
-          new ImmutableSet.Builder<>();
       String output = getOnlyElement(pTransform.getOutputsMap().values());
-      consumersBuilder.addAll((Iterable) pCollectionIdsToConsumers.get(output));
+      FnDataReceiver<WindowedValue<?>> receiver =
+          pCollectionConsumerRegistry.getMultiplexingConsumer(output);
 
-      FnDataReceiver<WindowedValue<InputT>> receiver =
-          MultiplexingFnDataReceiver.forConsumers(consumersBuilder.build());
       FlattenRunner<InputT> runner = new FlattenRunner<>();
 
       for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionIdsToConsumers.put(pCollectionId, (FnDataReceiver) receiver);
+        pCollectionConsumerRegistry.register(
+            pCollectionId, pTransformId, (FnDataReceiver) receiver);
       }
 
       return runner;

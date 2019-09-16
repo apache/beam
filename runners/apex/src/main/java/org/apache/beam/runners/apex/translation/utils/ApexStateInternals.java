@@ -21,8 +21,6 @@ import com.datatorrent.netlet.util.Slice;
 import com.esotericsoftware.kryo.DefaultSerializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -47,7 +45,6 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
-import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -56,13 +53,15 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.joda.time.Instant;
 
 /**
  * Implementation of {@link StateInternals} for transient use.
  *
- * <p>For fields that need to be serialized, use {@link ApexStateInternalsFactory}
- * or {@link StateInternalsProxy}
+ * <p>For fields that need to be serialized, use {@link ApexStateInternalsFactory} or {@link
+ * StateInternalsProxy}
  */
 public class ApexStateInternals<K> implements StateInternals {
   private final K key;
@@ -79,45 +78,33 @@ public class ApexStateInternals<K> implements StateInternals {
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
-    return state(namespace, address, StateContexts.nullContext());
-  }
-
-  @Override
   public <T extends State> T state(
       StateNamespace namespace, StateTag<T> address, final StateContext<?> c) {
     return address.bind(new ApexStateBinder(namespace, address, c));
   }
 
-  /**
-   * A {@link StateBinder} that returns {@link State} wrappers for serialized state.
-   */
+  /** A {@link StateBinder} that returns {@link State} wrappers for serialized state. */
   private class ApexStateBinder implements StateBinder {
     private final StateNamespace namespace;
     private final StateContext<?> c;
 
-    private ApexStateBinder(StateNamespace namespace, StateTag<?> address,
-        StateContext<?> c) {
+    private ApexStateBinder(StateNamespace namespace, StateTag<?> address, StateContext<?> c) {
       this.namespace = namespace;
       this.c = c;
     }
 
     @Override
-    public <T> ValueState<T> bindValue(
-        StateTag<ValueState<T>> address, Coder<T> coder) {
+    public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
       return new ApexValueState<>(namespace, address, coder);
     }
 
     @Override
-    public <T> BagState<T> bindBag(
-        final StateTag<BagState<T>> address, Coder<T> elemCoder) {
+    public <T> BagState<T> bindBag(final StateTag<BagState<T>> address, Coder<T> elemCoder) {
       return new ApexBagState<>(namespace, address, elemCoder);
     }
 
     @Override
-    public <T> SetState<T> bindSet(
-        StateTag<SetState<T>> address,
-        Coder<T> elemCoder) {
+    public <T> SetState<T> bindSet(StateTag<SetState<T>> address, Coder<T> elemCoder) {
       throw new UnsupportedOperationException(
           String.format("%s is not supported", SetState.class.getSimpleName()));
     }
@@ -125,35 +112,29 @@ public class ApexStateInternals<K> implements StateInternals {
     @Override
     public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
         StateTag<MapState<KeyT, ValueT>> spec,
-        Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
+        Coder<KeyT> mapKeyCoder,
+        Coder<ValueT> mapValueCoder) {
       throw new UnsupportedOperationException(
           String.format("%s is not supported", MapState.class.getSimpleName()));
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-        bindCombiningValue(
-            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
-            Coder<AccumT> accumCoder,
-            final CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new ApexCombiningState<>(
-          namespace,
-          address,
-          accumCoder,
-          combineFn
-          );
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+        Coder<AccumT> accumCoder,
+        final CombineFn<InputT, AccumT, OutputT> combineFn) {
+      return new ApexCombiningState<>(namespace, address, accumCoder, combineFn);
     }
 
     @Override
     public WatermarkHoldState bindWatermark(
-        StateTag<WatermarkHoldState> address,
-        TimestampCombiner timestampCombiner) {
+        StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
       return new ApexWatermarkHoldState<>(namespace, address, timestampCombiner);
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-        bindCombiningValueWithContext(
+    public <InputT, AccumT, OutputT>
+        CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
             StateTag<CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
@@ -167,9 +148,7 @@ public class ApexStateInternals<K> implements StateInternals {
     protected final Coder<T> coder;
 
     private AbstractState(
-        StateNamespace namespace,
-        StateTag<? extends State> address,
-        Coder<T> coder) {
+        StateNamespace namespace, StateTag<? extends State> address, Coder<T> coder) {
       this.namespace = namespace;
       this.address = address;
       this.coder = coder;
@@ -228,9 +207,7 @@ public class ApexStateInternals<K> implements StateInternals {
   private class ApexValueState<T> extends AbstractState<T> implements ValueState<T> {
 
     private ApexValueState(
-        StateNamespace namespace,
-        StateTag<ValueState<T>> address,
-        Coder<T> coder) {
+        StateNamespace namespace, StateTag<ValueState<T>> address, Coder<T> coder) {
       super(namespace, address, coder);
     }
 
@@ -250,8 +227,8 @@ public class ApexStateInternals<K> implements StateInternals {
     }
   }
 
-  private final class ApexWatermarkHoldState<W extends BoundedWindow>
-      extends AbstractState<Instant> implements WatermarkHoldState {
+  private final class ApexWatermarkHoldState<W extends BoundedWindow> extends AbstractState<Instant>
+      implements WatermarkHoldState {
 
     private final TimestampCombiner timestampCombiner;
 
@@ -287,6 +264,7 @@ public class ApexStateInternals<K> implements StateInternals {
         public ReadableState<Boolean> readLater() {
           return this;
         }
+
         @Override
         public Boolean read() {
           return stateTable.get(namespace.stringKey(), address.getId()) == null;
@@ -298,15 +276,14 @@ public class ApexStateInternals<K> implements StateInternals {
     public TimestampCombiner getTimestampCombiner() {
       return timestampCombiner;
     }
-
   }
 
-  private final class ApexCombiningState<K, InputT, AccumT, OutputT>
-      extends AbstractState<AccumT>
+  private final class ApexCombiningState<InputT, AccumT, OutputT> extends AbstractState<AccumT>
       implements CombiningState<InputT, AccumT, OutputT> {
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
-    private ApexCombiningState(StateNamespace namespace,
+    private ApexCombiningState(
+        StateNamespace namespace,
         StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> coder,
         CombineFn<InputT, AccumT, OutputT> combineFn) {
@@ -315,7 +292,7 @@ public class ApexStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public ApexCombiningState<K, InputT, AccumT, OutputT> readLater() {
+    public ApexCombiningState<InputT, AccumT, OutputT> readLater() {
       return this;
     }
 
@@ -346,6 +323,7 @@ public class ApexStateInternals<K> implements StateInternals {
         public ReadableState<Boolean> readLater() {
           return this;
         }
+
         @Override
         public Boolean read() {
           return stateTable.get(namespace.stringKey(), address.getId()) == null;
@@ -363,14 +341,10 @@ public class ApexStateInternals<K> implements StateInternals {
     public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
       return combineFn.mergeAccumulators(accumulators);
     }
-
   }
 
   private final class ApexBagState<T> extends AbstractState<List<T>> implements BagState<T> {
-    private ApexBagState(
-        StateNamespace namespace,
-        StateTag<BagState<T>> address,
-        Coder<T> coder) {
+    private ApexBagState(StateNamespace namespace, StateTag<BagState<T>> address, Coder<T> coder) {
       super(namespace, address, ListCoder.of(coder));
     }
 
@@ -412,10 +386,9 @@ public class ApexStateInternals<K> implements StateInternals {
   }
 
   /**
-   * Implementation of {@link StateInternals} that can be serialized and
-   * checkpointed with the operator. Suitable for small states, in the future this
-   * should be based on the incremental state saving components in the Apex
-   * library.
+   * Implementation of {@link StateInternals} that can be serialized and checkpointed with the
+   * operator. Suitable for small states, in the future this should be based on the incremental
+   * state saving components in the Apex library.
    *
    * @param <K> key type
    */
@@ -423,10 +396,9 @@ public class ApexStateInternals<K> implements StateInternals {
   public static class ApexStateInternalsFactory<K>
       implements StateInternalsFactory<K>, Serializable {
     private static final long serialVersionUID = 1L;
-    /**
-     * Serializable state for internals (namespace to state tag to coded value).
-     */
+    /** Serializable state for internals (namespace to state tag to coded value). */
     private Map<Slice, HashBasedTable<String, String, byte[]>> perKeyState = new HashMap<>();
+
     private final Coder<K> keyCoder;
 
     private ApexStateInternalsFactory(Coder<K> keyCoder) {
@@ -441,8 +413,10 @@ public class ApexStateInternals<K> implements StateInternals {
     public ApexStateInternals<K> stateInternalsForKey(K key) {
       final Slice keyBytes;
       try {
-        keyBytes = (key != null) ? new Slice(CoderUtils.encodeToByteArray(keyCoder, key)) :
-          new Slice(null);
+        keyBytes =
+            (key != null)
+                ? new Slice(CoderUtils.encodeToByteArray(keyCoder, key))
+                : new Slice(null);
       } catch (CoderException e) {
         throw new RuntimeException(e);
       }
@@ -450,12 +424,9 @@ public class ApexStateInternals<K> implements StateInternals {
           perKeyState.computeIfAbsent(keyBytes, k -> HashBasedTable.create());
       return new ApexStateInternals<>(key, stateTable);
     }
-
   }
 
-  /**
-   * Factory to create the state internals.
-   */
+  /** Factory to create the state internals. */
   public static class ApexStateBackend implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -463,5 +434,4 @@ public class ApexStateInternals<K> implements StateInternals {
       return new ApexStateInternalsFactory<>(keyCoder);
     }
   }
-
 }

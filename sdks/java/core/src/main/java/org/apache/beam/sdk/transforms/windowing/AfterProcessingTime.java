@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -88,8 +88,8 @@ public class AfterProcessingTime extends OnceTrigger {
   }
 
   /**
-   * Aligns the time to be the smallest multiple of {@code period} greater than the epoch
-   * boundary (aka {@code new Instant(0)}).
+   * Aligns the time to be the smallest multiple of {@code period} greater than the epoch boundary
+   * (aka {@code new Instant(0)}).
    */
   public AfterProcessingTime alignedTo(final Duration period) {
     return alignedTo(period, new Instant(0));

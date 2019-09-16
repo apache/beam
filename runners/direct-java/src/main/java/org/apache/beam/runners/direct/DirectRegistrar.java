@@ -18,21 +18,20 @@
 package org.apache.beam.runners.direct;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
- * {@link DirectRunner}.
+ * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
+ * DirectRunner}.
  */
 public class DirectRegistrar {
   private DirectRegistrar() {}
-  /**
-   * Registers the {@link DirectRunner}.
-   */
+
+  /** Registers the {@link DirectRunner}. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
@@ -41,9 +40,7 @@ public class DirectRegistrar {
     }
   }
 
-  /**
-   * Registers the {@link DirectOptions}.
-   */
+  /** Registers the {@link DirectOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override

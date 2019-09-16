@@ -35,17 +35,10 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.Suite;
 
 /**
- * Tests for {@link ApexStateInternals}. This is based on the tests for
- * {@code StateInternalsTest}.
+ * Tests for {@link ApexStateInternals}. This is based on the tests for {@code StateInternalsTest}.
  */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    ApexStateInternalsTest.StandardStateInternalsTests.class,
-    ApexStateInternalsTest.OtherTests.class
-})
 public class ApexStateInternalsTest {
 
   private static StateInternals newStateInternals() {
@@ -54,9 +47,7 @@ public class ApexStateInternalsTest {
         .stateInternalsForKey("dummyKey");
   }
 
-  /**
-   * A standard StateInternals test. Ignore set and map tests.
-   */
+  /** A standard StateInternals test. Ignore set and map tests. */
   @RunWith(JUnit4.class)
   public static class StandardStateInternalsTests extends StateInternalsTest {
     @Override
@@ -93,9 +84,7 @@ public class ApexStateInternalsTest {
     public void testMapReadable() {}
   }
 
-  /**
-   * A specific test of ApexStateInternalsTest.
-   */
+  /** A specific test of ApexStateInternalsTest. */
   @RunWith(JUnit4.class)
   public static class OtherTests {
 
@@ -106,8 +95,7 @@ public class ApexStateInternalsTest {
     @Test
     public void testSerialization() throws Exception {
       ApexStateInternals.ApexStateInternalsFactory<String> sif =
-          new ApexStateInternals.ApexStateBackend().
-          newStateInternalsFactory(StringUtf8Coder.of());
+          new ApexStateInternals.ApexStateBackend().newStateInternalsFactory(StringUtf8Coder.of());
       ApexStateInternals<String> keyAndState = sif.stateInternalsForKey("dummy");
 
       ValueState<String> value = keyAndState.state(NAMESPACE, STRING_VALUE_ADDR);

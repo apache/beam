@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * An example that reads the public samples of weather data from BigQuery, counts the number of
@@ -46,15 +49,17 @@ import org.apache.beam.sdk.values.PCollection;
  * table.
  *
  * <p>To execute this pipeline locally, specify the BigQuery table for the output with the form:
+ *
  * <pre>{@code
- *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
+ * --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
  * <p>To change the runner, specify:
+ *
  * <pre>{@code
- *   --runner=YOUR_SELECTED_RUNNER
- * }
- * </pre>
+ * --runner=YOUR_SELECTED_RUNNER
+ * }</pre>
+ *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
@@ -66,12 +71,12 @@ public class BigQueryTornadoes {
       "clouddataflow-readonly:samples.weather_stations";
 
   /**
-   * Examines each row in the input table. If a tornado was recorded
-   * in that sample, the month in which it occurred is output.
+   * Examines each row in the input table. If a tornado was recorded in that sample, the month in
+   * which it occurred is output.
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       if ((Boolean) row.get("tornado")) {
         c.output(Integer.parseInt((String) row.get("month")));
@@ -80,15 +85,16 @@ public class BigQueryTornadoes {
   }
 
   /**
-   * Prepares the data for writing to BigQuery by building a TableRow object containing an
-   * integer representation of month and the number of tornadoes that occurred in each month.
+   * Prepares the data for writing to BigQuery by building a TableRow object containing an integer
+   * representation of month and the number of tornadoes that occurred in each month.
    */
   static class FormatCountsFn extends DoFn<KV<Integer, Long>, TableRow> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      TableRow row = new TableRow()
-          .set("month", c.element().getKey())
-          .set("tornado_count", c.element().getValue());
+      TableRow row =
+          new TableRow()
+              .set("month", c.element().getKey())
+              .set("tornado_count", c.element().getValue());
       c.output(row);
     }
   }
@@ -96,30 +102,26 @@ public class BigQueryTornadoes {
   /**
    * Takes rows from a table and generates a table of counts.
    *
-   * <p>The input schema is described by
-   * https://developers.google.com/bigquery/docs/dataset-gsod .
-   * The output contains the total number of tornadoes found in each month in
-   * the following schema:
+   * <p>The input schema is described by https://developers.google.com/bigquery/docs/dataset-gsod .
+   * The output contains the total number of tornadoes found in each month in the following schema:
+   *
    * <ul>
-   *   <li>month: integer</li>
-   *   <li>tornado_count: integer</li>
+   *   <li>month: integer
+   *   <li>tornado_count: integer
    * </ul>
    */
-  static class CountTornadoes
-      extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
+  static class CountTornadoes extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     @Override
     public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // row... => month...
-      PCollection<Integer> tornadoes = rows.apply(
-          ParDo.of(new ExtractTornadoesFn()));
+      PCollection<Integer> tornadoes = rows.apply(ParDo.of(new ExtractTornadoesFn()));
 
       // month... => <month,count>...
       PCollection<KV<Integer, Long>> tornadoCounts = tornadoes.apply(Count.perElement());
 
       // <month,count>... => row...
-      PCollection<TableRow> results = tornadoCounts.apply(
-          ParDo.of(new FormatCountsFn()));
+      PCollection<TableRow> results = tornadoCounts.apply(ParDo.of(new FormatCountsFn()));
 
       return results;
     }
@@ -131,22 +133,28 @@ public class BigQueryTornadoes {
    * <p>Inherits standard configuration options.
    */
   public interface Options extends PipelineOptions {
-    @Description("Table to read from, specified as "
-        + "<project_id>:<dataset_id>.<table_id>")
+    @Description("Table to read from, specified as <project_id>:<dataset_id>.<table_id>")
     @Default.String(WEATHER_SAMPLES_TABLE)
     String getInput();
+
     void setInput(String value);
 
-    @Description("BigQuery table to write to, specified as "
-        + "<project_id>:<dataset_id>.<table_id>. The dataset must already exist.")
+    @Description("Mode to use when reading from BigQuery")
+    @Default.Enum("EXPORT")
+    TypedRead.Method getReadMethod();
+
+    void setReadMethod(TypedRead.Method value);
+
+    @Description(
+        "BigQuery table to write to, specified as "
+            + "<project_id>:<dataset_id>.<table_id>. The dataset must already exist.")
     @Validation.Required
     String getOutput();
+
     void setOutput(String value);
   }
 
-  public static void main(String[] args) {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-
+  static void runBigQueryTornadoes(Options options) {
     Pipeline p = Pipeline.create(options);
 
     // Build the table schema for the output table.
@@ -155,14 +163,42 @@ public class BigQueryTornadoes {
     fields.add(new TableFieldSchema().setName("tornado_count").setType("INTEGER"));
     TableSchema schema = new TableSchema().setFields(fields);
 
-    p.apply(BigQueryIO.readTableRows().from(options.getInput()))
-     .apply(new CountTornadoes())
-     .apply(BigQueryIO.writeTableRows()
-         .to(options.getOutput())
-         .withSchema(schema)
-         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+    PCollection<TableRow> rowsFromBigQuery;
+
+    switch (options.getReadMethod()) {
+      case DIRECT_READ:
+        rowsFromBigQuery =
+            p.apply(
+                BigQueryIO.readTableRows()
+                    .from(options.getInput())
+                    .withMethod(Method.DIRECT_READ)
+                    .withSelectedFields(Lists.newArrayList("month", "tornado")));
+        break;
+
+      default:
+        rowsFromBigQuery =
+            p.apply(
+                BigQueryIO.readTableRows()
+                    .from(options.getInput())
+                    .withMethod(options.getReadMethod()));
+        break;
+    }
+
+    rowsFromBigQuery
+        .apply(new CountTornadoes())
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(options.getOutput())
+                .withSchema(schema)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
+  }
+
+  public static void main(String[] args) {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    runBigQueryTornadoes(options);
   }
 }

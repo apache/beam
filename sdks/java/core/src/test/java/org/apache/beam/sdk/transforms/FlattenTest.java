@@ -26,7 +26,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -60,6 +60,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -69,27 +70,20 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Flatten.
- */
+/** Tests for Flatten. */
 @RunWith(JUnit4.class)
 public class FlattenTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-
-  private static class ClassWithoutCoder { }
-
+  private static class ClassWithoutCoder {}
 
   @Test
   @Category(ValidatesRunner.class)
   public void testFlattenPCollections() {
-    List<List<String>> inputs = Arrays.asList(
-      LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
+    List<List<String>> inputs = Arrays.asList(LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
 
     PCollection<String> output =
         makePCollectionListOfStrings(p, inputs).apply(Flatten.pCollections());
@@ -113,8 +107,7 @@ public class FlattenTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testFlattenPCollectionsThenParDo() {
-    List<List<String>> inputs = Arrays.asList(
-      LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
+    List<List<String>> inputs = Arrays.asList(LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
 
     PCollection<String> output =
         makePCollectionListOfStrings(p, inputs)
@@ -192,7 +185,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testEmptyFlattenAsSideInput() {
     final PCollectionView<Iterable<String>> view =
         PCollectionList.<String>empty(p)
@@ -200,16 +193,19 @@ public class FlattenTest implements Serializable {
             .setCoder(StringUtf8Coder.of())
             .apply(View.asIterable());
 
-    PCollection<String> output = p
-        .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-        .apply(ParDo.of(new DoFn<Void, String>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    for (String side : c.sideInput(view)) {
-                      c.output(side);
-                    }
-                  }
-                }).withSideInputs(view));
+    PCollection<String> output =
+        p.apply(Create.of((Void) null).withCoder(VoidCoder.of()))
+            .apply(
+                ParDo.of(
+                        new DoFn<Void, String>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            for (String side : c.sideInput(view)) {
+                              c.output(side);
+                            }
+                          }
+                        })
+                    .withSideInputs(view));
 
     PAssert.that(output).empty();
     p.run();
@@ -245,14 +241,13 @@ public class FlattenTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testFlattenIterables() {
-    PCollection<Iterable<String>> input = p
-        .apply(Create.<Iterable<String>>of(LINES)
-            .withCoder(IterableCoder.of(StringUtf8Coder.of())));
+    PCollection<Iterable<String>> input =
+        p.apply(
+            Create.<Iterable<String>>of(LINES).withCoder(IterableCoder.of(StringUtf8Coder.of())));
 
     PCollection<String> output = input.apply(Flatten.iterables());
 
-    PAssert.that(output)
-        .containsInAnyOrder(LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
 
     p.run();
   }
@@ -291,8 +286,9 @@ public class FlattenTest implements Serializable {
     Set<String> linesSet = ImmutableSet.copyOf(LINES);
 
     PCollection<Collection<String>> input =
-        p.apply(Create.<Collection<String>>of(linesSet)
-                      .withCoder(CollectionCoder.of(StringUtf8Coder.of())));
+        p.apply(
+            Create.<Collection<String>>of(linesSet)
+                .withCoder(CollectionCoder.of(StringUtf8Coder.of())));
 
     PCollection<String> output = input.apply(Flatten.iterables());
 
@@ -304,14 +300,14 @@ public class FlattenTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testFlattenIterablesEmpty() {
-    PCollection<Iterable<String>> input = p
-        .apply(Create.<Iterable<String>>of(NO_LINES)
-            .withCoder(IterableCoder.of(StringUtf8Coder.of())));
+    PCollection<Iterable<String>> input =
+        p.apply(
+            Create.<Iterable<String>>of(NO_LINES)
+                .withCoder(IterableCoder.of(StringUtf8Coder.of())));
 
     PCollection<String> output = input.apply(Flatten.iterables());
 
-    PAssert.that(output)
-        .containsInAnyOrder(NO_LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(NO_LINES_ARRAY);
 
     p.run();
   }
@@ -323,16 +319,20 @@ public class FlattenTest implements Serializable {
     final TupleTag<String> outputEvenLengthTag = new TupleTag<String>() {};
     final TupleTag<String> outputOddLengthTag = new TupleTag<String>() {};
 
-    PCollectionTuple tuple = input.apply(ParDo.of(new DoFn<String, String>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) {
-        if (c.element().length() % 2 == 0) {
-          c.output(c.element());
-        } else {
-          c.output(outputOddLengthTag, c.element());
-        }
-      }
-    }).withOutputTags(outputEvenLengthTag, TupleTagList.of(outputOddLengthTag)));
+    PCollectionTuple tuple =
+        input.apply(
+            ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        if (c.element().length() % 2 == 0) {
+                          c.output(c.element());
+                        } else {
+                          c.output(outputOddLengthTag, c.element());
+                        }
+                      }
+                    })
+                .withOutputTags(outputEvenLengthTag, TupleTagList.of(outputOddLengthTag)));
 
     PCollection<String> outputEvenLength = tuple.get(outputEvenLengthTag);
     PCollection<String> outputOddLength = tuple.get(outputOddLengthTag);
@@ -364,8 +364,11 @@ public class FlattenTest implements Serializable {
 
     p.run();
 
-    Assert.assertTrue(output.getWindowingStrategy().getWindowFn().isCompatible(
-        FixedWindows.of(Duration.standardMinutes(1))));
+    Assert.assertTrue(
+        output
+            .getWindowingStrategy()
+            .getWindowFn()
+            .isCompatible(FixedWindows.of(Duration.standardMinutes(1))));
   }
 
   @Test
@@ -383,8 +386,11 @@ public class FlattenTest implements Serializable {
 
     p.run();
 
-    Assert.assertTrue(output.getWindowingStrategy().getWindowFn().isCompatible(
-        Sessions.withGapDuration(Duration.standardMinutes(2))));
+    Assert.assertTrue(
+        output
+            .getWindowingStrategy()
+            .getWindowFn()
+            .isCompatible(Sessions.withGapDuration(Duration.standardMinutes(2))));
   }
 
   @Test
@@ -402,8 +408,8 @@ public class FlattenTest implements Serializable {
       PCollectionList.of(input1).and(input2).apply(Flatten.pCollections());
       Assert.fail("Exception should have been thrown");
     } catch (IllegalStateException e) {
-      Assert.assertTrue(e.getMessage().startsWith(
-          "Inputs to Flatten had incompatible window windowFns"));
+      Assert.assertTrue(
+          e.getMessage().startsWith("Inputs to Flatten had incompatible window windowFns"));
     }
   }
 
@@ -423,15 +429,12 @@ public class FlattenTest implements Serializable {
   }
 
   private PCollectionList<String> makePCollectionListOfStrings(
-      Pipeline p,
-      List<List<String>> lists) {
+      Pipeline p, List<List<String>> lists) {
     return makePCollectionList(p, StringUtf8Coder.of(), lists);
   }
 
   private <T> PCollectionList<T> makePCollectionList(
-      Pipeline p,
-      Coder<T> coder,
-      List<List<T>> lists) {
+      Pipeline p, Coder<T> coder, List<List<T>> lists) {
     List<PCollection<T>> pcs = new ArrayList<>();
     int index = 0;
     for (List<T> list : lists) {

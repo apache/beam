@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertEquals;
@@ -25,7 +25,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -78,21 +78,21 @@ public class NullableCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@code PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@code
+   * PrintBase64Encodings}.
    *
    * @see org.apache.beam.sdk.coders.PrintBase64Encodings
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AQ",
-      "AWE",
-      "ATEz",
-      "AWhlbGxv",
-      "AA",
-      "AWEgbG9uZ2VyIHN0cmluZyB3aXRoIHNwYWNlcyBhbmQgYWxsIHRoYXQ",
-      "AWEgc3RyaW5nIHdpdGggYSAKIG5ld2xpbmU",
-      "AeOCueOCv-ODquODs-OCsA"
-  );
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "AQ",
+          "AWE",
+          "ATEz",
+          "AWhlbGxv",
+          "AA",
+          "AWEgbG9uZ2VyIHN0cmluZyB3aXRoIHNwYWNlcyBhbmQgYWxsIHRoYXQ",
+          "AWEgc3RyaW5nIHdpdGggYSAKIG5ld2xpbmU",
+          "AeOCueOCv-ODquODs-OCsA");
 
   @Test
   public void testWireFormatEncode() throws Exception {
@@ -122,8 +122,7 @@ public class NullableCoderTest {
   @Test
   public void testObserverIsNotCheap() throws Exception {
     NullableCoder<List<String>> coder = NullableCoder.of(ListCoder.of(StringUtf8Coder.of()));
-    assertFalse(coder.isRegisterByteSizeObserverCheap(
-        ImmutableList.of("hi", "test")));
+    assertFalse(coder.isRegisterByteSizeObserverCheap(ImmutableList.of("hi", "test")));
   }
 
   @Test
@@ -137,14 +136,13 @@ public class NullableCoderTest {
     CoderProperties.structuralValueConsistentWithEquals(TEST_CODER, null, null);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testDecodingError() throws Exception {
     thrown.expect(CoderException.class);
-    thrown.expectMessage(equalTo("NullableCoder expects either a byte valued 0 (null) "
-        + "or 1 (present), got 5"));
+    thrown.expectMessage(
+        equalTo("NullableCoder expects either a byte valued 0 (null) " + "or 1 (present), got 5"));
 
     InputStream input = new ByteArrayInputStream(new byte[] {5});
     TEST_CODER.decode(input, Coder.Context.OUTER);
@@ -171,14 +169,12 @@ public class NullableCoderTest {
 
   private static class EntireStreamExpectingCoder extends AtomicCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream)
-        throws IOException {
+    public void encode(String value, OutputStream outStream) throws IOException {
       encode(value, outStream, Context.NESTED);
     }
 
     @Override
-    public void encode(
-        String value, OutputStream outStream, Context context) throws IOException {
+    public void encode(String value, OutputStream outStream, Context context) throws IOException {
       checkArgument(context.isWholeStream, "Expected to get entire stream");
       StringUtf8Coder.of().encode(value, outStream, context);
     }
@@ -189,8 +185,7 @@ public class NullableCoderTest {
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+    public String decode(InputStream inStream, Context context) throws CoderException, IOException {
       checkArgument(context.isWholeStream, "Expected to get entire stream");
       return StringUtf8Coder.of().decode(inStream, context);
     }

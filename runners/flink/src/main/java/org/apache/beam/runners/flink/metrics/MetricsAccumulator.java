@@ -21,9 +21,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 
-/**
- * Accumulator of {@link MetricsContainerStepMap}.
- */
+/** Accumulator of {@link MetricsContainerStepMap}. */
 public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerStepMap> {
   private MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
 

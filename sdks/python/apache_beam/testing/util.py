@@ -21,7 +21,9 @@ from __future__ import absolute_import
 
 import collections
 import glob
+import io
 import tempfile
+from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -38,6 +40,8 @@ __all__ = [
     'assert_that',
     'equal_to',
     'is_empty',
+    'is_not_empty',
+    'matches_all',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
     'TestWindowedValue',
@@ -69,26 +73,91 @@ def contains_in_any_order(iterable):
     def __eq__(self, other):
       return self._counter == collections.Counter(other)
 
+    def __ne__(self, other):
+      # TODO(BEAM-5949): Needed for Python 2 compatibility.
+      return not self == other
+
+    def __hash__(self):
+      return hash(self._counter)
+
     def __repr__(self):
       return "InAnyOrder(%s)" % self._counter
 
   return InAnyOrder(iterable)
 
 
-# Note that equal_to always sorts the expected and actual since what we
-# compare are PCollections for which there is no guaranteed order.
-# However the sorting does not go beyond top level therefore [1,2] and [2,1]
-# are considered equal and [[1,2]] and [[2,1]] are not.
+def equal_to_per_window(expected_window_to_elements):
+  """Matcher used by assert_that to check on values for specific windows.
+
+  Arguments:
+    expected_window_to_elements: A dictionary where the keys are the windows
+      to check and the values are the elements associated with each window.
+  """
+  def matcher(elements):
+    actual_elements_in_window, window = elements
+    if window in expected_window_to_elements:
+      expected_elements_in_window = list(
+          expected_window_to_elements[window])
+      sorted_expected = sorted(expected_elements_in_window)
+      sorted_actual = sorted(actual_elements_in_window)
+      if sorted_expected != sorted_actual:
+        # Results for the same window don't necessarily come all
+        # at once. Hence the same actual window may contain only
+        # subsets of the expected elements for the window.
+        # For example, in the presence of early triggers.
+        if all(elem in sorted_expected for elem in sorted_actual) is False:
+          raise BeamAssertException(
+              'Failed assert: %r not in %r' % (sorted_actual, sorted_expected))
+  return matcher
+
+
+# Note that equal_to checks if expected and actual are permutations of each
+# other. However, only permutations of the top level are checked. Therefore
+# [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
 def equal_to(expected):
-  expected = list(expected)
 
   def _equal(actual):
-    sorted_expected = sorted(expected)
-    sorted_actual = sorted(actual)
-    if sorted_expected != sorted_actual:
-      raise BeamAssertException(
-          'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    expected_list = list(expected)
+
+    # Try to compare actual and expected by sorting. This fails with a
+    # TypeError in Python 3 if different types are present in the same
+    # collection.
+    try:
+      sorted_expected = sorted(expected)
+      sorted_actual = sorted(actual)
+      if sorted_expected != sorted_actual:
+        raise BeamAssertException(
+            'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    # Fall back to slower method which works for different types on Python 3.
+    except TypeError:
+      for element in actual:
+        try:
+          expected_list.remove(element)
+        except ValueError:
+          raise BeamAssertException(
+              'Failed assert: %r == %r' % (expected, actual))
+      if expected_list:
+        raise BeamAssertException(
+            'Failed assert: %r == %r' % (expected, actual))
+
   return _equal
+
+
+def matches_all(expected):
+  """Matcher used by assert_that to check a set of matchers.
+
+  Args:
+    expected: A list of elements or hamcrest matchers to be used to match
+      the elements of a single PCollection.
+  """
+  def _matches(actual):
+    from hamcrest.core import assert_that as hamcrest_assert
+    from hamcrest.library.collection import contains_inanyorder
+    expected_list = list(expected)
+
+    hamcrest_assert(actual, contains_inanyorder(*expected_list))
+
+  return _matches
 
 
 def is_empty():
@@ -100,7 +169,21 @@ def is_empty():
   return _empty
 
 
-def assert_that(actual, matcher, label='assert_that', reify_windows=False):
+def is_not_empty():
+  """
+  This is test method which makes sure that the pcol is not empty and it has
+  some data in it.
+  :return:
+  """
+  def _not_empty(actual):
+    actual = list(actual)
+    if not actual:
+      raise BeamAssertException('Failed assert: pcol is empty')
+  return _not_empty
+
+
+def assert_that(actual, matcher, label='assert_that',
+                reify_windows=False, use_global_window=True):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -114,6 +197,8 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
     reify_windows: If True, matcher is passed a list of TestWindowedValue.
+    use_global_window: If False, matcher is passed a dictionary of
+      (k, v) = (window, elements in the window).
 
   Returns:
     Ignored.
@@ -128,23 +213,31 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
       # the timestamp and window out of the latter.
       return [TestWindowedValue(element, timestamp, [window])]
 
+  class AddWindow(DoFn):
+    def process(self, element, window=DoFn.WindowParam):
+      yield element, window
+
   class AssertThat(PTransform):
 
     def expand(self, pcoll):
       if reify_windows:
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
 
-      # We must have at least a single element to ensure the matcher
-      # code gets run even if the input pcollection is empty.
       keyed_singleton = pcoll.pipeline | Create([(None, None)])
-      keyed_actual = (
-          pcoll
-          | WindowInto(window.GlobalWindows())
-          | "ToVoidKey" >> Map(lambda v: (None, v)))
-      _ = ((keyed_singleton, keyed_actual)
-           | "Group" >> CoGroupByKey()
-           | "Unkey" >> Map(lambda k___actual_values: k___actual_values[1][1])
-           | "Match" >> Map(matcher))
+
+      if use_global_window:
+        pcoll = pcoll | WindowInto(window.GlobalWindows())
+
+      keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
+
+      plain_actual = ((keyed_singleton, keyed_actual)
+                      | "Group" >> CoGroupByKey()
+                      | "Unkey" >> Map(lambda k_values: k_values[1][1]))
+
+      if not use_global_window:
+        plain_actual = plain_actual | "AddWindow" >> ParDo(AddWindow())
+
+      plain_actual = plain_actual | "Match" >> Map(matcher)
 
     def default_label(self):
       return label
@@ -153,10 +246,25 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
 
 
 @experimental()
-def open_shards(glob_pattern):
-  """Returns a composite file of all shards matching the given glob pattern."""
-  with tempfile.NamedTemporaryFile(delete=False) as f:
+def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
+  """Returns a composite file of all shards matching the given glob pattern.
+
+  Args:
+    glob_pattern (str): Pattern used to match files which should be opened.
+    mode (str): Specify the mode in which the file should be opened. For
+                available modes, check io.open() documentation.
+    encoding (str): Name of the encoding used to decode or encode the file.
+                    This should only be used in text mode.
+
+  Returns:
+    A stream with the contents of the opened files.
+  """
+  if 'b' in mode:
+    encoding = None
+
+  with tempfile.NamedTemporaryFile(delete=False) as out_file:
     for shard in glob.glob(glob_pattern):
-      f.write(file(shard).read())
-    concatenated_file_name = f.name
-  return file(concatenated_file_name, 'rb')
+      with open(shard, 'rb') as in_file:
+        out_file.write(in_file.read())
+    concatenated_file_name = out_file.name
+  return io.open(concatenated_file_name, mode, encoding=encoding)

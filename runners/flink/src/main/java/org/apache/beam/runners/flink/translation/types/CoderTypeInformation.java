@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -27,8 +27,8 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for
- * Dataflow {@link org.apache.beam.sdk.coders.Coder}s.
+ * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for Beam {@link
+ * org.apache.beam.sdk.coders.Coder}s.
  */
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
@@ -61,8 +61,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   @Override
   @SuppressWarnings("unchecked")
   public Class<T> getTypeClass() {
-    // We don't have the Class, so we have to pass null here. What a shame...
-    return (Class<T>) Object.class;
+    return (Class<T>) coder.getEncodedTypeDescriptor().getRawType();
   }
 
   @Override
@@ -93,7 +92,6 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
     CoderTypeInformation that = (CoderTypeInformation) o;
 
     return coder.equals(that.coder);
-
   }
 
   @Override
@@ -112,9 +110,8 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   }
 
   @Override
-  public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig
-      executionConfig) {
-    throw new UnsupportedOperationException(
-        "Non-encoded values cannot be compared directly.");
+  public TypeComparator<T> createComparator(
+      boolean sortOrderAscending, ExecutionConfig executionConfig) {
+    throw new UnsupportedOperationException("Non-encoded values cannot be compared directly.");
   }
 }

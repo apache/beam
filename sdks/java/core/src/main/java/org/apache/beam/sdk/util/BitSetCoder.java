@@ -43,8 +43,7 @@ public class BitSetCoder extends AtomicCoder<BitSet> {
   }
 
   @Override
-  public void encode(BitSet value, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(BitSet value, OutputStream outStream) throws CoderException, IOException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -60,8 +59,7 @@ public class BitSetCoder extends AtomicCoder<BitSet> {
   }
 
   @Override
-  public BitSet decode(InputStream inStream, Context context)
-      throws CoderException, IOException {
+  public BitSet decode(InputStream inStream, Context context) throws CoderException, IOException {
     return BitSet.valueOf(BYTE_ARRAY_CODER.decode(inStream, context));
   }
 

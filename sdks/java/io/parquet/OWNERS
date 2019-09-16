@@ -1,0 +1,6 @@
+# See the OWNERS docs at https://s.apache.org/beam-owners
+
+reviewers:
+  - lgajowy
+  - jbonofre
+  - aromanenko-dev

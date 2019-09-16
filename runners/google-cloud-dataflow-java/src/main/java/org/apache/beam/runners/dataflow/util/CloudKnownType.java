@@ -21,8 +21,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** A utility for manipulating well-known cloud types. */
+@SuppressWarnings("ImmutableEnumChecker")
 enum CloudKnownType {
   TEXT("http://schema.org/Text", String.class) {
     @Override
@@ -82,11 +84,11 @@ enum CloudKnownType {
   };
 
   private final String uri;
-  private final Class<?>[] classes;
+  private final ImmutableList<Class<?>> classes;
 
   CloudKnownType(String uri, Class<?>... classes) {
     this.uri = uri;
-    this.classes = classes;
+    this.classes = ImmutableList.copyOf(classes);
   }
 
   public String getUri() {
@@ -96,7 +98,7 @@ enum CloudKnownType {
   public abstract <T> T parse(Object value, Class<T> clazz);
 
   public Class<?> defaultClass() {
-    return classes[0];
+    return classes.get(0);
   }
 
   private static final Map<String, CloudKnownType> typesByUri =
@@ -119,7 +121,7 @@ enum CloudKnownType {
   }
 
   private static final Map<Class<?>, CloudKnownType> typesByClass =
-  Collections.unmodifiableMap(buildTypesByClass());
+      Collections.unmodifiableMap(buildTypesByClass());
 
   private static Map<Class<?>, CloudKnownType> buildTypesByClass() {
     Map<Class<?>, CloudKnownType> result = new HashMap<>();

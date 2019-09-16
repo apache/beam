@@ -1,0 +1,59 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  exportJavadoc: false,
+  shadowClosure: {
+    dependencies {
+        include(dependency('com.google.guava:guava:26.0-jre'))
+        include(dependency('com.google.protobuf:protobuf-java:3.7.1'))
+    }
+    // We specifically relocate beam-sdks-extensions-protobuf under a vendored namespace
+    // but also vendor guava and protobuf to the same vendored namespace as the model/*
+    // implementations allowing the artifacts to encode/decode vendored byte strings and
+    // vendored protobuf messages
+    relocate "org.apache.beam.sdk.extensions.protobuf", "org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf"
+
+    // guava uses the com.google.common and com.google.thirdparty package namespaces
+    relocate "com.google.common", "org.apache.beam.vendor.grpc.v1p21p0.com.google.common"
+    relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p21p0.com.google.thirdparty"
+
+    relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf"
+  }
+)
+
+description = "Apache Beam :: Vendored Dependencies :: SDKs :: Java :: Extensions :: Protobuf"
+ext.summary = "Add support to Apache Beam for Vendored Google Protobuf."
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.main.java.srcDirs" directly.
+ */
+evaluationDependsOn(":sdks:java:extensions:protobuf")
+
+compileJava {
+    source project(":sdks:java:extensions:protobuf").sourceSets.main.java.srcDirs
+}
+
+dependencies {
+    compile 'com.google.guava:guava:26.0-jre'
+    compile 'com.google.protobuf:protobuf-java:3.7.1'
+    shadow project(path: ":sdks:java:core", configuration: "shadow")
+}

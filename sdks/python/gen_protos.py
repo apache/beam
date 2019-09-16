@@ -16,36 +16,43 @@
 #
 
 """Generates Python proto modules and grpc stubs for Beam protos."""
+from __future__ import absolute_import
+from __future__ import print_function
 
 import glob
 import logging
 import multiprocessing
 import os
-import pip
-import pkg_resources
 import platform
-import pprint
 import shutil
 import subprocess
 import sys
 import time
 import warnings
 
-GRPC_TOOLS = 'grpcio-tools>=1.3.5,<2'
+import pkg_resources
+
+# TODO(BEAM-5414): latest grpcio-tools incompatible with latest protobuf 3.6.1.
+GRPC_TOOLS = 'grpcio-tools>=1.3.5,<=1.14.2'
 
 BEAM_PROTO_PATHS = [
-  os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
-  os.path.join('..', '..', 'model', 'job-management', 'src', 'main', 'proto'),
-  os.path.join('..', '..', 'model', 'fn-execution', 'src', 'main', 'proto'),
+    os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
+    os.path.join('..', '..', 'model', 'job-management', 'src', 'main', 'proto'),
+    os.path.join('..', '..', 'model', 'fn-execution', 'src', 'main', 'proto'),
 ]
 
 PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
+
+MODEL_RESOURCES = [
+    os.path.normpath('../../model/fn-execution/src/main/resources'\
+            + '/org/apache/beam/model/fnexecution/v1/standard_coders.yaml'),
+]
 
 
 def generate_proto_files(force=False):
 
   try:
-    import grpc_tools
+    import grpc_tools  # pylint: disable=unused-variable
   except ImportError:
     warnings.warn('Installing grpcio-tools is recommended for development.')
 
@@ -71,10 +78,11 @@ def generate_proto_files(force=False):
       raise RuntimeError(
           'No proto files found in %s.' % proto_dirs)
 
-  # Regenerate iff the proto files are newer.
+  # Regenerate iff the proto files or this file are newer.
   elif force or not out_files or len(out_files) < len(proto_files) or (
       min(os.path.getmtime(path) for path in out_files)
-      <= max(os.path.getmtime(path) for path in proto_files)):
+      <= max(os.path.getmtime(path)
+             for path in proto_files + [os.path.realpath(__file__)])):
     try:
       from grpc_tools import protoc
     except ImportError:
@@ -98,26 +106,32 @@ def generate_proto_files(force=False):
       logging.info('Regenerating out-of-date Python proto definitions.')
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
       args = (
-        [sys.executable] +  # expecting to be called from command line
-        ['--proto_path=%s' % builtin_protos] +
-        ['--proto_path=%s' % d for d in proto_dirs] +
-        ['--python_out=%s' % out_dir] +
-        # TODO(robertwb): Remove the prefix once it's the default.
-        ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
-        proto_files)
+          [sys.executable] +  # expecting to be called from command line
+          ['--proto_path=%s' % builtin_protos] +
+          ['--proto_path=%s' % d for d in proto_dirs] +
+          ['--python_out=%s' % out_dir] +
+          # TODO(robertwb): Remove the prefix once it's the default.
+          ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
+          proto_files)
       ret_code = protoc.main(args)
       if ret_code:
         raise RuntimeError(
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
 
+    # copy resource files
+    for path in MODEL_RESOURCES:
+      shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
-    if sys.version_info[0] >= 3:
-      ret_code = subprocess.call(
-        ["futurize", "--both-stages", "--write", "--verbose", "--no-diff", out_dir])
+    ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
+    if ret_code:
+      raise RuntimeError(
+          'Error installing future during proto generation')
 
-      if ret_code:
-        raise RuntimeError(
+    ret_code = subprocess.call(
+        ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
+    if ret_code:
+      raise RuntimeError(
           'Error applying futurize to generated protobuf python files.')
 
 
@@ -133,19 +147,18 @@ def _install_grpcio_tools_and_generate_proto_files():
   build_path = install_path + '-build'
   if os.path.exists(build_path):
     shutil.rmtree(build_path)
-  logging.warning('Installing grpcio-tools into %s' % install_path)
+  logging.warning('Installing grpcio-tools into %s', install_path)
   try:
     start = time.time()
-    pprint.pprint(pip.pep425tags.get_supported())
     subprocess.check_call(
         [sys.executable, '-m', 'pip', 'install',
          '--target', install_path, '--build', build_path,
          '--upgrade', GRPC_TOOLS])
     logging.warning(
-        'Installing grpcio-tools took %0.2f seconds.' % (time.time() - start))
+        'Installing grpcio-tools took %0.2f seconds.', time.time() - start)
   finally:
     sys.stderr.flush()
-    shutil.rmtree(build_path)
+    shutil.rmtree(build_path, ignore_errors=True)
   sys.path.append(install_path)
   try:
     generate_proto_files()

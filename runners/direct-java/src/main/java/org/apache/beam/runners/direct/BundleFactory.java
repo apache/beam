@@ -22,9 +22,7 @@ import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * A factory that creates {@link UncommittedBundle UncommittedBundles}.
- */
+/** A factory that creates {@link UncommittedBundle UncommittedBundles}. */
 interface BundleFactory {
   /**
    * Create an {@link UncommittedBundle} from an empty input. Elements added to the bundle do not
@@ -45,6 +43,5 @@ interface BundleFactory {
    * {@link DirectGroupByKeyOnly} {@link PTransform PTransforms}. Elements added to the bundle
    * belong to the {@code output} {@link PCollection}.
    */
-  <K, T> UncommittedBundle<T> createKeyedBundle(
-      StructuralKey<K> key, PCollection<T> output);
+  <K, T> UncommittedBundle<T> createKeyedBundle(StructuralKey<K> key, PCollection<T> output);
 }

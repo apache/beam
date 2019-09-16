@@ -19,6 +19,9 @@
 and dynamically provided values.
 """
 
+from __future__ import absolute_import
+
+from builtins import object
 from functools import wraps
 
 from apache_beam import error
@@ -66,9 +69,17 @@ class StaticValueProvider(ValueProvider):
         return True
     return False
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
+  def __hash__(self):
+    return hash((type(self), self.value_type, self.value))
+
 
 class RuntimeValueProvider(ValueProvider):
   runtime_options = None
+  experiments = set()
 
   def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name
@@ -80,6 +91,9 @@ class RuntimeValueProvider(ValueProvider):
 
   @classmethod
   def get_value(cls, option_name, value_type, default_value):
+    if not RuntimeValueProvider.runtime_options:
+      return default_value
+
     candidate = RuntimeValueProvider.runtime_options.get(option_name)
     if candidate:
       return value_type(candidate)
@@ -98,6 +112,8 @@ class RuntimeValueProvider(ValueProvider):
   @classmethod
   def set_runtime_options(cls, pipeline_options):
     RuntimeValueProvider.runtime_options = pipeline_options
+    RuntimeValueProvider.experiments = RuntimeValueProvider.get_value(
+        'experiments', set, set())
 
   def __str__(self):
     return '%s(option: %s, type: %s, default_value: %s)' % (

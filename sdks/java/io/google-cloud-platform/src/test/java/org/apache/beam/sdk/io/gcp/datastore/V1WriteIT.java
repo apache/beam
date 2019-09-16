@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.countEntities;
@@ -36,9 +35,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end tests for Datastore DatastoreV1.Write.
- */
+/** End-to-end tests for Datastore DatastoreV1.Write. */
 @RunWith(JUnit4.class)
 public class V1WriteIT {
   private V1TestOptions options;
@@ -57,9 +54,8 @@ public class V1WriteIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Write}.
    *
-   * <p>Write some test entities to Cloud Datastore.
-   * Read and count all the entities. Verify that the count matches the
-   * number of entities written.
+   * <p>Write some test entities to Cloud Datastore. Read and count all the entities. Verify that
+   * the count matches the number of entities written.
    */
   @Test
   public void testE2EV1Write() throws Exception {
@@ -75,15 +71,15 @@ public class V1WriteIT {
     // Count number of entities written to datastore.
     long numEntitiesWritten = countEntities(options, project, ancestor);
 
-    assertEquals(numEntitiesWritten, numEntities);
+    assertEquals(numEntities, numEntitiesWritten);
   }
 
   /**
    * An end-to-end test for {@link DatastoreV1.Write}.
    *
-   * <p>Write some large test entities to Cloud Datastore, to test that a batch is flushed when
-   * the byte size limit is reached. Read and count all the entities. Verify that the count matches
-   * the number of entities written.
+   * <p>Write some large test entities to Cloud Datastore, to test that a batch is flushed when the
+   * byte size limit is reached. Read and count all the entities. Verify that the count matches the
+   * number of entities written.
    */
   @Test
   public void testE2EV1WriteWithLargeEntities() throws Exception {
@@ -99,8 +95,10 @@ public class V1WriteIT {
 
     // Write to datastore
     p.apply(GenerateSequence.from(0).to(numLargeEntities))
-        .apply(ParDo.of(new CreateEntityFn(
-                options.getKind(), options.getNamespace(), ancestor, rawPropertySize)))
+        .apply(
+            ParDo.of(
+                new CreateEntityFn(
+                    options.getKind(), options.getNamespace(), ancestor, rawPropertySize)))
         .apply(DatastoreIO.v1().write().withProjectId(project));
 
     p.run();
@@ -108,7 +106,7 @@ public class V1WriteIT {
     // Count number of entities written to datastore.
     long numEntitiesWritten = countEntities(options, project, ancestor);
 
-    assertEquals(numEntitiesWritten, numLargeEntities);
+    assertEquals(numLargeEntities, numEntitiesWritten);
   }
 
   @After

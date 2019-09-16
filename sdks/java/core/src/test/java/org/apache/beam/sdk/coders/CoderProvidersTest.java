@@ -29,9 +29,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CoderProviders}.
- */
+/** Tests for {@link CoderProviders}. */
 @RunWith(JUnit4.class)
 public class CoderProvidersTest {
   @Test
@@ -51,8 +49,8 @@ public class CoderProvidersTest {
   }
 
   /**
-   * Checks that {#link CoderProviders.fromStaticMethods} successfully
-   * builds a working {@link CoderProvider} from {@link KvCoder KvCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully builds a working {@link
+   * CoderProvider} from {@link KvCoder KvCoder.class}.
    */
   @Test
   public void testKvCoderProvider() throws Exception {
@@ -65,8 +63,8 @@ public class CoderProvidersTest {
   }
 
   /**
-   * Checks that {#link CoderProviders.fromStaticMethods} successfully
-   * builds a working {@link CoderProvider} from {@link ListCoder ListCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully builds a working {@link
+   * CoderProvider} from {@link ListCoder ListCoder.class}.
    */
   @Test
   public void testListCoderProvider() throws Exception {
@@ -79,8 +77,8 @@ public class CoderProvidersTest {
   }
 
   /**
-   * Checks that {#link CoderProviders.fromStaticMethods} successfully
-   * builds a working {@link CoderProvider} from {@link IterableCoder IterableCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully builds a working {@link
+   * CoderProvider} from {@link IterableCoder IterableCoder.class}.
    */
   @Test
   public void testIterableCoderProvider() throws Exception {

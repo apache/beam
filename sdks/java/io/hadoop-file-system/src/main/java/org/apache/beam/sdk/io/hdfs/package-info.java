@@ -17,7 +17,7 @@
  */
 
 /**
- * {@link org.apache.beam.sdk.io.FileSystem} implementation for any Hadoop
- * {@link org.apache.hadoop.fs.FileSystem}.
+ * {@link org.apache.beam.sdk.io.FileSystem} implementation for any Hadoop {@link
+ * org.apache.hadoop.fs.FileSystem}.
  */
 package org.apache.beam.sdk.io.hdfs;

@@ -15,20 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Union;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * {@link BeamRelNode} to replace a {@link Union}.
@@ -39,45 +42,66 @@ import org.apache.calcite.rel.core.Union;
  * <p>1) Do not use {@code grouped window function}:
  *
  * <pre>{@code
- *   select * from person UNION select * from person
+ * select * from person UNION select * from person
  * }</pre>
  *
  * <p>2) Use the same {@code grouped window function}, with the same param:
+ *
  * <pre>{@code
- *   select id, count(*) from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
- *   UNION
- *   select * from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * select id, count(*) from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * UNION
+ * select * from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
  * }</pre>
  *
  * <p>Inputs with different group functions are NOT supported:
+ *
  * <pre>{@code
- *   select id, count(*) from person
- *   group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
- *   UNION
- *   select * from person
- *   group by id, TUMBLE(order_time, INTERVAL '2' HOUR)
+ * select id, count(*) from person
+ * group by id, TUMBLE(order_time, INTERVAL '1' HOUR)
+ * UNION
+ * select * from person
+ * group by id, TUMBLE(order_time, INTERVAL '2' HOUR)
  * }</pre>
  */
 public class BeamUnionRel extends Union implements BeamRelNode {
-  private BeamSetOperatorRelBase delegate;
-  public BeamUnionRel(RelOptCluster cluster,
-      RelTraitSet traits,
-      List<RelNode> inputs,
-      boolean all) {
+  public BeamUnionRel(
+      RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all) {
     super(cluster, traits, inputs, all);
-    this.delegate = new BeamSetOperatorRelBase(this,
-        BeamSetOperatorRelBase.OpType.UNION,
-        inputs, all);
   }
 
-  @Override public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
+  @Override
+  public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
     return new BeamUnionRel(getCluster(), traitSet, inputs, all);
   }
 
-  @Override public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    return delegate.buildBeamPipeline(inputPCollections, sqlEnv);
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.UNION, all);
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    // The summation of the input stats
+    NodeStats summationOfEstimates =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
+            .reduce(NodeStats.create(0, 0, 0), NodeStats::plus);
+    // If all is set then we propagate duplicated values. Otherwise we assume a constant factor of
+    // them are duplicate.
+    summationOfEstimates = all ? summationOfEstimates : summationOfEstimates.multiply(0.5);
+    return summationOfEstimates;
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    NodeStats summationOfEstimates =
+        inputs.stream()
+            .map(input -> BeamSqlRelUtils.getNodeStats(input, mq))
+            .reduce(NodeStats.create(0, 0, 0), NodeStats::plus);
+
+    return BeamCostModel.FACTORY.makeCost(
+        summationOfEstimates.getRowCount(), summationOfEstimates.getRate());
   }
 }

@@ -1,0 +1,1053 @@
+#!/usr/bin/env python
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Beam Java SDK dependency ownership
+# Please update if new dependencies are introduced to the Beam.
+# Sign up with you JIRA username to take the ownership of a package.
+# Separate names by comma.
+
+---
+
+deps:
+  args4j:args4j:
+    group: args4j
+    artifact: args4j
+    owners:
+
+  biz.aQute:bndlib:
+    group: biz.aQute
+    artifact: bndlib
+    owners:
+
+  ca.coglinc:javacc-gradle-plugin:
+    group: ca.coglinc
+    artifact: javacc-gradle-plugin
+    owners:
+
+  com.alibaba:fastjson:
+    group: com.alibaba
+    artifact: fastjson
+    owners:
+
+  com.amazonaws:amazon-kinesis-client:
+    group: com.amazonaws
+    artifact: amazon-kinesis-client
+    owners:
+
+  com.amazonaws:amazon-kinesis-producer:
+    group: com.amazonaws
+    artifact: amazon-kinesis-producer
+    owners:
+
+  com.amazonaws:aws-java-sdk-cloudwatch:
+    group: com.amazonaws
+    artifact: aws-java-sdk-cloudwatch
+    owners:
+
+  com.amazonaws:aws-java-sdk-core:
+    group: com.amazonaws
+    artifact: aws-java-sdk-core
+    owners:
+
+  com.amazonaws:aws-java-sdk-kinesis:
+    group: com.amazonaws
+    artifact: aws-java-sdk-kinesis
+    owners:
+
+  com.amazonaws:aws-java-sdk-s3:
+    group: com.amazonaws
+    artifact: aws-java-sdk-s3
+    owners:
+
+  com.carrotsearch.randomizedtesting:randomizedtesting-runner:
+    group: com.carrotsearch.randomizedtesting
+    artifact: randomizedtesting-runner
+    owners:
+
+  com.clearspring.analytics:stream:
+    group: com.clearspring.analytics
+    artifact: stream
+    owners:
+
+  com.commercehub.gradle.plugin:gradle-avro-plugin:
+    group: com.commercehub.gradle.plugin
+    artifact: gradle-avro-plugin
+    owners:
+
+  com.datastax.cassandra:cassandra-driver-core:
+    group: com.datastax.cassandra
+    artifact: cassandra-driver-core
+    owners:
+
+  com.datastax.cassandra:cassandra-driver-mapping:
+    group: com.datastax.cassandra
+    artifact: cassandra-driver-mapping
+    owners:
+
+  com.diffplug.spotless:spotless-plugin-gradle:
+    group: com.diffplug.spotless
+    artifact: spotless-plugin-gradle
+    owners:
+
+  com.esotericsoftware.kryo:kryo:
+    group: com.esotericsoftware.kryo
+    artifact: kryo
+    owners:
+
+  com.fasterxml.jackson.core:jackson-annotations:
+    group: com.fasterxml.jackson.core
+    artifact: jackson-annotations
+    owners:
+
+  com.fasterxml.jackson.core:jackson-core:
+    group: com.fasterxml.jackson.core
+    artifact: jackson-core
+    owners:
+
+  com.fasterxml.jackson.core:jackson-databind:
+    group: com.fasterxml.jackson.core
+    artifact: jackson-databind
+    owners:
+
+  com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:
+    group: com.fasterxml.jackson.dataformat
+    artifact: jackson-dataformat-cbor
+    owners:
+
+  com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:
+    group: com.fasterxml.jackson.dataformat
+    artifact: jackson-dataformat-yaml
+    owners:
+
+  com.fasterxml.jackson.datatype:jackson-datatype-joda:
+    group: com.fasterxml.jackson.datatype
+    artifact: jackson-datatype-joda
+    owners:
+
+  com.fasterxml.jackson.module:jackson-module-scala_2.11:
+    group: com.fasterxml.jackson.module
+    artifact: jackson-module-scala_2.11
+    owners:
+
+  com.github.ben-manes:gradle-versions-plugin:
+    group: com.github.ben-manes
+    artifact: gradle-versions-plugin
+    owners:
+
+  com.github.jengelman.gradle.plugins:shadow:
+    group: com.github.jengelman.gradle.plugins
+    artifact: shadow
+    owners:
+
+  com.google.api:gax-grpc:
+    group: com.google.api
+    artifact: gax-grpc
+    owners:
+
+  com.google.api:api-common:
+    group: com.google.api
+    artifact: api-common
+    owners:
+
+  com.google.api-client:google-api-client:
+    group: com.google.api-client
+    artifact: google-api-client
+    owners:
+
+  com.google.api-client:google-api-client-jackson2:
+    group: com.google.api-client
+    artifact: google-api-client-jackson2
+    owners:
+
+  com.google.api-client:google-api-client-java6:
+    group: com.google.api-client
+    artifact: google-api-client-java6
+    owners:
+
+  com.google.api.grpc:grpc-google-cloud-pubsub-v1:
+    group: com.google.api.grpc
+    artifact: grpc-google-cloud-pubsub-v1
+    owners:
+
+  com.google.api.grpc:proto-google-cloud-pubsub-v1:
+    group: com.google.api.grpc
+    artifact: proto-google-cloud-pubsub-v1
+    owners:
+
+  com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:
+    group: com.google.api.grpc
+    artifact: proto-google-cloud-spanner-admin-database-v1
+    owners:
+
+  com.google.api.grpc:proto-google-common-protos:
+    group: com.google.api.grpc
+    artifact: proto-google-common-protos
+    owners:
+
+  com.google.apis:google-api-services-bigquery:
+    group: com.google.apis
+    artifact: google-api-services-bigquery
+    owners: chamikara
+
+  com.google.apis:google-api-services-clouddebugger:
+    group: com.google.apis
+    artifact: google-api-services-clouddebugger
+    owners: chamikara
+
+  com.google.apis:google-api-services-cloudresourcemanager:
+    group: com.google.apis
+    artifact: google-api-services-cloudresourcemanager
+    owners: chamikara
+
+  com.google.apis:google-api-services-dataflow:
+    group: com.google.apis
+    artifact: google-api-services-dataflow
+    owners: chamikara
+
+  com.google.apis:google-api-services-pubsub:
+    group: com.google.apis
+    artifact: google-api-services-pubsub
+    owners: chamikara
+
+  com.google.apis:google-api-services-storage:
+    group: com.google.apis
+    artifact: google-api-services-storage
+    owners: chamikara
+
+  com.google.auth:google-auth-library-credentials:
+    group: com.google.auth
+    artifact: google-auth-library-credentials
+    owners:
+
+  com.google.auth:google-auth-library-oauth2-http:
+    group: com.google.auth
+    artifact: google-auth-library-oauth2-http
+    owners:
+
+  com.google.auto.service:auto-service:
+    group: com.google.auto.service
+    artifact: auto-service
+    owners:
+
+  com.google.auto.value:auto-value:
+    group: com.google.auto.value
+    artifact: auto-value
+    owners:
+
+  com.google.cloud:google-cloud-core:
+    group: com.google.cloud
+    artifact: google-cloud-core
+    owners:
+
+  com.google.cloud:google-cloud-core-grpc:
+    group: com.google.cloud
+    artifact: google-cloud-core-grpc
+    owners:
+
+  com.google.cloud:google-cloud-spanner:
+    group: com.google.cloud
+    artifact: google-cloud-spanner
+    owners:
+
+  com.google.cloud.bigdataoss:gcsio:
+    group: com.google.cloud.bigdataoss
+    artifact: gcsio
+    owners:
+
+  com.google.cloud.bigdataoss:util:
+    group: com.google.cloud.bigdataoss
+    artifact: util
+    owners:
+
+  com.google.cloud.bigtable:bigtable-client-core:
+    group: com.google.cloud.bigtable
+    artifact: bigtable-client-core
+    owners:
+
+  com.google.cloud.bigtable:bigtable-protos:
+    group: com.google.cloud.bigtable
+    artifact: bigtable-protos
+    owners:
+
+  com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:
+    group: com.google.cloud.dataflow
+    artifact: google-cloud-dataflow-java-proto-library-all
+    owners:
+
+  com.google.cloud.datastore:datastore-v1-proto-client:
+    group: com.google.cloud.datastore
+    artifact: datastore-v1-proto-client
+    owners:
+
+  com.google.cloud.datastore:datastore-v1-protos:
+    group: com.google.cloud.datastore
+    artifact: datastore-v1-protos
+    owners:
+
+  com.google.code.findbugs:findbugs-annotations:
+    group: com.google.code.findbugs
+    artifact: findbugs-annotations
+    owners:
+
+  com.google.code.findbugs:jsr305:
+    group: com.google.code.findbugs
+    artifact: jsr305
+    owners:
+
+  com.google.errorprone:error_prone_annotations:
+    group: com.google.errorprone
+    artifact: error_prone_annotations
+    owners:
+
+  com.google.guava:guava:
+    group: com.google.guava
+    artifact: guava
+    owners:
+
+  com.google.guava:guava-testlib:
+    group: com.google.guava
+    artifact: guava-testlib
+    owners:
+
+  com.google.http-client:google-http-client:
+    group: com.google.http-client
+    artifact: google-http-client
+    owners:
+
+  com.google.http-client:google-http-client-jackson2:
+    group: com.google.http-client
+    artifact: google-http-client-jackson2
+    owners:
+
+  com.google.http-client:google-http-client-jackson:
+    group: com.google.http-client
+    artifact: google-http-client-jackson
+    owners:
+
+  com.google.http-client:google-http-client-protobuf:
+    group: com.google.http-client
+    artifact: google-http-client-protobuf
+    owners:
+
+  com.google.oauth-client:google-oauth-client-java6:
+    group: com.google.oauth-client
+    artifact: google-oauth-client-java6
+    owners:
+
+  com.google.oauth-client:google-oauth-client:
+    group: com.google.oauth-client
+    artifact: google-oauth-client
+    owners:
+
+  com.google.protobuf:protobuf-gradle-plugin:
+    group: com.google.protobuf
+    artifact: protobuf-gradle-plugin
+    owners: pabloem
+
+  com.google.protobuf:protobuf-java:
+    group: com.google.protobuf
+    artifact: protobuf-java
+    owners: chamikara
+
+  com.google.protobuf:protobuf-java-util:
+    group: com.google.protobuf
+    artifact: protobuf-java-util
+    owners: chamikara
+
+  com.google.protobuf:protoc:
+    group: com.google.protobuf
+    artifact: protoc
+    owners: chamikara
+
+  com.gradle:build-scan-plugin:
+    group: com.gradle
+    artifact: build-scan-plugin
+    owners:
+
+  com.pholser:junit-quickcheck-core:
+    group: com.pholser
+    artifact: junit-quickcheck-core
+    owners:
+
+  com.tdunning:t-digest:
+    group: com.tdunning
+    artifact: t-digest
+    owners:
+
+  com.typesafe:config:
+    group: com.typesafe
+    artifact: config
+    owners:
+
+  commons-cli:commons-cli:
+    group: commons-cli
+    artifact: commons-cli
+    owners:
+
+  commons-codec:commons-codec:
+    group: commons-codec
+    artifact: commons-codec
+    owners:
+
+  commons-io:commons-io:
+    group: commons-io
+    artifact: commons-io
+    owners:
+
+  cz.malohlava:visteg:
+    group: cz.malohlava
+    artifact: visteg
+    owners:
+
+  de.flapdoodle.embed:de.flapdoodle.embed.mongo:
+    group: de.flapdoodle.embed
+    artifact: de.flapdoodle.embed.mongo
+    owners:
+
+  de.flapdoodle.embed:de.flapdoodle.embed.process:
+    group: de.flapdoodle.embed
+    artifact: de.flapdoodle.embed.process
+    owners:
+
+  gradle.plugin.com.github.blindpirate:gogradle:
+    group: gradle.plugin.com.github.blindpirate
+    artifact: gogradle
+    owners:
+
+  gradle.plugin.com.palantir.gradle.docker:gradle-docker:
+    group: gradle.plugin.com.palantir.gradle.docker
+    artifact: gradle-docker
+    owners:
+
+  gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:
+    group: gradle.plugin.io.pry.gradle.offline_dependencies
+    artifact: gradle-offline-dependencies-plugin
+    owners:
+
+  gradle.plugin.org.nosphere.apache:creadur-rat-gradle:
+    group: gradle.plugin.org.nosphere.apache
+    artifact: creadur-rat-gradle
+    owners:
+
+  io.dropwizard.metrics:metrics-core:
+    group: io.dropwizard.metrics
+    artifact: metrics-core
+    owners:
+
+  io.grpc:grpc-all:
+    group: io.grpc
+    artifact: grpc-all
+    owners: chamikara
+
+  io.grpc:grpc-auth:
+    group: io.grpc
+    artifact: grpc-auth
+    owners: chamikara
+
+  io.grpc:grpc-core:
+    group: io.grpc
+    artifact: grpc-core
+    owners: chamikara
+
+  io.grpc:grpc-netty:
+    group: io.grpc
+    artifact: grpc-netty
+    owners: chamikara
+
+  io.grpc:grpc-protobuf:
+    group: io.grpc
+    artifact: grpc-protobuf
+    owners: chamikara
+
+  io.grpc:grpc-stub:
+    group: io.grpc
+    artifact: grpc-stub
+    owners: chamikara
+
+  io.grpc:protoc-gen-grpc-java:
+    group: io.grpc
+    artifact: protoc-gen-grpc-java
+    owners: chamikara
+
+  io.netty:netty-all:
+    group: io.netty
+    artifact: netty-all
+    owners: chamikara
+
+  io.netty:netty-handler:
+    group: io.netty
+    artifact: netty-handler
+    owners: chamikara
+
+  io.netty:netty-tcnative-boringssl-static:
+    group: io.netty
+    artifact: netty-tcnative-boringssl-static
+    owners: chamikara
+
+  io.netty:netty-transport-native-epoll:
+    group: io.netty
+    artifact: netty-transport-native-epoll
+    owners: chamikara
+
+  io.opencensus:opencensus-api:
+    group: io.opencensus
+    artifact: opencensus-api
+    owners:
+
+  io.opencensus:opencensus-contrib-grpc-metrics:
+    group: io.opencensus
+    artifact: opencensus-contrib-grpc-metrics
+    owners:
+
+  io.spring.gradle:propdeps-plugin:
+    group: io.spring.gradle
+    artifact: propdeps-plugin
+    owners:
+
+  javax.xml.bind:jaxb-api:
+    group: javax.xml.bind
+    artifact: jaxb-api
+    owners:
+
+  jline:jline:
+    group: jline
+    artifact: jline
+    owners: kenn,kedin,apilloud,amaliujia
+
+  joda-time:joda-time:
+    group: joda-time
+    artifact: joda-time
+    owners:
+
+  net.bytebuddy:byte-buddy:
+    group: net.bytebuddy
+    artifact: byte-buddy
+    owners:
+
+  net.java.dev.javacc:javacc:
+    group: net.java.dev.javacc
+    artifact: javacc
+    owners:
+
+  net.java.dev.jna:jna:
+    group: net.java.dev.jna
+    artifact: jna
+    owners:
+
+  net.ltgt.gradle:gradle-apt-plugin:
+    group: net.ltgt.gradle
+    artifact: gradle-apt-plugin
+    owners:
+
+  net.ltgt.gradle:gradle-errorprone-plugin:
+    group: net.ltgt.gradle
+    artifact: gradle-errorprone-plugin
+    owners:
+
+  net.researchgate:gradle-release:
+    group: net.researchgate
+    artifact: gradle-release
+    owners: pabloem
+
+  org.apache.activemq:activemq-amqp:
+    group: org.apache.activemq
+    artifact: activemq-amqp
+    owners:
+
+  org.apache.activemq:activemq-broker:
+    group: org.apache.activemq
+    artifact: activemq-broker
+    owners:
+
+  org.apache.activemq:activemq-client:
+    group: org.apache.activemq
+    artifact: activemq-client
+    owners:
+
+  org.apache.activemq:activemq-jaas:
+    group: org.apache.activemq
+    artifact: activemq-jaas
+    owners:
+
+  org.apache.activemq:activemq-kahadb-store:
+    group: org.apache.activemq
+    artifact: activemq-kahadb-store
+    owners:
+
+  org.apache.activemq:activemq-mqtt:
+    group: org.apache.activemq
+    artifact: activemq-mqtt
+    owners:
+
+  org.apache.activemq.tooling:activemq-junit:
+    group: org.apache.activemq.tooling
+    artifact: activemq-junit
+    owners:
+
+  org.apache.apex:apex-common:
+    group: org.apache.apex
+    artifact: apex-common
+    owners:
+
+  org.apache.apex:apex-engine:
+    group: org.apache.apex
+    artifact: apex-engine
+    owners:
+
+  org.apache.apex:malhar-library:
+    group: org.apache.apex
+    artifact: malhar-library
+    owners:
+
+  org.apache.avro:avro:
+    group: org.apache.avro
+    artifact: avro
+    owners:
+
+  org.apache.calcite:calcite-core:
+    group: org.apache.calcite
+    artifact: calcite-core
+    owners: kenn,kedin,apilloud,amaliujia,mingmxu
+
+  org.apache.calcite:calcite-linq4j:
+    group: org.apache.calcite
+    artifact: calcite-linq4j
+    owners: kenn,kedin,apilloud,amaliujia,mingmxu
+
+  org.apache.calcite.avatica:avatica-core:
+    group: org.apache.calcite.avatica
+    artifact: avatica-core
+    owners: kenn,kedin,apilloud,amaliujia,mingmxu
+
+  org.apache.cassandra:cassandra-all:
+    group: org.apache.cassandra
+    artifact: cassandra-all
+    owners:
+
+  org.apache.commons:commons-compress:
+    group: org.apache.commons
+    artifact: commons-compress
+    owners:
+
+  org.apache.commons:commons-csv:
+    group: org.apache.commons
+    artifact: commons-csv
+    owners: kenn,kedin,apilloud,amaliujia,mingmxu
+
+  org.apache.commons:commons-dbcp2:
+    group: org.apache.commons
+    artifact: commons-dbcp2
+    owners:
+
+  org.apache.commons:commons-lang3:
+    group: org.apache.commons
+    artifact: commons-lang3
+    owners:
+
+  org.apache.derby:derby:
+    group: org.apache.derby
+    artifact: derby
+    owners:
+
+  org.apache.derby:derbyclient:
+    group: org.apache.derby
+    artifact: derbyclient
+    owners:
+
+  org.apache.derby:derbynet:
+    group: org.apache.derby
+    artifact: derbynet
+    owners:
+
+  org.apache.flink:flink-clients_2.11:
+    group: org.apache.flink
+    artifact: flink-clients_2.11
+    owners:
+
+  org.apache.flink:flink-core:
+    group: org.apache.flink
+    artifact: flink-core
+    owners:
+
+  org.apache.flink:flink-java:
+    group: org.apache.flink
+    artifact: flink-java
+    owners:
+
+  org.apache.flink:flink-metrics-core:
+    group: org.apache.flink
+    artifact: flink-metrics-core
+    owners:
+
+  org.apache.flink:flink-runtime_2.11:
+    group: org.apache.flink
+    artifact: flink-runtime_2.11
+    owners:
+
+  org.apache.flink:flink-streaming-java_2.11:
+    group: org.apache.flink
+    artifact: flink-streaming-java_2.11
+    owners:
+
+  org.apache.flink:flink-test-utils_2.11:
+    group: org.apache.flink
+    artifact: flink-test-utils_2.11
+    owners:
+
+  org.apache.gearpump:gearpump-core_2.11:
+    group: org.apache.gearpump
+    artifact: gearpump-core_2.11
+    owners:
+
+  org.apache.gearpump:gearpump-streaming_2.11:
+    group: org.apache.gearpump
+    artifact: gearpump-streaming_2.11
+    owners:
+
+  org.apache.hadoop:hadoop-client:
+    group: org.apache.hadoop
+    artifact: hadoop-client
+    owners: timrobertson100
+
+  org.apache.hadoop:hadoop-common:
+    group: org.apache.hadoop
+    artifact: hadoop-common
+    owners: timrobertson100
+
+  org.apache.hadoop:hadoop-hdfs:
+    group: org.apache.hadoop
+    artifact: hadoop-hdfs
+    owners: timrobertson100
+
+  org.apache.hadoop:hadoop-mapreduce-client-core:
+    group: org.apache.hadoop
+    artifact: hadoop-mapreduce-client-core
+    owners: timrobertson100
+
+  org.apache.hadoop:hadoop-minicluster:
+    group: org.apache.hadoop
+    artifact: hadoop-minicluster
+    owners: timrobertson100
+
+  org.apache.hbase:hbase-common:
+    group: org.apache.hbase
+    artifact: hbase-common
+    owners: timrobertson100
+
+  org.apache.hbase:hbase-hadoop-compat:
+    group: org.apache.hbase
+    artifact: hbase-hadoop-compat
+    owners: timrobertson100
+
+  org.apache.hbase:hbase-hadoop2-compat:
+    group: org.apache.hbase
+    artifact: hbase-hadoop2-compat
+    owners: timrobertson100
+
+  org.apache.hbase:hbase-server:
+    group: org.apache.hbase
+    artifact: hbase-server
+    owners: timrobertson100
+
+  org.apache.hbase:hbase-shaded-client:
+    group: org.apache.hbase
+    artifact: hbase-shaded-client
+    owners: timrobertson100
+
+  org.apache.hbase:hbase-shaded-server:
+    group: org.apache.hbase
+    artifact: hbase-shaded-server
+    owners: timrobertson100
+
+  org.apache.hive:hive-cli:
+    group: org.apache.hive
+    artifact: hive-cli
+    owners: timrobertson100
+
+  org.apache.hive:hive-common:
+    group: org.apache.hive
+    artifact: hive-common
+    owners: timrobertson100
+
+  org.apache.hive:hive-exec:
+    group: org.apache.hive
+    artifact: hive-exec
+    owners: timrobertson100
+
+  org.apache.hive.hcatalog:hive-hcatalog-core:
+    group: org.apache.hive.hcatalog
+    artifact: hive-hcatalog-core
+    owners: timrobertson100
+
+  org.apache.httpcomponents:httpasyncclient:
+    group: org.apache.httpcomponents
+    artifact: httpasyncclient
+    owners:
+
+  org.apache.httpcomponents:httpclient:
+    group: org.apache.httpcomponents
+    artifact: httpclient
+    owners:
+
+  org.apache.httpcomponents:httpcore:
+    group: org.apache.httpcomponents
+    artifact: httpcore
+    owners:
+
+  org.apache.httpcomponents:httpcore-nio:
+    group: org.apache.httpcomponents
+    artifact: httpcore-nio
+    owners:
+
+  org.apache.kafka:kafka_2.11:
+    group: org.apache.kafka
+    artifact: kafka_2.11
+    owners:
+
+  org.apache.kafka:kafka-clients:
+    group: org.apache.kafka
+    artifact: kafka-clients
+    owners:
+
+  org.apache.kudu:kudu-client:
+    group: org.apache.kudu
+    artifact: kudu-client
+    owners:
+
+  org.apache.logging.log4j:log4j-api:
+    group: org.apache.logging.log4j
+    artifact: log4j-api
+    owners:
+
+  org.apache.logging.log4j:log4j-core:
+    group: org.apache.logging.log4j
+    artifact: log4j-core
+    owners:
+
+  org.apache.parquet:parquet-avro:
+    group: org.apache.parquet
+    artifact: parquet-avro
+    owners:
+
+  org.apache.parquet:parquet-common:
+    group: org.apache.parquet
+    artifact: parquet-common
+    owners:
+
+  org.apache.parquet:parquet-hadoop:
+    group: org.apache.parquet
+    artifact: parquet-hadoop
+    owners: timrobertson100
+
+  org.apache.qpid:proton-j:
+    group: org.apache.qpid
+    artifact: proton-j
+    owners:
+
+  org.apache.rat:apache-rat-tasks:
+    group: org.apache.rat
+    artifact: apache-rat-tasks
+    owners:
+
+  org.apache.solr:solr-core:
+    group: org.apache.solr
+    artifact: solr-core
+    owners: timrobertson100
+
+  org.apache.solr:solr-solrj:
+    group: org.apache.solr
+    artifact: solr-solrj
+    owners: timrobertson100
+
+  org.apache.solr:solr-test-framework:
+    group: org.apache.solr
+    artifact: solr-test-framework
+    owners: timrobertson100
+
+  org.apache.spark:spark-core_2.11:
+    group: org.apache.spark
+    artifact: spark-core_2.11
+    owners:
+
+  org.apache.spark:spark-network-common_2.11:
+    group: org.apache.spark
+    artifact: spark-network-common_2.11
+    owners:
+
+  org.apache.spark:spark-streaming_2.11:
+    group: org.apache.spark
+    artifact: spark-streaming_2.11
+    owners:
+
+  org.apache.tika:tika-core:
+    group: org.apache.tika
+    artifact: tika-core
+    owners:
+
+  org.apache.tika:tika-parsers:
+    group: org.apache.tika
+    artifact: tika-parsers
+    owners:
+
+  org.apache.zookeeper:zookeeper:
+    group: org.apache.zookeeper
+    artifact: zookeeper
+    owners: timrobertson100
+
+  org.assertj:assertj-core:
+    group: org.assertj
+    artifact: assertj-core
+    owners:
+
+  org.codehaus.groovy:groovy-all:
+    group: org.codehaus.groovy
+    artifact: groovy-all
+    owners:
+
+  org.codehaus.woodstox:stax2-api:
+    group: org.codehaus.woodstox
+    artifact: stax2-api
+    owners:
+
+  org.codehaus.woodstox:woodstox-core-asl:
+    group: org.codehaus.woodstox
+    artifact: woodstox-core-asl
+    owners:
+
+  org.elasticsearch:elasticsearch:
+    group: org.elasticsearch
+    artifact: elasticsearch
+    owners: echauchot,  timrobertson100
+
+  org.elasticsearch:elasticsearch-hadoop:
+    group: org.elasticsearch
+    artifact: elasticsearch-hadoop
+    owners: timrobertson100
+
+  org.elasticsearch.client:elasticsearch-rest-client:
+    group: org.elasticsearch.client
+    artifact: elasticsearch-rest-client
+    owners: echauchot,  timrobertson100
+
+  org.elasticsearch.client:transport:
+    group: org.elasticsearch.client
+    artifact: transport
+    owners: echauchot,  timrobertson100
+
+  org.elasticsearch.plugin:transport-netty4-client:
+    group: org.elasticsearch.plugin
+    artifact: transport-netty4-client
+    owners: echauchot,  timrobertson100
+
+  org.elasticsearch.test:framework:
+    group: org.elasticsearch.test
+    artifact: framework
+    owners: echauchot,  timrobertson100
+
+  org.freemarker:freemarker:
+    group: org.freemarker
+    artifact: freemarker
+    owners:
+
+  org.fusesource.mqtt-client:mqtt-client:
+    group: org.fusesource.mqtt-client
+    artifact: mqtt-client
+    owners:
+
+  org.hamcrest:hamcrest-core:
+    group: org.hamcrest
+    artifact: hamcrest-core
+    owners:
+
+  org.hamcrest:hamcrest-library:
+    group: org.hamcrest
+    artifact: hamcrest-library
+    owners:
+
+  org.mockito:mockito-core:
+    group: org.mockito
+    artifact: mockito-core
+    owners:
+
+  org.mongodb:mongo-java-driver:
+    group: org.mongodb
+    artifact: mongo-java-driver
+    owners:
+
+  org.postgresql:postgresql:
+    group: org.postgresql
+    artifact: postgresql
+    owners: timrobertson100
+
+  org.powermock:powermock-mockito-release-full:
+    group: org.powermock
+    artifact: powermock-mockito-release-full
+    owners: boyuanzz
+
+  org.scala-lang:scala-library:
+    group: org.scala-lang
+    artifact: scala-library
+    owners:
+
+  org.slf4j:slf4j-api:
+    group: org.slf4j
+    artifact: slf4j-api
+    owners:
+
+  org.slf4j:slf4j-jdk14:
+    group: org.slf4j
+    artifact: slf4j-jdk14
+    owners:
+
+  org.slf4j:slf4j-simple:
+    group: org.slf4j
+    artifact: slf4j-simple
+    owners:
+
+  org.slf4j:slf4j-log4j12:
+    group: org.slf4j
+    artifact: slf4j-log4j12
+    owners:
+
+  org.springframework:spring-expression:
+    group: org.springframework
+    artifact: spring-expression
+    owners:
+
+  org.tukaani:xz:
+    group: org.tukaani
+    artifact: xz
+    owners:
+
+  org.xerial.snappy:snappy-java:
+    group: org.xerial.snappy
+    artifact: snappy-java
+    owners:
+
+  redis.clients:jedis:
+    group: redis.clients
+    artifact: jedis
+    owners:
+
+  sqlline:sqlline:
+    group: sqlline
+    artifact: sqlline
+    owners: kenn,kedin,apilloud,amaliujia
+
+# No dependency added below this line.
+...

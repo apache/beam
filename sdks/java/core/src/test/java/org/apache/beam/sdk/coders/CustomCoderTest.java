@@ -37,8 +37,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CustomCoderTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private static class MyCustomCoder extends CustomCoder<KV<String, Long>> {
     private final String key;
@@ -48,21 +47,18 @@ public class CustomCoderTest {
     }
 
     @Override
-    public void encode(KV<String, Long> kv, OutputStream out)
-            throws IOException {
+    public void encode(KV<String, Long> kv, OutputStream out) throws IOException {
       new DataOutputStream(out).writeLong(kv.getValue());
     }
 
     @Override
-    public KV<String, Long> decode(InputStream inStream)
-        throws IOException {
+    public KV<String, Long> decode(InputStream inStream) throws IOException {
       return KV.of(key, new DataInputStream(inStream).readLong());
     }
 
     @Override
     public boolean equals(Object other) {
-      return other instanceof MyCustomCoder
-          && key.equals(((MyCustomCoder) other).key);
+      return other instanceof MyCustomCoder && key.equals(((MyCustomCoder) other).key);
     }
 
     @Override
@@ -77,8 +73,7 @@ public class CustomCoderTest {
     CoderProperties.coderDecodeEncodeEqual(coder, KV.of("key", 3L));
 
     byte[] encoded2 = CoderUtils.encodeToByteArray(coder, KV.of("ignored", 3L));
-    Assert.assertEquals(
-        KV.of("key", 3L), CoderUtils.decodeFromByteArray(coder, encoded2));
+    Assert.assertEquals(KV.of("key", 3L), CoderUtils.decodeFromByteArray(coder, encoded2));
   }
 
   @Test

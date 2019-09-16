@@ -17,6 +17,8 @@
 
 """Unit tests for the windowed_value."""
 
+from __future__ import absolute_import
+
 import copy
 import pickle
 import unittest
@@ -35,8 +37,11 @@ class WindowedValueTest(unittest.TestCase):
                      Timestamp.of(-2.5))
 
   def test_with_value(self):
-    wv = windowed_value.WindowedValue(1, 3, ())
-    self.assertEqual(wv.with_value(10), windowed_value.WindowedValue(10, 3, ()))
+    pane_info = windowed_value.PaneInfo(
+        True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
+    wv = windowed_value.WindowedValue(1, 3, (), pane_info)
+    self.assertEqual(wv.with_value(10),
+                     windowed_value.WindowedValue(10, 3, (), pane_info))
 
   def test_equality(self):
     self.assertEqual(
@@ -63,7 +68,9 @@ class WindowedValueTest(unittest.TestCase):
     self.assertEqual({wv: 100}.get(wv_copy), 100)
 
   def test_pickle(self):
-    wv = windowed_value.WindowedValue(1, 3, ())
+    pane_info = windowed_value.PaneInfo(
+        True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
+    wv = windowed_value.WindowedValue(1, 3, (), pane_info)
     self.assertTrue(pickle.loads(pickle.dumps(wv)) == wv)
 
 

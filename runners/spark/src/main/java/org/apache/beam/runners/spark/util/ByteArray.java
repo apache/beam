@@ -17,13 +17,11 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
 import java.util.Arrays;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 
-/**
- * Serializable byte array.
- */
+/** Serializable byte array. */
 public class ByteArray implements Serializable, Comparable<ByteArray> {
 
   private final byte[] value;

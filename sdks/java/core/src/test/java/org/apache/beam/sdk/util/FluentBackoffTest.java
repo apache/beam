@@ -34,14 +34,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FluentBackoff}.
- */
+/** Tests for {@link FluentBackoff}. */
 @RunWith(JUnit4.class)
 public class FluentBackoffTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
   private final FluentBackoff defaultBackoff = FluentBackoff.DEFAULT;
 
   @Test
@@ -79,49 +76,42 @@ public class FluentBackoffTest {
     defaultBackoff.withMaxCumulativeBackoff(Duration.millis(-2));
   }
 
-  /**
-   * Tests with bounded interval, custom exponent, and unlimited retries.
-   */
+  /** Tests with bounded interval, custom exponent, and unlimited retries. */
   @Test
   public void testBoundedIntervalWithReset() throws Exception {
     BackOff backOff =
         FluentBackoff.DEFAULT
             .withInitialBackoff(Duration.millis(500))
-            .withMaxBackoff(Duration.standardSeconds(1)).backoff();
+            .withMaxBackoff(Duration.standardSeconds(1))
+            .backoff();
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(374L), lessThan(1126L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
-        lessThanOrEqualTo(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
-        lessThanOrEqualTo(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
-        lessThanOrEqualTo(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
-        lessThanOrEqualTo(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
-        lessThanOrEqualTo(1500L)));
+    assertThat(
+        backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThanOrEqualTo(1500L)));
+    assertThat(
+        backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThanOrEqualTo(1500L)));
+    assertThat(
+        backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThanOrEqualTo(1500L)));
+    assertThat(
+        backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThanOrEqualTo(1500L)));
+    assertThat(
+        backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThanOrEqualTo(1500L)));
 
     // Reset, should go back to short times.
     backOff.reset();
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(374L), lessThan(1126L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
-        lessThanOrEqualTo(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
-        lessThanOrEqualTo(1500L)));
-
+    assertThat(
+        backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThanOrEqualTo(1500L)));
+    assertThat(
+        backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThanOrEqualTo(1500L)));
   }
 
-  /**
-   * Tests with bounded interval, custom exponent, limited retries, and a reset.
-   */
+  /** Tests with bounded interval, custom exponent, limited retries, and a reset. */
   @Test
   public void testMaxRetriesWithReset() throws Exception {
     BackOff backOff =
-        FluentBackoff.DEFAULT
-            .withInitialBackoff(Duration.millis(500))
-            .withMaxRetries(1)
-            .backoff();
+        FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(500)).withMaxRetries(1).backoff();
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
     assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
@@ -143,16 +133,15 @@ public class FluentBackoffTest {
     return cumulativeBackoffMillis;
   }
 
-  /**
-   * Tests with bounded interval, custom exponent, limited cumulative time, and a reset.
-   */
+  /** Tests with bounded interval, custom exponent, limited cumulative time, and a reset. */
   @Test
   public void testBoundedIntervalAndCumTimeWithReset() throws Exception {
     BackOff backOff =
         FluentBackoff.DEFAULT
             .withInitialBackoff(Duration.millis(500))
             .withMaxBackoff(Duration.standardSeconds(1))
-            .withMaxCumulativeBackoff(Duration.standardMinutes(1)).backoff();
+            .withMaxCumulativeBackoff(Duration.standardMinutes(1))
+            .backoff();
 
     assertThat(countMaximumBackoff(backOff), equalTo(Duration.standardMinutes(1).getMillis()));
 
@@ -165,9 +154,7 @@ public class FluentBackoffTest {
     assertThat(countMaximumBackoff(backOff), equalTo(Duration.standardMinutes(1).getMillis()));
   }
 
-  /**
-   * Tests with bounded interval, custom exponent, limited cumulative time and retries.
-   */
+  /** Tests with bounded interval, custom exponent, limited cumulative time and retries. */
   @Test
   public void testBoundedIntervalAndCumTimeAndRetriesWithReset() throws Exception {
     BackOff backOff =
@@ -188,30 +175,35 @@ public class FluentBackoffTest {
 
   @Test
   public void testFluentBackoffToString() throws IOException {
-    FluentBackoff config = FluentBackoff.DEFAULT
-        .withExponent(3.4)
-        .withMaxRetries(4)
-        .withInitialBackoff(Duration.standardSeconds(3))
-        .withMaxBackoff(Duration.standardHours(1))
-        .withMaxCumulativeBackoff(Duration.standardDays(1));
+    FluentBackoff config =
+        FluentBackoff.DEFAULT
+            .withExponent(3.4)
+            .withMaxRetries(4)
+            .withInitialBackoff(Duration.standardSeconds(3))
+            .withMaxBackoff(Duration.standardHours(1))
+            .withMaxCumulativeBackoff(Duration.standardDays(1));
 
     assertEquals(
         "FluentBackoff{exponent=3.4, initialBackoff=PT3S, maxBackoff=PT3600S,"
             + " maxRetries=4, maxCumulativeBackoff=PT86400S}",
         config.toString());
   }
+
   @Test
   public void testBackoffImplToString() throws IOException {
-    FluentBackoff config = FluentBackoff.DEFAULT
-        .withExponent(3.4)
-        .withMaxRetries(4)
-        .withInitialBackoff(Duration.standardSeconds(3))
-        .withMaxBackoff(Duration.standardHours(1))
-        .withMaxCumulativeBackoff(Duration.standardDays(1));
+    FluentBackoff config =
+        FluentBackoff.DEFAULT
+            .withExponent(3.4)
+            .withMaxRetries(4)
+            .withInitialBackoff(Duration.standardSeconds(3))
+            .withMaxBackoff(Duration.standardHours(1))
+            .withMaxCumulativeBackoff(Duration.standardDays(1));
     BackOff backOff = config.backoff();
 
     assertEquals(
-        "BackoffImpl{backoffConfig=" + config.toString() + ","
+        "BackoffImpl{backoffConfig="
+            + config.toString()
+            + ","
             + " currentRetry=0, currentCumulativeBackoff=PT0S}",
         backOff.toString());
 

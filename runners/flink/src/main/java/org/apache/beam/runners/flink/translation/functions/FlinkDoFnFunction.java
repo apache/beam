@@ -17,16 +17,19 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -34,18 +37,19 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
- * Encapsulates a {@link DoFn}
- * inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
+ * Encapsulates a {@link DoFn} inside a Flink {@link
+ * org.apache.flink.api.common.functions.RichMapPartitionFunction}.
  *
- * <p>We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index
- * and must tag all outputs with the output number. Afterwards a filter will filter out
- * those elements that are not to be in a specific output.
+ * <p>We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index and must tag
+ * all outputs with the output number. Afterwards a filter will filter out those elements that are
+ * not to be in a specific output.
  */
 public class FlinkDoFnFunction<InputT, OutputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, WindowedValue<OutputT>> {
@@ -60,6 +64,10 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   private final Map<TupleTag<?>, Integer> outputMap;
   private final TupleTag<OutputT> mainOutputTag;
+  private final Coder<InputT> inputCoder;
+  private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
+  private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
@@ -70,7 +78,11 @@ public class FlinkDoFnFunction<InputT, OutputT>
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions options,
       Map<TupleTag<?>, Integer> outputMap,
-      TupleTag<OutputT> mainOutputTag) {
+      TupleTag<OutputT> mainOutputTag,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoderMap,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
 
     this.doFn = doFn;
     this.stepName = stepName;
@@ -79,13 +91,16 @@ public class FlinkDoFnFunction<InputT, OutputT>
     this.windowingStrategy = windowingStrategy;
     this.outputMap = outputMap;
     this.mainOutputTag = mainOutputTag;
-
+    this.inputCoder = inputCoder;
+    this.outputCoderMap = outputCoderMap;
+    this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
   public void mapPartition(
-      Iterable<WindowedValue<InputT>> values,
-      Collector<WindowedValue<OutputT>> out) throws Exception {
+      Iterable<WindowedValue<InputT>> values, Collector<WindowedValue<OutputT>> out)
+      throws Exception {
 
     RuntimeContext runtimeContext = getRuntimeContext();
 
@@ -94,23 +109,27 @@ public class FlinkDoFnFunction<InputT, OutputT>
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
       // it has some additional outputs
-      outputManager =
-          new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
+      outputManager = new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
     }
 
     List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
 
-    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
-        serializedOptions.get(), doFn,
-        new FlinkSideInputReader(sideInputs, runtimeContext),
-        outputManager,
-        mainOutputTag,
-        additionalOutputTags,
-        new FlinkNoOpStepContext(),
-        windowingStrategy);
+    DoFnRunner<InputT, OutputT> doFnRunner =
+        DoFnRunners.simpleRunner(
+            serializedOptions.get(),
+            doFn,
+            new FlinkSideInputReader(sideInputs, runtimeContext),
+            outputManager,
+            mainOutputTag,
+            additionalOutputTags,
+            new FlinkNoOpStepContext(),
+            inputCoder,
+            outputCoderMap,
+            windowingStrategy,
+            doFnSchemaInformation,
+            sideInputMapping);
 
-    if ((serializedOptions.get().as(FlinkPipelineOptions.class))
-        .getEnableMetrics()) {
+    if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 
@@ -125,17 +144,19 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    doFnInvoker.invokeSetup();
+    doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
   }
 
   @Override
   public void close() throws Exception {
-    doFnInvoker.invokeTeardown();
+    try {
+      Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
+    } finally {
+      FlinkClassloading.deleteStaticCaches();
+    }
   }
 
-  static class DoFnOutputManager
-      implements DoFnRunners.OutputManager {
+  static class DoFnOutputManager implements DoFnRunners.OutputManager {
 
     private Collector collector;
 
@@ -147,28 +168,33 @@ public class FlinkDoFnFunction<InputT, OutputT>
     @SuppressWarnings("unchecked")
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       collector.collect(
-          WindowedValue.of(new RawUnionValue(0 /* single output */, output.getValue()),
-          output.getTimestamp(), output.getWindows(), output.getPane()));
+          WindowedValue.of(
+              new RawUnionValue(0 /* single output */, output.getValue()),
+              output.getTimestamp(),
+              output.getWindows(),
+              output.getPane()));
     }
   }
 
-  static class MultiDoFnOutputManager
-      implements DoFnRunners.OutputManager {
+  static class MultiDoFnOutputManager implements DoFnRunners.OutputManager {
 
     private Collector<WindowedValue<RawUnionValue>> collector;
     private Map<TupleTag<?>, Integer> outputMap;
 
-    MultiDoFnOutputManager(Collector<WindowedValue<RawUnionValue>> collector,
-                      Map<TupleTag<?>, Integer> outputMap) {
+    MultiDoFnOutputManager(
+        Collector<WindowedValue<RawUnionValue>> collector, Map<TupleTag<?>, Integer> outputMap) {
       this.collector = collector;
       this.outputMap = outputMap;
     }
 
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      collector.collect(WindowedValue.of(new RawUnionValue(outputMap.get(tag), output.getValue()),
-          output.getTimestamp(), output.getWindows(), output.getPane()));
+      collector.collect(
+          WindowedValue.of(
+              new RawUnionValue(outputMap.get(tag), output.getValue()),
+              output.getTimestamp(),
+              output.getWindows(),
+              output.getPane()));
     }
   }
-
 }

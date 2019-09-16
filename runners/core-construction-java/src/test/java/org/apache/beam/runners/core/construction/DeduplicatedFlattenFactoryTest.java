@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -42,9 +41,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DeduplicatedFlattenFactory}.
- */
+/** Tests for {@link DeduplicatedFlattenFactory}. */
 @RunWith(JUnit4.class)
 public class DeduplicatedFlattenFactoryTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();

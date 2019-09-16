@@ -17,63 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import java.util.List;
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
-/**
- * A Calcite {@code SqlCall} which represents a drop table statement.
- */
-public class SqlDropTable extends SqlCall {
-  private final SqlIdentifier tableName;
+/** Parse tree for {@code DROP TABLE} statement. */
+public class SqlDropTable extends SqlDropObject {
+  private static final SqlOperator OPERATOR =
+      new SqlSpecialOperator("DROP TABLE", SqlKind.DROP_TABLE);
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator(
-      "DROP_TABLE", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(
-        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... o) {
-      assert functionQualifier == null;
-      return new SqlDropTable(pos, (SqlIdentifier) o[0]);
-    }
-
-    @Override
-    public void unparse(
-        SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
-      SqlDropTable t = (SqlDropTable) call;
-      UnparseUtil u = new UnparseUtil(writer, leftPrec, rightPrec);
-      u.keyword("DROP", "TABLE").node(t.tableName);
-    }
-  };
-
-  public SqlDropTable(SqlParserPos pos, SqlIdentifier tableName) {
-    super(pos);
-    this.tableName = tableName;
-  }
-
-  @Override
-  public SqlOperator getOperator() {
-    return OPERATOR;
-  }
-
-  @Override
-  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-    getOperator().unparse(writer, this, leftPrec, rightPrec);
-  }
-
-  @Override
-  public List<SqlNode> getOperandList() {
-    return ImmutableNullableList.<SqlNode>of(tableName);
-  }
-
-  public String tableName() {
-    return tableName.toString().toLowerCase();
+  /** Creates a SqlDropTable. */
+  SqlDropTable(SqlParserPos pos, boolean ifExists, SqlIdentifier name) {
+    super(OPERATOR, pos, ifExists, name);
   }
 }
+
+// End SqlDropTable.java

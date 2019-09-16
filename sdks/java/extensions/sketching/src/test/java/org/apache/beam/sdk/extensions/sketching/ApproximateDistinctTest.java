@@ -174,7 +174,7 @@ public class ApproximateDistinctTest implements Serializable {
     assertThat(DisplayData.from(fnWithPrecision), hasDisplayItem("sp", 0));
   }
 
-  class VerifyAccuracy implements SerializableFunction<Iterable<Long>, Void> {
+  private static class VerifyAccuracy implements SerializableFunction<Iterable<Long>, Void> {
 
     private final int expectedCard;
 

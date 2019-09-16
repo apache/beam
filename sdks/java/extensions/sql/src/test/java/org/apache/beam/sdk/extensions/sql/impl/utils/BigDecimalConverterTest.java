@@ -15,30 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.NUMERIC_TYPES;
 import static org.junit.Assert.assertNotNull;
 
 import java.math.BigDecimal;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link BigDecimalConverter}.
- */
+/** Unit tests for {@link BigDecimalConverter}. */
 public class BigDecimalConverterTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testReturnsConverterForNumericTypes() {
-    for (SqlTypeCoder numericType : NUMERIC_TYPES) {
+    for (TypeName numericType : TypeName.NUMERIC_TYPES) {
       SerializableFunction<BigDecimal, ? extends Number> converter =
           BigDecimalConverter.forSqlType(numericType);
 
@@ -50,6 +45,6 @@ public class BigDecimalConverterTest {
   @Test
   public void testThrowsForUnsupportedTypes() {
     thrown.expect(UnsupportedOperationException.class);
-    BigDecimalConverter.forSqlType(SqlTypeCoders.VARCHAR);
+    BigDecimalConverter.forSqlType(TypeName.STRING);
   }
 }

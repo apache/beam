@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,21 +38,16 @@ public class LengthPrefixCoderTest {
   private static final StructuredCoder<byte[]> TEST_CODER =
       LengthPrefixCoder.of(ByteArrayCoder.of());
 
-  private static final List<byte[]> TEST_VALUES = Arrays.asList(
-    new byte[]{ 0xa, 0xb, 0xc },
-    new byte[]{ 0xd, 0x3 },
-    new byte[]{ 0xd, 0xe },
-    new byte[]{ });
+  private static final List<byte[]> TEST_VALUES =
+      Arrays.asList(
+          new byte[] {0xa, 0xb, 0xc}, new byte[] {0xd, 0x3}, new byte[] {0xd, 0xe}, new byte[] {});
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = ImmutableList.of(
-      "AwoLDA",
-      "Ag0D",
-      "Ag0O",
-      "AA");
+  private static final ImmutableList<String> TEST_ENCODINGS =
+      ImmutableList.of("AwoLDA", "Ag0D", "Ag0O", "AA");
 
   @Test
   public void testCoderSerializable() throws Exception {
@@ -64,8 +61,7 @@ public class LengthPrefixCoderTest {
 
   @Test
   public void testEncodedSize() throws Exception {
-    assertEquals(5L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0)));
+    assertEquals(5L, TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0)));
   }
 
   @Test
@@ -78,8 +74,7 @@ public class LengthPrefixCoderTest {
   public void testObserverIsNotCheap() throws Exception {
     LengthPrefixCoder<List<String>> coder =
         LengthPrefixCoder.of(ListCoder.of(StringUtf8Coder.of()));
-    assertFalse(coder.isRegisterByteSizeObserverCheap(
-        ImmutableList.of("hi", "test")));
+    assertFalse(coder.isRegisterByteSizeObserverCheap(ImmutableList.of("hi", "test")));
   }
 
   @Test
@@ -92,9 +87,7 @@ public class LengthPrefixCoderTest {
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
     CoderProperties.testByteCount(
-        LengthPrefixCoder.of(VarIntCoder.of()),
-        Coder.Context.NESTED,
-        new Integer[]{0, 10, 1000});
+        LengthPrefixCoder.of(VarIntCoder.of()), Coder.Context.NESTED, new Integer[] {0, 10, 1000});
   }
 
   @Test
@@ -109,5 +102,30 @@ public class LengthPrefixCoderTest {
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
+  }
+
+  @Test
+  public void testMultiCoderCycle() throws Exception {
+    LengthPrefixCoder<Long> lengthPrefixedValueCoder =
+        LengthPrefixCoder.of(BigEndianLongCoder.of());
+
+    LengthPrefixCoder<byte[]> lengthPrefixedBytesCoder = LengthPrefixCoder.of(ByteArrayCoder.of());
+
+    // [0x08, 0, 0, 0, 0, 0, 0, 0, 0x16]
+    byte[] userEncoded = CoderUtils.encodeToByteArray(lengthPrefixedValueCoder, 22L);
+
+    // [0, 0, 0, 0, 0, 0, 0, 0x16]
+    byte[] decodedToBytes = CoderUtils.decodeFromByteArray(lengthPrefixedBytesCoder, userEncoded);
+
+    // [0x08, 0, 0, 0, 0, 0, 0, 0, 0x16]
+    byte[] reencodedBytes = CoderUtils.encodeToByteArray(lengthPrefixedBytesCoder, decodedToBytes);
+
+    long userDecoded = CoderUtils.decodeFromByteArray(lengthPrefixedValueCoder, reencodedBytes);
+
+    assertFalse(
+        "Length-prefix decoding to bytes should drop the length",
+        Arrays.equals(userEncoded, decodedToBytes));
+    assertArrayEquals(userEncoded, reencodedBytes);
+    assertEquals(22L, userDecoded);
   }
 }

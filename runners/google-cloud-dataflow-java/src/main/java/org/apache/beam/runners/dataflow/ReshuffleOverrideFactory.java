@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow;
 
 import org.apache.beam.runners.core.construction.PTransformReplacements;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IdentityWindowFn;
 import org.apache.beam.sdk.values.KV;
@@ -63,10 +63,10 @@ class ReshuffleOverrideFactory<K, V>
       // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
       Window<KV<K, V>> rewindow =
           Window.<KV<K, V>>into(
-              new IdentityWindowFn<>(
-                  originalStrategy.getWindowFn().windowCoder()))
+                  new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
               .triggering(new ReshuffleTrigger<>())
               .discardingFiredPanes()
+              .withTimestampCombiner(TimestampCombiner.EARLIEST)
               .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
       return input

@@ -20,21 +20,25 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
 import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 
-import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /**
  * Delays processing of each window in a {@link PCollection} until signaled.
  *
  * <p>Given a main {@link PCollection} and a signal {@link PCollection}, produces output identical
- * to its main input, but all elements for a window are produced only once that window is closed
- * in the signal {@link PCollection}.
+ * to its main input, but all elements for a window are produced only once that window is closed in
+ * the signal {@link PCollection}.
  *
  * <p>To express the pattern "apply T to X after Y is ready", use {@code
  * X.apply(Wait.on(Y)).apply(T)}.
@@ -112,9 +116,33 @@ public class Wait {
 
     private <SignalT> PCollectionView<?> expandTyped(PCollection<SignalT> input) {
       return input
-          .apply(Window.<SignalT>configure().triggering(Never.ever()))
+          .apply(Window.<SignalT>configure().triggering(Never.ever()).discardingFiredPanes())
+          // Perform a per-window pre-combine so that our performance does not critically depend
+          // on combiner lifting.
+          .apply(ParDo.of(new CollectWindowsFn<>()))
           .apply(Sample.any(1))
           .apply(View.asList());
+    }
+  }
+
+  private static class CollectWindowsFn<T> extends DoFn<T, Void> {
+    @Nullable private Set<BoundedWindow> windows;
+
+    @StartBundle
+    public void startBundle() {
+      windows = Sets.newHashSetWithExpectedSize(1);
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c, BoundedWindow w) {
+      windows.add(w);
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) {
+      for (BoundedWindow w : windows) {
+        c.output(null, w.maxTimestamp(), w);
+      }
     }
   }
 }

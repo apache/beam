@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution;
 
-import io.grpc.Server;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the
@@ -29,31 +29,41 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
  */
 public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   /**
-   * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary
-   * port.
+   * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary port.
    */
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> allocatePortAndCreateFor(
       ServiceT service, ServerFactory factory) throws IOException {
     ApiServiceDescriptor.Builder apiServiceDescriptor = ApiServiceDescriptor.newBuilder();
-    Server server = factory.allocatePortAndCreate(service, apiServiceDescriptor);
+    Server server =
+        factory.allocateAddressAndCreate(ImmutableList.of(service), apiServiceDescriptor);
     return new GrpcFnServer<>(server, service, apiServiceDescriptor.build());
   }
 
   /**
-   * Create a {@link GrpcFnServer} for the provided {@link FnService} which will run at the
-   * endpoint specified in the {@link ApiServiceDescriptor}.
+   * Create a {@link GrpcFnServer} for the provided {@link FnService} which will run at the endpoint
+   * specified in the {@link ApiServiceDescriptor}.
    */
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint, ServerFactory factory) throws IOException {
-    return new GrpcFnServer<>(factory.create(service, endpoint), service, endpoint);
+    return new GrpcFnServer<>(
+        factory.create(ImmutableList.of(service), endpoint), service, endpoint);
+  }
+
+  /** @deprecated This create function is used for Dataflow migration purpose only. */
+  @Deprecated
+  public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
+      ServiceT service, ApiServiceDescriptor endpoint) {
+    return new GrpcFnServer(null, service, endpoint) {
+      @Override
+      public void close() throws Exception {}
+    };
   }
 
   private final Server server;
   private final ServiceT service;
   private final ApiServiceDescriptor apiServiceDescriptor;
 
-  private GrpcFnServer(Server server, ServiceT service, ApiServiceDescriptor apiServiceDescriptor)
-      throws IOException {
+  private GrpcFnServer(Server server, ServiceT service, ApiServiceDescriptor apiServiceDescriptor) {
     this.server = server;
     this.service = service;
     this.apiServiceDescriptor = apiServiceDescriptor;
@@ -72,9 +82,7 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     return service;
   }
 
-  /**
-   * Get the underlying {@link Server} contained by this {@link GrpcFnServer}.
-   */
+  /** Get the underlying {@link Server} contained by this {@link GrpcFnServer}. */
   public Server getServer() {
     return server;
   }

@@ -23,8 +23,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link CoderProvider} provides {@link Coder}s.
  *
- * <p>It may operate on a parameterized type, such as {@link List}, in which case the
- * {@link #coderFor} method accepts a list of coders to use for the type parameters.
+ * <p>It may operate on a parameterized type, such as {@link List}, in which case the {@link
+ * #coderFor} method accepts a list of coders to use for the type parameters.
  */
 public abstract class CoderProvider {
 
@@ -32,8 +32,8 @@ public abstract class CoderProvider {
    * Returns a {@code Coder<T>} to use for values of a particular type, given the Coders for each of
    * the type's generic parameter types.
    *
-   * <p>Throws {@link CannotProvideCoderException} if this {@link CoderProvider} cannot provide
-   * a coder for this type and components.
+   * <p>Throws {@link CannotProvideCoderException} if this {@link CoderProvider} cannot provide a
+   * coder for this type and components.
    */
   public abstract <T> Coder<T> coderFor(
       TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)

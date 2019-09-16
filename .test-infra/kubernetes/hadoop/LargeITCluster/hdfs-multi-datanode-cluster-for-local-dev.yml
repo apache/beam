@@ -1,0 +1,73 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+# This cluster is intended to be run additionally to hdfs-multi-datanode-cluster.yml.
+# It provides an additional setup to access large hdfs cluster by DirectRunner or any
+# external application. Services created by this setup need to be properly included in
+# /etc/hosts file, so it is strongly suggested to run start-all.sh script instead of
+# running this file manually.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: datanode-0
+  labels:
+    name: datanode-0
+spec:
+  ports:
+    - name: hdfs
+      port: 9000
+    - name: web
+      port: 50010
+  selector:
+    statefulset.kubernetes.io/pod-name: datanode-0
+  type: LoadBalancer
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: datanode-1
+  labels:
+    name: datanode-1
+spec:
+  ports:
+    - name: hdfs
+      port: 9000
+    - name: web
+      port: 50010
+  selector:
+    statefulset.kubernetes.io/pod-name: datanode-1
+  type: LoadBalancer
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: datanode-2
+  labels:
+    name: datanode-2
+spec:
+  ports:
+    - name: hdfs
+      port: 9000
+    - name: web
+      port: 50010
+  selector:
+    statefulset.kubernetes.io/pod-name: datanode-2
+  type: LoadBalancer

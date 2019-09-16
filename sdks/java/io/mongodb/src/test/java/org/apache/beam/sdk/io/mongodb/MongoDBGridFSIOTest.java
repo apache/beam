@@ -34,19 +34,15 @@ import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
 import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
-import de.flapdoodle.embed.process.io.file.Files;
 import de.flapdoodle.embed.process.runtime.Network;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
-import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.Serializable;
-import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +52,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.Read.BoundedGridFSSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -72,54 +69,50 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Test on the MongoDbGridFSIO.
- */
-public class MongoDBGridFSIOTest implements Serializable {
+/** Test on the MongoDbGridFSIO. */
+@RunWith(JUnit4.class)
+public class MongoDBGridFSIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
 
-  private static final String MONGODB_LOCATION = "target/mongodb";
+  @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
   private static final String DATABASE = "gridfs";
 
-  private static final transient MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
-
-  private static transient MongodExecutable mongodExecutable;
-  private static transient MongodProcess mongodProcess;
+  private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
+  private static MongodExecutable mongodExecutable;
+  private static MongodProcess mongodProcess;
 
   private static int port;
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws Exception {
-    try (ServerSocket serverSocket = new ServerSocket(0)) {
-      port = serverSocket.getLocalPort();
-    }
+  public static void start() throws Exception {
+    port = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting MongoDB embedded instance on {}", port);
-    try {
-      Files.forceDelete(new File(MONGODB_LOCATION));
-    } catch (Exception e) {
-
-    }
-    new File(MONGODB_LOCATION).mkdirs();
-    IMongodConfig mongodConfig = new MongodConfigBuilder()
-        .version(Version.Main.PRODUCTION)
-        .configServer(false)
-        .replication(new Storage(MONGODB_LOCATION, null, 0))
-        .net(new Net("localhost", port, Network.localhostIsIPv6()))
-        .cmdOptions(new MongoCmdOptionsBuilder()
-            .syncDelay(10)
-            .useNoPrealloc(true)
-            .useSmallFiles(true)
-            .useNoJournal(true)
-            .build())
-        .build();
+    IMongodConfig mongodConfig =
+        new MongodConfigBuilder()
+            .version(Version.Main.PRODUCTION)
+            .configServer(false)
+            .replication(new Storage(MONGODB_LOCATION.getRoot().getPath(), null, 0))
+            .net(new Net("localhost", port, Network.localhostIsIPv6()))
+            .cmdOptions(
+                new MongoCmdOptionsBuilder()
+                    .syncDelay(10)
+                    .useNoPrealloc(true)
+                    .useSmallFiles(true)
+                    .useNoJournal(true)
+                    .verbose(false)
+                    .build())
+            .build();
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
 
@@ -131,8 +124,10 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     for (int x = 0; x < 100; x++) {
-      out.write(("Einstein\nDarwin\nCopernicus\nPasteur\n"
-                  + "Curie\nFaraday\nNewton\nBohr\nGalilei\nMaxwell\n").getBytes());
+      out.write(
+          ("Einstein\nDarwin\nCopernicus\nPasteur\n"
+                  + "Curie\nFaraday\nNewton\nBohr\nGalilei\nMaxwell\n")
+              .getBytes(StandardCharsets.UTF_8));
     }
     for (int x = 0; x < 5; x++) {
       gridfs.createFile(new ByteArrayInputStream(out.toByteArray()), "file" + x).save();
@@ -141,12 +136,22 @@ public class MongoDBGridFSIOTest implements Serializable {
     gridfs = new GridFS(database, "mapBucket");
     long now = System.currentTimeMillis();
     Random random = new Random();
-    String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
-        "Newton", "Bohr", "Galilei", "Maxwell"};
+    String[] scientists = {
+      "Einstein",
+      "Darwin",
+      "Copernicus",
+      "Pasteur",
+      "Curie",
+      "Faraday",
+      "Newton",
+      "Bohr",
+      "Galilei",
+      "Maxwell"
+    };
     for (int x = 0; x < 10; x++) {
       GridFSInputFile file = gridfs.createFile("file_" + x);
       OutputStream outf = file.getOutputStream();
-      OutputStreamWriter writer = new OutputStreamWriter(outf);
+      OutputStreamWriter writer = new OutputStreamWriter(outf, StandardCharsets.UTF_8);
       for (int y = 0; y < 5000; y++) {
         long time = now - random.nextInt(3600000);
         String name = scientists[y % scientists.length];
@@ -169,19 +174,17 @@ public class MongoDBGridFSIOTest implements Serializable {
   }
 
   @AfterClass
-  public static void stop() throws Exception {
+  public static void stop() {
     LOG.info("Stopping MongoDB instance");
     mongodProcess.stop();
     mongodExecutable.stop();
   }
 
   @Test
-  public void testFullRead() throws Exception {
-
-    PCollection<String> output = pipeline.apply(
-        MongoDbGridFSIO.<String>read()
-            .withUri("mongodb://localhost:" + port)
-            .withDatabase(DATABASE));
+  public void testFullRead() {
+    PCollection<String> output =
+        pipeline.apply(
+            MongoDbGridFSIO.read().withUri("mongodb://localhost:" + port).withDatabase(DATABASE));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(5000L);
 
@@ -197,20 +200,20 @@ public class MongoDBGridFSIOTest implements Serializable {
     pipeline.run();
   }
 
-
   @Test
-  public void testReadWithParser() throws Exception {
-
+  public void testReadWithParser() {
     PCollection<KV<String, Integer>> output =
         pipeline.apply(
-            MongoDbGridFSIO.<KV<String, Integer>>read()
+            MongoDbGridFSIO.read()
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withBucket("mapBucket")
                 .<KV<String, Integer>>withParser(
                     (input, callback) -> {
                       try (final BufferedReader reader =
-                          new BufferedReader(new InputStreamReader(input.getInputStream()))) {
+                          new BufferedReader(
+                              new InputStreamReader(
+                                  input.getInputStream(), StandardCharsets.UTF_8))) {
                         String line = reader.readLine();
                         while (line != null) {
                           try (Scanner scanner = new Scanner(line.trim())) {
@@ -244,21 +247,18 @@ public class MongoDBGridFSIOTest implements Serializable {
   @Test
   public void testSplit() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.<String>read()
-        .withUri("mongodb://localhost:" + port)
-        .withDatabase(DATABASE);
+    MongoDbGridFSIO.Read<String> read =
+        MongoDbGridFSIO.read().withUri("mongodb://localhost:" + port).withDatabase(DATABASE);
 
     BoundedGridFSSource src = new BoundedGridFSSource(read, null);
 
     // make sure 2 files can fit in
     long desiredBundleSizeBytes = (src.getEstimatedSizeBytes(options) * 2L) / 5L + 1000;
-    List<? extends BoundedSource<ObjectId>> splits = src.split(
-        desiredBundleSizeBytes, options);
+    List<? extends BoundedSource<ObjectId>> splits = src.split(desiredBundleSizeBytes, options);
 
     int expectedNbSplits = 3;
     assertEquals(expectedNbSplits, splits.size());
-    SourceTestUtils.
-      assertSourcesEqualReferenceSource(src, splits, options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(src, splits, options);
     int nonEmptySplits = 0;
     int count = 0;
     for (BoundedSource<ObjectId> subSource : splits) {
@@ -272,12 +272,8 @@ public class MongoDBGridFSIOTest implements Serializable {
     assertEquals(5, count);
   }
 
-
-
-
   @Test
   public void testWriteMessage() throws Exception {
-
     ArrayList<String> data = new ArrayList<>(100);
     ArrayList<Integer> intData = new ArrayList<>(100);
     for (int i = 0; i < 1000; i++) {
@@ -286,13 +282,16 @@ public class MongoDBGridFSIOTest implements Serializable {
     for (int i = 0; i < 100; i++) {
       intData.add(i);
     }
-    pipeline.apply("String", Create.of(data))
-        .apply("StringInternal", MongoDbGridFSIO.write()
-            .withUri("mongodb://localhost:" + port)
-            .withDatabase(DATABASE)
-            .withChunkSize(100L)
-            .withBucket("WriteTest")
-            .withFilename("WriteTestData"));
+    pipeline
+        .apply("String", Create.of(data))
+        .apply(
+            "StringInternal",
+            MongoDbGridFSIO.write()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withChunkSize(100L)
+                .withBucket("WriteTest")
+                .withFilename("WriteTestData"));
 
     pipeline
         .apply("WithWriteFn", Create.of(intData))
@@ -319,11 +318,11 @@ public class MongoDBGridFSIOTest implements Serializable {
       List<GridFSDBFile> files = gridfs.find("WriteTestData");
       assertTrue(files.size() > 0);
       for (GridFSDBFile file : files) {
-        assertEquals(100,  file.getChunkSize());
+        assertEquals(100, file.getChunkSize());
         int l = (int) file.getLength();
         try (InputStream ins = file.getInputStream()) {
           DataInputStream dis = new DataInputStream(ins);
-          byte b[] = new byte[l];
+          byte[] b = new byte[l];
           dis.readFully(b);
           results.append(new String(b, StandardCharsets.UTF_8));
         }
@@ -334,12 +333,12 @@ public class MongoDBGridFSIOTest implements Serializable {
       }
 
       files = gridfs.find("WriteTestIntData");
-      boolean intResults[] = new boolean[100];
+      boolean[] intResults = new boolean[100];
       for (GridFSDBFile file : files) {
         int l = (int) file.getLength();
         try (InputStream ins = file.getInputStream()) {
           DataInputStream dis = new DataInputStream(ins);
-          byte b[] = new byte[l];
+          byte[] b = new byte[l];
           dis.readFully(b);
           for (byte aB : b) {
             intResults[aB] = true;

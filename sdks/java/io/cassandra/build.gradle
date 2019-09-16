@@ -16,33 +16,34 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+plugins { id 'org.apache.beam.module' }
+
+// Do not relocate guava to avoid issues with Cassandra's version.
 applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
+ext.summary = "IO to read and write with Apache Cassandra database"
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":sdks:java:io:common")
-
-def cassandra_version = "3.2.0"
+// compatible with all Cassandra versions up to 3.11.3
+def achilles_version = "6.0.2"
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadow library.java.findbugs_jsr305
-  shadow "com.datastax.cassandra:cassandra-driver-core:$cassandra_version"
-  shadow "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_version"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(":sdks:java:io:common").sourceSets.test.output
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.slf4j_api
+  compile library.java.cassandra_driver_core
+  compile library.java.cassandra_driver_mapping
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
+  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
+
+  // for embedded cassandra
+  testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
+  testCompile library.java.jackson_jaxb_annotations
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
 }

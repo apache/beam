@@ -1,0 +1,365 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+  id 'base'                  // Define common lifecycle tasks and artifact types
+  id 'org.ajoberstar.grgit'  // Publish website to asf-git branch.
+}
+
+def dockerImageTag = 'beam-website'
+def dockerWorkDir = "/repo"
+def buildDir = "${project.rootDir}/build/website"
+
+def commitedChanges = false
+def gitboxUrl = project.findProperty('gitPublishRemote') ?: 'https://gitbox.apache.org/repos/asf/beam.git'
+
+def shell = { cmd ->
+  println cmd
+  exec {
+    executable 'sh'
+    args '-c', cmd
+  }
+}
+
+
+def envdir = "${buildDir}/gradleenv"
+
+task setupVirtualenv {
+  doLast {
+    exec {
+      commandLine 'virtualenv', "${envdir}"
+    }
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install beautifulsoup4"
+    }
+  }
+  outputs.dirs(envdir)
+}
+
+task buildDockerImage(type: Exec) {
+  inputs.files 'Gemfile', 'Gemfile.lock'
+  commandLine 'docker', 'build', '-t', dockerImageTag, '.'
+}
+
+task createDockerContainer(type: Exec) {
+  dependsOn buildDockerImage
+  standardOutput = new ByteArrayOutputStream()
+  ext.containerId = {
+    return standardOutput.toString().trim()
+  }
+  gradle.taskGraph.whenReady {
+    def extraOptions = ''
+    if (gradle.taskGraph.hasTask(":${project.name}:serveWebsite")) {
+      // Publish port 4000 where Jekyll serves website from
+      extraOptions = '--publish 127.0.0.1:4000:4000'
+    }
+    commandLine '/bin/bash', '-c',
+      "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $extraOptions $dockerImageTag"
+  }
+}
+
+task startDockerContainer(type: Exec) {
+  dependsOn createDockerContainer
+  ext.containerId = {
+    return createDockerContainer.containerId()
+  }
+  commandLine 'docker', 'start',
+    "${->createDockerContainer.containerId()}" // Lazily evaluate containerId.
+}
+
+task setupDockerContainer(type: Exec) {
+  dependsOn startDockerContainer
+  ext.containerId = {
+    return startDockerContainer.containerId()
+  }
+
+  // Create the config to point to a GitHub or Colab blob in the repo, e.g. apache/beam/blob/master
+  commandLine 'docker', 'exec', '-u', 'root',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """echo 'branch_repo: "${getBranchRepo()}"' > /tmp/_config_branch_repo.yml"""
+}
+
+task stopAndRemoveDockerContainer(type: Exec) {
+  commandLine 'docker', 'rm', '-f', "${->createDockerContainer.containerId()}"
+}
+
+task setupBuildDir(type: Copy) {
+  from('.') {
+    include 'Gemfile*'
+    include 'Rakefile'
+  }
+  into buildDir
+}
+
+task cleanWebsite(type: Delete) {
+  delete buildDir
+}
+clean.dependsOn cleanWebsite
+
+class BuildTaskConfiguration {
+  String name
+  boolean useTestConfig = false
+  boolean useBranchRepoConfig = false
+  String baseUrl = ''
+  String dockerWorkDir = ''
+}
+def createBuildTask = {
+  BuildTaskConfiguration config = it as BuildTaskConfiguration
+  task "build${config.name}Website" (type:Exec) {
+    dependsOn setupDockerContainer, setupBuildDir
+    finalizedBy stopAndRemoveDockerContainer
+    inputs.files 'Gemfile.lock', '_config.yml'
+    inputs.dir 'src'
+    outputs.dir "$buildDir/.sass-cache"
+    outputs.dir buildContentDir(config.name)
+    def configs = "${config.dockerWorkDir}/website/_config.yml"
+    if (config.useTestConfig) {
+      configs += ",${config.dockerWorkDir}/website/_config_test.yml"
+    }
+    if (config.useBranchRepoConfig) {
+      configs += ",/tmp/_config_branch_repo.yml"
+    }
+    def baseUrlFlag = config.baseUrl ? "--baseurl=/${config.baseUrl}" : ""
+    commandLine 'docker', 'exec',
+      "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+      """cd ${config.dockerWorkDir}/build/website && \
+        bundle exec jekyll build \
+        --destination generated-${config.name.toLowerCase()}-content \
+        --config ${configs} \
+        --incremental ${baseUrlFlag} \
+        --source ${config.dockerWorkDir}/website/src
+        """
+  }
+}
+
+// task buildLocalWebsite
+createBuildTask(
+  name:'Local',
+  useTestConfig: true,
+  useBranchRepoConfig: true,
+  dockerWorkDir: dockerWorkDir,
+)
+task buildWebsite(dependsOn:buildLocalWebsite)
+build.dependsOn buildWebsite
+
+// task buildGcsWebsite
+createBuildTask(
+  name:'Gcs',
+  useTestConfig: true,
+  useBranchRepoConfig: true,
+  baseUrl: getBaseUrl(),
+  dockerWorkDir: dockerWorkDir,
+)
+
+// task buildApacheWebsite
+createBuildTask(
+  name:'Apache',
+  dockerWorkDir: dockerWorkDir,
+)
+
+/**
+ * Use the pull request ID in the URL path, or the git branch when building locally.
+ * This allows staging multiple work trees without clobbering eachother, i.e.
+ * for shared GCS staging, or for locally comparing the differences between
+ * branches.
+ */
+def getBaseUrl() {
+  def pullRequestId = System.getenv('ghprbPullId')?.trim()
+  if (pullRequestId) { return pullRequestId }
+
+  // grgit is null if building outside of git (i.e. from source archive)
+  def buildContext = grgit ? grgit.branch.current().getName() : 'archive'
+  return "${System.getProperty('user.name')}-${buildContext}"
+}
+
+/**
+ * Gets the branch repository where the new files are located. This is used to point
+ * all the GitHub and Colab files to the pull request's branch when testing, while
+ * pointing them to the apache/beam master branch on production. This is done so tests
+ * and staged versions work even when the files don't exist in master yet.
+ */
+def getBranchRepo() {
+  // Jenkins stores the GitHub author in $ghprbPullAuthorLogin
+  def author = System.env.ghprbPullAuthorLogin
+  if (author == null) {
+    // If the author is not defined, it's most probably running locally.
+    // Try to infer the author from the remote URL
+    for (remote in grgit.remote.list()) {
+      if (remote.getName() == 'origin') {
+        // remote.url = 'git@github.com:author/beam.git'
+        author = remote.url.split(':')[1].split('/')[0]
+        break
+      }
+    }
+  }
+  // Jenkins stores the branch in botho of the following environment variables.
+  def branch = System.env.ghprbSourceBranch ?: System.env.GIT_BRANCH
+  if (branch == null && grgit) {
+    branch = grgit.branch.current().getName()
+  }
+
+  // Return the author's branch repo, otherwise default to the master repo.
+  if (author && branch) {
+    return "${author}/beam/blob/${branch}"
+  }
+  return "apache/beam/blob/master"
+}
+
+def buildContentDir(name) {
+  "${project.rootDir}/build/website/generated-${name.toLowerCase()}-content"
+}
+
+task serveWebsite(type: Exec) {
+  dependsOn setupDockerContainer, setupBuildDir
+  finalizedBy stopAndRemoveDockerContainer
+  inputs.files 'Gemfile.lock', '_config.yml'
+  inputs.dir 'src'
+  outputs.dir "$buildDir/.sass-cache"
+  outputs.dir buildContentDir('local')
+  commandLine 'docker', 'exec',
+    "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec jekyll serve \
+      --config $dockerWorkDir/website/_config.yml,/tmp/_config_branch_repo.yml \
+      --incremental \
+      --source $dockerWorkDir/website/src \
+      --host 0.0.0.0
+      """
+}
+
+task testWebsite(type: Exec) {
+  // dependsOn setupDockerContainer, 'buildWebsite'
+  finalizedBy stopAndRemoveDockerContainer
+
+  inputs.files "$buildDir/Rakefile"
+  inputs.dir buildContentDir('local')
+  commandLine 'docker', 'exec',
+    "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec -- rake test disable_external=${findProperty('disableExternal') ?: true}"""
+}
+
+testWebsite.dependsOn 'buildLocalWebsite'
+
+task preCommit {
+  dependsOn testWebsite
+}
+
+// Creates a new commit on asf-site branch
+task commitWebsite {
+  doLast {
+    assert grgit : "Cannot commit website outside of git repository"
+    assert file("${buildContentDir('apache')}/index.html").exists()
+    // Generated javadoc and pydoc content is not built or stored in this repo.
+    assert !file("${buildContentDir('apache')}/documentation/sdks/javadoc").exists()
+    assert !file("${buildContentDir('apache')}/documentation/sdks/pydoc").exists()
+
+    def git = grgit.open()
+    // get the latest commit on master
+    def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+
+    shell "git fetch --force origin +asf-site:asf-site"
+    git.checkout(branch: 'asf-site')
+
+    // Delete the previous content. These are asf-site branch paths.
+    git.remove(patterns: [ 'website/generated-content' ])
+    def repoContentDir = "${project.rootDir}/website/generated-content"
+    assert !file("${repoContentDir}/index.html").exists()
+    delete repoContentDir
+
+    // Copy the built content and add it.
+    copy {
+      from buildContentDir('apache')
+      into repoContentDir
+    }
+    assert file("${repoContentDir}/index.html").exists()
+    git.add(patterns: ['website/generated-content'])
+
+    def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+    String message = "Publishing website ${currentDate} at commit ${latestCommit}"
+    if (!git.status().staged.getAllChanges()) {
+      println 'No changes to commit'
+    } else {
+      println 'Creating commit for changes'
+      commitedChanges = true
+      git.commit(message: message)
+    }
+  }
+}
+
+/*
+ * Pushes the asf-site branch commits.
+ *
+ * This requires write access to the asf-site branch and can be run on
+ * Jenkins executors with the git-websites label.
+ *
+ * For more details on publishing, see:
+ * https://www.apache.org/dev/project-site.html
+ * https://github.com/apache/infrastructure-puppet/blob/deployment/modules/gitwcsub/files/config/gitwcsub.cfg
+ *
+ * You can test this locally with a forked repository by manually adding the
+ * website-publish remote pointing to your forked repository, for example:
+ *   git remote add website-publish git@github.com:${GITUSER}/beam.git
+ * because the remote is only added if it doesn't exist. The remote needs
+ * to be added before every execution of the publishing.
+ */
+task publishWebsite {
+  doLast {
+    assert grgit : "Cannot publish website outside of git repository"
+
+    def git = grgit.open()
+    git.checkout(branch: 'asf-site')
+    if (!commitedChanges) {
+      println 'No changes to push'
+      return
+    }
+
+    // Because git.push() fails to authenticate, run git push directly.
+    shell "git push ${gitboxUrl} asf-site"
+  }
+}
+
+commitWebsite.dependsOn buildApacheWebsite
+publishWebsite.dependsOn commitWebsite
+
+/*
+ * Stages a pull request on GCS
+ * For example:
+ *   ./gradlew :website:stageWebsite -PwebsiteBucket=foo
+ */
+task stageWebsite {
+  doLast {
+    def baseUrl = getBaseUrl()
+    assert baseUrl : 'Website staging requires a valid baseUrl'
+    def gcs_bucket = project.findProperty('websiteBucket') ?: 'apache-beam-website-pull-requests'
+    def gcs_path = "gs://${gcs_bucket}/${baseUrl}"
+
+    // Fixup the links to index.html files
+    shell ". ${envdir}/bin/activate && python append_index_html_to_internal_links.py ${buildContentDir('gcs')}"
+
+    // Copy the build website to GCS
+    shell "gsutil -m rsync -r -d ${buildContentDir('gcs')} ${gcs_path}"
+
+    println "Website published to http://${gcs_bucket}." +
+        "storage.googleapis.com/${baseUrl}/index.html"
+  }
+}
+
+stageWebsite.dependsOn setupVirtualenv
+stageWebsite.dependsOn buildGcsWebsite

@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.util.common;
 
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.Default;
@@ -29,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ReflectHelpers}.
- */
+/** Tests for {@link ReflectHelpers}. */
 @RunWith(JUnit4.class)
 public class ReflectHelpersTest {
 
@@ -42,18 +43,20 @@ public class ReflectHelpersTest {
 
   @Test
   public void testClassSimpleName() {
-    assertEquals(getClass().getSimpleName(),
-        ReflectHelpers.CLASS_SIMPLE_NAME.apply(getClass()));
+    assertEquals(getClass().getSimpleName(), ReflectHelpers.CLASS_SIMPLE_NAME.apply(getClass()));
   }
 
   @Test
   public void testMethodFormatter() throws Exception {
-    assertEquals("testMethodFormatter()",
+    assertEquals(
+        "testMethodFormatter()",
         ReflectHelpers.METHOD_FORMATTER.apply(getClass().getMethod("testMethodFormatter")));
 
-    assertEquals("oneArg(int)",
+    assertEquals(
+        "oneArg(int)",
         ReflectHelpers.METHOD_FORMATTER.apply(getClass().getDeclaredMethod("oneArg", int.class)));
-    assertEquals("twoArg(String, List)",
+    assertEquals(
+        "twoArg(String, List)",
         ReflectHelpers.METHOD_FORMATTER.apply(
             getClass().getDeclaredMethod("twoArg", String.class, List.class)));
   }
@@ -62,13 +65,13 @@ public class ReflectHelpersTest {
   public void testClassMethodFormatter() throws Exception {
     assertEquals(
         getClass().getName() + "#testMethodFormatter()",
-        ReflectHelpers.CLASS_AND_METHOD_FORMATTER
-        .apply(getClass().getMethod("testMethodFormatter")));
+        ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
+            getClass().getMethod("testMethodFormatter")));
 
     assertEquals(
         getClass().getName() + "#oneArg(int)",
-        ReflectHelpers.CLASS_AND_METHOD_FORMATTER
-        .apply(getClass().getDeclaredMethod("oneArg", int.class)));
+        ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
+            getClass().getDeclaredMethod("oneArg", int.class)));
     assertEquals(
         getClass().getName() + "#twoArg(String, List)",
         ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
@@ -77,57 +80,58 @@ public class ReflectHelpersTest {
 
   @SuppressWarnings("unused")
   void oneArg(int n) {}
+
   @SuppressWarnings("unused")
   void twoArg(String foo, List<Integer> bar) {}
 
   @Test
   public void testTypeFormatterOnClasses() throws Exception {
-    assertEquals("Integer",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer.class));
-    assertEquals("int",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int.class));
-    assertEquals("Map",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Map.class));
-    assertEquals(getClass().getSimpleName(),
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(getClass()));
+    assertEquals("Integer", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer.class));
+    assertEquals("int", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int.class));
+    assertEquals("Map", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Map.class));
+    assertEquals(
+        getClass().getSimpleName(), ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(getClass()));
   }
 
   @Test
   public void testTypeFormatterOnArrays() throws Exception {
-    assertEquals("Integer[]",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer[].class));
-    assertEquals("int[]",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int[].class));
+    assertEquals("Integer[]", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer[].class));
+    assertEquals("int[]", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int[].class));
   }
 
   @Test
   public void testTypeFormatterWithGenerics() throws Exception {
-    assertEquals("Map<Integer, String>",
+    assertEquals(
+        "Map<Integer, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<Integer, String>>() {}.getType()));
-    assertEquals("Map<?, String>",
+    assertEquals(
+        "Map<?, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<?, String>>() {}.getType()));
-    assertEquals("Map<? extends Integer, String>",
+    assertEquals(
+        "Map<? extends Integer, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<? extends Integer, String>>() {}.getType()));
   }
 
   @Test
   public <T> void testTypeFormatterWithWildcards() throws Exception {
-    assertEquals("Map<T, T>",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeDescriptor<Map<T, T>>() {}.getType()));
+    assertEquals(
+        "Map<T, T>",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(new TypeDescriptor<Map<T, T>>() {}.getType()));
   }
 
   @Test
   public <InputT, OutputT> void testTypeFormatterWithMultipleWildcards() throws Exception {
-    assertEquals("Map<? super InputT, ? extends OutputT>",
+    assertEquals(
+        "Map<? super InputT, ? extends OutputT>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {}.getType()));
   }
 
-  private interface Options extends PipelineOptions {
+  /** Test interface. */
+  public interface Options extends PipelineOptions {
     @Default.String("package.OuterClass$InnerClass#method()")
     String getString();
 
@@ -168,5 +172,43 @@ public class ReflectHelpersTest {
     thread.start();
     thread.join();
     assertEquals(cl, classLoader[0]);
+  }
+
+  /**
+   * Test service interface and implementations for loadServicesOrdered.
+   *
+   * <p>Note that rather than using AutoService to create resources, AlphaImpl and ZetaImpl are
+   * listed in reverse lexicographical order in
+   * sdks/java/core/src/test/resources/META-INF/services/org.apache.beam.sdk.util.common.ReflectHelpersTest$FakeService
+   * so that we can verify loadServicesOrdered properly re-orders them.
+   */
+  public interface FakeService {
+    String getName();
+  }
+
+  /** Alpha implemnetation of FakeService. Should be loaded first */
+  public static class AlphaImpl implements FakeService {
+    @Override
+    public String getName() {
+      return "Alpha";
+    }
+  }
+
+  /** Zeta implemnetation of FakeService. Should be loaded second */
+  public static class ZetaImpl implements FakeService {
+    @Override
+    public String getName() {
+      return "Zeta";
+    }
+  }
+
+  @Test
+  public void testLoadServicesOrderedReordersClassesByName() {
+    List<String> names = new ArrayList<>();
+    for (FakeService service : ReflectHelpers.loadServicesOrdered(FakeService.class)) {
+      names.add(service.getName());
+    }
+
+    assertThat(names, contains("Alpha", "Zeta"));
   }
 }

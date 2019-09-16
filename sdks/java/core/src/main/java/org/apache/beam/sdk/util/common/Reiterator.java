@@ -26,14 +26,12 @@ import java.util.Iterator;
  */
 public interface Reiterator<T> extends Iterator<T> {
   /**
-   * Returns a copy of the current {@link Reiterator}.  The copy's iteration
-   * state is logically independent of the current iterator; each may be
-   * advanced without affecting the other.
+   * Returns a copy of the current {@link Reiterator}. The copy's iteration state is logically
+   * independent of the current iterator; each may be advanced without affecting the other.
    *
-   * <p>The returned {@code Reiterator} is not guaranteed to return
-   * referentially identical iteration results as the original
-   * {@link Reiterator}, although {@link Object#equals} will typically return
-   * true for the corresponding elements of each if the original source is
+   * <p>The returned {@code Reiterator} is not guaranteed to return referentially identical
+   * iteration results as the original {@link Reiterator}, although {@link Object#equals} will
+   * typically return true for the corresponding elements of each if the original source is
    * logically immutable.
    */
   Reiterator<T> copy();

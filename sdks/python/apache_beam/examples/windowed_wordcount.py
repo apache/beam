@@ -26,6 +26,8 @@ from __future__ import absolute_import
 import argparse
 import logging
 
+from past.builtins import unicode
+
 import apache_beam as beam
 import apache_beam.transforms.window as window
 
@@ -65,10 +67,10 @@ def run(argv=None):
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
-    # Read the text from PubSub messages
-    lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
+    # Read the text from PubSub messages.
+    lines = p | beam.io.ReadFromPubSub(known_args.input_topic)
 
-    # Capitalize the characters in each line.
+    # Get the number of appearances of a word.
     def count_ones(word_ones):
       (word, ones) = word_ones
       return (word, sum(ones))

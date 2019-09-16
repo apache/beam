@@ -28,6 +28,8 @@ The pickler module should be used to pickle functions and modules; for values,
 the coders.*PickleCoder classes should be used instead.
 """
 
+from __future__ import absolute_import
+
 import base64
 import logging
 import sys
@@ -37,18 +39,36 @@ import zlib
 
 import dill
 
+# Dill 0.28.0 renamed dill.dill to dill._dill:
+# https://github.com/uqfoundation/dill/commit/f0972ecc7a41d0b8acada6042d557068cac69baa
+# TODO: Remove this once Beam depends on dill >= 0.2.8
+if not getattr(dill, 'dill', None):
+  dill.dill = dill._dill
+  sys.modules['dill.dill'] = dill._dill
+
+# TODO: Remove once Dataflow has containers with a preinstalled dill >= 0.2.8
+if not getattr(dill, '_dill', None):
+  dill._dill = dill.dill
+  sys.modules['dill._dill'] = dill.dill
+
 
 def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
   return (isinstance(cls, type)
-          and cls.__module__ != '__builtin__'
+          and cls.__module__ != 'builtins'     # Python 3
+          and cls.__module__ != '__builtin__'  # Python 2
           and cls.__name__ not in sys.modules[cls.__module__].__dict__)
 
 
 def _find_containing_class(nested_class):
-  """Finds containing class of a nestec class passed as argument."""
+  """Finds containing class of a nested class passed as argument."""
+
+  seen = set()
 
   def _find_containing_class_inner(outer):
+    if outer in seen:
+      return None
+    seen.add(outer)
     for k, v in outer.__dict__.items():
       if v is nested_class:
         return outer, k
@@ -116,6 +136,31 @@ def _reject_generators(unused_pickler, unused_obj):
 
 dill.dill.Pickler.dispatch[types.GeneratorType] = _reject_generators
 
+# TODO: Remove this once uqfoundation/dill#313 is fixed
+if sys.version_info[0] > 2:
+  # Monkey patch for dill._dill.Pickler to pickle functions
+  # with keyword-only args
+  _create_function = dill.dill._create_function
+
+  def _create_function_has_kwdefaults(fcode, fglobals, fname=None,
+                                      fdefaults=None, fclosure=None, fdict=None,
+                                      fkwdefaults=None):
+    func = _create_function(fcode, fglobals, fname, fdefaults, fclosure, fdict)
+    func.__kwdefaults__ = fkwdefaults
+    return func
+
+  def new_save_reduce(self, func, args, *other_args, **kwargs):
+    pickler = super(dill.dill.Pickler, self)
+    obj = kwargs['obj'] if 'obj' in kwargs else None
+    if (func is _create_function and obj is not None
+        and getattr(obj, '__kwdefaults__', None) is not None):
+      pickler.save_reduce(_create_function_has_kwdefaults,
+                          args + (getattr(obj, '__kwdefaults__', None),),
+                          *other_args, **kwargs)
+    else:
+      pickler.save_reduce(func, args, *other_args, **kwargs)
+
+  dill._dill.Pickler.save_reduce = new_save_reduce
 
 # This if guards against dill not being full initialized when generating docs.
 if 'save_module' in dir(dill.dill):
@@ -144,9 +189,22 @@ if 'save_module' in dir(dill.dill):
     obj_id = id(obj)
     if not known_module_dicts or '__file__' in obj or '__package__' in obj:
       if obj_id not in known_module_dicts:
+        # Trigger loading of lazily loaded modules (such as pytest vendored
+        # modules).
+        # This first pass over sys.modules needs to iterate on a copy of
+        # sys.modules since lazy loading modifies the dictionary, hence the use
+        # of list().
+        for m in list(sys.modules.values()):
+          try:
+            _ = m.__dict__
+          except AttributeError:
+            pass
+
         for m in sys.modules.values():
           try:
-            if m and m.__name__ != '__main__':
+            if (m
+                and m.__name__ != '__main__'
+                and isinstance(m, dill.dill.ModuleType)):
               d = m.__dict__
               known_module_dicts[id(d)] = m, d
           except AttributeError:
@@ -164,6 +222,13 @@ if 'save_module' in dir(dill.dill):
     else:
       return old_save_module_dict(pickler, obj)
   dill.dill.save_module_dict = new_save_module_dict
+
+  if hasattr(types, "MappingProxyType"):
+    @dill.dill.register(types.MappingProxyType)
+    def save_mappingproxy(pickler, obj):
+      # pickling mappingproxy AS IS, not as dict
+      # inspired from https://github.com/cloudpipe/cloudpickle/pull/245
+      pickler.save_reduce(types.MappingProxyType, (dict(obj),), obj=obj)
 
   def _nest_dill_logging():
     """Prefix all dill logging with its depth in the callstack.

@@ -21,20 +21,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import io.gearpump.cluster.ClusterConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.gearpump.cluster.ClusterConfig;
-import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.junit.Test;
 
-/**
- * Tests for {@link GearpumpPipelineOptions}.
- */
+/** Tests for {@link GearpumpPipelineOptions}. */
 public class PipelineOptionsTest {
 
   @Test
@@ -42,20 +39,20 @@ public class PipelineOptionsTest {
     String appName = "forTest";
     Map<String, String> serializers = Maps.newHashMap();
     serializers.put("classA", "SerializerA");
-    GearpumpPipelineOptions options = PipelineOptionsFactory.create()
-      .as(GearpumpPipelineOptions.class);
+    GearpumpPipelineOptions options =
+        PipelineOptionsFactory.create().as(GearpumpPipelineOptions.class);
     Config config = ClusterConfig.master(null);
-    EmbeddedCluster cluster = new EmbeddedCluster(config);
     options.setSerializers(serializers);
     options.setApplicationName(appName);
-    options.setEmbeddedCluster(cluster);
+    options.setRemote(false);
     options.setParallelism(10);
 
     byte[] serializedOptions = serialize(options);
-    GearpumpPipelineOptions deserializedOptions = new ObjectMapper()
-      .readValue(serializedOptions, PipelineOptions.class).as(GearpumpPipelineOptions.class);
+    GearpumpPipelineOptions deserializedOptions =
+        new ObjectMapper()
+            .readValue(serializedOptions, PipelineOptions.class)
+            .as(GearpumpPipelineOptions.class);
 
-    assertNull(deserializedOptions.getEmbeddedCluster());
     assertNull(deserializedOptions.getSerializers());
     assertEquals(10, deserializedOptions.getParallelism());
     assertEquals(appName, deserializedOptions.getApplicationName());

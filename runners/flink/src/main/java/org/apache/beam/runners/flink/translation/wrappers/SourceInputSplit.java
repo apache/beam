@@ -21,19 +21,17 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.flink.core.io.InputSplit;
 
 /**
- * {@link org.apache.flink.core.io.InputSplit} for
- * {@link org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat}. We pass
- * the sharded Source around in the input split because Sources simply split up into several
- * Sources for sharding. This is different to how Flink creates a separate InputSplit from
- * an InputFormat.
+ * {@link org.apache.flink.core.io.InputSplit} for {@link
+ * org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat}. We pass the sharded Source
+ * around in the input split because Sources simply split up into several Sources for sharding. This
+ * is different to how Flink creates a separate InputSplit from an InputFormat.
  */
 public class SourceInputSplit<T> implements InputSplit {
 
   private Source<T> source;
   private int splitNumber;
 
-  public SourceInputSplit() {
-  }
+  public SourceInputSplit() {}
 
   public SourceInputSplit(Source<T> source, int splitNumber) {
     this.source = source;
@@ -48,5 +46,4 @@ public class SourceInputSplit<T> implements InputSplit {
   public Source<T> getSource() {
     return source;
   }
-
 }

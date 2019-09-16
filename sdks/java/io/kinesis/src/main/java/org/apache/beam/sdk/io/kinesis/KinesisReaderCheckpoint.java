@@ -17,24 +17,23 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
-import static com.google.common.collect.Lists.partition;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.partition;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * Checkpoint representing a total progress in a set of shards in single stream.
- * The set of shards covered by {@link KinesisReaderCheckpoint} may or may not be equal to set of
- * all shards present in the stream.
- * This class is immutable.
+ * Checkpoint representing a total progress in a set of shards in single stream. The set of shards
+ * covered by {@link KinesisReaderCheckpoint} may or may not be equal to set of all shards present
+ * in the stream. This class is immutable.
  */
-class KinesisReaderCheckpoint implements Iterable<ShardCheckpoint>, UnboundedSource
-    .CheckpointMark, Serializable {
+class KinesisReaderCheckpoint
+    implements Iterable<ShardCheckpoint>, UnboundedSource.CheckpointMark, Serializable {
 
   private final List<ShardCheckpoint> shardCheckpoints;
 
@@ -63,9 +62,7 @@ class KinesisReaderCheckpoint implements Iterable<ShardCheckpoint>, UnboundedSou
   }
 
   @Override
-  public void finalizeCheckpoint() throws IOException {
-
-  }
+  public void finalizeCheckpoint() throws IOException {}
 
   @Override
   public String toString() {

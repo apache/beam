@@ -20,7 +20,10 @@ DirectRunner implementation of MetricResults. It is in charge not only of
 responding to queries of current metrics, but also of keeping the common
 state consistent.
 """
+from __future__ import absolute_import
+
 import threading
+from builtins import object
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterAggregator
@@ -79,9 +82,9 @@ class DirectMetrics(MetricResults):
               for k, v in self._gauges.items()
               if self.matches(filter, k)]
 
-    return {'counters': counters,
-            'distributions': distributions,
-            'gauges': gauges}
+    return {self.COUNTERS: counters,
+            self.DISTRIBUTIONS: distributions,
+            self.GAUGES: gauges}
 
 
 class DirectMetric(object):
@@ -93,10 +96,10 @@ class DirectMetric(object):
   def __init__(self, aggregator):
     self.aggregator = aggregator
     self._attempted_lock = threading.Lock()
-    self.finished_attempted = aggregator.zero()
+    self.finished_attempted = aggregator.identity_element()
     self.inflight_attempted = {}
     self._committed_lock = threading.Lock()
-    self.finished_committed = aggregator.zero()
+    self.finished_committed = aggregator.identity_element()
 
   def commit_logical(self, bundle, update):
     with self._committed_lock:

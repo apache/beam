@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Spark sinks that supports beam metrics and aggregators.
- */
+/** Spark sinks that supports beam metrics and aggregators. */
 package org.apache.beam.runners.spark.metrics.sink;

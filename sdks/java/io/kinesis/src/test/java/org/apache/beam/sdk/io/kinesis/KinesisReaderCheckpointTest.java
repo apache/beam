@@ -20,23 +20,20 @@ package org.apache.beam.sdk.io.kinesis;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
-/***
- *
- */
+/** * */
 @RunWith(MockitoJUnitRunner.class)
 public class KinesisReaderCheckpointTest {
 
-  @Mock
-  private ShardCheckpoint a, b, c;
+  @Mock private ShardCheckpoint a, b, c;
 
   private KinesisReaderCheckpoint checkpoint;
 

@@ -27,9 +27,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
-/**
- * Result of executing a {@link Pipeline} with Apex in embedded mode.
- */
+/** Result of executing a {@link Pipeline} with Apex in embedded mode. */
 public class ApexRunnerResult implements PipelineResult {
   private final DAG apexDAG;
   private final AppHandle apexApp;
@@ -48,6 +46,7 @@ public class ApexRunnerResult implements PipelineResult {
   @Override
   public State cancel() throws IOException {
     apexApp.shutdown(ShutdownMode.KILL);
+    cleanupOnCancelOrFinish();
     state = State.CANCELLED;
     return state;
   }
@@ -55,8 +54,10 @@ public class ApexRunnerResult implements PipelineResult {
   @Override
   @Nullable
   public State waitUntilFinish(@Nullable Duration duration) {
-    long timeout = (duration == null || duration.getMillis() < 1) ? Long.MAX_VALUE
-        : System.currentTimeMillis() + duration.getMillis();
+    long timeout =
+        (duration == null || duration.getMillis() < 1)
+            ? Long.MAX_VALUE
+            : System.currentTimeMillis() + duration.getMillis();
     try {
       while (!apexApp.isFinished() && System.currentTimeMillis() < timeout) {
         if (ApexRunner.ASSERTION_ERROR.get() != null) {
@@ -64,7 +65,11 @@ public class ApexRunnerResult implements PipelineResult {
         }
         Thread.sleep(500);
       }
-      return apexApp.isFinished() ? State.DONE : null;
+      if (apexApp.isFinished()) {
+        cleanupOnCancelOrFinish();
+        return State.DONE;
+      }
+      return null;
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -82,10 +87,13 @@ public class ApexRunnerResult implements PipelineResult {
 
   /**
    * Return the DAG executed by the pipeline.
+   *
    * @return DAG from translation.
    */
   public DAG getApexDAG() {
     return apexDAG;
   }
 
+  /** Opportunity for a subclass to perform cleanup, such as removing temporary files. */
+  protected void cleanupOnCancelOrFinish() {}
 }

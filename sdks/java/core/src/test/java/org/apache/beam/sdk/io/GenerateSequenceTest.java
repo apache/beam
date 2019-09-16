@@ -18,13 +18,12 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -61,7 +60,7 @@ public class GenerateSequenceTest {
   @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testBoundedInput() {
     long numElements = 1000;
     PCollection<Long> input = p.apply(GenerateSequence.from(0).to(numElements));
@@ -71,7 +70,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testEmptyBoundedInput() {
     PCollection<Long> input = p.apply(GenerateSequence.from(0).to(0));
 
@@ -80,7 +79,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testEmptyBoundedInputSubrange() {
     PCollection<Long> input = p.apply(GenerateSequence.from(42).to(42));
 
@@ -89,7 +88,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testBoundedInputSubrange() {
     long start = 10;
     long end = 1000;
@@ -141,7 +140,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testUnboundedInputTimestamps() {
     long numElements = 1000;
 
@@ -171,6 +170,25 @@ public class GenerateSequenceTest {
 
     assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
     assertThat(displayData, hasDisplayItem("timestampFn", timestampFn.getClass()));
+  }
+
+  @Test
+  public void testBuildExternal() {
+    GenerateSequence.External.ExternalConfiguration externalConfig =
+        new AutoValue_GenerateSequence.External.ExternalConfiguration();
+    externalConfig.setStart(42L);
+    externalConfig.setStop(43L);
+    externalConfig.setElementsPerPeriod(1L);
+    externalConfig.setMaxReadTime(2L);
+    externalConfig.setPeriod(3L);
+
+    AutoValue_GenerateSequence.Builder builder = new AutoValue_GenerateSequence.Builder();
+    GenerateSequence object = builder.buildExternal(externalConfig);
+    assertThat(object.getFrom(), is(42L));
+    assertThat(object.getTo(), is(43L));
+    assertThat(object.getElementsPerPeriod(), is(1L));
+    assertThat(object.getMaxReadTime(), is(Duration.millis(2L)));
+    assertThat(object.getPeriod(), is(Duration.millis(3L)));
   }
 
   /**

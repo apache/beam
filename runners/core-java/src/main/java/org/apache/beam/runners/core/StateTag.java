@@ -40,8 +40,8 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
  * the location, the information necessary to encode the value, and details about the intended
  * access pattern.
  *
- * <p>State can be thought of as a sparse table, with each {@code StateTag} defining a column
- * that has cells of type {@code StateT}.
+ * <p>State can be thought of as a sparse table, with each {@code StateTag} defining a column that
+ * has cells of type {@code StateT}.
  *
  * <p>Currently, this can only be used in a step immediately following a {@link GroupByKey}.
  *
@@ -53,14 +53,10 @@ public interface StateTag<StateT extends State> extends Serializable {
   /** Append the UTF-8 encoding of this tag to the given {@link Appendable}. */
   void appendTo(Appendable sb) throws IOException;
 
-  /**
-   * An identifier for the state cell that this tag references.
-   */
+  /** An identifier for the state cell that this tag references. */
   String getId();
 
-  /**
-   * The specification for the state stored in the referenced cell.
-   */
+  /** The specification for the state stored in the referenced cell. */
   StateSpec<StateT> getSpec();
 
   /**
@@ -74,8 +70,8 @@ public interface StateTag<StateT extends State> extends Serializable {
   /**
    * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
    *
-   * @deprecated for migration only; runners should reference the top level {@link StateBinder}
-   * and move towards {@link StateSpec} rather than {@link StateTag}.
+   * @deprecated for migration only; runners should reference the top level {@link StateBinder} and
+   *     move towards {@link StateSpec} rather than {@link StateTag}.
    */
   @Deprecated
   public interface StateBinder {
@@ -87,18 +83,18 @@ public interface StateTag<StateT extends State> extends Serializable {
 
     <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
         StateTag<MapState<KeyT, ValueT>> spec,
-        Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder);
+        Coder<KeyT> mapKeyCoder,
+        Coder<ValueT> mapValueCoder);
 
     <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
         StateTag<CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn);
 
-    <InputT, AccumT, OutputT>
-        CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
-            StateTag<CombiningState<InputT, AccumT, OutputT>> spec,
-            Coder<AccumT> accumCoder,
-            CombineFnWithContext<InputT, AccumT, OutputT> combineFn);
+    <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
+        StateTag<CombiningState<InputT, AccumT, OutputT>> spec,
+        Coder<AccumT> accumCoder,
+        CombineFnWithContext<InputT, AccumT, OutputT> combineFn);
 
     /**
      * Bind to a watermark {@link StateSpec}.

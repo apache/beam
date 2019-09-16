@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.Lists;
+import io.gearpump.streaming.dsl.api.functions.MapFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
@@ -27,14 +27,11 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
-/**
- * Flatten.FlattenPCollectionList is translated to Gearpump merge function.
- */
-public class FlattenPCollectionsTranslator<T> implements
-    TransformTranslator<Flatten.PCollections<T>> {
+/** Flatten.FlattenPCollectionList is translated to Gearpump merge function. */
+public class FlattenPCollectionsTranslator<T>
+    implements TransformTranslator<Flatten.PCollections<T>> {
 
   private static final long serialVersionUID = -5552148802472944759L;
 
@@ -42,7 +39,7 @@ public class FlattenPCollectionsTranslator<T> implements
   public void translate(Flatten.PCollections<T> transform, TranslationContext context) {
     JavaStream<T> merged = null;
     Set<PCollection<T>> unique = new HashSet<>();
-    for (PValue input: context.getInputs().values()) {
+    for (PValue input : context.getInputs().values()) {
       PCollection<T> collection = (PCollection<T>) input;
       JavaStream<T> inputStream = context.getInputStream(collection);
       if (null == merged) {
@@ -60,9 +57,10 @@ public class FlattenPCollectionsTranslator<T> implements
     }
 
     if (null == merged) {
-      UnboundedSourceWrapper<String, ?> unboundedSourceWrapper = new UnboundedSourceWrapper<>(
-          new ValuesSource<>(Lists.newArrayList("dummy"),
-              StringUtf8Coder.of()), context.getPipelineOptions());
+      UnboundedSourceWrapper<String, ?> unboundedSourceWrapper =
+          new UnboundedSourceWrapper<>(
+              new ValuesSource<>(Lists.newArrayList("dummy"), StringUtf8Coder.of()),
+              context.getPipelineOptions());
       merged = context.getSourceStream(unboundedSourceWrapper);
     }
     context.setOutputStream(context.getOutput(), merged);

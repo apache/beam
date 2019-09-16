@@ -17,7 +17,10 @@
 
 """This module contains Splittable DoFn logic that's common to all runners."""
 
+from __future__ import absolute_import
+
 import uuid
+from builtins import object
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -77,7 +80,8 @@ class SplittableParDo(PTransform):
 
     return keyed_elements | ProcessKeyedElements(
         sdf, element_coder, restriction_coder,
-        pcoll.windowing, self._ptransform.args, self._ptransform.kwargs)
+        pcoll.windowing, self._ptransform.args, self._ptransform.kwargs,
+        self._ptransform.side_inputs)
 
 
 class ElementAndRestriction(object):
@@ -153,13 +157,14 @@ class ProcessKeyedElements(PTransform):
 
   def __init__(
       self, sdf, element_coder, restriction_coder, windowing_strategy,
-      ptransform_args, ptransform_kwargs):
+      ptransform_args, ptransform_kwargs, ptransform_side_inputs):
     self.sdf = sdf
     self.element_coder = element_coder
     self.restriction_coder = restriction_coder
     self.windowing_strategy = windowing_strategy
     self.ptransform_args = ptransform_args
     self.ptransform_kwargs = ptransform_kwargs
+    self.ptransform_side_inputs = ptransform_side_inputs
 
   def expand(self, pcoll):
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)

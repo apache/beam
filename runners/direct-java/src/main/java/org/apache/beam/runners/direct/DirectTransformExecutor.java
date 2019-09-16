@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,6 +29,8 @@ import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +72,7 @@ class DirectTransformExecutor<T> implements TransformExecutor {
     }
   }
 
-  private final TransformEvaluatorFactory evaluatorFactory;
+  private final TransformEvaluatorRegistry evaluatorRegistry;
   private final Iterable<? extends ModelEnforcementFactory> modelEnforcements;
 
   /** The transform that will be evaluated. */
@@ -87,13 +87,13 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   @VisibleForTesting
   DirectTransformExecutor(
       EvaluationContext context,
-      TransformEvaluatorFactory factory,
+      TransformEvaluatorRegistry factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
       TransformExecutorService transformEvaluationState) {
-    this.evaluatorFactory = factory;
+    this.evaluatorRegistry = factory;
     this.modelEnforcements = modelEnforcements;
 
     this.inputBundle = inputBundle;
@@ -114,8 +114,7 @@ class DirectTransformExecutor<T> implements TransformExecutor {
         ModelEnforcement<T> enforcement = enforcementFactory.forBundle(inputBundle, transform);
         enforcements.add(enforcement);
       }
-      TransformEvaluator<T> evaluator =
-          evaluatorFactory.forApplication(transform, inputBundle);
+      TransformEvaluator<T> evaluator = evaluatorRegistry.forApplication(transform, inputBundle);
       if (evaluator == null) {
         onComplete.handleEmpty(transform);
         // Nothing to do
@@ -175,14 +174,14 @@ class DirectTransformExecutor<T> implements TransformExecutor {
   }
 
   /**
-   * Finishes processing the input bundle and commit the result using the
-   * {@link CompletionCallback}, applying any {@link ModelEnforcement} if necessary.
+   * Finishes processing the input bundle and commit the result using the {@link
+   * CompletionCallback}, applying any {@link ModelEnforcement} if necessary.
    *
-   * @return the {@link TransformResult} produced by
-   *         {@link TransformEvaluator#finishBundle()}
+   * @return the {@link TransformResult} produced by {@link TransformEvaluator#finishBundle()}
    */
   private TransformResult<T> finishBundle(
-      TransformEvaluator<T> evaluator, MetricsContainerImpl metricsContainer,
+      TransformEvaluator<T> evaluator,
+      MetricsContainerImpl metricsContainer,
       Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
     TransformResult<T> result =

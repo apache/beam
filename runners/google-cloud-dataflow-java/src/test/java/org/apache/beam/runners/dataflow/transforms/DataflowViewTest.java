@@ -52,11 +52,9 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link View} for a {@link DataflowRunner}. */
 @RunWith(JUnit4.class)
 public class DataflowViewTest {
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  @Mock
-  private Dataflow dataflow;
+  @Mock private Dataflow dataflow;
 
   @Before
   public void setUp() {

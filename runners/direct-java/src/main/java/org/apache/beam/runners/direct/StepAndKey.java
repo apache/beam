@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * A (Step, Key) pair. This is useful as a map key or cache key for things that are available
@@ -30,9 +30,7 @@ final class StepAndKey {
   private final AppliedPTransform<?, ?, ?> step;
   private final StructuralKey<?> key;
 
-  /**
-   * Create a new {@link StepAndKey} with the provided step and key.
-   */
+  /** Create a new {@link StepAndKey} with the provided step and key. */
   public static StepAndKey of(AppliedPTransform<?, ?, ?> step, StructuralKey<?> key) {
     return new StepAndKey(step, key);
   }
@@ -63,8 +61,7 @@ final class StepAndKey {
       return false;
     } else {
       StepAndKey that = (StepAndKey) other;
-      return Objects.equals(this.step, that.step)
-          && Objects.equals(this.key, that.key);
+      return Objects.equals(this.step, that.step) && Objects.equals(this.key, that.key);
     }
   }
 }

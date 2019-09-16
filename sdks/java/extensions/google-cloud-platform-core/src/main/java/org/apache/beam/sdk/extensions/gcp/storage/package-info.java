@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines IO connectors for Google Cloud Storage.
- */
+/** Defines IO connectors for Google Cloud Storage. */
 package org.apache.beam.sdk.extensions.gcp.storage;

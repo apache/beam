@@ -17,20 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
+import com.google.cloud.spanner.BatchClient;
+import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Configuration for a Cloud Spanner client. */
 @AutoValue
@@ -41,16 +44,16 @@ public abstract class SpannerConfig implements Serializable {
   private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
 
   @Nullable
-  abstract ValueProvider<String> getProjectId();
+  public abstract ValueProvider<String> getProjectId();
 
   @Nullable
-  abstract ValueProvider<String> getInstanceId();
+  public abstract ValueProvider<String> getInstanceId();
 
   @Nullable
-  abstract ValueProvider<String> getDatabaseId();
+  public abstract ValueProvider<String> getDatabaseId();
 
   @Nullable
-  abstract String getHost();
+  public abstract ValueProvider<String> getHost();
 
   @Nullable
   @VisibleForTesting
@@ -59,7 +62,7 @@ public abstract class SpannerConfig implements Serializable {
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
-    return builder().setHost(DEFAULT_HOST).build();
+    return builder().setHost(ValueProvider.StaticValueProvider.of(DEFAULT_HOST)).build();
   }
 
   static Builder builder() {
@@ -98,7 +101,7 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setDatabaseId(ValueProvider<String> databaseId);
 
-    abstract Builder setHost(String host);
+    abstract Builder setHost(ValueProvider<String> host);
 
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
@@ -129,7 +132,7 @@ public abstract class SpannerConfig implements Serializable {
     return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
   }
 
-  public SpannerConfig withHost(String host) {
+  public SpannerConfig withHost(ValueProvider<String> host) {
     return toBuilder().setHost(host).build();
   }
 
@@ -147,15 +150,19 @@ public abstract class SpannerConfig implements Serializable {
       builder.setServiceFactory(this.getServiceFactory());
     }
     if (getHost() != null) {
-      builder.setHost(getHost());
+      builder.setHost(getHost().get());
     }
-    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
-    builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
+    String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
+    builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
     SpannerOptions options = builder.build();
     Spanner spanner = options.getService();
-    DatabaseClient databaseClient = spanner.getDatabaseClient(
-        DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
-    return new SpannerAccessor(spanner, databaseClient);
+    DatabaseClient databaseClient =
+        spanner.getDatabaseClient(
+            DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
+    BatchClient batchClient =
+        spanner.getBatchClient(
+            DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
+    DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
+    return new SpannerAccessor(spanner, databaseClient, databaseAdminClient, batchClient);
   }
-
 }

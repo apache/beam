@@ -17,17 +17,24 @@
 
 """Unit tests for the triggering classes."""
 
+from __future__ import absolute_import
+
 import collections
 import os.path
 import pickle
 import unittest
+from builtins import range
+from builtins import zip
 
 import yaml
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct.clock import TestClock
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
@@ -37,6 +44,7 @@ from apache_beam.transforms.trigger import AfterAll
 from apache_beam.transforms.trigger import AfterAny
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AfterEach
+from apache_beam.transforms.trigger import AfterProcessingTime
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.trigger import DefaultTrigger
 from apache_beam.transforms.trigger import GeneralTriggerDriver
@@ -65,10 +73,21 @@ class TriggerTest(unittest.TestCase):
   def run_trigger_simple(self, window_fn, trigger_fn, accumulation_mode,
                          timestamped_data, expected_panes, *groupings,
                          **kwargs):
+    # Groupings is a list of integers indicating the (uniform) size of bundles
+    # to try. For example, if timestamped_data has elements [a, b, c, d, e]
+    # then groupings=(5, 2) would first run the test with everything in the same
+    # bundle, and then re-run the test with bundling [a, b], [c, d], [e].
+    # A negative value will reverse the order, e.g. -2 would result in bundles
+    # [e, d], [c, b], [a].  This is useful for deterministic triggers in testing
+    # that the output is not a function of ordering or bundling.
+    # If empty, defaults to bundles of size 1 in the given order.
     late_data = kwargs.pop('late_data', [])
     assert not kwargs
 
     def bundle_data(data, size):
+      if size < 0:
+        data = list(data)[::-1]
+        size = -size
       bundle = []
       for timestamp, elem in data:
         windows = window_fn.assign(WindowFn.AssignContext(timestamp, elem))
@@ -82,15 +101,6 @@ class TriggerTest(unittest.TestCase):
     if not groupings:
       groupings = [1]
     for group_by in groupings:
-      bundles = []
-      bundle = []
-      for timestamp, elem in timestamped_data:
-        windows = window_fn.assign(WindowFn.AssignContext(timestamp, elem))
-        bundle.append(WindowedValue(elem, timestamp, windows))
-        if len(bundle) == group_by:
-          bundles.append(bundle)
-          bundle = []
-      bundles.append(bundle)
       self.run_trigger(window_fn, trigger_fn, accumulation_mode,
                        bundle_data(timestamped_data, group_by),
                        bundle_data(late_data, group_by),
@@ -107,6 +117,7 @@ class TriggerTest(unittest.TestCase):
     for bundle in bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
+        self.assertEqual(window.end, wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
     while state.timers:
@@ -115,11 +126,13 @@ class TriggerTest(unittest.TestCase):
         for wvalue in driver.process_timer(
             timer_window, name, time_domain, timestamp, state):
           window, = wvalue.windows
+          self.assertEqual(window.end, wvalue.timestamp)
           actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
+        self.assertEqual(window.end, wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
       while state.timers:
@@ -128,6 +141,7 @@ class TriggerTest(unittest.TestCase):
           for wvalue in driver.process_timer(
               timer_window, name, time_domain, timestamp, state):
             window, = wvalue.windows
+            self.assertEqual(window.end, wvalue.timestamp)
             actual_panes[window].append(set(wvalue.value))
 
     self.assertEqual(expected_panes, actual_panes)
@@ -142,7 +156,10 @@ class TriggerTest(unittest.TestCase):
          IntervalWindow(10, 20): [set('c')]},
         1,
         2,
-        3)
+        3,
+        -3,
+        -2,
+        -1)
 
   def test_fixed_watermark_with_early(self):
     self.run_trigger_simple(
@@ -278,7 +295,9 @@ class TriggerTest(unittest.TestCase):
         [(1, 'a'), (2, 'b')],
         {IntervalWindow(1, 12): [set('ab')]},
         1,
-        2)
+        2,
+        -2,
+        -1)
 
     self.run_trigger_simple(
         Sessions(10),  # pyformat break
@@ -293,7 +312,10 @@ class TriggerTest(unittest.TestCase):
         3,
         4,
         5,
-        6)
+        6,
+        -4,
+        -2,
+        -1)
 
   def test_sessions_watermark(self):
     self.run_trigger_simple(
@@ -303,22 +325,9 @@ class TriggerTest(unittest.TestCase):
         [(1, 'a'), (2, 'b')],
         {IntervalWindow(1, 12): [set('ab')]},
         1,
-        2)
-
-    self.run_trigger_simple(
-        Sessions(10),  # pyformat break
-        AfterWatermark(),
-        AccumulationMode.ACCUMULATING,
-        [(1, 'a'), (2, 'b'), (15, 'c'), (16, 'd'), (30, 'z'), (9, 'e'),
-         (10, 'f'), (30, 'y')],
-        {IntervalWindow(1, 26): [set('abcdef')],
-         IntervalWindow(30, 40): [set('yz')]},
-        1,
         2,
-        3,
-        4,
-        5,
-        6)
+        -2,
+        -1)
 
   def test_sessions_after_count(self):
     self.run_trigger_simple(
@@ -374,14 +383,14 @@ class TriggerTest(unittest.TestCase):
 
   def test_picklable_output(self):
     global_window = trigger.GlobalWindow(),
-    driver = trigger.DefaultGlobalBatchTriggerDriver()
+    driver = trigger.DiscardingGlobalTriggerDriver()
     unpicklable = (WindowedValue(k, 0, global_window)
                    for k in range(10))
     with self.assertRaises(TypeError):
       pickle.dumps(unpicklable)
     for unwindowed in driver.process_elements(None, unpicklable, None):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
-                       range(10))
+                       list(range(10)))
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -403,6 +412,19 @@ class RunnerApiTest(unittest.TestCase):
 
 class TriggerPipelineTest(unittest.TestCase):
 
+  def setUp(self):
+    # Use state on the TestCase class, since other references would be pickled
+    # into a closure and not have the desired side effects.
+    TriggerPipelineTest.all_records = []
+
+  def record_dofn(self):
+    class RecordDoFn(beam.DoFn):
+
+      def process(self, element):
+        TriggerPipelineTest.all_records.append(element)
+
+    return RecordDoFn()
+
   def test_after_count(self):
     with TestPipeline() as p:
       def construct_timestamped(k_t):
@@ -420,12 +442,48 @@ class TriggerPipelineTest(unittest.TestCase):
                 | beam.GroupByKey()
                 | beam.Map(format_result))
       assert_that(result, equal_to(
-          {
-              'A-5': {1, 2, 3, 4, 5},
-              # A-10, A-11 never emitted due to AfterCount(3) never firing.
-              'B-4': {6, 7, 8, 9},
-              'B-3': {10, 15, 16},
-          }.iteritems()))
+          list(
+              {
+                  'A-5': {1, 2, 3, 4, 5},
+                  # A-10, A-11 never emitted due to AfterCount(3) never firing.
+                  'B-4': {6, 7, 8, 9},
+                  'B-3': {10, 15, 16},
+              }.items()
+          )))
+
+  def test_multiple_accumulating_firings(self):
+    # PCollection will contain elements from 1 to 10.
+    elements = [i for i in range(1, 11)]
+
+    ts = TestStream().advance_watermark_to(0)
+    for i in elements:
+      ts.add_elements([('key', str(i))])
+      if i % 5 == 0:
+        ts.advance_watermark_to(i)
+        ts.advance_processing_time(5)
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      _ = (p
+           | ts
+           | beam.WindowInto(
+               FixedWindows(10),
+               accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+               trigger=AfterWatermark(
+                   early=AfterAll(
+                       AfterCount(1), AfterProcessingTime(5))
+               ))
+           | beam.GroupByKey()
+           | beam.FlatMap(lambda x: x[1])
+           | beam.ParDo(self.record_dofn()))
+
+    # The trigger should fire twice. Once after 5 seconds, and once after 10.
+    # The firings should accumulate the output.
+    first_firing = [str(i) for i in elements if i <= 5]
+    second_firing = [str(i) for i in elements]
+    self.assertListEqual(first_firing + second_firing,
+                         TriggerPipelineTest.all_records)
 
 
 class TranscriptTest(unittest.TestCase):
@@ -535,7 +593,8 @@ class TranscriptTest(unittest.TestCase):
         spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner))
+        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner),
+        TestClock())
     state = InMemoryUnmergedState()
     output = []
     watermark = MIN_TIMESTAMP
@@ -554,11 +613,11 @@ class TranscriptTest(unittest.TestCase):
 
     for line in spec['transcript']:
 
-      action, params = line.items()[0]
+      action, params = list(line.items())[0]
 
       if action != 'expect':
         # Fail if we have output that was not expected in the transcript.
-        self.assertEquals(
+        self.assertEqual(
             [], output, msg='Unexpected output: %s before %s' % (output, line))
 
       if action == 'input':
@@ -595,7 +654,7 @@ class TranscriptTest(unittest.TestCase):
         self.fail('Unknown action: ' + action)
 
     # Fail if we have output that was not expected in the transcript.
-    self.assertEquals([], output, msg='Unexpected output: %s' % output)
+    self.assertEqual([], output, msg='Unexpected output: %s' % output)
 
 
 TRANSCRIPT_TEST_FILE = os.path.join(

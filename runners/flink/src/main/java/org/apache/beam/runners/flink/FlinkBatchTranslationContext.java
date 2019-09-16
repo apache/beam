@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,13 +32,14 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
- * Helper for {@link FlinkBatchPipelineTranslator} and translators in
- * {@link FlinkBatchTransformTranslators}.
+ * Helper for {@link FlinkBatchPipelineTranslator} and translators in {@link
+ * FlinkBatchTransformTranslators}.
  */
 class FlinkBatchTranslationContext {
 
@@ -46,9 +47,8 @@ class FlinkBatchTranslationContext {
   private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
 
   /**
-   * For keeping track about which DataSets don't have a successor. We
-   * need to terminate these with a discarding sink because the Beam
-   * model allows dangling operations.
+   * For keeping track about which DataSets don't have a successor. We need to terminate these with
+   * a discarding sink because the Beam model allows dangling operations.
    */
   private final Map<PValue, DataSet<?>> danglingDataSets;
 
@@ -98,6 +98,7 @@ class FlinkBatchTranslationContext {
 
   /**
    * Sets the AppliedPTransform which carries input/output.
+   *
    * @param currentTransform
    */
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
@@ -108,14 +109,19 @@ class FlinkBatchTranslationContext {
     return currentTransform;
   }
 
+  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return currentTransform.getOutputs().entrySet().stream()
+        .filter(e -> e.getValue() instanceof PCollection)
+        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+  }
+
   @SuppressWarnings("unchecked")
   public <T> DataSet<T> getSideInputDataSet(PCollectionView<?> value) {
     return (DataSet<T>) broadcastDataSets.get(value);
   }
 
   public <ViewT, ElemT> void setSideInputDataSet(
-      PCollectionView<ViewT> value,
-      DataSet<WindowedValue<ElemT>> set) {
+      PCollectionView<ViewT> value, DataSet<WindowedValue<ElemT>> set) {
     if (!broadcastDataSets.containsKey(value)) {
       broadcastDataSets.put(value, set);
     }
@@ -128,12 +134,9 @@ class FlinkBatchTranslationContext {
 
   @SuppressWarnings("unchecked")
   public <T> TypeInformation<WindowedValue<T>> getTypeInfo(
-      Coder<T> coder,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      Coder<T> coder, WindowingStrategy<?, ?> windowingStrategy) {
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
-        WindowedValue.getFullCoder(
-            coder,
-            windowingStrategy.getWindowFn().windowCoder());
+        WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
 
     return new CoderTypeInformation<>(windowedValueCoder);
   }

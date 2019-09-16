@@ -36,7 +36,7 @@ public class BeamFnDataInboundObserver<T>
   public static <T> BeamFnDataInboundObserver<T> forConsumer(
       Coder<WindowedValue<T>> coder, FnDataReceiver<WindowedValue<T>> receiver) {
     return new BeamFnDataInboundObserver<>(
-        coder, receiver, SettableFutureInboundDataClient.create());
+        coder, receiver, CompletableFutureInboundDataClient.create());
   }
 
   private final FnDataReceiver<WindowedValue<T>> consumer;
@@ -62,10 +62,11 @@ public class BeamFnDataInboundObserver<T>
     }
     try {
       if (t.getData().isEmpty()) {
-        LOG.debug("Closing stream for instruction {} and "
-            + "target {} having consumed {} values {} bytes",
+        LOG.debug(
+            "Closing stream for instruction {} and "
+                + "transform {} having consumed {} values {} bytes",
             t.getInstructionReference(),
-            t.getTarget(),
+            t.getPtransformId(),
             counter,
             byteCounter);
         readFuture.complete();

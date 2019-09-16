@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
@@ -39,14 +37,13 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PrimitiveParDoSingleFactory}.
- */
+/** Tests for {@link PrimitiveParDoSingleFactory}. */
 @RunWith(JUnit4.class)
 public class PrimitiveParDoSingleFactoryTest implements Serializable {
   // Create a pipeline for testing Side Input propagation. This won't actually run any Pipelines,
@@ -55,11 +52,12 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
   public transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  private PrimitiveParDoSingleFactory<Integer, Long> factory = new PrimitiveParDoSingleFactory<>();
+  private transient PrimitiveParDoSingleFactory<Integer, Long> factory =
+      new PrimitiveParDoSingleFactory<>();
 
   /**
-   * A test that demonstrates that the replacement transform has the Display Data of the
-   * {@link ParDo.SingleOutput} it replaces.
+   * A test that demonstrates that the replacement transform has the Display Data of the {@link
+   * ParDo.SingleOutput} it replaces.
    */
   @Test
   public void getReplacementTransformPopulateDisplayData() {
@@ -67,14 +65,14 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
     DisplayData originalDisplayData = DisplayData.from(originalTransform);
     PCollection<? extends Integer> input = pipeline.apply(Create.of(1, 2, 3));
     AppliedPTransform<
-        PCollection<? extends Integer>, PCollection<Long>, ParDo.SingleOutput<Integer, Long>>
+            PCollection<? extends Integer>, PCollection<Long>, ParDo.SingleOutput<Integer, Long>>
         application =
-        AppliedPTransform.of(
-            "original",
-            input.expand(),
-            input.apply(originalTransform).expand(),
-            originalTransform,
-            pipeline);
+            AppliedPTransform.of(
+                "original",
+                input.expand(),
+                input.apply(originalTransform).expand(),
+                originalTransform,
+                pipeline);
 
     PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacement =
         factory.getReplacementTransform(application);
@@ -104,20 +102,20 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
 
     PCollection<? extends Integer> input = pipeline.apply(Create.of(1, 2, 3));
     AppliedPTransform<
-        PCollection<? extends Integer>, PCollection<Long>, ParDo.SingleOutput<Integer, Long>>
+            PCollection<? extends Integer>, PCollection<Long>, ParDo.SingleOutput<Integer, Long>>
         application =
-        AppliedPTransform.of(
-            "original",
-            input.expand(),
-            input.apply(originalTransform).expand(),
-            originalTransform,
-            pipeline);
+            AppliedPTransform.of(
+                "original",
+                input.expand(),
+                input.apply(originalTransform).expand(),
+                originalTransform,
+                pipeline);
 
     PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
         factory.getReplacementTransform(application);
     ParDoSingle<Integer, Long> parDoSingle =
         (ParDoSingle<Integer, Long>) replacementTransform.getTransform();
-    assertThat(parDoSingle.getSideInputs(), containsInAnyOrder(sideStrings, sideLong));
+    assertThat(parDoSingle.getSideInputs().values(), containsInAnyOrder(sideStrings, sideLong));
   }
 
   @Test
@@ -150,10 +148,12 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
       ctxt.output(ctxt.element().longValue());
     }
 
+    @Override
     public boolean equals(Object other) {
       return other != null && other.getClass().equals(getClass());
     }
 
+    @Override
     public int hashCode() {
       return getClass().hashCode();
     }

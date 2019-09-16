@@ -56,8 +56,8 @@ public class ByteKeyRangeTrackerTest {
     tracker.tryReturnRecordAt(true, INITIAL_START_KEY);
     tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY);
     expected =
-        String.format("ByteKeyRangeTracker{range=%s, position=%s}", INITIAL_RANGE,
-            INITIAL_MIDDLE_KEY);
+        String.format(
+            "ByteKeyRangeTracker{range=%s, position=%s}", INITIAL_RANGE, INITIAL_MIDDLE_KEY);
     assertEquals(expected, tracker.toString());
   }
 

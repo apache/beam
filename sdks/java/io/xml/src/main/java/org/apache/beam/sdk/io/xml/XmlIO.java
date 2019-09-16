@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.xml;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.ReadAllViaFileBasedSource;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Transforms for reading and writing XML files using JAXB mappers. */
 public class XmlIO {
@@ -85,7 +86,7 @@ public class XmlIO {
    * <p>Example:
    *
    * <pre>{@code
-   * PCollection<String> output = p.apply(XmlIO.<Record>read()
+   * PCollection<Record> output = p.apply(XmlIO.<Record>read()
    *     .from(file.toPath().toString())
    *     .withRootElement("root")
    *     .withRecordElement("record")
@@ -105,8 +106,9 @@ public class XmlIO {
   public static <T> Read<T> read() {
     return new AutoValue_XmlIO_Read.Builder<T>()
         .setConfiguration(
-            new AutoValue_XmlIO_MappingConfiguration.Builder<T>().setCharset(
-                StandardCharsets.UTF_8.name()).build())
+            new AutoValue_XmlIO_MappingConfiguration.Builder<T>()
+                .setCharset(StandardCharsets.UTF_8.name())
+                .build())
         .setMinBundleSize(1L)
         .setCompression(Compression.AUTO)
         .build();
@@ -125,7 +127,7 @@ public class XmlIO {
    *       Duration.standardSeconds(30), afterTimeSinceNewOutput(Duration.standardMinutes(5))))
    *     .apply(FileIO.readMatches().withCompression(GZIP));
    *
-   * PCollection<String> output = files.apply(XmlIO.<Record>readFiles()
+   * PCollection<Record> output = files.apply(XmlIO.<Record>readFiles()
    *     .withRootElement("root")
    *     .withRecordElement("record")
    *     .withRecordClass(Record.class));
@@ -134,16 +136,17 @@ public class XmlIO {
   public static <T> ReadFiles<T> readFiles() {
     return new AutoValue_XmlIO_ReadFiles.Builder<T>()
         .setConfiguration(
-            new AutoValue_XmlIO_MappingConfiguration.Builder<T>().setCharset(
-                StandardCharsets.UTF_8.name()).build())
+            new AutoValue_XmlIO_MappingConfiguration.Builder<T>()
+                .setCharset(StandardCharsets.UTF_8.name())
+                .build())
         .build();
   }
 
   /**
    * Writes all elements in the input {@link PCollection} to a single XML file using {@link #sink}.
    *
-   * <p>For more configurable usage, use {@link #sink} directly with {@link FileIO#write} or
-   * {@link FileIO#writeDynamic}.
+   * <p>For more configurable usage, use {@link #sink} directly with {@link FileIO#write} or {@link
+   * FileIO#writeDynamic}.
    */
   public static <T> Write<T> write() {
     return new AutoValue_XmlIO_Write.Builder<T>().setCharset(StandardCharsets.UTF_8.name()).build();
@@ -151,20 +154,33 @@ public class XmlIO {
 
   @AutoValue
   abstract static class MappingConfiguration<T> implements HasDisplayData, Serializable {
-    @Nullable abstract String getRootElement();
-    @Nullable abstract String getRecordElement();
-    @Nullable abstract Class<T> getRecordClass();
-    @Nullable abstract String getCharset();
-    @Nullable abstract ValidationEventHandler getValidationEventHandler();
+    @Nullable
+    abstract String getRootElement();
+
+    @Nullable
+    abstract String getRecordElement();
+
+    @Nullable
+    abstract Class<T> getRecordClass();
+
+    @Nullable
+    abstract String getCharset();
+
+    @Nullable
+    abstract ValidationEventHandler getValidationEventHandler();
 
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setRootElement(String rootElement);
+
       abstract Builder<T> setRecordElement(String recordElement);
+
       abstract Builder<T> setRecordClass(Class<T> recordClass);
+
       abstract Builder<T> setCharset(String charset);
+
       abstract Builder<T> setValidationEventHandler(ValidationEventHandler validationEventHandler);
 
       abstract MappingConfiguration<T> build();
@@ -215,8 +231,12 @@ public class XmlIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     abstract MappingConfiguration<T> getConfiguration();
-    @Nullable abstract String getFileOrPatternSpec();
+
+    @Nullable
+    abstract ValueProvider<String> getFileOrPatternSpec();
+
     abstract Compression getCompression();
+
     abstract long getMinBundleSize();
 
     abstract Builder<T> toBuilder();
@@ -224,8 +244,11 @@ public class XmlIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setConfiguration(MappingConfiguration<T> configuration);
-      abstract Builder<T> setFileOrPatternSpec(String fileOrPatternSpec);
+
+      abstract Builder<T> setFileOrPatternSpec(ValueProvider<String> fileOrPatternSpec);
+
       abstract Builder<T> setCompression(Compression compression);
+
       abstract Builder<T> setMinBundleSize(long minBundleSize);
 
       abstract Read<T> build();
@@ -252,7 +275,7 @@ public class XmlIO {
       /** @see Compression#DEFLATE */
       DEFLATE(Compression.DEFLATE);
 
-      private Compression canonical;
+      private final Compression canonical;
 
       CompressionType(Compression canonical) {
         this.canonical = canonical;
@@ -269,6 +292,14 @@ public class XmlIO {
      * file should be of the form defined in {@link #read}.
      */
     public Read<T> from(String fileOrPatternSpec) {
+      return from(StaticValueProvider.of(fileOrPatternSpec));
+    }
+
+    /**
+     * Reads a single XML file or a set of XML files defined by a Java "glob" file pattern. Each XML
+     * file should be of the form defined in {@link #read}. Using ValueProviders.
+     */
+    public Read<T> from(ValueProvider<String> fileOrPatternSpec) {
       return toBuilder().setFileOrPatternSpec(fileOrPatternSpec).build();
     }
 
@@ -322,9 +353,7 @@ public class XmlIO {
       return toBuilder().setCompression(compression).build();
     }
 
-    /**
-     * Sets the XML file charset.
-     */
+    /** Sets the XML file charset. */
     public Read<T> withCharset(Charset charset) {
       return withConfiguration(getConfiguration().withCharset(charset));
     }
@@ -351,9 +380,7 @@ public class XmlIO {
 
     @VisibleForTesting
     BoundedSource<T> createSource() {
-      return CompressedSource.from(
-              new XmlSource<>(
-                  StaticValueProvider.of(getFileOrPatternSpec()), getConfiguration(), 1L))
+      return CompressedSource.from(new XmlSource<>(getFileOrPatternSpec(), getConfiguration(), 1L))
           .withCompression(getCompression());
     }
 
@@ -369,11 +396,13 @@ public class XmlIO {
   public abstract static class ReadFiles<T>
       extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
     abstract MappingConfiguration<T> getConfiguration();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setConfiguration(MappingConfiguration<T> configuration);
+
       abstract ReadFiles<T> build();
     }
 
@@ -420,7 +449,7 @@ public class XmlIO {
   private static class CreateSourceFn<T> implements SerializableFunction<String, XmlSource<T>> {
     private final MappingConfiguration<T> configuration;
 
-    public CreateSourceFn(MappingConfiguration<T> configuration) {
+    CreateSourceFn(MappingConfiguration<T> configuration) {
       this.configuration = configuration;
     }
 
@@ -523,8 +552,7 @@ public class XmlIO {
               DisplayData.item("rootElement", getRootElement()).withLabel("XML Root Element"))
           .addIfNotNull(
               DisplayData.item("recordClass", getRecordClass()).withLabel("XML Record Class"))
-          .addIfNotNull(
-              DisplayData.item("charset", getCharset()).withLabel("Charset"));
+          .addIfNotNull(DisplayData.item("charset", getCharset()).withLabel("Charset"));
     }
   }
 
@@ -594,7 +622,10 @@ public class XmlIO {
   @AutoValue
   public abstract static class Sink<T> implements FileIO.Sink<T> {
     abstract Class<T> getRecordClass();
-    @Nullable abstract String getRootElement();
+
+    @Nullable
+    abstract String getRootElement();
+
     abstract String getCharset();
 
     abstract Builder<T> toBuilder();
@@ -602,7 +633,9 @@ public class XmlIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setRecordClass(Class<T> clazz);
+
       abstract Builder<T> setRootElement(String rootElement);
+
       abstract Builder<T> setCharset(String charset);
 
       abstract Sink<T> build();
@@ -642,11 +675,12 @@ public class XmlIO {
       } catch (JAXBException e) {
         throw new IOException(e);
       }
-  }
+    }
 
     @Override
     public void flush() throws IOException {
       outputStream.write(("\n</" + getRootElement() + ">").getBytes(Charset.forName(getCharset())));
+      outputStream.flush();
     }
   }
 }

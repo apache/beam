@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,57 +32,59 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * An immutable tuple of keyed {@link PCollection PCollections}
- * with key type K.
- * ({@link PCollection PCollections} containing values of type
- * {@code KV<K, ?>})
+ * An immutable tuple of keyed {@link PCollection PCollections} with key type K. ({@link PCollection
+ * PCollections} containing values of type {@code KV<K, ?>})
  *
  * @param <K> the type of key shared by all constituent PCollections
  */
 public class KeyedPCollectionTuple<K> implements PInput {
-  /**
-   * Returns an empty {@code KeyedPCollectionTuple<K>} on the given pipeline.
-   */
+  /** Returns an empty {@code KeyedPCollectionTuple<K>} on the given pipeline. */
   public static <K> KeyedPCollectionTuple<K> empty(Pipeline pipeline) {
     return new KeyedPCollectionTuple<>(pipeline);
   }
 
-  /**
-   * Returns a new {@code KeyedPCollectionTuple<K>} with the given tag and initial
-   * PCollection.
-   */
+  /** Returns a new {@code KeyedPCollectionTuple<K>} with the given tag and initial PCollection. */
   public static <K, InputT> KeyedPCollectionTuple<K> of(
-      TupleTag<InputT> tag,
-      PCollection<KV<K, InputT>> pc) {
+      TupleTag<InputT> tag, PCollection<KV<K, InputT>> pc) {
     return new KeyedPCollectionTuple<K>(pc.getPipeline()).and(tag, pc);
   }
 
   /**
-   * Returns a new {@code KeyedPCollectionTuple<K>} that is the same as this,
-   * appended with the given PCollection.
+   * A version of {@link #of(TupleTag, PCollection)} that takes in a string instead of a TupleTag.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
    */
-  public <V> KeyedPCollectionTuple<K> and(
-      TupleTag< V> tag,
-      PCollection<KV<K, V>> pc) {
+  public static <K, InputT> KeyedPCollectionTuple<K> of(String tag, PCollection<KV<K, InputT>> pc) {
+    return of(new TupleTag<>(tag), pc);
+  }
+
+  /**
+   * Returns a new {@code KeyedPCollectionTuple<K>} that is the same as this, appended with the
+   * given PCollection.
+   */
+  public <V> KeyedPCollectionTuple<K> and(TupleTag<V> tag, PCollection<KV<K, V>> pc) {
     if (pc.getPipeline() != getPipeline()) {
-      throw new IllegalArgumentException(
-          "PCollections come from different Pipelines");
+      throw new IllegalArgumentException("PCollections come from different Pipelines");
     }
-    TaggedKeyedPCollection<K, ?> wrapper =
-        new TaggedKeyedPCollection<>(tag, pc);
+    TaggedKeyedPCollection<K, ?> wrapper = new TaggedKeyedPCollection<>(tag, pc);
     Coder<K> myKeyCoder = keyCoder == null ? getKeyCoder(pc) : keyCoder;
-    List<TaggedKeyedPCollection<K, ?>>
-      newKeyedCollections =
-        copyAddLast(
-            keyedCollections,
-            wrapper);
+    List<TaggedKeyedPCollection<K, ?>> newKeyedCollections = copyAddLast(keyedCollections, wrapper);
     return new KeyedPCollectionTuple<>(
-        getPipeline(),
-        newKeyedCollections,
-        schema.getTupleTagList().and(tag),
-        myKeyCoder);
+        getPipeline(), newKeyedCollections, schema.getTupleTagList().and(tag), myKeyCoder);
+  }
+
+  /**
+   * A version of {@link #and(String, PCollection)} that takes in a string instead of a TupleTag.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
+  public <V> KeyedPCollectionTuple<K> and(String tag, PCollection<KV<K, V>> pc) {
+    return and(new TupleTag<>(tag), pc);
   }
 
   public boolean isEmpty() {
@@ -91,16 +92,16 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Returns a list of {@link TaggedKeyedPCollection TaggedKeyedPCollections} for the
-   * {@link PCollection PCollections} contained in this {@link KeyedPCollectionTuple}.
+   * Returns a list of {@link TaggedKeyedPCollection TaggedKeyedPCollections} for the {@link
+   * PCollection PCollections} contained in this {@link KeyedPCollectionTuple}.
    */
   public List<TaggedKeyedPCollection<K, ?>> getKeyedCollections() {
     return keyedCollections;
   }
 
   /**
-   * Like {@link #apply(String, PTransform)} but defaulting to the name
-   * provided by the {@link PTransform}.
+   * Like {@link #apply(String, PTransform)} but defaulting to the name provided by the {@link
+   * PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(
       PTransform<KeyedPCollectionTuple<K>, OutputT> transform) {
@@ -109,9 +110,9 @@ public class KeyedPCollectionTuple<K> implements PInput {
 
   /**
    * Applies the given {@link PTransform} to this input {@code KeyedPCollectionTuple} and returns
-   * its {@code OutputT}. This uses {@code name} to identify the specific application of
-   * the transform. This name is used in various places, including the monitoring UI,
-   * logging, and to stably identify this application node in the job graph.
+   * its {@code OutputT}. This uses {@code name} to identify the specific application of the
+   * transform. This name is used in various places, including the monitoring UI, logging, and to
+   * stably identify this application node in the job graph.
    */
   public <OutputT extends POutput> OutputT apply(
       String name, PTransform<KeyedPCollectionTuple<K>, OutputT> transform) {
@@ -119,8 +120,8 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Expands the component {@link PCollection PCollections}, stripping off
-   * any tag-specific information.
+   * Expands the component {@link PCollection PCollections}, stripping off any tag-specific
+   * information.
    */
   @Override
   public Map<TupleTag<?>, PValue> expand() {
@@ -132,8 +133,8 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Returns the key {@link Coder} for all {@link PCollection PCollections}
-   * in this {@link KeyedPCollectionTuple}.
+   * Returns the key {@link Coder} for all {@link PCollection PCollections} in this {@link
+   * KeyedPCollectionTuple}.
    */
   public Coder<K> getKeyCoder() {
     if (keyCoder == null) {
@@ -142,10 +143,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
     return keyCoder;
   }
 
-  /**
-   * Returns the {@link CoGbkResultSchema} associated with this
-   * {@link KeyedPCollectionTuple}.
-   */
+  /** Returns the {@link CoGbkResultSchema} associated with this {@link KeyedPCollectionTuple}. */
   public CoGbkResultSchema getCoGbkResultSchema() {
     return schema;
   }
@@ -169,43 +167,31 @@ public class KeyedPCollectionTuple<K> implements PInput {
     return coder.getKeyCoder();
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A utility class to help ensure coherence of tag and input PCollection
-   * types.
-   */
+  /** A utility class to help ensure coherence of tag and input PCollection types. */
   public static class TaggedKeyedPCollection<K, V> {
 
     final TupleTag<V> tupleTag;
     final PCollection<KV<K, V>> pCollection;
 
-    public TaggedKeyedPCollection(
-        TupleTag<V> tupleTag,
-        PCollection<KV<K, V>> pCollection) {
+    public TaggedKeyedPCollection(TupleTag<V> tupleTag, PCollection<KV<K, V>> pCollection) {
       this.tupleTag = tupleTag;
       this.pCollection = pCollection;
     }
 
-    /**
-     * Returns the underlying PCollection of this TaggedKeyedPCollection.
-     */
+    /** Returns the underlying PCollection of this TaggedKeyedPCollection. */
     public PCollection<KV<K, V>> getCollection() {
       return pCollection;
     }
 
-    /**
-     * Returns the TupleTag of this TaggedKeyedPCollection.
-     */
+    /** Returns the TupleTag of this TaggedKeyedPCollection. */
     public TupleTag<V> getTupleTag() {
       return tupleTag;
     }
   }
 
-  /**
-   * We use a List to properly track the order in which collections are added.
-   */
+  /** We use a List to properly track the order in which collections are added. */
   private final List<TaggedKeyedPCollection<K, ?>> keyedCollections;
 
   @Nullable private Coder<K> keyCoder;
@@ -230,10 +216,9 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   private static <K> List<TaggedKeyedPCollection<K, ?>> copyAddLast(
-        List<TaggedKeyedPCollection<K, ?>> keyedCollections,
-        TaggedKeyedPCollection<K, ?> taggedCollection) {
-    List<TaggedKeyedPCollection<K, ?>> retval =
-        new ArrayList<>(keyedCollections);
+      List<TaggedKeyedPCollection<K, ?>> keyedCollections,
+      TaggedKeyedPCollection<K, ?> taggedCollection) {
+    List<TaggedKeyedPCollection<K, ?>> retval = new ArrayList<>(keyedCollections);
     retval.add(taggedCollection);
     return retval;
   }

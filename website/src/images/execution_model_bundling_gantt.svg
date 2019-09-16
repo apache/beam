@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg id="svg2" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" height="221.19" width="584.79" version="1.1" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <metadata id="metadata7">
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:title/>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <path id="path3207" stroke-linejoin="miter" d="m65.679,40.835,0,153.56h360.38" stroke="#000" stroke-linecap="butt" stroke-width="0.80344409px" fill="none"/>
+ <text id="text3213" font-size="16px" font-family="Sans" xml:space="preserve" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-style="normal" y="174.03949" x="572.71991" font-weight="normal" fill="#000000"><tspan id="tspan3215" y="174.03949" x="530.67303" style="text-anchor:middle;text-align:center;"/></text>
+ <g id="g3006" transform="translate(15.777413,-820.77153)">
+  <text id="text3163" font-size="20px" font-family="Sans" xml:space="preserve" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-style="normal" y="854.52179" x="422.17236" font-weight="normal" fill="#000000"><tspan id="tspan3165" y="854.52179" x="422.17236" font-size="12px">Bundle A element</tspan></text>
+  <text id="text3163-1" font-size="20px" font-family="Sans" xml:space="preserve" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-style="normal" y="882.88568" x="421.50021" font-weight="normal" fill="#000000"><tspan id="tspan3165-8" y="882.88568" x="421.50021" font-size="12px">Bundle B element</tspan></text>
+  <path id="path6657-3" stroke-linejoin="miter" d="M44.308,976.84h11.088" stroke="#000" stroke-linecap="butt" stroke-width="1.09913433px" fill="none"/>
+  <path id="path6657-3-5" stroke-linejoin="miter" d="M44.777,920.73h11.088" stroke="#000" stroke-linecap="butt" stroke-width="1.09913433px" fill="none"/>
+  <text id="text6695" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-family="Sans" xml:space="preserve" font-size="40px" font-style="normal" y="981.909" x="29.374258" font-weight="normal" fill="#000000"><tspan id="tspan6697" y="981.909" x="29.374258" font-size="14px">1</tspan></text>
+  <text id="text6699" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-family="Sans" xml:space="preserve" font-size="40px" font-style="normal" y="926.83972" x="30.668245" font-weight="normal" fill="#000000"><tspan id="tspan6701" y="926.83972" x="30.668245" font-size="14px">2</tspan></text>
+  <rect id="rect3025-7-1-9-2" height="20.191" width="33.113" stroke="#000" y="868.96" x="377.83" fill="#add8e6"/>
+  <g id="g18259" transform="matrix(1.0730169,0,0,1,-86.480557,643.26922)" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4">
+   <g id="g18357" fill="#d8bfd8" transform="matrix(2.5823283,0,0,1,-198.50272,244.2816)">
+    <rect id="rect3025-4" height="36.41" width="104.74" y="73.34" x="131.48" stroke-width="0.41851"/>
+    <rect id="rect3025-0" height="36.695" width="21.024" y="73.198" x="131.34" stroke-width="0.42052"/>
+    <rect id="rect3025-0-0" height="36.695" width="21.024" y="73.198" x="173.63" stroke-width="0.42052"/>
+    <rect id="rect3025-0-4" height="36.695" width="21.024" y="73.198" x="152.48" stroke-width="0.42052"/>
+    <rect id="rect3025-0-44" height="36.695" width="21.024" y="73.198" x="215.66" stroke-width="0.42052"/>
+    <rect id="rect3025-0-47" height="36.695" width="21.024" y="73.198" x="194.77" stroke-width="0.42052"/>
+   </g>
+   <g id="g18365" stroke-width="0.41577438" fill="#add8e6" transform="matrix(2.6416425,0,0,1,-948.11581,183.56421)">
+    <g id="g18250" transform="translate(309.37641,193.57296)" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" stroke-width="0.41577438" fill="#add8e6">
+     <g id="g18243" transform="translate(-157.70925,-188.54625)">
+      <g id="g18240" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" stroke-width="0.41577438" fill="#add8e6">
+       <rect id="rect3025-5-11" stroke-dasharray="none" height="36.539" width="82.466" stroke="#000" stroke-miterlimit="4" y="71.073" x="266.04" stroke-width="0.41577" fill="#add8e6"/>
+      </g>
+     </g>
+     <rect id="rect3025-0-47-6" y="-117.55" width="21.024" x="108.43" height="36.695"/>
+     <rect id="rect3025-0-47-3" y="-117.55" width="21.024" x="149.4" height="36.695"/>
+     <rect id="rect3025-0-47-1" y="-117.55" width="21.024" x="128.7" height="36.695"/>
+     <rect id="rect3025-0-47-7" y="-117.55" width="21.024" x="170.1" height="36.695"/>
+    </g>
+   </g>
+  </g>
+  <rect id="rect3025-7-1-9-2-5" height="20.191" width="33.113" stroke="#000" y="839.83" x="377.86" fill="#d8bfd8"/>
+ </g>
+ <text id="text6762" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-family="Sans" xml:space="preserve" font-size="16px" font-style="normal" y="185.96609" x="477.86038" font-weight="normal" fill="#000000"><tspan id="tspan6764" y="185.96609" x="477.86038" style="text-anchor:middle;text-align:center;">Processing</tspan><tspan id="tspan6766" y="205.96609" x="477.86038" style="text-anchor:middle;text-align:center;">Time</tspan></text>
+ <text id="text7100" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-family="Sans" xml:space="preserve" font-size="40px" font-style="normal" y="27.15625" x="67.671875" font-weight="normal" fill="#000000"><tspan id="tspan7104" y="27.15625" x="67.671875" style="text-anchor:middle;text-align:center;" font-size="16px">Worker</tspan></text>
+</svg>

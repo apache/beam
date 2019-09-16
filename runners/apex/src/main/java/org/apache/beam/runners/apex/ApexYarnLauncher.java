@@ -17,14 +17,12 @@
  */
 package org.apache.beam.runners.apex;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.datatorrent.api.Attribute;
 import com.datatorrent.api.Attribute.AttributeMap;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -41,6 +39,7 @@ import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -63,7 +62,9 @@ import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.apex.api.Launcher.LauncherException;
 import org.apache.apex.api.Launcher.ShutdownMode;
 import org.apache.apex.api.YarnAppLauncher;
-import org.apache.commons.io.FileUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -71,11 +72,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Proxy to launch the YARN application through the hadoop script to run in the
- * pre-configured environment (class path, configuration, native libraries etc.).
+ * Proxy to launch the YARN application through the hadoop script to run in the pre-configured
+ * environment (class path, configuration, native libraries etc.).
  *
- * <p>The proxy takes the DAG and communicates with the Hadoop services to launch
- * it on the cluster.
+ * <p>The proxy takes the DAG and communicates with the Hadoop services to launch it on the cluster.
  */
 public class ApexYarnLauncher {
   private static final Logger LOG = LoggerFactory.getLogger(ApexYarnLauncher.class);
@@ -138,12 +138,19 @@ public class ApexYarnLauncher {
         IOUtils.copy(error, consoleOutput);
       }
       if (pw.rc != 0) {
-        String msg = "The Beam Apex runner in non-embedded mode requires the Hadoop client"
-            + " to be installed on the machine from which you launch the job"
-            + " and the 'hadoop' script in $PATH";
+        String msg =
+            "The Beam Apex runner in non-embedded mode requires the Hadoop client"
+                + " to be installed on the machine from which you launch the job"
+                + " and the 'hadoop' script in $PATH";
         LOG.error(msg);
-        throw new RuntimeException("Failed to run: " + cmd + " (exit code " + pw.rc + ")" + "\n"
-            + consoleOutput.toString());
+        throw new RuntimeException(
+            "Failed to run: "
+                + cmd
+                + " (exit code "
+                + pw.rc
+                + ")"
+                + "\n"
+                + consoleOutput.toString());
       }
     }
     return new AppHandle() {
@@ -153,6 +160,7 @@ public class ApexYarnLauncher {
         LOG.warn("YARN application runs asynchronously and status check not implemented.");
         return true;
       }
+
       @Override
       public void shutdown(ShutdownMode arg0) throws LauncherException {
         // TODO (future PR): interaction with child process
@@ -162,18 +170,18 @@ public class ApexYarnLauncher {
   }
 
   /**
-   * From the current classpath, find the jar files that need to be deployed
-   * with the application to run on YARN. Hadoop dependencies are provided
-   * through the Hadoop installation and the application should not bundle them
-   * to avoid conflicts. This is done by removing the Hadoop compile
-   * dependencies (transitively) by parsing the Maven dependency tree.
+   * From the current classpath, find the jar files that need to be deployed with the application to
+   * run on YARN. Hadoop dependencies are provided through the Hadoop installation and the
+   * application should not bundle them to avoid conflicts. This is done by removing the Hadoop
+   * compile dependencies (transitively) by parsing the Maven dependency tree.
    *
    * @return list of jar files to ship
    * @throws IOException when dependency information cannot be read
    */
   public static List<File> getYarnDeployDependencies() throws IOException {
     try (InputStream dependencyTree = ApexRunner.class.getResourceAsStream("dependency-tree")) {
-      try (BufferedReader br = new BufferedReader(new InputStreamReader(dependencyTree))) {
+      try (BufferedReader br =
+          new BufferedReader(new InputStreamReader(dependencyTree, StandardCharsets.UTF_8))) {
         String line;
         List<String> excludes = new ArrayList<>();
         int excludeLevel = Integer.MAX_VALUE;
@@ -198,7 +206,8 @@ public class ApexYarnLauncher {
 
         Set<String> excludeJarFileNames = Sets.newHashSet();
         for (String exclude : excludes) {
-          String[] mvnc = exclude.split(":");
+          List<String> strings = Splitter.on(':').splitToList(exclude);
+          String[] mvnc = strings.toArray(new String[strings.size()]);
           String fileName = mvnc[1] + "-";
           if (mvnc.length == 6) {
             fileName += mvnc[4] + "-" + mvnc[3]; // with classifier
@@ -227,6 +236,7 @@ public class ApexYarnLauncher {
 
   /**
    * Create a jar file from the given directory.
+   *
    * @param dir source directory
    * @param jarFile jar file name
    * @throws IOException when file cannot be created
@@ -246,56 +256,58 @@ public class ApexYarnLauncher {
         if (!manifestFile.exists()) {
           new Manifest().write(out);
         } else {
-          FileUtils.copyFile(manifestFile, out);
+          Files.copy(manifestFile.toPath(), out);
         }
       }
 
-      final java.nio.file.Path root = dir.toPath();
-      Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<Path>() {
-        String relativePath;
+      final Path root = dir.toPath();
+      Files.walkFileTree(
+          root,
+          new java.nio.file.SimpleFileVisitor<Path>() {
+            String relativePath;
 
-        @Override
-        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-            throws IOException {
-          relativePath = root.relativize(dir).toString();
-          if (!relativePath.isEmpty()) {
-            if (!relativePath.endsWith("/")) {
-              relativePath += "/";
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                throws IOException {
+              relativePath = root.relativize(dir).toString();
+              if (!relativePath.isEmpty()) {
+                if (!relativePath.endsWith("/")) {
+                  relativePath += "/";
+                }
+                if (!"META-INF/".equals(relativePath)) {
+                  final Path dstDir = zipfs.getPath(relativePath);
+                  Files.createDirectory(dstDir);
+                }
+              }
+              return super.preVisitDirectory(dir, attrs);
             }
-            if (!relativePath.equals("META-INF/")) {
-              final Path dstDir = zipfs.getPath(relativePath);
-              Files.createDirectory(dstDir);
-            }
-          }
-          return super.preVisitDirectory(dir, attrs);
-        }
 
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-          String name = relativePath + file.getFileName();
-          if (!JarFile.MANIFEST_NAME.equals(name)) {
-            try (final OutputStream out = Files.newOutputStream(zipfs.getPath(name))) {
-              FileUtils.copyFile(file.toFile(), out);
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                throws IOException {
+              String name = relativePath + file.getFileName();
+              if (!JarFile.MANIFEST_NAME.equals(name)) {
+                try (final OutputStream out = Files.newOutputStream(zipfs.getPath(name))) {
+                  Files.copy(file, out);
+                }
+              }
+              return super.visitFile(file, attrs);
             }
-          }
-          return super.visitFile(file, attrs);
-        }
 
-        @Override
-        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-          relativePath = root.relativize(dir.getParent()).toString();
-          if (!relativePath.isEmpty() && !relativePath.endsWith("/")) {
-            relativePath += "/";
-          }
-          return super.postVisitDirectory(dir, exc);
-        }
-      });
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+                throws IOException {
+              relativePath = root.relativize(dir.getParent()).toString();
+              if (!relativePath.isEmpty() && !relativePath.endsWith("/")) {
+                relativePath += "/";
+              }
+              return super.postVisitDirectory(dir, exc);
+            }
+          });
     }
   }
 
-  /**
-   * Transfer the properties to the configuration object.
-   */
+  /** Transfer the properties to the configuration object. */
   public static void addProperties(Configuration conf, Properties props) {
     for (final String propertyName : props.stringPropertyNames()) {
       String propertyValue = props.getProperty(propertyName);
@@ -305,6 +317,7 @@ public class ApexYarnLauncher {
 
   /**
    * The main method expects the serialized DAG and will launch the YARN application.
+   *
    * @param args location of launch parameters
    * @throws IOException when parameters cannot be read
    */
@@ -312,13 +325,12 @@ public class ApexYarnLauncher {
     checkArgument(args.length == 1, "exactly one argument expected");
     File file = new File(args[0]);
     checkArgument(file.exists() && file.isFile(), "invalid file path %s", file);
-    final LaunchParams params = (LaunchParams) SerializationUtils.deserialize(
-        new FileInputStream(file));
+    final LaunchParams params = SerializationUtils.deserialize(new FileInputStream(file));
     StreamingApplication apexApp = (dag, conf) -> copyShallow(params.dag, dag);
     Configuration conf = new Configuration(); // configuration from Hadoop client
     addProperties(conf, params.configProperties);
-    AppHandle appHandle = params.getApexLauncher().launchApp(apexApp, conf,
-        params.launchAttributes);
+    AppHandle appHandle =
+        params.getApexLauncher().launchApp(apexApp, conf, params.launchAttributes);
     if (appHandle == null) {
       throw new AssertionError("Launch returns null handle.");
     }
@@ -327,9 +339,7 @@ public class ApexYarnLauncher {
     // allow the parent to implement the runner result.
   }
 
-  /**
-   * Launch parameters that will be serialized and passed to the child process.
-   */
+  /** Launch parameters that will be serialized and passed to the child process. */
   @VisibleForTesting
   protected static class LaunchParams implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -356,12 +366,14 @@ public class ApexYarnLauncher {
     protected Map<String, String> getEnv() {
       return env;
     }
-
   }
 
   private static void copyShallow(DAG from, DAG to) {
-    checkArgument(from.getClass() == to.getClass(), "must be same class %s %s",
-        from.getClass(), to.getClass());
+    checkArgument(
+        from.getClass() == to.getClass(),
+        "must be same class %s %s",
+        from.getClass(),
+        to.getClass());
     Field[] fields = from.getClass().getDeclaredFields();
     AccessibleObject.setAccessible(fields, true);
     for (Field field : fields) {
@@ -375,9 +387,7 @@ public class ApexYarnLauncher {
     }
   }
 
-  /**
-   * Starts a command and waits for it to complete.
-   */
+  /** Starts a command and waits for it to complete. */
   public static class ProcessWatcher implements Runnable {
     private final Process p;
     private volatile boolean finished = false;
@@ -402,5 +412,4 @@ public class ApexYarnLauncher {
       finished = true;
     }
   }
-
 }

@@ -17,17 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
-/**
- * GCP implementation of {@link PathValidator}. Only GCS paths are allowed.
- */
+/** GCP implementation of {@link PathValidator}. Only GCS paths are allowed. */
 public class GcsPathValidator implements PathValidator {
 
   private GcsOptions gcpOptions;
@@ -40,10 +38,7 @@ public class GcsPathValidator implements PathValidator {
     return new GcsPathValidator(options.as(GcsOptions.class));
   }
 
-  /**
-   * Validates the the input GCS path is accessible and that the path
-   * is well formed.
-   */
+  /** Validates the the input GCS path is accessible and that the path is well formed. */
   @Override
   public void validateInputFilePatternSupported(String filepattern) {
     getGcsPath(filepattern);
@@ -51,10 +46,7 @@ public class GcsPathValidator implements PathValidator {
     verifyPathIsAccessible(filepattern, "Could not find file %s");
   }
 
-  /**
-   * Validates the the output GCS path is accessible and that the path
-   * is well formed.
-   */
+  /** Validates the the output GCS path is accessible and that the path is well formed. */
   @Override
   public void validateOutputFilePrefixSupported(String filePrefix) {
     verifyPath(filePrefix);
@@ -64,7 +56,7 @@ public class GcsPathValidator implements PathValidator {
   @Override
   public void validateOutputResourceSupported(ResourceId resourceId) {
     checkArgument(
-        resourceId.getScheme().equals("gs"),
+        "gs".equals(resourceId.getScheme()),
         "Expected a valid 'gs://' path but was given: '%s'",
         resourceId);
     verifyPath(resourceId.toString());
@@ -74,10 +66,13 @@ public class GcsPathValidator implements PathValidator {
   public String verifyPath(String path) {
     GcsPath gcsPath = getGcsPath(path);
     checkArgument(gcsPath.isAbsolute(), "Must provide absolute paths for Dataflow");
-    checkArgument(!gcsPath.getObject().isEmpty(),
+    checkArgument(
+        !gcsPath.getObject().isEmpty(),
         "Missing object or bucket in path: '%s', did you mean: 'gs://some-bucket/%s'?",
-        gcsPath, gcsPath.getBucket());
-    checkArgument(!gcsPath.getObject().contains("//"),
+        gcsPath,
+        gcsPath.getBucket());
+    checkArgument(
+        !gcsPath.getObject().contains("//"),
         "Dataflow Service does not allow objects with consecutive slashes");
     return gcsPath.toResourceName();
   }
@@ -85,8 +80,7 @@ public class GcsPathValidator implements PathValidator {
   private void verifyPathIsAccessible(String path, String errorMessage) {
     GcsPath gcsPath = getGcsPath(path);
     try {
-      checkArgument(gcpOptions.getGcsUtil().bucketAccessible(gcsPath),
-        errorMessage, path);
+      checkArgument(gcpOptions.getGcsUtil().bucketAccessible(gcsPath), errorMessage, path);
     } catch (IOException e) {
       throw new RuntimeException(
           String.format("Unable to verify that GCS bucket gs://%s exists.", gcsPath.getBucket()),
@@ -98,8 +92,8 @@ public class GcsPathValidator implements PathValidator {
     try {
       return GcsPath.fromUri(path);
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException(String.format(
-          "Expected a valid 'gs://' path but was given '%s'", path), e);
+      throw new IllegalArgumentException(
+          String.format("Expected a valid 'gs://' path but was given '%s'", path), e);
     }
   }
 }

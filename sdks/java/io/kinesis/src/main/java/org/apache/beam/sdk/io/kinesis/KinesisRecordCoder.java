@@ -29,9 +29,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.joda.time.Instant;
 
-/**
- * A {@link Coder} for {@link KinesisRecord}.
- */
+/** A {@link Coder} for {@link KinesisRecord}. */
 class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
 
   private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
@@ -44,8 +42,7 @@ class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
   }
 
   @Override
-  public void encode(KinesisRecord value, OutputStream outStream) throws
-      IOException {
+  public void encode(KinesisRecord value, OutputStream outStream) throws IOException {
     BYTE_ARRAY_CODER.encode(value.getData().array(), outStream);
     STRING_CODER.encode(value.getSequenceNumber(), outStream);
     STRING_CODER.encode(value.getPartitionKey(), outStream);
@@ -66,8 +63,14 @@ class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
     Instant readTimestamp = INSTANT_CODER.decode(inStream);
     String streamName = STRING_CODER.decode(inStream);
     String shardId = STRING_CODER.decode(inStream);
-    return new KinesisRecord(data, sequenceNumber, subSequenceNumber, partitionKey,
-        approximateArrivalTimestamp, readTimestamp, streamName, shardId
-    );
+    return new KinesisRecord(
+        data,
+        sequenceNumber,
+        subSequenceNumber,
+        partitionKey,
+        approximateArrivalTimestamp,
+        readTimestamp,
+        streamName,
+        shardId);
   }
 }

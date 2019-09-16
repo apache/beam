@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -28,10 +28,10 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 /**
  * Tracks the current value (and delta) for a {@link Gauge} metric.
  *
- * <p>This class generally shouldn't be used directly. The only exception is within a runner where
- * a gauge is being reported for a specific step (rather than the gauge in the current
- * context). In that case retrieving the underlying cell and reporting directly to it avoids a step
- * of indirection.
+ * <p>This class generally shouldn't be used directly. The only exception is within a runner where a
+ * gauge is being reported for a specific step (rather than the gauge in the current context). In
+ * that case retrieving the underlying cell and reporting directly to it avoids a step of
+ * indirection.
  */
 @Experimental(Experimental.Kind.METRICS)
 public class GaugeCell implements Gauge, MetricCell<GaugeData> {
@@ -41,9 +41,9 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
   private final MetricName name;
 
   /**
-   * Generally, runners should construct instances using the methods in
-   * {@link MetricsContainerImpl}, unless they need to define their own version of
-   * {@link MetricsContainer}. These constructors are *only* public so runners can instantiate.
+   * Generally, runners should construct instances using the methods in {@link
+   * MetricsContainerImpl}, unless they need to define their own version of {@link
+   * MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
   @Internal
   public GaugeCell(MetricName name) {
@@ -77,5 +77,22 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
   @Override
   public MetricName getName() {
     return name;
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (object instanceof GaugeCell) {
+      GaugeCell gaugeCell = (GaugeCell) object;
+      return Objects.equals(dirty, gaugeCell.dirty)
+          && Objects.equals(gaugeValue.get(), gaugeCell.gaugeValue.get())
+          && Objects.equals(name, gaugeCell.name);
+    }
+
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(dirty, gaugeValue.get(), name);
   }
 }
