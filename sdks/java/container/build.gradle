@@ -69,7 +69,12 @@ golang {
 }
 
 docker {
-  name containerImageName(name: "java_sdk")
+  name containerImageName(
+          name: "java_sdk",
+          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+          project.rootProject["docker-repository-root"] : "apachebeam",
+          tag: project.rootProject.hasProperty(["docker-tag"]) ?
+                  project.rootProject["docker-tag"] : project['version'])
   dockerfile project.file("./${dockerfileName}")
   files "./build/"
 }
