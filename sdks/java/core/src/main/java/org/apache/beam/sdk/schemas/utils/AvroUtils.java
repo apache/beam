@@ -204,7 +204,7 @@ public class AvroUtils {
   }
 
   /** Converts a Beam Schema into an AVRO schema. */
-  private static org.apache.avro.Schema toAvroSchema(
+  public static org.apache.avro.Schema toAvroSchema(
       Schema beamSchema, @Nullable String name, @Nullable String namespace) {
     final String schemaName = Strings.isNullOrEmpty(name) ? "topLevelRecord" : name;
     final String schemaNamespace = namespace == null ? "" : namespace;
