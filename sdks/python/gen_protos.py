@@ -49,12 +49,15 @@ MODEL_RESOURCES = [
 ]
 
 
-def generate_proto_files(force=False):
+def generate_proto_files(force=False, log=None):
 
   try:
     import grpc_tools  # pylint: disable=unused-variable
   except ImportError:
     warnings.warn('Installing grpcio-tools is recommended for development.')
+
+  if log is None:
+    log = logging.getLogger(__name__)
 
   py_sdk_root = os.path.dirname(os.path.abspath(__file__))
   common = os.path.join(py_sdk_root, '..', 'common')
@@ -67,7 +70,7 @@ def generate_proto_files(force=False):
   if out_files and not proto_files and not force:
     # We have out_files but no protos; assume they're up to date.
     # This is actually the common case (e.g. installation from an sdist).
-    logging.info('No proto files; using existing generated files.')
+    log.info('No proto files; using existing generated files.')
     return
 
   elif not out_files and not proto_files:
@@ -78,11 +81,27 @@ def generate_proto_files(force=False):
       raise RuntimeError(
           'No proto files found in %s.' % proto_dirs)
 
-  # Regenerate iff the proto files or this file are newer.
-  elif force or not out_files or len(out_files) < len(proto_files) or (
+  if force:
+    regenerate = 'forced'
+  elif not out_files:
+    regenerate = 'no output files'
+  elif len(out_files) < len(proto_files):
+    regenerate = 'not enough output files'
+  elif (
       min(os.path.getmtime(path) for path in out_files)
       <= max(os.path.getmtime(path)
              for path in proto_files + [os.path.realpath(__file__)])):
+    regenerate = 'output files are out-of-date'
+  elif len(out_files) > len(proto_files):
+    regenerate = 'output files without corresponding .proto files'
+    # too many output files: probably due to switching between git branches.
+    # remove them so they don't trigger constant regeneration.
+    for out_file in out_files:
+      os.remove(out_file)
+  else:
+    regenerate = None
+
+  if regenerate:
     try:
       from grpc_tools import protoc
     except ImportError:
@@ -103,7 +122,8 @@ def generate_proto_files(force=False):
       if p.exitcode:
         raise ValueError("Proto generation failed (see log for details).")
     else:
-      logging.info('Regenerating out-of-date Python proto definitions.')
+
+      log.info('Regenerating Python proto definitions (%s).' % regenerate)
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
       args = (
           [sys.executable] +  # expecting to be called from command line
@@ -119,20 +139,20 @@ def generate_proto_files(force=False):
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
 
-    # copy resource files
-    for path in MODEL_RESOURCES:
-      shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
+      # copy resource files
+      for path in MODEL_RESOURCES:
+        shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
-    ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
-    if ret_code:
-      raise RuntimeError(
-          'Error installing future during proto generation')
+      ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
+      if ret_code:
+        raise RuntimeError(
+            'Error installing future during proto generation')
 
-    ret_code = subprocess.call(
-        ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
-    if ret_code:
-      raise RuntimeError(
-          'Error applying futurize to generated protobuf python files.')
+      ret_code = subprocess.call(
+          ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
+      if ret_code:
+        raise RuntimeError(
+            'Error applying futurize to generated protobuf python files.')
 
 
 # Though wheels are available for grpcio-tools, setup_requires uses

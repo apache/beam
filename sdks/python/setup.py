@@ -24,6 +24,7 @@ import os
 import platform
 import sys
 import warnings
+from distutils import log
 from distutils.version import StrictVersion
 
 # Pylint and isort disagree here.
@@ -34,7 +35,6 @@ from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
-from setuptools.command.sdist import sdist
 from setuptools.command.test import test
 
 
@@ -170,7 +170,7 @@ def generate_protos_first(original_cmd):
 
     class cmd(original_cmd, object):
       def run(self):
-        gen_protos.generate_proto_files()
+        gen_protos.generate_proto_files(log=log)
         super(cmd, self).run()
     return cmd
   except ImportError:
@@ -242,7 +242,6 @@ setuptools.setup(
         'build_py': generate_protos_first(build_py),
         'develop': generate_protos_first(develop),
         'egg_info': generate_protos_first(egg_info),
-        'sdist': generate_protos_first(sdist),
         'test': generate_protos_first(test),
     },
 )
