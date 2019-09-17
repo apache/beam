@@ -575,21 +575,6 @@ class DataDiskAssignment(_messages.Message):
   vmInstance = _messages.StringField(2)
 
 
-class DataflowProjectsDeleteSnapshotsRequest(_messages.Message):
-  r"""A DataflowProjectsDeleteSnapshotsRequest object.
-
-  Fields:
-    location: The location that contains this snapshot.
-    projectId: The ID of the Cloud Platform project that the snapshot belongs
-      to.
-    snapshotId: The ID of the snapshot.
-  """
-
-  location = _messages.StringField(1)
-  projectId = _messages.StringField(2, required=True)
-  snapshotId = _messages.StringField(3)
-
-
 class DataflowProjectsJobsAggregatedRequest(_messages.Message):
   r"""A DataflowProjectsJobsAggregatedRequest object.
 
@@ -886,21 +871,6 @@ class DataflowProjectsJobsMessagesListRequest(_messages.Message):
   startTime = _messages.StringField(8)
 
 
-class DataflowProjectsJobsSnapshotRequest(_messages.Message):
-  r"""A DataflowProjectsJobsSnapshotRequest object.
-
-  Fields:
-    jobId: The job to be snapshotted.
-    projectId: The project which owns the job to be snapshotted.
-    snapshotJobRequest: A SnapshotJobRequest resource to be passed as the
-      request body.
-  """
-
-  jobId = _messages.StringField(1, required=True)
-  projectId = _messages.StringField(2, required=True)
-  snapshotJobRequest = _messages.MessageField('SnapshotJobRequest', 3)
-
-
 class DataflowProjectsJobsUpdateRequest(_messages.Message):
   r"""A DataflowProjectsJobsUpdateRequest object.
 
@@ -1193,23 +1163,6 @@ class DataflowProjectsLocationsJobsMessagesListRequest(_messages.Message):
   startTime = _messages.StringField(8)
 
 
-class DataflowProjectsLocationsJobsSnapshotRequest(_messages.Message):
-  r"""A DataflowProjectsLocationsJobsSnapshotRequest object.
-
-  Fields:
-    jobId: The job to be snapshotted.
-    location: The location that contains this job.
-    projectId: The project which owns the job to be snapshotted.
-    snapshotJobRequest: A SnapshotJobRequest resource to be passed as the
-      request body.
-  """
-
-  jobId = _messages.StringField(1, required=True)
-  location = _messages.StringField(2, required=True)
-  projectId = _messages.StringField(3, required=True)
-  snapshotJobRequest = _messages.MessageField('SnapshotJobRequest', 4)
-
-
 class DataflowProjectsLocationsJobsUpdateRequest(_messages.Message):
   r"""A DataflowProjectsLocationsJobsUpdateRequest object.
 
@@ -1264,48 +1217,6 @@ class DataflowProjectsLocationsJobsWorkItemsReportStatusRequest(_messages.Messag
   location = _messages.StringField(2, required=True)
   projectId = _messages.StringField(3, required=True)
   reportWorkItemStatusRequest = _messages.MessageField('ReportWorkItemStatusRequest', 4)
-
-
-class DataflowProjectsLocationsSnapshotsDeleteRequest(_messages.Message):
-  r"""A DataflowProjectsLocationsSnapshotsDeleteRequest object.
-
-  Fields:
-    location: The location that contains this snapshot.
-    projectId: The ID of the Cloud Platform project that the snapshot belongs
-      to.
-    snapshotId: The ID of the snapshot.
-  """
-
-  location = _messages.StringField(1, required=True)
-  projectId = _messages.StringField(2, required=True)
-  snapshotId = _messages.StringField(3, required=True)
-
-
-class DataflowProjectsLocationsSnapshotsGetRequest(_messages.Message):
-  r"""A DataflowProjectsLocationsSnapshotsGetRequest object.
-
-  Fields:
-    location: The location that contains this snapshot.
-    projectId: The ID of the Cloud Platform project that the snapshot belongs
-      to.
-    snapshotId: The ID of the snapshot.
-  """
-
-  location = _messages.StringField(1, required=True)
-  projectId = _messages.StringField(2, required=True)
-  snapshotId = _messages.StringField(3, required=True)
-
-
-class DataflowProjectsLocationsSnapshotsListRequest(_messages.Message):
-  r"""A DataflowProjectsLocationsSnapshotsListRequest object.
-
-  Fields:
-    location: The location to list snapshots in.
-    projectId: The project ID to list snapshots for.
-  """
-
-  location = _messages.StringField(1, required=True)
-  projectId = _messages.StringField(2, required=True)
 
 
 class DataflowProjectsLocationsSqlValidateRequest(_messages.Message):
@@ -1421,33 +1332,6 @@ class DataflowProjectsLocationsWorkerMessagesRequest(_messages.Message):
   sendWorkerMessagesRequest = _messages.MessageField('SendWorkerMessagesRequest', 3)
 
 
-class DataflowProjectsSnapshotsGetRequest(_messages.Message):
-  r"""A DataflowProjectsSnapshotsGetRequest object.
-
-  Fields:
-    location: The location that contains this snapshot.
-    projectId: The ID of the Cloud Platform project that the snapshot belongs
-      to.
-    snapshotId: The ID of the snapshot.
-  """
-
-  location = _messages.StringField(1)
-  projectId = _messages.StringField(2, required=True)
-  snapshotId = _messages.StringField(3, required=True)
-
-
-class DataflowProjectsSnapshotsListRequest(_messages.Message):
-  r"""A DataflowProjectsSnapshotsListRequest object.
-
-  Fields:
-    location: The location to list snapshots in.
-    projectId: The project ID to list snapshots for.
-  """
-
-  location = _messages.StringField(1)
-  projectId = _messages.StringField(2, required=True)
-
-
 class DataflowProjectsTemplatesCreateRequest(_messages.Message):
   r"""A DataflowProjectsTemplatesCreateRequest object.
 
@@ -1546,10 +1430,6 @@ class DatastoreIODetails(_messages.Message):
 
   namespace = _messages.StringField(1)
   projectId = _messages.StringField(2)
-
-
-class DeleteSnapshotResponse(_messages.Message):
-  r"""Response from deleting a snapshot."""
 
 
 class DerivedSource(_messages.Message):
@@ -1748,6 +1628,16 @@ class Environment(_messages.Message):
       service are required in order to run the job.
     workerPools: The worker pools. At least one "harness" worker pool must be
       specified in order for the job to have workers.
+    workerRegion: The Compute Engine region
+      (https://cloud.google.com/compute/docs/regions-zones/regions-zones) in
+      which worker processing should occur, e.g. "us-west1". Mutually
+      exclusive with worker_zone. If neither worker_region nor worker_zone is
+      specified, default to the control plane's region.
+    workerZone: The Compute Engine zone (https://cloud.google.com/compute/docs
+      /regions-zones/regions-zones) in which worker processing should occur,
+      e.g. "us-west1-a". Mutually exclusive with worker_region. If neither
+      worker_region nor worker_zone is specified, a zone in the control
+      plane's region is chosen based on available capacity.
   """
 
   class FlexResourceSchedulingGoalValueValuesEnum(_messages.Enum):
@@ -1877,6 +1767,8 @@ class Environment(_messages.Message):
   userAgent = _messages.MessageField('UserAgentValue', 10)
   version = _messages.MessageField('VersionValue', 11)
   workerPools = _messages.MessageField('WorkerPool', 12, repeated=True)
+  workerRegion = _messages.StringField(13)
+  workerZone = _messages.StringField(14)
 
 
 class ExecutionStageState(_messages.Message):
@@ -2131,6 +2023,22 @@ class Histogram(_messages.Message):
 
   bucketCounts = _messages.IntegerField(1, repeated=True)
   firstBucketOffset = _messages.IntegerField(2, variant=_messages.Variant.INT32)
+
+
+class HotKeyDetection(_messages.Message):
+  r"""Proto describing a hot key detected on a given WorkItem.
+
+  Fields:
+    hotKeyAge: The age of the hot key measured from when it was first
+      detected.
+    systemName: System-defined name of the step containing this hot key.
+      Unique across the workflow.
+    userStepName: User-provided name of the step that contains this hot key.
+  """
+
+  hotKeyAge = _messages.StringField(1)
+  systemName = _messages.StringField(2)
+  userStepName = _messages.StringField(3)
 
 
 class InstructionInput(_messages.Message):
@@ -2775,11 +2683,19 @@ class LaunchTemplateParameters(_messages.Message):
 
   Messages:
     ParametersValue: The runtime parameters to pass to the job.
+    TransformNameMappingValue: Only applicable when updating a pipeline. Map
+      of transform name prefixes of the job to be replaced to the
+      corresponding name prefixes of the new job.
 
   Fields:
     environment: The runtime environment for the job.
     jobName: Required. The job name to use for the created job.
     parameters: The runtime parameters to pass to the job.
+    transformNameMapping: Only applicable when updating a pipeline. Map of
+      transform name prefixes of the job to be replaced to the corresponding
+      name prefixes of the new job.
+    update: If set, replace the existing pipeline with the name specified by
+      jobName with this pipeline, preserving state.
   """
 
   @encoding.MapUnrecognizedFields('additionalProperties')
@@ -2806,9 +2722,39 @@ class LaunchTemplateParameters(_messages.Message):
 
     additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class TransformNameMappingValue(_messages.Message):
+    r"""Only applicable when updating a pipeline. Map of transform name
+    prefixes of the job to be replaced to the corresponding name prefixes of
+    the new job.
+
+    Messages:
+      AdditionalProperty: An additional property for a
+        TransformNameMappingValue object.
+
+    Fields:
+      additionalProperties: Additional properties of type
+        TransformNameMappingValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      r"""An additional property for a TransformNameMappingValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
   environment = _messages.MessageField('RuntimeEnvironment', 1)
   jobName = _messages.StringField(2)
   parameters = _messages.MessageField('ParametersValue', 3)
+  transformNameMapping = _messages.MessageField('TransformNameMappingValue', 4)
+  update = _messages.BooleanField(5)
 
 
 class LaunchTemplateResponse(_messages.Message):
@@ -2952,16 +2898,6 @@ class ListJobsResponse(_messages.Message):
   failedLocation = _messages.MessageField('FailedLocation', 1, repeated=True)
   jobs = _messages.MessageField('Job', 2, repeated=True)
   nextPageToken = _messages.StringField(3)
-
-
-class ListSnapshotsResponse(_messages.Message):
-  r"""List of snapshots.
-
-  Fields:
-    snapshots: Returned snapshots.
-  """
-
-  snapshots = _messages.MessageField('Snapshot', 1, repeated=True)
 
 
 class MapTask(_messages.Message):
@@ -3621,6 +3557,9 @@ class ResourceUtilizationReportResponse(_messages.Message):
 class RuntimeEnvironment(_messages.Message):
   r"""The environment values to set at runtime.
 
+  Enums:
+    IpConfigurationValueValuesEnum: Configuration for VM IPs.
+
   Messages:
     AdditionalUserLabelsValue: Additional user labels to be specified for the
       job. Keys and values should follow the restrictions specified in the
@@ -3635,6 +3574,10 @@ class RuntimeEnvironment(_messages.Message):
       resources#restrictions) page.
     bypassTempDirValidation: Whether to bypass the safety checks for the job's
       temporary directory. Use with caution.
+    ipConfiguration: Configuration for VM IPs.
+    kmsKeyName: Optional. Name for the Cloud KMS key for the job. Key format
+      is: projects/<project>/locations/<location>/keyRings/<keyring>/cryptoKey
+      s/<key>
     machineType: The machine type to use for the job. Defaults to the value
       from the template if not specified.
     maxWorkers: The maximum number of Google Compute Engine instances to be
@@ -3649,10 +3592,34 @@ class RuntimeEnvironment(_messages.Message):
       Expected to be of the form "regions/REGION/subnetworks/SUBNETWORK".
     tempLocation: The Cloud Storage path to use for temporary files. Must be a
       valid Cloud Storage URL, beginning with `gs://`.
+    workerRegion: The Compute Engine region
+      (https://cloud.google.com/compute/docs/regions-zones/regions-zones) in
+      which worker processing should occur, e.g. "us-west1". Mutually
+      exclusive with worker_zone. If neither worker_region nor worker_zone is
+      specified, default to the control plane's region.
+    workerZone: The Compute Engine zone (https://cloud.google.com/compute/docs
+      /regions-zones/regions-zones) in which worker processing should occur,
+      e.g. "us-west1-a". Mutually exclusive with worker_region. If neither
+      worker_region nor worker_zone is specified, a zone in the control
+      plane's region is chosen based on available capacity. If both
+      `worker_zone` and `zone` are set, `worker_zone` takes precedence.
     zone: The Compute Engine [availability
       zone](https://cloud.google.com/compute/docs/regions-zones/regions-zones)
-      for launching worker instances to run your pipeline.
+      for launching worker instances to run your pipeline. In the future,
+      worker_zone will take precedence.
   """
+
+  class IpConfigurationValueValuesEnum(_messages.Enum):
+    r"""Configuration for VM IPs.
+
+    Values:
+      WORKER_IP_UNSPECIFIED: The configuration is unknown, or unspecified.
+      WORKER_IP_PUBLIC: Workers should have public IP addresses.
+      WORKER_IP_PRIVATE: Workers should have private IP addresses.
+    """
+    WORKER_IP_UNSPECIFIED = 0
+    WORKER_IP_PUBLIC = 1
+    WORKER_IP_PRIVATE = 2
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class AdditionalUserLabelsValue(_messages.Message):
@@ -3686,14 +3653,18 @@ class RuntimeEnvironment(_messages.Message):
   additionalExperiments = _messages.StringField(1, repeated=True)
   additionalUserLabels = _messages.MessageField('AdditionalUserLabelsValue', 2)
   bypassTempDirValidation = _messages.BooleanField(3)
-  machineType = _messages.StringField(4)
-  maxWorkers = _messages.IntegerField(5, variant=_messages.Variant.INT32)
-  network = _messages.StringField(6)
-  numWorkers = _messages.IntegerField(7, variant=_messages.Variant.INT32)
-  serviceAccountEmail = _messages.StringField(8)
-  subnetwork = _messages.StringField(9)
-  tempLocation = _messages.StringField(10)
-  zone = _messages.StringField(11)
+  ipConfiguration = _messages.EnumField('IpConfigurationValueValuesEnum', 4)
+  kmsKeyName = _messages.StringField(5)
+  machineType = _messages.StringField(6)
+  maxWorkers = _messages.IntegerField(7, variant=_messages.Variant.INT32)
+  network = _messages.StringField(8)
+  numWorkers = _messages.IntegerField(9, variant=_messages.Variant.INT32)
+  serviceAccountEmail = _messages.StringField(10)
+  subnetwork = _messages.StringField(11)
+  tempLocation = _messages.StringField(12)
+  workerRegion = _messages.StringField(13)
+  workerZone = _messages.StringField(14)
+  zone = _messages.StringField(15)
 
 
 class SdkVersion(_messages.Message):
@@ -3960,60 +3931,6 @@ class Sink(_messages.Message):
 
   codec = _messages.MessageField('CodecValue', 1)
   spec = _messages.MessageField('SpecValue', 2)
-
-
-class Snapshot(_messages.Message):
-  r"""Represents a snapshot of a job.
-
-  Enums:
-    StateValueValuesEnum: State of the snapshot.
-
-  Fields:
-    creationTime: The time this snapshot was created.
-    id: The unique ID of this snapshot.
-    projectId: The project this snapshot belongs to.
-    sourceJobId: The job this snapshot was created from.
-    state: State of the snapshot.
-    ttl: The time after which this snapshot will be automatically deleted.
-  """
-
-  class StateValueValuesEnum(_messages.Enum):
-    r"""State of the snapshot.
-
-    Values:
-      UNKNOWN_SNAPSHOT_STATE: Unknown state.
-      PENDING: Snapshot intent to create has been persisted, snapshotting of
-        state has not yet started.
-      RUNNING: Snapshotting is being performed.
-      READY: Snapshot has been created and is ready to be used.
-      FAILED: Snapshot failed to be created.
-      DELETED: Snapshot has been deleted.
-    """
-    UNKNOWN_SNAPSHOT_STATE = 0
-    PENDING = 1
-    RUNNING = 2
-    READY = 3
-    FAILED = 4
-    DELETED = 5
-
-  creationTime = _messages.StringField(1)
-  id = _messages.StringField(2)
-  projectId = _messages.StringField(3)
-  sourceJobId = _messages.StringField(4)
-  state = _messages.EnumField('StateValueValuesEnum', 5)
-  ttl = _messages.StringField(6)
-
-
-class SnapshotJobRequest(_messages.Message):
-  r"""Request to create a snapshot of a job.
-
-  Fields:
-    location: The location that contains this job.
-    ttl: TTL for the snapshot.
-  """
-
-  location = _messages.StringField(1)
-  ttl = _messages.StringField(2)
 
 
 class Source(_messages.Message):
@@ -4465,37 +4382,10 @@ class StateFamilyConfig(_messages.Message):
 class Status(_messages.Message):
   r"""The `Status` type defines a logical error model that is suitable for
   different programming environments, including REST APIs and RPC APIs. It is
-  used by [gRPC](https://github.com/grpc). The error model is designed to be:
-  - Simple to use and understand for most users - Flexible enough to meet
-  unexpected needs  # Overview  The `Status` message contains three pieces of
-  data: error code, error message, and error details. The error code should be
-  an enum value of google.rpc.Code, but it may accept additional error codes
-  if needed.  The error message should be a developer-facing English message
-  that helps developers *understand* and *resolve* the error. If a localized
-  user-facing error message is needed, put the localized message in the error
-  details or localize it in the client. The optional error details may contain
-  arbitrary information about the error. There is a predefined set of error
-  detail types in the package `google.rpc` that can be used for common error
-  conditions.  # Language mapping  The `Status` message is the logical
-  representation of the error model, but it is not necessarily the actual wire
-  format. When the `Status` message is exposed in different client libraries
-  and different wire protocols, it can be mapped differently. For example, it
-  will likely be mapped to some exceptions in Java, but more likely mapped to
-  some error codes in C.  # Other uses  The error model and the `Status`
-  message can be used in a variety of environments, either with or without
-  APIs, to provide a consistent developer experience across different
-  environments.  Example uses of this error model include:  - Partial errors.
-  If a service needs to return partial errors to the client,     it may embed
-  the `Status` in the normal response to indicate the partial     errors.  -
-  Workflow errors. A typical workflow has multiple steps. Each step may
-  have a `Status` message for error reporting.  - Batch operations. If a
-  client uses batch request and batch response, the     `Status` message
-  should be used directly inside batch response, one for     each error sub-
-  response.  - Asynchronous operations. If an API call embeds asynchronous
-  operation     results in its response, the status of those operations should
-  be     represented directly using the `Status` message.  - Logging. If some
-  API errors are stored in logs, the message `Status` could     be used
-  directly after any stripping needed for security/privacy reasons.
+  used by [gRPC](https://github.com/grpc). Each `Status` message contains
+  three pieces of data: error code, error message, and error details.  You can
+  find out more about this error model and how to work with it in the [API
+  Design Guide](https://cloud.google.com/apis/design/errors).
 
   Messages:
     DetailsValueListEntry: A DetailsValueListEntry object.
@@ -4738,6 +4628,10 @@ class StreamingConfigTask(_messages.Message):
       families.
 
   Fields:
+    commitStreamChunkSizeBytes: Chunk size for commit streams from the harness
+      to windmill.
+    getDataStreamChunkSizeBytes: Chunk size for get data streams from the
+      harness to windmill.
     maxWorkItemCommitBytes: Maximum size for work item commit supported
       windmill storage layer.
     streamingComputationConfigs: Set of computation configuration information.
@@ -4777,11 +4671,13 @@ class StreamingConfigTask(_messages.Message):
 
     additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
-  maxWorkItemCommitBytes = _messages.IntegerField(1)
-  streamingComputationConfigs = _messages.MessageField('StreamingComputationConfig', 2, repeated=True)
-  userStepToStateFamilyNameMap = _messages.MessageField('UserStepToStateFamilyNameMapValue', 3)
-  windmillServiceEndpoint = _messages.StringField(4)
-  windmillServicePort = _messages.IntegerField(5)
+  commitStreamChunkSizeBytes = _messages.IntegerField(1)
+  getDataStreamChunkSizeBytes = _messages.IntegerField(2)
+  maxWorkItemCommitBytes = _messages.IntegerField(3)
+  streamingComputationConfigs = _messages.MessageField('StreamingComputationConfig', 4, repeated=True)
+  userStepToStateFamilyNameMap = _messages.MessageField('UserStepToStateFamilyNameMapValue', 5)
+  windmillServiceEndpoint = _messages.StringField(6)
+  windmillServicePort = _messages.IntegerField(7)
 
 
 class StreamingSetupTask(_messages.Message):
@@ -5102,6 +4998,10 @@ class WorkItemServiceState(_messages.Message):
   Fields:
     harnessData: Other data returned by the service, specific to the
       particular worker harness.
+    hotKeyDetection: A hot key is a symptom of poor data distribution in which
+      there are enough elements mapped to a single key to impact pipeline
+      performance. When present, this field includes metadata associated with
+      any hot key.
     leaseExpireTime: Time at which the current lease will expire.
     metricShortId: The short ids that workers should use in subsequent metric
       updates. Workers should strive to use short ids whenever possible, but
@@ -5145,13 +5045,14 @@ class WorkItemServiceState(_messages.Message):
     additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   harnessData = _messages.MessageField('HarnessDataValue', 1)
-  leaseExpireTime = _messages.StringField(2)
-  metricShortId = _messages.MessageField('MetricShortId', 3, repeated=True)
-  nextReportIndex = _messages.IntegerField(4)
-  reportStatusInterval = _messages.StringField(5)
-  splitRequest = _messages.MessageField('ApproximateSplitRequest', 6)
-  suggestedStopPoint = _messages.MessageField('ApproximateProgress', 7)
-  suggestedStopPosition = _messages.MessageField('Position', 8)
+  hotKeyDetection = _messages.MessageField('HotKeyDetection', 2)
+  leaseExpireTime = _messages.StringField(3)
+  metricShortId = _messages.MessageField('MetricShortId', 4, repeated=True)
+  nextReportIndex = _messages.IntegerField(5)
+  reportStatusInterval = _messages.StringField(6)
+  splitRequest = _messages.MessageField('ApproximateSplitRequest', 7)
+  suggestedStopPoint = _messages.MessageField('ApproximateProgress', 8)
+  suggestedStopPosition = _messages.MessageField('Position', 9)
 
 
 class WorkItemStatus(_messages.Message):
