@@ -344,12 +344,12 @@ class _VcfSource(filebasedsource.FileBasedSource):
         record = next(self._vcf_reader)
         return self._convert_to_variant_record(record, self._vcf_reader.infos,
                                                self._vcf_reader.formats)
-      except (LookupError, ValueError) as e:
+      except (LookupError, ValueError):
         if self._allow_malformed_records:
           logging.warning(
               'An exception was raised when reading record from VCF file '
               '%s. Invalid record was %s: %s',
-              self._file_name, self._last_record, traceback.format_exc(e))
+              self._file_name, self._last_record, traceback.format_exc())
           return MalformedVcfRecord(self._file_name, self._last_record)
 
         # Throw the exception inside the generator to ensure file is properly
@@ -359,7 +359,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
                        'file %s. Invalid record was %s: %s' % (
                            self._file_name,
                            self._last_record,
-                           traceback.format_exc(e))))
+                           traceback.format_exc())))
 
     def _convert_to_variant_record(self, record, infos, formats):
       """Converts the PyVCF record to a :class:`Variant` object.
