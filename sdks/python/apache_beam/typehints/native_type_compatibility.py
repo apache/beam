@@ -20,12 +20,15 @@
 from __future__ import absolute_import
 
 import collections
+import logging
 import sys
 import typing
 from builtins import next
 from builtins import range
 
 from apache_beam.typehints import typehints
+
+_LOGGER = logging.getLogger(__name__)
 
 # Describes an entry in the type map in convert_to_beam_type.
 # match is a function that takes a user type and returns whether the conversion
@@ -251,8 +254,9 @@ def convert_to_beam_type(typ):
   # Find the first matching entry.
   matched_entry = next((entry for entry in type_map if entry.match(typ)), None)
   if not matched_entry:
-    # No match: return original type.
-    return typ
+    # Please add missing type support if you see this message.
+    _LOGGER.info('Using Any for unsupported type: %s', typ)
+    return typehints.Any
 
   if matched_entry.arity == -1:
     arity = _len_arg(typ)
