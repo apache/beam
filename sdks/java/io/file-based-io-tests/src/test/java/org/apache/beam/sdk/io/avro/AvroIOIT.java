@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.avro;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
@@ -66,6 +65,8 @@ import org.junit.runners.JUnit4;
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
+ *  "--datasetSize=12345",
+ *  "--expectedHash=99f23ab",
  *  "--filenamePrefix=output_file_path"
  *  ]'
  *  --tests org.apache.beam.sdk.io.avro.AvroIOIT
@@ -91,10 +92,12 @@ public class AvroIOIT {
                   + "}");
 
   private static String filenamePrefix;
-  private static Integer numberOfTextLines;
   private static String bigQueryDataset;
   private static String bigQueryTable;
   private static final String AVRO_NAMESPACE = AvroIOIT.class.getName();
+  private static Integer numberOfTextLines;
+  private static Integer datasetSize;
+  private static String expectedHash;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -102,10 +105,12 @@ public class AvroIOIT {
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
-    numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
+    datasetSize = options.getDatasetSize();
+    expectedHash = options.getExpectedHash();
+    numberOfTextLines = options.getNumberOfRecords();
   }
 
   @Test
@@ -141,7 +146,6 @@ public class AvroIOIT {
             .apply("Collect end time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "endPoint")))
             .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
-    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     testFilenames.apply(
@@ -191,7 +195,10 @@ public class AvroIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
-
+    if (datasetSize != null) {
+      suppliers.add(
+          (reader) -> NamedTestResult.create(uuid, timestamp, "dataset_size", datasetSize));
+    }
     return suppliers;
   }
 

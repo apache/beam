@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.tfrecord;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
@@ -65,6 +64,8 @@ import org.junit.runners.JUnit4;
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
+ *  "--datasetSize=12345",
+ *  "--expectedHash=99f23ab",
  *  "--filenamePrefix=output_file_path",
  *  "--compressionType=GZIP"
  *  ]'
@@ -80,10 +81,12 @@ public class TFRecordIOIT {
   private static final String TFRECORD_NAMESPACE = TFRecordIOIT.class.getName();
 
   private static String filenamePrefix;
-  private static Integer numberOfTextLines;
-  private static Compression compressionType;
   private static String bigQueryDataset;
   private static String bigQueryTable;
+  private static Integer numberOfTextLines;
+  private static Integer datasetSize;
+  private static String expectedHash;
+  private static Compression compressionType;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
@@ -92,10 +95,11 @@ public class TFRecordIOIT {
   @BeforeClass
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
-
+    datasetSize = options.getDatasetSize();
+    expectedHash = options.getExpectedHash();
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
   }
@@ -137,7 +141,6 @@ public class TFRecordIOIT {
             .apply("Calculate hashcode", Combine.globally(new HashingFn()))
             .apply(Reshuffle.viaRandomKey());
 
-    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     readPipeline
@@ -187,7 +190,10 @@ public class TFRecordIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
-
+    if (datasetSize != null) {
+      suppliers.add(
+          (ignored) -> NamedTestResult.create(uuid, timestamp, "dataset_size", datasetSize));
+    }
     return suppliers;
   }
 
