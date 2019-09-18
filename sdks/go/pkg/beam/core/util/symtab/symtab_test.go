@@ -90,18 +90,16 @@ func TestSym2Addr(t *testing.T) {
 
 	gotool := filepath.Join(runtime.GOROOT(), "bin", "go")
 
-	for _, arg := range []string{"", "-buildmode=pie"} {
+	for _, arg := range []string{"-buildmode=exe", "-buildmode=pie"} {
 		args := []string{
+			gotool,
 			"build",
 			"-o",
 			bin,
+			arg,
+			fname,
 		}
-		if arg != "" {
-			args = append(args, arg)
-		}
-		args = append(args, fname)
-
-		if out, err := exec.Command(gotool, args...).CombinedOutput(); err != nil {
+		if out, err := exec.Command(args[0], args[1:]...).CombinedOutput(); err != nil {
 			t.Logf("%s", out)
 			t.Errorf("%v failed: %v", args, err)
 			continue
