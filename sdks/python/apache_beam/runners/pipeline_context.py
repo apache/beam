@@ -40,10 +40,10 @@ class Environment(object):
   Provides consistency with how the other componentes are accessed.
   """
   def __init__(self, proto):
-    self._proto = proto
+    self.proto = proto
 
   def to_runner_api(self, context):
-    return self._proto
+    return self.proto
 
   @staticmethod
   def from_runner_api(proto, context):

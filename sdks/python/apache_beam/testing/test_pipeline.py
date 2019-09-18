@@ -67,7 +67,8 @@ class TestPipeline(Pipeline):
                options=None,
                argv=None,
                is_integration_test=False,
-               blocking=True):
+               blocking=True,
+               additional_pipeline_args=None):
     """Initialize a pipeline object for test.
 
     Args:
@@ -88,6 +89,8 @@ class TestPipeline(Pipeline):
         test, :data:`False` otherwise.
       blocking (bool): Run method will wait until pipeline execution is
         completed.
+      additional_pipeline_args (List[str]): additional pipeline arguments to be
+        included when construction the pipeline options object.
 
     Raises:
       ~exceptions.ValueError: if either the runner or options argument is not
@@ -95,7 +98,9 @@ class TestPipeline(Pipeline):
     """
     self.is_integration_test = is_integration_test
     self.not_use_test_runner_api = False
-    self.options_list = self._parse_test_option_args(argv)
+    additional_pipeline_args = additional_pipeline_args or []
+    self.options_list = (
+        self._parse_test_option_args(argv) + additional_pipeline_args)
     self.blocking = blocking
     if options is None:
       options = PipelineOptions(self.options_list)
