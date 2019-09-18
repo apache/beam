@@ -26,7 +26,6 @@ import logging
 import random
 import string
 import sys
-import time
 import unittest
 
 import apache_beam as beam
@@ -51,6 +50,7 @@ except ImportError:
 PROJECT_ID = ''
 INSTANCE_ID = ''
 TABLE_ID = ''
+JOB_NAME = ''
 COLUMN_FAMILY_ID = 'cf1'
 LETTERS_AND_DIGITS = string.ascii_letters + string.digits
 
@@ -115,7 +115,7 @@ class BigtableIOTest(unittest.TestCase):
   def test_bigtable_io(self):
     pipeline_args = sys.argv[1:]
 
-    job = 'bigtableio-it-test-write-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
+    job = '{}-write'.format(JOB_NAME)
     p_options = PipelineOptions(pipeline_args)
     p_options.view_as(GoogleCloudOptions).job_name = job
     # for key, value in p_options.get_all_options().items():
@@ -137,7 +137,7 @@ class BigtableIOTest(unittest.TestCase):
         logging.info('Number of Rows written: %d', read_counter.committed)
         assert read_counter.committed == ROW_COUNT
 
-    job = 'bigtableio-it-test-read-{}k-{}'.format(ROW_COUNT_K, TIME_STAMP)
+    job = '{}-read'.format(JOB_NAME)
     p_options = PipelineOptions(pipeline_args)
     p_options.view_as(GoogleCloudOptions).job_name = job
     p = beam.Pipeline(options=p_options)
@@ -159,6 +159,7 @@ if __name__ == '__main__':
   parser.add_argument('--project', type=str)
   parser.add_argument('--instance', type=str)
   parser.add_argument('--table', type=str, default='test-table')
+  parser.add_argument('--job_name', type=str, default='bigtableio-it-test')
   parser.add_argument('--row_count', type=int, default=10000)
   parser.add_argument('--column_count', type=int, default=10)
   parser.add_argument('--cell_size', type=int, default=100)
@@ -172,10 +173,9 @@ if __name__ == '__main__':
   ROW_COUNT = args.row_count
   COLUMN_COUNT = args.column_count
   CELL_SIZE = args.cell_size
+  JOB_NAME = args.job_name
 
-  ROW_COUNT_K = ROW_COUNT // 1000
-  _current_time = datetime.datetime.fromtimestamp(time.time())
-  TIME_STAMP = _current_time.strftime('%Y%m%d-%H%M%S')
+  # TABLE_ID = 'test-table-10k-20190918-141848'
 
   logging.getLogger().setLevel(args.log_level)
 
