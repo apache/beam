@@ -221,9 +221,52 @@ class SideInputTest(unittest.TestCase):
     result = ['a', 'bb', 'c'] | beam.Map(repeat, 3)
     self.assertEqual(['aaa', 'bbbbbb', 'ccc'], sorted(result))
 
-  # TODO(robertwb): Support partially defined varargs.
-  # with self.assertRaises(typehints.TypeCheckError):
-  #   ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Tuple\[int, ...\] but got Tuple\[str, ...\]'):
+        ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
+
+  def test_var_positional_only_side_input_hint(self):
+    # Test that a lambda that accepts only a VAR_POSITIONAL can accept
+    # side-inputs.
+    # TODO(BEAM-8247): There's a bug with trivial_inference inferring the output
+    #   type when side-inputs are used (their type hints are not passed). Remove
+    #   with_output_types(...) when this bug is fixed.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda *args: args, 5).with_input_types(int, str)
+              .with_output_types(typehints.Tuple[str, int]))
+    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
+
+    # Type hint order doesn't matter for VAR_POSITIONAL.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda *args: args, 5).with_input_types(int, str)
+              .with_output_types(typehints.Tuple[str, int]))
+    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
+
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Tuple\[Union\[int, str\], ...\] but got '
+          r'Tuple\[Union\[float, int\], ...\]'):
+        _ = [1.2] | beam.Map(lambda *_: 'a', 5).with_input_types(int, str)
+
+  def test_var_keyword_side_input_hint(self):
+    # Test that a lambda that accepts a VAR_KEYWORD can accept
+    # side-inputs.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda e, **kwargs: (e, kwargs), kw=5)
+              .with_input_types(str, ignored=int))
+    self.assertEqual([('a', {'kw': 5}), ('b', {'kw': 5}), ('c', {'kw': 5})],
+                     sorted(result))
+
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Dict\[str, str\] but got Dict\[str, int\]'):
+        _ = (['a', 'b', 'c']
+             | beam.Map(lambda e, **_: 'a', kw=5)
+             .with_input_types(str, ignored=str))
 
   def test_deferred_side_inputs(self):
     @typehints.with_input_types(str, int)

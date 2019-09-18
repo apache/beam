@@ -1365,7 +1365,7 @@ In addition to the main input `PCollection`, you can provide additional inputs
 to a `ParDo` transform in the form of side inputs. A side input is an additional
 input that your `DoFn` can access each time it processes an element in the input
 `PCollection`. When you specify a side input, you create a view of some other
-data that can be read from within the `ParDo` transform's `DoFn` while procesing
+data that can be read from within the `ParDo` transform's `DoFn` while processing
 each element.
 
 Side inputs are useful if your `ParDo` needs to inject additional data when

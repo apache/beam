@@ -154,14 +154,14 @@ class DataflowMetrics(MetricResults):
     # Get the tentative/committed versions of every metric together.
     metrics_by_name = defaultdict(lambda: {})
     for metric in metrics:
-      if (metric.name.name.endswith('[MIN]') or
-          metric.name.name.endswith('[MAX]') or
-          metric.name.name.endswith('[MEAN]') or
-          metric.name.name.endswith('[COUNT]')):
+      if (metric.name.name.endswith('_MIN') or
+          metric.name.name.endswith('_MAX') or
+          metric.name.name.endswith('_MEAN') or
+          metric.name.name.endswith('_COUNT')):
         # The Dataflow Service presents distribution metrics in two ways:
         # One way is as a single distribution object with all its fields, and
-        # another way is as four different scalar metrics labeled as [MIN],
-        # [MAX], [COUNT], [MEAN].
+        # another way is as four different scalar metrics labeled as _MIN,
+        # _MAX, _COUNT_, _MEAN.
         # TODO(pabloem) remove these when distributions are not being broken up
         #  in the service.
         # The second way is only useful for the UI, and should be ignored.

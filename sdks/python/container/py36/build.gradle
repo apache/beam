@@ -54,6 +54,8 @@ task copyLauncherDependencies(type: Copy) {
 docker {
   name containerImageName(
           name: "python3.6_sdk",
+          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                  project.rootProject["docker-repository-root"] : "apachebeam",
           tag: project.rootProject.hasProperty(["docker-tag"]) ?
                   project.rootProject["docker-tag"] : project['python_sdk_version'])
   files "../Dockerfile", "./build"

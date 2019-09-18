@@ -2735,7 +2735,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("types.size() != expressions.size()")
   public void testConcatWithOneParameters() {
     String sql = "SELECT concat('abc')";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -2747,7 +2746,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("types.size() != expressions.size()")
   public void testConcatWithTwoParameters() {
     String sql = "SELECT concat('abc', 'def')";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -2759,7 +2757,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("types.size() != expressions.size()")
   public void testConcatWithThreeParameters() {
     String sql = "SELECT concat('abc', 'def', 'xyz')";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -2771,7 +2768,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("types.size() != expressions.size()")
   public void testConcatWithFourParameters() {
     String sql = "SELECT concat('abc', 'def', '  ', 'xyz')";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -2847,7 +2843,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("types.size() != expressions.size()")
   public void testConcatParameterQuery() {
     String sql = "SELECT CONCAT(@p0, @p1) AS ColA";
     ImmutableMap<String, Value> params =
@@ -2940,7 +2935,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("types.size() != expressions.size()")
   public void testTrim1() {
     String sql = "SELECT trim(@p0)";
     ImmutableMap<String, Value> params =
@@ -2993,7 +2987,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("types.size() != expressions.size()")
   public void testLTrim1() {
     String sql = "SELECT ltrim(@p0)";
     ImmutableMap<String, Value> params =
@@ -3046,7 +3039,6 @@ public class ZetaSQLDialectSpecTestZetaSQL {
   }
 
   @Test
-  @Ignore("types.size() != expressions.size()")
   public void testRTrim1() {
     String sql = "SELECT rtrim(@p0)";
     ImmutableMap<String, Value> params =
