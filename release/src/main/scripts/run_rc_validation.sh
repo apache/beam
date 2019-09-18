@@ -39,15 +39,17 @@ function clean_up(){
   echo "Please sign up your name in the tests you have ran."
 
   echo "-----------------Final Cleanup-----------------"
-  if [[ -f ~/.m2/settings_backup.xml ]]; then
+  if [[ -f ~/.m2/$BACKUP_M2 ]]; then
     rm ~/.m2/settings.xml
-    cp ~/.m2/settings_backup.xml ~/.m2/settings.xml
+    cp ~/.m2/$BACKUP_M2 ~/.m2/settings.xml
+    rm ~/.m2/$BACKUP_M2
     echo "* Restored ~/.m2/settings.xml"
   fi
 
-  if [[ -f ~/.bashrc_backup ]]; then
+  if [[ -f ~/$BACKUP_BASHRC ]]; then
     rm ~/.bashrc
-    cp ~/.bashrc_backup ~/.bashrc
+    cp ~/$BACKUP_BASHRC ~/.bashrc
+    rm ~/$BACKUP_BASHRC
     echo "* Restored ~/.bashrc"
   fi
 
@@ -62,6 +64,8 @@ GIT_REPO_URL=https://github.com/apache/beam.git
 PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
 HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
+BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
+BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
 declare -a PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
 
 echo ""
@@ -307,6 +311,9 @@ if [[ ("$python_leaderboard_direct" = true || \
   echo "---------------------Downloading Python Staging RC----------------------------"
   wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
   wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+    { echo "Fail to download Python Staging RC files." ;exit 1; }
+  fi
 
   echo "--------------------------Verifying Hashes------------------------------------"
   sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
@@ -315,39 +322,14 @@ if [[ ("$python_leaderboard_direct" = true || \
   `which pip` install --upgrade setuptools
   `which pip` install --upgrade virtualenv
 
-  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
-  do
-    rm -rf ./beam_env_${py_version}
-    echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env_${py_version} -p $py_version
-    . beam_env_${py_version}/bin/activate
-
-    echo "--------------------------Installing Python SDK-------------------------------"
-    pip install apache-beam-${RELEASE_VER}.zip[gcp]
-
-    SHARED_PUBSUB_TOPIC=leader_board-${USER}-python-topic-$(date +%m%d)_$RANDOM
-    gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC}
-
-    echo "-----------------------Setting up Shell Env Vars------------------------------"
-    # [BEAM-4518]
-    FIXED_WINDOW_DURATION=20
-    cp ~/.bashrc ~/.bashrc_backup
-    echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
-    echo "export USER_GCS_BUCKET=${USER_GCS_BUCKET}" >> ~/.bashrc
-    echo "export SHARED_PUBSUB_TOPIC=${SHARED_PUBSUB_TOPIC}" >> ~/.bashrc
-    echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
-    echo "export RELEASE=${RELEASE_VER}" >> ~/.bashrc
-    echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
-    echo "export LOCAL_BEAM_DIR=${LOCAL_BEAM_DIR}" >> ~/.bashrc
-
-    echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
+  echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
     cd ~
-    if [[ -d .m2 ]]; then
+    if [[ ! -d .m2 ]]; then
       mkdir .m2
     fi
     cd .m2
     if [[ -f ~/.m2/settings.xml ]]; then
-      mv settings.xml settings_backup.xml
+      mv settings.xml $BACKUP_M2
     fi
     touch settings.xml
     echo "<settings>" >> settings.xml
@@ -368,30 +350,56 @@ if [[ ("$python_leaderboard_direct" = true || \
     echo "  </profiles>" >> settings.xml
     echo "</settings>" >> settings.xml
 
-    echo "----------------------Starting Pubsub Java Injector--------------------------"
-    cd ${LOCAL_BEAM_DIR}
-    mvn archetype:generate \
-        -DarchetypeGroupId=org.apache.beam \
-        -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-        -DarchetypeVersion=${RELEASE_VER} \
-        -DgroupId=org.example \
-        -DartifactId=word-count-beam \
-        -Dversion="0.1" \
-        -Dpackage=org.apache.beam.examples \
-        -DinteractiveMode=false \
-        -DarchetypeCatalog=internal
+  echo "-----------------------Setting up Shell Env Vars------------------------------"
+    # [BEAM-4518]
+    FIXED_WINDOW_DURATION=20
+    cp ~/.bashrc ~/$BACKUP_BASHRC
+    echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
+    echo "export USER_GCS_BUCKET=${USER_GCS_BUCKET}" >> ~/.bashrc
+    echo "export SHARED_PUBSUB_TOPIC=${SHARED_PUBSUB_TOPIC}" >> ~/.bashrc
+    echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
+    echo "export RELEASE_VER=${RELEASE_VER}" >> ~/.bashrc
+    echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
+    echo "export LOCAL_BEAM_DIR=${LOCAL_BEAM_DIR}" >> ~/.bashrc
 
-    cd word-count-beam
-    echo "A new terminal will pop up and start a java top injector."
-    gnome-terminal -x sh -c \
-    "echo '******************************************************';
-     echo '* Running Pubsub Java Injector';
-     echo '******************************************************';
-    mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
-    -Dexec.args='${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC} none';
-    exec bash"
+  echo "----------------------Starting Pubsub Java Injector--------------------------"
+  cd ${LOCAL_BEAM_DIR}
+  mvn archetype:generate \
+      -DarchetypeGroupId=org.apache.beam \
+      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+      -DarchetypeVersion=${RELEASE_VER} \
+      -DgroupId=org.example \
+      -DartifactId=word-count-beam \
+      -Dversion="0.1" \
+      -Dpackage=org.apache.beam.examples \
+      -DinteractiveMode=false \
+      -DarchetypeCatalog=internal
 
-    cd ${LOCAL_BEAM_DIR}
+  # Create a pubsub topic as a input source shared to all Python pipelines.
+  SHARED_PUBSUB_TOPIC=leader_board-${USER}-python-topic-$(date +%m%d)_$RANDOM
+  gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC}
+
+  cd word-count-beam
+  echo "A new terminal will pop up and start a java top injector."
+  gnome-terminal -x sh -c \
+  "echo '******************************************************';
+   echo '* Running Pubsub Java Injector';
+   echo '******************************************************';
+  mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+  -Dexec.args='${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC} none';
+  exec bash"
+
+  # Run Leaderboard & GameStates pipelines under multiple versions of Python
+  cd ${LOCAL_BEAM_DIR}
+  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
+  do
+    rm -rf ./beam_env_${py_version}
+    echo "--------------Setting up virtualenv with $py_version interpreter----------------"
+    virtualenv beam_env_${py_version} -p $py_version
+    . beam_env_${py_version}/bin/activate
+
+    echo "--------------------------Installing Python SDK-------------------------------"
+    pip install apache-beam-${RELEASE_VER}.zip[gcp]
 
     echo "----------------Starting Leaderboard with DirectRunner-----------------------"
     if [[ "$python_leaderboard_direct" = true ]]; then

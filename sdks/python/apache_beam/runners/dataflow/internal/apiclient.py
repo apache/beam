@@ -250,12 +250,8 @@ class Environment(object):
       pool.network = self.worker_options.network
     if self.worker_options.subnetwork:
       pool.subnetwork = self.worker_options.subnetwork
-    if self.worker_options.worker_harness_container_image:
-      pool.workerHarnessContainerImage = (
-          self.worker_options.worker_harness_container_image)
-    else:
-      pool.workerHarnessContainerImage = (
-          get_default_container_image_for_current_sdk(_use_fnapi(options)))
+    pool.workerHarnessContainerImage = (
+        get_container_image_from_options(options))
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
@@ -908,15 +904,19 @@ def _get_container_image_tag():
   return base_version
 
 
-def get_default_container_image_for_current_sdk(use_fnapi):
+def get_container_image_from_options(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
-      use_fnapi (bool): True, if pipeline is using FnAPI, False otherwise.
+      pipeline_options (PipelineOptions): A container for pipeline options.
 
     Returns:
-      str: Google Cloud Dataflow container image for remote execution.
+      str: Container image for remote execution.
     """
+  worker_options = pipeline_options.view_as(WorkerOptions)
+  if worker_options.worker_harness_container_image:
+    return worker_options.worker_harness_container_image
+
   if sys.version_info[0] == 2:
     version_suffix = ''
   elif sys.version_info[0:2] == (3, 5):
@@ -929,6 +929,7 @@ def get_default_container_image_for_current_sdk(use_fnapi):
     raise Exception('Dataflow only supports Python versions 2 and 3.5+, got: %s'
                     % str(sys.version_info[0:2]))
 
+  use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
   if use_fnapi:
     fnapi_suffix = '-fnapi'

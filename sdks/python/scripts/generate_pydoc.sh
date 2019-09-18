@@ -77,7 +77,7 @@ excluded_patterns=(
     *_test.py
     *_test_common.py
     # TODO(BEAM-7847): Remove this once doc generation can parse Py3 syntax.
-    *py3.py
+    *_py3*.py
 )
 
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
