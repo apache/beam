@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.util;
 
 import java.io.IOException;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.SchemaTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.schemas.Schema;
@@ -72,8 +72,8 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
                   StringUtils.jsonStringToByteArray(
                       Structs.getString(cloudObject, FROM_ROW_FUNCTION)),
                   "fromRowFunction");
-      RunnerApi.Schema protoSchema =
-          RunnerApi.Schema.parseFrom(
+      SchemaApi.Schema protoSchema =
+          SchemaApi.Schema.parseFrom(
               StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, SCHEMA)));
       Schema schema = SchemaTranslation.fromProto(protoSchema);
       return SchemaCoder.of(schema, toRowFunction, fromRowFunction);

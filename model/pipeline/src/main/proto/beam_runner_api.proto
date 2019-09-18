@@ -645,63 +645,6 @@ message StandardCoders {
   }
 }
 
-// Experimental: A representation of a Beam Schema.
-message Schema {
-  enum AtomicType {
-    UNSPECIFIED = 0;
-    BYTE = 1;
-    INT16 = 2;
-    INT32 = 3;
-    INT64 = 4;
-    FLOAT = 5;
-    DOUBLE = 6;
-    STRING = 7;
-    BOOLEAN = 8;
-    BYTES = 9;
-  }
-
-  message ArrayType {
-    FieldType element_type = 1;
-  }
-
-  message MapType {
-    FieldType key_type = 1;
-    FieldType value_type = 2;
-  }
-
-  message RowType {
-    Schema schema = 1;
-  }
-
-  message LogicalType {
-    string urn = 1;
-    string args = 2;
-    FieldType representation = 3;
-  }
-
-  message FieldType {
-    bool nullable = 1;
-    oneof type_info {
-      AtomicType atomic_type = 2;
-      ArrayType array_type = 3;
-      MapType map_type = 4;
-      RowType row_type = 5;
-      LogicalType logical_type = 6;
-    }
-  }
-
-  message Field {
-    string name = 1;
-    string description = 2;
-    FieldType type = 3;
-    int32 id = 4;
-    int32 encoding_position = 5;
-  }
-
-  repeated Field fields = 1;
-  string id = 2;
-}
-
 // A windowing strategy describes the window function, triggering, allowed
 // lateness, and accumulation mode for a PCollection.
 //
