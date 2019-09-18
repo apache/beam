@@ -46,7 +46,10 @@ golang {
 }
 
 docker {
-  name containerImageName(name: "go_sdk")
+  name containerImageName(
+          name: "go_sdk",
+          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                  project.rootProject["docker-repository-root"] : "apachebeam")
   files "./build/"
 }
 // Ensure that making the docker image builds any required artifacts
