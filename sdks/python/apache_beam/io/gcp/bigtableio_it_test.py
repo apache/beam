@@ -97,9 +97,9 @@ class BigtableIOTest(unittest.TestCase):
   then reading them and comparing the counters
   """
   def setUp(self):
-    logging.info('\nProject ID:  {}'.format(PROJECT_ID))
-    logging.info('\nInstance ID: {}'.format(INSTANCE_ID))
-    logging.info('\nTable ID:    {}'.format(TABLE_ID))
+    logging.info('\nProject ID:  %s' % PROJECT_ID)
+    logging.info('\nInstance ID: %s' % INSTANCE_ID)
+    logging.info('\nTable ID:    %s' % TABLE_ID)
 
     self.result = None
     client = Client(project=PROJECT_ID, admin=True)
@@ -170,12 +170,11 @@ if __name__ == '__main__':
   PROJECT_ID = args.project
   INSTANCE_ID = args.instance
   TABLE_ID = args.table
+  # TABLE_ID = 'test-table-10k-20190918-141848'
   ROW_COUNT = args.row_count
   COLUMN_COUNT = args.column_count
   CELL_SIZE = args.cell_size
   JOB_NAME = args.job_name
-
-  # TABLE_ID = 'test-table-10k-20190918-141848'
 
   logging.getLogger().setLevel(args.log_level)
 
