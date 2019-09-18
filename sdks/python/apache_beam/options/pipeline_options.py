@@ -816,7 +816,10 @@ class PortableOptions(PipelineOptions):
     parser.add_argument(
         '--environment_type', default=None,
         help=('Set the default environment type for running '
-              'user code. Possible options are DOCKER and PROCESS.'))
+              'user code. DOCKER (default) runs user code in a container. '
+              'PROCESS runs user code in processes that are automatically '
+              'started on each worker node. LOOPBACK runs user code on the '
+              'same process that originally submitted the job.'))
     parser.add_argument(
         '--environment_config', default=None,
         help=('Set environment configuration for running the user code.\n For '
