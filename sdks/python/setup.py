@@ -24,6 +24,7 @@ import os
 import platform
 import sys
 import warnings
+from distutils import log
 from distutils.version import StrictVersion
 
 # Pylint and isort disagree here.
@@ -34,7 +35,6 @@ from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
-from setuptools.command.sdist import sdist
 from setuptools.command.test import test
 
 
@@ -153,11 +153,11 @@ GCP_REQUIREMENTS = [
     # [BEAM-4543] googledatastore is not supported in Python 3.
     'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
     'google-cloud-datastore>=1.7.1,<1.8.0',
-    'google-cloud-pubsub>=0.39.0,<0.40.0',
+    'google-cloud-pubsub>=0.39.0,<1.1.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.18.0',
     'google-cloud-core>=0.28.1,<2',
-    'google-cloud-bigtable>=0.31.1,<0.33.0',
+    'google-cloud-bigtable>=0.31.1,<1.1.0',
 ]
 
 
@@ -170,7 +170,7 @@ def generate_protos_first(original_cmd):
 
     class cmd(original_cmd, object):
       def run(self):
-        gen_protos.generate_proto_files()
+        gen_protos.generate_proto_files(log=log)
         super(cmd, self).run()
     return cmd
   except ImportError:
@@ -242,7 +242,6 @@ setuptools.setup(
         'build_py': generate_protos_first(build_py),
         'develop': generate_protos_first(develop),
         'egg_info': generate_protos_first(egg_info),
-        'sdist': generate_protos_first(sdist),
         'test': generate_protos_first(test),
     },
 )

@@ -23,7 +23,9 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +33,7 @@ import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.io.Compression;
@@ -61,11 +64,16 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowFn.MergeContext;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -667,4 +675,114 @@ public class Snippets {
   }
 
   // [END AccessingValueProviderInfoAfterRunSnip1]
+
+  private static final Duration gapDuration = Duration.standardSeconds(10L);
+
+  // [START CustomSessionWindow1]
+
+  public Collection<IntervalWindow> assignWindows(WindowFn.AssignContext c) {
+
+    // Assign each element into a window from its timestamp until gapDuration in the
+    // future.  Overlapping windows (representing elements within gapDuration of
+    // each other) will be merged.
+    return Arrays.asList(new IntervalWindow(c.timestamp(), gapDuration));
+  }
+  // [END CustomSessionWindow1]
+
+  // [START CustomSessionWindow2]
+  public static class DynamicSessions extends WindowFn<TableRow, IntervalWindow> {
+    /** Duration of the gaps between sessions. */
+    private final Duration gapDuration;
+
+    /** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */
+    private DynamicSessions(Duration gapDuration) {
+      this.gapDuration = gapDuration;
+    }
+
+    // [END CustomSessionWindow2]
+
+    // [START CustomSessionWindow3]
+    @Override
+    public Collection<IntervalWindow> assignWindows(AssignContext c) {
+      // Assign each element into a window from its timestamp until gapDuration in the
+      // future.  Overlapping windows (representing elements within gapDuration of
+      // each other) will be merged.
+      Duration dataDrivenGap;
+      TableRow message = c.element();
+
+      try {
+        dataDrivenGap = Duration.standardSeconds(Long.parseLong(message.get("gap").toString()));
+      } catch (Exception e) {
+        dataDrivenGap = gapDuration;
+      }
+      return Arrays.asList(new IntervalWindow(c.timestamp(), dataDrivenGap));
+    }
+    // [END CustomSessionWindow3]
+
+    // [START CustomSessionWindow4]
+    /** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */
+    public static DynamicSessions withDefaultGapDuration(Duration gapDuration) {
+      return new DynamicSessions(gapDuration);
+    }
+
+    // [START CustomSessionWindow4]
+
+    @Override
+    public void mergeWindows(MergeContext c) throws Exception {}
+
+    @Override
+    public boolean isCompatible(WindowFn<?, ?> other) {
+      return false;
+    }
+
+    @Override
+    public Coder<IntervalWindow> windowCoder() {
+      return null;
+    }
+
+    @Override
+    public WindowMappingFn<IntervalWindow> getDefaultWindowMappingFn() {
+      return null;
+    }
+  }
+
+  public static class CustomSessionPipeline {
+
+    public static void main(String[] args) {
+
+      // [START CustomSessionWindow5]
+
+      PCollection<TableRow> p =
+          Pipeline.create()
+              .apply(
+                  "Create data",
+                  Create.timestamped(
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 12).set("gap", 5),
+                          new Instant()),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "desktop").set("score", 4), new Instant()),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", -3).set("gap", 5),
+                          new Instant().plus(2000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 2).set("gap", 5),
+                          new Instant().plus(9000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 7).set("gap", 5),
+                          new Instant().plus(12000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "desktop").set("score", 10),
+                          new Instant().plus(12000))));
+      // [END CustomSessionWindow5]
+
+      // [START CustomSessionWindow6]
+      p.apply(
+          "Window into sessions",
+          Window.<TableRow>into(
+              DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
+      // [END CustomSessionWindow6]
+
+    }
+  }
 }

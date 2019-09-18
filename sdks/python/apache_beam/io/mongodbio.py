@@ -54,6 +54,7 @@ No backward compatibility guarantees. Everything in this module is experimental.
 from __future__ import absolute_import
 from __future__ import division
 
+import json
 import logging
 import struct
 
@@ -204,7 +205,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     res['collection'] = self.coll
     res['filter'] = self.filter
     res['project'] = self.projection
-    res['mongo_client_spec'] = self.spec
+    res['mongo_client_spec'] = json.dumps(self.spec)
     return res
 
   def _get_split_keys(self, desired_chunk_size_in_mb, start_pos, end_pos):
@@ -469,7 +470,7 @@ class _WriteMongoFn(DoFn):
     res['uri'] = self.uri
     res['database'] = self.db
     res['collection'] = self.coll
-    res['mongo_client_params'] = self.spec
+    res['mongo_client_params'] = json.dumps(self.spec)
     res['batch_size'] = self.batch_size
     return res
 

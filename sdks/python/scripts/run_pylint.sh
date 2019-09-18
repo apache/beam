@@ -62,7 +62,7 @@ apache_beam/portability/api/*pb2*.py
 
 PYTHON_MAJOR=$(python -c 'import sys; print(sys.version_info[0])')
 if [[ "${PYTHON_MAJOR}" == 2 ]]; then
-  EXCLUDED_PY3_FILES=$(find ${MODULE} | grep 'py3\.py$')
+  EXCLUDED_PY3_FILES=$(find ${MODULE} | grep 'py3[0-9]*\.py$')
   echo -e "Excluding Py3 files:\n${EXCLUDED_PY3_FILES}"
 else
   EXCLUDED_PY3_FILES=""
@@ -116,7 +116,12 @@ isort ${MODULE} -p apache_beam --line-width 120 --check-only --order-by-type \
     --combine-star --force-single-line-imports --diff --recursive ${SKIP_PARAM}
 
 echo "Checking unittest.main..."
-TESTS_MISSING_MAIN=$(find ${MODULE} | grep '\.py$' | xargs grep -l '^import unittest$' | xargs grep -L unittest.main)
+TESTS_MISSING_MAIN=$(
+    find ${MODULE} \
+    | grep '\.py$' \
+    | xargs grep -l '^import unittest$' \
+    | xargs grep -L unittest.main \
+    || true)
 if [ -n "${TESTS_MISSING_MAIN}" ]; then
   echo -e "\nThe following files are missing a call to unittest.main():"
   for FILE in ${TESTS_MISSING_MAIN}; do

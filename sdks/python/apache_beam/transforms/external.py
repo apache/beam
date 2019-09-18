@@ -27,11 +27,18 @@ import copy
 import threading
 
 from apache_beam import pvalue
+from apache_beam.coders import registry
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
+from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import ptransform
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
+from apache_beam.typehints.trivial_inference import instance_to_type
+from apache_beam.typehints.typehints import Union
+from apache_beam.typehints.typehints import UnionConstraint
 
 # Protect against environments where grpc is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -41,6 +48,170 @@ try:
 except ImportError:
   grpc = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
+DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
+
+
+def _is_optional_or_none(typehint):
+  return (type(None) in typehint.union_types
+          if isinstance(typehint, UnionConstraint) else typehint is type(None))
+
+
+def _strip_optional(typehint):
+  if not _is_optional_or_none(typehint):
+    return typehint
+  new_types = typehint.union_types.difference({type(None)})
+  if len(new_types) == 1:
+    return list(new_types)[0]
+  return Union[new_types]
+
+
+def iter_urns(coder, context=None):
+  yield coder.to_runner_api_parameter(context)[0]
+  for child in coder._get_component_coders():
+    for urn in iter_urns(child, context):
+      yield urn
+
+
+class PayloadBuilder(object):
+  """
+  Abstract base class for building payloads to pass to ExternalTransform.
+  """
+
+  @classmethod
+  def _config_value(cls, obj, typehint):
+    """
+    Helper to create a ConfigValue with an encoded value.
+    """
+    coder = registry.get_coder(typehint)
+    urns = list(iter_urns(coder))
+    if 'beam:coder:pickled_python:v1' in urns:
+      raise RuntimeError("Found non-portable coder for %s" % (typehint,))
+    return ConfigValue(
+        coder_urn=urns,
+        payload=coder.get_impl().encode_nested(obj))
+
+  def build(self):
+    """
+    :return: ExternalConfigurationPayload
+    """
+    raise NotImplementedError
+
+  def payload(self):
+    """
+    The serialized ExternalConfigurationPayload
+
+    :return: bytes
+    """
+    return self.build().SerializeToString()
+
+
+class SchemaBasedPayloadBuilder(PayloadBuilder):
+  """
+  Base class for building payloads based on a schema that provides
+  type information for each configuration value to encode.
+
+  Note that if the schema defines a type as Optional, the corresponding value
+  will be omitted from the encoded payload, and thus the native transform
+  will determine the default.
+  """
+
+  def __init__(self, values, schema):
+    """
+    :param values: mapping of config names to values
+    :param schema: mapping of config names to types
+    """
+    self._values = values
+    self._schema = schema
+
+  @classmethod
+  def _encode_config(cls, values, schema):
+    result = {}
+    for key, value in values.items():
+
+      try:
+        typehint = schema[key]
+      except KeyError:
+        raise RuntimeError("No typehint provided for key %r" % key)
+
+      typehint = convert_to_beam_type(typehint)
+
+      if value is None:
+        if not _is_optional_or_none(typehint):
+          raise RuntimeError("If value is None, typehint should be "
+                             "optional. Got %r" % typehint)
+        # make it easy for user to filter None by default
+        continue
+      else:
+        # strip Optional from typehint so that pickled_python coder is not used
+        # for known types.
+        typehint = _strip_optional(typehint)
+      result[key] = cls._config_value(value, typehint)
+    return result
+
+  def build(self):
+    """
+    :return: ExternalConfigurationPayload
+    """
+    args = self._encode_config(self._values, self._schema)
+    return ExternalConfigurationPayload(configuration=args)
+
+
+class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
+  """
+  Build a payload that generates a schema from the provided values.
+  """
+  def __init__(self, values):
+    schema = {key: instance_to_type(value) for key, value in values.items()}
+    super(ImplicitSchemaPayloadBuilder, self).__init__(values, schema)
+
+
+class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
+  """
+  Build a payload based on a NamedTuple schema.
+  """
+  def __init__(self, tuple_instance):
+    """
+    :param tuple_instance: an instance of a typing.NamedTuple
+    """
+    super(NamedTupleBasedPayloadBuilder, self).__init__(
+        values=tuple_instance._asdict(), schema=tuple_instance._field_types)
+
+
+class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
+  """
+  Build a payload based on an external transform's type annotations.
+
+  Supported in python 3 only.
+  """
+  def __init__(self, transform, **values):
+    """
+    :param transform: a PTransform instance or class. type annotations will
+                      be gathered from its __init__ method
+    :param values: values to encode
+    """
+    schema = {k: v for k, v in
+              transform.__init__.__annotations__.items()
+              if k in values}
+    super(AnnotationBasedPayloadBuilder, self).__init__(values, schema)
+
+
+class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
+  """
+  Build a payload based on an external transform that uses dataclasses.
+
+  Supported in python 3 only.
+  """
+  def __init__(self, transform):
+    """
+    :param transform: a dataclass-decorated PTransform instance from which to
+                      gather type annotations and values
+    """
+    import dataclasses
+    schema = {field.name: field.type for field in
+              dataclasses.fields(transform)}
+    super(DataclassBasedPayloadBuilder, self).__init__(
+        dataclasses.asdict(transform), schema)
 
 
 class ExternalTransform(ptransform.PTransform):
@@ -56,14 +227,28 @@ class ExternalTransform(ptransform.PTransform):
   _EXPANDED_TRANSFORM_UNIQUE_NAME = 'root'
   _IMPULSE_PREFIX = 'impulse'
 
-  def __init__(self, urn, payload, endpoint):
+  def __init__(self, urn, payload, endpoint=None):
+    endpoint = endpoint or DEFAULT_EXPANSION_SERVICE
     if grpc is None and isinstance(endpoint, str):
       raise NotImplementedError('Grpc required for external transforms.')
     # TODO: Start an endpoint given an environment?
     self._urn = urn
-    self._payload = payload
+    self._payload = payload.payload() \
+      if isinstance(payload, PayloadBuilder) \
+      else payload
     self._endpoint = endpoint
     self._namespace = self._fresh_namespace()
+
+  def __post_init__(self, expansion_service):
+    """
+    This will only be invoked if ExternalTransform is used as a base class
+    for a class decorated with dataclasses.dataclass
+    """
+    ExternalTransform.__init__(
+        self,
+        self.URN,
+        DataclassBasedPayloadBuilder(self),
+        expansion_service)
 
   def default_label(self):
     return '%s(%s)' % (self.__class__.__name__, self._urn)

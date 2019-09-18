@@ -337,7 +337,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.16.0'
+    project.version = '2.17.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -1492,7 +1492,7 @@ class BeamModulePlugin implements Plugin<Project> {
         if (project.rootProject.hasProperty(["docker-repository-root"])) {
           configuration.root = project.rootProject["docker-repository-root"]
         } else {
-          configuration.root = "apachebeam"
+          configuration.root = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
         }
       }
       if (configuration.tag == null) {

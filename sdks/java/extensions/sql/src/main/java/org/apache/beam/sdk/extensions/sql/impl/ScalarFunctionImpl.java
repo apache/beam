@@ -138,11 +138,15 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     }
 
     private static List<Expression> translate(List<Type> types, List<Expression> expressions) {
+      // https://issues.apache.org/jira/browse/BEAM-8241
+      // In user defined functions Calcite allows variants with fewer arguments than Beam defined.
       Preconditions.checkArgument(
-          types.size() == expressions.size(), "types.size() != expressions.size()");
+          types.size() >= expressions.size(), "types.size() < expressions.size()");
 
       final List<Expression> translated = new ArrayList<>();
       for (int i = 0; i < expressions.size(); i++) {
+        // TODO: [BEAM-8255] Add support for user defined function with var-arg
+        // Ex: types: [String[].class], expression: [param1, param2, ...]
         translated.add(translate(types.get(i), expressions.get(i)));
       }
 

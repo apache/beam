@@ -209,6 +209,19 @@ public class DataflowOperationContext implements OperationContext {
       return profileScope;
     }
 
+    @Override
+    public String getDescription() {
+      StringBuilder description = new StringBuilder();
+      description.append(getStepName().stageName());
+      description.append("-");
+      if (getStepName().originalName() != null) {
+        description.append(getStepName().originalName());
+        description.append("-");
+      }
+      description.append(getStateName());
+      return description.toString();
+    }
+
     private static final ImmutableSet<String> FRAMEWORK_CLASSES =
         ImmutableSet.of(SimpleDoFnRunner.class.getName(), DoFnInstanceManagers.class.getName());
 

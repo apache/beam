@@ -179,11 +179,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         } catch (NoSuchMethodException e) {
           throw new RuntimeException(
               String.format(
-                  "The configuration class %s is missing a setter %s for %s",
-                  config.getClass(), setterName, fieldName),
+                  "The configuration class %s is missing a setter %s for %s with type %s",
+                  config.getClass(),
+                  setterName,
+                  fieldName,
+                  coder.getEncodedTypeDescriptor().getType().getTypeName()),
               e);
         }
-        method.invoke(config, coder.decode(entry.getValue().getPayload().newInput()));
+        method.invoke(
+            config, coder.decode(entry.getValue().getPayload().newInput(), Coder.Context.NESTED));
       }
     }
 
