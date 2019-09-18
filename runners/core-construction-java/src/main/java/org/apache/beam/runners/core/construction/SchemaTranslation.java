@@ -25,12 +25,16 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Utility methods for translating schemas. */
 public class SchemaTranslation {
+
   private static final String URN_BEAM_LOGICAL_DATETIME = "beam:fieldtype:datetime";
   private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:fieldtype:decimal";
+  private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:fieldtype:javasdk";
 
   public static SchemaApi.Schema toProto(Schema schema) {
     String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
@@ -82,8 +86,12 @@ public class SchemaTranslation {
         LogicalType logicalType = fieldType.getLogicalType();
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
-                .setUrn(logicalType.getIdentifier())
-                .setArgs(logicalType.getArgument())
+                // TODO(BEAM-7855): "javasdk" types should only be a last resort. Types defined in
+                // Beam should have their own URN, and there should be a mechanism for users to
+                // register their own types by URN.
+                .setUrn(URN_BEAM_LOGICAL_JAVASDK)
+                .setPayload(
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(logicalType)))
                 .setRepresentation(toProto(logicalType.getBaseType()))
                 .build());
         break;
@@ -211,9 +219,13 @@ public class SchemaTranslation {
           return FieldType.DATETIME;
         } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {
           return FieldType.DECIMAL;
+        } else if (urn.equals(URN_BEAM_LOGICAL_JAVASDK)) {
+          return FieldType.logicalType(
+              (LogicalType)
+                  SerializableUtils.deserializeFromByteArray(
+                      protoFieldType.getLogicalType().getPayload().toByteArray(), "logicalType"));
         } else {
-          // TODO: Look up logical type class by URN.
-          throw new IllegalArgumentException("Decoding logical types is not yet supported.");
+          throw new IllegalArgumentException("Encountered unsupported logical type URN: " + urn);
         }
       default:
         throw new IllegalArgumentException(
