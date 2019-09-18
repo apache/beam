@@ -105,9 +105,13 @@ func NewFn(fn interface{}) (*Fn, error) {
 		methods := make(map[string]*funcx.Fn)
 		if methodsFuncs, ok := reflectx.WrapMethods(fn); ok {
 			for name, mfn := range methodsFuncs {
-				f, err := funcx.New(mfn)
+				f, err := funcx.NewUnvalidated(mfn)
 				if err != nil {
 					return nil, errors.Wrapf(err, "method %v invalid", name)
+				}
+				err = funcx.ValidateSignature(f, getSigRules())
+				if err != nil {
+					return nil, errors.WithContextf(err, "method %v validating signature", name)
 				}
 				methods[name] = f
 			}
@@ -160,6 +164,13 @@ const (
 
 	// TODO: ViewFn, etc.
 )
+
+// TODO(danoliveira): Once any new non-default rules have been added, they
+// should be mapped to method names and this function should retrieve the rule
+// (or the default) when given a method name.
+func getSigRules() funcx.SignatureRules {
+	return funcx.DefaultSignatureRules()
+}
 
 // DoFn represents a DoFn.
 type DoFn Fn

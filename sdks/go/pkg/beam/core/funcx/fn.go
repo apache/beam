@@ -66,6 +66,10 @@ const (
 	FnType FnParamKind = 0x40
 	// FnWindow indicates a function input parameter that implements typex.Window.
 	FnWindow FnParamKind = 0x80
+	// FnInput is a placeholder enum only to be used in funcx.SignatureRules for
+	// representing any of FnValue, FnIter, and FnReIter. In any other context,
+	// this enum should behave like FnIllegal.
+	FnInput FnParamKind = 0x100
 )
 
 func (k FnParamKind) String() string {
@@ -86,6 +90,8 @@ func (k FnParamKind) String() string {
 		return "Type"
 	case FnWindow:
 		return "Window"
+	case FnInput:
+		return "Input"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -223,10 +229,12 @@ func (u *Fn) String() string {
 	return fmt.Sprintf("{Fn:{Name:%v Kind:%v} Param:%+v Ret:%+v}", u.Fn.Name(), u.Fn.Type(), u.Param, u.Ret)
 }
 
-// New returns a Fn from a user function, if valid. Closures and dynamically
-// created functions are considered valid here, but will be rejected if they
-// are attempted to be serialized.
-func New(fn reflectx.Func) (*Fn, error) {
+// NewUnvalidated is identical to funcx.New except that the produced Fn has not
+// had their signature validated for proper ordering or counts. This function is
+// meant to be paired with funcx.ValidateSignature in order to create and
+// validate Fns from the methods of structural DoFns, which may have different
+// parameter order or count requirements than other DoFns.
+func NewUnvalidated(fn reflectx.Func) (*Fn, error) {
 	var param []FnParam
 	for i := 0; i < fn.Type().NumIn(); i++ {
 		t := fn.Type().In(i)
@@ -276,8 +284,18 @@ func New(fn reflectx.Func) (*Fn, error) {
 	}
 
 	u := &Fn{Fn: fn, Param: param, Ret: ret}
+	return u, nil
+}
 
-	if err := validateOrder(u); err != nil {
+// New returns a Fn from a user function, if valid. Closures and dynamically
+// created functions are considered valid here, but will be rejected if they
+// are attempted to be serialized.
+func New(fn reflectx.Func) (*Fn, error) {
+	u, err := NewUnvalidated(fn)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateSignatureDefault(u); err != nil {
 		return nil, err
 	}
 	return u, nil
@@ -306,24 +324,64 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 type Count int
 
 const (
+	// CountNone indicates that the associated element kind should not be present.
 	CountNone Count = iota
-	Count0Or1
+	// CountOpt indicates that the associated element kind is optional and can
+	// be present either 0 or 1 times, but not more than 1.
+	CountOpt
+	// CountAny indicates that the associated element kind can be present in any
+	// number, including 0.
 	CountAny
 )
 
+// SignatureRules defines the rules to use when validating a Fn signature, which
+// includes order and count of parameters and return values. The rules for order
+// are a slice representing the order in which to expect elements The rules for
+// count map elements kinds with Count enums representing the allowed count. In
+// both of these rules, omitted kinds of elements are assumed to be invalid,
+// and will cause validation errors if present in the signature.
 type SignatureRules struct {
-	paramOrder  []FnParamKind
-	paramCount  map[FnParamKind]Count
-	returnOrder []ReturnKind
-	returnCount map[ReturnKind]Count
+	Params  []ParamCount
+	Returns []ReturnCount
 }
 
+type ParamCount struct {
+	kind  FnParamKind
+	count Count
+}
+
+type ReturnCount struct {
+	kind  ReturnKind
+	count Count
+}
+
+// func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
+func DefaultSignatureRules() SignatureRules {
+	return SignatureRules{
+		Params: []ParamCount{
+			{FnContext, CountOpt},
+			{FnWindow, CountOpt},
+			{FnEventTime, CountOpt},
+			{FnType, CountOpt},
+			{FnInput, CountAny},
+			{FnEmit, CountAny},
+		},
+		Returns: []ReturnCount{
+			{RetEventTime, CountOpt},
+			{RetValue, CountAny},
+			{RetError, CountOpt},
+		},
+	}
+}
+
+// ValidateSignature validates the order and count of parameters and return
+// values in a Fn's signature, based on the input rules.
 func ValidateSignature(u *Fn, rules SignatureRules) error {
-	err := ValidateOrder(u, rules.paramOrder, rules.returnOrder)
+	err := validateOrder(u, rules)
 	if err != nil {
 		return err
 	}
-	err = ValidateCount(u, rules.paramCount, rules.returnCount)
+	err = validateCount(u, rules)
 	if err != nil {
 		return err
 	}
@@ -331,22 +389,42 @@ func ValidateSignature(u *Fn, rules SignatureRules) error {
 	return nil
 }
 
-func ValidateOrder(u *Fn, paramOrder []FnParamKind, returnOrder []ReturnKind) error {
-	err := validateOrderParams(u.Param, paramOrder)
+func validateOrder(u *Fn, rules SignatureRules) error {
+	// Parse rules before delegating to implementation split by params/returns.
+	var pOrder []FnParamKind
+	for _, pc := range rules.Params {
+		pOrder = append(pOrder, pc.kind)
+	}
+	err := validateOrderParams(u.Param, pOrder)
 	if err != nil {
 		return err
 	}
-	err = validateOrderReturns(u.Ret, returnOrder)
+
+	var rOrder []ReturnKind
+	for _, rc := range rules.Returns {
+		rOrder = append(rOrder, rc.kind)
+	}
+	err = validateOrderReturns(u.Ret, rOrder)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// kindMatches is a helper function that compares FnParamKind equality, but
+// accounts for FnInput matching FnValue, FnIter, and FnReIter.
+func kindMatches(got FnParamKind, want FnParamKind) bool {
+	if want == FnInput {
+		return got == FnValue || got == FnIter || got == FnReIter
+	} else {
+		return got == want
+	}
 }
 
 func validateOrderParams(params []FnParam, order []FnParamKind) error {
 	i := 0
 	for _, kind := range order {
-		for i < len(params) && params[i].Kind == kind {
+		for i < len(params) && kindMatches(params[i].Kind, kind) {
 			i++
 		}
 		if i >= len(params) {
@@ -371,12 +449,22 @@ func validateOrderReturns(returns []ReturnParam, order []ReturnKind) error {
 	return &outOfOrderError{i: i, rKind: returns[i].Kind, rOrder: order}
 }
 
-func ValidateCount(u *Fn, paramCount map[FnParamKind]Count, returnCount map[ReturnKind]Count) error {
-	err := validateCountParams(u.Param, paramCount)
+func validateCount(u *Fn, rules SignatureRules) error {
+	// Parse rules before delegating to implementation split by params/returns.
+	pCount := make(map[FnParamKind]Count)
+	for _, pc := range rules.Params {
+		pCount[pc.kind] = pc.count
+	}
+	err := validateCountParams(u.Param, pCount)
 	if err != nil {
 		return err
 	}
-	err = validateCountReturns(u.Ret, returnCount)
+
+	rCount := make(map[ReturnKind]Count)
+	for _, rc := range rules.Returns {
+		rCount[rc.kind] = rc.count
+	}
+	err = validateCountReturns(u.Ret, rCount)
 	if err != nil {
 		return err
 	}
@@ -386,7 +474,13 @@ func ValidateCount(u *Fn, paramCount map[FnParamKind]Count, returnCount map[Retu
 func validateCountParams(params []FnParam, count map[FnParamKind]Count) error {
 	paramCounts := make(map[FnParamKind]int)
 	for _, param := range params {
-		paramCounts[param.Kind]++
+		// To handle FnInputs in counts, we squash FnValues, FnIters, and FnReIters
+		// all into FnInput
+		kind := param.Kind
+		if kind == FnValue || kind == FnIter || kind == FnReIter {
+			kind = FnInput
+		}
+		paramCounts[kind]++
 	}
 	for kind, num := range paramCounts {
 		switch expected := count[kind]; expected {
@@ -394,7 +488,7 @@ func validateCountParams(params []FnParam, count map[FnParamKind]Count) error {
 			if num > 0 {
 				return &incorrectCountError{pKind: kind, expected: expected, actual: num}
 			}
-		case Count0Or1:
+		case CountOpt:
 			if num > 1 {
 				return &incorrectCountError{pKind: kind, expected: expected, actual: num}
 			}
@@ -414,7 +508,7 @@ func validateCountReturns(returns []ReturnParam, count map[ReturnKind]Count) err
 			if num > 0 {
 				return &incorrectCountError{rKind: kind, expected: expected, actual: num}
 			}
-		case Count0Or1:
+		case CountOpt:
 			if num > 1 {
 				return &incorrectCountError{rKind: kind, expected: expected, actual: num}
 			}
@@ -423,12 +517,16 @@ func validateCountReturns(returns []ReturnParam, count map[ReturnKind]Count) err
 	return nil
 }
 
+// validateSignatureDefault contains the original, default implementation for
+// validating the order in a Fn's signature, compared to the newer
+// ValidateSignature.
+//
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
+// func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetValue*, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
-func validateOrder(u *Fn) error {
+func validateSignatureDefault(u *Fn) error {
 	paramState := psStart
 	var err error
 	// Validate the parameter ordering.
@@ -630,7 +728,7 @@ func (e *incorrectCountError) Error() string {
 	switch e.expected {
 	case CountNone:
 		return fmt.Sprintf("fn may not have any %ss of kind %s", sigPart, kindStr)
-	case Count0Or1:
+	case CountOpt:
 		return fmt.Sprintf("fn may not have more than one %s of kind %s, has %v", sigPart, kindStr, e.actual)
 	}
 	return "invalid incorrectCountError"
