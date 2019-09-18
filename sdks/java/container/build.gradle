@@ -72,9 +72,7 @@ docker {
   name containerImageName(
           name: "java_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-          project.rootProject["docker-repository-root"] : "apachebeam",
-          tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project['version'])
+          project.rootProject["docker-repository-root"] : "apachebeam")
   dockerfile project.file("./${dockerfileName}")
   files "./build/"
 }
