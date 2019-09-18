@@ -647,29 +647,21 @@ message StandardCoders {
 
 // Experimental: A representation of a Beam Schema.
 message Schema {
-  enum TypeName {
-    BYTE = 0;
-    INT16 = 1;
-    INT32 = 2;
-    INT64 = 3;
-    DECIMAL = 4;
+  enum AtomicType {
+    UNSPECIFIED = 0;
+    BYTE = 1;
+    INT16 = 2;
+    INT32 = 3;
+    INT64 = 4;
     FLOAT = 5;
     DOUBLE = 6;
     STRING = 7;
-    DATETIME = 8;
-    BOOLEAN = 9;
-    BYTES = 10;
-    ARRAY = 11;
-    MAP = 13;
-    ROW = 14;
-    LOGICAL_TYPE = 15;
+    BOOLEAN = 8;
+    BYTES = 9;
   }
 
-  message LogicalType {
-    string id = 1;
-    string args = 2;
-    FieldType base_type = 3;
-    bytes serialized_class = 4;
+  message ArrayType {
+    FieldType element_type = 1;
   }
 
   message MapType {
@@ -677,13 +669,23 @@ message Schema {
     FieldType value_type = 2;
   }
 
+  message RowType {
+    Schema schema = 1;
+  }
+
+  message LogicalType {
+    string urn = 1;
+    string args = 2;
+    FieldType representation = 3;
+  }
+
   message FieldType {
-    TypeName type_name = 1;
-    bool nullable = 2;
+    bool nullable = 1;
     oneof type_info {
-      FieldType collection_element_type = 3;
+      AtomicType atomic_type = 2;
+      ArrayType array_type = 3;
       MapType map_type = 4;
-      Schema row_schema = 5;
+      RowType row_type = 5;
       LogicalType logical_type = 6;
     }
   }
