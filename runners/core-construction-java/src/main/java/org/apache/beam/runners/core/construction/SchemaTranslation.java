@@ -32,16 +32,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 /** Utility methods for translating schemas. */
 public class SchemaTranslation {
 
-  private static final String URN_BEAM_LOGICAL_DATETIME = "beam:fieldtype:datetime";
-  private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:fieldtype:decimal";
-  private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:fieldtype:javasdk";
+  private static final String URN_BEAM_LOGICAL_DATETIME = "beam:logical_type:datetime:v1";
+  private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:logical_type:decimal:v1";
+  private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:logical_type:javasdk:v1";
 
-  public static SchemaApi.Schema toProto(Schema schema) {
+  public static SchemaApi.Schema schemaToProto(Schema schema) {
     String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
     SchemaApi.Schema.Builder builder = SchemaApi.Schema.newBuilder().setId(uuid);
     for (Field field : schema.getFields()) {
       SchemaApi.Field protoField =
-          toProto(
+          fieldToProto(
               field,
               schema.indexOf(field.getName()),
               schema.getEncodingPositions().get(field.getName()));
@@ -50,35 +50,35 @@ public class SchemaTranslation {
     return builder.build();
   }
 
-  private static SchemaApi.Field toProto(Field field, int fieldId, int position) {
+  private static SchemaApi.Field fieldToProto(Field field, int fieldId, int position) {
     return SchemaApi.Field.newBuilder()
         .setName(field.getName())
         .setDescription(field.getDescription())
-        .setType(toProto(field.getType()))
+        .setType(fieldTypeToProto(field.getType()))
         .setId(fieldId)
         .setEncodingPosition(position)
         .build();
   }
 
-  private static SchemaApi.FieldType toProto(FieldType fieldType) {
+  private static SchemaApi.FieldType fieldTypeToProto(FieldType fieldType) {
     SchemaApi.FieldType.Builder builder = SchemaApi.FieldType.newBuilder();
     switch (fieldType.getTypeName()) {
       case ROW:
         builder.setRowType(
-            SchemaApi.RowType.newBuilder().setSchema(toProto(fieldType.getRowSchema())));
+            SchemaApi.RowType.newBuilder().setSchema(schemaToProto(fieldType.getRowSchema())));
         break;
 
       case ARRAY:
         builder.setArrayType(
             SchemaApi.ArrayType.newBuilder()
-                .setElementType(toProto(fieldType.getCollectionElementType())));
+                .setElementType(fieldTypeToProto(fieldType.getCollectionElementType())));
         break;
 
       case MAP:
         builder.setMapType(
             SchemaApi.MapType.newBuilder()
-                .setKeyType(toProto(fieldType.getMapKeyType()))
-                .setValueType(toProto(fieldType.getMapValueType()))
+                .setKeyType(fieldTypeToProto(fieldType.getMapKeyType()))
+                .setValueType(fieldTypeToProto(fieldType.getMapValueType()))
                 .build());
         break;
 
@@ -92,7 +92,7 @@ public class SchemaTranslation {
                 .setUrn(URN_BEAM_LOGICAL_JAVASDK)
                 .setPayload(
                     ByteString.copyFrom(SerializableUtils.serializeToByteArray(logicalType)))
-                .setRepresentation(toProto(logicalType.getBaseType()))
+                .setRepresentation(fieldTypeToProto(logicalType.getBaseType()))
                 .build());
         break;
         // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
@@ -101,14 +101,14 @@ public class SchemaTranslation {
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
                 .setUrn(URN_BEAM_LOGICAL_DATETIME)
-                .setRepresentation(toProto(FieldType.INT64))
+                .setRepresentation(fieldTypeToProto(FieldType.INT64))
                 .build());
         break;
       case DECIMAL:
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
                 .setUrn(URN_BEAM_LOGICAL_DECIMAL)
-                .setRepresentation(toProto(FieldType.BYTES))
+                .setRepresentation(fieldTypeToProto(FieldType.BYTES))
                 .build());
         break;
       case BYTE:

@@ -80,7 +80,7 @@ public class SchemaTranslationTest {
 
     @Test
     public void toAndFromProto() throws Exception {
-      SchemaApi.Schema schemaProto = SchemaTranslation.toProto(schema);
+      SchemaApi.Schema schemaProto = SchemaTranslation.schemaToProto(schema);
 
       Schema decodedSchema = SchemaTranslation.fromProto(schemaProto);
       assertThat(decodedSchema, equalTo(schema));
