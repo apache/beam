@@ -26,6 +26,9 @@ import unittest
 from apache_beam.transforms.core import DoFn
 from apache_beam.typehints import KV
 from apache_beam.typehints import Iterable
+from apache_beam.typehints import decorators
+
+decorators._enable_from_callable = True
 
 
 class TestParDoAnnotations(unittest.TestCase):
