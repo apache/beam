@@ -71,12 +71,15 @@ class ReadSourceTranslatorStreaming<T>
             .load();
 
     // extract windowedValue from Row
-    WindowedValue.FullWindowedValueCoder<T> windowedValueCoder = WindowedValue.FullWindowedValueCoder
-        .of(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
+    WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
+        WindowedValue.FullWindowedValueCoder.of(
+            source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
     Dataset<WindowedValue<T>> dataset =
         rowDataset.map(
             RowHelpers.extractWindowedValueFromRowMapFunction(windowedValueCoder),
-            EncoderHelpers.fromBeamCoder(windowedValueCoder));
+            // using kryo bytes serialization because the mapper already calls
+            // windowedValueCoder.decode, no need to call it also in the Spark encoder
+            EncoderHelpers.windowedValueEncoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
     context.putDataset(output, dataset);
