@@ -246,7 +246,7 @@ class Stage(object):
           stage_components.transforms[side.transform_id].inputs[side.local_name]
           for side in side_inputs
       }, main_input=main_input_id)
-      payload = beam_runner_api_pb2.ExecutableStagePayload(
+      exec_payload = beam_runner_api_pb2.ExecutableStagePayload(
           environment=components.environments[self.environment],
           input=main_input_id,
           outputs=external_outputs,
@@ -260,7 +260,7 @@ class Stage(object):
           unique_name=unique_name(None, self.name),
           spec=beam_runner_api_pb2.FunctionSpec(
               urn='beam:runner:executable_stage:v1',
-              payload=payload.SerializeToString()),
+              payload=exec_payload.SerializeToString()),
           inputs=named_inputs,
           outputs={'output_%d' % ix: pcoll
                    for ix, pcoll in enumerate(external_outputs)})
@@ -528,14 +528,17 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
   This representation is also amenable to simple recomputation on fusion.
   """
   consumers = collections.defaultdict(list)
-  all_side_inputs = set()
-  for stage in stages:
-    for transform in stage.transforms:
-      for input in transform.inputs.values():
-        consumers[input].append(stage)
-    for si in stage.side_inputs():
-      all_side_inputs.add(si)
-  all_side_inputs = frozenset(all_side_inputs)
+  def get_all_side_inputs():
+    all_side_inputs = set()
+    for stage in stages:
+      for transform in stage.transforms:
+        for input in transform.inputs.values():
+          consumers[input].append(stage)
+      for si in stage.side_inputs():
+        all_side_inputs.add(si)
+    return all_side_inputs
+
+  all_side_inputs = frozenset(get_all_side_inputs())
 
   downstream_side_inputs_by_stage = {}
 
