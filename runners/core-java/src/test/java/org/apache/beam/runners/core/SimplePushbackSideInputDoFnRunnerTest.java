@@ -494,6 +494,6 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         Collections.emptyMap(),
         WINDOWING_STRATEGY,
         DoFnSchemaInformation.create(),
-  Collections.emptyMap());
+        Collections.emptyMap());
   }
 }
