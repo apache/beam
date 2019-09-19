@@ -181,16 +181,15 @@ func (u *Fn) Inputs() (pos int, num int, exists bool) {
 	pos = -1
 	exists = false
 	for i, p := range u.Param {
-		if !exists && p.Kind == FnValue {
-			// This executes on hitting the first input, which should be a Value.
+		if !exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter) {
+			// This executes on hitting the first input.
 			pos = i
 			num = 1
 			exists = true
 		} else if exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter) {
-			// Subsequent inputs after the first, which can be Value, Iter, or ReIter.
+			// Subsequent inputs after the first.
 			num++
 		} else if exists {
-			// Breaks out when no inputs are left.
 			break
 		}
 	}
@@ -382,7 +381,6 @@ var (
 	errWindowParamPrecedence    = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
 	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
 	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
-	errSideInputPrecedence      = errors.New("side input parameters must follow main input parameter")
 	errInputPrecedence          = errors.New("inputs parameters must precede emit function parameters")
 )
 
@@ -455,10 +453,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errEventTimeParamPrecedence
 	case FnType:
 		return -1, errReflectTypePrecedence
-	case FnValue:
+	case FnIter, FnReIter, FnValue:
 		return psInput, nil
-	case FnIter, FnReIter:
-		return -1, errSideInputPrecedence
 	case FnEmit:
 		return psOutput, nil
 	default:

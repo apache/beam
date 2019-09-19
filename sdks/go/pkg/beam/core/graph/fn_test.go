@@ -46,7 +46,7 @@ func TestNewDoFn(t *testing.T) {
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
 				if _, err := NewDoFn(test.dfn); err != nil {
-					t.Fatalf("NewCombineFn failed: %v", err)
+					t.Fatalf("NewDoFn failed: %v", err)
 				}
 			})
 		}
@@ -68,6 +68,11 @@ func TestNewDoFn(t *testing.T) {
 			// Validate setup/teardown.
 			{dfn: &BadDoFnParamsInSetup{}},
 			{dfn: &BadDoFnParamsInTeardown{}},
+			// Validate return values.
+			{dfn: &BadDoFnReturnValuesInStartBundle{}},
+			{dfn: &BadDoFnReturnValuesInFinishBundle{}},
+			{dfn: &BadDoFnReturnValuesInSetup{}},
+			{dfn: &BadDoFnReturnValuesInTeardown{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -237,16 +242,18 @@ func (fn *GoodDoFnAllExtras) ProcessElement(context.Context, typex.Window, typex
 	return 0, 0, nil
 }
 
-func (fn *GoodDoFnAllExtras) StartBundle(func(*int) bool, func() func(*int) bool, func(int)) {
+func (fn *GoodDoFnAllExtras) StartBundle(context.Context, func(*int) bool, func() func(*int) bool, func(int)) {
 }
 
-func (fn *GoodDoFnAllExtras) FinishBundle(func(*int) bool, func() func(*int) bool, func(int)) {
+func (fn *GoodDoFnAllExtras) FinishBundle(context.Context, func(*int) bool, func() func(*int) bool, func(int)) {
 }
 
-func (fn *GoodDoFnAllExtras) Setup() {
+func (fn *GoodDoFnAllExtras) Setup(context.Context) error {
+	return nil
 }
 
-func (fn *GoodDoFnAllExtras) Teardown() {
+func (fn *GoodDoFnAllExtras) Teardown(context.Context) error {
+	return nil
 }
 
 type GoodDoFnUnexportedExtraMethod struct{}
@@ -346,6 +353,38 @@ type BadDoFnParamsInTeardown struct {
 }
 
 func (*BadDoFnParamsInTeardown) Teardown(int) {
+}
+
+type BadDoFnReturnValuesInStartBundle struct {
+	*GoodDoFn
+}
+
+func (*BadDoFnReturnValuesInStartBundle) StartBundle() int {
+	return 0
+}
+
+type BadDoFnReturnValuesInFinishBundle struct {
+	*GoodDoFn
+}
+
+func (*BadDoFnReturnValuesInFinishBundle) FinishBundle() int {
+	return 0
+}
+
+type BadDoFnReturnValuesInSetup struct {
+	*GoodDoFn
+}
+
+func (*BadDoFnReturnValuesInSetup) Setup() int {
+	return 0
+}
+
+type BadDoFnReturnValuesInTeardown struct {
+	*GoodDoFn
+}
+
+func (*BadDoFnReturnValuesInTeardown) Teardown() int {
+	return 0
 }
 
 // Examples of correct CombineFn signatures
