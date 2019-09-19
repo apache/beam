@@ -164,10 +164,7 @@ download it on the [Downloads page]({{ site.baseurl
 available.
 </span>
 
-<span class="language-py">1. *Only required once:* Build the SDK harness container (optionally replace py35 with the Python version of your choice): `./gradlew :sdks:python:container:py35:docker`
-</span>
-
-<span class="language-py">2. Start the JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`
+<span class="language-py">1. Start the JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`
 </span>
 
 <span class="language-py">
@@ -177,17 +174,20 @@ job. To execute the job on a Spark cluster, the Beam JobService needs to be
 provided with the Spark master address.
 </span>
 
-<span class="language-py">3. Submit the Python pipeline to the above endpoint by using the `PortableRunner` and `job_endpoint` set to `localhost:8099` (this is the default address of the JobService). For example:
+<span class="language-py">2. Submit the Python pipeline to the above endpoint by using the `PortableRunner`, `job_endpoint` set to `localhost:8099` (this is the default address of the JobService), and `environment_type` set to `LOOPBACK`. For example:
 </span>
 
 ```py
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
-options = PipelineOptions(["--runner=PortableRunner", "--job_endpoint=localhost:8099"])
-p = beam.Pipeline(options)
-..
-p.run()
+options = PipelineOptions([
+    "--runner=PortableRunner",
+    "--job_endpoint=localhost:8099",
+    "--environment_type=LOOPBACK"
+])
+with beam.Pipeline(options) as p:
+    ...
 ```
 
 ### Running on a pre-deployed Spark cluster
@@ -202,6 +202,13 @@ For more details on the different deployment modes see: [Standalone](http://spar
 </span>
 
 <span class="language-py">3. Submit the pipeline as above.
+Note however that `environment_type=LOOPBACK` is only intended for local testing.
+See [here]({{ site.baseurl }}/roadmap/portability/#sdk-harness-config) for details.
+</span>
+
+<span class="language-py">
+(Note that, depending on your cluster setup, you may need to change the `environment_type` option.
+See [here]({{ site.baseurl }}/roadmap/portability/#sdk-harness-config) for details.)
 </span>
 
 ## Pipeline options for the Spark Runner
