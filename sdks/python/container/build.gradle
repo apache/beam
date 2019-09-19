@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyGoNature()
-applyDockerNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
 
