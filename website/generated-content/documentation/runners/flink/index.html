@@ -461,13 +461,10 @@ If you have a Flink <code class="highlighter-rouge">JobManager</code> running on
 <p><span class="language-py">
 As of now you will need a copy of Apache Beam’s source code. You can
 download it on the <a href="/get-started/downloads/">Downloads page</a>. In the future there will be pre-built Docker images
-available.
+available. To run a pipeline on an embedded Flink cluster:
 </span></p>
 
-<p><span class="language-py">1. <em>Only required once:</em> Build the SDK harness container (optionally replace py35 with the Python version of your choice): <code class="highlighter-rouge">./gradlew :sdks:python:container:py35:docker</code>
-</span></p>
-
-<p><span class="language-py">2. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.5:job-server:runShadow</code>
+<p><span class="language-py">1. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.5:job-server:runShadow</code>
 </span></p>
 
 <p><span class="language-py">
@@ -477,13 +474,17 @@ To execute the job on a Flink cluster, the Beam JobService needs to be
 provided with the Flink JobManager address.
 </span></p>
 
-<p><span class="language-py">3. Submit the Python pipeline to the above endpoint by using the <code class="highlighter-rouge">PortableRunner</code> and <code class="highlighter-rouge">job_endpoint</code> set to <code class="highlighter-rouge">localhost:8099</code> (this is the default address of the JobService). For example:
+<p><span class="language-py">2. Submit the Python pipeline to the above endpoint by using the <code class="highlighter-rouge">PortableRunner</code>, <code class="highlighter-rouge">job_endpoint</code> set to <code class="highlighter-rouge">localhost:8099</code> (this is the default address of the JobService), and <code class="highlighter-rouge">environment_type</code> set to <code class="highlighter-rouge">LOOPBACK</code>. For example:
 </span></p>
 
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
-<span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span><span class="s">"--runner=PortableRunner"</span><span class="p">,</span> <span class="s">"--job_endpoint=localhost:8099"</span><span class="p">])</span>
+<span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span>
+    <span class="s">"--runner=PortableRunner"</span><span class="p">,</span>
+    <span class="s">"--job_endpoint=localhost:8099"</span><span class="p">,</span>
+    <span class="s">"--environment_type=LOOPBACK"</span>
+<span class="p">])</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="o">...</span>
 </code></pre>
@@ -500,6 +501,8 @@ To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-re
 </span></p>
 
 <p><span class="language-py">3. Submit the pipeline as above.
+Note however that <code class="highlighter-rouge">environment_type=LOOPBACK</code> is only intended for local testing.
+See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.
 </span></p>
 
 <p><span class="language-py">As of Beam 2.15.0, steps 2 and 3 can be automated in Python by using the <code class="highlighter-rouge">FlinkRunner</code>,
@@ -509,7 +512,12 @@ plus the optional <code class="highlighter-rouge">flink_version</code> and <code
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
-<span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span><span class="s">"--runner=FlinkRunner"</span><span class="p">,</span> <span class="s">"--flink_version=1.8"</span><span class="p">,</span> <span class="s">"--flink_master_url=localhost:8081"</span><span class="p">])</span>
+<span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span>
+    <span class="s">"--runner=FlinkRunner"</span><span class="p">,</span>
+    <span class="s">"--flink_version=1.8"</span><span class="p">,</span>
+    <span class="s">"--flink_master_url=localhost:8081"</span><span class="p">,</span>
+    <span class="s">"--environment_type=LOOPBACK"</span>
+<span class="p">])</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="o">...</span>
 </code></pre>

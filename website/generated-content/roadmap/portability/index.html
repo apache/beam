@@ -233,6 +233,7 @@
       <li><a href="#python-on-spark">Running Python wordcount on Spark</a></li>
     </ul>
   </li>
+  <li><a href="#sdk-harness-config">SDK Harness Configuration</a></li>
 </ul>
 
 
@@ -397,34 +398,46 @@ for details.</p>
 
 <h3 id="python-on-flink">Running Python wordcount on Flink</h3>
 
-<p>To run a basic Python wordcount (in batch mode) with embedded Flink:</p>
-
-<ol>
-  <li>Run once to build the SDK harness container (optionally replace py35 with the Python version of your choice): <code class="highlighter-rouge">./gradlew :sdks:python:container:py35:docker</code></li>
-  <li>Start the Flink portable JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.5:job-server:runShadow</code></li>
-  <li>In a new terminal, submit the wordcount pipeline to above endpoint: <code class="highlighter-rouge">./gradlew portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK</code></li>
-</ol>
-
-<p>To run the pipeline in streaming mode: <code class="highlighter-rouge">./gradlew portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming</code></p>
-
-<p>Please see the <a href="/documentation/runners/flink/">Flink Runner page</a> for more information on
+<p>The Beam Flink runner can run Python pipelines in batch and streaming modes.
+Please see the <a href="/documentation/runners/flink/">Flink Runner page</a> for more information on
 how to run portable pipelines on top of Flink.</p>
 
 <h3 id="python-on-spark">Running Python wordcount on Spark</h3>
 
-<p>To run a basic Python wordcount (in batch mode) with embedded Spark:</p>
-
-<ol>
-  <li>Run once to build the SDK harness container: <code class="highlighter-rouge">./gradlew :sdks:python:container:docker</code></li>
-  <li>Start the Spark portable JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:spark:job-server:runShadow</code></li>
-  <li>In a new terminal, submit the wordcount pipeline to above endpoint: <code class="highlighter-rouge">./gradlew portableWordCount -PjobEndpoint=localhost:8099 -PenvironmentType=LOOPBACK</code></li>
-</ol>
+<p>The Beam Spark runner can run Python pipelines in batch mode.
+Please see the <a href="/documentation/runners/spark/">Spark Runner page</a> for more information on
+how to run portable pipelines on top of Spark.</p>
 
 <p>Python streaming mode is not yet supported on Spark.</p>
 
-<p>Please see the <a href="/documentation/runners/spark/">Spark Runner page</a> for more information on
-how to run portable pipelines on top of Spark.</p>
+<h2 id="sdk-harness-config">SDK Harness Configuration</h2>
 
+<p>The Beam Python SDK allows configuration of the SDK harness to accommodate varying cluster setups.</p>
+
+<ul>
+  <li><code class="highlighter-rouge">environment_type</code> determines where user code will be executed.
+    <ul>
+      <li><code class="highlighter-rouge">LOOPBACK</code>: User code is executed within the same process that submitted the pipeline. This
+option is useful for local testing. However, it is not suitable for a production environment,
+as it requires a connection between the original Python process and the worker nodes, and
+performs work on the machine the job originated from, not the worker nodes.</li>
+      <li><code class="highlighter-rouge">PROCESS</code>: User code is executed by processes that are automatically started by the runner on
+each worker node.</li>
+      <li><code class="highlighter-rouge">DOCKER</code> (default): User code is executed within a container started on each worker node.
+This requires docker to be installed on worker nodes. For more information, see
+<a href="https://github.com/apache/beam/blob/master/sdks/CONTAINERS.md">here</a>.</li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">environment_config</code> configures the environment depending on the value of <code class="highlighter-rouge">environment_type</code>.
+    <ul>
+      <li>When <code class="highlighter-rouge">environment_type=DOCKER</code>: URL for the Docker container image.</li>
+      <li>When <code class="highlighter-rouge">environment_type=PROCESS</code>: JSON of the form <code class="highlighter-rouge"><span class="p">{</span><span class="nt">"os"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;OS&gt;"</span><span class="p">,</span><span class="w"> </span><span class="nt">"arch"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;ARCHITECTURE&gt;"</span><span class="p">,</span><span class="w">
+</span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;process to execute&gt;"</span><span class="p">,</span><span class="w"> </span><span class="nt">"env"</span><span class="p">:{</span><span class="nt">"&lt;Environment variables 1&gt;"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;ENV_VAL&gt;"</span><span class="p">}</span><span class="w"> </span><span class="p">}</span></code>. All
+fields in the JSON are optional except <code class="highlighter-rouge">command</code>.</li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">sdk_worker_parallelism</code> sets the number of SDK workers that will run on each worker node.</li>
+</ul>
 
       </div>
     </div>
