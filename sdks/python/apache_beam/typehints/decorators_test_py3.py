@@ -28,6 +28,7 @@ from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import decorators
 
+decorators._enable_from_callable = True
 T = TypeVariable('T')
 
 

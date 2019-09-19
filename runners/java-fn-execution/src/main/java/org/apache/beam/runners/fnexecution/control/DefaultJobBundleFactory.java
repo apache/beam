@@ -91,18 +91,18 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final int environmentExpirationMillis;
 
   public static DefaultJobBundleFactory create(JobInfo jobInfo) {
+    PipelineOptions pipelineOptions =
+        PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
     Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
         ImmutableMap.of(
             BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
-            new DockerEnvironmentFactory.Provider(
-                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
+            new DockerEnvironmentFactory.Provider(pipelineOptions),
             BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
-            new ProcessEnvironmentFactory.Provider(),
+            new ProcessEnvironmentFactory.Provider(pipelineOptions),
             BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL),
             new ExternalEnvironmentFactory.Provider(),
             Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
-            new EmbeddedEnvironmentFactory.Provider(
-                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())));
+            new EmbeddedEnvironmentFactory.Provider(pipelineOptions));
     return new DefaultJobBundleFactory(jobInfo, environmentFactoryProviderMap);
   }
 

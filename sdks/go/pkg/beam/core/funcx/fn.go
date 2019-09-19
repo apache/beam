@@ -147,6 +147,55 @@ func (u *Fn) Context() (pos int, exists bool) {
 	return -1, false
 }
 
+// Emits returns (index, num, true) iff the function expects one or more
+// emitters. The index returned is the index of the first emitter param in the
+// signature. The num return value is the number of emitters in the signature.
+// When there are multiple emitters in the signature, they will all be located
+// contiguously, so the range of emitter params is [index, index+num).
+func (u *Fn) Emits() (pos int, num int, exists bool) {
+	pos = -1
+	exists = false
+	for i, p := range u.Param {
+		if !exists && p.Kind == FnEmit {
+			// This should execute when hitting the first emitter.
+			pos = i
+			num = 1
+			exists = true
+		} else if exists && p.Kind == FnEmit {
+			// Subsequent emitters after the first.
+			num++
+		} else if exists {
+			// Breaks out when no emitters are left.
+			break
+		}
+	}
+	return pos, num, exists
+}
+
+// Inputs returns (index, num, true) iff the function expects one or more
+// inputs, consisting of the main input followed by any number of side inputs.
+// The index returned is the index of the first input, which is always the main
+// input. The num return value is the number of total inputs in the signature.
+// The main input and all side inputs are located contiguously
+func (u *Fn) Inputs() (pos int, num int, exists bool) {
+	pos = -1
+	exists = false
+	for i, p := range u.Param {
+		if !exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter) {
+			// This executes on hitting the first input.
+			pos = i
+			num = 1
+			exists = true
+		} else if exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter) {
+			// Subsequent inputs after the first.
+			num++
+		} else if exists {
+			break
+		}
+	}
+	return pos, num, exists
+}
+
 // Type returns (index, true) iff the function expects a reflect.FullType.
 func (u *Fn) Type() (pos int, exists bool) {
 	for i, p := range u.Param {
@@ -304,7 +353,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
+// func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -332,7 +381,6 @@ var (
 	errWindowParamPrecedence    = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
 	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
 	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
-	errSideInputPrecedence      = errors.New("side input parameters must follow main input parameter")
 	errInputPrecedence          = errors.New("inputs parameters must precede emit function parameters")
 )
 
@@ -405,10 +453,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errEventTimeParamPrecedence
 	case FnType:
 		return -1, errReflectTypePrecedence
-	case FnValue:
+	case FnIter, FnReIter, FnValue:
 		return psInput, nil
-	case FnIter, FnReIter:
-		return -1, errSideInputPrecedence
 	case FnEmit:
 		return psOutput, nil
 	default:

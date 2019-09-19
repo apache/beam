@@ -42,20 +42,31 @@ def run(docs, variables=None, inputs_dir='.', outputs_dir='.', imports_dir='.'):
   for basename, doc in docs.items():
     languages=doc.get('languages', 'py java go').split()
     for lang in languages:
+      # Read the imports defined in the docs.yaml.
+      imports = {
+          i: [os.path.join(imports_dir, path) for path in imports]
+          for i, imports in doc.get('imports', {}).items()
+      }
+
+      # Make sure the first import in section 0 is the license.md.
+      if 0 not in imports:
+        imports[0] = []
+      imports[0].insert(0, os.path.join(imports_dir, 'license.md'))
+
+      # Create a new notebook from the Markdown file contents.
       ipynb_file = '/'.join([outputs_dir, '{}-{}.ipynb'.format(basename, lang)])
       notebook = md2ipynb.new_notebook(
           input_file=os.path.join(inputs_dir, basename + '.md'),
           variables=variables,
-          imports={
-              i: [os.path.join(imports_dir, path) for path in imports]
-              for i, imports in doc.get('imports', {}).items()
-          },
+          imports=imports,
           notebook_title=doc.get('title', os.path.basename(basename).replace('-', ' ')),
           keep_classes=['language-' + lang, 'shell-sh'],
           docs_url='https://beam.apache.org/' + basename.replace('-', ''),
           docs_logo_url=docs_logo_url,
           github_ipynb_url='https://github.com/apache/beam/blob/master/' + ipynb_file,
       )
+
+      # Write the notebook to file.
       output_dir = os.path.dirname(ipynb_file)
       if not os.path.exists(output_dir):
         os.makedirs(output_dir)
