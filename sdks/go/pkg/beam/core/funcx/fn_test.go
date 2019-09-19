@@ -148,16 +148,6 @@ func TestNew(t *testing.T) {
 			Err: errReflectTypePrecedence,
 		},
 		{
-			Name: "errSideInputPrecedence- Iter before main input",
-			Fn:   func(func(*int) bool, func(*int, *string) bool, int) {},
-			Err:  errSideInputPrecedence,
-		},
-		{
-			Name: "errSideInputPrecedence- ReIter before main input",
-			Fn:   func(func() func(*int) bool, int) {},
-			Err:  errSideInputPrecedence,
-		},
-		{
 			Name: "errInputPrecedence- Iter before after output",
 			Fn:   func(int, func(int), func(*int) bool, func(*int, *string) bool) {},
 			Err:  errInputPrecedence,
@@ -321,9 +311,9 @@ func TestInputs(t *testing.T) {
 		{
 			Name:   "no main input",
 			Params: []FnParamKind{FnContext, FnIter, FnReIter, FnEmit},
-			Pos:    -1,
-			Num:    0,
-			Exists: false,
+			Pos:    1,
+			Num:    2,
+			Exists: true,
 		},
 		{
 			Name:   "single input",
@@ -363,13 +353,13 @@ func TestInputs(t *testing.T) {
 			// Validate we get expected results for Inputs function.
 			pos, num, exists := fn.Inputs()
 			if exists != test.Exists {
-				t.Errorf("Inputs() exists: got %v, want %v", exists, test.Exists)
+				t.Errorf("Inputs(%v) - exists: got %v, want %v", params, exists, test.Exists)
 			}
 			if num != test.Num {
-				t.Errorf("Inputs() num: got %v, want %v", num, test.Num)
+				t.Errorf("Inputs(%v) - num: got %v, want %v", params, num, test.Num)
 			}
 			if pos != test.Pos {
-				t.Errorf("Inputs() pos: got %v, want %v", pos, test.Pos)
+				t.Errorf("Inputs(%v) - pos: got %v, want %v", params, pos, test.Pos)
 			}
 		})
 	}
