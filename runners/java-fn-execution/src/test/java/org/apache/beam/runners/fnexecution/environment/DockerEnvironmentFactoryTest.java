@@ -40,6 +40,9 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.options.ManualDockerEnvironmentOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -115,6 +118,9 @@ public class DockerEnvironmentFactoryTest {
       when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
           .thenReturn(CONTAINER_ID);
       when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
+      ManualDockerEnvironmentOptions pipelineOptions =
+          PipelineOptionsFactory.as(ManualDockerEnvironmentOptions.class);
+      pipelineOptions.setRetainDockerContainers(retainDockerContainer);
       DockerEnvironmentFactory factory =
           DockerEnvironmentFactory.forServicesWithDocker(
               docker,
@@ -124,7 +130,7 @@ public class DockerEnvironmentFactoryTest {
               provisioningServiceServer,
               throwsException ? exceptionClientSource : normalClientSource,
               ID_GENERATOR,
-              retainDockerContainer);
+              pipelineOptions);
       if (throwsException) {
         expectedException.expect(Exception.class);
       }
@@ -203,7 +209,7 @@ public class DockerEnvironmentFactoryTest {
           provisioningServiceServer,
           clientSource,
           ID_GENERATOR,
-          false);
+          PipelineOptionsFactory.as(RemoteEnvironmentOptions.class));
     }
   }
 }
