@@ -487,15 +487,15 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" />
       Pydoc
     </a>
   </td>
 </table>
-<p><br /></p>
+<p><br /><br /><br /></p>
 
 <p>Applies a simple 1-to-many mapping function over each element in the collection.
 The many elements are flattened into the resulting collection.</p>
@@ -528,9 +528,9 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     '🍓Strawberry',
     '🥕Carrot',
     '🍆Eggplant',
@@ -540,15 +540,24 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <h3 id="example-2-flatmap-with-a-function">Example 2: FlatMap with a function</h3>
 
@@ -572,9 +581,9 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     '🍓Strawberry',
     '🥕Carrot',
     '🍆Eggplant',
@@ -584,15 +593,24 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <h3 id="example-3-flatmap-with-a-lambda-function">Example 3: FlatMap with a lambda function</h3>
 
@@ -615,9 +633,9 @@ We use a lambda function that returns the same input element it received.</p>
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     '🍓Strawberry',
     '🥕Carrot',
     '🍆Eggplant',
@@ -627,15 +645,24 @@ We use a lambda function that returns the same input element it received.</p>
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <h3 id="example-4-flatmap-with-a-generator">Example 4: FlatMap with a generator</h3>
 
@@ -662,9 +689,9 @@ Each yielded result in the generator is an element in the resulting <code class=
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     '🍓Strawberry',
     '🥕Carrot',
     '🍆Eggplant',
@@ -674,15 +701,24 @@ Each yielded result in the generator is an element in the resulting <code class=
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <h3 id="example-5-flatmaptuple-for-key-value-pairs">Example 5: FlatMapTuple for key-value pairs</h3>
 
@@ -712,9 +748,9 @@ you can use <code class="highlighter-rouge">FlatMapTuple</code> to unpack them i
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMapTuple</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMapTuple</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     '🍓Strawberry',
     '🥕Carrot',
     '🍆Eggplant',
@@ -724,15 +760,24 @@ you can use <code class="highlighter-rouge">FlatMapTuple</code> to unpack them i
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <h3 id="example-6-flatmap-with-multiple-arguments">Example 6: FlatMap with multiple arguments</h3>
 
@@ -759,9 +804,9 @@ They are passed as additional positional arguments or keyword arguments to the f
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     '🍓Strawberry',
     '🥕Carrot',
     '🍆Eggplant',
@@ -771,15 +816,24 @@ They are passed as additional positional arguments or keyword arguments to the f
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <h3 id="example-7-flatmap-with-side-inputs-as-singletons">Example 7: FlatMap with side inputs as singletons</h3>
 
@@ -809,9 +863,9 @@ We then use that value as the delimiter for the <code class="highlighter-rouge">
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     '🍓Strawberry',
     '🥕Carrot',
     '🍆Eggplant',
@@ -821,15 +875,24 @@ We then use that value as the delimiter for the <code class="highlighter-rouge">
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <h3 id="example-8-flatmap-with-side-inputs-as-iterators">Example 8: FlatMap with side inputs as iterators</h3>
 
@@ -869,9 +932,9 @@ so it is possible to iterate over large <code class="highlighter-rouge">PCollect
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>valid_plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>valid_plants = [
     {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
     {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
     {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
@@ -880,15 +943,24 @@ so it is possible to iterate over large <code class="highlighter-rouge">PCollect
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <blockquote>
   <p><strong>Note</strong>: You can pass the <code class="highlighter-rouge">PCollection</code> as a <em>list</em> with <code class="highlighter-rouge">beam.pvalue.AsList(pcollection)</code>,
@@ -934,9 +1006,9 @@ If the <code class="highlighter-rouge">PCollection</code> won’t fit into memor
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>valid_plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>valid_plants = [
     {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
     {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
     {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
@@ -945,15 +1017,24 @@ If the <code class="highlighter-rouge">PCollection</code> won’t fit into memor
 </code></pre>
 </div>
 
-<table>
+<table align="left" style="margin-right:1em" class="notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
+      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" />
+      Run code now
     </a>
   </td>
 </table>
-<p><br /></p>
+
+<table align="left" style="margin-right:1em">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
+      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" />
+      View source code
+    </a>
+  </td>
+</table>
+<p><br /><br /><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
 
@@ -968,12 +1049,12 @@ operation, and includes other abilities such as multiple output collections and 
 <table>
   <td>
     <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
+      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" />
       Pydoc
     </a>
   </td>
 </table>
-<p><br /></p>
+<p><br /><br /><br /></p>
 
       </div>
     </div>
