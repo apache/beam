@@ -27,6 +27,8 @@ from apache_beam.typehints import List
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import decorators
 
+decorators._enable_from_callable = True
+
 
 class IOTypeHintsTest(unittest.TestCase):
 
