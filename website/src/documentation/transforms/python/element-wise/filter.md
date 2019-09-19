@@ -24,7 +24,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
@@ -62,7 +62,7 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
@@ -73,7 +73,7 @@ Output `PCollection` after `Filter`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
@@ -100,7 +100,7 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
@@ -111,7 +111,7 @@ Output `PCollection` after `Filter`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
@@ -141,7 +141,7 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
@@ -152,7 +152,7 @@ Output `PCollection` after `Filter`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
@@ -183,7 +183,7 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
@@ -194,7 +194,7 @@ Output `PCollection` after `Filter`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
@@ -223,7 +223,7 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:valid_plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
@@ -234,7 +234,7 @@ Output `PCollection` after `Filter`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
@@ -267,7 +267,7 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
@@ -278,7 +278,7 @@ Output `PCollection` after `Filter`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
@@ -297,7 +297,7 @@ Output `PCollection` after `Filter`:
 * [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">

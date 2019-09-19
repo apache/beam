@@ -24,7 +24,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap">
@@ -63,7 +63,7 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -74,7 +74,7 @@ Output `PCollection` after `FlatMap`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
@@ -101,7 +101,7 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -112,7 +112,7 @@ Output `PCollection` after `FlatMap`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
@@ -141,7 +141,7 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -152,7 +152,7 @@ Output `PCollection` after `FlatMap`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
@@ -181,7 +181,7 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -192,7 +192,7 @@ Output `PCollection` after `FlatMap`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
@@ -220,7 +220,7 @@ Output `PCollection` after `FlatMapTuple`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -231,7 +231,7 @@ Output `PCollection` after `FlatMapTuple`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
@@ -261,7 +261,7 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -272,7 +272,7 @@ Output `PCollection` after `FlatMap`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
@@ -303,7 +303,7 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -314,7 +314,7 @@ Output `PCollection` after `FlatMap`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
@@ -343,7 +343,7 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -354,7 +354,7 @@ Output `PCollection` after `FlatMap`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
@@ -387,7 +387,7 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
 
 {:.notebook-skip}
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
@@ -398,7 +398,7 @@ Output `PCollection` after `FlatMap`:
   </td>
 </table>
 
-<table align="left">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
