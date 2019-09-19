@@ -24,17 +24,17 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
       <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
+          width="32px" height="32px" alt="Pydoc" />
       Pydoc
     </a>
   </td>
 </table>
-<br>
+<br><br><br>
 
 Given a predicate, filter out all elements that don't satisfy that predicate.
 May also be used to filter based on an inequality with a given value based
@@ -62,28 +62,28 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
       <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="20px" height="20px" alt="Run in Colab" />
+        width="32px" height="32px" alt="Run in Colab" />
       Run code now
     </a>
   </td>
 </table>
 
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View source code" />
+        width="32px" height="32px" alt="View source code" />
       View source code
     </a>
   </td>
 </table>
-<br>
+<br><br><br>
 
 ### Example 2: Filtering with a lambda function
 
@@ -100,28 +100,28 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
       <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="20px" height="20px" alt="Run code now" />
+        width="32px" height="32px" alt="Run code now" />
       Run code now
     </a>
   </td>
 </table>
 
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View source code" />
+        width="32px" height="32px" alt="View source code" />
       View source code
     </a>
   </td>
 </table>
-<br>
+<br><br><br>
 
 ### Example 3: Filtering with multiple arguments
 
@@ -141,28 +141,28 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
       <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="20px" height="20px" alt="Run in Colab" />
+        width="32px" height="32px" alt="Run in Colab" />
       Run code now
     </a>
   </td>
 </table>
 
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View source code" />
+        width="32px" height="32px" alt="View source code" />
       View source code
     </a>
   </td>
 </table>
-<br>
+<br><br><br>
 
 ### Example 4: Filtering with side inputs as singletons
 
@@ -183,28 +183,28 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
       <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="20px" height="20px" alt="Run in Colab" />
+        width="32px" height="32px" alt="Run in Colab" />
       Run code now
     </a>
   </td>
 </table>
 
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View source code" />
+        width="32px" height="32px" alt="View source code" />
       View source code
     </a>
   </td>
 </table>
-<br>
+<br><br><br>
 
 ### Example 5: Filtering with side inputs as iterators
 
@@ -223,28 +223,28 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:valid_plants %}```
 
 {:.notebook-skip}
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
       <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="20px" height="20px" alt="Run in Colab" />
+        width="32px" height="32px" alt="Run in Colab" />
       Run code now
     </a>
   </td>
 </table>
 
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View source code" />
+        width="32px" height="32px" alt="View source code" />
       View source code
     </a>
   </td>
 </table>
-<br>
+<br><br><br>
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
 > but this requires that all the elements fit into memory.
@@ -267,28 +267,28 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {:.notebook-skip}
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb">
       <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="20px" height="20px" alt="Run in Colab" />
+        width="32px" height="32px" alt="Run in Colab" />
       Run code now
     </a>
   </td>
 </table>
 
-<table style="display: inline-block">
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py">
       <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View source code" />
+        width="32px" height="32px" alt="View source code" />
       View source code
     </a>
   </td>
 </table>
-<br>
+<br><br><br>
 
 ## Related transforms
 
@@ -297,14 +297,14 @@ Output `PCollection` after `Filter`:
 * [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
 
-<table>
+<table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
       <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
+          width="32px" height="32px" alt="Pydoc" />
       Pydoc
     </a>
   </td>
 </table>
-<br>
+<br><br><br>
