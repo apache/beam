@@ -1631,10 +1631,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
 
     doFnOperator = doFnOperatorSupplier.get();
@@ -1652,10 +1652,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
 
     // repeat to see if elements are evicted
@@ -1665,10 +1665,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
   }
 

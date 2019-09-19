@@ -104,7 +104,11 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
 
               ByteString.Output encodedKeyOut = ByteString.newOutput();
               try {
-                ((Coder) keyCoder).encode(((KV<?, ?>) element.getValue()).getKey(), encodedKeyOut);
+                ((Coder) keyCoder)
+                    .encode(
+                        ((KV<?, ?>) element.getValue()).getKey(),
+                        encodedKeyOut,
+                        Coder.Context.NESTED);
               } catch (IOException e) {
                 throw new IllegalStateException(e);
               }
