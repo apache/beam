@@ -14,6 +14,13 @@ limitations under the License.
 
 ## Setup
 
+To run a code cell, you can click the **Run cell** button at the top left of the cell,
+or select it and press **`Shift+Enter`**.
+Try modifying a code cell and re-running it to see what happens.
+
+> To learn more about Colab, see
+> [Welcome to Colaboratory!](https://colab.sandbox.google.com/notebooks/welcome.ipynb).
+
 {:.language-py}
 First, let's install the `apache-beam` module.
 
