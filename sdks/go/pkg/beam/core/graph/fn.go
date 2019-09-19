@@ -228,26 +228,24 @@ func AsDoFn(fn *Fn) (*DoFn, error) {
 		return nil, addContext(err, fn)
 	}
 
-	// If the ProcessElement function includes side inputs or emit functions those must also be
-	// present in the signatures of startBundle and finishBundle.
+	// Start validating DoFn. First, check that ProcessElement has a main input.
 	processFn := fn.methods[processElementName]
-	pos, num, ok := processFn.Emits()
+	pos, num, ok := processFn.Inputs()
 	if ok {
-		if startFn, ok := fn.methods[startBundleName]; ok {
-			processFnEmits := processFn.Param[pos : pos+num]
-			if err := validateMethodEmits(processFnEmits, startFn, startBundleName); err != nil {
-				return nil, addContext(err, fn)
-			}
-		}
-		if finishFn, ok := fn.methods[finishBundleName]; ok {
-			processFnEmits := processFn.Param[pos : pos+num]
-			if err := validateMethodEmits(processFnEmits, finishFn, finishBundleName); err != nil {
-				return nil, addContext(err, fn)
-			}
+		first := processFn.Param[pos].Kind
+		if first != funcx.FnValue {
+			err := errors.New("side input parameters must follow main input parameter")
+			err = errors.SetTopLevelMsgf(err,
+				"Method %v of DoFns should always have a main input before side inputs, "+
+					"but it has side inputs (as Iters or ReIters) first in DoFn %v.",
+				processElementName, fn.Name())
+			err = errors.WithContextf(err, "method %v", processElementName)
+			return nil, addContext(err, fn)
 		}
 	}
 
-	pos, num, ok = processFn.Inputs()
+	// If the ProcessElement function includes side inputs or emit functions those must also be
+	// present in the signatures of startBundle and finishBundle.
 	if ok && num > 1 {
 		if startFn, ok := fn.methods[startBundleName]; ok {
 			processFnInputs := processFn.Param[pos : pos+num]
@@ -263,14 +261,56 @@ func AsDoFn(fn *Fn) (*DoFn, error) {
 		}
 	}
 
-	// Check that Setup and Teardown have no parameters.
+	pos, num, ok = processFn.Emits()
+	if ok {
+		if startFn, ok := fn.methods[startBundleName]; ok {
+			processFnEmits := processFn.Param[pos : pos+num]
+			if err := validateMethodEmits(processFnEmits, startFn, startBundleName); err != nil {
+				return nil, addContext(err, fn)
+			}
+		}
+		if finishFn, ok := fn.methods[finishBundleName]; ok {
+			processFnEmits := processFn.Param[pos : pos+num]
+			if err := validateMethodEmits(processFnEmits, finishFn, finishBundleName); err != nil {
+				return nil, addContext(err, fn)
+			}
+		}
+	}
+
+	// Check that Setup and Teardown have no parameters other than Context.
 	for _, name := range []string{setupName, teardownName} {
-		if method, ok := fn.methods[name]; ok && len(method.Param) != 0 {
-			err := errors.Errorf("method %v has parameters, should have no parameters", name)
-			err = errors.SetTopLevelMsgf(err,
-				"Method %v of DoFns should have no parameters, but it has parameters in DoFn %v.",
-				name, fn.Name())
-			return nil, addContext(err, fn)
+		if method, ok := fn.methods[name]; ok {
+			params := method.Param
+			if len(params) > 1 || (len(params) == 1 && params[0].Kind != funcx.FnContext) {
+				err := errors.Errorf(
+					"method %v has invalid parameters, "+
+						"only allowed an optional context.Context", name)
+				err = errors.SetTopLevelMsgf(err,
+					"Method %v of DoFns should have no parameters other than "+
+						"an optional context.Context, but invalid parameters are "+
+						"present in DoFn %v.",
+					name, fn.Name())
+				return nil, addContext(err, fn)
+			}
+		}
+	}
+
+	// Check that none of the methods (except ProcessElement) have any return
+	// values other than error.
+	for _, name := range []string{setupName, startBundleName, finishBundleName, teardownName} {
+		if method, ok := fn.methods[name]; ok {
+			returns := method.Ret
+			if len(returns) > 1 || (len(returns) == 1 && returns[0].Kind != funcx.RetError) {
+				err := errors.Errorf(
+					"method %v has invalid return values, "+
+						"only allowed an optional error", name)
+				err = errors.SetTopLevelMsgf(err,
+					"Method %v of DoFns should have no return values other "+
+						"than an optional error, but invalid return values are present "+
+						"in DoFn %v.",
+					name, fn.Name())
+				return nil, addContext(err, fn)
+			}
 		}
 	}
 
