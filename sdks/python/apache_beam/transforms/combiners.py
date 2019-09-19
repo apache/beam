@@ -62,7 +62,7 @@ __all__ = [
 T = TypeVar('T')
 K = TypeVar('K')
 V = TypeVar('V')
-TimestampType = Union[int, long, float, Timestamp, Duration]
+TimestampType = Union[int, float, Timestamp, Duration]
 
 
 class Mean(object):

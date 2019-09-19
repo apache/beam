@@ -36,8 +36,6 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from past.builtins import long
-
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
@@ -180,7 +178,7 @@ class WindowedValue(object):
 
   def __init__(self,
                value,
-               timestamp,  # type: Union[int, long, float, Timestamp]
+               timestamp,  # type: Union[int, float, Timestamp]
                windows,  # type: Tuple[BoundedWindow, ...]
                pane_info=PANE_INFO_UNKNOWN
               ):
@@ -271,8 +269,8 @@ class _IntervalWindowBase(object):
   """
 
   def __init__(self,
-               start,  # type: Optional[Union[int, long, float, Timestamp]]
-               end  # type: Optional[Union[int, long, float, Timestamp]]
+               start,  # type: Optional[Union[int, float, Timestamp]]
+               end  # type: Optional[Union[int, float, Timestamp]]
               ):
     if start is not None and end is not None:
       self._start_object = Timestamp.of(start)  # type: Optional[Timestamp]

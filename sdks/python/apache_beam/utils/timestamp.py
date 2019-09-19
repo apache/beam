@@ -28,7 +28,6 @@ import functools
 from builtins import object
 from typing import Any
 from typing import Union
-from typing import overload
 
 import dateutil.parser
 import pytz
@@ -50,7 +49,7 @@ class Timestamp(object):
   """
 
   def __init__(self, seconds=0, micros=0):
-    # type: (Union[int, long, float], Union[int, long, float]) -> None
+    # type: (Union[int, float], Union[int, float]) -> None
     if not isinstance(seconds, (int, long, float)):
       raise TypeError('Cannot interpret %s %s as seconds.' % (
           seconds, type(seconds)))
@@ -61,7 +60,7 @@ class Timestamp(object):
 
   @staticmethod
   def of(seconds):
-    # type: (Union[int, long, float, Timestamp]) -> Timestamp
+    # type: (Union[int, float, Timestamp]) -> Timestamp
     """Return the Timestamp for the given number of seconds.
 
     If the input is already a Timestamp, the input itself will be returned.
@@ -151,11 +150,14 @@ class Timestamp(object):
     return self.micros // 1000000
 
   def __eq__(self, other):
-    # type: (Union[int, long, float, Timestamp, Duration]) -> bool
+    # type: (object) -> bool
+    # Support equality with other types
+    if not isinstance(other, (int, long, float, Timestamp, Duration)):
+      return NotImplemented
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       try:
-        other = Timestamp.of(other)
+        return self.micros == Timestamp.of(other).micros
       except TypeError:
         return NotImplemented
     return self.micros == other.micros
@@ -166,7 +168,7 @@ class Timestamp(object):
     return not self == other
 
   def __lt__(self, other):
-    # type: (Union[int, long, float, Timestamp, Duration]) -> bool
+    # type: (Union[int, float, Timestamp, Duration]) -> bool
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       other = Timestamp.of(other)
@@ -176,21 +178,21 @@ class Timestamp(object):
     return hash(self.micros)
 
   def __add__(self, other):
-    # type: (Union[int, long, float, Duration]) -> Timestamp
+    # type: (Union[int, float, Duration]) -> Timestamp
     other = Duration.of(other)
     return Timestamp(micros=self.micros + other.micros)
 
   def __radd__(self, other):
-    # type: (Union[int, long, float, Duration]) -> Timestamp
+    # type: (Union[int, float, Duration]) -> Timestamp
     return self + other
 
   def __sub__(self, other):
-    # type: (Union[int, long, float, Duration]) -> Timestamp
+    # type: (Union[int, float, Duration]) -> Timestamp
     other = Duration.of(other)
     return Timestamp(micros=self.micros - other.micros)
 
   def __mod__(self, other):
-    # type: (Union[int, long, float, Duration]) -> Duration
+    # type: (Union[int, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 
@@ -214,12 +216,12 @@ class Duration(object):
   """
 
   def __init__(self, seconds=0, micros=0):
-    # type: (Union[int, long, float], Union[int, long, float]) -> None
+    # type: (Union[int, float], Union[int, float]) -> None
     self.micros = int(seconds * 1000000) + int(micros)
 
   @staticmethod
   def of(seconds):
-    # type: (Union[int, long, float, Duration]) -> Duration
+    # type: (Union[int, float, Duration]) -> Duration
     """Return the Duration for the given number of seconds since Unix epoch.
 
     If the input is already a Duration, the input itself will be returned.
@@ -255,11 +257,15 @@ class Duration(object):
     return self.micros / 1000000
 
   def __eq__(self, other):
-    # type: (Union[int, long, float, Duration, Timestamp]) -> bool
+    # type: (object) -> bool
+    # Support equality with other types
+    if not isinstance(other, (int, long, float, Timestamp, Duration)):
+      return NotImplemented
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
-      other = Duration.of(other)
-    return self.micros == other.micros
+      return self.micros == Duration.of(other).micros
+    else:
+      return self.micros == other.micros
 
   def __ne__(self, other):
     # type: (Any) -> bool
@@ -267,7 +273,7 @@ class Duration(object):
     return not self == other
 
   def __lt__(self, other):
-    # type: (Union[int, long, float, Duration, Timestamp]) -> bool
+    # type: (Union[int, float, Duration, Timestamp]) -> bool
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
@@ -280,19 +286,10 @@ class Duration(object):
     # type: () -> Duration
     return Duration(micros=-self.micros)
 
-  @overload
   def __add__(self, other):
-    # type: (Timestamp) -> Timestamp
-    pass
-
-  @overload
-  def __add__(self, other):
-    # type: (Union[int, long, float, Duration]) -> Duration
-    pass
-
-  def __add__(self, other):
+    # type: (Union[int, float, Duration]) -> Duration
     if isinstance(other, Timestamp):
-      return other + self
+      return NotImplemented
     other = Duration.of(other)
     return Duration(micros=self.micros + other.micros)
 
@@ -300,7 +297,7 @@ class Duration(object):
     return self + other
 
   def __sub__(self, other):
-    # type: (Union[int, long, float, Duration]) -> Duration
+    # type: (Union[int, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros - other.micros)
 
@@ -308,7 +305,7 @@ class Duration(object):
     return -(self - other)
 
   def __mul__(self, other):
-    # type: (Union[int, long, float, Duration]) -> Duration
+    # type: (Union[int, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros * other.micros // 1000000)
 
@@ -316,7 +313,7 @@ class Duration(object):
     return self * other
 
   def __mod__(self, other):
-    # type: (Union[int, long, float, Duration]) -> Duration
+    # type: (Union[int, float, Duration]) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 
