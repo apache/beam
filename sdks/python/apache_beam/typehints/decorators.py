@@ -557,7 +557,7 @@ def getcallargs_forhints_impl_py3(func, type_args, type_kwargs):
         bound_args[param.name] = _ANY_VAR_POSITIONAL
       elif param.kind == param.VAR_KEYWORD:
         bound_args[param.name] = _ANY_VAR_KEYWORD
-      elif param.default != param.empty:
+      elif param.default is not param.empty:
         # Declare unbound parameters with defaults to be Any.
         bound_args[param.name] = typehints.Any
       else:
