@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pipeline option patterns</title>
+  <title>Custom window patterns</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/pipeline-option-patterns/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/custom-windows/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/pipeline-option-patterns.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/custom-windows.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -403,10 +403,11 @@
 
   <ul class="section-nav-list">
     <li><a href="/documentation/patterns/overview/">Overview</a></li>
-    <li><a href="/documentation/patterns/file-processing-patterns/">File processing patterns</a></li>
-    <li><a href="/documentation/patterns/side-input-patterns/">Side input patterns</a></li>
-    <li><a href="/documentation/patterns/pipeline-option-patterns/">Pipeline option patterns</a></li>
-    <li><a href="/documentation/patterns/custom-io-patterns/">Custom I/O patterns</a></li>
+    <li><a href="/documentation/patterns/file-processing/">File processing</a></li>
+    <li><a href="/documentation/patterns/side-inputs/">Side inputs</a></li>
+    <li><a href="/documentation/patterns/pipeline-options/">Pipeline options</a></li>
+    <li><a href="/documentation/patterns/custom-io/">Custom I/O</a></li>
+    <li><a href="/documentation/patterns/custom-windows/">Custom windows</a></li>
   </ul>
 </li>
 
@@ -447,7 +448,13 @@
 
 
 <ul class="nav">
-  <li><a href="#retroactively-logging-runtime-parameters">Retroactively logging runtime parameters</a></li>
+  <li><a href="#using-data-to-dynamically-set-session-window-gaps">Using data to dynamically set session window gaps</a>
+    <ul>
+      <li><a href="#creating-data-driven-gaps">Creating data-driven gaps</a></li>
+      <li><a href="#windowing-messages-into-sessions">Windowing messages into sessions</a></li>
+      <li><a href="#example-data-and-windows">Example data and windows</a></li>
+    </ul>
+  </li>
 </ul>
 
 
@@ -468,116 +475,138 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="pipeline-option-patterns">Pipeline option patterns</h1>
+<h1 id="custom-window-patterns">Custom window patterns</h1>
+<p>The samples on this page demonstrate common custom window patterns. You can create custom windows with <a href="/documentation/programming-guide/#provided-windowing-functions"><code class="highlighter-rouge">WindowFn</code> functions</a>. For more information, see the <a href="/documentation/programming-guide/#windowing">programming guide section on windowing</a>.</p>
 
-<p>The samples on this page show you common pipeline configurations. For more information about pipeline configuration options, see <a href="/documentation/programming-guide/#creating-a-pipeline">Creating a pipeline</a> and <a href="/documentation/programming-guide/#configuring-pipeline-options">Configuring pipeline options</a>.</p>
+<p><strong>Note</strong>: Custom merging windows isn’t supported in Python (with fnapi).</p>
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
+<h2 id="using-data-to-dynamically-set-session-window-gaps">Using data to dynamically set session window gaps</h2>
 
-<h2 id="retroactively-logging-runtime-parameters">Retroactively logging runtime parameters</h2>
+<p>You can modify the <a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/windowing/SlidingWindows.html"><code class="highlighter-rouge">assignWindows</code></a> function to use data-driven gaps, then window incoming data into sessions.</p>
 
-<p>Use the <code class="highlighter-rouge">ValueProvider</code> interface to access runtime parameters after completing a pipeline job.</p>
-
-<p>You can use the <code class="highlighter-rouge">ValueProvider</code> interface to pass runtime parameters to your pipeline, but you can only log the parameters from within the the Beam DAG. A solution is to add a pipeline <a href="/documentation/programming-guide/#applying-transforms">branch</a> with a <code class="highlighter-rouge">DoFn</code> that processes a placeholder value and then logs the runtime parameters:</p>
+<p>Access the <code class="highlighter-rouge">assignWindows</code> function through <code class="highlighter-rouge">WindowFn.AssignContext.element()</code>. The original, fixed-duration <code class="highlighter-rouge">assignWindows</code> function is:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>
-<span class="cm">/** Sample of PipelineOptions with a ValueProvider option argument. */</span>
-<span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
-  <span class="nd">@Description</span><span class="o">(</span><span class="s">"My option"</span><span class="o">)</span>
-  <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">)</span>
-  <span class="n">ValueProvider</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="nf">getStringValue</span><span class="o">();</span>
+<span class="kd">public</span> <span class="n">Collection</span><span class="o">&lt;</span><span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="nf">assignWindows</span><span class="o">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="na">AssignContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
 
-  <span class="kt">void</span> <span class="nf">setStringValue</span><span class="o">(</span><span class="n">ValueProvider</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">value</span><span class="o">);</span>
+  <span class="c1">// Assign each element into a window from its timestamp until gapDuration in the</span>
+  <span class="c1">// future.  Overlapping windows (representing elements within gapDuration of</span>
+  <span class="c1">// each other) will be merged.</span>
+  <span class="k">return</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="k">new</span> <span class="n">IntervalWindow</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">(),</span> <span class="n">gapDuration</span><span class="o">));</span>
 <span class="o">}</span>
 
-<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">accessingValueProviderInfoAfterRunSnip1</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+</code></pre>
+</div>
 
-  <span class="n">MyOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<h3 id="creating-data-driven-gaps">Creating data-driven gaps</h3>
+<p>To create data-driven gaps, add the following snippets to the <code class="highlighter-rouge">assignWindows</code> function:</p>
+<ul>
+  <li>A default value for when the custom gap is not present in the data</li>
+  <li>A way to set the attribute from the main pipeline as a method of the custom windows</li>
+</ul>
 
-  <span class="c1">// Create pipeline.</span>
-  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+<p>For example, the following function assigns each element to a window between the timestamp and <code class="highlighter-rouge">gapDuration</code>:</p>
 
-  <span class="c1">// Add a branch for logging the ValueProvider value.</span>
-  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
-      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-          <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
-              <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@Override</span>
+<span class="kd">public</span> <span class="n">Collection</span><span class="o">&lt;</span><span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="nf">assignWindows</span><span class="o">(</span><span class="n">AssignContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+  <span class="c1">// Assign each element into a window from its timestamp until gapDuration in the</span>
+  <span class="c1">// future.  Overlapping windows (representing elements within gapDuration of</span>
+  <span class="c1">// each other) will be merged.</span>
+  <span class="n">Duration</span> <span class="n">dataDrivenGap</span><span class="o">;</span>
+  <span class="n">TableRow</span> <span class="n">message</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
 
-                <span class="c1">// Define the DoFn that logs the ValueProvider value.</span>
-                <span class="nd">@ProcessElement</span>
-                <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+  <span class="k">try</span> <span class="o">{</span>
+    <span class="n">dataDrivenGap</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">Long</span><span class="o">.</span><span class="na">parseLong</span><span class="o">(</span><span class="n">message</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"gap"</span><span class="o">).</span><span class="na">toString</span><span class="o">()));</span>
+  <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">Exception</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">dataDrivenGap</span> <span class="o">=</span> <span class="n">gapDuration</span><span class="o">;</span>
+  <span class="o">}</span>
+  <span class="k">return</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="k">new</span> <span class="n">IntervalWindow</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">(),</span> <span class="n">dataDrivenGap</span><span class="o">));</span>
+<span class="o">}</span>
 
-                  <span class="n">MyOptions</span> <span class="n">ops</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">getPipelineOptions</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
-                  <span class="c1">// This example logs the ValueProvider value, but you could store it by</span>
-                  <span class="c1">// pushing it to an external database.</span>
+</code></pre>
+</div>
 
-                  <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"Option StringValue was {}"</span><span class="o">,</span> <span class="n">ops</span><span class="o">.</span><span class="na">getStringValue</span><span class="o">());</span>
-                <span class="o">}</span>
-              <span class="o">}));</span>
+<p>Then, set the <code class="highlighter-rouge">gapDuration</code> field in a windowing function:</p>
 
-  <span class="c1">// The main pipeline.</span>
-  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">)).</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">integersGlobally</span><span class="o">());</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">DynamicSessions</span> <span class="kd">extends</span> <span class="n">WindowFn</span><span class="o">&lt;</span><span class="n">TableRow</span><span class="o">,</span> <span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="cm">/** Duration of the gaps between sessions. */</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">gapDuration</span><span class="o">;</span>
 
-  <span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
+  <span class="cm">/** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */</span>
+  <span class="kd">private</span> <span class="nf">DynamicSessions</span><span class="o">(</span><span class="n">Duration</span> <span class="n">gapDuration</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">gapDuration</span> <span class="o">=</span> <span class="n">gapDuration</span><span class="o">;</span>
+  <span class="o">}</span>
+
+
+</code></pre>
+</div>
+
+<h3 id="windowing-messages-into-sessions">Windowing messages into sessions</h3>
+<p>After creating data-driven gaps, you can window incoming data into the new, custom sessions.</p>
+
+<p>First, set the session length to the gap duration:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */</span>
+<span class="kd">public</span> <span class="kd">static</span> <span class="n">DynamicSessions</span> <span class="nf">withDefaultGapDuration</span><span class="o">(</span><span class="n">Duration</span> <span class="n">gapDuration</span><span class="o">)</span> <span class="o">{</span>
+  <span class="k">return</span> <span class="k">new</span> <span class="nf">DynamicSessions</span><span class="o">(</span><span class="n">gapDuration</span><span class="o">);</span>
 <span class="o">}</span>
 
 
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">logging</span>
+<p>Lastly, window data into sessions in your pipeline:</p>
 
-<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
-<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
-<span class="kn">from</span> <span class="nn">apache_beam.utils.value_provider</span> <span class="kn">import</span> <span class="n">RuntimeValueProvider</span>
-<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="kn">import</span> <span class="n">WriteToText</span>
-
-<span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
-  <span class="nd">@classmethod</span>
-  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_value_provider_argument</span><span class="p">(</span><span class="s">'--string_value'</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
-
-<span class="k">class</span> <span class="nc">LogValueProvidersFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string_vp</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">string_vp</span> <span class="o">=</span> <span class="n">string_vp</span>
-
-  <span class="c"># Define the DoFn that logs the ValueProvider value.</span>
-  <span class="c"># The DoFn is called when creating the pipeline branch.</span>
-  <span class="c"># This example logs the ValueProvider value, but</span>
-  <span class="c"># you could store it by pushing it to an external database.</span>
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">an_int</span><span class="p">):</span>
-    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'The string_value is </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_vp</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
-    <span class="c"># Another option (where you don't need to pass the value at all) is:</span>
-    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'The string value is </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span>
-                 <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s">'string_value'</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="s">''</span><span class="p">))</span>
-
-<span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
-<span class="c"># Create pipeline.</span>
-<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
-
-<span class="n">my_options</span> <span class="o">=</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
-<span class="c"># Add a branch for logging the ValueProvider value.</span>
-<span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-     <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="bp">None</span><span class="p">])</span>
-     <span class="o">|</span> <span class="s">'LogValueProvs'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
-         <span class="n">LogValueProvidersFn</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">string_value</span><span class="p">)))</span>
-
-<span class="c"># The main pipeline.</span>
-<span class="n">result_pc</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-             <span class="o">|</span> <span class="s">"main_pc"</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
-             <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Sum</span><span class="o">.</span><span class="n">Globally</span><span class="p">())</span>
-
-<span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
-
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="s">"Window into sessions"</span><span class="o">,</span>
+    <span class="n">Window</span><span class="o">.&lt;</span><span class="n">TableRow</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span>
+        <span class="n">DynamicSessions</span><span class="o">.</span><span class="na">withDefaultGapDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">10</span><span class="o">))));</span>
 
 </code></pre>
 </div>
+
+<h3 id="example-data-and-windows">Example data and windows</h3>
+<p>The following test data tallies two users’ scores with and without the <code class="highlighter-rouge">gap</code> attribute:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>.apply("Create data", Create.timestamped(
+            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"12\",\"gap\":\"5\"}", new Instant()),
+            TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"4\"}", new Instant()),
+            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"-3\",\"gap\":\"5\"}", new Instant().plus(2000)),
+            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"2\",\"gap\":\"5\"}", new Instant().plus(9000)),
+            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"7\",\"gap\":\"5\"}", new Instant().plus(12000)),
+            TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"10\"}", new Instant().plus(12000)))
+        .withCoder(StringUtf8Coder.of()))
+</code></pre>
+</div>
+
+<p>The diagram below visualizes the test data:</p>
+
+<p><img src="/images/standard-vs-dynamic-sessions.png" alt="Two sets of data and the standard and dynamic sessions with which the data is windowed." /></p>
+
+<h4 id="standard-sessions">Standard sessions</h4>
+
+<p>Standard sessions use the following windows and scores:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>user=user-2, score=4, window=[2019-05-26T13:28:49.122Z..2019-05-26T13:28:59.122Z)
+user=user-1, score=18, window=[2019-05-26T13:28:48.582Z..2019-05-26T13:29:12.774Z)
+user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367Z)
+</code></pre>
+</div>
+
+<p>User #1 sees two events separated by 12 seconds. With standard sessions, the gap defaults to 10 seconds; both scores are in different sessions, so the scores aren’t added.</p>
+
+<p>User #2 sees four events, seperated by two, seven, and three seconds, respectively. Since none of the gaps are greater than the default, the four events are in the same standard session and added together (18 points).</p>
+
+<h4 id="dynamic-sessions">Dynamic sessions</h4>
+<p>The dynamic sessions specify a five-second gap, so they use the following windows and scores:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>user=user-2, score=4, window=[2019-05-26T14:30:22.969Z..2019-05-26T14:30:32.969Z)
+user=user-1, score=9, window=[2019-05-26T14:30:22.429Z..2019-05-26T14:30:30.553Z)
+user=user-1, score=9, window=[2019-05-26T14:30:33.276Z..2019-05-26T14:30:41.849Z)
+user=user-2, score=10, window=[2019-05-26T14:30:37.357Z..2019-05-26T14:30:47.357Z)
+</code></pre>
+</div>
+
+<p>With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it’s grouped into a different session. The large, 18-point session is split into two 9-point sessions.</p>
 
       </div>
     </div>

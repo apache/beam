@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Side input patterns</title>
+  <title>Pipeline option patterns</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/side-input-patterns/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/pipeline-options/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/side-input-patterns.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/pipeline-options.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -403,10 +403,11 @@
 
   <ul class="section-nav-list">
     <li><a href="/documentation/patterns/overview/">Overview</a></li>
-    <li><a href="/documentation/patterns/file-processing-patterns/">File processing patterns</a></li>
-    <li><a href="/documentation/patterns/side-input-patterns/">Side input patterns</a></li>
-    <li><a href="/documentation/patterns/pipeline-option-patterns/">Pipeline option patterns</a></li>
-    <li><a href="/documentation/patterns/custom-io-patterns/">Custom I/O patterns</a></li>
+    <li><a href="/documentation/patterns/file-processing/">File processing</a></li>
+    <li><a href="/documentation/patterns/side-inputs/">Side inputs</a></li>
+    <li><a href="/documentation/patterns/pipeline-options/">Pipeline options</a></li>
+    <li><a href="/documentation/patterns/custom-io/">Custom I/O</a></li>
+    <li><a href="/documentation/patterns/custom-windows/">Custom windows</a></li>
   </ul>
 </li>
 
@@ -447,7 +448,7 @@
 
 
 <ul class="nav">
-  <li><a href="#slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</a></li>
+  <li><a href="#retroactively-logging-runtime-parameters">Retroactively logging runtime parameters</a></li>
 </ul>
 
 
@@ -468,101 +469,112 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="side-input-patterns">Side input patterns</h1>
+<h1 id="pipeline-option-patterns">Pipeline option patterns</h1>
 
-<p>The samples on this page show you common Beam side input patterns. A side input is an additional input that your <code class="highlighter-rouge">DoFn</code> can access each time it processes an element in the input <code class="highlighter-rouge">PCollection</code>. For more information, see the <a href="/documentation/programming-guide/#side-inputs">programming guide section on side inputs</a>.</p>
+<p>The samples on this page show you common pipeline configurations. For more information about pipeline configuration options, see <a href="/documentation/programming-guide/#creating-a-pipeline">Creating a pipeline</a> and <a href="/documentation/programming-guide/#configuring-pipeline-options">Configuring pipeline options</a>.</p>
 
-<h2 id="slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</h2>
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
 
-<p>You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a <code class="highlighter-rouge">FixedWindow</code>.</p>
+<h2 id="retroactively-logging-runtime-parameters">Retroactively logging runtime parameters</h2>
 
-<p>To slowly update global window side inputs in pipelines with non-global windows:</p>
+<p>Use the <code class="highlighter-rouge">ValueProvider</code> interface to access runtime parameters after completing a pipeline job.</p>
 
-<ol>
-  <li>
-    <p>Write a <code class="highlighter-rouge">DoFn</code> that periodically pulls data from a bounded source into a global window.</p>
+<p>You can use the <code class="highlighter-rouge">ValueProvider</code> interface to pass runtime parameters to your pipeline, but you can only log the parameters from within the the Beam DAG. A solution is to add a pipeline <a href="/documentation/programming-guide/#applying-transforms">branch</a> with a <code class="highlighter-rouge">DoFn</code> that processes a placeholder value and then logs the runtime parameters:</p>
 
-    <p>a. Use the <code class="highlighter-rouge">GenerateSequence</code> source transform to periodically emit a value.</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>
+<span class="cm">/** Sample of PipelineOptions with a ValueProvider option argument. */</span>
+<span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+  <span class="nd">@Description</span><span class="o">(</span><span class="s">"My option"</span><span class="o">)</span>
+  <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">)</span>
+  <span class="n">ValueProvider</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="nf">getStringValue</span><span class="o">();</span>
 
-    <p>b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.</p>
+  <span class="kt">void</span> <span class="nf">setStringValue</span><span class="o">(</span><span class="n">ValueProvider</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">value</span><span class="o">);</span>
+<span class="o">}</span>
 
-    <p>c. Fire the trigger to pass the data into the global window.</p>
-  </li>
-  <li>
-    <p>Create the side input for downstream transforms. The side input should fit into memory.</p>
-  </li>
-</ol>
+<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">accessingValueProviderInfoAfterRunSnip1</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
 
-<p>The global window side input triggers on processing time, so the main pipeline nondeterministically matches the side input to elements in event time.</p>
+  <span class="n">MyOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
 
-<p>For instance, the following code sample uses a <code class="highlighter-rouge">Map</code> to create a <code class="highlighter-rouge">DoFn</code>. The <code class="highlighter-rouge">Map</code> becomes a <code class="highlighter-rouge">View.asSingleton</code> side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.</p>
+  <span class="c1">// Create pipeline.</span>
+  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">sideInputPatterns</span><span class="o">()</span> <span class="o">{</span>
-  <span class="c1">// This pipeline uses View.asSingleton for a placeholder external service.</span>
-  <span class="c1">// Run in debug mode to see the output.</span>
-  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
-
-  <span class="c1">// Create a side input that updates each second.</span>
-  <span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">map</span> <span class="o">=</span>
-      <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5L</span><span class="o">)))</span>
-          <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-              <span class="n">Window</span><span class="o">.&lt;</span><span class="n">Long</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">())</span>
-                  <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">Repeatedly</span><span class="o">.</span><span class="na">forever</span><span class="o">(</span><span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()))</span>
-                  <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">())</span>
-          <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-              <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
-                  <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
-
-                    <span class="nd">@ProcessElement</span>
-                    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
-                        <span class="nd">@Element</span> <span class="n">Long</span> <span class="n">input</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
-                      <span class="c1">// Replace map with test data from the placeholder external service.</span>
-                      <span class="c1">// Add external reads here.</span>
-                      <span class="n">o</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">PlaceholderExternalService</span><span class="o">.</span><span class="na">readTestData</span><span class="o">());</span>
-                    <span class="o">}</span>
-                  <span class="o">}))</span>
-          <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">View</span><span class="o">.</span><span class="na">asSingleton</span><span class="o">());</span>
-
-  <span class="c1">// Consume side input. GenerateSequence generates test data.</span>
-  <span class="c1">// Use a real source (like PubSubIO or KafkaIO) in production.</span>
-  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1L</span><span class="o">)))</span>
-      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
-      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">longsGlobally</span><span class="o">().</span><span class="na">withoutDefaults</span><span class="o">())</span>
+  <span class="c1">// Add a branch for logging the ValueProvider value.</span>
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
       <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
           <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
-                  <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
+              <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{</span>
 
-                    <span class="nd">@ProcessElement</span>
-                    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-                      <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMap</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">map</span><span class="o">);</span>
-                      <span class="n">c</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1L</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">()),</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">());</span>
+                <span class="c1">// Define the DoFn that logs the ValueProvider value.</span>
+                <span class="nd">@ProcessElement</span>
+                <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
 
-                      <span class="n">LOG</span><span class="o">.</span><span class="na">debug</span><span class="o">(</span>
-                          <span class="s">"Value is {}, key A is {}, and key B is {}."</span><span class="o">,</span>
-                          <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">(),</span>
-                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"Key_A"</span><span class="o">),</span>
-                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"Key_B"</span><span class="o">));</span>
-                    <span class="o">}</span>
-                  <span class="o">})</span>
-              <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">map</span><span class="o">));</span>
+                  <span class="n">MyOptions</span> <span class="n">ops</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">getPipelineOptions</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+                  <span class="c1">// This example logs the ValueProvider value, but you could store it by</span>
+                  <span class="c1">// pushing it to an external database.</span>
+
+                  <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"Option StringValue was {}"</span><span class="o">,</span> <span class="n">ops</span><span class="o">.</span><span class="na">getStringValue</span><span class="o">());</span>
+                <span class="o">}</span>
+              <span class="o">}));</span>
+
+  <span class="c1">// The main pipeline.</span>
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">)).</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">integersGlobally</span><span class="o">());</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
 <span class="o">}</span>
 
-<span class="cm">/** Placeholder class that represents an external service generating test data. */</span>
-<span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">PlaceholderExternalService</span> <span class="o">{</span>
 
-  <span class="kd">public</span> <span class="kd">static</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="nf">readTestData</span><span class="o">()</span> <span class="o">{</span>
+</code></pre>
+</div>
 
-    <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">map</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
-    <span class="n">Instant</span> <span class="n">now</span> <span class="o">=</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">();</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">logging</span>
 
-    <span class="n">DateTimeFormatter</span> <span class="n">dtf</span> <span class="o">=</span> <span class="n">DateTimeFormat</span><span class="o">.</span><span class="na">forPattern</span><span class="o">(</span><span class="s">"HH:MM:SS"</span><span class="o">);</span>
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.value_provider</span> <span class="kn">import</span> <span class="n">RuntimeValueProvider</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="kn">import</span> <span class="n">WriteToText</span>
 
-    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"Key_A"</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">(</span><span class="n">dtf</span><span class="o">));</span>
-    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"Key_B"</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">());</span>
+<span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_value_provider_argument</span><span class="p">(</span><span class="s">'--string_value'</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">map</span><span class="o">;</span>
-  <span class="o">}</span>
-<span class="o">}</span>
+<span class="k">class</span> <span class="nc">LogValueProvidersFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string_vp</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">string_vp</span> <span class="o">=</span> <span class="n">string_vp</span>
+
+  <span class="c"># Define the DoFn that logs the ValueProvider value.</span>
+  <span class="c"># The DoFn is called when creating the pipeline branch.</span>
+  <span class="c"># This example logs the ValueProvider value, but</span>
+  <span class="c"># you could store it by pushing it to an external database.</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">an_int</span><span class="p">):</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'The string_value is </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_vp</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+    <span class="c"># Another option (where you don't need to pass the value at all) is:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'The string value is </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span>
+                 <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s">'string_value'</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="s">''</span><span class="p">))</span>
+
+<span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+<span class="c"># Create pipeline.</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+
+<span class="n">my_options</span> <span class="o">=</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
+<span class="c"># Add a branch for logging the ValueProvider value.</span>
+<span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+     <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="bp">None</span><span class="p">])</span>
+     <span class="o">|</span> <span class="s">'LogValueProvs'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
+         <span class="n">LogValueProvidersFn</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">string_value</span><span class="p">)))</span>
+
+<span class="c"># The main pipeline.</span>
+<span class="n">result_pc</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+             <span class="o">|</span> <span class="s">"main_pc"</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+             <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Sum</span><span class="o">.</span><span class="n">Globally</span><span class="p">())</span>
+
+<span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
 
 
 </code></pre>

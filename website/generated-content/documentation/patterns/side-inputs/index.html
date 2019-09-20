@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ParDo</title>
+  <title>Side input patterns</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/python/elementwise/pardo/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/side-inputs/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/element-wise/pardo.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/side-inputs.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -448,14 +448,7 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a>
-    <ul>
-      <li><a href="#example-1-pardo-with-a-simple-dofn">Example 1: ParDo with a simple DoFn</a></li>
-      <li><a href="#example-2-pardo-with-timestamp-and-window-information">Example 2: ParDo with timestamp and window information</a></li>
-      <li><a href="#example-3-pardo-with-dofn-methods">Example 3: ParDo with DoFn methods</a></li>
-    </ul>
-  </li>
-  <li><a href="#related-transforms">Related transforms</a></li>
+  <li><a href="#slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</a></li>
 </ul>
 
 
@@ -476,304 +469,105 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="pardo">ParDo</h1>
+<h1 id="side-input-patterns">Side input patterns</h1>
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+<p>The samples on this page show you common Beam side input patterns. A side input is an additional input that your <code class="highlighter-rouge">DoFn</code> can access each time it processes an element in the input <code class="highlighter-rouge">PCollection</code>. For more information, see the <a href="/documentation/programming-guide/#side-inputs">programming guide section on side inputs</a>.</p>
 
-<table>
-  <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<p><br /></p>
+<h2 id="slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</h2>
 
-<p>A transform for generic parallel processing.
-A <code class="highlighter-rouge">ParDo</code> transform considers each element in the input <code class="highlighter-rouge">PCollection</code>,
-performs some processing function (your user code) on that element,
-and emits zero or more elements to an output <code class="highlighter-rouge">PCollection</code>.</p>
+<p>You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a <code class="highlighter-rouge">FixedWindow</code>.</p>
 
-<p>See more information in the
-<a href="/documentation/programming-guide/#pardo">Beam Programming Guide</a>.</p>
+<p>To slowly update global window side inputs in pipelines with non-global windows:</p>
 
-<h2 id="examples">Examples</h2>
-
-<p>In the following examples, we explore how to create custom <code class="highlighter-rouge">DoFn</code>s and access
-the timestamp and windowing information.</p>
-
-<h3 id="example-1-pardo-with-a-simple-dofn">Example 1: ParDo with a simple DoFn</h3>
-
-<p>The following example defines a simple <code class="highlighter-rouge">DoFn</code> class called <code class="highlighter-rouge">SplitWords</code>
-which stores the <code class="highlighter-rouge">delimiter</code> as an object field.
-The <code class="highlighter-rouge">process</code> method is called once per element,
-and it can yield zero or more output elements.</p>
-
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
-
-<span class="k">class</span> <span class="nc">SplitWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s">','</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">delimiter</span> <span class="o">=</span> <span class="n">delimiter</span>
-
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delimiter</span><span class="p">):</span>
-      <span class="k">yield</span> <span class="n">word</span>
-
-<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'🍓Strawberry,🥕Carrot,🍆Eggplant'</span><span class="p">,</span>
-          <span class="s">'🍅Tomato,🥔Potato'</span><span class="p">,</span>
-      <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Split words'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">SplitWords</span><span class="p">(</span><span class="s">','</span><span class="p">))</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
-</code></pre>
-</div>
-
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ParDo</code>:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
-    '🍓Strawberry',
-    '🥕Carrot',
-    '🍆Eggplant',
-    '🍅Tomato',
-    '🥔Potato',
-]
-</code></pre>
-</div>
-
-<table>
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<p><br /></p>
-
-<h3 id="example-2-pardo-with-timestamp-and-window-information">Example 2: ParDo with timestamp and window information</h3>
-
-<p>In this example, we add new parameters to the <code class="highlighter-rouge">process</code> method to bind parameter values at runtime.</p>
-
-<ul>
-  <li><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.TimestampParam"><code class="highlighter-rouge">beam.DoFn.TimestampParam</code></a>
-binds the timestamp information as an
-<a href="https://beam.apache.org/releases/pydoc/current/apache_beam.utils.timestamp.html#apache_beam.utils.timestamp.Timestamp"><code class="highlighter-rouge">apache_beam.utils.timestamp.Timestamp</code></a>
-object.</li>
-  <li><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.WindowParam"><code class="highlighter-rouge">beam.DoFn.WindowParam</code></a>
-binds the window information as the appropriate
-<a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html"><code class="highlighter-rouge">apache_beam.transforms.window.*Window</code></a>
-object.</li>
-</ul>
-
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
-
-<span class="k">class</span> <span class="nc">AnalyzeElement</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
-    <span class="k">yield</span> <span class="s">'</span><span class="se">\n</span><span class="s">'</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
-        <span class="s">'# timestamp'</span><span class="p">,</span>
-        <span class="s">'type(timestamp) -&gt; '</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)),</span>
-        <span class="s">'timestamp.micros -&gt; '</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">micros</span><span class="p">),</span>
-        <span class="s">'timestamp.to_rfc3339() -&gt; '</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">to_rfc3339</span><span class="p">()),</span>
-        <span class="s">'timestamp.to_utc_datetime() -&gt; '</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-        <span class="s">''</span><span class="p">,</span>
-        <span class="s">'# window'</span><span class="p">,</span>
-        <span class="s">'type(window) -&gt; '</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">window</span><span class="p">)),</span>
-        <span class="s">'window.start -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-        <span class="s">'window.end -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-        <span class="s">'window.max_timestamp() -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">(),</span> <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">()</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-    <span class="p">])</span>
-
-<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">dofn_params</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Create a single test element'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">':)'</span><span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Add timestamp (Spring equinox 2020)'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="mi">1584675660</span><span class="p">))</span>
-      <span class="o">|</span> <span class="s">'Fixed 30sec windows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">30</span><span class="p">))</span>
-      <span class="o">|</span> <span class="s">'Analyze element'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">AnalyzeElement</span><span class="p">())</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
-</code></pre>
-</div>
-
-<p><code class="highlighter-rouge">stdout</code> output:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code># timestamp
-type(timestamp) -&gt; &lt;class 'apache_beam.utils.timestamp.Timestamp'&gt;
-timestamp.micros -&gt; 1584675660000000
-timestamp.to_rfc3339() -&gt; '2020-03-20T03:41:00Z'
-timestamp.to_utc_datetime() -&gt; datetime.datetime(2020, 3, 20, 3, 41)
-
-# window
-type(window) -&gt; &lt;class 'apache_beam.transforms.window.IntervalWindow'&gt;
-window.start -&gt; Timestamp(1584675660) (2020-03-20 03:41:00)
-window.end -&gt; Timestamp(1584675690) (2020-03-20 03:41:30)
-window.max_timestamp() -&gt; Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)
-</code></pre>
-</div>
-
-<table>
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<p><br /></p>
-
-<h3 id="example-3-pardo-with-dofn-methods">Example 3: ParDo with DoFn methods</h3>
-
-<p>A <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn"><code class="highlighter-rouge">DoFn</code></a>
-can be customized with a number of methods that can help create more complex behaviors.
-You can customize what a worker does when it starts and shuts down with <code class="highlighter-rouge">setup</code> and <code class="highlighter-rouge">teardown</code>.
-You can also customize what to do when a
-<a href="https://beam.apache.org/documentation/execution-model/#bundling-and-persistence"><em>bundle of elements</em></a>
-starts and finishes with <code class="highlighter-rouge">start_bundle</code> and <code class="highlighter-rouge">finish_bundle</code>.</p>
-
-<ul>
+<ol>
   <li>
-    <p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup"><code class="highlighter-rouge">DoFn.setup()</code></a>:
-Called <em>once per <code class="highlighter-rouge">DoFn</code> instance</em> when the <code class="highlighter-rouge">DoFn</code> instance is initialized.
-<code class="highlighter-rouge">setup</code> need not to be cached, so it could be called more than once per worker.
-This is a good place to connect to database instances, open network connections or other resources.</p>
+    <p>Write a <code class="highlighter-rouge">DoFn</code> that periodically pulls data from a bounded source into a global window.</p>
+
+    <p>a. Use the <code class="highlighter-rouge">GenerateSequence</code> source transform to periodically emit a value.</p>
+
+    <p>b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.</p>
+
+    <p>c. Fire the trigger to pass the data into the global window.</p>
   </li>
   <li>
-    <p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle"><code class="highlighter-rouge">DoFn.start_bundle()</code></a>:
-Called <em>once per bundle of elements</em> before calling <code class="highlighter-rouge">process</code> on the first element of the bundle.
-This is a good place to start keeping track of the bundle elements.</p>
+    <p>Create the side input for downstream transforms. The side input should fit into memory.</p>
   </li>
-  <li>
-    <p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process"><strong><code class="highlighter-rouge">DoFn.process(element, *args, **kwargs)</code></strong></a>:
-Called <em>once per element</em>, can <em>yield zero or more elements</em>.
-Additional <code class="highlighter-rouge">*args</code> or <code class="highlighter-rouge">**kwargs</code> can be passed through
-<a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo"><code class="highlighter-rouge">beam.ParDo()</code></a>.
-<strong>[required]</strong></p>
-  </li>
-  <li>
-    <p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.finish_bundle"><code class="highlighter-rouge">DoFn.finish_bundle()</code></a>:
-Called <em>once per bundle of elements</em> after calling <code class="highlighter-rouge">process</code> after the last element of the bundle,
-can <em>yield zero or more elements</em>. This is a good place to do batch calls on a bundle of elements,
-such as running a database query.</p>
+</ol>
 
-    <p>For example, you can initialize a batch in <code class="highlighter-rouge">start_bundle</code>,
-add elements to the batch in <code class="highlighter-rouge">process</code> instead of yielding them,
-then running a batch query on those elements on <code class="highlighter-rouge">finish_bundle</code>, and yielding all the results.</p>
+<p>The global window side input triggers on processing time, so the main pipeline nondeterministically matches the side input to elements in event time.</p>
 
-    <p>Note that yielded elements from <code class="highlighter-rouge">finish_bundle</code> must be of the type
-<a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/windowed_value.py"><code class="highlighter-rouge">apache_beam.utils.windowed_value.WindowedValue</code></a>.
-You need to provide a timestamp as a unix timestamp, which you can get from the last processed element.
-You also need to provide a window, which you can get from the last processed element like in the example below.</p>
-  </li>
-  <li>
-    <p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown"><code class="highlighter-rouge">DoFn.teardown()</code></a>:
-Called <em>once (as a best effort) per <code class="highlighter-rouge">DoFn</code> instance</em> when the <code class="highlighter-rouge">DoFn</code> instance is shutting down.
-This is a good place to close database instances, close network connections or other resources.</p>
+<p>For instance, the following code sample uses a <code class="highlighter-rouge">Map</code> to create a <code class="highlighter-rouge">DoFn</code>. The <code class="highlighter-rouge">Map</code> becomes a <code class="highlighter-rouge">View.asSingleton</code> side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.</p>
 
-    <p>Note that <code class="highlighter-rouge">teardown</code> is called as a <em>best effort</em> and is <em>not guaranteed</em>.
-For example, if the worker crashes, <code class="highlighter-rouge">teardown</code> might not be called.</p>
-  </li>
-</ul>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">sideInputPatterns</span><span class="o">()</span> <span class="o">{</span>
+  <span class="c1">// This pipeline uses View.asSingleton for a placeholder external service.</span>
+  <span class="c1">// Run in debug mode to see the output.</span>
+  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+  <span class="c1">// Create a side input that updates each second.</span>
+  <span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">map</span> <span class="o">=</span>
+      <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5L</span><span class="o">)))</span>
+          <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+              <span class="n">Window</span><span class="o">.&lt;</span><span class="n">Long</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">())</span>
+                  <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">Repeatedly</span><span class="o">.</span><span class="na">forever</span><span class="o">(</span><span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()))</span>
+                  <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">())</span>
+          <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+              <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                  <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
 
-<span class="k">class</span> <span class="nc">DoFnMethods</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">'__init__'</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">GlobalWindow</span><span class="p">()</span>
+                    <span class="nd">@ProcessElement</span>
+                    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+                        <span class="nd">@Element</span> <span class="n">Long</span> <span class="n">input</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
+                      <span class="c1">// Replace map with test data from the placeholder external service.</span>
+                      <span class="c1">// Add external reads here.</span>
+                      <span class="n">o</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">PlaceholderExternalService</span><span class="o">.</span><span class="na">readTestData</span><span class="o">());</span>
+                    <span class="o">}</span>
+                  <span class="o">}))</span>
+          <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">View</span><span class="o">.</span><span class="na">asSingleton</span><span class="o">());</span>
 
-  <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">'setup'</span><span class="p">)</span>
+  <span class="c1">// Consume side input. GenerateSequence generates test data.</span>
+  <span class="c1">// Use a real source (like PubSubIO or KafkaIO) in production.</span>
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1L</span><span class="o">)))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">longsGlobally</span><span class="o">().</span><span class="na">withoutDefaults</span><span class="o">())</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                  <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">'start_bundle'</span><span class="p">)</span>
+                    <span class="nd">@ProcessElement</span>
+                    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+                      <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMap</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">map</span><span class="o">);</span>
+                      <span class="n">c</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1L</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">()),</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">());</span>
 
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">window</span>
-    <span class="k">yield</span> <span class="s">'* process: '</span> <span class="o">+</span> <span class="n">element</span>
+                      <span class="n">LOG</span><span class="o">.</span><span class="na">debug</span><span class="o">(</span>
+                          <span class="s">"Value is {}, key A is {}, and key B is {}."</span><span class="o">,</span>
+                          <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">(),</span>
+                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"Key_A"</span><span class="o">),</span>
+                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"Key_B"</span><span class="o">));</span>
+                    <span class="o">}</span>
+                  <span class="o">})</span>
+              <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">map</span><span class="o">));</span>
+<span class="o">}</span>
 
-  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">yield</span> <span class="n">beam</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">(</span>
-        <span class="n">value</span><span class="o">=</span><span class="s">'* finish_bundle: 🌱🌳🌍'</span><span class="p">,</span>
-        <span class="n">timestamp</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-        <span class="n">windows</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">],</span>
-    <span class="p">)</span>
+<span class="cm">/** Placeholder class that represents an external service generating test data. */</span>
+<span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">PlaceholderExternalService</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="nf">teardown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">'teardown'</span><span class="p">)</span>
+  <span class="kd">public</span> <span class="kd">static</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="nf">readTestData</span><span class="o">()</span> <span class="o">{</span>
 
-<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">results</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Create inputs'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'🥔'</span><span class="p">])</span>
-      <span class="o">|</span> <span class="s">'DoFn methods'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">DoFnMethods</span><span class="p">())</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+    <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">map</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
+    <span class="n">Instant</span> <span class="n">now</span> <span class="o">=</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">();</span>
+
+    <span class="n">DateTimeFormatter</span> <span class="n">dtf</span> <span class="o">=</span> <span class="n">DateTimeFormat</span><span class="o">.</span><span class="na">forPattern</span><span class="o">(</span><span class="s">"HH:MM:SS"</span><span class="o">);</span>
+
+    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"Key_A"</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">(</span><span class="n">dtf</span><span class="o">));</span>
+    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"Key_B"</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">());</span>
+
+    <span class="k">return</span> <span class="n">map</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+
 </code></pre>
 </div>
-
-<p><code class="highlighter-rouge">stdout</code> output:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>__init__
-setup
-start_bundle
-* process: 🍓
-* process: 🥕
-* process: 🍆
-* process: 🍅
-* process: 🥔
-* finish_bundle: 🌱🌳🌍
-teardown
-</code></pre>
-</div>
-
-<table>
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<p><br /></p>
-
-<blockquote>
-  <p><em>Known issues:</em></p>
-
-  <ul>
-    <li><a href="https://issues.apache.org/jira/browse/BEAM-7885">[BEAM-7885]</a>
-<code class="highlighter-rouge">DoFn.setup()</code> doesn’t run for streaming jobs running in the <code class="highlighter-rouge">DirectRunner</code>.</li>
-    <li><a href="https://issues.apache.org/jira/browse/BEAM-7340">[BEAM-7340]</a>
-<code class="highlighter-rouge">DoFn.teardown()</code> metrics are lost.</li>
-  </ul>
-</blockquote>
-
-<h2 id="related-transforms">Related transforms</h2>
-
-<ul>
-  <li><a href="/documentation/transforms/python/elementwise/map">Map</a> behaves the same, but produces exactly one output for each input.</li>
-  <li><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a> behaves the same as <code class="highlighter-rouge">Map</code>,
-but for each input it may produce zero or more outputs.</li>
-  <li><a href="/documentation/transforms/python/elementwise/filter">Filter</a> is useful if the function is just
-deciding whether to output an element or not.</li>
-</ul>
-
-<table>
-  <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<p><br /></p>
 
       </div>
     </div>
