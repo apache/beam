@@ -101,7 +101,7 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vpt_vp_arg5.get(), 123)
 
   def test_set_runtime_option(self):
-    # define ValueProvider ptions, with and without default values
+    # define ValueProvider options, with and without default values
     class UserDefinedOptions1(PipelineOptions):
       @classmethod
       def _add_argparse_args(cls, parser):
