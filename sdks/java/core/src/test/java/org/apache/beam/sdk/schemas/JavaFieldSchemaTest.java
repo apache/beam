@@ -50,6 +50,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithNestedArray;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -179,6 +180,18 @@ public class JavaFieldSchemaTest {
     assertEquals(BYTE_BUFFER, pojo.byteBuffer);
     assertEquals(BigDecimal.ONE, pojo.bigDecimal);
     assertEquals("stringbuilder", pojo.stringBuilder.toString());
+  }
+
+  @Test
+  public void testToRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getToRowFunction(SimplePOJO.class));
+  }
+
+  @Test
+  public void testFromRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getFromRowFunction(SimplePOJO.class));
   }
 
   @Test
@@ -415,7 +428,7 @@ public class JavaFieldSchemaTest {
   }
 
   @Test
-  public void testNNestedullValuesSetters() throws NoSuchSchemaException {
+  public void testNestedNullValuesSetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
 
     Row row = Row.withSchema(NESTED_NULLABLE_SCHEMA).addValue(null).build();
