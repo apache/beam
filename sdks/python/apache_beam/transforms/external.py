@@ -39,6 +39,7 @@ from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
+from apache_beam.utils import subprocess_server
 
 # Protect against environments where grpc is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -227,16 +228,24 @@ class ExternalTransform(ptransform.PTransform):
   _EXPANDED_TRANSFORM_UNIQUE_NAME = 'root'
   _IMPULSE_PREFIX = 'impulse'
 
-  def __init__(self, urn, payload, endpoint=None):
-    endpoint = endpoint or DEFAULT_EXPANSION_SERVICE
-    if grpc is None and isinstance(endpoint, str):
+  def __init__(self, urn, payload, expansion_service=None):
+    """Wrapper for an external transform with the given urn and payload.
+
+    :param urn: the unique beam identifier for this transform
+    :param payload: the payload, either as a byte string or a PayloadBuilder
+    :param expansion_service: an expansion service implementing the beam
+        ExpansionService protocol, either as an object with an Expand method
+        or an address (as a str) to a grpc server that provides this method.
+    """
+    expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
+    if grpc is None and isinstance(expansion_service, str):
       raise NotImplementedError('Grpc required for external transforms.')
-    # TODO: Start an endpoint given an environment?
     self._urn = urn
-    self._payload = payload.payload() \
-      if isinstance(payload, PayloadBuilder) \
-      else payload
-    self._endpoint = endpoint
+    self._payload = (
+        payload.payload()
+        if isinstance(payload, PayloadBuilder)
+        else payload)
+    self._expansion_service = expansion_service
     self._namespace = self._fresh_namespace()
 
   def __post_init__(self, expansion_service):
@@ -305,12 +314,12 @@ class ExternalTransform(ptransform.PTransform):
         namespace=self._namespace,
         transform=transform_proto)
 
-    if isinstance(self._endpoint, str):
-      with grpc.insecure_channel(self._endpoint) as channel:
+    if isinstance(self._expansion_service, str):
+      with grpc.insecure_channel(self._expansion_service) as channel:
         response = beam_expansion_api_pb2_grpc.ExpansionServiceStub(
             channel).Expand(request)
     else:
-      response = self._endpoint.Expand(request, None)
+      response = self._expansion_service.Expand(request, None)
 
     if response.error:
       raise RuntimeError(response.error)
@@ -407,6 +416,44 @@ class ExternalTransform(ptransform.PTransform):
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
             for tag, pcoll in self._expanded_transform.outputs.items()})
+
+
+class JavaJarExpansionService(object):
+  """An expansion service based on an Java Jar file.
+
+  This can be passed into an ExternalTransform as the expansion_service
+  argument which will spawn a subprocess using this jar to expand the
+  transform.
+  """
+  def __init__(self, path_to_jar, extra_args=None):
+    if extra_args is None:
+      extra_args = ['{{PORT}}']
+    self._path_to_jar = path_to_jar
+    self._extra_args = extra_args
+
+  def Expand(self, request, context):
+    self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
+        self._path_to_jar)
+    # Consider memoizing these servers (with some timeout).
+    with subprocess_server.JavaJarServer(
+        beam_expansion_api_pb2_grpc.ExpansionServiceStub,
+        self._path_to_jar,
+        self._extra_args) as service:
+      return service.Expand(request, context)
+
+
+class BeamJarExpansionService(JavaJarExpansionService):
+  """An expansion service based on an Beam Java Jar file.
+
+  Attempts to use a locally-build copy of the jar based on the gradle target,
+  if it exists, otherwise attempts to download it (with caching) from the
+  apache maven repository.
+  """
+  def __init__(self, gradle_target, extra_args=None, gradle_appendix=None):
+    path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
+        gradle_target,
+        gradle_appendix)
+    super(BeamJarExpansionService, self).__init__(path_to_jar, extra_args)
 
 
 def memoize(func):
