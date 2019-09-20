@@ -50,14 +50,14 @@ def get_version():
   return global_names['__version__']
 
 
-PACKAGE_NAME = 'apache-beam'
+PACKAGE_NAME = 'apache-beam-pyjobs'
 PACKAGE_VERSION = get_version()
-PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
+PACKAGE_DESCRIPTION = 'Apache Beam Module for Pyspark Streaming'
 PACKAGE_URL = 'https://beam.apache.org'
 PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
-PACKAGE_KEYWORDS = 'apache beam'
+PACKAGE_KEYWORDS = 'apache beam pyjobs'
 PACKAGE_LONG_DESCRIPTION = '''
 Apache Beam is a unified programming model for both batch and streaming
 data processing, enabling efficient execution across diverse distributed
@@ -127,6 +127,18 @@ REQUIRED_PACKAGES = [
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
+    'opentracing>=2.2.0,<2.3.0',
+    'pytest>=5.1.2,<5.2.0',
+    'numpy>=1.15.2,<1.16.0',
+    'pandas>=0.23.4,<',
+    'kafka>=1.3.5,<1.4',
+    'kafka-python>=1.4.6,<1.5',
+    'hdfs3>=0.3.0,<0.4',
+    'hdfs>=2.2.0,<2.3',
+    'happybase>=1.2.0,<1.3',
+    'PyYAML>=3.12,<3.13',
+    'logstash-formatter>=0.5.8,<0.6'
+    'pyext>=0.7,<0.8'
     ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
