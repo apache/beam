@@ -23,10 +23,10 @@ import PhraseTriggeringPostCommitBuilder
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def bqio_read_test = [
-        title        : 'BigQueryIO Read Performance Test Python 10 GB',
-        itClass      : 'apache_beam.io.gcp.bigquery_read_perf_test:BigQueryReadPerfTest.test',
-        runner       : CommonTestProperties.Runner.DATAFLOW,
-        jobProperties: [
+        title          : 'BigQueryIO Read Performance Test Python 10 GB',
+        test           : 'apache_beam.io.gcp.bigquery_read_perf_test:BigQueryReadPerfTest.test',
+        runner         : CommonTestProperties.Runner.DATAFLOW,
+        pipelineOptions: [
                 job_name             : 'performance-tests-bqio-read-python-10gb' + now,
                 project              : 'apache-beam-testing',
                 temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -39,17 +39,16 @@ def bqio_read_test = [
                         '"num_records": 10485760,' +
                         '"key_size": 1,' +
                         '"value_size": 1024}\'',
-                max_num_workers      : 5,
                 num_workers          : 5,
                 autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
         ]
 ]
 
 def bqio_write_test = [
-        title        : 'BigQueryIO Write Performance Test Python Batch 10 GB',
-        itClass      : 'apache_beam.io.gcp.bigquery_write_perf_test:BigQueryWritePerfTest.test',
-        runner       : CommonTestProperties.Runner.DATAFLOW,
-        jobProperties: [
+        title          : 'BigQueryIO Write Performance Test Python Batch 10 GB',
+        test           : 'apache_beam.io.gcp.bigquery_write_perf_test:BigQueryWritePerfTest.test',
+        runner         : CommonTestProperties.Runner.DATAFLOW,
+        pipelineOptions: [
                 job_name             : 'performance-tests-bqio-write-python-batch-10gb' + now,
                 project              : 'apache-beam-testing',
                 temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -62,7 +61,6 @@ def bqio_write_test = [
                         '"num_records": 10485760,' +
                         '"key_size": 1,' +
                         '"value_size": 1024}\'',
-                max_num_workers      : 5,
                 num_workers          : 5,
                 autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
         ]
@@ -71,7 +69,7 @@ def bqio_write_test = [
 def executeJob = { scope, testConfig ->
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-    loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.jobProperties, testConfig.itClass)
+    loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

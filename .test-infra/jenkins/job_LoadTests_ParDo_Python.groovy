@@ -24,10 +24,10 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def loadTestConfigurations = { datasetName -> [
         [
-                title        : 'ParDo Python Load test: 2GB 100 byte records 10 times',
-                itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 10 times',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-1-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -46,10 +46,10 @@ def loadTestConfigurations = { datasetName -> [
                 ]
         ],
         [
-                title        : 'ParDo Python Load test: 2GB 100 byte records 200 times',
-                itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 200 times',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-2-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -68,10 +68,10 @@ def loadTestConfigurations = { datasetName -> [
                 ]
         ],
         [
-                title        : 'ParDo Python Load test: 2GB 100 byte records 10 counters',
-                itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 10 counters',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-3-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -90,10 +90,10 @@ def loadTestConfigurations = { datasetName -> [
                 ]
         ],
         [
-                title        : 'ParDo Python Load test: 2GB 100 byte records 100 counters',
-                itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 100 counters',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-4-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -119,7 +119,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     for (testConfiguration in loadTestConfigurations(datasetName)) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.jobProperties, testConfiguration.itClass)
+        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
     }
 }
 

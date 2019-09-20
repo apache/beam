@@ -27,10 +27,10 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
-                title        : 'ParDo Python Load test: 2GB 100 byte records 10 times',
-                itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 10 times',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-1-' + now,
                         project              : 'apache-beam-testing',
                         publish_to_big_query : false,
@@ -50,10 +50,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'ParDo Python Load test: 2GB 100 byte records 200 times',
-                itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 200 times',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-2-' + now,
                         project              : 'apache-beam-testing',
                         publish_to_big_query : false,
@@ -73,10 +73,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'ParDo Python Load test: 2GB 100 byte records 10 counters',
-                itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 10 counters',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-3-' + now,
                         project              : 'apache-beam-testing',
                         publish_to_big_query : false,
@@ -96,10 +96,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'ParDo Python Load test: 2GB 100 byte records 100 counters',
-                itClass      : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 100 counters',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-4-' + now,
                         project              : 'apache-beam-testing',
                         publish_to_big_query : false,
