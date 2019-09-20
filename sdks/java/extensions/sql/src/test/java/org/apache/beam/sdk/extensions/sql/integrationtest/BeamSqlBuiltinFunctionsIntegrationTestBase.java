@@ -46,7 +46,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -391,12 +390,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       public PDone expand(PBegin begin) {
         PCollection<Boolean> result =
             begin
-                .apply(
-                    Create.of(DUMMY_ROW)
-                        .withSchema(
-                            DUMMY_SCHEMA,
-                            SerializableFunctions.identity(),
-                            SerializableFunctions.identity()))
+                .apply(Create.of(DUMMY_ROW).withRowSchema(DUMMY_SCHEMA))
                 .apply(SqlTransform.query("SELECT " + expr))
                 .apply(MapElements.into(TypeDescriptors.booleans()).via(row -> row.getBoolean(0)));
 

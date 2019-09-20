@@ -74,6 +74,10 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     return new Builder<>(coder);
   }
 
+  public static Builder<Row> create(Schema schema) {
+    return create(SchemaCoder.of(schema));
+  }
+
   public static <T> Builder<T> create(
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,

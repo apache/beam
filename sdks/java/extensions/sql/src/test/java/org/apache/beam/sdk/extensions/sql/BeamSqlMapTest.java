@@ -21,7 +21,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -145,9 +144,6 @@ public class BeamSqlMapTest {
                     .addValues(2)
                     .addValue(ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
                     .build())
-            .withSchema(
-                INPUT_ROW_TYPE,
-                SerializableFunctions.identity(),
-                SerializableFunctions.identity()));
+            .withRowSchema(INPUT_ROW_TYPE));
   }
 }

@@ -53,7 +53,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -137,8 +136,7 @@ public class PubsubJsonIT implements Serializable {
     queryOutput.apply(
         "waitForSuccess",
         resultSignal.signalSuccessWhen(
-            SchemaCoder.of(
-                PAYLOAD_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()),
+            SchemaCoder.of(PAYLOAD_SCHEMA),
             observedRows ->
                 observedRows.equals(
                     ImmutableSet.of(
@@ -209,8 +207,7 @@ public class PubsubJsonIT implements Serializable {
     queryOutput.apply(
         "waitForSuccess",
         resultSignal.signalSuccessWhen(
-            SchemaCoder.of(
-                PAYLOAD_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()),
+            SchemaCoder.of(PAYLOAD_SCHEMA),
             observedRows ->
                 observedRows.equals(
                     ImmutableSet.of(
