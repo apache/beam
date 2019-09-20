@@ -24,6 +24,7 @@ from typing import Dict
 from typing import Iterator
 from typing import Optional
 from typing import Union
+from typing import cast
 
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
@@ -149,8 +150,11 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     job = self._jobs[request.job_id]
     for msg in job.get_message_stream():
       if isinstance(msg, int):
+        # typing note: there's a discrepancy between the generated pb2 pyi
+        # stubs and the actual types: int is fine here.
         resp = beam_job_api_pb2.JobMessagesResponse(
-            state_response=beam_job_api_pb2.GetJobStateResponse(state=msg))
+            state_response=beam_job_api_pb2.GetJobStateResponse(
+                state=cast('beam_job_api_pb2.JobState.Enum', msg)))
       else:
         resp = beam_job_api_pb2.JobMessagesResponse(message_response=msg)
       yield resp

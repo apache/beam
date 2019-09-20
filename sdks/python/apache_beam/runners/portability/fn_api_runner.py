@@ -49,6 +49,7 @@ from typing import Tuple
 from typing import Type
 from typing import TypeVar
 from typing import Union
+from typing import cast
 from typing import overload
 
 import grpc
@@ -1736,7 +1737,9 @@ class WorkerHandlerManager(object):
 
     # assume all environments except EMBEDDED_PYTHON use gRPC.
     if environment.urn == python_urns.EMBEDDED_PYTHON:
-      pass # no need for a gRPC server
+      # no need for a gRPC server, but we need to silence a typing error from
+      # WorkerHandler.create() below
+      self._grpc_server = cast('GrpcServer', None)
     elif self._grpc_server is None:
       self._grpc_server = GrpcServer(self._state, self._job_provision_info,
                                      max_total_workers)

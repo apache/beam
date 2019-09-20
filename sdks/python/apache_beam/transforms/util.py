@@ -621,7 +621,9 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values]
 
     else:
-      def reify_timestamps(element,
+      # ignore typing here because mypy wants this to have the same signature
+      # as above
+      def reify_timestamps(element,  # type: ignore
                            timestamp=DoFn.TimestampParam,
                            window=DoFn.WindowParam):
         key, value = element

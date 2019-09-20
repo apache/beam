@@ -348,7 +348,7 @@ class AsSideInput(object):
     from apache_beam.transforms import sideinputs
     self.pvalue = pcoll
     self._window_mapping_fn = sideinputs.default_window_mapping_fn(
-        pcoll.windowing.windowfn)
+        pcoll.windowing.windowfn)  # type: ignore # Cannot determine type of 'windowfn'
 
   def _view_options(self):
     """Internal options corresponding to specific view.

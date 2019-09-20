@@ -62,6 +62,7 @@ from typing import Sequence
 from typing import Set
 from typing import Tuple
 from typing import Union
+from typing import cast
 
 from future.utils import with_metaclass
 
@@ -796,7 +797,9 @@ class AppliedPTransform(object):
     # any interference. This is particularly useful for composite transforms.
     self.full_label = full_label
     self.inputs = inputs or ()
-    self.side_inputs = () if transform is None else tuple(transform.side_inputs)  # type: Tuple[pvalue.AsSideInput, ...]
+    self.side_inputs = cast(
+        Tuple[pvalue.AsSideInput, ...],
+        () if transform is None else tuple(transform.side_inputs))
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
 
