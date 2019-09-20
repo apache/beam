@@ -24,7 +24,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
@@ -46,10 +45,7 @@ public class BeamSqlCastTest {
     PCollection<Row> input =
         pipeline.apply(
             Create.of(Row.withSchema(INPUT_ROW_SCHEMA).addValues(1).addValue("20181018").build())
-                .withSchema(
-                    INPUT_ROW_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+                .withRowSchema(INPUT_ROW_SCHEMA));
 
     Schema resultType =
         Schema.builder().addInt32Field("f_int").addNullableField("f_date", DATETIME).build();
@@ -78,10 +74,7 @@ public class BeamSqlCastTest {
     PCollection<Row> input =
         pipeline.apply(
             Create.of(Row.withSchema(INPUT_ROW_SCHEMA).addValues(1).addValue("20181018").build())
-                .withSchema(
-                    INPUT_ROW_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+                .withRowSchema(INPUT_ROW_SCHEMA));
 
     Schema resultType = Schema.builder().addInt32Field("f_int").addDateTimeField("f_date").build();
 

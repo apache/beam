@@ -29,7 +29,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -90,11 +89,7 @@ public class RowSizeTest {
   public void testParDoConvertsToRecordSize() throws Exception {
     PCollection<Row> rows =
         testPipeline.apply(
-            TestStream.create(
-                    SchemaCoder.of(
-                        ROW_TYPE,
-                        SerializableFunctions.identity(),
-                        SerializableFunctions.identity()))
+            TestStream.create(SchemaCoder.of(ROW_TYPE))
                 .addElements(ROW)
                 .advanceWatermarkToInfinity());
 

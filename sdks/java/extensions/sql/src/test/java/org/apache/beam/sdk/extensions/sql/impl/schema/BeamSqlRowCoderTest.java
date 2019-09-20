@@ -23,7 +23,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
@@ -70,9 +69,7 @@ public class BeamSqlRowCoderTest {
                 DateTime.now(),
                 true)
             .build();
-    Coder<Row> coder =
-        SchemaCoder.of(
-            beamSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+    Coder<Row> coder = SchemaCoder.of(beamSchema);
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
 }
