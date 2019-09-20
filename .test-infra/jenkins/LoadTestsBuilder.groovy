@@ -30,7 +30,7 @@ class LoadTestsBuilder {
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     for (testConfiguration in testConfigurations) {
-        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass)
+        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.pipelineOptions, testConfiguration.test)
     }
   }
 

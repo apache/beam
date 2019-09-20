@@ -27,10 +27,10 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
-                title        : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
-                itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-1-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -57,10 +57,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'CoGroupByKey Python Load test: 2GB of 100B records with multiple keys',
-                itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'CoGroupByKey Python Load test: 2GB of 100B records with multiple keys',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-2-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -87,10 +87,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'CoGroupByKey Python Load test: reiterate 4 times 10kB values',
-                itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'CoGroupByKey Python Load test: reiterate 4 times 10kB values',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-3-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -117,10 +117,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'CoGroupByKey Python Load test: reiterate 4 times 2MB values',
-                itClass      : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'CoGroupByKey Python Load test: reiterate 4 times 2MB values',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-flink-batch-cogbk-4-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',

@@ -26,10 +26,10 @@ import PhraseTriggeringPostCommitBuilder
 def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
   [
           [
-                  title        : 'Load test: 2GB of 10B records',
-                  itClass      : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
-                  runner       : CommonTestProperties.Runner.DATAFLOW,
-                  jobProperties: [
+                  title          : 'Load test: 2GB of 10B records',
+                  test           : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
+                  runner         : CommonTestProperties.Runner.DATAFLOW,
+                  pipelineOptions: [
                           project             : 'apache-beam-testing',
                           appName             : "load_tests_Java_Dataflow_${jobType}_Combine_1",
                           tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -46,7 +46,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                           fanout              : 1,
                           iterations          : 1,
                           topCount            : 20,
-                          maxNumWorkers       : 5,
                           numWorkers          : 5,
                           autoscalingAlgorithm: "NONE",
                           perKeyCombiner      : "TOP_LARGEST",
@@ -54,10 +53,10 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                   ]
           ],
           [
-                    title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
-                    itClass      : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
+                    test           : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project             : 'apache-beam-testing',
                             appName             : "load_tests_Java_Dataflow_${jobType}_Combine_4",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -74,7 +73,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             fanout              : 4,
                             iterations          : 1,
                             topCount            : 20,
-                            maxNumWorkers       : 16,
                             numWorkers          : 16,
                             autoscalingAlgorithm: "NONE",
                             perKeyCombiner      : "TOP_LARGEST",
@@ -82,10 +80,10 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     ]
             ],
             [
-                    title        : 'Load test: fanout 8 times with 2GB 10-byte records total',
-                    itClass      : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
+                    test           : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project             : 'apache-beam-testing',
                             appName             : "load_tests_Java_Dataflow_${jobType}_Combine_5",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -102,7 +100,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             fanout              : 8,
                             iterations          : 1,
                             topCount            : 20,
-                            maxNumWorkers       : 16,
                             numWorkers          : 16,
                             autoscalingAlgorithm: "NONE",
                             perKeyCombiner      : "TOP_LARGEST",
@@ -124,8 +121,8 @@ def streamingLoadTestJob = {scope, triggeringContext ->
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     for (testConfiguration in commonLoadTestConfig('streaming', true, datasetName)) {
-        testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass)
+        testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
+        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.pipelineOptions, testConfiguration.test)
     }
 }
 

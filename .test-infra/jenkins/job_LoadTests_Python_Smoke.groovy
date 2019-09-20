@@ -23,11 +23,10 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def smokeTestConfigurations = { datasetName -> [
         [
-                title        : 'GroupByKey Python load test Direct',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DIRECT,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python load test Direct',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.DIRECT,
+                pipelineOptions: [
                         publish_to_big_query: true,
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
@@ -39,11 +38,10 @@ def smokeTestConfigurations = { datasetName -> [
                 ]
         ],
         [
-                title        : 'GroupByKey Python load test Dataflow',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python load test Dataflow',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name            : 'load-tests-python-dataflow-batch-gbk-smoke-' + now,
                         project             : 'apache-beam-testing',
                         temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
