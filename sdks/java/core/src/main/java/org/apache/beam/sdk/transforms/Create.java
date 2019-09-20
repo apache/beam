@@ -151,11 +151,7 @@ public class Create<T> {
    */
   public static Values<Row> empty(Schema schema) {
     return new Values<Row>(
-        new ArrayList<>(),
-        Optional.of(
-            SchemaCoder.of(
-                schema, SerializableFunctions.identity(), SerializableFunctions.identity())),
-        Optional.absent());
+        new ArrayList<>(), Optional.of(SchemaCoder.of(schema)), Optional.absent());
   }
 
   /**
@@ -295,9 +291,10 @@ public class Create<T> {
     @Experimental(Kind.SCHEMAS)
     public Values<T> withSchema(
         Schema schema,
+        TypeDescriptor<T> typeDescriptor,
         SerializableFunction<T, Row> toRowFunction,
         SerializableFunction<Row, T> fromRowFunction) {
-      return withCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+      return withCoder(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
     }
 
     /**
@@ -306,11 +303,7 @@ public class Create<T> {
      */
     @Experimental(Kind.SCHEMAS)
     public Values<T> withRowSchema(Schema schema) {
-      return withCoder(
-          SchemaCoder.of(
-              schema,
-              (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
-              (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity()));
+      return withCoder((SchemaCoder<T>) SchemaCoder.of(schema));
     }
 
     /**
@@ -347,6 +340,7 @@ public class Create<T> {
               coder =
                   SchemaCoder.of(
                       schemaRegistry.getSchema(typeDescriptor.get()),
+                      typeDescriptor.get(),
                       schemaRegistry.getToRowFunction(typeDescriptor.get()),
                       schemaRegistry.getFromRowFunction(typeDescriptor.get()));
             } catch (NoSuchSchemaException e) {
@@ -584,9 +578,10 @@ public class Create<T> {
     @Experimental(Kind.SCHEMAS)
     public TimestampedValues<T> withSchema(
         Schema schema,
+        TypeDescriptor<T> typeDescriptor,
         SerializableFunction<T, Row> toRowFunction,
         SerializableFunction<Row, T> fromRowFunction) {
-      return withCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+      return withCoder(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
     }
 
     /**
@@ -620,6 +615,7 @@ public class Create<T> {
             coder =
                 SchemaCoder.of(
                     schemaRegistry.getSchema(typeDescriptor.get()),
+                    typeDescriptor.get(),
                     schemaRegistry.getToRowFunction(typeDescriptor.get()),
                     schemaRegistry.getFromRowFunction(typeDescriptor.get()));
           } catch (NoSuchSchemaException e) {
@@ -710,6 +706,7 @@ public class Create<T> {
         Coder<T> coder =
             SchemaCoder.of(
                 schemaRegistry.getSchema(typeDescriptor),
+                typeDescriptor,
                 schemaRegistry.getToRowFunction(typeDescriptor),
                 schemaRegistry.getFromRowFunction(typeDescriptor));
         return coder;
@@ -780,8 +777,9 @@ public class Create<T> {
     try {
       return SchemaCoder.of(
           schemaRegistry.getSchema(o.getClass()),
+          TypeDescriptor.of(o.getClass()),
           (SerializableFunction) schemaRegistry.getToRowFunction(o.getClass()),
-          schemaRegistry.getFromRowFunction(o.getClass()));
+          (SerializableFunction) schemaRegistry.getFromRowFunction(o.getClass()));
     } catch (NoSuchSchemaException e) {
       // No schema.
     }

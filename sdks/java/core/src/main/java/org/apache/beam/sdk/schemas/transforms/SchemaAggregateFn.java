@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.CombineFns;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
 import org.apache.beam.sdk.transforms.CombineFns.ComposedCombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -298,8 +297,7 @@ class SchemaAggregateFn {
 
     @Override
     public Coder<Row> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
-      return SchemaCoder.of(
-          getOutputSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+      return SchemaCoder.of(getOutputSchema());
     }
 
     @Override

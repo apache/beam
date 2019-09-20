@@ -735,16 +735,18 @@ public class ParDo {
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
 
+      TypeDescriptor<OutputT> outputTypeDescriptor = getFn().getOutputTypeDescriptor();
       try {
         res.setSchema(
-            schemaRegistry.getSchema(getFn().getOutputTypeDescriptor()),
-            schemaRegistry.getToRowFunction(getFn().getOutputTypeDescriptor()),
-            schemaRegistry.getFromRowFunction(getFn().getOutputTypeDescriptor()));
+            schemaRegistry.getSchema(outputTypeDescriptor),
+            outputTypeDescriptor,
+            schemaRegistry.getToRowFunction(outputTypeDescriptor),
+            schemaRegistry.getFromRowFunction(outputTypeDescriptor));
       } catch (NoSuchSchemaException e) {
         try {
           res.setCoder(
               registry.getCoder(
-                  getFn().getOutputTypeDescriptor(),
+                  outputTypeDescriptor,
                   getFn().getInputTypeDescriptor(),
                   ((PCollection<InputT>) input).getCoder()));
         } catch (CannotProvideCoderException e2) {

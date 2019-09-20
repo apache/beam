@@ -158,6 +158,7 @@ public class PCollection<T> extends PValueBase implements PValue {
         SchemaCoder<T> schemaCoder =
             SchemaCoder.of(
                 schemaRegistry.getSchema(token),
+                token,
                 schemaRegistry.getToRowFunction(token),
                 schemaRegistry.getFromRowFunction(token));
         return new CoderOrFailure<>(schemaCoder, null);
@@ -302,6 +303,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   public PCollection<T> setRowSchema(Schema schema) {
     return setSchema(
         schema,
+        (TypeDescriptor<T>) TypeDescriptors.rows(),
         (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
         (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity());
   }
@@ -310,9 +312,10 @@ public class PCollection<T> extends PValueBase implements PValue {
   @Experimental(Kind.SCHEMAS)
   public PCollection<T> setSchema(
       Schema schema,
+      TypeDescriptor<T> typeDescriptor,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return setCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+    return setCoder(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
   }
 
   /** Returns whether this {@link PCollection} has an attached schema. */

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,20 +29,29 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /** {@link SchemaCoder} is used as the coder for types that have schemas registered. */
 @Experimental(Kind.SCHEMAS)
 public class SchemaCoder<T> extends CustomCoder<T> {
   private final RowCoder rowCoder;
+  private final TypeDescriptor<T> typeDescriptor;
   private final SerializableFunction<T, Row> toRowFunction;
   private final SerializableFunction<Row, T> fromRowFunction;
 
   private SchemaCoder(
       Schema schema,
+      TypeDescriptor<T> typeDescriptor,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
+    checkArgument(
+        !typeDescriptor.hasUnresolvedParameters(),
+        "Cannot create SchemaCoder with a TypeDescriptor that has unresolved parameters: %s",
+        typeDescriptor);
     this.toRowFunction = toRowFunction;
     this.fromRowFunction = fromRowFunction;
+    this.typeDescriptor = typeDescriptor;
     this.rowCoder = RowCoder.of(schema);
   }
 
@@ -50,14 +61,15 @@ public class SchemaCoder<T> extends CustomCoder<T> {
    */
   public static <T> SchemaCoder<T> of(
       Schema schema,
+      TypeDescriptor<T> typeDescriptor,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
+    return new SchemaCoder<>(schema, typeDescriptor, toRowFunction, fromRowFunction);
   }
 
   /** Returns a {@link SchemaCoder} for {@link Row} classes. */
   public static SchemaCoder<Row> of(Schema schema) {
-    return new SchemaCoder<>(schema, identity(), identity());
+    return new SchemaCoder<>(schema, TypeDescriptors.rows(), identity(), identity());
   }
 
   /** Returns the schema associated with this type. */
@@ -110,6 +122,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     }
     SchemaCoder<?> that = (SchemaCoder<?>) o;
     return rowCoder.equals(that.rowCoder)
+        && typeDescriptor.equals(that.typeDescriptor)
         && toRowFunction.equals(that.toRowFunction)
         && fromRowFunction.equals(that.fromRowFunction);
   }
@@ -141,5 +154,10 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       }
       return o != null && getClass() == o.getClass();
     }
+  }
+
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return this.typeDescriptor;
   }
 }

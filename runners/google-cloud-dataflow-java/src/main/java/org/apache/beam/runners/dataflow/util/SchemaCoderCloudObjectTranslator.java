@@ -26,10 +26,12 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Translator for Schema coders. */
 public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<SchemaCoder> {
   private static final String SCHEMA = "schema";
+  private static final String TYPE_DESCRIPTOR = "typeDescriptor";
   private static final String TO_ROW_FUNCTION = "toRowFunction";
   private static final String FROM_ROW_FUNCTION = "fromRowFunction";
 
@@ -38,6 +40,11 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
   public CloudObject toCloudObject(SchemaCoder target, SdkComponents sdkComponents) {
     CloudObject base = CloudObject.forClass(SchemaCoder.class);
 
+    Structs.addString(
+        base,
+        TYPE_DESCRIPTOR,
+        StringUtils.byteArrayToJsonString(
+            SerializableUtils.serializeToByteArray(target.getEncodedTypeDescriptor())));
     Structs.addString(
         base,
         TO_ROW_FUNCTION,
@@ -60,6 +67,12 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
   @Override
   public SchemaCoder fromCloudObject(CloudObject cloudObject) {
     try {
+      TypeDescriptor typeDescriptor =
+          (TypeDescriptor)
+              SerializableUtils.deserializeFromByteArray(
+                  StringUtils.jsonStringToByteArray(
+                      Structs.getString(cloudObject, TYPE_DESCRIPTOR)),
+                  "typeDescriptor");
       SerializableFunction toRowFunction =
           (SerializableFunction)
               SerializableUtils.deserializeFromByteArray(
@@ -76,7 +89,7 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
           SchemaApi.Schema.parseFrom(
               StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, SCHEMA)));
       Schema schema = SchemaTranslation.fromProto(protoSchema);
-      return SchemaCoder.of(schema, toRowFunction, fromRowFunction);
+      return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

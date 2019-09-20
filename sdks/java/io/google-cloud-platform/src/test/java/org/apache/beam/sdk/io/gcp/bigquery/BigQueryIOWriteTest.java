@@ -98,6 +98,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -260,6 +261,7 @@ public class BigQueryIOWriteTest implements Serializable {
       users =
           users.setSchema(
               schema,
+              TypeDescriptors.strings(),
               user -> {
                 Matcher matcher = userPattern.matcher(user);
                 checkState(matcher.matches());
