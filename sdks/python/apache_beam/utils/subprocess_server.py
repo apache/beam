@@ -35,8 +35,26 @@ from apache_beam.version import __version__ as beam_version
 
 
 class SubprocessServer(object):
-  """An abstract base class for running GRPC Servers as an external process."""
+  """An abstract base class for running GRPC Servers as an external process.
+
+  This class acts as a context which will start up a server, provides a stub
+  to connect to it, and then shuts the server down.  For example::
+
+      with SubprocessServer(GrpcStubClass, [executable, arg, ...]) as stub:
+          stub.CallService(...)
+  """
   def __init__(self, stub_class, cmd, port=None):
+    """Creates the server object.
+
+    :param stub_class: the auto-generated GRPC client stub class used for
+        connecting to the GRPC service
+    :param cmd: command (including arguments) for starting up the server,
+        suitable for passing to `subprocess.POpen`.
+    :param port: (optional) the port at which the subprocess will serve its
+        service.  If not given, one will be randomly chosen and the special
+        string "{{PORT}}" will be substituted in the command line arguments
+        with the chosen port.
+    """
     self._process_lock = threading.RLock()
     self._process = None
     self._stub_class = stub_class
