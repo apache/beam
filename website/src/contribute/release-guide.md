@@ -488,6 +488,8 @@ There could be outstanding release-blocking issues, which should be triaged befo
 
 The list of release-blocking issues is available at the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel). Triage each unresolved issue with one of the following resolutions:
 
+The release manager should triage what does and does not block a release. An issue should not block the release if the problem exists in the current released version or is a bug in new functionality that does not exist in the current released version. It should be a blocker if the bug is a regression between the currently released version and the release in progress and has no easy workaround.
+ 
 For all JIRA issues:
 
 * If the issue has been resolved and JIRA was not updated, resolve it accordingly.
