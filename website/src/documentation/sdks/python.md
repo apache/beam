@@ -29,9 +29,7 @@ See the [Python API reference](https://beam.apache.org/releases/pydoc/) for more
 
 ## Python streaming pipelines
 
-Python [streaming pipeline execution]({{ site.baseurl }}/documentation/sdks/python-streaming)
-is experimentally available (with some [limitations]({{ site.baseurl }}/documentation/sdks/python-streaming/#unsupported-features))
-starting with Beam SDK version 2.5.0.
+Apache Beam first offered experimental support for Python [streaming pipeline execution]({{ site.baseurl }}/documentation/sdks/python-streaming) with the 2.5.0 SDK release. Python streaming is now generally available, starting with the 2.16.0 version.
 
 ## Python type safety
 

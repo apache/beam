@@ -20,9 +20,7 @@ limitations under the License.
 
 # Python Streaming Pipelines
 
-Python streaming pipeline execution became available (with some
-[limitations](#unsupported-features)) starting with Beam SDK version 2.5.0.
-
+Python streaming pipeline execution is generally available starting with Beam SDK version 2.16.0.
 
 ## Why use streaming execution?
 
@@ -187,14 +185,8 @@ These unsupported Beam features apply to all runners.
 
 ### DataflowRunner specific features
 
-Additionally, `DataflowRunner` does not currently support the following Cloud
-Dataflow specific features with Python streaming execution.
+Additionally, `DataflowRunner` does not currently support Cloud Dataflow Templates
+with Python streaming execution.
 
-- Streaming autoscaling
-- Updating existing pipelines
-- Cloud Dataflow Templates
-- Some monitoring features, such as msec counters, display data, metrics, and
-  element counts for transforms. However, logging, watermarks, and element
-  counts for sources are supported.
 
 
