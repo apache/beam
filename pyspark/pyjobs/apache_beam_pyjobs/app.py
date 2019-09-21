@@ -80,7 +80,7 @@ class App():
                     self.kafka_logger.log_error(self.LABEL + " FATAL ON LOADING " + what)
                     raise e
 
-                self.driver_manager.start_executor(self.spark_streaming_context, self.processor_loader.get_cache_on_driver().validate_on_driver(),
+                self.driver_manager.start_executors(self.spark_streaming_context, self.processor_loader.get_cache_on_driver().validate_on_driver(),
                     self.processor_loader.caches[0])
             else:
                 if self.restart_event.is_set():
