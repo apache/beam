@@ -274,9 +274,6 @@ public class SchemaCoderTest {
                 new SimpleAvro(
                     "bar", 9002, 1L, new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0)))
           });
-      // new Object[] {coderFrom(TypeDescriptor.of(SimpleBean.class), new JavaBeanSchema())},
-      // new Object[] {coderFrom(TypeDescriptor.of(TestAvro.class), new AvroRecordSchema())},
-      // new Object[] {coderFrom(TypeDescriptor.of(SimplePOJO.class), new JavaFieldSchema())});
     }
 
     @Test
