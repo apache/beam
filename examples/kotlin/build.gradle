@@ -81,7 +81,7 @@ dependencies {
   // https://issues.apache.org/jira/browse/BEAM-3583
   // apexRunnerPreCommit project(":runners:apex")
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(":runners:flink:1.5")
+  flinkRunnerPreCommit project(":runners:flink:1.8")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
   // before 4.1.8.Final defined by Apache Beam
   sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"

@@ -31,14 +31,6 @@ include ":runners:core-java"
 include ":runners:direct-java"
 include ":runners:extensions-java:metrics"
 /* Begin Flink Runner related settings */
-// Flink 1.5 (with Scala 2.11 suffix)
-include ":runners:flink:1.5"
-include ":runners:flink:1.5:job-server"
-include ":runners:flink:1.5:job-server-container"
-// Flink 1.6
-include ":runners:flink:1.6"
-include ":runners:flink:1.6:job-server"
-include ":runners:flink:1.6:job-server-container"
 // Flink 1.7
 include ":runners:flink:1.7"
 include ":runners:flink:1.7:job-server"
