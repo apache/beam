@@ -41,6 +41,14 @@ class SuperFlow(object):
         self.info.headers[k] = v
         return self
 
+    def with_info(self, info):
+        """
+        :param info: object (nifi style)
+        :return: self
+        """
+        self.info = info
+        return self
+
 class FlumeHandler:
 
     def __init__(self, config, executor_config):
