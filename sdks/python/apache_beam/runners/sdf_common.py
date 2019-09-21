@@ -125,15 +125,13 @@ class SplitRestrictionFn(beam.DoFn):
     self._invoker = DoFnInvoker.create_invoker(
         signature, process_invocation=False)
 
-  def process(self, element_and_restriction, *args, **kwargs):
+  def process(self, element, *args, **kwargs):
     # type: (ElementAndRestriction, Any, Any) -> Iterator[ElementAndRestriction]
-    element = element_and_restriction.element
-    restriction = element_and_restriction.restriction
     restriction_parts = self._invoker.invoke_split(
-        element,
-        restriction)
+        element.element,
+        element.restriction)
     for part in restriction_parts:
-      yield ElementAndRestriction(element, part)
+      yield ElementAndRestriction(element.element, part)
 
 
 class ExplodeWindowsFn(beam.DoFn):
