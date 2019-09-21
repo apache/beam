@@ -149,7 +149,7 @@ When running via Gradle, the following two parameters control the execution:
 
     -P nexmark.runner
 	The Gradle project name of the runner, such as ":runners:direct-java" or
-	":runners:flink:1.5. The project names can be found in the root
+	":runners:flink:1.8. The project names can be found in the root
         `settings.gradle`.
 
 Test data is deterministically synthesized on demand. The test
@@ -557,7 +557,7 @@ Streaming Mode:
 Batch Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.5" \
+        -Pnexmark.runner=":runners:flink:1.8" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -570,7 +570,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.5" \
+        -Pnexmark.runner=":runners:flink:1.8" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE

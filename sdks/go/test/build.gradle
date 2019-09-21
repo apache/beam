@@ -49,12 +49,12 @@ golang {
 
 task flinkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:flink:1.5:job-server:shadowJar"
+  dependsOn ":runners:flink:1.8:job-server:shadowJar"
   doLast {
     def options = [
             "--runner flink",
             "--parallel 1", // prevent memory overuse
-            "--flink_job_server_jar ${project(":runners:flink:1.5:job-server").shadowJar.archivePath}",
+            "--flink_job_server_jar ${project(":runners:flink:1.8:job-server").shadowJar.archivePath}",
     ]
     exec {
       executable "sh"

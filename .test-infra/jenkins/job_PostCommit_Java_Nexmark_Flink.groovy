@@ -40,7 +40,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
+      switches('-Pnexmark.runner=":runners:flink:1.8"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--streaming=false',
@@ -55,7 +55,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
+      switches('-Pnexmark.runner=":runners:flink:1.8"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--streaming=true',
@@ -70,7 +70,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
+      switches('-Pnexmark.runner=":runners:flink:1.8"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--queryLanguage=sql',
@@ -85,7 +85,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
+      switches('-Pnexmark.runner=":runners:flink:1.8"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--queryLanguage=sql',
