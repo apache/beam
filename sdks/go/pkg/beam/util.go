@@ -15,8 +15,6 @@
 
 package beam
 
-import "math/rand"
-
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=beam --identifiers=addFixedKeyFn,dropKeyFn,dropValueFn,swapKVFn,explodeFn,jsonDec,jsonEnc,protoEnc,protoDec,makePartitionFn,createFn
 //go:generate go fmt
@@ -114,27 +112,4 @@ func Must(a PCollection, err error) PCollection {
 		panic(err)
 	}
 	return a
-}
-
-/*
-	Reshuffle takes a PCollection<A> and shuffles the data to help increase parallelism.
-	Reshuffle adds a temporary random key to each element, performs a
-  	GroupByKey, and finally removes the temporary key.
-*/
-func Reshuffle(s Scope, col PCollection) PCollection {
-	s = s.Scope("Reshuffle")
-
-	col = ParDo(s, func(x X) (uint32, X) {
-		return rand.Uint32(), x
-	}, col)
-
-	col = GroupByKey(s, col)
-
-	return ParDo(s, func(key uint32, values func(*X) bool, emit func(X)) {
-		var x X
-
-		for values(&x) {
-			emit(x)
-		}
-	}, col)
 }
