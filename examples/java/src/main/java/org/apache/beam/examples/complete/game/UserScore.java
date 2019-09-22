@@ -207,6 +207,7 @@ public class UserScore {
     @Description("Path to the data file(s) containing game data.")
     // The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
     // day's worth (roughly) of data.
+    // Note: You may want to use a sample dataset to test it locally : ./sample_data/gaming_data.csv
     @Default.String("gs://apache-beam-samples/game/gaming_data*.csv")
     String getInput();
 
