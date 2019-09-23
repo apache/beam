@@ -40,8 +40,12 @@ import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
 import info.archinnov.achilles.embedded.CassandraShutDownHook;
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -76,13 +80,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.cassandra.service.StorageServiceMBean;
+import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -105,7 +108,8 @@ public class CassandraIOTest implements Serializable {
   private static Cluster cluster;
   private static Session session;
 
-  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  private static final String TEMPORARY_FOLDER =
+      System.getProperty("java.io.tmpdir") + "/embedded-cassandra/";
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   private static CassandraShutDownHook shutdownHook;
 
@@ -113,12 +117,16 @@ public class CassandraIOTest implements Serializable {
   public static void beforeClass() throws Exception {
     jmxPort = NetworkTestHelper.getAvailableLocalPort();
     shutdownHook = new CassandraShutDownHook();
-    // randomized port at startup
-    String data = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "data").getPath();
-    String commitLog = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "commit-log").getPath();
-    String cdcRaw = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "cdc-raw").getPath();
-    String hints = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "hints").getPath();
-    String savedCache = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "saved-cache").getPath();
+    String data = TEMPORARY_FOLDER + "/data";
+    Files.createDirectories(Paths.get(data));
+    String commitLog = TEMPORARY_FOLDER + "/commit-log";
+    Files.createDirectories(Paths.get(commitLog));
+    String cdcRaw = TEMPORARY_FOLDER + "/cdc-raw";
+    Files.createDirectories(Paths.get(cdcRaw));
+    String hints = TEMPORARY_FOLDER + "/hints";
+    Files.createDirectories(Paths.get(hints));
+    String savedCache = TEMPORARY_FOLDER + "/saved-cache";
+    Files.createDirectories(Paths.get(savedCache));
     CassandraEmbeddedServerBuilder builder =
         CassandraEmbeddedServerBuilder.builder()
             .withKeyspaceName(CASSANDRA_KEYSPACE)
@@ -128,6 +136,7 @@ public class CassandraIOTest implements Serializable {
             .withHintsFolder(hints)
             .withSavedCachesFolder(savedCache)
             .withShutdownHook(shutdownHook)
+            // randomized CQL port at startup
             .withJMXPort(jmxPort)
             .cleanDataFilesAtStartup(false);
 
@@ -158,8 +167,9 @@ public class CassandraIOTest implements Serializable {
   }
 
   @AfterClass
-  public static void afterClass() throws InterruptedException {
+  public static void afterClass() throws InterruptedException, IOException {
     shutdownHook.shutDownNow();
+    FileUtils.deleteDirectory(new File(TEMPORARY_FOLDER));
   }
 
   private static void insertData() throws Exception {
