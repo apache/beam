@@ -68,7 +68,6 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.commons_lang3
   compile library.java.kafka_clients
-  compile project(path: ":runners:direct-java", configuration: "shadow")
   provided library.java.junit
   provided library.java.hamcrest_core
   testRuntimeClasspath library.java.slf4j_jdk14
