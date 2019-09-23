@@ -88,20 +88,20 @@ Python [FnApiRunner](https://beam.apache.org/contribute/runner-guide/#the-fn-api
 
 #### Setting parallelism
 
-Number of threads or subprocess is defined by `direct_num_workers` option. There are several ways to set this option.
+Number of threads or subprocesses is defined by setting the `direct_num_workers` option. There are several ways to set this option.
 
 * Passing through CLI when executing a pipeline.
 ```
 python wordcount.py --input xx --output xx --direct_num_workers 2
 ```
 
-* Setting with PipelineOptions.
+* Setting with `PipelineOptions`.
 ```
 from apache_beam.options.pipeline_options import PipelineOptions
 pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
 ```
 
-* Adding to existing PipelineOptions.
+* Adding to existing `PipelineOptions`.
 ```
 from apache_beam.options.pipeline_options import DirectOptions
 pipeline_options = PipelineOptions(xxx)
