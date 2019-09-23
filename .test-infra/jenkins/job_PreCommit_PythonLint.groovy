@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python',
+    nameBase: 'PythonLint',
     gradleTask: ':pythonLintPreCommit',
     triggerPathPatterns: [
       '^sdks/python/.*$',

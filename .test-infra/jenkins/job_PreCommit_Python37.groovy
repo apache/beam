@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python',
+    nameBase: 'Python37',
     gradleTask: ':python37PreCommit',
     triggerPathPatterns: [
       '^model/.*$',
