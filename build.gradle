@@ -33,10 +33,6 @@ plugins {
   id "org.sonarqube" version "2.7"
 }
 
-// Add performanceTest task to this build.gradle file
-// so that running Performance tests using PerfKitBenchmarker is possible.
-createPerformanceTestHarness()
-
 /*************************************************************************************************/
 // Configure the root project
 
@@ -236,6 +232,8 @@ task python37PostCommit() {
 task portablePythonPreCommit() {
   dependsOn ":sdks:python:test-suites:portable:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:portable:py35:preCommitPy35"
+  dependsOn ":sdks:python:test-suites:portable:py36:preCommitPy36"
+  dependsOn ":sdks:python:test-suites:portable:py37:preCommitPy37"
 }
 
 task websitePreCommit() {

@@ -50,6 +50,7 @@ from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -329,7 +330,11 @@ class FnApiRunner(runner.PipelineRunner):
     self._progress_frequency = None
     self._profiler_factory = None
     self._use_state_iterables = use_state_iterables
-    self._provision_info = provision_info
+    self._provision_info = provision_info or ExtendedProvisionInfo(
+        beam_provision_api_pb2.ProvisionInfo(
+            job_id='unknown-job-id',
+            job_name='unknown-job-name',
+            retrieval_token='unused-retrieval-token'))
 
   def _next_uid(self):
     self._last_uid += 1
@@ -1130,6 +1135,17 @@ class BasicProvisionService(
         info=self._info)
 
 
+class EmptyArtifactRetrievalService(
+    beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceServicer):
+
+  def GetManifest(self, request, context=None):
+    return beam_artifact_api_pb2.GetManifestResponse(
+        manifest=beam_artifact_api_pb2.Manifest())
+
+  def GetArtifact(self, request, context=None):
+    raise ValueError('No artifacts staged.')
+
+
 class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
@@ -1174,11 +1190,12 @@ class GrpcServer(object):
             self.control_server)
 
       if self.provision_info.artifact_staging_dir:
-        m = beam_artifact_api_pb2_grpc
-        m.add_ArtifactRetrievalServiceServicer_to_server(
-            artifact_service.BeamFilesystemArtifactService(
-                self.provision_info.artifact_staging_dir),
-            self.control_server)
+        service = artifact_service.BeamFilesystemArtifactService(
+            self.provision_info.artifact_staging_dir)
+      else:
+        service = EmptyArtifactRetrievalService()
+      beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
+          service, self.control_server)
 
     self.data_plane_handler = data_plane.BeamFnDataServicer()
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
@@ -1227,29 +1244,35 @@ class GrpcWorkerHandler(WorkerHandler):
         state, provision_info)
     self.state = state
 
-    self.control_address = self._grpc_server.control_address
-    self.control_conn = self._grpc_server.control_handler \
-      .get_conn_by_worker_id(self.worker_id)
+    self.control_address = self.port_from_worker(self._grpc_server.control_port)
+    self.control_conn = self._grpc_server.control_handler.get_conn_by_worker_id(
+        self.worker_id)
 
-    self.data_conn = self._grpc_server.data_plane_handler \
-      .get_conn_by_worker_id(self.worker_id)
+    self.data_conn = self._grpc_server.data_plane_handler.get_conn_by_worker_id(
+        self.worker_id)
 
   def data_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self._grpc_server.data_port)
+        url=self.port_from_worker(self._grpc_server.data_port))
 
   def state_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self._grpc_server.state_port)
+        url=self.port_from_worker(self._grpc_server.state_port))
 
   def logging_api_service_descriptor(self):
     return endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%s' % self._grpc_server.logging_port)
+        url=self.port_from_worker(self._grpc_server.logging_port))
 
   def close(self):
     self.control_conn.close()
     self.data_conn.close()
     super(GrpcWorkerHandler, self).close()
+
+  def port_from_worker(self, port):
+    return '%s:%s' % (self.localhost_from_worker(), port)
+
+  def localhost_from_worker(self):
+    return 'localhost'
 
 
 @WorkerHandler.register_environment(
@@ -1331,6 +1354,13 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     self._container_image = payload.container_image
     self._container_id = None
 
+  def localhost_from_worker(self):
+    if sys.platform == "darwin":
+      # See https://docs.docker.com/docker-for-mac/networking/
+      return 'host.docker.internal'
+    else:
+      return super(DockerSdkWorkerHandler, self).localhost_from_worker()
+
   def start_worker(self):
     with SUBPROCESS_LOCK:
       try:
@@ -1351,24 +1381,25 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
            '--provision_endpoint=%s' % self.control_address,
           ]).strip()
       while True:
-        logging.info('Waiting for docker to start up...')
         status = subprocess.check_output([
             'docker',
             'inspect',
             '-f',
             '{{.State.Status}}',
             self._container_id]).strip()
-        if status == 'running':
+        logging.info('Waiting for docker to start up.Current status is %s' %
+                     status)
+        if status == b'running':
           logging.info('Docker container is running. container_id = %s, '
                        'worker_id = %s', self._container_id, self.worker_id)
           break
-        elif status in ('dead', 'exited'):
+        elif status in (b'dead', b'exited'):
           subprocess.call([
               'docker',
               'container',
               'logs',
               self._container_id])
-          raise RuntimeError('SDK failed to start.')
+          raise RuntimeError('SDK failed to start. Final status is %s' % status)
       time.sleep(1)
 
   def stop_worker(self):
@@ -1381,7 +1412,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
 
 class WorkerHandlerManager(object):
-  def __init__(self, environments, job_provision_info=None):
+  def __init__(self, environments, job_provision_info):
     self._environments = environments
     self._job_provision_info = job_provision_info
     self._cached_handlers = collections.defaultdict(list)

@@ -98,15 +98,13 @@ def batchLoadTestJob = { scope, triggeringContext ->
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-    def sdk = CommonTestProperties.SDK.PYTHON
-    String sdkName = sdk.name().toLowerCase()
-    String pythonHarnessImageTag = publisher.getFullImageName(sdkName)
+    String pythonHarnessImageTag = publisher.getFullImageName('python2.7_sdk')
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     def numberOfWorkers = 16
     List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-    publisher.publish(":sdks:${sdkName}:container:docker", sdkName)
+    publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
     publisher.publish(':runners:flink:1.7:job-server-container:docker', 'flink-job-server')
     def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
     flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))

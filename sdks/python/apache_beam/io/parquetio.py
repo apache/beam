@@ -29,8 +29,6 @@ Parquet file.
 """
 from __future__ import absolute_import
 
-import platform
-import sys
 from functools import partial
 
 from apache_beam.io import filebasedsink
@@ -41,9 +39,12 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 
-if not (platform.system() == 'Windows' and sys.version_info[0] == 2):
+try:
   import pyarrow as pa
   import pyarrow.parquet as pq
+except ImportError:
+  pa = None
+  pq = None
 
 __all__ = ['ReadFromParquet', 'ReadAllFromParquet', 'WriteToParquet']
 

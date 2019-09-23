@@ -39,15 +39,17 @@ function clean_up(){
   echo "Please sign up your name in the tests you have ran."
 
   echo "-----------------Final Cleanup-----------------"
-  if [[ -f ~/.m2/settings_backup.xml ]]; then
+  if [[ -f ~/.m2/$BACKUP_M2 ]]; then
     rm ~/.m2/settings.xml
-    cp ~/.m2/settings_backup.xml ~/.m2/settings.xml
+    cp ~/.m2/$BACKUP_M2 ~/.m2/settings.xml
+    rm ~/.m2/$BACKUP_M2
     echo "* Restored ~/.m2/settings.xml"
   fi
 
-  if [[ -f ~/.bashrc_backup ]]; then
+  if [[ -f ~/$BACKUP_BASHRC ]]; then
     rm ~/.bashrc
-    cp ~/.bashrc_backup ~/.bashrc
+    cp ~/$BACKUP_BASHRC ~/.bashrc
+    rm ~/$BACKUP_BASHRC
     echo "* Restored ~/.bashrc"
   fi
 
@@ -57,11 +59,13 @@ function clean_up(){
 trap clean_up EXIT
 
 RELEASE_BRANCH=release-${RELEASE_VER}
-WORKING_BRANCH=release-${RELEASE}-RC${RC_NUM}_validations
+WORKING_BRANCH=release-${RELEASE_VER}-RC${RC_NUM}_validations
 GIT_REPO_URL=https://github.com/apache/beam.git
 PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
-HUB_VERSION=2.5.0
+HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
+BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
+BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
 declare -a PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
 
 echo ""
@@ -82,6 +86,35 @@ read confirmation
 if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right configurations."
   exit
+fi
+
+echo "----------------- Checking git -----------------"
+if [[ -z ${GITHUB_TOKEN} ]]; then
+  echo "Error: A Github personal access token is required to perform git push "
+  echo "under a newly cloned directory. Please manually create one from Github "
+  echo "website with guide:"
+  echo "https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line"
+  echo "Note: This token can be reused in other release scripts."
+  exit
+else
+  if [[ -d ${LOCAL_BEAM_DIR} ]]; then
+    rm -rf ${LOCAL_BEAM_DIR}
+  fi
+  echo "* Creating local Beam workspace: ${LOCAL_BEAM_DIR}"
+  mkdir -p ${LOCAL_BEAM_DIR}
+  echo "* Cloning Beam repo"
+  git clone ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
+  cd ${LOCAL_BEAM_DIR}
+  git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
+  echo "* Setting up git config"
+  # Set upstream repo url with access token included.
+  USER_REPO_URL=https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/beam.git
+  git remote add ${GITHUB_USERNAME} ${USER_REPO_URL}
+  # For hub access Github API.
+  export GITHUB_TOKEN=${GITHUB_TOKEN}
+  # For local git repo only. Required if global configs are not set.
+  git config user.name "${GITHUB_USERNAME}"
+  git config user.email "${GITHUB_USERNAME}@gmail.com"
 fi
 
 echo "-----------------Checking hub-----------------"
@@ -145,17 +178,6 @@ gnome-terminal --version
 
 
 echo ""
-echo ""
-echo "====================Cloning Beam Release Branch===================="
-if [[ -d ${LOCAL_BEAM_DIR} ]]; then
-  rm -rf ${LOCAL_BEAM_DIR}
-fi
-echo "* Creating local Beam workspace: ${LOCAL_BEAM_DIR}"
-mkdir -p ${LOCAL_BEAM_DIR}
-git clone ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
-cd ${LOCAL_BEAM_DIR}
-git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH}
-
 echo ""
 echo "====================Starting Java Quickstart======================="
 echo "[Current task] Java quickstart with direct runner"
@@ -261,14 +283,18 @@ echo "2. Python MobileGame validations(UserScore, HourlyTeamScore)"
 if [[ "$python_quickstart_mobile_game" = true && ! -z `which hub` ]]; then
   touch empty_file.txt
   git add empty_file.txt
-  git commit -m "Add empty file in order to create PR"
-  git push -f ${USER_REMOTE_URL}
-  hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE]Run Python RC Validation Tests
+  git commit -m "Add empty file in order to create PR" --quiet
+  git push -f ${GITHUB_USERNAME} --quiet
+  # Create a test PR
+  PR_URL=$(hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run Python RC Validation Tests
 
-
-  Run Python ReleaseCandidate"
-
-  echo "[NOTE] If there is no jenkins job started, please comment generated PR with: Run Python ReleaseCandidate"
+  Run Python ReleaseCandidate")
+  echo "Created $PR_URL"
+  # Comment on PR to trigger Python ReleaseCandidate Jenkins job.
+  PR_NUM=$(echo $PR_URL | sed 's/.*apache\/beam\/pull\/\([0-9]*\).*/\1/')
+  hub api repos/apache/beam/issues/$PR_NUM/comments --raw-field "body=Run Python ReleaseCandidate" > /dev/null
+  echo ""
+  echo "[NOTE] If there is no jenkins job started, please comment on $PR_URL with: Run Python ReleaseCandidate"
 else
   echo "* Skip Python Quickstart and MobileGame. Hub is required."
 fi
@@ -285,6 +311,9 @@ if [[ ("$python_leaderboard_direct" = true || \
   echo "---------------------Downloading Python Staging RC----------------------------"
   wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
   wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+    { echo "Fail to download Python Staging RC files." ;exit 1; }
+  fi
 
   echo "--------------------------Verifying Hashes------------------------------------"
   sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
@@ -293,39 +322,14 @@ if [[ ("$python_leaderboard_direct" = true || \
   `which pip` install --upgrade setuptools
   `which pip` install --upgrade virtualenv
 
-  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
-  do
-    rm -rf ./beam_env_${py_version}
-    echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env_${py_version} -p $py_version
-    . beam_env_${py_version}/bin/activate
-
-    echo "--------------------------Installing Python SDK-------------------------------"
-    pip install apache-beam-${RELEASE_VER}.zip[gcp]
-
-    SHARED_PUBSUB_TOPIC=leader_board-${USER}-python-topic-$(date +%m%d)_$RANDOM
-    gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC}
-
-    echo "-----------------------Setting up Shell Env Vars------------------------------"
-    # [BEAM-4518]
-    FIXED_WINDOW_DURATION=20
-    cp ~/.bashrc ~/.bashrc_backup
-    echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
-    echo "export USER_GCS_BUCKET=${USER_GCS_BUCKET}" >> ~/.bashrc
-    echo "export SHARED_PUBSUB_TOPIC=${SHARED_PUBSUB_TOPIC}" >> ~/.bashrc
-    echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
-    echo "export RELEASE=${RELEASE_VER}" >> ~/.bashrc
-    echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
-    echo "export LOCAL_BEAM_DIR=${LOCAL_BEAM_DIR}" >> ~/.bashrc
-
-    echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
+  echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
     cd ~
-    if [[ -d .m2 ]]; then
+    if [[ ! -d .m2 ]]; then
       mkdir .m2
     fi
     cd .m2
     if [[ -f ~/.m2/settings.xml ]]; then
-      mv settings.xml settings_backup.xml
+      mv settings.xml $BACKUP_M2
     fi
     touch settings.xml
     echo "<settings>" >> settings.xml
@@ -346,30 +350,56 @@ if [[ ("$python_leaderboard_direct" = true || \
     echo "  </profiles>" >> settings.xml
     echo "</settings>" >> settings.xml
 
-    echo "----------------------Starting Pubsub Java Injector--------------------------"
-    cd ${LOCAL_BEAM_DIR}
-    mvn archetype:generate \
-        -DarchetypeGroupId=org.apache.beam \
-        -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-        -DarchetypeVersion=${RELEASE_VER} \
-        -DgroupId=org.example \
-        -DartifactId=word-count-beam \
-        -Dversion="0.1" \
-        -Dpackage=org.apache.beam.examples \
-        -DinteractiveMode=false \
-        -DarchetypeCatalog=internal
+  echo "-----------------------Setting up Shell Env Vars------------------------------"
+    # [BEAM-4518]
+    FIXED_WINDOW_DURATION=20
+    cp ~/.bashrc ~/$BACKUP_BASHRC
+    echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
+    echo "export USER_GCS_BUCKET=${USER_GCS_BUCKET}" >> ~/.bashrc
+    echo "export SHARED_PUBSUB_TOPIC=${SHARED_PUBSUB_TOPIC}" >> ~/.bashrc
+    echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
+    echo "export RELEASE_VER=${RELEASE_VER}" >> ~/.bashrc
+    echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
+    echo "export LOCAL_BEAM_DIR=${LOCAL_BEAM_DIR}" >> ~/.bashrc
 
-    cd word-count-beam
-    echo "A new terminal will pop up and start a java top injector."
-    gnome-terminal -x sh -c \
-    "echo '******************************************************';
-     echo '* Running Pubsub Java Injector';
-     echo '******************************************************';
-    mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
-    -Dexec.args='${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC} none';
-    exec bash"
+  echo "----------------------Starting Pubsub Java Injector--------------------------"
+  cd ${LOCAL_BEAM_DIR}
+  mvn archetype:generate \
+      -DarchetypeGroupId=org.apache.beam \
+      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+      -DarchetypeVersion=${RELEASE_VER} \
+      -DgroupId=org.example \
+      -DartifactId=word-count-beam \
+      -Dversion="0.1" \
+      -Dpackage=org.apache.beam.examples \
+      -DinteractiveMode=false \
+      -DarchetypeCatalog=internal
 
-    cd ${LOCAL_BEAM_DIR}
+  # Create a pubsub topic as a input source shared to all Python pipelines.
+  SHARED_PUBSUB_TOPIC=leader_board-${USER}-python-topic-$(date +%m%d)_$RANDOM
+  gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC}
+
+  cd word-count-beam
+  echo "A new terminal will pop up and start a java top injector."
+  gnome-terminal -x sh -c \
+  "echo '******************************************************';
+   echo '* Running Pubsub Java Injector';
+   echo '******************************************************';
+  mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+  -Dexec.args='${USER_GCP_PROJECT} ${SHARED_PUBSUB_TOPIC} none';
+  exec bash"
+
+  # Run Leaderboard & GameStates pipelines under multiple versions of Python
+  cd ${LOCAL_BEAM_DIR}
+  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
+  do
+    rm -rf ./beam_env_${py_version}
+    echo "--------------Setting up virtualenv with $py_version interpreter----------------"
+    virtualenv beam_env_${py_version} -p $py_version
+    . beam_env_${py_version}/bin/activate
+
+    echo "--------------------------Installing Python SDK-------------------------------"
+    pip install apache-beam-${RELEASE_VER}.zip[gcp]
 
     echo "----------------Starting Leaderboard with DirectRunner-----------------------"
     if [[ "$python_leaderboard_direct" = true ]]; then

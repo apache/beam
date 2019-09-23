@@ -56,11 +56,13 @@ var (
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
 	region               = flag.String("region", "", "GCP Region (optional but encouraged)")
 	network              = flag.String("network", "", "GCP network (optional)")
+	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
 	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
 	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
 
+	executeAsync   = flag.Bool("execute_async", false, "Asynchronous execution. Submit the job and return immediately.")
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
@@ -140,6 +142,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Region:              *region,
 		Zone:                *zone,
 		Network:             *network,
+		Subnetwork:          *subnetwork,
 		NumWorkers:          *numWorkers,
 		MaxNumWorkers:       *maxNumWorkers,
 		Algorithm:           *autoscalingAlgorithm,
@@ -185,7 +188,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, false)
+	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
 	return err
 }
 func gcsRecorderHook(opts []string) perf.CaptureHook {

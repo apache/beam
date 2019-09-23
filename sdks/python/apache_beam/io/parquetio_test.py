@@ -19,7 +19,6 @@ from __future__ import absolute_import
 import json
 import logging
 import os
-import platform
 import shutil
 import sys
 import tempfile
@@ -46,16 +45,17 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
-if not (platform.system() == 'Windows' and sys.version_info[0] == 2):
+try:
   import pyarrow as pa
   import pyarrow.lib as pl
   import pyarrow.parquet as pq
+except ImportError:
+  pa = None
+  pl = None
+  pq = None
 
 
-@unittest.skipIf(
-    platform.system() == 'Windows' and sys.version_info[0] == 2,
-    "pyarrow doesn't support Windows Python 2."
-)
+@unittest.skipIf(pa is None, "PyArrow is not installed.")
 class TestParquet(unittest.TestCase):
 
   @classmethod

@@ -36,6 +36,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
   // TODO: Parallel the script run with Jenkins DSL or Gradle.
   steps {
     shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python2')
-    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python3')
+    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python35')
+    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python36')
+    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python37')
   }
 }

@@ -123,7 +123,8 @@ class BeamFnExternalWorkerPoolServicer(
   def StopWorker(self, stop_worker_request, unused_context):
     # applicable for process mode to ensure process cleanup
     # thread based workers terminate automatically
-    worker_process = self._worker_processes.pop(stop_worker_request.worker_id)
+    worker_process = self._worker_processes.pop(stop_worker_request.worker_id,
+                                                None)
     if worker_process:
       def kill_worker_process():
         try:

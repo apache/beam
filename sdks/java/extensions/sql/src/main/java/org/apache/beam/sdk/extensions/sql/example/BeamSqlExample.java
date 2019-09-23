@@ -24,7 +24,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -60,11 +59,7 @@ class BeamSqlExample {
 
     // create a source PCollection with Create.of();
     PCollection<Row> inputTable =
-        PBegin.in(p)
-            .apply(
-                Create.of(row1, row2, row3)
-                    .withSchema(
-                        type, SerializableFunctions.identity(), SerializableFunctions.identity()));
+        PBegin.in(p).apply(Create.of(row1, row2, row3).withRowSchema(type));
 
     // Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<Row> outputStream =

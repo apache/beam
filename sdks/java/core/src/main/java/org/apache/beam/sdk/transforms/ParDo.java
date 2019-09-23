@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclarati
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -224,18 +225,18 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *             public void processElement(@Element String word, MultiOutputReceiver r) {
  *               if (word.length() <= wordLengthCutOff) {
  *                 // Emit this short word to the main output.
- *                 r.output(wordsBelowCutOffTag, word);
+ *                 r.get(wordsBelowCutOffTag).output(word);
  *               } else {
  *                 // Emit this long word's length to a specified output.
- *                 r.output(wordLengthsAboveCutOffTag, word.length());
+ *                 r.get(wordLengthsAboveCutOffTag).output(word.length());
  *               }
  *               if (word.startsWith("MARKER")) {
  *                 // Emit this word to a different specified output.
- *                 r.output(markedWordsTag, word);
+ *                 r.get(markedWordsTag).output(word);
  *               }
  *               if (word.startsWith("SPECIAL")) {
  *                 // Emit this word to the unconsumed output.
- *                 r.output(specialWordsTag, word);
+ *                 r.get(specialWordsTag).output(word);
  *               }
  *             }}})
  *             // Specify the main and consumed output tags of the
@@ -434,6 +435,29 @@ public class ParDo {
           String.format(
               "%s requires a deterministic key coder in order to use state and timers",
               ParDo.class.getSimpleName()));
+    }
+  }
+
+  private static void validateSideInputTypes(
+      Map<String, PCollectionView<?>> sideInputs, DoFn<?, ?> fn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+    DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
+    for (SideInputParameter sideInput : processElementMethod.getSideInputParameters()) {
+      PCollectionView<?> view = sideInputs.get(sideInput.sideInputId());
+      checkArgument(
+          view != null,
+          "the ProcessElement method expects a side input identified with the tag %s, but no such side input was"
+              + " supplied. Use withSideInput(String, PCollectionView) to supply this side input.",
+          sideInput.sideInputId());
+      TypeDescriptor<?> viewType = view.getViewFn().getTypeDescriptor();
+
+      // Currently check that the types exactly match, even if the types are convertible.
+      checkArgument(
+          viewType.equals(sideInput.elementT()),
+          "Side Input with tag %s and type %s cannot be bound to ProcessElement parameter with type %s",
+          sideInput.sideInputId(),
+          viewType,
+          sideInput.elementT());
     }
   }
 
@@ -864,6 +888,8 @@ public class ParDo {
       if (signature.usesState() || signature.usesTimers()) {
         validateStateApplicableForInput(fn, input);
       }
+
+      validateSideInputTypes(sideInputs, fn);
 
       // TODO: We should validate OutputReceiver<Row> only happens if the output PCollection
       // as schema. However coder/schema inference may not have happened yet at this point.

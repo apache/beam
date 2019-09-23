@@ -147,12 +147,12 @@ type DataChannel struct {
 func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to connect")
+		return nil, errors.Wrapf(err, "failed to connect to data service at %v", port.URL)
 	}
 	client, err := pb.NewBeamFnDataClient(cc).Data(ctx)
 	if err != nil {
 		cc.Close()
-		return nil, errors.Wrap(err, "failed to connect to data service")
+		return nil, errors.Wrapf(err, "failed to create data client on %v", port.URL)
 	}
 	return makeDataChannel(ctx, port.URL, client), nil
 }
@@ -184,10 +184,11 @@ func (c *DataChannel) read(ctx context.Context) {
 		if err != nil {
 			if err == io.EOF {
 				// TODO(herohde) 10/12/2017: can this happen before shutdown? Reconnect?
-				log.Warnf(ctx, "DataChannel %v closed", c.id)
+				log.Warnf(ctx, "DataChannel.read %v closed", c.id)
 				return
 			}
-			panic(errors.Wrapf(err, "channel %v bad", c.id))
+			log.Errorf(ctx, "DataChannel.read %v bad", c.id)
+			return
 		}
 
 		recordStreamReceive(msg)

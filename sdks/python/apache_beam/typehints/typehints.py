@@ -67,6 +67,7 @@ from __future__ import absolute_import
 
 import collections
 import copy
+import logging
 import sys
 import types
 from builtins import next
@@ -807,7 +808,7 @@ class DictHint(CompositeTypeHint):
     def _consistent_with_check_(self, sub):
       return (isinstance(sub, self.__class__)
               and is_consistent_with(sub.key_type, self.key_type)
-              and is_consistent_with(sub.key_type, self.key_type))
+              and is_consistent_with(sub.value_type, self.value_type))
 
     def _raise_hint_exception_or_inner_exception(self, is_key,
                                                  incorrect_instance,
@@ -986,6 +987,13 @@ class IteratorHint(CompositeTypeHint):
     def __repr__(self):
       return 'Iterator[%s]' % _unified_repr(self.yielded_type)
 
+    def __eq__(self, other):
+      return (type(self) == type(other)
+              and self.yielded_type == other.yielded_type)
+
+    def __hash__(self):
+      return hash(self.yielded_type)
+
     def _inner_types(self):
       yield self.yielded_type
 
@@ -1068,7 +1076,22 @@ class WindowedTypeConstraint(with_metaclass(GetitemConstructor,
 
 
 class GeneratorHint(IteratorHint):
-  pass
+  """A Generator type hint.
+
+  Subscriptor is in the form [yield_type, send_type, return_type], however
+  only yield_type is supported. The 2 others are expected to be None.
+  """
+
+  def __getitem__(self, type_params):
+    if isinstance(type_params, tuple) and len(type_params) == 3:
+      yield_type, send_type, return_type = type_params
+      if send_type is not None:
+        logging.warning('Ignoring send_type hint: %s' % send_type)
+      if send_type is not None:
+        logging.warning('Ignoring return_type hint: %s' % return_type)
+    else:
+      yield_type = type_params
+    return self.IteratorTypeConstraint(yield_type)
 
 
 # Create the actual instances for all defined type-hints above.
@@ -1120,9 +1143,9 @@ _KNOWN_PRIMITIVE_TYPES.update({
 
 
 def is_consistent_with(sub, base):
-  """Returns whether the type a is consistent with b.
+  """Checks whether sub a is consistent with base.
 
-  This is accordig to the terminology of PEP 483/484.  This relationship is
+  This is according to the terminology of PEP 483/484.  This relationship is
   neither symmetric nor transitive, but a good mnemonic to keep in mind is that
   is_consistent_with(a, b) is roughly equivalent to the issubclass(a, b)
   relation, but also handles the special Any type as well as type
@@ -1143,6 +1166,31 @@ def is_consistent_with(sub, base):
     # Nothing but object lives above any type constraints.
     return base == object
   return issubclass(sub, base)
+
+
+def get_yielded_type(type_hint):
+  """Obtains the type of elements yielded by an iterable.
+
+  Note that "iterable" here means: can be iterated over in a for loop.
+
+  Args:
+    type_hint: (TypeConstraint) The iterable in question. Must be normalize()-d.
+
+  Returns:
+    Yielded type of the iterable.
+
+  Raises:
+    ValueError if not iterable.
+  """
+  if isinstance(type_hint, AnyTypeConstraint):
+    return type_hint
+  if is_consistent_with(type_hint, Iterator[Any]):
+    return type_hint.yielded_type
+  if is_consistent_with(type_hint, Tuple[Any, ...]):
+    return Union[type_hint.tuple_types]
+  if is_consistent_with(type_hint, Iterable[Any]):
+    return type_hint.inner_type
+  raise ValueError('%s is not iterable' % type_hint)
 
 
 def coerce_to_kv_type(element_type, label=None, side_input_producer=None):

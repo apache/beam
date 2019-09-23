@@ -77,7 +77,7 @@ excluded_patterns=(
     *_test.py
     *_test_common.py
     # TODO(BEAM-7847): Remove this once doc generation can parse Py3 syntax.
-    *py3.py
+    *_py3*.py
 )
 
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
@@ -120,7 +120,7 @@ import apache_beam as beam
 intersphinx_mapping = {
   'python': ('https://docs.python.org/2', None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
-  'google-cloud': ('https://googleapis.github.io/google-cloud-python/latest/', None),
+  'google-cloud': ('https://google-cloud-python.readthedocs.io/en/stable/', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference

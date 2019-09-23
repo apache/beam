@@ -141,117 +141,20 @@ The Beam community hosts the data stores used for integration tests in Kubernete
 However, when working locally, there is no requirement to use Kubernetes. All of the test infrastructure allows you to pass in connection info, so developers can use their preferred hosting infrastructure for local development.
 
 
-### Running integration tests {#running-integration-tests}
+### Running integration tests on your machine {#running-integration-tests-on-your-machine}
 
-The high level steps for running an integration test are:
+You can always run the IO integration tests on your own machine. The high level steps for running an integration test are:
 1.  Set up the data store corresponding to the test being run.
 1.  Run the test, passing it connection info from the just created data store.
 1.  Clean up the data store.
 
-Since setting up data stores and running the tests involves a number of steps, and we wish to time these tests when running performance benchmarks, we use PerfKit Benchmarker to manage the process end to end. With a single command, you can go from an empty Kubernetes cluster to a running integration test.
 
-However, **PerfKit Benchmarker is not required for running integration tests**. Therefore, we have listed the steps for both using PerfKit Benchmarker, and manually running the tests below.
-
-
-#### Using PerfKit Benchmarker {#using-perfkit-benchmarker}
-
-Prerequisites:
-1.  [Install PerfKit Benchmarker](https://github.com/GoogleCloudPlatform/PerfKitBenchmarker)
-1.  Have a running Kubernetes cluster you can connect to locally using kubectl. We recommend using Google Kubernetes Engine - it's proven working for all the use cases we tested.  
-
-You won’t need to invoke PerfKit Benchmarker directly. Run `./gradlew performanceTest` task in project's root directory, passing kubernetes scripts of your choice (located in .test_infra/kubernetes directory). It will setup PerfKitBenchmarker for you.  
-
-Example run with the [Direct]({{ site.baseurl }}/documentation/runners/direct/) runner:
-```
-./gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=1000"]' -DitModule=sdks/java/io/jdbc/ -DintegrationTest=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DkubernetesScripts="/Users/me/beam/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml" -DbeamITOptions="/Users/me/beam/.test-infra/kubernetes/postgres/pkb-config-local.yml" -DintegrationTestRunner=direct
-```
-
-
-Example run with the [Google Cloud Dataflow]({{ site.baseurl }}/documentation/runners/dataflow/) runner:
-```
-./gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET"]' -DitModule=sdks/java/io/jdbc/ -DintegrationTest=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DkubernetesScripts="/Users/me/beam/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml" -DbeamITOptions="/Users/me/beam/.test-infra/kubernetes/postgres/pkb-config-local.yml" -DintegrationTestRunner=dataflow
-```
-
-Example run with the HDFS filesystem and Cloud Dataflow runner:
-
-```
-./gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=100000", "--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET"]' -DitModule=sdks/java/io/file-based-io-tests/ -DintegrationTest=org.apache.beam.sdk.io.text.TextIOIT -DkubernetesScripts=".test-infra/kubernetes/hadoop/LargeITCluster/hdfs-multi-datanode-cluster.yml,.test-infra/kubernetes/hadoop/LargeITCluster/hdfs-multi-datanode-cluster-for-local-dev.yml" -DbeamITOptions=".test-infra/kubernetes/hadoop/LargeITCluster/pkb-config.yml" -DintegrationTestRunner=dataflow -DbeamExtraProperties='[filesystem=hdfs]'
-```
-
-NOTE: When using Direct runner along with HDFS cluster, please set `export HADOOP_USER_NAME=root` before runnning `performanceTest` task.
-
-Parameter descriptions:
-
-
-<table class="table">
-  <thead>
-    <tr>
-     <td>
-      <strong>Option</strong>
-     </td>
-     <td>
-       <strong>Function</strong>
-     </td>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-     <td>-DpkbLocation
-     </td>
-     <td>Path to PerfKit Benchmarker project.
-     </td>
-    </tr>
-    <tr>
-     <td>-DintegrationTestPipelineOptions
-     </td>
-     <td>Passes pipeline options directly to the test being run. Note that some pipeline options may be runner specific (like "--project" or "--tempRoot"). 
-     </td>
-    </tr>
-    <tr>
-     <td>-DitModule
-     </td>
-     <td>Specifies the project submodule of the I/O to test.
-     </td>
-    </tr>
-    <tr>
-     <td>-DintegrationTest
-     </td>
-     <td>Specifies the test to be run (fully qualified reference to class/test method).
-     </td>
-    </tr>
-    <tr>
-     <td>-DkubernetesScripts
-     </td>
-     <td>Paths to scripts with necessary kubernetes infrastructure.
-     </td>
-    </tr>
-    <tr>
-      <td>-DbeamITOptions
-      </td>
-      <td>Path to file with Benchmark configuration (static and dynamic pipeline options. See below for description).
-      </td>
-    </tr>
-    <tr>
-      <td>-DintegrationTestRunner
-      </td>
-      <td>Runner to be used for running the test. Currently possible options are: direct, dataflow.
-      </td>
-    </tr>
-    <tr>
-      <td>-DbeamExtraProperties
-      </td>
-      <td>Any other "extra properties" to be passed to Gradle, eg. "'[filesystem=hdfs]'". 
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-#### Without PerfKit Benchmarker {#without-perfkit-benchmarker}
+#### Data store setup/cleanup {#datastore-setup-cleanup}
 
 If you're using Kubernetes scripts to host data stores, make sure you can connect to your cluster locally using kubectl. If you have your own data stores already setup, you just need to execute step 3 from below list.
 
 1.  Set up the data store corresponding to the test you wish to run. You can find Kubernetes scripts for all currently supported data stores in [.test-infra/kubernetes](https://github.com/apache/beam/tree/master/.test-infra/kubernetes).
-    1.  In some cases, there is a setup script (*.sh). In other cases, you can just run ``kubectl create -f [scriptname]`` to create the data store.
+    1.  In some cases, there is a dedicated setup script (*.sh). In other cases, you can just run ``kubectl create -f [scriptname]`` to create the data store. You can also let [kubernetes.sh](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/kubernetes.sh) script perform some standard steps for you. 
     1.  Convention dictates there will be:
         1.  A yml script for the data store itself, plus a `NodePort` service. The `NodePort` service opens a port to the data store for anyone who connects to the Kubernetes cluster's machines from within same subnetwork. Such scripts are typically useful when running the scripts on Minikube Kubernetes Engine.
         1.  A separate script, with LoadBalancer service. Such service will expose an _external ip_ for the datastore. Such scripts are needed when external access is required (eg. on Jenkins). 
@@ -266,10 +169,9 @@ If you're using Kubernetes scripts to host data stores, make sure you can connec
     1.  JDBC: `kubectl delete -f .test-infra/kubernetes/postgres/postgres.yml`
     1.  Elasticsearch: `bash .test-infra/kubernetes/elasticsearch/teardown.sh`
 
-##### integrationTest Task {#integration-test-task}
+#### Running a particular test {#running-a-test}
 
-Since `performanceTest` task involved running PerfkitBenchmarker, we can't use it to run the tests manually. For such purposes a more "low-level" task called `integrationTest` was introduced.  
-
+`integrationTest` is a dedicated gradle task for running IO integration tests.    
 
 Example usage on Cloud Dataflow runner: 
 
@@ -335,9 +237,11 @@ Parameter descriptions:
   </tbody>
 </table>
 
-#### Running Integration Tests on Pull Requests {#running-on-pull-requests}
+### Running Integration Tests on Pull Requests {#running-integration-tests-on-pull-requests}
 
-Thanks to [ghprb](https://github.com/janinko/ghprb) plugin it is possible to run Jenkins jobs when specific phrase is typed in a Github Pull Request's comment. Integration tests that have Jenkins job defined can be triggered this way. You can run integration tests using these phrases:
+Most of the IO integration tests have dedicated Jenkins jobs that run periodically to collect metrics and avoid regressions. Thanks to [ghprb](https://github.com/janinko/ghprb) plugin it is also possible to trigger these jobs on demand once a specific phrase is typed in a Github Pull Request's comment. This way tou can check if your contribution to a certain IO is an improvement or if it makes things worse (hopefully not!). 
+
+To run IO Integration Tests type the following comments in your Pull Request:
 
 <table class="table">
   <thead>
@@ -437,7 +341,7 @@ If you modified/added new Jenkins job definitions in your Pull Request, run the 
 
 ### Performance testing dashboard {#performance-testing-dashboard}
 
-We measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots. 
+As mentioned before, we measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots. 
 
 The dashboard gathering all the results is available here: [Performance Testing Dashboard](https://s.apache.org/io-test-dashboards)
 
@@ -446,9 +350,9 @@ The dashboard gathering all the results is available here: [Performance Testing 
 There are three components necessary to implement an integration test:
 *   **Test code**: the code that does the actual testing: interacting with the I/O transform, reading and writing data, and verifying the data.
 *   **Kubernetes scripts**: a Kubernetes script that sets up the data store that will be used by the test code.
-*   **Integrate with PerfKit Benchmarker**: this allows users to easily invoke PerfKit Benchmarker, creating the Kubernetes resources and running the test code.
+*   **Jenkins jobs**: a Jenkins Job DSL script that performs all necessary steps for setting up the data sources, running and cleaning up after the test.
 
-These three pieces are discussed in detail below.
+These two pieces are discussed in detail below.
 
 #### Test Code {#test-code}
 
@@ -492,255 +396,16 @@ Guidelines for creating a Beam data store Kubernetes script:
         1.  Official Docker images, because they have security fixes and guaranteed maintenance.
         1.  Non-official Docker images, or images from other providers that have good maintainers (e.g. [quay.io](http://quay.io/)).
 
+#### Jenkins jobs {#jenkins-jobs}
 
-#### Integrate with PerfKit Benchmarker {#integrate-with-perfkit-benchmarker}
+You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files caled job_PerformanceTest_*.groovy. The most prominent examples are: 
+* [JDBC](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_JDBC.groovy) IOIT job
+* [MongoDB](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_MongoDBIO_IT.groovy) IOIT job
+* [File-based](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_FileBasedIO_IT.groovy) IOIT jobs
+    
+Notice that there is a utility class helpful in creating the jobs easily without forgetting important steps or repeating code. See [Kubernetes.groovy](https://github.com/apache/beam/blob/master/.test-infra/jenkins/Kubernetes.groovy) for more details.  
 
-To allow developers to easily invoke your I/O integration test, you should create a PerfKit Benchmarker benchmark configuration file for the data store. Each pipeline option needed by the integration test should have a configuration entry. This is to be passed to perfkit via "beamITOptions" option in "performanceTest" task (described above). The goal is that a checked in config has defaults such that other developers can run the test without changing the configuration.
-
-
-#### Defining the benchmark configuration file {#defining-the-benchmark-configuration-file}
-
-The benchmark configuration file is a yaml file that defines the set of pipeline options for a specific data store. Some of these pipeline options are **static** - they are known ahead of time, before the data store is created (e.g. username/password). Others options are **dynamic** - they are only known once the data store is created (or after we query the Kubernetes cluster for current status).
-
-All known cases of dynamic pipeline options are for extracting the IP address that the test needs to connect to. For I/O integration tests, we must allow users to specify:
-
-
-
-*   The type of the IP address to get (load balancer/node address)
-*   The pipeline option to pass that IP address to
-*   How to find the Kubernetes resource with that value (ie. what load balancer service name? what node selector?)
-
-The style of dynamic pipeline options used here should support a variety of other types of values derived from Kubernetes, but we do not have specific examples.
-
-The dynamic pipeline options are:
-
-
-<table class="table">
-  <thead>
-    <tr>
-     <td>
-       <strong>Type name</strong>
-     </td>
-     <td>
-       <strong>Meaning</strong>
-     </td>
-     <td>
-       <strong>Selector field name</strong>
-     </td>
-     <td>
-       <strong>Selector field value</strong>
-     </td>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-     <td>NodePortIp
-     </td>
-     <td>We will be using the IP address of a k8s NodePort service, the value will be an IP address of a Pod
-     </td>
-     <td>podLabel
-     </td>
-     <td>A kubernetes label selector for a pod whose IP address can be used to connect to
-     </td>
-    </tr>
-    <tr>
-     <td>LoadBalancerIp
-     </td>
-     <td>We will be using the IP address of a k8s LoadBalancer, the value will be an IP address of the load balancer
-     </td>
-     <td>serviceName
-     </td>
-     <td>The name of the LoadBalancer kubernetes service.
-     </td>
-    </tr>
-  </tbody>
-</table>
-
-#### Benchmark configuration files: full example configuration file {#benchmark-configuration-files-full-example-configuration-file}
-
-A configuration file will look like this:
-```
-static_pipeline_options:
-  -postgresUser: postgres
-  -postgresPassword: postgres
-dynamic_pipeline_options:
-  - paramName: PostgresIp
-    type: NodePortIp
-    podLabel: app=postgres
-```
-
-
-and may contain the following elements:
-
-
-<table class="table">
-  <thead>
-    <tr>
-     <td><strong>Configuration element</strong>
-     </td>
-     <td><strong>Description and how to change when adding a new test</strong>
-     </td>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-     <td>static_pipeline_options
-     </td>
-     <td>The set of preconfigured pipeline options.
-     </td>
-    </tr>
-    <tr>
-     <td>dynamic_pipeline_options
-     </td>
-     <td>The set of pipeline options that PerfKit Benchmarker will determine at runtime.
-     </td>
-    </tr>
-    <tr>
-     <td>dynamic_pipeline_options.name
-     </td>
-     <td>The name of the parameter to be passed to gradle's invocation of the I/O integration test.
-     </td>
-    </tr>
-    <tr>
-     <td>dynamic_pipeline_options.type
-     </td>
-     <td>The method of determining the value of the pipeline options.
-     </td>
-    </tr>
-    <tr>
-     <td>dynamic_pipeline_options - other attributes
-     </td>
-     <td>These vary depending on the type of the dynamic pipeline option - see the table of dynamic pipeline options for a description.
-     </td>
-    </tr>
-  </tbody>
-</table>
-
-
-
-#### Customizing PerfKit Benchmarker behaviour {#customizing-perf-kit-benchmarker-behaviour}
-
-In most cases, to run the _performanceTest_ task it is sufficient to pass the properties described above, which makes it easy to use. However, users can customize Perfkit Benchmarker's behavior even more by pasing some extra Gradle properties:
-
-
-<table class="table">
-  <thead>
-    <tr>
-     <td><strong>PerfKit Benchmarker Parameter</strong>
-     </td>
-     <td><strong>Corresponding Gradle property</strong>
-     </td>
-     <td><strong>Default value</strong>
-     </td>
-     <td><strong>Description</strong>
-     </td>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-     <td>dpb_log_level
-     </td>
-     <td>-DlogLevel
-     </td>
-     <td>INFO
-     </td>
-     <td>Data Processing Backend's log level.
-     </td>
-    </tr>
-    <tr>
-     <td>gradle_binary
-     </td>
-     <td>-DgradleBinary
-     </td>
-     <td>./gradlew
-     </td>
-     <td>Path to gradle binary.
-     </td>
-    </tr>
-    <tr>
-     <td>official
-     </td>
-     <td>-Dofficial
-     </td>
-     <td>false
-     </td>
-     <td>If true, the benchmark results are marked as "official" and can be displayed on PerfKitExplorer dashboards.
-     </td>
-    </tr>
-    <tr>
-     <td>benchmarks
-     </td>
-     <td>-Dbenchmarks
-     </td>
-     <td>beam_integration_benchmark
-     </td>
-     <td>Defines the PerfKit Benchmarker benchmark to run. This is same for all I/O integration tests.
-     </td>
-    </tr>
-    <tr>
-     <td>beam_prebuilt
-     </td>
-     <td>-DbeamPrebuilt
-     </td>
-     <td>true
-     </td>
-     <td>If false, PerfKit Benchmarker runs the build task before running the tests.
-     </td>
-    </tr>
-    <tr>
-     <td>beam_sdk
-     </td>
-     <td>-DbeamSdk
-     </td>
-     <td>java
-     </td>
-     <td>Beam's sdk to be used by PerfKit Benchmarker.
-     </td>
-    </tr>
-    <tr>
-     <td>beam_timeout
-     </td>
-     <td>-DitTimeout
-     </td>
-     <td>1200
-     </td>
-     <td>Timeout (in seconds) after which PerfKit Benchmarker will stop executing the benchmark (and will fail).
-     </td>
-    </tr>
-    <tr>
-     <td>kubeconfig
-     </td>
-     <td>-Dkubeconfig
-     </td>
-     <td>~/.kube/config
-     </td>
-     <td>Path to kubernetes configuration file.
-     </td>
-    </tr>
-    <tr>
-     <td>kubectl
-     </td>
-     <td>-Dkubectl
-     </td>
-     <td>kubectl
-     </td>
-     <td>Path to kubernetes executable.
-     </td>
-    </tr>
-    <tr>
-     <td>beam_extra_properties
-     </td>
-     <td>-DbeamExtraProperties
-     </td>
-     <td>(empty string)
-     </td>
-     <td>Any additional properties to be appended to benchmark execution command.
-     </td>
-    </tr>
-  </tbody>
-</table>
-
-#### Small Scale and Large Scale Integration Tests {#small-scale-and-large-scale-integration-tests}
+### Small Scale and Large Scale Integration Tests {#small-scale-and-large-scale-integration-tests}
 
 Apache Beam expects that it can run integration tests in multiple configurations:
 *   Small scale

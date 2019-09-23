@@ -35,7 +35,6 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
@@ -129,9 +128,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public <T> InboundDataClient receive(
-      final LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> listener) {
+      final LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> listener) {
     LOG.debug(
         "Registering receiver for instruction {} and transform {}",
         inputLocation.getInstructionId(),
@@ -164,8 +161,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   }
 
   @Override
-  public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-      LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) {
+  public <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder) {
     LOG.debug(
         "Creating sender for instruction {} and transform {}",
         outputLocation.getInstructionId(),

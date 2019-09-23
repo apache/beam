@@ -310,7 +310,8 @@ class DataflowRunner(PipelineRunner):
               new_side_input.pvalue = beam.pvalue.PCollection(
                   pipeline,
                   element_type=typehints.KV[
-                      bytes, side_input.pvalue.element_type])
+                      bytes, side_input.pvalue.element_type],
+                  is_bounded=side_input.pvalue.is_bounded)
               parent = transform_node.parent or pipeline._root_transform()
               map_to_void_key = beam.pipeline.AppliedPTransform(
                   pipeline,
@@ -381,12 +382,11 @@ class DataflowRunner(PipelineRunner):
 
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.portability.api import beam_runner_api_pb2
-    default_container_image = (
-        apiclient.get_default_container_image_for_current_sdk(use_fnapi))
     default_environment = beam_runner_api_pb2.Environment(
         urn=common_urns.environments.DOCKER.urn,
         payload=beam_runner_api_pb2.DockerPayload(
-            container_image=default_container_image).SerializeToString())
+            container_image=apiclient.get_container_image_from_options(options)
+            ).SerializeToString())
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
@@ -712,7 +712,7 @@ class DataflowRunner(PipelineRunner):
     coders.registry.verify_deterministic(
         coder.key_coder(), 'GroupByKey operation "%s"' % transform.label)
 
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
 
   def run_GroupByKey(self, transform_node, options):
     input_tag = transform_node.inputs[0].tag
@@ -857,13 +857,31 @@ class DataflowRunner(PipelineRunner):
     outputs = []
     step.encoding = self._get_encoded_output_coder(transform_node)
 
+    all_output_tags = transform_proto.outputs.keys()
+
+    from apache_beam.transforms.core import RunnerAPIPTransformHolder
+    external_transform = isinstance(transform, RunnerAPIPTransformHolder)
+
+    # Some external transforms require output tags to not be modified.
+    # So we randomly select one of the output tags as the main output and
+    # leave others as side outputs. Transform execution should not change
+    # dependending on which output tag we choose as the main output here.
+    # Also, some SDKs do not work correctly if output tags are modified. So for
+    # external transforms, we leave tags unmodified.
+    main_output_tag = (
+        all_output_tags[0] if external_transform else PropertyNames.OUT)
+
+    # Python SDK uses 'None' as the tag of the main output.
+    tag_to_ignore = main_output_tag if external_transform else 'None'
+    side_output_tags = set(all_output_tags).difference({tag_to_ignore})
+
     # Add the main output to the description.
     outputs.append(
         {PropertyNames.USER_NAME: (
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
          PropertyNames.ENCODING: step.encoding,
-         PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
-    for side_tag in transform.output_tags:
+         PropertyNames.OUTPUT_NAME: main_output_tag})
+    for side_tag in side_output_tags:
       # The assumption here is that all outputs will have the same typehint
       # and coder as the main output. This is certainly the case right now
       # but conceivably it could change in the future.
@@ -872,7 +890,8 @@ class DataflowRunner(PipelineRunner):
               '%s.%s' % (transform_node.full_label, side_tag)),
            PropertyNames.ENCODING: step.encoding,
            PropertyNames.OUTPUT_NAME: (
-               '%s_%s' % (PropertyNames.OUT, side_tag))})
+               side_tag if external_transform
+               else '%s_%s' % (PropertyNames.OUT, side_tag))})
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
@@ -894,7 +913,7 @@ class DataflowRunner(PipelineRunner):
             transform_node.inputs[0].windowing)
 
   def apply_CombineValues(self, transform, pcoll, options):
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
 
   def run_CombineValues(self, transform_node, options):
     transform = transform_node.transform
@@ -947,7 +966,7 @@ class DataflowRunner(PipelineRunner):
   def apply_Read(self, transform, pbegin, options):
     if hasattr(transform.source, 'format'):
       # Consider native Read to be a primitive for dataflow.
-      return beam.pvalue.PCollection(pbegin.pipeline)
+      return beam.pvalue.PCollection.from_(pbegin)
     else:
       debug_options = options.view_as(DebugOptions)
       if (
@@ -958,7 +977,7 @@ class DataflowRunner(PipelineRunner):
         return self.apply_PTransform(transform, pbegin, options)
       else:
         # Custom Read is also a primitive for non-FnAPI on dataflow.
-        return beam.pvalue.PCollection(pbegin.pipeline)
+        return beam.pvalue.PCollection.from_(pbegin)
 
   def run_Read(self, transform_node, options):
     transform = transform_node.transform
@@ -1277,8 +1296,8 @@ class DataflowPipelineResult(PipelineResult):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     # Ordered by the enum values. Values that may be introduced in
-    # future versions of Dataflow API are considered UNKNOWN by the SDK.
-    api_jobstate_map = defaultdict(lambda: PipelineState.UNKNOWN, {
+    # future versions of Dataflow API are considered UNRECOGNIZED by the SDK.
+    api_jobstate_map = defaultdict(lambda: PipelineState.UNRECOGNIZED, {
         values_enum.JOB_STATE_UNKNOWN: PipelineState.UNKNOWN,
         values_enum.JOB_STATE_STOPPED: PipelineState.STOPPED,
         values_enum.JOB_STATE_RUNNING: PipelineState.RUNNING,

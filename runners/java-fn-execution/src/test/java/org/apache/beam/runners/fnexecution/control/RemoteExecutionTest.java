@@ -441,15 +441,16 @@ public class RemoteExecutionTest implements Serializable {
             descriptor.getProcessBundleDescriptor(),
             descriptor.getRemoteInputDestinations(),
             stateDelegator);
-    Map<String, Coder<WindowedValue<?>>> remoteOutputCoders = descriptor.getRemoteOutputCoders();
+    Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
     Map<String, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-    for (Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder : remoteOutputCoders.entrySet()) {
+    for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
       List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
       outputValues.put(remoteOutputCoder.getKey(), outputContents);
       outputReceivers.put(
           remoteOutputCoder.getKey(),
-          RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputContents::add));
+          RemoteOutputReceiver.of(
+              (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
     Iterable<String> sideInputData = Arrays.asList("A", "B", "C");
@@ -590,15 +591,16 @@ public class RemoteExecutionTest implements Serializable {
             descriptor.getRemoteInputDestinations(),
             stateDelegator);
 
-    Map<String, Coder<WindowedValue<?>>> remoteOutputCoders = descriptor.getRemoteOutputCoders();
+    Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
     Map<String, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-    for (Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder : remoteOutputCoders.entrySet()) {
+    for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
       List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
       outputValues.put(remoteOutputCoder.getKey(), outputContents);
       outputReceivers.put(
           remoteOutputCoder.getKey(),
-          RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputContents::add));
+          RemoteOutputReceiver.of(
+              (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
     Iterable<String> sideInputData = Arrays.asList("A", "B", "C");
@@ -850,15 +852,16 @@ public class RemoteExecutionTest implements Serializable {
             descriptor.getProcessBundleDescriptor(),
             descriptor.getRemoteInputDestinations(),
             stateDelegator);
-    Map<String, Coder<WindowedValue<?>>> remoteOutputCoders = descriptor.getRemoteOutputCoders();
+    Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
     Map<String, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-    for (Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder : remoteOutputCoders.entrySet()) {
+    for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
       List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
       outputValues.put(remoteOutputCoder.getKey(), outputContents);
       outputReceivers.put(
           remoteOutputCoder.getKey(),
-          RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputContents::add));
+          RemoteOutputReceiver.of(
+              (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
     Map<String, List<ByteString>> userStateData =
@@ -1022,15 +1025,16 @@ public class RemoteExecutionTest implements Serializable {
             descriptor.getProcessBundleDescriptor(),
             descriptor.getRemoteInputDestinations(),
             stateDelegator);
-    Map<String, Coder<WindowedValue<?>>> remoteOutputCoders = descriptor.getRemoteOutputCoders();
+    Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
     Map<String, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-    for (Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder : remoteOutputCoders.entrySet()) {
+    for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
       List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
       outputValues.put(remoteOutputCoder.getKey(), outputContents);
       outputReceivers.put(
           remoteOutputCoder.getKey(),
-          RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputContents::add));
+          RemoteOutputReceiver.of(
+              (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
     String eventTimeInputPCollectionId = null;
@@ -1167,13 +1171,13 @@ public class RemoteExecutionTest implements Serializable {
               descriptor.getProcessBundleDescriptor(),
               descriptor.getRemoteInputDestinations(),
               stateDelegator);
-      Map<String, Coder<WindowedValue<?>>> remoteOutputCoders = descriptor.getRemoteOutputCoders();
+      Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
       Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-      for (Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
-          remoteOutputCoders.entrySet()) {
+      for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
         outputReceivers.putIfAbsent(
             remoteOutputCoder.getKey(),
-            RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputValues::add));
+            RemoteOutputReceiver.of(
+                (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputValues::add));
       }
 
       try (ActiveBundle bundle =

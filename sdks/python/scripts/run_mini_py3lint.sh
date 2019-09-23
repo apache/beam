@@ -38,6 +38,24 @@ set -o pipefail
 
 MODULE=apache_beam
 
+PYTHON_MINOR=$(python -c 'import sys; print(sys.version_info[1])')
+if [[ "${PYTHON_MINOR}" == 5 ]]; then
+  EXCLUDED_PY3_FILES=$(find ${MODULE} | grep 'py3[6-9]\.py$')
+  echo -e "Excluding Py3 files:\n${EXCLUDED_PY3_FILES}"
+else
+  EXCLUDED_PY3_FILES=""
+fi
+
+FILES_TO_IGNORE=""
+for file in ${EXCLUDED_PY3_FILES}; do
+  if test -z "$FILES_TO_IGNORE"
+    then FILES_TO_IGNORE="$(basename $file)"
+    else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
+  fi
+done
+
+echo -e "Skipping lint for files:\n${FILES_TO_IGNORE}"
+
 usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
 
 if test $# -gt 0; then
@@ -48,4 +66,5 @@ if test $# -gt 0; then
 fi
 
 echo "Running flake8 for module $MODULE:"
-flake8 $MODULE --count --select=E9,F821,F822,F823 --show-source --statistics
+flake8 $MODULE --count --select=E9,F821,F822,F823 --show-source --statistics \
+  --exclude="${FILES_TO_IGNORE}"

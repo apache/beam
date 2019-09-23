@@ -98,6 +98,12 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    // TODO[BEAM-8204]: figure out if we can make the test work on Apex runner, or maybe create a
+    // more meaningful category tag.
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders'
+    // TODO[BEAM-8204]: figure out if we can make the test work on Apex runner, or maybe create a
+    // new category tag and change the following line to: excludeCategories '<category tag>'.
+    exclude '**/AvroSchemaTest.class'
   }
 
   // apex runner is run in embedded mode. Increase default HeapSize

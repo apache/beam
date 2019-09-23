@@ -21,7 +21,6 @@ import json
 from collections import OrderedDict
 
 import numpy as np
-import pyarrow as pa
 from past.builtins import unicode
 
 from apache_beam.typehints import trivial_inference
@@ -33,6 +32,11 @@ try:
 except ImportError:
   from avro.schema import parse as Parse  # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position
+
+try:
+  import pyarrow as pa
+except ImportError:
+  pa = None
 
 
 def infer_element_type(elements):

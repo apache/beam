@@ -18,23 +18,19 @@
 from __future__ import absolute_import
 
 import atexit
-import logging
 import os
 import shutil
 import signal
-import socket
 import subprocess
 import sys
 import tempfile
 import threading
-import time
 
 import grpc
-from future.moves.urllib.error import URLError
-from future.moves.urllib.request import urlopen
 
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.portability import local_job_service
+from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 
 
@@ -97,61 +93,26 @@ class StopOnExitJobServer(JobServer):
 class SubprocessJobServer(JobServer):
   """An abstract base class for JobServers run as an external process."""
   def __init__(self):
-    self._process_lock = threading.RLock()
-    self._process = None
     self._local_temp_root = None
+    self._server = None
 
   def subprocess_cmd_and_endpoint(self):
     raise NotImplementedError(type(self))
 
   def start(self):
-    with self._process_lock:
-      if self._process:
-        self.stop()
+    if self._server is None:
+      self._local_temp_root = tempfile.mkdtemp(prefix='beam-temp')
       cmd, endpoint = self.subprocess_cmd_and_endpoint()
-      logging.debug("Starting job service with %s", cmd)
-      try:
-        self._process = subprocess.Popen([str(arg) for arg in cmd])
-        self._local_temp_root = tempfile.mkdtemp(prefix='beam-temp')
-        wait_secs = .1
-        channel = grpc.insecure_channel(endpoint)
-        channel_ready = grpc.channel_ready_future(channel)
-        while True:
-          if self._process.poll() is not None:
-            logging.error("Starting job service with %s", cmd)
-            raise RuntimeError(
-                'Job service failed to start up with error %s' %
-                self._process.poll())
-          try:
-            channel_ready.result(timeout=wait_secs)
-            break
-          except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
-            wait_secs *= 1.2
-            logging.log(logging.WARNING if wait_secs > 1 else logging.DEBUG,
-                        'Waiting for jobs grpc channel to be ready at %s.',
-                        endpoint)
-        return beam_job_api_pb2_grpc.JobServiceStub(channel)
-      except:  # pylint: disable=bare-except
-        logging.exception("Error bringing up job service")
-        self.stop()
-        raise
+      port = int(endpoint.split(':')[-1])
+      self._server = subprocess_server.SubprocessServer(
+          beam_job_api_pb2_grpc.JobServiceStub, cmd, port=port)
+    return self._server.start()
 
   def stop(self):
-    with self._process_lock:
-      if not self._process:
-        return
-      for _ in range(5):
-        if self._process.poll() is not None:
-          break
-        logging.debug("Sending SIGINT to job_server")
-        self._process.send_signal(signal.SIGINT)
-        time.sleep(1)
-      if self._process.poll() is None:
-        self._process.kill()
-      self._process = None
-      if self._local_temp_root:
-        shutil.rmtree(self._local_temp_root)
-        self._local_temp_root = None
+    if self._local_temp_root:
+      shutil.rmtree(self._local_temp_root)
+      self._local_temp_root = None
+    return self._server.stop()
 
   def local_temp_dir(self, **kwargs):
     return tempfile.mkdtemp(dir=self._local_temp_root, **kwargs)
@@ -168,65 +129,22 @@ class JavaJarJobServer(SubprocessJobServer):
   def path_to_jar(self):
     raise NotImplementedError(type(self))
 
-  @classmethod
-  def path_to_gradle_target_jar(cls, target):
-    gradle_package = target[:target.rindex(':')]
-    jar_name = '-'.join([
-        'beam', gradle_package.replace(':', '-'), beam_version + '.jar'])
+  @staticmethod
+  def path_to_beam_jar(gradle_target):
+    return subprocess_server.JavaJarServer.path_to_beam_jar(gradle_target)
 
-    if beam_version.endswith('.dev'):
-      # TODO: Attempt to use nightly snapshots?
-      project_root = os.path.sep.join(__file__.split(os.path.sep)[:-6])
-      dev_path = os.path.join(
-          project_root,
-          gradle_package.replace(':', os.path.sep),
-          'build',
-          'libs',
-          jar_name.replace('.dev', '').replace('.jar', '-SNAPSHOT.jar'))
-      if os.path.exists(dev_path):
-        logging.warning(
-            'Using pre-built job server snapshot at %s', dev_path)
-        return dev_path
-      else:
-        raise RuntimeError(
-            'Please build the job server with \n  cd %s; ./gradlew %s' % (
-                os.path.abspath(project_root), target))
-    else:
-      return '/'.join([
-          cls.MAVEN_REPOSITORY,
-          'beam-' + gradle_package.replace(':', '-'),
-          beam_version,
-          jar_name])
+  @staticmethod
+  def local_jar(url):
+    return subprocess_server.JavaJarServer.local_jar(url)
 
   def subprocess_cmd_and_endpoint(self):
     jar_path = self.local_jar(self.path_to_jar())
     artifacts_dir = self.local_temp_dir(prefix='artifacts')
-    job_port, = _pick_port(None)
+    job_port, = subprocess_server.pick_port(None)
     return (
         ['java', '-jar', jar_path] + list(
             self.java_arguments(job_port, artifacts_dir)),
         'localhost:%s' % job_port)
-
-  def local_jar(self, url):
-    # TODO: Verify checksum?
-    if os.path.exists(url):
-      return url
-    else:
-      logging.warning('Downloading job server jar from %s' % url)
-      cached_jar = os.path.join(self.JAR_CACHE, os.path.basename(url))
-      if not os.path.exists(cached_jar):
-        if not os.path.exists(self.JAR_CACHE):
-          os.makedirs(self.JAR_CACHE)
-          # TODO: Clean up this cache according to some policy.
-        try:
-          url_read = urlopen(url)
-          with open(cached_jar + '.tmp', 'wb') as jar_write:
-            shutil.copyfileobj(url_read, jar_write, length=1 << 20)
-          os.rename(cached_jar + '.tmp', cached_jar)
-        except URLError as e:
-          raise RuntimeError(
-              'Unable to fetch remote job server jar at %s: %s' % (url, e))
-      return cached_jar
 
 
 class DockerizedJobServer(SubprocessJobServer):
@@ -260,8 +178,9 @@ class DockerizedJobServer(SubprocessJobServer):
            "-v", ':'.join([docker_path, "/bin/docker"]),
            "-v", "/var/run/docker.sock:/var/run/docker.sock"]
 
-    self.job_port, self.artifact_port, self.expansion_port = _pick_port(
-        self.job_port, self.artifact_port, self.expansion_port)
+    self.job_port, self.artifact_port, self.expansion_port = (
+        subprocess_server.pick_port(
+            self.job_port, self.artifact_port, self.expansion_port))
 
     args = ['--job-host', self.job_host,
             '--job-port', str(self.job_port),
@@ -287,27 +206,3 @@ class DockerizedJobServer(SubprocessJobServer):
     cmd.append(job_server_image_name)
 
     return cmd + args, '%s:%s' % (self.job_host, self.job_port)
-
-
-def _pick_port(*ports):
-  """
-  Returns a list of ports, same length as input ports list, but replaces
-  all None or 0 ports with a random free port.
-  """
-  sockets = []
-
-  def find_free_port(port):
-    if port:
-      return port
-    else:
-      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      sockets.append(s)
-      s.bind(('localhost', 0))
-      _, free_port = s.getsockname()
-      return free_port
-
-  ports = list(map(find_free_port, ports))
-  # Close sockets only now to avoid the same port to be chosen twice
-  for s in sockets:
-    s.close()
-  return ports

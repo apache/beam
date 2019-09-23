@@ -330,6 +330,34 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadRowsWithoutStatementPreparator() {
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    String name = TestRow.getNameForSeed(1);
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceProviderFn(dataSourceProvider)
+                .withQuery(
+                    String.format(
+                        "select name,id from %s where name = '%s'", readTableName, name)));
+
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of("NAME", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 500))
+                .withNullable(true),
+            Schema.Field.of("ID", Schema.FieldType.INT32).withNullable(true));
+
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("NAME", "ID"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(Row.withSchema(expectedSchema).addValues(name, 1).build()));
+
+    pipeline.run();
+  }
+
+  @Test
   public void testReadWithSchema() {
     SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
     JdbcIO.RowMapper<RowWithSchema> rowMapper =

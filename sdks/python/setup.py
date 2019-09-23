@@ -24,6 +24,7 @@ import os
 import platform
 import sys
 import warnings
+from distutils import log
 from distutils.version import StrictVersion
 
 # Pylint and isort disagree here.
@@ -34,7 +35,6 @@ from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
-from setuptools.command.sdist import sdist
 from setuptools.command.test import test
 
 
@@ -105,8 +105,9 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
     'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    'dill>=0.2.9,<0.2.10',
+    'dill>=0.2.9,<0.4.0',
     'fastavro>=0.21.4,<0.22',
+    'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.16.0,<1.0.0',
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.12.1,<2',
@@ -128,6 +129,12 @@ REQUIRED_PACKAGES = [
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     ]
 
+# [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
+if sys.platform == 'win32' and sys.maxsize <= 2**32:
+  REQUIRED_PACKAGES = [
+      p for p in REQUIRED_PACKAGES if not p.startswith('pyarrow')
+  ]
+
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
@@ -146,11 +153,11 @@ GCP_REQUIREMENTS = [
     # [BEAM-4543] googledatastore is not supported in Python 3.
     'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
     'google-cloud-datastore>=1.7.1,<1.8.0',
-    'google-cloud-pubsub>=0.39.0,<0.40.0',
+    'google-cloud-pubsub>=0.39.0,<1.1.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.18.0',
     'google-cloud-core>=0.28.1,<2',
-    'google-cloud-bigtable>=0.31.1,<0.33.0',
+    'google-cloud-bigtable>=0.31.1,<1.1.0',
 ]
 
 
@@ -163,7 +170,7 @@ def generate_protos_first(original_cmd):
 
     class cmd(original_cmd, object):
       def run(self):
-        gen_protos.generate_proto_files()
+        gen_protos.generate_proto_files(log=log)
         super(cmd, self).run()
     return cmd
   except ImportError:
@@ -173,10 +180,10 @@ def generate_protos_first(original_cmd):
 
 python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
-if sys.version_info[0] == 3:
+if sys.version_info[0] == 2:
   warnings.warn(
-      'Some syntactic constructs of Python 3 are not yet fully supported by '
-      'Apache Beam.')
+      'You are using Apache Beam with Python 2. '
+      'New releases of Apache Beam will soon support Python 3 only.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -235,7 +242,6 @@ setuptools.setup(
         'build_py': generate_protos_first(build_py),
         'develop': generate_protos_first(develop),
         'egg_info': generate_protos_first(egg_info),
-        'sdist': generate_protos_first(sdist),
         'test': generate_protos_first(test),
     },
 )

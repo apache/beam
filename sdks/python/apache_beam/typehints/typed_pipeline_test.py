@@ -31,11 +31,14 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
-from apache_beam.typehints.decorators import getfullargspec
+from apache_beam.typehints import decorators
+from apache_beam.typehints.decorators import get_signature
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
 # pylint: disable=expression-not-assigned
+
+decorators._enable_from_callable = True
 
 
 class MainInputTest(unittest.TestCase):
@@ -86,11 +89,25 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.ParDo(MyDoFn())
     self.assertEqual(['1', '2', '3'], sorted(result))
 
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                 r'requires.*int.*got.*str'):
       ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                 r'requires.*int.*got.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
+
+  @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
+  def test_typed_callable_iterable_output(self):
+    # TODO(BEAM-7981): 2.7 and 3.x both erroneously strip the Iterable, but the
+    #   test only fails in 3.x.
+    @typehints.with_input_types(int)
+    @typehints.with_output_types(typehints.Iterable[str])
+    def do_fn(element):
+      return [[str(element)] * 2]
+
+    result = [1, 2] | beam.ParDo(do_fn)
+    self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
   def test_typed_dofn_instance(self):
     class MyDoFn(beam.DoFn):
@@ -167,8 +184,10 @@ class SideInputTest(unittest.TestCase):
       ['a', 'bb', 'c'] | beam.Map(repeat, times='z')
     with self.assertRaises(typehints.TypeCheckError):
       ['a', 'bb', 'c'] | beam.Map(repeat, 3, 4)
-    if not getfullargspec(repeat).defaults:
-      with self.assertRaises(typehints.TypeCheckError):
+    if all(param.default == param.empty
+           for param in get_signature(repeat).parameters.values()):
+      with self.assertRaisesRegexp(typehints.TypeCheckError,
+                                   r'(takes exactly|missing a required)'):
         ['a', 'bb', 'c'] | beam.Map(repeat)
 
   def test_basic_side_input_hint(self):
@@ -205,9 +224,52 @@ class SideInputTest(unittest.TestCase):
     result = ['a', 'bb', 'c'] | beam.Map(repeat, 3)
     self.assertEqual(['aaa', 'bbbbbb', 'ccc'], sorted(result))
 
-  # TODO(robertwb): Support partially defined varargs.
-  # with self.assertRaises(typehints.TypeCheckError):
-  #   ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Tuple\[int, ...\] but got Tuple\[str, ...\]'):
+        ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
+
+  def test_var_positional_only_side_input_hint(self):
+    # Test that a lambda that accepts only a VAR_POSITIONAL can accept
+    # side-inputs.
+    # TODO(BEAM-8247): There's a bug with trivial_inference inferring the output
+    #   type when side-inputs are used (their type hints are not passed). Remove
+    #   with_output_types(...) when this bug is fixed.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda *args: args, 5).with_input_types(int, str)
+              .with_output_types(typehints.Tuple[str, int]))
+    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
+
+    # Type hint order doesn't matter for VAR_POSITIONAL.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda *args: args, 5).with_input_types(int, str)
+              .with_output_types(typehints.Tuple[str, int]))
+    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
+
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Tuple\[Union\[int, str\], ...\] but got '
+          r'Tuple\[Union\[float, int\], ...\]'):
+        _ = [1.2] | beam.Map(lambda *_: 'a', 5).with_input_types(int, str)
+
+  def test_var_keyword_side_input_hint(self):
+    # Test that a lambda that accepts a VAR_KEYWORD can accept
+    # side-inputs.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda e, **kwargs: (e, kwargs), kw=5)
+              .with_input_types(str, ignored=int))
+    self.assertEqual([('a', {'kw': 5}), ('b', {'kw': 5}), ('c', {'kw': 5})],
+                     sorted(result))
+
+    if sys.version_info >= (3,):
+      with self.assertRaisesRegexp(
+          typehints.TypeCheckError,
+          r'requires Dict\[str, str\] but got Dict\[str, int\]'):
+        _ = (['a', 'b', 'c']
+             | beam.Map(lambda e, **_: 'a', kw=5)
+             .with_input_types(str, ignored=str))
 
   def test_deferred_side_inputs(self):
     @typehints.with_input_types(str, int)
@@ -288,6 +350,36 @@ class CustomTransformTest(unittest.TestCase):
       self.test_input | self.CustomTransform().with_input_types(int)
     with self.assertRaises(typehints.TypeCheckError):
       self.test_input | self.CustomTransform().with_output_types(int)
+
+
+class AnnotationsTest(unittest.TestCase):
+
+  def test_pardo_wrapper_builtin_method(self):
+    th = beam.ParDo(str.strip).get_type_hints()
+    if sys.version_info < (3, 7):
+      self.assertEqual(th.input_types, ((str,), {}))
+    else:
+      # Python 3.7+ has annotations for CPython builtins
+      # (_MethodDescriptorType).
+      self.assertEqual(th.input_types, ((str, typehints.Any), {}))
+    self.assertEqual(th.output_types, ((typehints.Any,), {}))
+
+  def test_pardo_wrapper_builtin_type(self):
+    th = beam.ParDo(list).get_type_hints()
+    if sys.version_info < (3, 7):
+      self.assertEqual(th.input_types, (
+          (typehints.Any, typehints.decorators._ANY_VAR_POSITIONAL),
+          {'__unknown__keywords': typehints.decorators._ANY_VAR_KEYWORD}))
+    else:
+      # Python 3.7+ supports signatures for builtins like 'list'.
+      self.assertEqual(th.input_types, ((typehints.Any, ), {}))
+
+    self.assertEqual(th.output_types, ((typehints.Any,), {}))
+
+  def test_pardo_wrapper_builtin_func(self):
+    th = beam.ParDo(len).get_type_hints()
+    self.assertIsNone(th.input_types)
+    self.assertIsNone(th.output_types)
 
 
 if __name__ == '__main__':

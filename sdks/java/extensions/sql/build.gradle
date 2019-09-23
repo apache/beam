@@ -78,7 +78,7 @@ configurations {
 
 def calcite_version = "1.20.0"
 def avatica_version = "1.15.0"
-def zetasql_version = "2019.07.1"
+def zetasql_version = "2019.09.1"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -125,7 +125,7 @@ dependencies {
   permitUnusedDeclared library.java.jackson_dataformat_yaml
 
   permitUnusedDeclared "com.google.api.grpc:proto-google-common-protos:1.12.0"
-  permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:2019.07.1"
+  permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
   permitUnusedDeclared "com.google.protobuf:protobuf-java-util:3.6.0"
 
   // Dependencies that are bundled in when we bundle Calcite

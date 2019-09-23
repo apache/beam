@@ -79,6 +79,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -89,6 +90,7 @@ import org.slf4j.LoggerFactory;
 
 /** Tests of {@link CassandraIO}. */
 @RunWith(JUnit4.class)
+@Ignore("Ignore until https://issues.apache.org/jira/browse/BEAM-8025 is resolved")
 public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 20L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";

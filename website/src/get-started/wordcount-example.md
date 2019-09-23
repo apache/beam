@@ -390,6 +390,12 @@ $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar o
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 ```
 
+{:.runner-jet}
+```
+$ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
+```
+
 To view the full code in Java, see
 **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
 
@@ -444,6 +450,11 @@ This runner is not yet available for the Python SDK.
 This runner is not yet available for the Python SDK.
 ```
 
+{:.runner-jet}
+```
+This runner is not yet available for the Python SDK.
+```
+
 To view the full code in Python, see
 **[wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py).**
 
@@ -486,7 +497,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --staging_location gs://<your-gcs-bucket>/binaries/ \
-            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+            --worker_harness_container_image=apachebeam/go_sdk:latest
 ```
 
 {:.runner-samza-local}
@@ -495,6 +506,11 @@ This runner is not yet available for the Go SDK.
 ```
 
 {:.runner-nemo}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-jet}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -739,6 +755,12 @@ $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar o
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 ```
 
+{:.runner-jet}
+```
+$ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
+     --runner=JetRunner --jetLocalMode=3 --output=counts
+```
+
 To view the full code in Java, see
 [DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).
 
@@ -786,6 +808,11 @@ This runner is not yet available for the Python SDK.
 ```
 
 {:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-jet}
 ```
 This runner is not yet available for the Python SDK.
 ```
@@ -841,6 +868,11 @@ This runner is not yet available for the Go SDK.
 ```
 
 {:.runner-nemo}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-jet}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -1088,6 +1120,12 @@ $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar o
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 ```
 
+{:.runner-jet}
+```
+$ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
+     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
+```
+
 To view the full code in Java, see
 **[WindowedWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java).**
 
@@ -1143,6 +1181,11 @@ This runner is not yet available for the Python SDK.
 This runner is not yet available for the Python SDK.
 ```
 
+{:.runner-jet}
+```
+This runner is not yet available for the Python SDK.
+```
+
 To view the full code in Python, see
 **[windowed_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py).**
 
@@ -1194,6 +1237,11 @@ This runner is not yet available for the Go SDK.
 ```
 
 {:.runner-nemo}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-jet}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -1456,6 +1504,11 @@ This runner is not yet available for the Python SDK.
 ```
 
 {:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-jet}
 ```
 This runner is not yet available for the Python SDK.
 ```

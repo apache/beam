@@ -114,10 +114,9 @@ public class ProcessBundleDescriptors {
     Components.Builder components =
         stage.getComponents().toBuilder().clearTransforms().putAllTransforms(stageTransforms);
 
-    ImmutableMap.Builder<String, RemoteInputDestination<WindowedValue<?>>>
-        inputDestinationsBuilder = ImmutableMap.builder();
-    ImmutableMap.Builder<String, Coder<WindowedValue<?>>> remoteOutputCodersBuilder =
+    ImmutableMap.Builder<String, RemoteInputDestination> inputDestinationsBuilder =
         ImmutableMap.builder();
+    ImmutableMap.Builder<String, Coder> remoteOutputCodersBuilder = ImmutableMap.builder();
 
     // The order of these does not matter.
     inputDestinationsBuilder.put(
@@ -296,8 +295,8 @@ public class ProcessBundleDescriptors {
       ApiServiceDescriptor dataEndpoint,
       ExecutableStage stage,
       Components.Builder components,
-      ImmutableMap.Builder<String, RemoteInputDestination<WindowedValue<?>>> remoteInputsBuilder,
-      ImmutableMap.Builder<String, Coder<WindowedValue<?>>> outputTransformCodersBuilder)
+      ImmutableMap.Builder<String, RemoteInputDestination> remoteInputsBuilder,
+      ImmutableMap.Builder<String, Coder> outputTransformCodersBuilder)
       throws IOException {
     ImmutableTable.Builder<String, String, TimerSpec> idsToSpec = ImmutableTable.builder();
     for (TimerReference timerReference : stage.getTimers()) {
@@ -515,8 +514,8 @@ public class ProcessBundleDescriptors {
   public abstract static class ExecutableProcessBundleDescriptor {
     public static ExecutableProcessBundleDescriptor of(
         ProcessBundleDescriptor descriptor,
-        Map<String, RemoteInputDestination<WindowedValue<?>>> inputDestinations,
-        Map<String, Coder<WindowedValue<?>>> outputTransformCoders,
+        Map<String, RemoteInputDestination> inputDestinations,
+        Map<String, Coder> outputTransformCoders,
         Map<String, Map<String, SideInputSpec>> sideInputSpecs,
         Map<String, Map<String, BagUserStateSpec>> bagUserStateSpecs,
         Map<String, Map<String, TimerSpec>> timerSpecs) {
@@ -553,14 +552,13 @@ public class ProcessBundleDescriptors {
      * Get {@link RemoteInputDestination}s that input data/timers are sent to the {@link
      * ProcessBundleDescriptor} over.
      */
-    public abstract Map<String, RemoteInputDestination<WindowedValue<?>>>
-        getRemoteInputDestinations();
+    public abstract Map<String, RemoteInputDestination> getRemoteInputDestinations();
 
     /**
      * Get all of the transforms materialized by this {@link ExecutableProcessBundleDescriptor} and
      * the Java {@link Coder} for the wire format of that transform.
      */
-    public abstract Map<String, Coder<WindowedValue<?>>> getRemoteOutputCoders();
+    public abstract Map<String, Coder> getRemoteOutputCoders();
 
     /**
      * Get a mapping from PTransform id to side input id to {@link SideInputSpec side inputs} that

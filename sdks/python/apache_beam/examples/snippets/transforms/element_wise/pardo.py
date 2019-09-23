@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
+from __future__ import unicode_literals
 
 
 def pardo_dofn(test=None):
@@ -29,7 +30,8 @@ def pardo_dofn(test=None):
       self.delimiter = delimiter
 
     def process(self, text):
-      return text.split(self.delimiter)
+      for word in text.split(self.delimiter):
+        yield word
 
   with beam.Pipeline() as pipeline:
     plants = (
@@ -81,3 +83,44 @@ def pardo_dofn_params(test=None):
     # pylint: enable=line-too-long
     if test:
       test(dofn_params)
+
+
+def pardo_dofn_methods(test=None):
+  # [START pardo_dofn_methods]
+  import apache_beam as beam
+
+  class DoFnMethods(beam.DoFn):
+    def __init__(self):
+      print('__init__')
+      self.window = beam.window.GlobalWindow()
+
+    def setup(self):
+      print('setup')
+
+    def start_bundle(self):
+      print('start_bundle')
+
+    def process(self, element, window=beam.DoFn.WindowParam):
+      self.window = window
+      yield '* process: ' + element
+
+    def finish_bundle(self):
+      yield beam.utils.windowed_value.WindowedValue(
+          value='* finish_bundle: 🌱🌳🌍',
+          timestamp=0,
+          windows=[self.window],
+      )
+
+    def teardown(self):
+      print('teardown')
+
+  with beam.Pipeline() as pipeline:
+    results = (
+        pipeline
+        | 'Create inputs' >> beam.Create(['🍓', '🥕', '🍆', '🍅', '🥔'])
+        | 'DoFn methods' >> beam.ParDo(DoFnMethods())
+        | beam.Map(print)
+    )
+    # [END pardo_dofn_methods]
+    if test:
+      return test(results)

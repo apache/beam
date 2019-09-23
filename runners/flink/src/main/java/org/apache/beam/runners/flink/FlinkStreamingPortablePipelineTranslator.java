@@ -49,7 +49,7 @@ import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
-import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -85,6 +85,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
@@ -702,7 +704,7 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
-            FlinkExecutableStageContext.factory(context.getPipelineOptions()),
+            FlinkExecutableStageContextFactory.getInstance(),
             collectionIdToTupleTag,
             getWindowingStrategy(inputPCollectionId, components),
             keyCoder,
@@ -805,7 +807,11 @@ public class FlinkStreamingPortablePipelineTranslator
         new LinkedHashMap<>();
     // for PCollectionView compatibility, not used to transform materialization
     ViewFn<Iterable<WindowedValue<?>>, ?> viewFn =
-        (ViewFn) new PCollectionViews.MultimapViewFn<Iterable<WindowedValue<Void>>, Void>();
+        (ViewFn)
+            new PCollectionViews.MultimapViewFn<>(
+                (PCollectionViews.TypeDescriptorSupplier<Iterable<WindowedValue<Void>>>)
+                    () -> TypeDescriptors.iterables(new TypeDescriptor<WindowedValue<Void>>() {}),
+                (PCollectionViews.TypeDescriptorSupplier<Void>) TypeDescriptors::voids);
 
     for (RunnerApi.ExecutableStagePayload.SideInputId sideInputId :
         stagePayload.getSideInputsList()) {

@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -224,10 +223,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
         return rawStream
             .apply("flatten", Flatten.iterables())
-            .setSchema(
-                CalciteUtils.toSchema(getRowType()),
-                SerializableFunctions.identity(),
-                SerializableFunctions.identity());
+            .setRowSchema(CalciteUtils.toSchema(getRowType()));
       }
     }
   }

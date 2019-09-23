@@ -441,6 +441,7 @@ public class PubsubIO {
   private static <T> Read<T> read() {
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .build();
   }
@@ -456,6 +457,23 @@ public class PubsubIO {
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will only contain a {@link PubsubMessage#getPayload() payload} with the {@link
+   * PubsubMessage#getMessageId() messageId} from PubSub, but no {@link
+   * PubsubMessage#getAttributeMap() attributes}.
+   */
+  public static Read<PubsubMessage> readMessagesWithMessageId() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(PubsubMessageWithMessageIdCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(false)
+        .setNeedsMessageId(true)
         .build();
   }
 
@@ -470,6 +488,23 @@ public class PubsubIO {
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(true)
+        .setNeedsMessageId(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
+   * PubsubMessage#getAttributeMap() attributes}, along with the {@link PubsubMessage#getMessageId()
+   * messageId} from PubSub.
+   */
+  public static Read<PubsubMessage> readMessagesWithAttributesAndMessageId() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(PubsubMessageWithAttributesAndMessageIdCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(true)
+        .setNeedsMessageId(true)
         .build();
   }
 
@@ -480,6 +515,7 @@ public class PubsubIO {
   public static Read<String> readStrings() {
     return new AutoValue_PubsubIO_Read.Builder<String>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(StringUtf8Coder.of())
         .setParseFn(new ParsePayloadAsUtf8())
@@ -497,6 +533,7 @@ public class PubsubIO {
     ProtoCoder<T> coder = ProtoCoder.of(messageClass);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(coder)
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -514,9 +551,25 @@ public class PubsubIO {
     AvroCoder<T> coder = AvroCoder.of(clazz);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(coder)
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream,
+   * mapping each {@link PubsubMessage} into type T using the supplied parse function and coder.
+   */
+  public static <T> Read<T> readMessagesWithCoderAndParseFn(
+      Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
+    return new AutoValue_PubsubIO_Read.Builder<T>()
+        .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(coder)
+        .setParseFn(parseFn)
         .build();
   }
 
@@ -533,6 +586,7 @@ public class PubsubIO {
     AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
     return new AutoValue_PubsubIO_Read.Builder<GenericRecord>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
         .setToRowFn(AvroUtils.getToRowFunction(GenericRecord.class, avroSchema))
@@ -558,6 +612,7 @@ public class PubsubIO {
     Schema schema = AvroUtils.getSchema(clazz, null);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
         .setToRowFn(AvroUtils.getToRowFunction(clazz, avroSchema))
@@ -645,6 +700,8 @@ public class PubsubIO {
 
     abstract boolean getNeedsAttributes();
 
+    abstract boolean getNeedsMessageId();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -670,6 +727,8 @@ public class PubsubIO {
       abstract Builder<T> setFromRowFn(@Nullable SerializableFunction<Row, T> fromRowFn);
 
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
+
+      abstract Builder<T> setNeedsMessageId(boolean needsMessageId);
 
       abstract Builder<T> setClock(@Nullable Clock clock);
 
@@ -832,7 +891,8 @@ public class PubsubIO {
               subscriptionPath,
               getTimestampAttribute(),
               getIdAttribute(),
-              getNeedsAttributes());
+              getNeedsAttributes(),
+              getNeedsMessageId());
       PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
       return (getBeamSchema() != null)
           ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
@@ -858,7 +918,12 @@ public class PubsubIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = 10 * 1024 * 1024;
+    /**
+     * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
+     * four bytes.
+     */
+    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1024 * 1024) / 4) * 3;
+
     private static final int MAX_PUBLISH_BATCH_SIZE = 100;
 
     @Nullable
