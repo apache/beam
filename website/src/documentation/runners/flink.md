@@ -39,8 +39,8 @@ The Flink Runner and Flink are suitable for large scale, continuous jobs, and pr
 
 It is important to understand that the Flink Runner comes in two flavors:
 
-1. A *legacy Runner* which supports only Java (and other JVM-based languages)
-2. A *portable Runner* which supports Java/Python/Go
+1. The original *classic Runner* which supports only Java (and other JVM-based languages)
+2. The newer *portable Runner* which supports Java/Python/Go
 
 You may ask why there are two Runners?
 
@@ -49,8 +49,8 @@ Beam and its Runners originally only supported JVM-based languages
 architecture of the Runners had to be changed significantly to support executing
 pipelines written in other languages.
 
-If your applications only use Java, then you should currently go with the legacy
-Runner. Eventually, the portable Runner will replace the legacy Runner because
+If your applications only use Java, then you should currently go with the classic
+Runner. Eventually, the portable Runner will replace the classic Runner because
 it contains the generalized framework for executing Java, Python, Go, and more
 languages in the future.
 
@@ -59,14 +59,14 @@ portable Runner. For more information on
 portability, please visit the [Portability page]({{site.baseurl
 }}/roadmap/portability/).
 
-Consequently, this guide is split into two parts to document the legacy and
+Consequently, this guide is split into two parts to document the classic and
 the portable functionality of the Flink Runner. Please use the switcher below to
 select the appropriate Runner:
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java">Legacy (Java)</li>
+    <li data-type="language-java">Classic (Java)</li>
     <li data-type="language-py">Portable (Java/Python/Go)</li>
   </ul>
 </nav>
@@ -608,7 +608,7 @@ See the reference documentation for the<span class="language-java">
 
 The [Beam Capability Matrix]({{ site.baseurl
 }}/documentation/runners/capability-matrix/) documents the
-capabilities of the legacy Flink Runner.
+capabilities of the classic Flink Runner.
 
 The [Portable Capability
 Matrix](https://s.apache.org/apache-beam-portability-support-table) documents
