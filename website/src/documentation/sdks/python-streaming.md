@@ -183,18 +183,13 @@ These unsupported Beam features apply to all runners.
 - Custom source API
 - Splittable `DoFn` API
 - Handling of late data
-- User-defined custom `WindowFn`
+- User-defined custom merging `WindowFn` (with fnapi)
 
 ### DataflowRunner specific features
 
 Additionally, `DataflowRunner` does not currently support the following Cloud
 Dataflow specific features with Python streaming execution.
 
-- Streaming autoscaling
-- Updating existing pipelines
 - Cloud Dataflow Templates
-- Some monitoring features, such as msec counters, display data, metrics, and
-  element counts for transforms. However, logging, watermarks, and element
-  counts for sources are supported.
 
 
