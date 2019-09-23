@@ -193,16 +193,33 @@ task goIntegrationTests() {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 }
 
-task pythonPreCommit() {
+task python2PreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2"
-  dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
-  dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
-  dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
-  // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
+}
+
+task python35PreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
+  // We don't include Py35 precommit ITs to reduce quota footprint.
   // We can reconsider if we ever see an issue that these suites would
   // have caught. Note that the same tests will still run in postcommit.
+}
+
+task python36PreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
+  // We don't include Py36 precommit ITs to reduce quota footprint.
+  // We can reconsider if we ever see an issue that these suites would
+  // have caught. Note that the same tests will still run in postcommit.
+}
+
+task python37PreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
+  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
+}
+
+task pythonLintPreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py2:lint"
+  dependsOn ":sdks:python:test-suites:tox:py35:lint"
 }
 
 task python2PostCommit() {

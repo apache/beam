@@ -55,5 +55,4 @@ task preCommitPy2() {
   dependsOn "testPy2Cython"
   dependsOn "testPython2"
   dependsOn "testPy2Gcp"
-  dependsOn "lint"
 }
