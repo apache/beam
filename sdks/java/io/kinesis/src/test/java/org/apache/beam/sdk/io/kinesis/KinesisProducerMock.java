@@ -125,6 +125,6 @@ public class KinesisProducerMock implements IKinesisProducer {
 
   @Override
   public synchronized void flushSync() {
-    throw new UnsupportedOperationException("Not implemented");
+    flush();
   }
 }
