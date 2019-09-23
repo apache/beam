@@ -67,7 +67,11 @@ JOB_TRIGGER_PHRASES=(
   "Run Java_Examples_Dataflow PreCommit"
   "Run JavaPortabilityApi PreCommit"
   "Run Portable_Python PreCommit"
-  "Run Python PreCommit"
+  "Run PythonLint PreCommit"
+  "Run Python2 PreCommit"
+  "Run Python35 PreCommit"
+  "Run Python36 PreCommit"
+  "Run Python37 PreCommit"
 )
 
 
