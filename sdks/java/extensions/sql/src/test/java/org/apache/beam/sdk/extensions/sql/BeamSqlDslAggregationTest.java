@@ -36,7 +36,6 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -104,13 +103,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .getRows();
 
     boundedInput3 =
-        pipeline.apply(
-            "boundedInput3",
-            Create.of(rowsInTableB)
-                .withSchema(
-                    schemaInTableB,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput3", Create.of(rowsInTableB).withRowSchema(schemaInTableB));
   }
 
   /** GROUP-BY with single aggregation function with bounded PCollection. */
@@ -424,8 +417,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> input =
         pipeline.apply(
-            TestStream.create(
-                    inputSchema, SerializableFunctions.identity(), SerializableFunctions.identity())
+            TestStream.create(inputSchema)
                 .addElements(
                     Row.withSchema(inputSchema)
                         .addValues(1, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
@@ -696,7 +688,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                             2, 4,
                             2, 5)
                         .getRows()))
-            .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(schema);
 
     String sql = "SELECT SUM(f_intValue) FROM PCOLLECTION GROUP BY f_intGroupingKey";
 
