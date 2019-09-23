@@ -256,8 +256,8 @@ which is useful for testing pipelines.</p>
 <p>It is important to understand that the Flink Runner comes in two flavors:</p>
 
 <ol>
-  <li>A <em>legacy Runner</em> which supports only Java (and other JVM-based languages)</li>
-  <li>A <em>portable Runner</em> which supports Java/Python/Go</li>
+  <li>The original <em>classic Runner</em> which supports only Java (and other JVM-based languages)</li>
+  <li>The newer <em>portable Runner</em> which supports Java/Python/Go</li>
 </ol>
 
 <p>You may ask why there are two Runners?</p>
@@ -267,8 +267,8 @@ which is useful for testing pipelines.</p>
 architecture of the Runners had to be changed significantly to support executing
 pipelines written in other languages.</p>
 
-<p>If your applications only use Java, then you should currently go with the legacy
-Runner. Eventually, the portable Runner will replace the legacy Runner because
+<p>If your applications only use Java, then you should currently go with the classic
+Runner. Eventually, the portable Runner will replace the classic Runner because
 it contains the generalized framework for executing Java, Python, Go, and more
 languages in the future.</p>
 
@@ -276,14 +276,14 @@ languages in the future.</p>
 portable Runner. For more information on
 portability, please visit the <a href="/roadmap/portability/">Portability page</a>.</p>
 
-<p>Consequently, this guide is split into two parts to document the legacy and
+<p>Consequently, this guide is split into two parts to document the classic and
 the portable functionality of the Flink Runner. Please use the switcher below to
 select the appropriate Runner:</p>
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java">Legacy (Java)</li>
+    <li data-type="language-java">Classic (Java)</li>
     <li data-type="language-py">Portable (Java/Python/Go)</li>
   </ul>
 </nav>
@@ -820,7 +820,7 @@ Many sources like <code class="highlighter-rouge">PubSubIO</code> rely on their 
 <h2 id="capability">Capability</h2>
 
 <p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the
-capabilities of the legacy Flink Runner.</p>
+capabilities of the classic Flink Runner.</p>
 
 <p>The <a href="https://s.apache.org/apache-beam-portability-support-table">Portable Capability
 Matrix</a> documents
