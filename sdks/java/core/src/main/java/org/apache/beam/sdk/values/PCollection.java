@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -301,11 +300,7 @@ public class PCollection<T> extends PValueBase implements PValue {
    */
   @Experimental(Kind.SCHEMAS)
   public PCollection<T> setRowSchema(Schema schema) {
-    return setSchema(
-        schema,
-        (TypeDescriptor<T>) TypeDescriptors.rows(),
-        (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
-        (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity());
+    return setCoder((SchemaCoder<T>) SchemaCoder.of(schema));
   }
 
   /** Sets a {@link Schema} on this {@link PCollection}. */
