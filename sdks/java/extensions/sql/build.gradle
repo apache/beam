@@ -24,46 +24,7 @@ plugins {
 }
 applyJavaNature(
   // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann'],
-  testShadowJar: true,
-  enableStrictDependencies: true,
-  shadowClosure: {
-    dependencies {
-      include(dependency(library.java.guava))
-      include(dependency(library.java.protobuf_java))
-      include(dependency(library.java.protobuf_java_util))
-      include(dependency("org.apache.calcite:.*"))
-      include(dependency("org.apache.calcite.avatica:.*"))
-      include(dependency("org.codehaus.janino:.*"))
-      include(dependency("com.google.zetasql:.*"))
-    }
-    // guava uses the com.google.common and com.google.thirdparty package namespaces
-    relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
-      // com.google.common is too generic, need to exclude guava-testlib
-      exclude "com.google.common.collect.testing.**"
-      exclude "com.google.common.escape.testing.**"
-      exclude "com.google.common.testing.**"
-      exclude "com.google.common.util.concurrent.testing.**"
-    }
-    relocate "com.google.cloud", getJavaRelocatedPath("com.google.cloud")
-    relocate "com.google.logging", getJavaRelocatedPath("com.google.logging")
-    relocate "com.google.longrunning", getJavaRelocatedPath("com.google.longrunning")
-    relocate "com.google.rpc", getJavaRelocatedPath("com.google.rpc")
-
-    relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
-
-    relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-    relocate "com.google.zetasql", getJavaRelocatedPath("com.google.zetasql")
-    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
-
-  // Looking up the compiler factory in Calcite depends on having a properties
-  // file in the right location. We package one that is shading compatible
-  // in src/main/resources. Note that if this shaded path changes, that
-  // files name and contents need to be updated as well. TODO, swap to use
-  // getJavaRelocatedPath once the Maven build is no longer also shading this
-  // module.
-  relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
-})
+  disableLintWarnings: ['dep-ann'])
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
