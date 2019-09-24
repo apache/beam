@@ -24,7 +24,7 @@ pythonVersion = '3.6'
 addPortableWordCountTasks()
 
 task preCommitPy36() {
-    dependsOn ':runners:flink:1.5:job-server-container:docker'
+    dependsOn ':runners:flink:1.8:job-server-container:docker'
     dependsOn ':sdks:python:container:py36:docker'
     dependsOn portableWordCountBatch
     dependsOn portableWordCountStreaming

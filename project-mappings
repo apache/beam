@@ -94,9 +94,9 @@
 :beam-runners-google-cloud-dataflow-java-examples :runners:google-cloud-dataflow-java:examples
 :beam-runners-google-cloud-dataflow-java :runners:google-cloud-dataflow-java
 :beam-runners-gearpump :runners:gearpump
-:beam-runners-flink_2.11-job-server-container :runners:flink:1.5:job-server-container
-:beam-runners-flink_2.11-job-server :runners:flink:1.5:job-server
-:beam-runners-flink_2.11 :runners:flink:1.5
+:beam-runners-flink_2.11-job-server-container :runners:flink:1.8:job-server-container
+:beam-runners-flink_2.11-job-server :runners:flink:1.8:job-server
+:beam-runners-flink_2.11 :runners:flink:1.8
 :beam-runners-flink-1.7-job-server-container :runners:flink:1.7:job-server-container
 :beam-runners-flink-1.7-job-server :runners:flink:1.7:job-server
 :beam-runners-flink-1.7 :runners:flink:1.7

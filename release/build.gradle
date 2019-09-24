@@ -34,7 +34,7 @@ task runJavaExamplesValidationTask {
   dependsOn ":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow"
   dependsOn ":runners:apex:runQuickstartJavaApex"
   dependsOn ":runners:spark:runQuickstartJavaSpark"
-  dependsOn ":runners:flink:1.5:runQuickstartJavaFlinkLocal"
+  dependsOn ":runners:flink:1.8:runQuickstartJavaFlinkLocal"
   dependsOn ":runners:direct-java:runMobileGamingJavaDirect"
   dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow"
 }

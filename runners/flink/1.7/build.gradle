@@ -23,8 +23,8 @@ project.ext {
   // Set the version of all Flink-related dependencies here.
   flink_version = '1.7.2'
   // Main source directory and Flink version specific code.
-  main_source_dirs = ["$basePath/src/main/java", "../1.5/src/main/java"]
-  test_source_dirs = ["$basePath/src/test/java", "../1.5/src/test/java"]
+  main_source_dirs = ["$basePath/src/main/java", "./src/main/java"]
+  test_source_dirs = ["$basePath/src/test/java", "./src/test/java"]
   main_resources_dirs = ["$basePath/src/main/resources"]
   test_resources_dirs = ["$basePath/src/test/resources"]
   archives_base_name = 'beam-runners-flink-1.7'

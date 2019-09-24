@@ -24,7 +24,7 @@ from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 
-PUBLISHED_FLINK_VERSIONS = ['1.6', '1.7', '1.8']
+PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8']
 
 
 class FlinkRunner(portable_runner.PortableRunner):
