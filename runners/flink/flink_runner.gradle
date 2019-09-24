@@ -83,14 +83,7 @@ test {
   }
   // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  if (project.path == ":runners:flink:1.6") {
-    mustRunAfter(":runners:flink:1.5:test")
-  } else if (project.path == ":runners:flink:1.7") {
-    mustRunAfter(":runners:flink:1.5:test")
-    mustRunAfter(":runners:flink:1.6:test")
-  } else if (project.path == ":runners:flink:1.8") {
-    mustRunAfter(":runners:flink:1.5:test")
-    mustRunAfter(":runners:flink:1.6:test")
+  if (project.path == ":runners:flink:1.8") {
     mustRunAfter(":runners:flink:1.7:test")
   }
 }
@@ -190,5 +183,5 @@ task validatesRunner {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:flink:1.5:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.8:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')

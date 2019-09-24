@@ -102,7 +102,7 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.5"
+//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.8"
 //       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args

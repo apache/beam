@@ -35,7 +35,7 @@ class CommonTestProperties {
                 JAVA: [
                         DATAFLOW: ":runners:google-cloud-dataflow-java",
                         SPARK: ":runners:spark",
-                        FLINK: ":runners:flink:1.5",
+                        FLINK: ":runners:flink:1.8",
                         DIRECT: ":runners:direct-java"
                 ],
                 PYTHON: [
