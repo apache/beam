@@ -27,29 +27,68 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
-                title          : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                title          : 'ParDo Python Load test: 2GB 100 byte records 10 times',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
+                        job_name             : 'load-tests-python-flink-batch-pardo-1-' + now,
                         project              : 'apache-beam-testing',
-                        job_name             : 'load-tests-python-flink-batch-cogbk-1-' + now,
-                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : false,
                         metrics_dataset      : datasetName,
-                        metrics_table        : "python_flink_batch_cogbk_1",
+                        metrics_table        : 'python_flink_batch_pardo_1',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 1,' +
-                                '"hot_key_fraction": 1}\'',
-                        co_input_options      : '\'{' +
+                                '"value_size": 90}\'',
+                        iterations           : 10,
+                        number_of_counter_operations: 0,
+                        number_of_counters   : 0,
+                        parallelism          : 5,
+                        job_endpoint         : 'localhost:8099',
+                        environment_config   : sdkHarnessImageTag,
+                        environment_type     : 'DOCKER',
+                ]
+        ],
+        [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 200 times',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
+                        job_name             : 'load-tests-python-flink-batch-pardo-2-' + now,
+                        project              : 'apache-beam-testing',
+                        publish_to_big_query : false,
+                        metrics_dataset      : datasetName,
+                        metrics_table        : 'python_flink_batch_pardo_2',
+                        input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 1,' +
-                                '"hot_key_fraction": 1}\'',
+                                '"value_size": 90}\'',
+                        iterations           : 200,
+                        number_of_counter_operations: 0,
+                        number_of_counters   : 0,
+                        parallelism          : 5,
+                        job_endpoint         : 'localhost:8099',
+                        environment_config   : sdkHarnessImageTag,
+                        environment_type     : 'DOCKER',
+                ]
+        ],
+        [
+                title          : 'ParDo Python Load test: 2GB 100 byte records 10 counters',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
+                        job_name             : 'load-tests-python-flink-batch-pardo-3-' + now,
+                        project              : 'apache-beam-testing',
+                        publish_to_big_query : false,
+                        metrics_dataset      : datasetName,
+                        metrics_table        : 'python_flink_batch_pardo_3',
+                        input_options        : '\'{' +
+                                '"num_records": 20000000,' +
+                                '"key_size": 10,' +
+                                '"value_size": 90}\'',
                         iterations           : 1,
+                        number_of_counter_operations: 10,
+                        number_of_counters   : 1,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
                         environment_config   : sdkHarnessImageTag,
@@ -57,89 +96,22 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title          : 'CoGroupByKey Python Load test: 2GB of 100B records with multiple keys',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                title          : 'ParDo Python Load test: 2GB 100 byte records 100 counters',
+                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
+                        job_name             : 'load-tests-python-flink-batch-pardo-4-' + now,
                         project              : 'apache-beam-testing',
-                        job_name             : 'load-tests-python-flink-batch-cogbk-2-' + now,
-                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : false,
                         metrics_dataset      : datasetName,
-                        metrics_table        : 'python_flink_batch_cogbk_2',
+                        metrics_table        : 'python_flink_batch_pardo_4',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 5,' +
-                                '"hot_key_fraction": 1}\'',
-                        co_input_options      : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 5,' +
-                                '"hot_key_fraction": 1}\'',
+                                '"value_size": 90}\'',
                         iterations           : 1,
-                        parallelism          : 5,
-                        job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
-                        environment_type     : 'DOCKER',
-                ]
-        ],
-        [
-                title          : 'CoGroupByKey Python Load test: reiterate 4 times 10kB values',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner         : CommonTestProperties.Runner.PORTABLE,
-                pipelineOptions: [
-                        project              : 'apache-beam-testing',
-                        job_name             : 'load-tests-python-flink-batch-cogbk-3-' + now,
-                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query : false,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : "python_flink_batch_cogbk_3",
-                        input_options        : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 200000,' +
-                                '"hot_key_fraction": 1}\'',
-                        co_input_options      : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 200000,' +
-                                '"hot_key_fraction": 1}\'',
-                        iterations           : 4,
-                        parallelism          : 5,
-                        job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
-                        environment_type     : 'DOCKER',
-                ]
-        ],
-        [
-                title          : 'CoGroupByKey Python Load test: reiterate 4 times 2MB values',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
-                runner         : CommonTestProperties.Runner.PORTABLE,
-                pipelineOptions: [
-                        project              : 'apache-beam-testing',
-                        job_name             : 'load-tests-python-flink-batch-cogbk-4-' + now,
-                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query : false,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : 'python_flink_batch_cogbk_4',
-                        input_options        : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 1000,' +
-                                '"hot_key_fraction": 1}\'',
-                        co_input_options      : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 1000,' +
-                                '"hot_key_fraction": 1}\'',
-                        iterations           : 4,
+                        number_of_counter_operations: 100,
+                        number_of_counters   : 1,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
                         environment_config   : sdkHarnessImageTag,
@@ -157,22 +129,22 @@ def loadTest = { scope, triggeringContext ->
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
   publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
-  publisher.publish('runners:flink:1.7:job-server-container:docker', 'flink-job-server')
-  def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
+  publisher.publish(':runners:flink:1.7:job-server-container:docker', 'flink-job-server')
+  Flink flink = new Flink(scope, 'beam_LoadTests_Python_ParDo_Flink_Batch')
   flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
 
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'CoGBK', 'batch')
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'ParDo', 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_LoadTests_Python_CoGBK_Flink_Batch',
-        'Run Load Tests Python CoGBK Flink Batch',
-        'Load Tests Python CoGBK Flink Batch suite',
-        this
+  'beam_LoadTests_Python_ParDo_Flink_Batch',
+  'Run Python Load Tests ParDo Flink Batch',
+  'Load Tests Python ParDo Flink Batch suite',
+  this
 ) {
   loadTest(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Flink_Batch', 'H 16 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', this) {
   loadTest(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }

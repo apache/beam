@@ -27,10 +27,10 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
-                title        : 'Combine Python Load test: 2GB 10 byte records',
-                itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Combine Python Load test: 2GB 10 byte records',
+                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-1-' + now,
                         project             : 'apache-beam-testing',
                         publish_to_big_query: false,
@@ -48,10 +48,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Combine Python Load test: 2GB Fanout 4',
-                itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Combine Python Load test: 2GB Fanout 4',
+                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-4-' + now,
                         project             : 'apache-beam-testing',
                         publish_to_big_query: false,
@@ -70,10 +70,10 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 ]
         ],
         [
-                title        : 'Combine Python Load test: 2GB Fanout 8',
-                itClass      : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                jobProperties: [
+                title          : 'Combine Python Load test: 2GB Fanout 8',
+                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-5-' + now,
                         project             : 'apache-beam-testing',
                         publish_to_big_query: false,
@@ -124,7 +124,7 @@ private List<Map> defineTestSteps(scope, List<Map> testScenarios, List<String> t
     return testScenarios
             .findAll { it.title in titles }
             .forEach {
-                loadTestsBuilder.loadTest(scope, it.title, it.runner, CommonTestProperties.SDK.PYTHON, it.jobProperties, it.itClass)
+                loadTestsBuilder.loadTest(scope, it.title, it.runner, CommonTestProperties.SDK.PYTHON, it.pipelineOptions, it.test)
             }
 }
 

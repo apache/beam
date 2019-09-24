@@ -22,10 +22,10 @@ import PhraseTriggeringPostCommitBuilder
 
 def smokeTestConfigurations = { datasetName -> [
         [
-                title        : 'GroupByKey load test Direct',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DIRECT,
-                jobProperties: [
+                title          : 'GroupByKey load test Direct',
+                test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner         : CommonTestProperties.Runner.DIRECT,
+                pipelineOptions: [
                         publishToBigQuery: true,
                         bigQueryDataset  : datasetName,
                         bigQueryTable    : 'direct_gbk',
@@ -36,10 +36,10 @@ def smokeTestConfigurations = { datasetName -> [
                 ]
         ],
         [
-                title        : 'GroupByKey load test Dataflow',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
+                title          : 'GroupByKey load test Dataflow',
+                test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         project          : 'apache-beam-testing',
                         tempLocation     : 'gs://temp-storage-for-perf-tests/smoketests',
                         publishToBigQuery: true,
@@ -52,10 +52,10 @@ def smokeTestConfigurations = { datasetName -> [
                 ]
         ],
         [
-                title        : 'GroupByKey load test Flink',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.FLINK,
-                jobProperties: [
+                title          : 'GroupByKey load test Flink',
+                test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner         : CommonTestProperties.Runner.FLINK,
+                pipelineOptions: [
                         publishToBigQuery: true,
                         bigQueryDataset  : datasetName,
                         bigQueryTable    : 'flink_gbk',
@@ -66,10 +66,10 @@ def smokeTestConfigurations = { datasetName -> [
                 ]
         ],
         [
-                title        : 'GroupByKey load test Spark',
-                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                runner       : CommonTestProperties.Runner.SPARK,
-                jobProperties: [
+                title          : 'GroupByKey load test Spark',
+                test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner         : CommonTestProperties.Runner.SPARK,
+                pipelineOptions: [
                         sparkMaster      : 'local[4]',
                         publishToBigQuery: true,
                         bigQueryDataset  : datasetName,
