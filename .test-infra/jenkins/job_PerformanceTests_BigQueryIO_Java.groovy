@@ -23,10 +23,10 @@ import PhraseTriggeringPostCommitBuilder
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def bqioStreamTest = [
-        title        : 'BigQueryIO Streaming Performance Test Java 10 GB',
-        itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
-        runner       : CommonTestProperties.Runner.DATAFLOW,
-        jobProperties: [
+        title          : 'BigQueryIO Streaming Performance Test Java 10 GB',
+        test           : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
+        runner         : CommonTestProperties.Runner.DATAFLOW,
+        pipelineOptions: [
                 jobName               : 'performance-tests-bqio-java-stream-10gb' + now,
                 project               : 'apache-beam-testing',
                 tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -41,17 +41,16 @@ def bqioStreamTest = [
                         '"num_records": 10485760,' +
                         '"key_size": 1,' +
                         '"value_size": 1024}\'',
-                maxNumWorkers         : 5,
                 numWorkers            : 5,
                 autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
         ]
 ]
 
 def bqioBatchTest = [
-        title        : 'BigQueryIO Batch Performance Test Java 10 GB',
-        itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
-        runner       : CommonTestProperties.Runner.DATAFLOW,
-        jobProperties: [
+        title          : 'BigQueryIO Batch Performance Test Java 10 GB',
+        test           : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
+        runner         : CommonTestProperties.Runner.DATAFLOW,
+        pipelineOptions: [
                 jobName               : 'performance-tests-bqio-java-stream-10gb' + now,
                 project               : 'apache-beam-testing',
                 tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -66,7 +65,6 @@ def bqioBatchTest = [
                         '"num_records": 10485760,' +
                         '"key_size": 1,' +
                         '"value_size": 1024}\'',
-                maxNumWorkers         : 5,
                 numWorkers            : 5,
                 autoscalingAlgorithm  : 'NONE',  // Disable autoscale the worker pool.
         ]
@@ -81,9 +79,9 @@ def executeJob = { scope, testConfig ->
                 rootBuildScriptDir(commonJobProperties.checkoutDir)
                 commonJobProperties.setGradleSwitches(delegate)
                 switches("--info")
-                switches("-DintegrationTestPipelineOptions=\'${commonJobProperties.joinPipelineOptions(testConfig.jobProperties)}\'")
+                switches("-DintegrationTestPipelineOptions=\'${commonJobProperties.joinPipelineOptions(testConfig.pipelineOptions)}\'")
                 switches("-DintegrationTestRunner=\'${testConfig.runner}\'")
-                tasks("${testTask} --tests ${testConfig.itClass}")
+                tasks("${testTask} --tests ${testConfig.test}")
             }
         }
 
