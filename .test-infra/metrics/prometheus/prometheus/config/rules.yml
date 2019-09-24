@@ -16,6 +16,11 @@
 # limitations under the License.
 ################################################################################
 
+# Defines alerting rules used by Prometheus to detect anomalous behaviours
+# among test results.
+# Can be reloaded at runtime by sending a SIGHUP signal to the Prometheus
+# process.
+
 groups:
 - name: beamTests
   rules:

@@ -16,6 +16,10 @@
 # limitations under the License.
 ################################################################################
 
+# A configuration file for the main Prometheus server.
+# Can be reloaded at runtime by sending a SIGHUP signal to the Prometheus
+# process.
+
 global:
   scrape_interval:     6h
   evaluation_interval: 1m

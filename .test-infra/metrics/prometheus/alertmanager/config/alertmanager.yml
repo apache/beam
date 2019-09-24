@@ -16,6 +16,10 @@
 # limitations under the License.
 ################################################################################
 
+# A configuration file for alertmanager.
+# Can be reloaded at runtime by sending a SIGHUP signal to the alertmanager
+# process or sending a HTTP POST request to the /reload endpoint.
+
 global:
   resolve_timeout: 7d
 
