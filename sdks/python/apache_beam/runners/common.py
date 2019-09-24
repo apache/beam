@@ -175,11 +175,11 @@ class MethodWrapper(object):
       elif isinstance(v, core.DoFn.TimerParam):
         self.timer_args_to_replace[kw] = v.timer_spec
         self.has_userstate_arguments = True
-      elif v == core.DoFn.TimestampParam:
+      elif core.DoFn.TimestampParam == v:
         self.timestamp_arg_name = kw
-      elif v == core.DoFn.WindowParam:
+      elif core.DoFn.WindowParam == v:
         self.window_arg_name = kw
-      elif v == core.DoFn.KeyParam:
+      elif core.DoFn.KeyParam == v:
         self.key_arg_name = kw
       elif isinstance(v, core.DoFn.RestrictionParam):
         self.restriction_provider = v.restriction_provider
@@ -498,16 +498,16 @@ class PerWindowInvoker(DoFnInvoker):
     # Fill the OtherPlaceholders for context, key, window or timestamp
     remaining_args_iter = iter(input_args[args_to_pick:])
     for a, d in zip(arg_names[-len(default_arg_values):], default_arg_values):
-      if d == core.DoFn.ElementParam:
+      if core.DoFn.ElementParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.KeyParam:
+      elif core.DoFn.KeyParam == d:
         self.is_key_param_required = True
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.WindowParam:
+      elif core.DoFn.WindowParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.TimestampParam:
+      elif core.DoFn.TimestampParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.SideInputParam:
+      elif core.DoFn.SideInputParam == d:
         # If no more args are present then the value must be passed via kwarg
         try:
           args_with_placeholders.append(next(remaining_args_iter))
@@ -518,7 +518,7 @@ class PerWindowInvoker(DoFnInvoker):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, core.DoFn.TimerParam):
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.BundleFinalizerParam:
+      elif isinstance(d, type) and core.DoFn.BundleFinalizerParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
       else:
         # If no more args are present then the value must be passed via kwarg
@@ -627,13 +627,13 @@ class PerWindowInvoker(DoFnInvoker):
              'instead, got \'%s\'.') % (windowed_value.value,))
 
     for i, p in self.placeholders:
-      if p == core.DoFn.ElementParam:
+      if core.DoFn.ElementParam == p:
         args_for_process[i] = windowed_value.value
-      elif p == core.DoFn.KeyParam:
+      elif core.DoFn.KeyParam == p:
         args_for_process[i] = key
-      elif p == core.DoFn.WindowParam:
+      elif core.DoFn.WindowParam == p:
         args_for_process[i] = window
-      elif p == core.DoFn.TimestampParam:
+      elif core.DoFn.TimestampParam == p:
         args_for_process[i] = windowed_value.timestamp
       elif isinstance(p, core.DoFn.StateParam):
         args_for_process[i] = (
@@ -641,7 +641,7 @@ class PerWindowInvoker(DoFnInvoker):
       elif isinstance(p, core.DoFn.TimerParam):
         args_for_process[i] = (
             self.user_state_context.get_timer(p.timer_spec, key, window))
-      elif p == core.DoFn.BundleFinalizerParam:
+      elif core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
 
     if additional_kwargs:
