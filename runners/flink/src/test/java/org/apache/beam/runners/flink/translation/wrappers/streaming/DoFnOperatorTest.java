@@ -21,7 +21,6 @@ import static org.apache.beam.runners.flink.translation.wrappers.streaming.Strea
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
@@ -30,10 +29,8 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.LRUMap;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
@@ -1220,17 +1217,30 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("c")));
 
+    doFnOperator.prepareSnapshotPreBarrier(0);
+
+    // Bundle should have been finished via prepareSnapshotPreBarrier
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("a"),
+            WindowedValue.valueInGlobalWindow("b"),
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("c"),
+            WindowedValue.valueInGlobalWindow("finishBundle")));
+
     // draw a snapshot
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
-    // Finish bundle element will be buffered as part of finishing a bundle in snapshot()
-    PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
-        doFnOperator.outputManager.pushedBackElementsHandler;
-    assertThat(pushedBackElementsHandler, instanceOf(NonKeyedPushedBackElementsHandler.class));
-    List<KV<Integer, WindowedValue<?>>> bufferedElements =
-        pushedBackElementsHandler.getElements().collect(Collectors.toList());
+    // No further output should have been generated
     assertThat(
-        bufferedElements, contains(KV.of(0, WindowedValue.valueInGlobalWindow("finishBundle"))));
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("a"),
+            WindowedValue.valueInGlobalWindow("b"),
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("c"),
+            WindowedValue.valueInGlobalWindow("finishBundle")));
 
     testHarness.close();
 
@@ -1270,7 +1280,6 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(newHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("d"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
 
@@ -1280,7 +1289,6 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(newHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("d"),
             WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
@@ -1292,7 +1300,6 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(newHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("d"),
             WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
@@ -1370,18 +1377,20 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "c"))));
 
+    doFnOperator.prepareSnapshotPreBarrier(0);
+
+    // Bundle should have been finished via prepareSnapshotPreBarrier
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
+            WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
+            WindowedValue.valueInGlobalWindow(KV.of("key", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
+
     // Take a snapshot
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
-
-    // Finish bundle element will be buffered as part of finishing a bundle in snapshot()
-    PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
-        doFnOperator.outputManager.pushedBackElementsHandler;
-    assertThat(pushedBackElementsHandler, instanceOf(KeyedPushedBackElementsHandler.class));
-    List<KV<Integer, WindowedValue<?>>> bufferedElements =
-        pushedBackElementsHandler.getElements().collect(Collectors.toList());
-    assertThat(
-        bufferedElements,
-        contains(KV.of(0, WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")))));
 
     testHarness.close();
 
@@ -1413,7 +1422,6 @@ public class DoFnOperatorTest {
 
     testHarness.open();
 
-    // startBundle will output the buffered elements.
     testHarness.processElement(
         new StreamRecord<>(WindowedValue.valueInGlobalWindow(KV.of("key", "d"))));
 
@@ -1423,8 +1431,6 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            // The first finishBundle is restored from the checkpoint
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
 

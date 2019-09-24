@@ -610,6 +610,7 @@ public class ExecutableStageDoFnOperatorTest {
     if (withCheckpointing) {
       // Upon checkpointing, the bundle is finished and the watermark advances;
       // timers can fire. Note: The bundle is ensured to be finished.
+      operator.prepareSnapshotPreBarrier(0);
       testHarness.snapshot(0, 0);
 
       // The user timer was scheduled to fire after cleanup, but executes first
