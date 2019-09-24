@@ -208,6 +208,7 @@
     <ul>
       <li><a href="#memory-considerations">Memory considerations</a></li>
       <li><a href="#streaming-execution">Streaming execution</a></li>
+      <li><a href="#execution-mode">Execution Mode</a></li>
     </ul>
   </li>
 </ul>
@@ -295,6 +296,81 @@ interface for defaults and additional pipeline configuration options.</p>
 
 <p>If your pipeline uses an unbounded data source or sink, you must set the <code class="highlighter-rouge">streaming</code> option to <code class="highlighter-rouge">true</code>.</p>
 
+<h3 id="execution-mode">Execution Mode</h3>
+
+<p>Python <a href="https://beam.apache.org/contribute/runner-guide/#the-fn-api">FnApiRunner</a> supports multi-threading and multi-processing mode.</p>
+
+<h4 id="setting-parallelism">Setting parallelism</h4>
+
+<p>Number of threads or subprocesses is defined by setting the <code class="highlighter-rouge">direct_num_workers</code> option. There are several ways to set this option.</p>
+
+<ul>
+  <li>Passing through CLI when executing a pipeline.
+    <div class="highlighter-rouge"><pre class="highlight"><code>python wordcount.py --input xx --output xx --direct_num_workers 2
+</code></pre>
+    </div>
+  </li>
+  <li>Setting with <code class="highlighter-rouge">PipelineOptions</code>.
+    <div class="highlighter-rouge"><pre class="highlight"><code>from apache_beam.options.pipeline_options import PipelineOptions
+pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+</code></pre>
+    </div>
+  </li>
+  <li>Adding to existing <code class="highlighter-rouge">PipelineOptions</code>.
+    <div class="highlighter-rouge"><pre class="highlight"><code>from apache_beam.options.pipeline_options import DirectOptions
+pipeline_options = PipelineOptions(xxx)
+pipeline_options.view_as(DirectOptions).direct_num_workers = 2
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<h4 id="running-with-multi-threading-mode">Running with multi-threading mode</h4>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>import argparse
+
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.portability import fn_api_runner
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability import python_urns
+
+parser = argparse.ArgumentParser()
+parser.add_argument(...)
+known_args, pipeline_args = parser.parse_known_args(argv)
+pipeline_options = PipelineOptions(pipeline_args)
+
+p = beam.Pipeline(options=pipeline_options,
+      runner=fn_api_runner.FnApiRunner(
+          default_environment=beam_runner_api_pb2.Environment(
+          urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+</code></pre>
+</div>
+
+<h4 id="running-with-multi-processing-mode">Running with multi-processing mode</h4>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>import argparse
+import sys
+
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.portability import fn_api_runner
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability import python_urns
+
+parser = argparse.ArgumentParser()
+parser.add_argument(...)
+known_args, pipeline_args = parser.parse_known_args(argv)
+pipeline_options = PipelineOptions(pipeline_args)
+
+p = beam.Pipeline(options=pipeline_options,
+      runner=fn_api_runner.FnApiRunner(
+          default_environment=beam_runner_api_pb2.Environment(
+              urn=python_urns.SUBPROCESS_SDK,
+              payload=b'%s -m apache_beam.runners.worker.sdk_worker_main'
+                        % sys.executable.encode('ascii'))))
+</code></pre>
+</div>
 
       </div>
     </div>

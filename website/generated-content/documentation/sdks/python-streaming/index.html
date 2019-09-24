@@ -451,7 +451,7 @@ about executing streaming pipelines:</p>
   <li>Custom source API</li>
   <li>Splittable <code class="highlighter-rouge">DoFn</code> API</li>
   <li>Handling of late data</li>
-  <li>User-defined custom <code class="highlighter-rouge">WindowFn</code></li>
+  <li>User-defined custom merging <code class="highlighter-rouge">WindowFn</code> (with fnapi)</li>
 </ul>
 
 <h3 id="dataflowrunner-specific-features">DataflowRunner specific features</h3>
@@ -460,12 +460,7 @@ about executing streaming pipelines:</p>
 Dataflow specific features with Python streaming execution.</p>
 
 <ul>
-  <li>Streaming autoscaling</li>
-  <li>Updating existing pipelines</li>
   <li>Cloud Dataflow Templates</li>
-  <li>Some monitoring features, such as msec counters, display data, metrics, and
-element counts for transforms. However, logging, watermarks, and element
-counts for sources are supported.</li>
 </ul>
 
 
