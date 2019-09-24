@@ -602,6 +602,28 @@ class DoFnTest(unittest.TestCase):
           p | Create([1, 2]) | beam.Map(lambda _, t=DoFn.TimestampParam: t),
           equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
 
+  def test_incomparable_default(self):
+
+    class IncomparableType(object):
+
+      def __eq__(self, other):
+        raise RuntimeError()
+
+      def __ne__(self, other):
+        raise RuntimeError()
+
+      def __hash__(self):
+        raise RuntimeError()
+
+    # Ensure that we don't use default values in a context where they must be
+    # comparable (see BEAM-8301).
+    pipeline = TestPipeline()
+    pcoll = (pipeline
+             | beam.Create([None])
+             | Map(lambda e, x=IncomparableType(): (e, type(x).__name__)))
+    assert_that(pcoll, equal_to([(None, 'IncomparableType')]))
+    pipeline.run()
+
 
 class Bacon(PipelineOptions):
 
