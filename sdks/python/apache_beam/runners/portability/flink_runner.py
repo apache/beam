@@ -42,6 +42,7 @@ class FlinkRunnerOptions(pipeline_options.PipelineOptions):
                         help='Flink version to use.')
     parser.add_argument('--flink_job_server_jar',
                         help='Path or URL to a flink jobserver jar.')
+    parser.add_argument('--artifacts_dir', default=None)
 
 
 class FlinkJarJobServer(job_server.JavaJarJobServer):
@@ -51,6 +52,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
     self._jar = options.flink_job_server_jar
     self._master_url = options.flink_master_url
     self._flink_version = options.flink_version
+    self._artifacts_dir = options.artifacts_dir
 
   def path_to_jar(self):
     if self._jar:
@@ -62,7 +64,8 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
   def java_arguments(self, job_port, artifacts_dir):
     return [
         '--flink-master-url', self._master_url,
-        '--artifacts-dir', artifacts_dir,
+        '--artifacts-dir', (self._artifacts_dir
+                            if self._artifacts_dir else artifacts_dir),
         '--job-port', job_port,
         '--artifact-port', 0,
         '--expansion-port', 0
