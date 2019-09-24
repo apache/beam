@@ -89,7 +89,11 @@ public class BeamFileSystemArtifactRetrievalService
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {
-      LOG.info("GetManifest for {} failed", token, e);
+      LOG.warn(
+          "GetManifest for {} failed. Make sure the artifact staging directory (configurable "
+              + "via --artifacts-dir argument to the job server) is accessible to workers.",
+          token,
+          e);
       responseObserver.onError(e);
     }
   }
