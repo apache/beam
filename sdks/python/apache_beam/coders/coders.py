@@ -88,6 +88,14 @@ class Coder(object):
     """Decodes the given byte string into the corresponding object."""
     raise NotImplementedError('Decode not implemented: %s.' % self)
 
+  def encode_nested(self, value):
+    """Uses the underlying implementation to encode in nested format."""
+    return self.get_impl().encode_nested(value)
+
+  def decode_nested(self, encoded):
+    """Uses the underlying implementation to decode in nested format."""
+    return self.get_impl().decode_nested(encoded)
+
   def is_deterministic(self):
     """Whether this coder is guaranteed to encode values deterministically.
 

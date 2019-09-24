@@ -508,7 +508,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
                   ptransform_id=self._transform_id,
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),
-                  key=self._key_coder.encode(key))),
+                  # State keys are expected in nested encoding format
+                  key=self._key_coder.encode_nested(key))),
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
@@ -522,7 +523,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
                   ptransform_id=self._transform_id,
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),
-                  key=self._key_coder.encode(key))),
+                  # State keys are expected in nested encoding format
+                  key=self._key_coder.encode_nested(key))),
           value_coder=state_spec.coder)
     else:
       raise NotImplementedError(state_spec)

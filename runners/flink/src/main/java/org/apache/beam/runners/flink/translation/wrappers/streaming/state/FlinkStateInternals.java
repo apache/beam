@@ -28,8 +28,8 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -48,7 +48,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineContextFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -105,14 +104,7 @@ public class FlinkStateInternals<K> implements StateInternals {
   @Override
   public K getKey() {
     ByteBuffer keyBytes = flinkStateBackend.getCurrentKey();
-    byte[] bytes = new byte[keyBytes.remaining()];
-    keyBytes.get(bytes);
-    keyBytes.position(keyBytes.position() - bytes.length);
-    try {
-      return CoderUtils.decodeFromByteArray(keyCoder, bytes);
-    } catch (CoderException e) {
-      throw new RuntimeException("Error decoding key.", e);
-    }
+    return FlinkKeyUtils.decodeKey(keyBytes, keyCoder);
   }
 
   @Override
