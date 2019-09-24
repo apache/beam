@@ -311,6 +311,9 @@ class ExternalTransformTest(unittest.TestCase):
   def test_java_expansion_portable_runner(self):
     ExternalTransformTest.expansion_service_port = os.environ.get(
         'EXPANSION_PORT')
+    if ExternalTransformTest.expansion_service_port:
+      ExternalTransformTest.expansion_service_port = int(
+          ExternalTransformTest.expansion_service_port)
 
     ExternalTransformTest.run_pipeline_with_portable_runner(None)
 
