@@ -40,14 +40,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWithPath;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.plan.Context;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.schema.SchemaPlus;
 
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
 class SqlAnalyzer {
@@ -170,7 +170,7 @@ class SqlAnalyzer {
 
     SimpleCatalog leafCatalog = createNestedCatalogs(topLevelCatalog, tablePath);
 
-    org.apache.calcite.schema.Table calciteTable =
+    org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table calciteTable =
         TableResolution.resolveCalciteTable(
             builder.calciteContext, builder.topLevelSchema, tablePath);
 

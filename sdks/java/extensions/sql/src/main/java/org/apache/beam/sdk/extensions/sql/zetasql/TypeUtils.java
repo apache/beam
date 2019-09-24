@@ -39,10 +39,10 @@ import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.sql.type.SqlTypeName;
 
 /** Utility to convert types from Calcite Schema types. */
 @Internal

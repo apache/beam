@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.util.List;
-import org.apache.calcite.schema.Schema;
-import org.apache.calcite.schema.Table;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table;
 
 /** An interface to implement a custom resolution strategy. */
 interface TableResolver {

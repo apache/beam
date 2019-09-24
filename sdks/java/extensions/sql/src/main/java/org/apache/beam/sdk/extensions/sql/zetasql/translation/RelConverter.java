@@ -20,10 +20,10 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.zetasql.QueryTrait;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.tools.FrameworkConfig;
 
 /** A rule that converts Zeta SQL resolved relational node to corresponding Calcite rel node. */
 abstract class RelConverter<T extends ResolvedNode> {
