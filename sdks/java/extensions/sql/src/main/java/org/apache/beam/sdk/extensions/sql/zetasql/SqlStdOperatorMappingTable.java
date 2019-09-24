@@ -21,10 +21,10 @@ import com.google.zetasql.ZetaSQLFunction.FunctionSignatureId;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 /** SqlStdOperatorMappingTable. */
 @Internal

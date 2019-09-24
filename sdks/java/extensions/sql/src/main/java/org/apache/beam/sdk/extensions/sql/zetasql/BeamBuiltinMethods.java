@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.lang.reflect.Method;
-import org.apache.calcite.linq4j.tree.Types;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Types;
 
 /** BeamBuiltinMethods. */
 public class BeamBuiltinMethods {

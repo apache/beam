@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.util.Map;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.calcite.plan.Context;
 import org.codehaus.commons.nullanalysis.Nullable;
 
 /**
