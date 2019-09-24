@@ -18,17 +18,18 @@
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRel;
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.RelFactories;
-import org.apache.calcite.rel.logical.LogicalJoin;
-import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
-import org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Join;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
- * This is exactly similar to {@link org.apache.calcite.rel.rules.JoinPushThroughJoinRule}. It only
- * checks if the condition of the new bottom join is supported.
+ * This is exactly similar to {@link
+ * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinPushThroughJoinRule}. It
+ * only checks if the condition of the new bottom join is supported.
  */
 public class BeamJoinPushThroughJoinRule extends JoinPushThroughJoinRule {
   /** Instance of the rule that works on logical joins only, and pushes to the right. */

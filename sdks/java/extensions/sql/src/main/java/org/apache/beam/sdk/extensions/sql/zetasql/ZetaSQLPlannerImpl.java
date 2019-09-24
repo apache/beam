@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import com.google.common.collect.ImmutableList;
 import com.google.zetasql.Value;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
@@ -27,29 +26,30 @@ import java.util.logging.Logger;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.metadata.CachingRelMetadataProvider;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexExecutor;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.tools.FrameworkConfig;
-import org.apache.calcite.tools.Frameworks;
-import org.apache.calcite.tools.Planner;
-import org.apache.calcite.tools.Program;
-import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.tools.ValidationException;
-import org.apache.calcite.util.Pair;
-import org.apache.calcite.util.Util;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.CachingRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexExecutor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Planner;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Program;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelConversionException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.ValidationException;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
 
 /** ZetaSQLPlannerImpl. */
 public class ZetaSQLPlannerImpl implements Planner {
