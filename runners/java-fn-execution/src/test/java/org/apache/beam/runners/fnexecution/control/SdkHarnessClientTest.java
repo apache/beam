@@ -18,11 +18,12 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -35,6 +36,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -81,7 +83,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SdkHarnessClient}. */
@@ -334,6 +338,7 @@ public class SdkHarnessClientTest {
     when(mockStateDelegator.registerForProcessBundleInstructionId(any(), any()))
         .thenReturn(mockStateRegistration);
     StateRequestHandler mockStateHandler = mock(StateRequestHandler.class);
+    when(mockStateHandler.getCacheTokens()).thenReturn(Collections.emptyList());
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
@@ -429,6 +434,7 @@ public class SdkHarnessClientTest {
     when(mockStateDelegator.registerForProcessBundleInstructionId(any(), any()))
         .thenReturn(mockStateRegistration);
     StateRequestHandler mockStateHandler = mock(StateRequestHandler.class);
+    when(mockStateHandler.getCacheTokens()).thenReturn(Collections.emptyList());
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
@@ -529,6 +535,7 @@ public class SdkHarnessClientTest {
     when(mockStateDelegator.registerForProcessBundleInstructionId(any(), any()))
         .thenReturn(mockStateRegistration);
     StateRequestHandler mockStateHandler = mock(StateRequestHandler.class);
+    when(mockStateHandler.getCacheTokens()).thenReturn(Collections.emptyList());
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
@@ -572,6 +579,51 @@ public class SdkHarnessClientTest {
     } catch (Exception e) {
       assertEquals(testException, e);
     }
+  }
+
+  @Test
+  public void verifyCacheTokensAreUsedInNewBundleRequest() {
+    CompletableFuture<InstructionResponse> registerResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenReturn(registerResponseFuture);
+
+    ProcessBundleDescriptor descriptor1 =
+        ProcessBundleDescriptor.newBuilder().setId("descriptor1").build();
+
+    Map<String, RemoteInputDestination> remoteInputs =
+        Collections.singletonMap(
+            "inputPC",
+            RemoteInputDestination.of(
+                FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
+                SDK_GRPC_READ_TRANSFORM));
+
+    BundleProcessor processor1 = sdkHarnessClient.getProcessor(descriptor1, remoteInputs);
+    when(dataService.send(any(), any())).thenReturn(mock(CloseableFnDataReceiver.class));
+
+    StateRequestHandler stateRequestHandler = Mockito.mock(StateRequestHandler.class);
+    List<BeamFnApi.ProcessBundleRequest.CacheToken> cacheTokens =
+        Collections.singletonList(
+            BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder().getDefaultInstanceForType());
+    when(stateRequestHandler.getCacheTokens()).thenReturn(cacheTokens);
+
+    processor1.newBundle(
+        ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mock(RemoteOutputReceiver.class)),
+        stateRequestHandler,
+        BundleProgressHandler.ignored());
+
+    // Retrieve the requests made to the FnApiControlClient
+    ArgumentCaptor<BeamFnApi.InstructionRequest> reqCaptor =
+        ArgumentCaptor.forClass(BeamFnApi.InstructionRequest.class);
+    Mockito.verify(fnApiControlClient, Mockito.times(2)).handle(reqCaptor.capture());
+    List<BeamFnApi.InstructionRequest> requests = reqCaptor.getAllValues();
+
+    // Verify that the cache tokens are included in the ProcessBundleRequest
+    assertThat(
+        requests.get(0).getRequestCase(), is(BeamFnApi.InstructionRequest.RequestCase.REGISTER));
+    assertThat(
+        requests.get(1).getRequestCase(),
+        is(BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE));
+    assertThat(requests.get(1).getProcessBundle().getCacheTokensList(), is(cacheTokens));
   }
 
   private static class TestFn extends DoFn<String, String> {
