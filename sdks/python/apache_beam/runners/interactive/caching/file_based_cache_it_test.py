@@ -133,11 +133,15 @@ class FileSerializationTestBase(SerializationTestBase):
         file_based_cache_test.read_directly, serializer)
 
 
+@unittest.skipIf(sys.version_info < (3,),
+                 'PCollectionCache is not supported on Python 2.')
 class TextBasedCacheSerializationTest(FileSerializationTestBase, TestCase):
 
   cache_class = file_based_cache.TextBasedCache
 
 
+@unittest.skipIf(sys.version_info < (3,),
+                 'PCollectionCache is not supported on Python 2.')
 class TFRecordBasedCacheSerializationTest(FileSerializationTestBase, TestCase):
 
   cache_class = file_based_cache.TFRecordBasedCache
@@ -203,12 +207,16 @@ class FileRoundtripTestBase(RoundtripTestBase):
     return self.check_roundtrip(write_fn, validate_fn, dataset=self.dataset)
 
 
+@unittest.skipIf(sys.version_info < (3,),
+                 'PCollectionCache is not supported on Python 2.')
 class TextBasedCacheRoundtripTest(FileRoundtripTestBase, TestCase):
 
   cache_class = file_based_cache.TextBasedCache
   dataset = file_based_cache_test.GENERIC_TEST_DATA
 
 
+@unittest.skipIf(sys.version_info < (3,),
+                 'PCollectionCache is not supported on Python 2.')
 class TFRecordBasedCacheRoundtripTest(FileRoundtripTestBase, TestCase):
 
   cache_class = file_based_cache.TFRecordBasedCache

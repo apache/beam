@@ -29,7 +29,9 @@ from apache_beam.transforms import PTransform
 try:
   from weakref import finalize
 except ImportError:
-  from backports.weakref import finalize
+  # weakref.finalize is not available in Python 2
+  finalize = None
+
 
 try:  # Python 3
   unquote_to_bytes = urllib.parse.unquote_to_bytes

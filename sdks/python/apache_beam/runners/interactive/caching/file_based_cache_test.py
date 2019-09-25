@@ -20,6 +20,7 @@ from __future__ import absolute_import
 import gc
 import itertools
 import logging
+import sys
 import tempfile
 import time
 import unittest
@@ -81,6 +82,8 @@ def write_through_pipeline(cache, data_in, timeout=None):
     _ = (p | "Create" >> beam.Create(data_in) | "Write" >> cache.writer())
 
 
+@unittest.skipIf(sys.version_info < (3,),
+                 'PCollectionCache is not supported on Python 2.')
 class FileBasedCacheTest(unittest.TestCase):
 
   def cache_class(self, location, *args, **kwargs):
