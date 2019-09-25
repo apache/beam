@@ -24,17 +24,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="32px" height="32px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include button-pydoc.md path="apache_beam.transforms.core" class="FlatMap" %}
 
 Applies a simple 1-to-many mapping function over each element in the collection.
 The many elements are flattened into the resulting collection.
@@ -62,29 +52,10 @@ Output `PCollection` after `FlatMap`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 ### Example 2: FlatMap with a function
 
@@ -100,29 +71,10 @@ Output `PCollection` after `FlatMap`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 ### Example 3: FlatMap with a lambda function
 
@@ -140,29 +92,10 @@ Output `PCollection` after `FlatMap`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 ### Example 4: FlatMap with a generator
 
@@ -180,29 +113,10 @@ Output `PCollection` after `FlatMap`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 ### Example 5: FlatMapTuple for key-value pairs
 
@@ -219,29 +133,10 @@ Output `PCollection` after `FlatMapTuple`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 ### Example 6: FlatMap with multiple arguments
 
@@ -260,29 +155,10 @@ Output `PCollection` after `FlatMap`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 ### Example 7: FlatMap with side inputs as singletons
 
@@ -302,29 +178,10 @@ Output `PCollection` after `FlatMap`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 ### Example 8: FlatMap with side inputs as iterators
 
@@ -342,29 +199,10 @@ Output `PCollection` after `FlatMap`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
 > but this requires that all the elements fit into memory.
@@ -386,29 +224,10 @@ Output `PCollection` after `FlatMap`:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
 
-{:.notebook-skip}
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://colab.research.google.com/github/{{ site.branch_repo }}/examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb">
-      <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-        width="32px" height="32px" alt="Run code now" />
-      Run code now
-    </a>
-  </td>
-</table>
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="32px" height="32px" alt="View source code" />
-      View source code
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include buttons-code-snippet.md
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
+  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+%}
 
 ## Related transforms
 
@@ -418,14 +237,4 @@ Output `PCollection` after `FlatMap`:
   operation, and includes other abilities such as multiple output collections and side-inputs. 
 * [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="32px" height="32px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br><br><br>
+{% include button-pydoc.md path="apache_beam.transforms.core" class="FlatMap" %}
