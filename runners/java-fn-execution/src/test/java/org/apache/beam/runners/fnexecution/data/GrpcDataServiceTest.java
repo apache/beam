@@ -121,7 +121,7 @@ public class GrpcDataServiceTest {
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
       for (int i = 0; i < 3; ++i) {
-        final String InstructionId = Integer.toString(i);
+        final String instructionId = Integer.toString(i);
         clientFutures.add(
             executorService.submit(
                 () -> {
@@ -131,7 +131,7 @@ public class GrpcDataServiceTest {
                   StreamObserver<Elements> outboundObserver =
                       BeamFnDataGrpc.newStub(channel)
                           .data(TestStreams.withOnNext(clientInboundElements::add).build());
-                  outboundObserver.onNext(elementsWithData(InstructionId));
+                  outboundObserver.onNext(elementsWithData(instructionId));
                   waitForInboundElements.await();
                   outboundObserver.onCompleted();
                   return null;
