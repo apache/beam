@@ -131,8 +131,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * Returns an {@code AvroCoder} instance for the provided element type using the provided Avro
    * schema.
    *
-   * <p>If the type argument is GenericRecord, the schema may be arbitrary. Otherwise, the schema
-   * must correspond to the type provided.
+   * <p>The schema must correspond to the type provided.
    *
    * @param <T> the element type
    */
