@@ -759,7 +759,7 @@ public class ExecutableStageDoFnOperatorTest {
             BeamFnApi.StateKey.newBuilder()
                 .setBagUserState(
                     BeamFnApi.StateKey.BagUserState.newBuilder()
-                        .setPtransformId("transform")
+                        .setTransformId("transform")
                         .setKey(key)
                         .setUserStateId(userStateId)
                         .setWindow(

@@ -29,7 +29,7 @@ import (
 )
 
 // TODO(herohde) 10/12/2017: make this file a separate package. Then
-// populate InstructionReference and PrimitiveTransformReference properly.
+// populate InstructionId and TransformId properly.
 
 // TODO(herohde) 10/13/2017: add top-level harness.Main panic handler that flushes logs.
 // Also make logger flush on Fatal severity messages.
@@ -65,7 +65,7 @@ func (l *logger) Log(ctx context.Context, sev log.Severity, calldepth int, msg s
 		entry.LogLocation = fmt.Sprintf("%v:%v", file, line)
 	}
 	if id, ok := tryGetInstID(ctx); ok {
-		entry.InstructionReference = id
+		entry.InstructionId = id
 	}
 
 	select {

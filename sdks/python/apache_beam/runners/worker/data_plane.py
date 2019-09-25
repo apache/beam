@@ -145,7 +145,7 @@ class InMemoryDataChannel(DataChannel):
                      abort_callback=None):
     other_inputs = []
     for data in self._inputs:
-      if data.instruction_reference == instruction_id:
+      if data.instruction_id == instruction_id:
         if data.data:
           yield data
       else:
@@ -156,8 +156,8 @@ class InMemoryDataChannel(DataChannel):
     def add_to_inverse_output(data):
       self._inverse._inputs.append(  # pylint: disable=protected-access
           beam_fn_api_pb2.Elements.Data(
-              instruction_reference=instruction_id,
-              ptransform_id=transform_id,
+              instruction_id=instruction_id,
+              transform_id=transform_id,
               data=data))
     return ClosableOutputStream(
         add_to_inverse_output, flush_callback=add_to_inverse_output)
@@ -220,10 +220,10 @@ class _GrpcDataChannel(DataChannel):
             t, v, tb = self._exc_info
             raise_(t, v, tb)
         else:
-          if not data.data and data.ptransform_id in expected_transforms:
-            done_transforms.append(data.ptransform_id)
+          if not data.data and data.transform_id in expected_transforms:
+            done_transforms.append(data.transform_id)
           else:
-            assert data.ptransform_id not in done_transforms
+            assert data.transform_id not in done_transforms
             yield data
     finally:
       # Instruction_ids are not reusable so Clean queue once we are done with
@@ -235,8 +235,8 @@ class _GrpcDataChannel(DataChannel):
       if data:
         self._to_send.put(
             beam_fn_api_pb2.Elements.Data(
-                instruction_reference=instruction_id,
-                ptransform_id=transform_id,
+                instruction_id=instruction_id,
+                transform_id=transform_id,
                 data=data))
 
     def close_callback(data):
@@ -244,8 +244,8 @@ class _GrpcDataChannel(DataChannel):
       # End of stream marker.
       self._to_send.put(
           beam_fn_api_pb2.Elements.Data(
-              instruction_reference=instruction_id,
-              ptransform_id=transform_id,
+              instruction_id=instruction_id,
+              transform_id=transform_id,
               data=b''))
     return ClosableOutputStream(
         close_callback, flush_callback=add_to_send_queue)
@@ -271,7 +271,7 @@ class _GrpcDataChannel(DataChannel):
     try:
       for elements in elements_iterator:
         for data in elements.data:
-          self._receiving_queue(data.instruction_reference).put(data)
+          self._receiving_queue(data.instruction_id).put(data)
     except:  # pylint: disable=bare-except
       if not self._closed:
         logging.exception('Failed to read inputs in the data plane.')

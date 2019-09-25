@@ -119,7 +119,7 @@ public class BagUserStateTest {
     return StateKey.newBuilder()
         .setBagUserState(
             StateKey.BagUserState.newBuilder()
-                .setPtransformId("ptransformId")
+                .setTransformId("ptransformId")
                 .setUserStateId("stateId")
                 .setWindow(ByteString.copyFromUtf8("encodedWindow"))
                 .setKey(encode(id)))

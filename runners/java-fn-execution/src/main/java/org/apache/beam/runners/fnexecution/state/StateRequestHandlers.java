@@ -272,7 +272,7 @@ public class StateRequestHandlers {
 
         StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
         SideInputSpec<?, ?, ?> referenceSpec =
-            sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
+            sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
         SideInputHandler<?, ?> handler =
             handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
 
@@ -304,7 +304,7 @@ public class StateRequestHandlers {
       StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
 
       SideInputSpec<K, V, W> sideInputReferenceSpec =
-          sideInputSpecs.get(stateKey.getPtransformId()).get(stateKey.getSideInputId());
+          sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
 
       W window = sideInputReferenceSpec.windowCoder().decode(stateKey.getWindow().newInput());
 
@@ -386,7 +386,7 @@ public class StateRequestHandlers {
         BagUserStateSpec<Object, Object, BoundedWindow> referenceSpec =
             processBundleDescriptor
                 .getBagUserStateSpecs()
-                .get(stateKey.getPtransformId())
+                .get(stateKey.getTransformId())
                 .get(stateKey.getUserStateId());
 
         // Note that by using the ByteStringCoder, we simplify the issue of encoding/decoding the

@@ -44,16 +44,16 @@ public class BeamFnDataGrpcMultiplexerTest {
       BeamFnApi.Elements.newBuilder()
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
-                  .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                  .setPtransformId(OUTPUT_LOCATION.getPTransformId())
+                  .setInstructionId(OUTPUT_LOCATION.getInstructionId())
+                  .setTransformId(OUTPUT_LOCATION.getPTransformId())
                   .setData(ByteString.copyFrom(new byte[1])))
           .build();
   private static final BeamFnApi.Elements TERMINAL_ELEMENTS =
       BeamFnApi.Elements.newBuilder()
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
-                  .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                  .setPtransformId(OUTPUT_LOCATION.getPTransformId()))
+                  .setInstructionId(OUTPUT_LOCATION.getInstructionId())
+                  .setTransformId(OUTPUT_LOCATION.getPTransformId()))
           .build();
 
   @Test
