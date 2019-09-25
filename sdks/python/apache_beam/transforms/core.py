@@ -329,7 +329,7 @@ def get_function_args_defaults(f):
   args = [name for name, p in signature.parameters.items()
           if p.kind in _SUPPORTED_ARG_TYPES]
   defaults = [p.default for p in signature.parameters.values()
-              if p.kind in _SUPPORTED_ARG_TYPES and p.default != p.empty]
+              if p.kind in _SUPPORTED_ARG_TYPES and p.default is not p.empty]
 
   return args, defaults
 
