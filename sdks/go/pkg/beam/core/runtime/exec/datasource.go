@@ -259,7 +259,7 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c}
 }
 
-// Split takes a sorted set of potential split index, selects and actuates
+// Split takes a sorted set of potential split indices, selects and actuates
 // split on an appropriate split index, and returns the selected split index
 // if successful. Returns an error when unable to split.
 func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
