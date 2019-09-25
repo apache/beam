@@ -531,7 +531,7 @@ new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
     Model model = modelState.read();
     Prediction previousPrediction = previousPredictionState.read();
     Prediction newPrediction = model.prediction(event);
-    model.add(event);
+    model.update(event);
     modelState.write(model);
     if (previousPrediction == null 
         || shouldOutputNewPrediction(previousPrediction, newPrediction)) {
@@ -560,7 +560,8 @@ class ModelStatefulFn(beam.DoFn):
     previous_prediction = previous_pred_state.read()
 
     new_prediction = model.prediction(event)
-    model_state.add(event)
+    model.update(event)
+    model_state.write(model)
 
     if (previous_prediction is None
         or self.should_output_prediction(
@@ -582,14 +583,14 @@ Let's walk through it,
    currently being processed.
  - You derive a new prediction `model.prediction(event)` and compare it against
    the last one you output, accessed via
-   `previousPredicationState.read()`.
- - You then update the model `model.update()` and write it via
-   `modelState.write(...)`. It is perfectly fine to mutate the value
+   `previousPredictionState.read()`.
+ - You then update the model `model.update(event)` and write it via
+   `modelState.write(model)`. It is perfectly fine to mutate the value
    you pulled out of state as long as you also remember to write the mutated
    value, in the same way you are encouraged to mutate `CombineFn` accumulators.
  - If the prediction has changed a significant amount since the last time you
    output, you emit it via `context.output(...)` and
-   save the prediction using `previousPredictionState.write(...)`.
+   save the prediction using `previousPredictionState.write(newPrediction)`.
    Here the decision is relative to the prior prediction output, not the last
    one computed - realistically you might have some complex conditions here.
 
