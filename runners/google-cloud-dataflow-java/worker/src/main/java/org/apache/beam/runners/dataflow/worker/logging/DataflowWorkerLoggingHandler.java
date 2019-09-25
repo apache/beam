@@ -196,13 +196,13 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotEmpty("thread", logEntry.getThread());
       writeIfNotEmpty("job", DataflowWorkerLoggingMDC.getJobId());
       // TODO: Write the stage execution information by translating the currently execution
-      // instruction reference to a stage.
+      // instruction id to a stage.
       // writeIfNotNull("stage", ...);
-      writeIfNotEmpty("step", logEntry.getPrimitiveTransformReference());
+      writeIfNotEmpty("step", logEntry.getTransformId());
       writeIfNotEmpty("worker", DataflowWorkerLoggingMDC.getWorkerId());
       // Id should match to id in //depot/google3/third_party/cloud/dataflow/worker/agent/sdk.go
       writeIfNotEmpty("portability_worker_id", DataflowWorkerLoggingMDC.getSdkHarnessId());
-      writeIfNotEmpty("work", logEntry.getInstructionReference());
+      writeIfNotEmpty("work", logEntry.getInstructionId());
       writeIfNotEmpty("logger", logEntry.getLogLocation());
       // TODO: Figure out a way to get exceptions transported across Beam Fn Logging API
       writeIfNotEmpty("exception", logEntry.getTrace());

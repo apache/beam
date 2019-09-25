@@ -208,10 +208,10 @@ class SdkHarness(object):
   def _request_process_bundle_action(self, request):
 
     def task():
-      instruction_reference = getattr(
-          request, request.WhichOneof('request')).instruction_reference
+      instruction_id = getattr(
+          request, request.WhichOneof('request')).instruction_id
       # only process progress/split request when a bundle is in processing.
-      if (instruction_reference in
+      if (instruction_id in
           self._bundle_processor_cache.active_bundle_processors):
         self._execute(
             lambda: self.progress_worker.do_instruction(request), request)
@@ -219,9 +219,9 @@ class SdkHarness(object):
         self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
             instruction_id=request.instruction_id, error=(
                 'Process bundle request not yet scheduled for instruction {}' if
-                instruction_reference in self._unscheduled_process_bundle else
+                instruction_id in self._unscheduled_process_bundle else
                 'Unknown process bundle instruction {}').format(
-                    instruction_reference)), request)
+                    instruction_id)), request)
 
     self._progress_thread_pool.submit(task)
 
@@ -360,7 +360,7 @@ class SdkWorker(object):
 
   def process_bundle(self, request, instruction_id):
     bundle_processor = self.bundle_processor_cache.get(
-        instruction_id, request.process_bundle_descriptor_reference)
+        instruction_id, request.process_bundle_descriptor_id)
     try:
       with bundle_processor.state_handler.process_instruction_id(
           instruction_id):
@@ -385,7 +385,7 @@ class SdkWorker(object):
 
   def process_bundle_split(self, request, instruction_id):
     processor = self.bundle_processor_cache.lookup(
-        request.instruction_reference)
+        request.instruction_id)
     if processor:
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
@@ -398,7 +398,7 @@ class SdkWorker(object):
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
     processor = self.bundle_processor_cache.lookup(
-        request.instruction_reference)
+        request.instruction_id)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
@@ -407,16 +407,16 @@ class SdkWorker(object):
 
   def finalize_bundle(self, request, instruction_id):
     processor = self.bundle_processor_cache.lookup(
-        request.instruction_reference)
+        request.instruction_id)
     if processor:
       try:
         finalize_response = processor.finalize_bundle()
-        self.bundle_processor_cache.release(request.instruction_reference)
+        self.bundle_processor_cache.release(request.instruction_id)
         return beam_fn_api_pb2.InstructionResponse(
             instruction_id=instruction_id,
             finalize_bundle=finalize_response)
       except:
-        self.bundle_processor_cache.discard(request.instruction_reference)
+        self.bundle_processor_cache.discard(request.instruction_id)
         raise
     else:
       return beam_fn_api_pb2.InstructionResponse(
@@ -503,23 +503,23 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 class ThrowingStateHandler(object):
   """A state handler that errors on any requests."""
 
-  def blocking_get(self, state_key, instruction_reference):
+  def blocking_get(self, state_key, instruction_id):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'out state ApiServiceDescriptor for instruction %s and state key %s.'
-        % (state_key, instruction_reference))
+        % (state_key, instruction_id))
 
-  def blocking_append(self, state_key, data, instruction_reference):
+  def blocking_append(self, state_key, data, instruction_id):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'out state ApiServiceDescriptor for instruction %s and state key %s.'
-        % (state_key, instruction_reference))
+        % (state_key, instruction_id))
 
-  def blocking_clear(self, state_key, instruction_reference):
+  def blocking_clear(self, state_key, instruction_id):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'out state ApiServiceDescriptor for instruction %s and state key %s.'
-        % (state_key, instruction_reference))
+        % (state_key, instruction_id))
 
 
 class GrpcStateHandler(object):
@@ -599,7 +599,7 @@ class GrpcStateHandler(object):
 
   def _blocking_request(self, request):
     request.id = self._next_id()
-    request.instruction_reference = self._context.process_instruction_id
+    request.instruction_id = self._context.process_instruction_id
     self._responses_by_id[request.id] = future = _Future()
     self._requests.put(request)
     while not future.wait(timeout=1):

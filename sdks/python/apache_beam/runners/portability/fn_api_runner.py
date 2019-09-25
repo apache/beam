@@ -483,7 +483,7 @@ class FnApiRunner(runner.PipelineRunner):
       for key, window, elements_data in elements_by_window.encoded_items():
         state_key = beam_fn_api_pb2.StateKey(
             multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-                ptransform_id=transform_id,
+                transform_id=transform_id,
                 side_input_id=tag,
                 window=window,
                 key=key))
@@ -548,11 +548,11 @@ class FnApiRunner(runner.PipelineRunner):
       for delayed_application in split.residual_roots:
         deferred_inputs[
             input_for_callable(
-                delayed_application.application.ptransform_id,
+                delayed_application.application.transform_id,
                 delayed_application.application.input_id)
         ].append(delayed_application.application.element)
       for channel_split in split.channel_splits:
-        coder_impl = get_input_coder_callable(channel_split.ptransform_id)
+        coder_impl = get_input_coder_callable(channel_split.transform_id)
         # TODO(SDF): This requires determanistic ordering of buffer iteration.
         # TODO(SDF): The return split is in terms of indices.  Ideally,
         # a runner could map these back to actual positions to effectively
@@ -567,15 +567,15 @@ class FnApiRunner(runner.PipelineRunner):
 
         # Decode and recode to split the encoded buffer by element index.
         all_elements = list(coder_impl.decode_all(b''.join(last_sent[
-            channel_split.ptransform_id])))
+            channel_split.transform_id])))
         residual_elements = all_elements[
             channel_split.first_residual_element : prev_stops.get(
-                channel_split.ptransform_id, len(all_elements)) + 1]
+                channel_split.transform_id, len(all_elements)) + 1]
         if residual_elements:
-          deferred_inputs[channel_split.ptransform_id].append(
+          deferred_inputs[channel_split.transform_id].append(
               coder_impl.encode_all(residual_elements))
         prev_stops[
-            channel_split.ptransform_id] = channel_split.last_primary_element
+            channel_split.transform_id] = channel_split.last_primary_element
 
   @staticmethod
   def _extract_stage_data_endpoints(
@@ -737,15 +737,15 @@ class FnApiRunner(runner.PipelineRunner):
 
     result, splits = bundle_manager.process_bundle(data_input, data_output)
 
-    def input_for(ptransform_id, input_id):
+    def input_for(transform_id, input_id):
       input_pcoll = process_bundle_descriptor.transforms[
-          ptransform_id].inputs[input_id]
+          transform_id].inputs[input_id]
       for read_id, proto in process_bundle_descriptor.transforms.items():
         if (proto.spec.urn == bundle_processor.DATA_INPUT_URN
             and input_pcoll in proto.outputs.values()):
           return read_id
       raise RuntimeError(
-          'No IO transform feeds %s' % ptransform_id)
+          'No IO transform feeds %s' % transform_id)
 
     last_result = result
     last_sent = data_input
@@ -760,7 +760,7 @@ class FnApiRunner(runner.PipelineRunner):
       for delayed_application in last_result.process_bundle.residual_roots:
         deferred_inputs[
             input_for(
-                delayed_application.application.ptransform_id,
+                delayed_application.application.transform_id,
                 delayed_application.application.input_id)
         ].append(delayed_application.application.element)
 
@@ -955,7 +955,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     def State(self, request_stream, context=None):
       # Note that this eagerly mutates state, assuming any failures are fatal.
-      # Thus it is safe to ignore instruction_reference.
+      # Thus it is safe to ignore instruction_id.
       for request in request_stream:
         request_type = request.WhichOneof('request')
         if request_type == 'get':
@@ -1599,7 +1599,7 @@ class BundleManager(object):
         split_request = beam_fn_api_pb2.InstructionRequest(
             process_bundle_split=
             beam_fn_api_pb2.ProcessBundleSplitRequest(
-                instruction_reference=process_bundle_id,
+                instruction_id=process_bundle_id,
                 desired_splits={
                     read_transform_id:
                     beam_fn_api_pb2.ProcessBundleSplitRequest.DesiredSplit(
@@ -1653,7 +1653,7 @@ class BundleManager(object):
     process_bundle_req = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
-            process_bundle_descriptor_reference=self._bundle_descriptor.id))
+            process_bundle_descriptor_id=self._bundle_descriptor.id))
     result_future = self._worker_handler.control_conn.push(process_bundle_req)
 
     split_results = []
@@ -1670,10 +1670,10 @@ class BundleManager(object):
           expected_outputs.keys(),
           abort_callback=lambda: (result_future.is_done()
                                   and result_future.get().error)):
-        if output.ptransform_id in expected_outputs:
+        if output.transform_id in expected_outputs:
           with BundleManager._lock:
             self._get_buffer(
-                expected_outputs[output.ptransform_id]).append(output.data)
+                expected_outputs[output.transform_id]).append(output.data)
 
       logging.debug('Wait for the bundle %s to finish.' % process_bundle_id)
       result = result_future.get()
@@ -1685,7 +1685,7 @@ class BundleManager(object):
       finalize_request = beam_fn_api_pb2.InstructionRequest(
           finalize_bundle=
           beam_fn_api_pb2.FinalizeBundleRequest(
-              instruction_reference=process_bundle_id
+              instruction_id=process_bundle_id
           ))
       self._worker_handler.control_conn.push(finalize_request)
 
@@ -1764,7 +1764,7 @@ class ProgressRequester(threading.Thread):
             beam_fn_api_pb2.InstructionRequest(
                 process_bundle_progress=
                 beam_fn_api_pb2.ProcessBundleProgressRequest(
-                    instruction_reference=self._instruction_id))).get()
+                    instruction_id=self._instruction_id))).get()
         self._latest_progress = progress_result.process_bundle_progress
         if self._callback:
           self._callback(self._latest_progress)
@@ -1836,9 +1836,9 @@ class FnApiMetrics(metrics.metric.MetricResults):
 
   def _to_metric_key(self, monitoring_info):
     # Right now this assumes that all metrics have a PTRANSFORM
-    ptransform_id = monitoring_info.labels['PTRANSFORM']
+    transform_id = monitoring_info.labels['PTRANSFORM']
     namespace, name = monitoring_infos.parse_namespace_and_name(monitoring_info)
-    return MetricKey(ptransform_id, MetricName(namespace, name))
+    return MetricKey(transform_id, MetricName(namespace, name))
 
   def query(self, filter=None):
     counters = [metrics.execution.MetricResult(k, v, v)

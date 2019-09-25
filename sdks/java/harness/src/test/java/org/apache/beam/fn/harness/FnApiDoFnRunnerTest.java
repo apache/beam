@@ -282,7 +282,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     return StateKey.newBuilder()
         .setBagUserState(
             StateKey.BagUserState.newBuilder()
-                .setPtransformId(TEST_PTRANSFORM_ID)
+                .setTransformId(TEST_PTRANSFORM_ID)
                 .setUserStateId(userStateId)
                 .setKey(encode(key))
                 .setWindow(
@@ -967,7 +967,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     return StateKey.newBuilder()
         .setMultimapSideInput(
             StateKey.MultimapSideInput.newBuilder()
-                .setPtransformId(TEST_PTRANSFORM_ID)
+                .setTransformId(TEST_PTRANSFORM_ID)
                 .setSideInputId(sideInputId)
                 .setKey(key)
                 .setWindow(windowKey))
