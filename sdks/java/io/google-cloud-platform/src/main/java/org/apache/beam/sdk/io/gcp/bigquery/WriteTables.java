@@ -98,6 +98,7 @@ class WriteTables<DestinationT>
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
   @Nullable private final String kmsKey;
+  private final String sourceFormat;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -286,7 +287,8 @@ class WriteTables<DestinationT>
       @Nullable ValueProvider<String> loadJobProjectId,
       int maxRetryJobs,
       boolean ignoreUnknownValues,
-      String kmsKey) {
+      String kmsKey,
+      String sourceFormat) {
     this.tempTable = tempTable;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -300,6 +302,7 @@ class WriteTables<DestinationT>
     this.maxRetryJobs = maxRetryJobs;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.kmsKey = kmsKey;
+    this.sourceFormat = sourceFormat;
   }
 
   @Override
@@ -351,7 +354,7 @@ class WriteTables<DestinationT>
             .setSourceUris(gcsUris)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
-            .setSourceFormat("NEWLINE_DELIMITED_JSON")
+            .setSourceFormat(sourceFormat)
             .setIgnoreUnknownValues(ignoreUnknownValues);
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
