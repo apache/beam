@@ -67,10 +67,10 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
     }
     StateRequest.Builder requestBuilder = StateRequest.newBuilder();
     requestBuilder
-        .setInstructionReference(instructionId)
+        .setInstructionId(instructionId)
         .getStateKeyBuilder()
         .getMultimapSideInputBuilder()
-        .setPtransformId(ptransformId)
+        .setTransformId(ptransformId)
         .setSideInputId(sideInputId)
         .setWindow(encodedWindow)
         .setKey(output.toByteString());

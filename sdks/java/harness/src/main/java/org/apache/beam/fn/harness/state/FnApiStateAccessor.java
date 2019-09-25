@@ -168,7 +168,7 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
     StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
     cacheKeyBuilder
         .getMultimapSideInputBuilder()
-        .setPtransformId(ptransformId)
+        .setTransformId(ptransformId)
         .setSideInputId(tag.getId())
         .setWindow(encodedWindow);
     return (T)
@@ -452,7 +452,7 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
         .getBagUserStateBuilder()
         .setWindow(encodedCurrentWindowSupplier.get())
         .setKey(encodedCurrentKeySupplier.get())
-        .setPtransformId(ptransformId)
+        .setTransformId(ptransformId)
         .setUserStateId(stateId);
     return builder.build();
   }

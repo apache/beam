@@ -140,8 +140,8 @@ public class BeamFnDataBufferingOutboundObserverTest {
         BeamFnApi.Elements.newBuilder(messageWithData(new byte[1]))
             .addData(
                 BeamFnApi.Elements.Data.newBuilder()
-                    .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                    .setPtransformId(OUTPUT_LOCATION.getPTransformId()))
+                    .setInstructionId(OUTPUT_LOCATION.getInstructionId())
+                    .setTransformId(OUTPUT_LOCATION.getPTransformId()))
             .build(),
         Iterables.get(values, 1));
   }
@@ -154,8 +154,8 @@ public class BeamFnDataBufferingOutboundObserverTest {
     return BeamFnApi.Elements.newBuilder()
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                .setPtransformId(OUTPUT_LOCATION.getPTransformId())
+                .setInstructionId(OUTPUT_LOCATION.getInstructionId())
+                .setTransformId(OUTPUT_LOCATION.getPTransformId())
                 .setData(output.toByteString()))
         .build();
   }

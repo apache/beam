@@ -121,7 +121,7 @@ public class GrpcDataServiceTest {
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
       for (int i = 0; i < 3; ++i) {
-        final String instructionReference = Integer.toString(i);
+        final String instructionId = Integer.toString(i);
         clientFutures.add(
             executorService.submit(
                 () -> {
@@ -131,7 +131,7 @@ public class GrpcDataServiceTest {
                   StreamObserver<Elements> outboundObserver =
                       BeamFnDataGrpc.newStub(channel)
                           .data(TestStreams.withOnNext(clientInboundElements::add).build());
-                  outboundObserver.onNext(elementsWithData(instructionReference));
+                  outboundObserver.onNext(elementsWithData(instructionId));
                   waitForInboundElements.await();
                   outboundObserver.onCompleted();
                   return null;
@@ -172,8 +172,8 @@ public class GrpcDataServiceTest {
     return BeamFnApi.Elements.newBuilder()
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(id)
-                .setPtransformId(PTRANSFORM_ID)
+                .setInstructionId(id)
+                .setTransformId(PTRANSFORM_ID)
                 .setData(
                     ByteString.copyFrom(
                             encodeToByteArray(CODER, WindowedValue.valueInGlobalWindow("A" + id)))
@@ -186,9 +186,7 @@ public class GrpcDataServiceTest {
                                 encodeToByteArray(
                                     CODER, WindowedValue.valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(id)
-                .setPtransformId(PTRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(PTRANSFORM_ID))
         .build();
   }
 }

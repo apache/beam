@@ -235,7 +235,7 @@ public class BeamFnDataGrpcServiceTest {
     CountDownLatch waitForInboundElements = new CountDownLatch(1);
 
     for (int i = 0; i < 3; ++i) {
-      String instructionReference = Integer.toString(i);
+      String instructionId = Integer.toString(i);
       executorService.submit(
           () -> {
             ManagedChannel channel =
@@ -243,7 +243,7 @@ public class BeamFnDataGrpcServiceTest {
             StreamObserver<BeamFnApi.Elements> outboundObserver =
                 BeamFnDataGrpc.newStub(channel)
                     .data(TestStreams.withOnNext(clientInboundElements::add).build());
-            outboundObserver.onNext(elementsWithData(instructionReference));
+            outboundObserver.onNext(elementsWithData(instructionId));
             waitForInboundElements.await();
             outboundObserver.onCompleted();
             return null;
@@ -284,8 +284,8 @@ public class BeamFnDataGrpcServiceTest {
     return BeamFnApi.Elements.newBuilder()
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(id)
-                .setPtransformId(PTRANSFORM_ID)
+                .setInstructionId(id)
+                .setTransformId(PTRANSFORM_ID)
                 .setData(
                     ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("A" + id)))
                         .concat(
@@ -295,9 +295,7 @@ public class BeamFnDataGrpcServiceTest {
                             ByteString.copyFrom(
                                 encodeToByteArray(CODER, valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(id)
-                .setPtransformId(PTRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(PTRANSFORM_ID))
         .build();
   }
 

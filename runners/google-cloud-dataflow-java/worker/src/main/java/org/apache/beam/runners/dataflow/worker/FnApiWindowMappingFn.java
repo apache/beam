@@ -228,7 +228,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
               .setInstructionId(processRequestInstructionId)
               .setProcessBundle(
                   ProcessBundleRequest.newBuilder()
-                      .setProcessBundleDescriptorReference(registerIfRequired()))
+                      .setProcessBundleDescriptorId(registerIfRequired()))
               .build();
 
       ConcurrentLinkedQueue<WindowedValue<KV<byte[], TargetWindowT>>> outputValue =

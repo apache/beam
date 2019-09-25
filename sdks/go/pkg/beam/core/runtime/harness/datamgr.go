@@ -198,7 +198,7 @@ func (c *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := clientID{ptransformID: elm.PtransformId, instID: elm.GetInstructionReference()}
+			id := clientID{ptransformID: elm.TransformId, instID: elm.GetInstructionId()}
 
 			// log.Printf("Chan read (%v): %v\n", sid, elm.GetData())
 
@@ -333,8 +333,8 @@ func (w *dataWriter) Close() error {
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
-				InstructionReference: w.id.instID,
-				PtransformId:         w.id.ptransformID,
+				InstructionId: w.id.instID,
+				TransformId:   w.id.ptransformID,
 				// Empty data == sentinel
 			},
 		},
@@ -357,9 +357,9 @@ func (w *dataWriter) Flush() error {
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
-				InstructionReference: w.id.instID,
-				PtransformId:         w.id.ptransformID,
-				Data:                 w.buf,
+				InstructionId: w.id.instID,
+				TransformId:   w.id.ptransformID,
+				Data:          w.buf,
 			},
 		},
 	}

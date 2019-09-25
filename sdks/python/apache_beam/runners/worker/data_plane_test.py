@@ -109,8 +109,8 @@ class DataChannelTest(unittest.TestCase):
     self.assertEqual(
         list(to_channel.input_elements('0', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
-            instruction_reference='0',
-            ptransform_id=transform_1,
+            instruction_id='0',
+            transform_id=transform_1,
             data=b'abc')])
 
     # Multiple interleaved writes to multiple instructions.
@@ -119,19 +119,19 @@ class DataChannelTest(unittest.TestCase):
     self.assertEqual(
         list(to_channel.input_elements('1', [transform_1])),
         [beam_fn_api_pb2.Elements.Data(
-            instruction_reference='1',
-            ptransform_id=transform_1,
+            instruction_id='1',
+            transform_id=transform_1,
             data=b'abc')])
     send('2', transform_2, b'ghi')
     self.assertEqual(
         list(to_channel.input_elements('2', [transform_1, transform_2])),
         [beam_fn_api_pb2.Elements.Data(
-            instruction_reference='2',
-            ptransform_id=transform_1,
+            instruction_id='2',
+            transform_id=transform_1,
             data=b'def'),
          beam_fn_api_pb2.Elements.Data(
-             instruction_reference='2',
-             ptransform_id=transform_2,
+             instruction_id='2',
+             transform_id=transform_2,
              data=b'ghi')])
 
 
