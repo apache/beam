@@ -187,10 +187,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         pProto
             .getComponents()
             .getTransformsOrThrow(
-                pProto
-                    .getComponents()
-                    .getTransformsOrThrow(TEST_TRANSFORM_ID)
-                    .getSubtransforms(0));
+                pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID).getSubtransforms(0));
 
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
@@ -491,10 +488,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         pProto
             .getComponents()
             .getTransformsOrThrow(
-                pProto
-                    .getComponents()
-                    .getTransformsOrThrow(TEST_TRANSFORM_ID)
-                    .getSubtransforms(0));
+                pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID).getSubtransforms(0));
 
     ImmutableMap<StateKey, ByteString> stateData =
         ImmutableMap.of(
@@ -600,10 +594,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         pProto
             .getComponents()
             .getTransformsOrThrow(
-                pProto
-                    .getComponents()
-                    .getTransformsOrThrow(TEST_TRANSFORM_ID)
-                    .getSubtransforms(0));
+                pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID).getSubtransforms(0));
 
     ImmutableMap<StateKey, ByteString> stateData =
         ImmutableMap.of(
