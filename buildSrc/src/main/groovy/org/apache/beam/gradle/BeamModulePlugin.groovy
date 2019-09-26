@@ -21,6 +21,7 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+
 import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
@@ -79,7 +80,7 @@ class BeamModulePlugin implements Plugin<Project> {
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
     /** Controls the JDK source language and target compatibility. */
-    double javaVersion = 1.8
+    double javaVersion = 11
 
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
@@ -366,6 +367,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk_version = "1.11.519"
     def aws_java_sdk2_version = "2.5.71"
     def cassandra_driver_version = "3.6.0"
+    def errorprone_version = "2.3.3"
+    def errorprone_javac_version = "9+181-r4173-1"
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.43.0"
     def generated_grpc_dc_beta_version = "0.4.0-alpha"
@@ -375,7 +378,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_core_version = "1.61.0"
     def google_cloud_spanner_version = "1.6.0"
     def grpc_version = "1.17.1"
-    def guava_version = "20.0"
+    def guava_version = "27.0.1-jre"
     def hadoop_version = "2.7.3"
     def hamcrest_version = "2.1"
     def jackson_version = "2.9.10"
@@ -433,7 +436,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io_2x                               : "commons-io:commons-io:2.5",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
-        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
+        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         gax_grpc                                    : "com.google.api:gax-grpc:1.38.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
@@ -681,10 +684,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
-          '-Werror',
-          '-XepDisableWarningsInGeneratedCode',
-          '-XepExcludedPaths:(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*',
-          '-Xep:MutableConstantField:OFF' // Guava's immutable collections cannot appear on API surface.
+          '-Werror'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
@@ -857,7 +857,20 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
 
-      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.1' }
+      project.dependencies {
+        errorprone "com.google.errorprone:error_prone_core:$errorprone_version"
+        errorproneJavac "com.google.errorprone:javac:$errorprone_javac_version"
+      }
+
+      project.tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+        options.compilerArgs << '-Xlint:all,-auxiliaryclass'
+        options.errorprone {
+          disableWarningsInGeneratedCode = true
+          excludedPaths = "(.*/)?(build/generated.*avro-java|build/generated)/.*"
+          // check('MutableConstantField', 'OFF')
+        }
+      }
 
       if (configuration.shadowClosure) {
         // Enables a plugin which can perform shading of classes. See the general comments
