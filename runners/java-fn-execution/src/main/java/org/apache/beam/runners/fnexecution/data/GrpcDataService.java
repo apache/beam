@@ -132,7 +132,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     LOG.debug(
         "Registering receiver for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getPTransformId());
+        inputLocation.getTransformId());
     final BeamFnDataInboundObserver<T> observer =
         BeamFnDataInboundObserver.forConsumer(coder, listener);
     if (connectedClient.isDone()) {
@@ -165,7 +165,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     LOG.debug(
         "Creating sender for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getPTransformId());
+        outputLocation.getTransformId());
     try {
       return BeamFnDataBufferingOutboundObserver.forLocation(
           outputLocation, coder, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());

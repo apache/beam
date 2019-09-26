@@ -98,13 +98,13 @@ public class BeamFnDataBufferingOutboundObserver<T> implements CloseableFnDataRe
     elements
         .addDataBuilder()
         .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getPTransformId());
+        .setTransformId(outputLocation.getTransformId());
 
     LOG.debug(
         "Closing stream for instruction {} and "
             + "transform {} having transmitted {} values {} bytes",
         outputLocation.getInstructionId(),
-        outputLocation.getPTransformId(),
+        outputLocation.getTransformId(),
         counter,
         byteCounter);
     outboundObserver.onNext(elements.build());
@@ -138,7 +138,7 @@ public class BeamFnDataBufferingOutboundObserver<T> implements CloseableFnDataRe
     elements
         .addDataBuilder()
         .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getPTransformId())
+        .setTransformId(outputLocation.getTransformId())
         .setData(bufferedElements.toByteString());
 
     byteCounter += bufferedElements.size();

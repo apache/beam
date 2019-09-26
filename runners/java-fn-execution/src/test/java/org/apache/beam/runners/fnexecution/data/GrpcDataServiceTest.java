@@ -57,7 +57,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GrpcDataService}. */
 @RunWith(JUnit4.class)
 public class GrpcDataServiceTest {
-  private static final String PTRANSFORM_ID = "888";
+  private static final String TRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
 
@@ -91,7 +91,7 @@ public class GrpcDataServiceTest {
 
       for (int i = 0; i < 3; ++i) {
         CloseableFnDataReceiver<WindowedValue<String>> consumer =
-            service.send(LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID), CODER);
+            service.send(LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID), CODER);
 
         consumer.accept(WindowedValue.valueInGlobalWindow("A" + i));
         consumer.accept(WindowedValue.valueInGlobalWindow("B" + i));
@@ -145,7 +145,7 @@ public class GrpcDataServiceTest {
         serverInboundValues.add(serverInboundValue);
         readFutures.add(
             service.receive(
-                LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID),
+                LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID),
                 CODER,
                 serverInboundValue::add));
       }
@@ -173,7 +173,7 @@ public class GrpcDataServiceTest {
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
                 .setInstructionId(id)
-                .setTransformId(PTRANSFORM_ID)
+                .setTransformId(TRANSFORM_ID)
                 .setData(
                     ByteString.copyFrom(
                             encodeToByteArray(CODER, WindowedValue.valueInGlobalWindow("A" + id)))
@@ -186,7 +186,7 @@ public class GrpcDataServiceTest {
                                 encodeToByteArray(
                                     CODER, WindowedValue.valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(PTRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(TRANSFORM_ID))
         .build();
   }
 }

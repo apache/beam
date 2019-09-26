@@ -45,7 +45,7 @@ public class BeamFnDataGrpcMultiplexerTest {
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
                   .setInstructionId(OUTPUT_LOCATION.getInstructionId())
-                  .setTransformId(OUTPUT_LOCATION.getPTransformId())
+                  .setTransformId(OUTPUT_LOCATION.getTransformId())
                   .setData(ByteString.copyFrom(new byte[1])))
           .build();
   private static final BeamFnApi.Elements TERMINAL_ELEMENTS =
@@ -53,7 +53,7 @@ public class BeamFnDataGrpcMultiplexerTest {
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
                   .setInstructionId(OUTPUT_LOCATION.getInstructionId())
-                  .setTransformId(OUTPUT_LOCATION.getPTransformId()))
+                  .setTransformId(OUTPUT_LOCATION.getTransformId()))
           .build();
 
   @Test
