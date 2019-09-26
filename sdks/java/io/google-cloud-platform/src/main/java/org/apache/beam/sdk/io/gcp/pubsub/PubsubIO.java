@@ -72,7 +72,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
@@ -745,22 +744,19 @@ public class PubsubIO {
       @Override
       public PTransform<PBegin, PCollection<T>> buildExternal(External.Configuration config) {
         if (config.topic != null) {
-          StaticValueProvider<String> topic = StaticValueProvider.of(utf8String(config.topic));
+          StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
           setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()));
         }
         if (config.subscription != null) {
-          StaticValueProvider<String> subscription =
-              StaticValueProvider.of(utf8String(config.subscription));
+          StaticValueProvider<String> subscription = StaticValueProvider.of(config.subscription);
           setSubscriptionProvider(
               NestedValueProvider.of(subscription, new SubscriptionTranslator()));
         }
         if (config.idAttribute != null) {
-          String idAttribute = utf8String(config.idAttribute);
-          setIdAttribute(idAttribute);
+          setIdAttribute(config.idAttribute);
         }
         if (config.timestampAttribute != null) {
-          String timestampAttribute = utf8String(config.timestampAttribute);
-          setTimestampAttribute(timestampAttribute);
+          setTimestampAttribute(config.timestampAttribute);
         }
         setPubsubClientFactory(FACTORY);
         setNeedsAttributes(config.needsAttributes);
@@ -795,25 +791,25 @@ public class PubsubIO {
       public static class Configuration {
 
         // All byte arrays are UTF-8 encoded strings
-        @Nullable private byte[] topic;
-        @Nullable private byte[] subscription;
-        @Nullable private byte[] idAttribute;
-        @Nullable private byte[] timestampAttribute;
+        @Nullable private String topic;
+        @Nullable private String subscription;
+        @Nullable private String idAttribute;
+        @Nullable private String timestampAttribute;
         private boolean needsAttributes;
 
-        public void setTopic(@Nullable byte[] topic) {
+        public void setTopic(@Nullable String topic) {
           this.topic = topic;
         }
 
-        public void setSubscription(@Nullable byte[] subscription) {
+        public void setSubscription(@Nullable String subscription) {
           this.subscription = subscription;
         }
 
-        public void setIdLabel(@Nullable byte[] idAttribute) {
+        public void setIdLabel(@Nullable String idAttribute) {
           this.idAttribute = idAttribute;
         }
 
-        public void setTimestampAttribute(@Nullable byte[] timestampAttribute) {
+        public void setTimestampAttribute(@Nullable String timestampAttribute) {
           this.timestampAttribute = timestampAttribute;
         }
 
@@ -1064,16 +1060,14 @@ public class PubsubIO {
       @Override
       public PTransform<PCollection<T>, PDone> buildExternal(External.Configuration config) {
         if (config.topic != null) {
-          StaticValueProvider<String> topic = StaticValueProvider.of(utf8String(config.topic));
+          StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
           setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()));
         }
         if (config.idAttribute != null) {
-          String idAttribute = utf8String(config.idAttribute);
-          setIdAttribute(idAttribute);
+          setIdAttribute(config.idAttribute);
         }
         if (config.timestampAttribute != null) {
-          String timestampAttribute = utf8String(config.timestampAttribute);
-          setTimestampAttribute(timestampAttribute);
+          setTimestampAttribute(config.timestampAttribute);
         }
         SimpleFunction<T, PubsubMessage> parseFn =
             (SimpleFunction<T, PubsubMessage>) new FormatPayloadFromPubsubMessageProto();
@@ -1098,19 +1092,19 @@ public class PubsubIO {
       public static class Configuration {
 
         // All byte arrays are UTF-8 encoded strings
-        private byte[] topic;
-        @Nullable private byte[] idAttribute;
-        @Nullable private byte[] timestampAttribute;
+        private String topic;
+        @Nullable private String idAttribute;
+        @Nullable private String timestampAttribute;
 
-        public void setTopic(byte[] topic) {
+        public void setTopic(String topic) {
           this.topic = topic;
         }
 
-        public void setIdLabel(@Nullable byte[] idAttribute) {
+        public void setIdLabel(@Nullable String idAttribute) {
           this.idAttribute = idAttribute;
         }
 
-        public void setTimestampAttribute(@Nullable byte[] timestampAttribute) {
+        public void setTimestampAttribute(@Nullable String timestampAttribute) {
           this.timestampAttribute = timestampAttribute;
         }
       }
@@ -1415,9 +1409,5 @@ public class PubsubIO {
     public PubsubMessage apply(PubsubMessage input) {
       return input;
     }
-  }
-
-  private static String utf8String(byte[] bytes) {
-    return new String(bytes, Charsets.UTF_8);
   }
 }
