@@ -78,7 +78,7 @@ public class BeamFnDataGrpcClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_A.getInstructionId())
-                      .setTransformId(ENDPOINT_A.getPTransformId())
+                      .setTransformId(ENDPOINT_A.getTransformId())
                       .setData(
                           ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("ABC")))
                               .concat(
@@ -90,21 +90,21 @@ public class BeamFnDataGrpcClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_A.getInstructionId())
-                      .setTransformId(ENDPOINT_A.getPTransformId())
+                      .setTransformId(ENDPOINT_A.getTransformId())
                       .setData(
                           ByteString.copyFrom(
                               encodeToByteArray(CODER, valueInGlobalWindow("GHI")))))
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_A.getInstructionId())
-                      .setTransformId(ENDPOINT_A.getPTransformId()))
+                      .setTransformId(ENDPOINT_A.getTransformId()))
               .build();
       ELEMENTS_B_1 =
           BeamFnApi.Elements.newBuilder()
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_B.getInstructionId())
-                      .setTransformId(ENDPOINT_B.getPTransformId())
+                      .setTransformId(ENDPOINT_B.getTransformId())
                       .setData(
                           ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("JKL")))
                               .concat(
@@ -113,7 +113,7 @@ public class BeamFnDataGrpcClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_B.getInstructionId())
-                      .setTransformId(ENDPOINT_B.getPTransformId()))
+                      .setTransformId(ENDPOINT_B.getTransformId()))
               .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);
