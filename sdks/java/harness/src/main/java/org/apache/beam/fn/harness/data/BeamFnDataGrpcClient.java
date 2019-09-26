@@ -82,7 +82,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     LOG.debug(
         "Registering consumer for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getPTransformId());
+        inputLocation.getTransformId());
 
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
     BeamFnDataInboundObserver<T> inboundObserver =
@@ -111,7 +111,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     LOG.debug(
         "Creating output consumer for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getPTransformId());
+        outputLocation.getTransformId());
     Optional<Integer> bufferLimit = getBufferLimit(options);
     if (bufferLimit.isPresent()) {
       return BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
