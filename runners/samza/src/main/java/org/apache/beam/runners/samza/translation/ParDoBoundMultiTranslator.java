@@ -240,8 +240,12 @@ class ParDoBoundMultiTranslator<InT, OutT>
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
         ctx.instantiateCoder(inputId, pipeline.getComponents());
 
-    final DoFnSchemaInformation doFnSchemaInformation;
-    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
+    /*
+     * Temporary LI change: disabling schema information in portable ParDo as it's causing issues.
+     * TODO: LISAMZA-13154 to track this issue as this will eventually be needed for schema aware in Python
+     */
+    final DoFnSchemaInformation doFnSchemaInformation = null;
+    // doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
 
     Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(transform.getTransform());
