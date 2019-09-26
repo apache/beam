@@ -17,26 +17,35 @@
 
 from __future__ import absolute_import
 
-from apache_beam import ExternalTransform
-from apache_beam import pvalue
-from apache_beam.coders import BytesCoder
-from apache_beam.coders import VarIntCoder
-from apache_beam.coders.coders import LengthPrefixCoder
+import typing
+
+from past.builtins import unicode
+
 from apache_beam.io.gcp import pubsub
-from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.transforms import Map
-from apache_beam.transforms import ptransform
+from apache_beam.transforms.external import ExternalTransform
+from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
+
+ReadFromPubsubSchema = typing.NamedTuple(
+    'ReadFromPubsubSchema',
+    [
+        ('topic', typing.Optional[unicode]),
+        ('subscription', typing.Optional[unicode]),
+        ('id_label', typing.Optional[unicode]),
+        ('with_attributes', bool),
+        ('timestamp_attribute', typing.Optional[unicode]),
+    ]
+)
 
 
-class ReadFromPubSub(ptransform.PTransform):
+class ReadFromPubSub(ExternalTransform):
   """An external ``PTransform`` for reading from Cloud Pub/Sub."""
 
-  _urn = 'beam:external:java:pubsub:read:v1'
+  URN = 'beam:external:java:pubsub:read:v1'
 
   def __init__(self, topic=None, subscription=None, id_label=None,
                with_attributes=False, timestamp_attribute=None,
-               expansion_service='localhost:8097'):
+               expansion_service=None):
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -69,40 +78,23 @@ class ReadFromPubSub(ptransform.PTransform):
           timestamp is optional, and digits beyond the first three (i.e., time
           units smaller than milliseconds) may be ignored.
     """
-    super(ReadFromPubSub, self).__init__()
-    self.topic = topic
-    self.subscription = subscription
-    self.id_label = id_label
+    super(ReadFromPubSub, self).__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            ReadFromPubsubSchema(
+                topic=topic,
+                subscription=subscription,
+                id_label=id_label,
+                with_attributes=with_attributes,
+                timestamp_attribute=timestamp_attribute,
+            )
+        ),
+        expansion_service
+    )
     self.with_attributes = with_attributes
-    self.timestamp_attribute = timestamp_attribute
-    self.expansion_service = expansion_service
 
-  def expand(self, pbegin):
-    if not isinstance(pbegin, pvalue.PBegin):
-      raise Exception("ReadFromPubSub must be a root transform")
-
-    args = {
-      'with_attributes': _encode_bool(self.with_attributes),
-    }
-
-    if self.topic is not None:
-      args['topic'] = _encode_str(self.topic)
-
-    if self.subscription is not None:
-      args['subscription'] = _encode_str(self.subscription)
-
-    if self.id_label is not None:
-      args['id_label'] = _encode_str(self.id_label)
-
-    if self.timestamp_attribute is not None:
-      args['timestamp_attribute'] = _encode_str(self.timestamp_attribute)
-
-    payload = ExternalConfigurationPayload(configuration=args)
-    pcoll = pbegin.apply(
-        ExternalTransform(
-            self._urn,
-            payload.SerializeToString(),
-            self.expansion_service))
+  def expand(self, pcoll):
+    pcoll = super(ReadFromPubSub, self).expand(pcoll)
     if self.with_attributes:
       pcoll = pcoll | Map(pubsub.PubsubMessage._from_proto_str)
       pcoll.element_type = pubsub.PubsubMessage
@@ -111,13 +103,25 @@ class ReadFromPubSub(ptransform.PTransform):
     return pcoll
 
 
-class WriteToPubSub(ptransform.PTransform):
+WriteToPubsubSchema = typing.NamedTuple(
+    'WriteToPubsubSchema',
+    [
+        ('topic', unicode),
+        ('id_label', typing.Optional[unicode]),
+        # this is not implemented yet on the Java side:
+        # ('with_attributes', bool),
+        ('timestamp_attribute', typing.Optional[unicode]),
+    ]
+)
+
+
+class WriteToPubSub(beam.PTransform):
   """An external ``PTransform`` for writing messages to Cloud Pub/Sub."""
 
-  _urn = 'beam:external:java:pubsub:write:v1'
+  URN = 'beam:external:java:pubsub:write:v1'
 
   def __init__(self, topic, with_attributes=False, id_label=None,
-               timestamp_attribute=None, expansion_service='localhost:8097'):
+               timestamp_attribute=None, expansion_service=None):
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -132,52 +136,25 @@ class WriteToPubSub(ptransform.PTransform):
       timestamp_attribute: If set, will set an attribute for each Cloud Pub/Sub
         message with the given name and the message's publish time as the value.
     """
-    super(WriteToPubSub, self).__init__()
-    self.topic = topic
+    super(WriteToPubSub, self).__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            WriteToPubsubSchema(
+                topic=topic,
+                id_label=id_label,
+                # with_attributes=with_attributes,
+                timestamp_attribute=timestamp_attribute,
+            )
+        ),
+        expansion_service
+    )
     self.with_attributes = with_attributes
-    self.id_label = id_label
-    self.timestamp_attribute = timestamp_attribute
-    self.expansion_service = expansion_service
 
   def expand(self, pvalue):
-
     if self.with_attributes:
-      pcoll = pvalue | 'ToProtobuf' >> Map(pubsub.WriteToPubSub.to_proto_str)
+      pcoll = pvalue | 'ToProto' >> Map(pubsub.WriteToPubSub.to_proto_str)
     else:
-      pcoll = pvalue | 'ToProtobuf' >> Map(
+      pcoll = pvalue | 'ToProto' >> Map(
           lambda x: pubsub.PubsubMessage(x, {})._to_proto_str())
     pcoll.element_type = bytes
-
-    args = {
-      'topic': _encode_str(self.topic),
-    }
-
-    if self.id_label is not None:
-      args['id_label'] = _encode_str(self.id_label)
-
-    if self.timestamp_attribute is not None:
-      args['timestamp_attribute'] = _encode_str(self.timestamp_attribute)
-
-    payload = ExternalConfigurationPayload(configuration=args)
-    return pcoll.apply(
-        ExternalTransform(
-            self._urn,
-            payload.SerializeToString(),
-            self.expansion_service))
-
-
-def _encode_str(str_obj):
-  encoded_str = str_obj.encode('utf-8')
-  coder = LengthPrefixCoder(BytesCoder())
-  coder_urns = ['beam:coder:bytes:v1']
-  return ConfigValue(
-      coder_urn=coder_urns,
-      payload=coder.encode(encoded_str))
-
-
-def _encode_bool(bool_obj):
-  coder = VarIntCoder()
-  coder_urns = ['beam:coder:varint:v1']
-  return ConfigValue(
-      coder_urn=coder_urns,
-      payload=coder.encode(int(bool_obj)))
+    return super(WriteToPubSub, self).expand(pcoll)

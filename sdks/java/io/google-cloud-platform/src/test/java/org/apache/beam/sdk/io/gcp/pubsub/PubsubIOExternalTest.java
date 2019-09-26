@@ -30,7 +30,7 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -38,8 +38,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -61,19 +59,19 @@ public class PubsubIOExternalTest {
             .putConfiguration(
                 "topic",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(topic)))
                     .build())
             .putConfiguration(
                 "id_label",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(idAttribute)))
                     .build())
             .putConfiguration(
                 "with_attributes",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:varint:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeVarLong(needsAttributes)))
                     .build())
             .build();
@@ -132,13 +130,13 @@ public class PubsubIOExternalTest {
             .putConfiguration(
                 "topic",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(topic)))
                     .build())
             .putConfiguration(
                 "id_label",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(idAttribute)))
                     .build())
             .build();
@@ -208,7 +206,7 @@ public class PubsubIOExternalTest {
 
   private static byte[] encodeString(String str) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    ByteArrayCoder.of().encode(utf8Bytes(str), baos);
+    StringUtf8Coder.of().encode(str, baos);
     return baos.toByteArray();
   }
 
@@ -223,11 +221,6 @@ public class PubsubIOExternalTest {
       return null;
     }
     return String.valueOf(value);
-  }
-
-  private static byte[] utf8Bytes(String str) {
-    Preconditions.checkNotNull(str, "String must not be null.");
-    return str.getBytes(Charsets.UTF_8);
   }
 
   private static class TestStreamObserver<T> implements StreamObserver<T> {
