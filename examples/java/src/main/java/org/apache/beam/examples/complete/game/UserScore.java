@@ -210,7 +210,7 @@ public class UserScore {
 
     Note: You may want to use a small sample dataset to test it locally/quickly : gs://apache-beam-samples/game/small/gaming_data.csv
     You can also download it via the command line gsutil cp gs://apache-beam-samples/game/small/gaming_data.csv ./destination_folder/gaming_data.csv */
-    @Default.String("gs://apache-beam-samples/game/small/gaming_data.csv")
+    @Default.String("gs://apache-beam-samples/game/gaming_data*.csv")
     String getInput();
 
     void setInput(String value);
