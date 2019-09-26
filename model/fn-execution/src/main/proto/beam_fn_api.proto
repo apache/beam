@@ -191,15 +191,12 @@ message BundleApplication {
   // (Required) Whether this application potentially produces an unbounded
   // amount of data. Note that this should only be set to BOUNDED if and
   // only if the application is known to produce a finite amount of output.
-  //
-  // Note that this is different from the backlog as the backlog represents
-  // how much work there is currently outstanding.
   org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 5;
 
   // Contains additional monitoring information related to this application.
   //
   // Each application is able to report information that some runners
-  // will use consume when providing a UI or for making scaling and performance
+  // will use when providing a UI or for making scaling and performance
   // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
   // details about what types of signals may be useful to report.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 6;
@@ -288,7 +285,7 @@ message Metrics {
   // These metrics are split into processed and active element groups for
   // progress reporting purposes. This allows a Runner to see what is measured,
   // what is estimated and what can be extrapolated to be able to accurately
-  // estimate the backlog of remaining work.
+  // estimate the amount of remaining work.
   message PTransform {
     // Metrics that are measured for processed and active element groups.
     message Measured {
@@ -417,19 +414,6 @@ message ProcessBundleSplitRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
   string instruction_id = 1;
-
-  // (Required) Specifies that the Runner would like the bundle to split itself
-  // such that it performs no more work than the backlog specified for each
-  // PTransform. The interpretation of how much work should be processed is up
-  // to the PTransform.
-  //
-  // For example, A backlog of "" tells the SDK to perform as little work as
-  // possible, effectively checkpointing when able. The remaining backlog
-  // will be relative to the backlog reported during processing.
-  //
-  // If the backlog is unspecified for a PTransform, the runner would like
-  // the SDK to process all data received for that PTransform.
-  map<string, bytes> backlog_remaining = 2;
 
   // A message specifying the desired split for a single transform.
   message DesiredSplit {
