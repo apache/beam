@@ -881,6 +881,14 @@ message EventsResponse {
 
 message InteractiveStreamResponse {}
 
+message InteractiveStreamRecord {
+  org.apache.beam.model.pipeline.v1.TestStreamPayload.TimestampedElement element = 1;
+
+  int64 processing_time = 2;
+
+  int64 watermark_us = 3;
+}
+
 service InteractiveStream {
   rpc Events(EventsRequest) returns (stream EventsResponse) {}
 
