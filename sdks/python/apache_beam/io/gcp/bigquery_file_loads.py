@@ -492,9 +492,6 @@ class WaitForBQJobs(beam.DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
-  ALL_DONE = object()
-  FAILED = object()
-  WAITING = object()
 
   def __init__(self, test_client=None):
     self.test_client = test_client
