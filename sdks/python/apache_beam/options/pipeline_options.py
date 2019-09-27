@@ -680,6 +680,16 @@ class DebugOptions(PipelineOptions):
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
 
+    parser.add_argument(
+        '--number_of_worker_harness_threads',
+        type=int,
+        default=None,
+        help=
+        ('Number of threads per worker to use on the runner. If left '
+         'unspecified, the runner will compute an appropriate number of '
+         'threads to use. Currently only enabled for DataflowRunner when '
+         'experiment \'use_unified_worker\' is enabled.'))
+
   def add_experiment(self, experiment):
     # pylint: disable=access-member-before-definition
     if self.experiments is None:
