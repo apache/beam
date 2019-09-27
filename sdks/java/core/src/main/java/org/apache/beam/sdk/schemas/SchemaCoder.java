@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.FloatCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.RowCoderGenerator;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -44,7 +45,6 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -100,10 +100,9 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
   }
 
-  /** Returns a {@link SchemaCoder} for {@link Row} classes. */
+  /** Returns a {@link SchemaCoder} for {@link Row} instances with the given {@code schema}. */
   public static SchemaCoder<Row> of(Schema schema) {
-    return new SchemaCoder<>(
-        schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+    return RowCoder.of(schema);
   }
 
   /** Returns the coder used for a given primitive type. */
