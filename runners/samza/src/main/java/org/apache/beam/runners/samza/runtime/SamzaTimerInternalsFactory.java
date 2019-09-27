@@ -184,8 +184,12 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void setTimer(
-        StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-      setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+        StateNamespace namespace,
+        String timerId,
+        Instant target,
+        Instant targetOutput,
+        TimeDomain timeDomain) {
+      setTimer(TimerData.of(timerId, namespace, target, targetOutput, timeDomain));
     }
 
     @Override

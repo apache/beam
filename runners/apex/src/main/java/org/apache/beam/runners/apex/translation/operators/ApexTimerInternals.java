@@ -77,7 +77,11 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
+      StateNamespace namespace,
+      String timerId,
+      Instant target,
+      Instant targetOutput,
+      TimeDomain timeDomain) {
     TimerData timerData = TimerData.of(timerId, namespace, target, timeDomain);
     setTimer(timerData);
   }
