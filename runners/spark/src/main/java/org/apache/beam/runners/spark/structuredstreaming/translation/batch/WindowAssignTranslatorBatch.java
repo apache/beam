@@ -23,6 +23,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.Enc
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.WindowingHelpers;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.sql.Dataset;
@@ -44,10 +45,13 @@ class WindowAssignTranslatorBatch<T>
     if (WindowingHelpers.skipAssignWindows(assignTransform, context)) {
       context.putDataset(output, inputDataset);
     } else {
+      WindowFn<T, ?> windowFn = assignTransform.getWindowFn();
+      WindowedValue.FullWindowedValueCoder<T> windoweVdalueCoder = WindowedValue.FullWindowedValueCoder
+          .of(input.getCoder(), windowFn.windowCoder());
       Dataset<WindowedValue<T>> outputDataset =
           inputDataset.map(
-              WindowingHelpers.assignWindowsMapFunction(assignTransform.getWindowFn()),
-              EncoderHelpers.windowedValueEncoder());
+              WindowingHelpers.assignWindowsMapFunction(windowFn),
+              EncoderHelpers.fromBeamCoder(windoweVdalueCoder));
       context.putDataset(output, outputDataset);
     }
   }
