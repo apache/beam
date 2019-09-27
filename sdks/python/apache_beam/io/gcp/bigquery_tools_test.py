@@ -196,6 +196,35 @@ class TestBigQueryWrapper(unittest.TestCase):
         ]), False, False)
     self.assertEqual(new_table, 'table_id')
 
+  def test_wait_for_job_returns_true_when_job_is_done(self):
+    def make_response(state):
+      m = mock.Mock()
+      m.status.errorResult = None
+      m.status.state = state
+      return m
+
+    client, job_ref = mock.Mock(), mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    # Return 'DONE' the second time get_job is called.
+    wrapper.get_job = mock.Mock(side_effect=[make_response('RUNNING'),
+                                             make_response('DONE')])
+
+    result = wrapper.wait_for_bq_job(job_ref, sleep_duration_sec=0,
+                                     max_retries=5)
+    self.assertTrue(result)
+
+  def test_wait_for_job_retries_fail(self):
+    client, response, job_ref = mock.Mock(), mock.Mock(), mock.Mock()
+    response.status.state = 'RUNNING'
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    # Return 'RUNNING' response forever.
+    wrapper.get_job = lambda *args: response
+
+    with self.assertRaises(RuntimeError) as context:
+      wrapper.wait_for_bq_job(job_ref, sleep_duration_sec=0, max_retries=5)
+    self.assertEqual('The maximum number of retries has been reached',
+                     str(context.exception))
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryReader(unittest.TestCase):
