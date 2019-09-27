@@ -22,6 +22,7 @@ import decimal
 import json
 import logging
 import os
+import pickle
 import random
 import re
 import time
@@ -40,6 +41,7 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
+from apache_beam.io.gcp.bigquery import _BigQueryRowCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
@@ -242,6 +244,44 @@ class TestBigQuerySource(unittest.TestCase):
         DisplayDataItemMatcher('validation', True),
         DisplayDataItemMatcher('table', 'dataset.table$20030102')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBigQueryRowCoder(unittest.TestCase):
+
+  def setUp(self):
+    schema = self._make_schema([
+        ('float', 'FLOAT'),
+        ('string', 'STRING')
+    ])
+    self.coder = _BigQueryRowCoder(schema)
+
+  @staticmethod
+  def _make_schema(fields):
+    schema = bigquery.TableSchema()
+    for field in fields:
+      table_field = bigquery.TableFieldSchema()
+      table_field.name, table_field.type = field
+      schema.fields.append(table_field)
+    return schema
+
+  def test_coder_is_pickable(self):
+    try:
+      pickle.dumps(self.coder)
+    except pickle.PicklingError:
+      self.fail('{} is not pickable'.format(self.coder.__class__.__name__))
+
+  def test_values_are_converted(self):
+    input_row = '{"float": "10.5", "string": "abc"}'
+    expected_row = {'float': 10.5, 'string': 'abc'}
+    actual = self.coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_null_fields_are_preserved(self):
+    input_row = '{"float": "10.5"}'
+    expected_row = {'float': 10.5, 'string': None}
+    actual = self.coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
