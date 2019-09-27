@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind.*;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -346,7 +347,7 @@ public class WorkItemStatusClientTest {
   public void populateCounterUpdatesWithOutputCounters() throws Exception {
     final CounterUpdate counter =
         new CounterUpdate()
-            .setNameAndKind(new NameAndKind().setName("some-counter").setKind("SUM"))
+            .setNameAndKind(new NameAndKind().setName("some-counter").setKind(SUM.toString()))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -368,7 +369,7 @@ public class WorkItemStatusClientTest {
   public void populateCounterUpdatesWithMetricsAndCounters() throws Exception {
     final CounterUpdate expectedCounter =
         new CounterUpdate()
-            .setNameAndKind(new NameAndKind().setName("some-counter").setKind("SUM"))
+            .setNameAndKind(new NameAndKind().setName("some-counter").setKind(SUM.toString()))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -385,7 +386,7 @@ public class WorkItemStatusClientTest {
                             .setOriginNamespace("namespace")
                             .setName("some-counter")
                             .setOriginalStepName("step"))
-                    .setMetadata(new CounterMetadata().setKind("SUM")))
+                    .setMetadata(new CounterMetadata().setKind(SUM.toString())))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -422,7 +423,7 @@ public class WorkItemStatusClientTest {
                             .setOrigin("SYSTEM")
                             .setName("start-msecs")
                             .setOriginalStepName("step"))
-                    .setMetadata(new CounterMetadata().setKind("SUM")))
+                    .setMetadata(new CounterMetadata().setKind(SUM.toString())))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 

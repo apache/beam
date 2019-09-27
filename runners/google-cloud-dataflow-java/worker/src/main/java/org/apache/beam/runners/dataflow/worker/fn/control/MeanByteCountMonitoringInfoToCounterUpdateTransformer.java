@@ -29,6 +29,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,7 +109,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
 
     String counterName = pcollectionName + "-MeanByteCount";
     NameAndKind name = new NameAndKind();
-    name.setName(counterName).setKind("MEAN");
+    name.setName(counterName).setKind(Kind.MEAN.toString());
 
     return new CounterUpdate()
         .setNameAndKind(name)

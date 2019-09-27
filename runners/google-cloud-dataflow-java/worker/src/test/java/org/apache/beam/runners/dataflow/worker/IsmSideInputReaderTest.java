@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind.*;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.concat;
@@ -1331,7 +1332,7 @@ public class IsmSideInputReaderTest {
         new CounterUpdate()
             .setStructuredNameAndMetadata(
                 new CounterStructuredNameAndMetadata()
-                    .setMetadata(new CounterMetadata().setKind("SUM"))
+                    .setMetadata(new CounterMetadata().setKind(SUM.toString()))
                     .setName(
                         new CounterStructuredName()
                             .setOrigin("SYSTEM")

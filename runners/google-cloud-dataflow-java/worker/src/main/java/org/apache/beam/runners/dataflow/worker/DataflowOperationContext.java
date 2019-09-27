@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
@@ -295,7 +296,7 @@ public class DataflowOperationContext implements OperationContext {
           .setStructuredNameAndMetadata(
               new CounterStructuredNameAndMetadata()
                   .setName(name)
-                  .setMetadata(new CounterMetadata().setKind("SUM")))
+                  .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
           .setCumulative(isCumulative)
           .setInteger(longToSplitInt(value));
     }

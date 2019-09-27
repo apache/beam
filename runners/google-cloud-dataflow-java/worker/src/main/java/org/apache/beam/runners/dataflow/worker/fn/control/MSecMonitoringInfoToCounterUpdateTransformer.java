@@ -29,6 +29,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
@@ -134,7 +135,7 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
                 .setName(counterName)
                 .setOriginalStepName(stepContext.getNameContext().originalName())
                 .setExecutionStepName(stepContext.getNameContext().stageName()))
-        .setMetadata(new CounterMetadata().setKind("SUM"));
+        .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString()));
 
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
