@@ -100,9 +100,7 @@ public class BeamFnDataInboundObserverTest {
 
   private BeamFnApi.Elements.Data dataWith(String... values) throws Exception {
     BeamFnApi.Elements.Data.Builder builder =
-        BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference("777L")
-            .setPtransformId("999L");
+        BeamFnApi.Elements.Data.newBuilder().setInstructionId("777L").setTransformId("999L");
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);

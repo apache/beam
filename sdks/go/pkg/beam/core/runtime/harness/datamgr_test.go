@@ -35,9 +35,9 @@ func (f *fakeClient) Recv() (*pb.Elements, error) {
 	f.calls++
 	data := []byte{1, 2, 3, 4}
 	elemData := pb.Elements_Data{
-		InstructionReference: "inst_ref",
-		Data:                 data,
-		PtransformId:         "ptr",
+		InstructionId: "inst_ref",
+		Data:          data,
+		TransformId:   "ptr",
 	}
 
 	msg := pb.Elements{}

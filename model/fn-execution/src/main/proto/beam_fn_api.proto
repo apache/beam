@@ -45,16 +45,6 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 import "metrics.proto";
 
-/*
- * Constructs that define the pipeline shape.
- *
- * These are mostly unstable due to the missing pieces to be shared with
- * the Runner Api like windowing strategy, display data, .... There are still
- * some modelling questions related to whether a side input is modelled
- * as another field on a PrimitiveTransform or as part of inputs and we
- * still are missing things like the CompositeTransform.
- */
-
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
 // Allows for communication between two environments (for example between the
 // runner and the SDK).
@@ -180,8 +170,8 @@ message ProcessBundleDescriptor {
 // https://docs.google.com/document/d/1tUDb45sStdR8u7-jBkGdw3OGFK7aa2-V7eo86zYSE_4/edit#heading=h.9g3g5weg2u9
 // for further details.
 message BundleApplication {
-  // (Required) The primitive transform to which to pass the element
-  string ptransform_id = 1;
+  // (Required) The transform to which to pass the element
+  string transform_id = 1;
 
   // (Required) Name of the transform's input to which to pass the element.
   string input_id = 2;
@@ -201,15 +191,12 @@ message BundleApplication {
   // (Required) Whether this application potentially produces an unbounded
   // amount of data. Note that this should only be set to BOUNDED if and
   // only if the application is known to produce a finite amount of output.
-  //
-  // Note that this is different from the backlog as the backlog represents
-  // how much work there is currently outstanding.
   org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 5;
 
   // Contains additional monitoring information related to this application.
   //
   // Each application is able to report information that some runners
-  // will use consume when providing a UI or for making scaling and performance
+  // will use when providing a UI or for making scaling and performance
   // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
   // details about what types of signals may be useful to report.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 6;
@@ -230,7 +217,7 @@ message DelayedBundleApplication {
 message ProcessBundleRequest {
   // (Required) A reference to the process bundle descriptor that must be
   // instantiated and executed by the SDK harness.
-  string process_bundle_descriptor_reference = 1;
+  string process_bundle_descriptor_id = 1;
 
   // A cache token which can be used by an SDK to check for the validity
   // of cached elements which have a cache token associated.
@@ -289,7 +276,7 @@ message ProcessBundleResponse {
 message ProcessBundleProgressRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
-  string instruction_reference = 1;
+  string instruction_id = 1;
 }
 
 // DEPRECATED
@@ -298,7 +285,7 @@ message Metrics {
   // These metrics are split into processed and active element groups for
   // progress reporting purposes. This allows a Runner to see what is measured,
   // what is estimated and what can be extrapolated to be able to accurately
-  // estimate the backlog of remaining work.
+  // estimate the amount of remaining work.
   message PTransform {
     // Metrics that are measured for processed and active element groups.
     message Measured {
@@ -426,20 +413,7 @@ message ProcessBundleProgressResponse {
 message ProcessBundleSplitRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
-  string instruction_reference = 1;
-
-  // (Required) Specifies that the Runner would like the bundle to split itself
-  // such that it performs no more work than the backlog specified for each
-  // PTransform. The interpretation of how much work should be processed is up
-  // to the PTransform.
-  //
-  // For example, A backlog of "" tells the SDK to perform as little work as
-  // possible, effectively checkpointing when able. The remaining backlog
-  // will be relative to the backlog reported during processing.
-  //
-  // If the backlog is unspecified for a PTransform, the runner would like
-  // the SDK to process all data received for that PTransform.
-  map<string, bytes> backlog_remaining = 2;
+  string instruction_id = 1;
 
   // A message specifying the desired split for a single transform.
   message DesiredSplit {
@@ -498,7 +472,7 @@ message ProcessBundleSplitResponse {
   // as some range in an underlying dataset).
   message ChannelSplit {
     // (Required) The grpc read transform reading this channel.
-    string ptransform_id = 1;
+    string transform_id = 1;
 
     // The last element of the input channel that should be entirely considered
     // part of the primary, identified by its absolute index in the (ordered)
@@ -521,7 +495,7 @@ message ProcessBundleSplitResponse {
 message FinalizeBundleRequest {
   // (Required) A reference to a completed process bundle request with the given
   // instruction id.
-  string instruction_reference = 1;
+  string instruction_id = 1;
 }
 
 message FinalizeBundleResponse {
@@ -540,7 +514,7 @@ message Elements {
   message Data {
     // (Required) A reference to an active instruction request with the given
     // instruction id.
-    string instruction_reference = 1;
+    string instruction_id = 1;
 
     // (Required) A definition representing a consumer or producer of this data.
     // If received by a harness, this represents the consumer within that
@@ -550,7 +524,7 @@ message Elements {
     // Note that a single element may span multiple Data messages.
     //
     // Note that a sending/receiving pair should share the same identifier.
-    string ptransform_id = 2;
+    string transform_id = 2;
 
     // (Optional) Represents a part of a logical byte stream. Elements within
     // the logical byte stream are encoded in the nested context and
@@ -589,7 +563,7 @@ message StateRequest {
   // (Required) The associated instruction id of the work that is currently
   // being processed. This allows for the runner to associate any modifications
   // to state to be committed with the appropriate work execution.
-  string instruction_reference = 2;
+  string instruction_id = 2;
 
   // (Required) The state key this request is for.
   StateKey state_key = 3;
@@ -656,7 +630,7 @@ message StateKey {
 
   message MultimapSideInput {
     // (Required) The id of the PTransform containing a side input.
-    string ptransform_id = 1;
+    string transform_id = 1;
     // (Required) The id of the side input.
     string side_input_id = 2;
     // (Required) The window (after mapping the currently executing elements
@@ -668,7 +642,7 @@ message StateKey {
 
   message BagUserState {
     // (Required) The id of the PTransform containing user state.
-    string ptransform_id = 1;
+    string transform_id = 1;
     // (Required) The id of the user state.
     string user_state_id = 2;
     // (Required) The window encoded in a nested context.
@@ -795,11 +769,11 @@ message LogEntry {
 
   // (Optional) A reference to the instruction this log statement is associated
   // with.
-  string instruction_reference = 5;
+  string instruction_id = 5;
 
-  // (Optional) A reference to the primitive transform this log statement is
+  // (Optional) A reference to the transform this log statement is
   // associated with.
-  string primitive_transform_reference = 6;
+  string transform_id = 6;
 
   // (Optional) Human-readable name of the function or method being invoked,
   // with optional context such as the class or package name. The format can

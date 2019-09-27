@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.util.List;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 
 /** Interface for rewriting calls a specific ZetaSQL operator. */
 public interface SqlOperatorRewriter {

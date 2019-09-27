@@ -15,4 +15,21 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-compilerFactory=org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus.janino.CompilerFactory
+
+# Defines alerting rules used by Prometheus to detect anomalous behaviours
+# among test results.
+# Can be reloaded at runtime by sending a SIGHUP signal to the Prometheus
+# process.
+
+groups:
+- name: beamTests
+  rules:
+  - alert: TestRegression
+    expr: ((avg_over_time({job="beam",instance="",__name__!="push_time_seconds"}[1d])
+      - avg_over_time({job="beam",instance="",__name__!="push_time_seconds"}[6d] offset 1d))
+      / avg_over_time({job="beam",instance="",__name__!="push_time_seconds"}[6d] offset 1d))
+      > 0.2
+    labels:
+      job: beamAlert
+    annotations:
+      summary: 'Average runtime over 24 hours is 20% greater than average from six previous days'

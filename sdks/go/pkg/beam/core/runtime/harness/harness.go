@@ -180,7 +180,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		log.Debugf(ctx, "PB: %v", msg)
 
-		ref := msg.GetProcessBundleDescriptorReference()
+		ref := msg.GetProcessBundleDescriptorId()
 		c.mu.Lock()
 		plan, ok := c.plans[ref]
 		// Make the plan active, and remove it from candidates
@@ -224,7 +224,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		// log.Debugf(ctx, "PB Progress: %v", msg)
 
-		ref := msg.GetInstructionReference()
+		ref := msg.GetInstructionId()
 		c.mu.Lock()
 		plan, ok := c.active[ref]
 		c.mu.Unlock()
@@ -247,7 +247,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetProcessBundleSplit()
 
 		log.Debugf(ctx, "PB Split: %v", msg)
-		ref := msg.GetInstructionReference()
+		ref := msg.GetInstructionId()
 		c.mu.Lock()
 		plan, ok := c.active[ref]
 		c.mu.Unlock()

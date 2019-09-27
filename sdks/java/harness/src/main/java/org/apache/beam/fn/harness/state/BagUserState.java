@@ -63,10 +63,10 @@ public class BagUserState<T> {
 
     StateRequest.Builder requestBuilder = StateRequest.newBuilder();
     requestBuilder
-        .setInstructionReference(instructionId)
+        .setInstructionId(instructionId)
         .getStateKeyBuilder()
         .getBagUserStateBuilder()
-        .setPtransformId(ptransformId)
+        .setTransformId(ptransformId)
         .setUserStateId(stateId)
         .setWindow(encodedWindow)
         .setKey(encodedKey);
