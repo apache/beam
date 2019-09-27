@@ -244,7 +244,7 @@ class StateBackedSideInputMap(object):
     if target_window not in self._cache:
       state_key = beam_fn_api_pb2.StateKey(
           multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-              ptransform_id=self._transform_id,
+              transform_id=self._transform_id,
               side_input_id=self._tag,
               window=self._target_window_coder.encode(target_window),
               key=b''))
@@ -505,7 +505,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
-                  ptransform_id=self._transform_id,
+                  transform_id=self._transform_id,
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),
                   # State keys are expected in nested encoding format
@@ -520,7 +520,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
-                  ptransform_id=self._transform_id,
+                  transform_id=self._transform_id,
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),
                   # State keys are expected in nested encoding format
@@ -662,7 +662,7 @@ class BundleProcessor(object):
         for data in data_channel.input_elements(
             instruction_id, expected_transforms):
           input_op_by_transform_id[
-              data.ptransform_id].process_encoded(data.data)
+              data.transform_id].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
@@ -709,14 +709,14 @@ class BundleProcessor(object):
                     self.delayed_bundle_application(*element_residual))
               split_response.channel_splits.extend([
                   beam_fn_api_pb2.ProcessBundleSplitResponse.ChannelSplit(
-                      ptransform_id=op.transform_id,
+                      transform_id=op.transform_id,
                       last_primary_element=primary_end,
                       first_residual_element=residual_start)])
 
     return split_response
 
   def delayed_bundle_application(self, op, deferred_remainder):
-    ptransform_id, main_input_tag, main_input_coder, outputs = op.input_info
+    transform_id, main_input_tag, main_input_coder, outputs = op.input_info
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
     element_and_restriction, watermark = deferred_remainder
     if watermark:
@@ -727,7 +727,7 @@ class BundleProcessor(object):
       output_watermarks = None
     return beam_fn_api_pb2.DelayedBundleApplication(
         application=beam_fn_api_pb2.BundleApplication(
-            ptransform_id=ptransform_id,
+            transform_id=transform_id,
             input_id=main_input_tag,
             output_watermarks=output_watermarks,
             element=main_input_coder.get_impl().encode_nested(

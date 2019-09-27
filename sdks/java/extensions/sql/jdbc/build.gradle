@@ -20,6 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.jdbc',
   exportJavadoc: false,
   testShadowJar: true,
   validateShadowJar: false,
@@ -31,7 +32,7 @@ configurations {
 }
 
 dependencies {
-  compile project(path: ":sdks:java:extensions:sql", configuration: "shadow")
+  compile project(":sdks:java:extensions:sql")
   compile "jline:jline:2.14.6"
   compile "sqlline:sqlline:1.4.0"
   compile library.java.slf4j_jdk14

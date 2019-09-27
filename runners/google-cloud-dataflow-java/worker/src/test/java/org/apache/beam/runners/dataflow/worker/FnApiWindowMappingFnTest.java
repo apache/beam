@@ -159,8 +159,7 @@ public class FnApiWindowMappingFnTest {
                 .build());
       } else if (RequestCase.PROCESS_BUNDLE.equals(request.getRequestCase())) {
         assertEquals(
-            processBundleDescriptorId,
-            request.getProcessBundle().getProcessBundleDescriptorReference());
+            processBundleDescriptorId, request.getProcessBundle().getProcessBundleDescriptorId());
         return CompletableFuture.completedFuture(
             InstructionResponse.newBuilder()
                 .setInstructionId(request.getInstructionId())

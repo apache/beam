@@ -128,9 +128,9 @@ func ExampleSeq() {
 	a := textio.Read(s, "...some file path...") // PCollection<string>
 
 	beam.Seq(s, a,
-		strconv.Atoi,                              // string to int
+		strconv.Atoi, // string to int
 		func(i int) float64 { return float64(i) }, // int to float64
-		math.Signbit,                              // float64 to bool
+		math.Signbit, // float64 to bool
 	) // PCollection<bool>
 }
 

@@ -308,7 +308,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
               .setInstructionId(getProcessBundleInstructionId())
               .setProcessBundle(
                   ProcessBundleRequest.newBuilder()
-                      .setProcessBundleDescriptorReference(
+                      .setProcessBundleDescriptorId(
                           registerRequest.getProcessBundleDescriptor(0).getId()))
               .build();
 
@@ -386,7 +386,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         InstructionRequest.newBuilder()
             .setInstructionId(idGenerator.getId())
             .setProcessBundleProgress(
-                ProcessBundleProgressRequest.newBuilder().setInstructionReference(processBundleId))
+                ProcessBundleProgressRequest.newBuilder().setInstructionId(processBundleId))
             .build();
 
     return instructionRequestHandler
@@ -499,36 +499,36 @@ public class RegisterAndProcessBundleOperation extends Operation {
         stateRequest.getStateKey().getMultimapSideInput();
 
     SideInputReader sideInputReader =
-        ptransformIdToSideInputReader.get(multimapSideInputStateKey.getPtransformId());
+        ptransformIdToSideInputReader.get(multimapSideInputStateKey.getTransformId());
     checkState(
         sideInputReader != null,
-        String.format("Unknown PTransform '%s'", multimapSideInputStateKey.getPtransformId()));
+        String.format("Unknown PTransform '%s'", multimapSideInputStateKey.getTransformId()));
 
     PCollectionView<Materializations.MultimapView<Object, Object>> view =
         (PCollectionView<Materializations.MultimapView<Object, Object>>)
             ptransformIdToSideInputIdToPCollectionView.get(
-                multimapSideInputStateKey.getPtransformId(),
+                multimapSideInputStateKey.getTransformId(),
                 multimapSideInputStateKey.getSideInputId());
     checkState(
         view != null,
         String.format(
             "Unknown side input '%s' on PTransform '%s'",
             multimapSideInputStateKey.getSideInputId(),
-            multimapSideInputStateKey.getPtransformId()));
+            multimapSideInputStateKey.getTransformId()));
     checkState(
         Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
             view.getViewFn().getMaterialization().getUrn()),
         String.format(
             "Unknown materialization for side input '%s' on PTransform '%s' with urn '%s'",
             multimapSideInputStateKey.getSideInputId(),
-            multimapSideInputStateKey.getPtransformId(),
+            multimapSideInputStateKey.getTransformId(),
             view.getViewFn().getMaterialization().getUrn()));
     checkState(
         view.getCoderInternal() instanceof KvCoder,
         String.format(
             "Materialization of side input '%s' on PTransform '%s' expects %s but received %s.",
             multimapSideInputStateKey.getSideInputId(),
-            multimapSideInputStateKey.getPtransformId(),
+            multimapSideInputStateKey.getTransformId(),
             KvCoder.class.getSimpleName(),
             view.getCoderInternal().getClass().getSimpleName()));
     Coder<Object> keyCoder = ((KvCoder) view.getCoderInternal()).getKeyCoder();
@@ -547,7 +547,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
           String.format(
               "Unable to decode window for side input '%s' on PTransform '%s'.",
               multimapSideInputStateKey.getSideInputId(),
-              multimapSideInputStateKey.getPtransformId()),
+              multimapSideInputStateKey.getTransformId()),
           e);
     }
 
@@ -560,7 +560,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
           String.format(
               "Unable to decode user key for side input '%s' on PTransform '%s'.",
               multimapSideInputStateKey.getSideInputId(),
-              multimapSideInputStateKey.getPtransformId()),
+              multimapSideInputStateKey.getTransformId()),
           e);
     }
 
@@ -578,7 +578,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
           String.format(
               "Unable to encode values for side input '%s' on PTransform '%s'.",
               multimapSideInputStateKey.getSideInputId(),
-              multimapSideInputStateKey.getPtransformId()),
+              multimapSideInputStateKey.getTransformId()),
           e);
     }
   }
@@ -587,10 +587,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
       StateRequest stateRequest) {
     StateKey.BagUserState bagUserStateKey = stateRequest.getStateKey().getBagUserState();
     DataflowStepContext userStepContext =
-        ptransformIdToUserStepContext.get(bagUserStateKey.getPtransformId());
+        ptransformIdToUserStepContext.get(bagUserStateKey.getTransformId());
     checkState(
         userStepContext != null,
-        String.format("Unknown PTransform id '%s'", bagUserStateKey.getPtransformId()));
+        String.format("Unknown PTransform id '%s'", bagUserStateKey.getTransformId()));
     // TODO: We should not be required to hold onto a pointer to the bag states for the
     // user. InMemoryStateInternals assumes that the Java garbage collector does the clean-up work
     // but instead StateInternals should hold its own references and write out any data and

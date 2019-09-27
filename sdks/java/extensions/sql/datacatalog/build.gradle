@@ -20,12 +20,12 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
 
 dependencies {
   compile library.java.grpc_google_cloud_datacatalog_v1beta1
   compile library.java.proto_google_cloud_datacatalog_v1beta1
-  provided project(path: ":sdks:java:extensions:sql", configuration: "shadow")
+  provided project(":sdks:java:extensions:sql")
 
   // For Data Catalog GRPC client
   provided library.java.grpc_all
@@ -35,7 +35,6 @@ dependencies {
 
   // Dependencies for the example
   provided project(":sdks:java:io:google-cloud-platform")
-  provided library.java.vendored_guava_26_0_jre
   provided library.java.slf4j_api
   testRuntimeOnly library.java.slf4j_simple
 }

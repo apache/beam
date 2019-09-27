@@ -77,7 +77,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings("FutureReturnValueIgnored")
 public class BeamFnDataGrpcServiceTest {
-  private static final String PTRANSFORM_ID = "888";
+  private static final String TRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
   private static final String DEFAULT_CLIENT = "";
@@ -129,7 +129,7 @@ public class BeamFnDataGrpcServiceTest {
       CloseableFnDataReceiver<WindowedValue<String>> consumer =
           service
               .getDataService(DEFAULT_CLIENT)
-              .send(LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID), CODER);
+              .send(LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID), CODER);
 
       consumer.accept(valueInGlobalWindow("A" + i));
       consumer.accept(valueInGlobalWindow("B" + i));
@@ -202,7 +202,7 @@ public class BeamFnDataGrpcServiceTest {
         CloseableFnDataReceiver<WindowedValue<String>> consumer =
             service
                 .getDataService(Integer.toString(client))
-                .send(LogicalEndpoint.of(instructionId, PTRANSFORM_ID), CODER);
+                .send(LogicalEndpoint.of(instructionId, TRANSFORM_ID), CODER);
 
         consumer.accept(valueInGlobalWindow("A" + instructionId));
         consumer.accept(valueInGlobalWindow("B" + instructionId));
@@ -235,7 +235,7 @@ public class BeamFnDataGrpcServiceTest {
     CountDownLatch waitForInboundElements = new CountDownLatch(1);
 
     for (int i = 0; i < 3; ++i) {
-      String instructionReference = Integer.toString(i);
+      String instructionId = Integer.toString(i);
       executorService.submit(
           () -> {
             ManagedChannel channel =
@@ -243,7 +243,7 @@ public class BeamFnDataGrpcServiceTest {
             StreamObserver<BeamFnApi.Elements> outboundObserver =
                 BeamFnDataGrpc.newStub(channel)
                     .data(TestStreams.withOnNext(clientInboundElements::add).build());
-            outboundObserver.onNext(elementsWithData(instructionReference));
+            outboundObserver.onNext(elementsWithData(instructionId));
             waitForInboundElements.await();
             outboundObserver.onCompleted();
             return null;
@@ -259,7 +259,7 @@ public class BeamFnDataGrpcServiceTest {
           service
               .getDataService(DEFAULT_CLIENT)
               .receive(
-                  LogicalEndpoint.of(Integer.toString(i), PTRANSFORM_ID),
+                  LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID),
                   CODER,
                   serverInboundValue::add));
     }
@@ -284,8 +284,8 @@ public class BeamFnDataGrpcServiceTest {
     return BeamFnApi.Elements.newBuilder()
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(id)
-                .setPtransformId(PTRANSFORM_ID)
+                .setInstructionId(id)
+                .setTransformId(TRANSFORM_ID)
                 .setData(
                     ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("A" + id)))
                         .concat(
@@ -295,9 +295,7 @@ public class BeamFnDataGrpcServiceTest {
                             ByteString.copyFrom(
                                 encodeToByteArray(CODER, valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(id)
-                .setPtransformId(PTRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(TRANSFORM_ID))
         .build();
   }
 

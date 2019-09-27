@@ -22,7 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.auto.service.AutoService;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.calcite.linq4j.function.Strict;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function.Strict;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;

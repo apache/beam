@@ -23,47 +23,9 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann'],
-  testShadowJar: true,
-  enableStrictDependencies: true,
-  shadowClosure: {
-    dependencies {
-      include(dependency(library.java.guava))
-      include(dependency(library.java.protobuf_java))
-      include(dependency(library.java.protobuf_java_util))
-      include(dependency("org.apache.calcite:.*"))
-      include(dependency("org.apache.calcite.avatica:.*"))
-      include(dependency("org.codehaus.janino:.*"))
-      include(dependency("com.google.zetasql:.*"))
-    }
-    // guava uses the com.google.common and com.google.thirdparty package namespaces
-    relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
-      // com.google.common is too generic, need to exclude guava-testlib
-      exclude "com.google.common.collect.testing.**"
-      exclude "com.google.common.escape.testing.**"
-      exclude "com.google.common.testing.**"
-      exclude "com.google.common.util.concurrent.testing.**"
-    }
-    relocate "com.google.cloud", getJavaRelocatedPath("com.google.cloud")
-    relocate "com.google.logging", getJavaRelocatedPath("com.google.logging")
-    relocate "com.google.longrunning", getJavaRelocatedPath("com.google.longrunning")
-    relocate "com.google.rpc", getJavaRelocatedPath("com.google.rpc")
-
-    relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
-
-    relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-    relocate "com.google.zetasql", getJavaRelocatedPath("com.google.zetasql")
-    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
-
-  // Looking up the compiler factory in Calcite depends on having a properties
-  // file in the right location. We package one that is shading compatible
-  // in src/main/resources. Note that if this shaded path changes, that
-  // files name and contents need to be updated as well. TODO, swap to use
-  // getJavaRelocatedPath once the Maven build is no longer also shading this
-  // module.
-  relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
-})
+  disableLintWarnings: ['dep-ann'])
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
@@ -76,70 +38,40 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.20.0"
-def avatica_version = "1.15.0"
 def zetasql_version = "2019.09.1"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.28"
-  fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
-  shadow library.java.vendored_guava_26_0_jre // Internal use
-  compile library.java.guava // Interfaces with Calcite use this
-  compile "org.apache.calcite:calcite-core:$calcite_version"
-  compile "org.apache.calcite:calcite-linq4j:$calcite_version"
-  compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  compile "com.google.api.grpc:proto-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
+  fmppTemplates library.java.vendored_calcite_1_20_0
+  compile project(":sdks:java:core")
+  compile project(":sdks:java:extensions:join-library")
+  compile project(":runners:direct-java")
+  compile library.java.commons_csv
+  compile library.java.vendored_calcite_1_20_0
+  compile "com.alibaba:fastjson:1.2.49"
+  compile "org.codehaus.janino:janino:3.0.11"
+  compile "org.codehaus.janino:commons-compiler:3.0.11"
   compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
   compile "com.google.zetasql:zetasql-client:$zetasql_version"
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(":sdks:java:extensions:join-library")
-  shadow library.java.slf4j_api
-  shadow library.java.commons_codec
-  shadow library.java.commons_csv
-  shadow library.java.commons_lang3
-  shadow library.java.jackson_databind
-  shadow library.java.jackson_dataformat_yaml
-  shadow library.java.joda_time
-  shadow library.java.protobuf_java
-  shadow library.java.protobuf_java_util
-  shadow "com.alibaba:fastjson:1.2.49"
-  shadow "com.jayway.jsonpath:json-path:2.4.0"
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  compile "com.google.api.grpc:proto-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
   provided project(":sdks:java:io:parquet")
   provided library.java.kafka_clients
-  shadowTest library.java.junit
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.mockito_core
-  shadowTest library.java.quickcheck_core
-  shadowTestRuntimeClasspath library.java.slf4j_jdk14
-
-  // Dependencies that we don't directly reference
-  permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
-  permitUnusedDeclared "net.jcip:jcip-annotations:1.0"
-  permitUnusedDeclared library.java.jackson_dataformat_yaml
-
-  permitUnusedDeclared "com.google.api.grpc:proto-google-common-protos:1.12.0"
-  permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
-  permitUnusedDeclared "com.google.protobuf:protobuf-java-util:3.6.0"
-
-  // Dependencies that are bundled in when we bundle Calcite
-  permitUsedUndeclared "org.codehaus.janino:janino:3.0.11"
-  permitUsedUndeclared "org.codehaus.janino:commons-compiler:3.0.11"
-
-  // Dependencies where one or the other appears "used" depending on classpath,
-  // but it doesn't matter which is used
-  permitUsedUndeclared "com.google.code.findbugs:jsr305:3.0.2"
-  permitUsedUndeclared "org.apache.avro:avro:1.8.2"
-
+  testCompile library.java.vendored_calcite_1_20_0
+  testCompile library.java.vendored_guava_26_0_jre
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
+  testCompile library.java.quickcheck_core
+  testRuntimeClasspath library.java.slf4j_jdk14
 }
 
-// Copy Caclcite templates and our own template into the build directory
+// Copy Calcite templates and our own template into the build directory
 // so we have one location for the FMPP task to parse.
 task copyFmppTemplatesFromSrc(type: Copy) {
   from "src/main/codegen"
@@ -148,11 +80,19 @@ task copyFmppTemplatesFromSrc(type: Copy) {
 task copyFmppTemplatesFromCalciteCore(type: Copy) {
   dependsOn configurations.fmppTemplates
   File calciteCoreJar = files(configurations.fmppTemplates.files).filter {
-    it.name.startsWith("calcite-core")
+    it.name.startsWith("beam-vendor-calcite")
   }.singleFile
   from zipTree(calciteCoreJar)
   include "**/Parser.jj"
   into "${project.buildDir}/templates-fmpp"
+  filter{
+    line ->
+      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.')
+  }
+  filter{
+    line ->
+      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.')
+  }
 }
 
 // Generate the FMPP sources from the FMPP templates.

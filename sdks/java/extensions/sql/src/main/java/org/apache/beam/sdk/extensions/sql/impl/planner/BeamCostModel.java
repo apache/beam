@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
 import java.util.Objects;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptCostFactory;
-import org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCost;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCostFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
 
 /**
  * <code>VolcanoCost</code> represents the cost of a plan node.
@@ -216,8 +216,9 @@ public class BeamCostModel implements RelOptCost {
   }
 
   /**
-   * Implementation of {@link org.apache.calcite.plan.RelOptCostFactory} that creates {@link
-   * BeamCostModel}s.
+   * Implementation of {@link
+   * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCostFactory} that creates
+   * {@link BeamCostModel}s.
    */
   public static class Factory implements RelOptCostFactory {
 

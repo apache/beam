@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import org.apache.beam.sdk.extensions.sql.zetasql.QueryTrait;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 
 /** Conversion context, some rules need this data to convert the nodes. */
 public class ConversionContext {

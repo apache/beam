@@ -130,6 +130,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="message" value="You are using raw byte-buddy, please use vendored byte-buddy classes."/>
     </module>
 
+    <!-- Forbid Non-vendored calcite imports. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidCalcite"/>
+      <property name="format" value="(\sorg\.apache\.calcite)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using raw calcite, please use vendored calcite classes."/>
+    </module>
+
     <module name="UnusedImports">
       <property name="severity" value="error"/>
       <property name="processJavadoc" value="true"/>

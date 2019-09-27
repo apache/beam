@@ -75,7 +75,7 @@ public class GrpcStateServiceTest {
 
     // send state request
     BeamFnApi.StateRequest request =
-        BeamFnApi.StateRequest.newBuilder().setInstructionReference(bundleInstructionId).build();
+        BeamFnApi.StateRequest.newBuilder().setInstructionId(bundleInstructionId).build();
     requestObserver.onNext(request);
 
     // assert behavior
@@ -113,7 +113,7 @@ public class GrpcStateServiceTest {
 
     // send state request
     BeamFnApi.StateRequest request =
-        BeamFnApi.StateRequest.newBuilder().setInstructionReference(bundleInstructionId).build();
+        BeamFnApi.StateRequest.newBuilder().setInstructionId(bundleInstructionId).build();
     requestObserver.onNext(request);
 
     // wait for response

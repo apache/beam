@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.util.List;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlOperator;
 
 /** Rewrites EXTRACT calls by swapping first two arguments to fit for calcite SqlExtractOperator. */
 public class SqlExtractTimestampOperatorRewriter implements SqlOperatorRewriter {
