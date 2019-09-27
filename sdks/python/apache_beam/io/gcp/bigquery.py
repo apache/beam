@@ -232,9 +232,11 @@ returned as base64-encoded bytes.
 from __future__ import absolute_import
 
 import collections
+import decimal
 import itertools
 import json
 import logging
+import os
 import time
 import uuid
 from builtins import object
@@ -248,8 +250,13 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.filesystems import CompressionTypes
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.iobase import BoundedSource
+from apache_beam.io.iobase import SourceBundle
+from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -262,6 +269,7 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'TableRowJsonCoder',
@@ -269,6 +277,7 @@ __all__ = [
     'BigQuerySource',
     'BigQuerySink',
     'WriteToBigQuery',
+    'ReadFromBigQuery',
     'SCHEMA_AUTODETECT',
     ]
 
@@ -497,6 +506,181 @@ class BigQuerySource(dataflow_io.NativeSource):
         use_legacy_sql=self.use_legacy_sql,
         flatten_results=self.flatten_results,
         kms_key=self.kms_key)
+
+
+SchemaFields = collections.namedtuple('SchemaFields', 'fields mode name type')
+
+
+def _to_bool(value):
+  return value == 'true'
+
+
+def _to_decimal(value):
+  return decimal.Decimal(value)
+
+
+class _BigQueryRowCoder(coders.Coder):
+  """A coder for a table row (represented as a dict) from a JSON string which
+  applies additional conversions.
+  """
+
+  def __init__(self, table_schema):
+    # bigquery.TableSchema type is unpickable so we must translate it to a
+    # pickable type
+    self.fields = [SchemaFields(x.fields, x.mode, x.name, x.type)
+                   for x in table_schema.fields]
+    self._converters = {
+        'INTEGER': int,
+        'INT64': int,
+        'FLOAT': float,
+        'BOOLEAN': _to_bool,
+        'NUMERIC': _to_decimal,
+    }
+
+  def decode(self, value):
+    value = json.loads(value)
+    for field in self.fields:
+      if field.name not in value:
+        # The field exists in the schema, but it doesn't exist in this row.
+        # It probably means its value was null, as the extract to JSON job
+        # doesn't preserve null fields
+        value[field.name] = None
+        continue
+
+      try:
+        converter = self._converters[field.type]
+        value[field.name] = converter(value[field.name])
+      except KeyError:
+        # No need to do any conversion
+        pass
+    return value
+
+  def is_deterministic(self):
+    return True
+
+  def to_type_hint(self):
+    return dict
+
+
+class _BigQuerySource(BoundedSource):
+  def __init__(self, table=None, dataset=None, project=None, query=None,
+               validate=False, coder=None, use_standard_sql=False,
+               flatten_results=True, kms_key=None, gcs_bucket_name=None):
+    if gcs_bucket_name is None:
+      raise ValueError('The name of the GCS bucket must be specified')
+    self.gcs_bucket_name = gcs_bucket_name
+
+    if table is not None and query is not None:
+      raise ValueError('Both a BigQuery table and a query were specified.'
+                       ' Please specify only one of these.')
+    elif table is None and query is None:
+      raise ValueError('A BigQuery table or a query must be specified')
+    elif table is not None:
+      self.table_reference = bigquery_tools.parse_table_reference(
+          table, dataset, project)
+      self.query = None
+      self.use_legacy_sql = True
+    else:
+      self.query = query
+      # TODO(BEAM-1082): Change the internal flag to be standard_sql
+      self.use_legacy_sql = not use_standard_sql
+      self.table_reference = None
+
+    self.project = project
+    self.validate = validate
+    self.flatten_results = flatten_results
+    self.coder = coder or _BigQueryRowCoder
+    self.kms_key = kms_key
+    self.split_result = None
+
+  def estimate_size(self):
+    bq = bigquery_tools.BigQueryWrapper()
+    if self.table_reference is not None:
+      table = bq.get_table(self.table_reference.projectId,
+                           self.table_reference.datasetId,
+                           self.table_reference.tableId)
+      return int(table.numBytes)
+    else:
+      self._setup_temporary_dataset(bq)
+      job = bq._start_query_job(self.project, self.query,
+                                self.use_legacy_sql, self.flatten_results,
+                                job_id=uuid.uuid4().hex, dry_run=True,
+                                kms_key=self.kms_key)
+      size = int(job.statistics.totalBytesProcessed)
+
+      bq.clean_up_temporary_dataset(self.project)
+
+      return size
+
+  def split(self, desired_bundle_size, start_position=None, stop_position=None):
+    if self.split_result is None:
+      bq = bigquery_tools.BigQueryWrapper()
+
+      if self.query is not None:
+        self._setup_temporary_dataset(bq)
+        self.table_reference = self._execute_query(bq)
+
+      schema, metadata_list = self._export_files(bq)
+      self.split_result = [TextSource(metadata.path, 0,
+                                      CompressionTypes.UNCOMPRESSED, True,
+                                      self.coder(schema))
+                           for metadata in metadata_list]
+
+      if self.query is not None:
+        bq.clean_up_temporary_dataset(self.project)
+
+    for source in self.split_result:
+      yield SourceBundle(0, source, None, None)
+
+  def get_range_tracker(self, start_position, stop_position):
+    raise NotImplementedError('BigQuery source must be split before being read')
+
+  def read(self, range_tracker):
+    raise NotImplementedError('BigQuery source must be split before being read')
+
+  def _setup_temporary_dataset(self, bq):
+    location = bq.get_query_location(self.project, self.query,
+                                     self.use_legacy_sql)
+    bq.create_temporary_dataset(self.project, location)
+
+  def _execute_query(self, bq):
+    job = bq._start_query_job(self.project, self.query,
+                              self.use_legacy_sql, self.flatten_results,
+                              job_id=uuid.uuid4().hex, kms_key=self.kms_key)
+    job_ref = job.jobReference
+    bq.wait_for_bq_job(job_ref)
+    return bq._get_temp_table(self.project)
+
+  def _export_files(self, bq):
+    """Runs a BigQuery export job.
+
+    Returns:
+      bigquery.TableSchema instance, a list of FileMetadata instances
+    """
+    job_id = uuid.uuid4().hex
+    destination = self._get_destination_uri(self.gcs_bucket_name, job_id)
+    job_ref = bq.perform_extract_job([destination], job_id,
+                                     self.table_reference,
+                                     bigquery_tools.ExportFileFormat.JSON,
+                                     include_header=False)
+    bq.wait_for_bq_job(job_ref)
+    metadata_list = FileSystems.match([destination])[0].metadata_list
+
+    table = bq.get_table(self.table_reference.projectId,
+                         self.table_reference.datasetId,
+                         self.table_reference.tableId)
+
+    return table.schema, metadata_list
+
+  @staticmethod
+  def _get_destination_uri(gcs_bucket_name, subdir_name):
+    """Returns the fully qualified Google Cloud Storage URI where the
+    extracted table should be written.
+    """
+    # We need subdirectories to prevent from overwriting files when
+    # multiple export jobs run in parallel.
+    return os.path.join(gcs_bucket_name, subdir_name,
+                        'bigquery-table-dump-*.json')
 
 
 @deprecated(since='2.11.0', current="WriteToBigQuery")
@@ -1274,3 +1458,60 @@ bigquery_v2_messages.TableSchema):
                                    tableSpec)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
     return res
+
+
+@experimental()
+class ReadFromBigQuery(PTransform):
+  """Read data from BigQuery.
+
+    This PTransform uses a BigQuery export job to take a snapshot of the table
+    on GCS, and then reads from each produced JSON file.
+
+    Do note that currently this source does not work with DirectRunner.
+
+  Args:
+    table (str, callable, ValueProvider): The ID of the table, or a callable
+      that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
+      numbers ``0-9``, or underscores ``_``. If dataset argument is
+      :data:`None` then the table argument must contain the entire table
+      reference specified as: ``'DATASET.TABLE'``
+      or ``'PROJECT:DATASET.TABLE'``. If it's a callable, it must receive one
+      argument representing an element to be written to BigQuery, and return
+      a TableReference, or a string table name as specified above.
+    dataset (str): The ID of the dataset containing this table or
+      :data:`None` if the table reference is specified entirely by the table
+      argument.
+    project (str): The ID of the project containing this table.
+    query (str): A query to be used instead of arguments table, dataset, and
+      project.
+    validate (bool): If :data:`True`, various checks will be done when source
+      gets initialized (e.g., is table present?). This should be
+      :data:`True` for most scenarios in order to catch errors as early as
+      possible (pipeline construction instead of pipeline execution). It
+      should be :data:`False` if the table is created during pipeline
+      execution by a previous step.
+    coder (~apache_beam.coders.coders.Coder): The coder for the table
+      rows. If :data:`None`, then the default coder is
+      :class:`~apache_beam.io.gcp.bigquery._BigQueryRowCoder`,
+      which will interpret every line in a file as a JSON serialized
+      dictionary. This argument needs a value only in special cases when
+      returning table rows as dictionaries is not desirable.
+    use_standard_sql (bool): Specifies whether to use BigQuery's standard SQL
+      dialect for this query. The default value is :data:`False`.
+      If set to :data:`True`, the query will use BigQuery's updated SQL
+      dialect with improved standards compliance.
+      This parameter is ignored for table inputs.
+    flatten_results (bool): Flattens all nested and repeated fields in the
+      query results. The default value is :data:`True`.
+    kms_key (str): Experimental. Optional Cloud KMS key name for use when
+      creating new temporary tables.
+    gcs_bucket_name (str): The name of the Google Cloud Storage bucket where
+      the extracted table should be written.
+   """
+  def __init__(self, *args, **kwargs):
+    self._args = args
+    self._kwargs = kwargs
+
+  def expand(self, pcoll):
+    return (pcoll
+            | beam.io.Read(_BigQuerySource(*self._args, **self._kwargs)))
