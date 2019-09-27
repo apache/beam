@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -191,54 +190,6 @@ public class RowCoder extends CustomCoder<Row> {
                 coderForFieldType(fieldType.getMapValueType()));
       default:
         return (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
-    }
-  }
-
-  /** Return the estimated serialized size of a give row object. */
-  public static long estimatedSizeBytes(Row row) {
-    Schema schema = row.getSchema();
-    int fieldCount = schema.getFieldCount();
-    int bitmapSize = (((fieldCount - 1) >> 6) + 1) * 8;
-
-    int fieldsSize = 0;
-    for (int i = 0; i < schema.getFieldCount(); ++i) {
-      fieldsSize += (int) estimatedSizeBytes(schema.getField(i).getType(), row.getValue(i));
-    }
-    return (long) bitmapSize + fieldsSize;
-  }
-
-  private static long estimatedSizeBytes(FieldType typeDescriptor, Object value) {
-    switch (typeDescriptor.getTypeName()) {
-      case LOGICAL_TYPE:
-        return estimatedSizeBytes(typeDescriptor.getLogicalType().getBaseType(), value);
-      case ROW:
-        return estimatedSizeBytes((Row) value);
-      case ARRAY:
-        List list = (List) value;
-        long listSizeBytes = 0;
-        for (Object elem : list) {
-          listSizeBytes += estimatedSizeBytes(typeDescriptor.getCollectionElementType(), elem);
-        }
-        return 4 + listSizeBytes;
-      case BYTES:
-        byte[] bytes = (byte[]) value;
-        return 4L + bytes.length;
-      case MAP:
-        Map<Object, Object> map = (Map<Object, Object>) value;
-        long mapSizeBytes = 0;
-        for (Map.Entry<Object, Object> elem : map.entrySet()) {
-          mapSizeBytes +=
-              typeDescriptor.getMapKeyType().getTypeName().equals(TypeName.STRING)
-                  ? ((String) elem.getKey()).length()
-                  : ESTIMATED_FIELD_SIZES.get(typeDescriptor.getMapKeyType().getTypeName());
-          mapSizeBytes += estimatedSizeBytes(typeDescriptor.getMapValueType(), elem.getValue());
-        }
-        return 4 + mapSizeBytes;
-      case STRING:
-        // Not always accurate - String.getBytes().length() would be more accurate here, but slower.
-        return ((String) value).length();
-      default:
-        return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
   }
 
