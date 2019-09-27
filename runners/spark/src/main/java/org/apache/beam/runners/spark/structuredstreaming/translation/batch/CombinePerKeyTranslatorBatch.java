@@ -23,6 +23,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTr
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.KVHelpers;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Combine;
@@ -58,20 +59,31 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
 
     Dataset<WindowedValue<KV<K, InputT>>> inputDataset = context.getDataset(input);
 
-    Coder<K> keyCoder = (Coder<K>) input.getCoder().getCoderArguments().get(0);
-    Coder<OutputT> outputTCoder = (Coder<OutputT>) output.getCoder().getCoderArguments().get(1);
+    KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
+    Coder<K> keyCoder = inputCoder.getKeyCoder();
+    KvCoder<K, OutputT> outputKVCoder = (KvCoder<K, OutputT>) output.getCoder();
+    Coder<OutputT> outputCoder = outputKVCoder.getValueCoder();
 
     KeyValueGroupedDataset<K, WindowedValue<KV<K, InputT>>> groupedDataset =
         inputDataset.groupByKey(KVHelpers.extractKey(), EncoderHelpers.fromBeamCoder(keyCoder));
 
+    Coder<AccumT> accumulatorCoder = null;
+    try {
+      accumulatorCoder =
+          combineFn.getAccumulatorCoder(
+              input.getPipeline().getCoderRegistry(), inputCoder.getValueCoder());
+    } catch (CannotProvideCoderException e) {
+      throw new RuntimeException(e);
+    }
+
     Dataset<Tuple2<K, Iterable<WindowedValue<OutputT>>>> combinedDataset =
         groupedDataset.agg(
             new AggregatorCombiner<K, InputT, AccumT, OutputT, BoundedWindow>(
-                    combineFn, windowingStrategy)
+                    combineFn, windowingStrategy, accumulatorCoder, outputCoder)
                 .toColumn());
 
     // expand the list into separate elements and put the key back into the elements
-    Coder<KV<K, OutputT>> kvCoder = KvCoder.of(keyCoder, outputTCoder);
+    Coder<KV<K, OutputT>> kvCoder = KvCoder.of(keyCoder, outputCoder);
     WindowedValue.WindowedValueCoder<KV<K, OutputT>> wvCoder =
         WindowedValue.FullWindowedValueCoder.of(
             kvCoder, input.getWindowingStrategy().getWindowFn().windowCoder());

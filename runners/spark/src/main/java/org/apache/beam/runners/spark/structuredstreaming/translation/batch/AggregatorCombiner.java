@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -52,13 +54,25 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
   private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
   private WindowingStrategy<InputT, W> windowingStrategy;
   private TimestampCombiner timestampCombiner;
+  private IterableCoder<WindowedValue<AccumT>> accumulatorCoder;
+  private IterableCoder<WindowedValue<OutputT>> outputCoder;
 
   public AggregatorCombiner(
       Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      WindowingStrategy<?, ?> windowingStrategy,
+      Coder<AccumT> accumulatorCoder,
+      Coder<OutputT> outputCoder) {
     this.combineFn = combineFn;
     this.windowingStrategy = (WindowingStrategy<InputT, W>) windowingStrategy;
     this.timestampCombiner = windowingStrategy.getTimestampCombiner();
+    this.accumulatorCoder =
+        IterableCoder.of(
+            WindowedValue.FullWindowedValueCoder.of(
+                accumulatorCoder, windowingStrategy.getWindowFn().windowCoder()));
+    this.outputCoder =
+        IterableCoder.of(
+            WindowedValue.FullWindowedValueCoder.of(
+                outputCoder, windowingStrategy.getWindowFn().windowCoder()));
   }
 
   @Override
@@ -142,14 +156,12 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
 
   @Override
   public Encoder<Iterable<WindowedValue<AccumT>>> bufferEncoder() {
-    // TODO replace with accumulatorCoder if possible
-    return EncoderHelpers.genericEncoder();
+    return EncoderHelpers.fromBeamCoder(accumulatorCoder);
   }
 
   @Override
   public Encoder<Iterable<WindowedValue<OutputT>>> outputEncoder() {
-    // TODO replace with outputCoder if possible
-    return EncoderHelpers.genericEncoder();
+    return EncoderHelpers.fromBeamCoder(outputCoder);
   }
 
   private Set<W> collectAccumulatorsWindows(Iterable<WindowedValue<AccumT>> accumulators) {
