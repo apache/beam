@@ -20,14 +20,10 @@ package org.apache.beam.runners.dataflow.worker;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME;
-import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
-import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.api.services.dataflow.model.DistributionUpdate;
-import com.google.api.services.dataflow.model.IntegerMean;
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
@@ -76,7 +72,6 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingPerStageSystemCounterNames;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
-import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker.Work.State;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
@@ -1925,39 +1920,28 @@ public class StreamingDataflowWorker {
 
         // Aggregates counterUpdates with same counterUpdateKey to single CounterUpdate if possible
         // so we can avoid excessive I/Os for reporting to dataflow service.
+        List<CounterUpdateAggregator> availableAggregators =
+            CounterUpdateAggregator.getAllAvailableCounterUpdateAggregators();
         for (List<CounterUpdate> counterUpdateList : fnApiCounters.values()) {
+          if (counterUpdateList.size() == 0) {
+            continue;
+          }
           CounterUpdate head = counterUpdateList.get(0);
-          if (isDistributionCounterUpdate(head)) {
-            if (head.getDistribution() == null) {
-              throw new UnsupportedOperationException(
-                  "Aggregating DISTRIBUTION counter update "
-                      + "with non-distribution type is not implemented.");
+          boolean aggregatable = false;
+          for (CounterUpdateAggregator aggregator : availableAggregators) {
+            if (aggregator.isCorrespondingCounterUpdate(head)) {
+              counterUpdates.add(aggregator.aggregate(counterUpdateList));
+              aggregatable = true;
+              break;
             }
-            CounterUpdate aggregated = aggregateDistributionCounter(counterUpdateList);
-            counterUpdates.add(aggregated);
-          } else if (isSumCounterUpdate(head)) {
-            if (head.getInteger() == null) {
-              throw new UnsupportedOperationException(
-                  "Aggregating SUM counter update with non-integer type is not implemented.");
-            }
-            CounterUpdate aggregated = aggregateIntegerCounter(counterUpdateList);
-            counterUpdates.add(aggregated);
-          } else if (isMeanCounterUpdate(head)) {
-            if (head.getIntegerMean() == null) {
-              throw new UnsupportedOperationException(
-                  "Aggregating MEAN counter update with "
-                      + "non-integerMean type is not implemented.");
-            }
-            CounterUpdate aggregated = aggregateMeanCounter(counterUpdateList);
-            counterUpdates.add(aggregated);
-          } else {
+          }
+          if (!aggregatable) {
             LOG.debug(
                 "Found non-aggregated counter updates of size {} with kind {}, this will "
                     + "likely cause performance degradation if size is large.",
                 counterUpdateList.size(),
                 MoreObjects.firstNonNull(
-                    head.getNameAndKind(),
-                    head.getStructuredNameAndMetadata()));
+                    head.getNameAndKind(), head.getStructuredNameAndMetadata()));
             counterUpdates.addAll(counterUpdateList);
           }
         }
@@ -2032,103 +2016,6 @@ public class StreamingDataflowWorker {
               .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
               .setCounterUpdates(counterUpdates));
     }
-  }
-
-  private boolean isDistributionCounterUpdate(CounterUpdate counterUpdate) {
-    return counterUpdate.getStructuredNameAndMetadata() != null
-        && counterUpdate.getStructuredNameAndMetadata().getMetadata() != null
-        && Kind.DISTRIBUTION
-            .toString()
-            .equals(counterUpdate.getStructuredNameAndMetadata().getMetadata().getKind());
-  }
-
-  private boolean isSumCounterUpdate(CounterUpdate counterUpdate) {
-    return (counterUpdate.getStructuredNameAndMetadata() != null
-            && counterUpdate.getStructuredNameAndMetadata().getMetadata() != null
-            && Kind.SUM
-                .toString()
-                .equals(counterUpdate.getStructuredNameAndMetadata().getMetadata().getKind()))
-        || (counterUpdate.getNameAndKind() != null
-            && Kind.SUM.toString().equals(counterUpdate.getNameAndKind().getKind()));
-  }
-
-  private boolean isMeanCounterUpdate(CounterUpdate counterUpdate) {
-    return (counterUpdate.getStructuredNameAndMetadata() != null
-            && counterUpdate.getStructuredNameAndMetadata().getMetadata() != null
-            && Kind.MEAN
-                .toString()
-                .equals(counterUpdate.getStructuredNameAndMetadata().getMetadata().getKind()))
-        || (counterUpdate.getNameAndKind() != null
-            && Kind.MEAN.toString().equals(counterUpdate.getNameAndKind().getKind()));
-  }
-
-  private CounterUpdate aggregateDistributionCounter(List<CounterUpdate> counterUpdates) {
-    if (counterUpdates == null || counterUpdates.isEmpty()) {
-      return null;
-    }
-    List<CounterUpdate> copy = new ArrayList<>(counterUpdates);
-    CounterUpdate initial = copy.remove(0);
-    return copy.stream()
-        .reduce(
-            initial,
-            (first, second) ->
-                first.setDistribution(
-                    new DistributionUpdate()
-                        .setCount(
-                            longToSplitInt(
-                                splitIntToLong(first.getDistribution().getCount())
-                                    + splitIntToLong(second.getDistribution().getCount())))
-                        .setMax(
-                            longToSplitInt(
-                                Math.max(
-                                    splitIntToLong(first.getDistribution().getMax()),
-                                    splitIntToLong(second.getDistribution().getMax()))))
-                        .setMin(
-                            longToSplitInt(
-                                Math.min(
-                                    splitIntToLong(first.getDistribution().getMin()),
-                                    splitIntToLong(second.getDistribution().getMin()))))
-                        .setSum(
-                            longToSplitInt(
-                                splitIntToLong(first.getDistribution().getSum())
-                                    + splitIntToLong(second.getDistribution().getSum())))));
-  }
-
-  private CounterUpdate aggregateIntegerCounter(List<CounterUpdate> counterUpdates) {
-    if (counterUpdates == null || counterUpdates.isEmpty()) {
-      return null;
-    }
-    List<CounterUpdate> copy = new ArrayList<>(counterUpdates);
-    CounterUpdate initial = copy.remove(0);
-    return copy.stream()
-        .reduce(
-            initial,
-            (first, second) ->
-                first.setInteger(
-                    longToSplitInt(
-                        splitIntToLong(first.getInteger()) + splitIntToLong(second.getInteger()))));
-  }
-
-  private CounterUpdate aggregateMeanCounter(List<CounterUpdate> counterUpdates) {
-    if (counterUpdates == null || counterUpdates.isEmpty()) {
-      return null;
-    }
-    List<CounterUpdate> copy = new ArrayList<>(counterUpdates);
-    CounterUpdate initial = copy.remove(0);
-    return copy.stream()
-        .reduce(
-            initial,
-            (first, second) ->
-                first.setIntegerMean(
-                    new IntegerMean()
-                        .setCount(
-                            longToSplitInt(
-                                splitIntToLong(first.getIntegerMean().getCount())
-                                    + splitIntToLong(second.getIntegerMean().getCount())))
-                        .setSum(
-                            longToSplitInt(
-                                splitIntToLong(first.getIntegerMean().getSum())
-                                    + splitIntToLong(second.getIntegerMean().getSum())))));
   }
 
   /**
