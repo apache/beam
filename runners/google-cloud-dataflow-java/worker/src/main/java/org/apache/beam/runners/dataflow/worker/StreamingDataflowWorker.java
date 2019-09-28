@@ -200,7 +200,7 @@ public class StreamingDataflowWorker {
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
 
-  private final AtomicLong counter_aggregation_error_count = new AtomicLong();
+  private final AtomicLong counterAggregationErrorCount = new AtomicLong();
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
   private static boolean isOutOfMemoryError(Throwable t) {
@@ -1930,11 +1930,15 @@ public class StreamingDataflowWorker {
           List<CounterUpdate> aggregatedCounterUpdateList =
               CounterUpdateAggregators.aggregate(counterUpdateList);
 
+          // Log a warning message if encountered enough non-aggregatable counter updates since this
+          // can lead to a severe performance penalty if dataflow service can not handle the
+          // updates.
           if (aggregatedCounterUpdateList.size() > 10) {
             CounterUpdate head = aggregatedCounterUpdateList.get(0);
-            this.counter_aggregation_error_count.getAndIncrement();
-            if (this.counter_aggregation_error_count.get() > 10
-                && Long.bitCount(this.counter_aggregation_error_count.get()) == 1) {
+            this.counterAggregationErrorCount.getAndIncrement();
+            // log warning message only when error count is the power of 2 to avoid spamming.
+            if (this.counterAggregationErrorCount.get() > 10
+                && Long.bitCount(this.counterAggregationErrorCount.get()) == 1) {
               LOG.warn(
                   "Found non-aggregated counter updates of size {} with kind {}, this will likely "
                       + "cause performance degradation and excessive GC if size is large.",

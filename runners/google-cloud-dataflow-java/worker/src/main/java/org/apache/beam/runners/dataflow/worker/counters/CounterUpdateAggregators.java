@@ -44,6 +44,21 @@ public class CounterUpdateAggregators {
         "CounterUpdate must have either StructuredNameAndMetadata or NameAndKind.");
   }
 
+  /**
+   * Try to aggregate a List of CounterUpdates. The first CounterUpdate entry of the List will be
+   * examined to identify the CounterUpdate kind with {@link #getCounterUpdateKind(CounterUpdate)}
+   * and find the suitable {@link CounterUpdateAggregator}, if there is no suitable aggregator the
+   * original list will be returned.
+   *
+   * <p>Note that this method assumes the CounterUpdate elements in this list has the same {@link
+   * com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata
+   * StructruredNameAndMetadata} or {@link com.google.api.services.dataflow.model.NameAndKind
+   * NameAndKind}, also the value type should be the same across all the elements.
+   *
+   * @param counterUpdates List of CounterUpdate to be aggregated.
+   * @return A singleton list of combined CounterUpdate if it is possible to aggregate the elements,
+   *     other wise return the original list.
+   */
   public static List<CounterUpdate> aggregate(List<CounterUpdate> counterUpdates) {
     if (counterUpdates == null || counterUpdates.isEmpty()) {
       return counterUpdates;
