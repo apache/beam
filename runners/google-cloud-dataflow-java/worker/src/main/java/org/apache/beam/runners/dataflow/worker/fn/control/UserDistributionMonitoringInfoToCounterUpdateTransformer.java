@@ -30,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.slf4j.Logger;
@@ -113,7 +114,7 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
                 .setName(counterName)
                 .setOriginalStepName(stepContext.getNameContext().originalName())
                 .setOriginNamespace(counterNamespace))
-        .setMetadata(new CounterMetadata().setKind("DISTRIBUTION"));
+        .setMetadata(new CounterMetadata().setKind(Kind.DISTRIBUTION.toString()));
 
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
