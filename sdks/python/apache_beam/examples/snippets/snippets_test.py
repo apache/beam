@@ -1266,6 +1266,59 @@ class PTransformTest(unittest.TestCase):
       lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
       assert_that(lengths, equal_to([1, 2, 3]))
 
+class AccessingValueProviderInfoAfterRunTest(unittest.TestCase):
+  """Tests for accessing value provider info after run."""
+
+  def test_accessing_valueprovider_info_after_run(self):
+    # [START AccessingValueProviderInfoAfterRunSnip1]
+
+    class MyOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        # Use add_value_provider_argument for arguments to be templatable
+        # Use add_argument as usual for non-templatable arguments
+        parser.add_value_provider_argument('--string_value', type=str,
+                                           default='the quick brown fox jumps over the lazy dog')
+
+    class LogValueProvidersFn(beam.DoFn):
+      def __init__(self, string_vp):
+        self.string_vp = string_vp
+
+      # Define the DoFn that logs the ValueProvider value.
+      # The DoFn is called when creating the pipeline branch.
+      # This example logs the ValueProvider value, but
+      # you could store it by pushing it to an external database.
+      def process(self, an_int, **kwargs):
+        logging.info('The string_value is %s' % self.string_vp.get())
+
+        yield self.string_vp.get()
+
+    pipeline_options = PipelineOptions()
+
+    my_options = pipeline_options.view_as(MyOptions)
+
+    # Create pipeline.
+    with beam.Pipeline(options=my_options) as p:
+      # Add a branch for logging the ValueProvider value.
+      vp_output = (p
+                   | beam.Create([None])
+                   | 'LogValueProvider' >> beam.ParDo(
+                LogValueProvidersFn(my_options.string_value)))
+
+      # Test value provider argument : is equal to given string 'the quick brown fox jumps over the lazy dog'
+      assert_that(vp_output, equal_to(['the quick brown fox jumps over the lazy dog']),
+                  label='assert_value_provider')
+
+      # The main pipeline.
+      main_pipeline_output = (p
+                              | 'CreatePCollection' >> beam.Create([1, 2, 3])
+                              | 'AggregateSum' >> beam.CombineGlobally(sum))
+
+      # Test main pipeline output : Sum should be equal to 6.
+      assert_that(main_pipeline_output, equal_to([6]), label='assert_main_output')
+
+      # [END AccessingValueProviderInfoAfterRunSnip1]
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

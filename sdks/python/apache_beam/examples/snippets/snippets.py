@@ -1378,12 +1378,15 @@ def accessing_valueprovider_info_after_run():
 
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.utils.value_provider import RuntimeValueProvider
-  from apache_beam.io import WriteToText
+
+  # Set logging level to INFO
+  logging.getLogger().setLevel(logging.INFO)
 
   class MyOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
+      # Use add_value_provider_argument for arguments to be templatable
+      # Use add_argument as usual for non-templatable arguments
       parser.add_value_provider_argument('--string_value', type=str)
 
   class LogValueProvidersFn(beam.DoFn):
@@ -1394,28 +1397,24 @@ def accessing_valueprovider_info_after_run():
     # The DoFn is called when creating the pipeline branch.
     # This example logs the ValueProvider value, but
     # you could store it by pushing it to an external database.
-    def process(self, an_int):
+    def process(self, an_int, **kwargs):
       logging.info('The string_value is %s' % self.string_vp.get())
-      # Another option (where you don't need to pass the value at all) is:
-      logging.info('The string value is %s' %
-                   RuntimeValueProvider.get_value('string_value', str, ''))
 
   pipeline_options = PipelineOptions()
-  # Create pipeline.
-  p = beam.Pipeline(options=pipeline_options)
 
   my_options = pipeline_options.view_as(MyOptions)
-  # Add a branch for logging the ValueProvider value.
-  _ = (p
-       | beam.Create([None])
-       | 'LogValueProvs' >> beam.ParDo(
-           LogValueProvidersFn(my_options.string_value)))
 
-  # The main pipeline.
-  result_pc = (p
-               | "main_pc" >> beam.Create([1, 2, 3])
-               | beam.combiners.Sum.Globally())
+  # Create pipeline.
+  with beam.Pipeline(options=my_options) as p:
+    # Add a branch for logging the ValueProvider value.
+    _ = (p
+         | beam.Create([None])
+         | 'LogValueProvider' >> beam.ParDo(
+              LogValueProvidersFn(my_options.string_value)))
 
-  p.run().wait_until_finish()
+    # The main pipeline.
+    _ = (p
+         | "CreatePCollection" >> beam.Create([1, 2, 3])
+         | "AggregateSum" >> beam.CombineGlobally(sum))
 
-  # [END AccessingValueProviderInfoAfterRunSnip1]
+    # [END AccessingValueProviderInfoAfterRunSnip1]
