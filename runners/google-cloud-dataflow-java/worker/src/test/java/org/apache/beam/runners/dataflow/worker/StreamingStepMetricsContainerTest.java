@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind.SUM;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.not;
@@ -75,7 +74,7 @@ public class StreamingStepMetricsContainerTest {
                                 .setOriginNamespace("ns")
                                 .setName("name1")
                                 .setOriginalStepName("s1"))
-                        .setMetadata(new CounterMetadata().setKind(SUM.toString())))
+                        .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
                 .setCumulative(false)
                 .setInteger(longToSplitInt(5)),
             new CounterUpdate()
@@ -87,7 +86,7 @@ public class StreamingStepMetricsContainerTest {
                                 .setOriginNamespace("ns")
                                 .setName("name1")
                                 .setOriginalStepName("s2"))
-                        .setMetadata(new CounterMetadata().setKind(SUM.toString())))
+                        .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
                 .setCumulative(false)
                 .setInteger(longToSplitInt(8)),
             new CounterUpdate()
@@ -99,7 +98,7 @@ public class StreamingStepMetricsContainerTest {
                                 .setOriginNamespace("ns")
                                 .setName("name2")
                                 .setOriginalStepName("s2"))
-                        .setMetadata(new CounterMetadata().setKind(SUM.toString())))
+                        .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
                 .setCumulative(false)
                 .setInteger(longToSplitInt(12))));
 
@@ -118,7 +117,7 @@ public class StreamingStepMetricsContainerTest {
                                 .setOriginNamespace("ns")
                                 .setName("name1")
                                 .setOriginalStepName("s2"))
-                        .setMetadata(new CounterMetadata().setKind(SUM.toString())))
+                        .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
                 .setCumulative(false)
                 .setInteger(longToSplitInt(7))));
   }

@@ -78,6 +78,7 @@ import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.Str
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
+import org.apache.beam.runners.dataflow.worker.counters.CounterUpdateAggregators;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
@@ -198,6 +199,8 @@ public class StreamingDataflowWorker {
 
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
+
+  private final AtomicLong counter_aggregation_error_count = new AtomicLong();
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
   private static boolean isOutOfMemoryError(Throwable t) {
@@ -1920,30 +1923,28 @@ public class StreamingDataflowWorker {
 
         // Aggregates counterUpdates with same counterUpdateKey to single CounterUpdate if possible
         // so we can avoid excessive I/Os for reporting to dataflow service.
-        List<CounterUpdateAggregator> availableAggregators =
-            CounterUpdateAggregator.getAllAvailableCounterUpdateAggregators();
         for (List<CounterUpdate> counterUpdateList : fnApiCounters.values()) {
-          if (counterUpdateList.size() == 0) {
+          if (counterUpdateList.isEmpty()) {
             continue;
           }
-          CounterUpdate head = counterUpdateList.get(0);
-          boolean aggregatable = false;
-          for (CounterUpdateAggregator aggregator : availableAggregators) {
-            if (aggregator.isCorrespondingCounterUpdate(head)) {
-              counterUpdates.add(aggregator.aggregate(counterUpdateList));
-              aggregatable = true;
-              break;
+          List<CounterUpdate> aggregatedCounterUpdateList =
+              CounterUpdateAggregators.aggregate(counterUpdateList);
+
+          if (aggregatedCounterUpdateList.size() > 10) {
+            CounterUpdate head = aggregatedCounterUpdateList.get(0);
+            this.counter_aggregation_error_count.getAndIncrement();
+            if (this.counter_aggregation_error_count.get() > 10
+                && Long.bitCount(this.counter_aggregation_error_count.get()) == 1) {
+              LOG.warn(
+                  "Found non-aggregated counter updates of size {} with kind {}, this will likely "
+                      + "cause performance degradation and excessive GC if size is large.",
+                  counterUpdateList.size(),
+                  MoreObjects.firstNonNull(
+                      head.getNameAndKind(), head.getStructuredNameAndMetadata()));
             }
           }
-          if (!aggregatable) {
-            LOG.debug(
-                "Found non-aggregated counter updates of size {} with kind {}, this will "
-                    + "likely cause performance degradation if size is large.",
-                counterUpdateList.size(),
-                MoreObjects.firstNonNull(
-                    head.getNameAndKind(), head.getStructuredNameAndMetadata()));
-            counterUpdates.addAll(counterUpdateList);
-          }
+
+          counterUpdates.addAll(aggregatedCounterUpdateList);
         }
       }
     }

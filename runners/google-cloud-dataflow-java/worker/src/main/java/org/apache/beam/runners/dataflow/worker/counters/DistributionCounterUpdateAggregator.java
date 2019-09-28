@@ -15,47 +15,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.counters;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.api.services.dataflow.model.IntegerMean;
+import com.google.api.services.dataflow.model.DistributionUpdate;
 import java.util.List;
-import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 
-public class MeanCounterUpdateAggregator implements CounterUpdateAggregator {
+public class DistributionCounterUpdateAggregator implements CounterUpdateAggregator {
 
   @Override
   public CounterUpdate aggregate(List<CounterUpdate> counterUpdates) {
+
     if (counterUpdates == null || counterUpdates.isEmpty()) {
       return null;
     }
-    if (counterUpdates.stream().anyMatch(c -> c.getIntegerMean() == null)) {
+    if (counterUpdates.stream().anyMatch(c -> c.getDistribution() == null)) {
       throw new UnsupportedOperationException(
-          "Aggregating MEAN counter updates over non-integerMean type is not implemented.");
+          "Aggregating DISTRIBUTION counter updates over non-distribution type is not implemented.");
     }
-
     CounterUpdate initial = counterUpdates.remove(0);
     return counterUpdates.stream()
         .reduce(
             initial,
             (first, second) ->
-                first.setIntegerMean(
-                    new IntegerMean()
+                first.setDistribution(
+                    new DistributionUpdate()
                         .setCount(
                             longToSplitInt(
-                                splitIntToLong(first.getIntegerMean().getCount())
-                                    + splitIntToLong(second.getIntegerMean().getCount())))
+                                splitIntToLong(first.getDistribution().getCount())
+                                    + splitIntToLong(second.getDistribution().getCount())))
+                        .setMax(
+                            longToSplitInt(
+                                Math.max(
+                                    splitIntToLong(first.getDistribution().getMax()),
+                                    splitIntToLong(second.getDistribution().getMax()))))
+                        .setMin(
+                            longToSplitInt(
+                                Math.min(
+                                    splitIntToLong(first.getDistribution().getMin()),
+                                    splitIntToLong(second.getDistribution().getMin()))))
                         .setSum(
                             longToSplitInt(
-                                splitIntToLong(first.getIntegerMean().getSum())
-                                    + splitIntToLong(second.getIntegerMean().getSum())))));
-  }
-
-  @Override
-  public Kind getKind() {
-    return Kind.MEAN;
+                                splitIntToLong(first.getDistribution().getSum())
+                                    + splitIntToLong(second.getDistribution().getSum())))));
   }
 }

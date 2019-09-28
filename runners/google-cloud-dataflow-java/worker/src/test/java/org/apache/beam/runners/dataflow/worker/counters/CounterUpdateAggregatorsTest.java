@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.counters;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
@@ -25,27 +25,59 @@ import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
+import com.google.api.services.dataflow.model.IntegerMean;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
-import org.junit.Before;
 import org.junit.Test;
 
-public class DistributionCounterUpdateAggregatorTest {
+public class CounterUpdateAggregatorsTest {
 
-  private List<CounterUpdate> counterUpdates;
-  private DistributionCounterUpdateAggregator aggregator;
-
-  @Before
-  public void setUp() {
-    counterUpdates = new ArrayList<>();
-    aggregator = new DistributionCounterUpdateAggregator();
+  @Test
+  public void testAggregateSum() {
+    List<CounterUpdate> sumUpdates = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
-      counterUpdates.add(
+      sumUpdates.add(
+          new CounterUpdate()
+              .setStructuredNameAndMetadata(
+                  new CounterStructuredNameAndMetadata()
+                      .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
+              .setInteger(longToSplitInt((long) i)));
+    }
+    List<CounterUpdate> aggregated = CounterUpdateAggregators.aggregate(sumUpdates);
+    assertEquals(1, aggregated.size());
+    CounterUpdate combined = aggregated.get(0);
+    assertEquals(45L, splitIntToLong(combined.getInteger()));
+  }
+
+  @Test
+  public void testAggregateMean() {
+    List<CounterUpdate> meanUpdates = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      meanUpdates.add(
           new CounterUpdate()
               .setStructuredNameAndMetadata(
                   new CounterStructuredNameAndMetadata()
                       .setMetadata(new CounterMetadata().setKind(Kind.MEAN.toString())))
+              .setIntegerMean(
+                  new IntegerMean().setSum(longToSplitInt((long) i)).setCount(longToSplitInt(1L))));
+    }
+    List<CounterUpdate> aggregated = CounterUpdateAggregators.aggregate(meanUpdates);
+    assertEquals(1, aggregated.size());
+    CounterUpdate combined = aggregated.get(0);
+    assertEquals(45L, splitIntToLong(combined.getIntegerMean().getSum()));
+    assertEquals(10L, splitIntToLong(combined.getIntegerMean().getCount()));
+  }
+
+  @Test
+  public void testAggregateDistribution() {
+    List<CounterUpdate> distributionUpdates = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      distributionUpdates.add(
+          new CounterUpdate()
+              .setStructuredNameAndMetadata(
+                  new CounterStructuredNameAndMetadata()
+                      .setMetadata(new CounterMetadata().setKind(Kind.DISTRIBUTION.toString())))
               .setDistribution(
                   new DistributionUpdate()
                       .setSum(longToSplitInt((long) i))
@@ -53,20 +85,12 @@ public class DistributionCounterUpdateAggregatorTest {
                       .setMin(longToSplitInt((long) i))
                       .setCount(longToSplitInt((long) 1))));
     }
-  }
-
-  @Test
-  public void testAggregate() {
-    CounterUpdate combined = aggregator.aggregate(counterUpdates);
+    List<CounterUpdate> aggregated = CounterUpdateAggregators.aggregate(distributionUpdates);
+    assertEquals(1, aggregated.size());
+    CounterUpdate combined = aggregated.get(0);
     assertEquals(45L, splitIntToLong(combined.getDistribution().getSum()));
     assertEquals(10L, splitIntToLong(combined.getDistribution().getCount()));
     assertEquals(9L, splitIntToLong(combined.getDistribution().getMax()));
     assertEquals(0L, splitIntToLong(combined.getDistribution().getMin()));
-  }
-
-  @Test(expected = UnsupportedOperationException.class)
-  public void testAggregateWithNullIntegerDistribution() {
-    counterUpdates.get(0).setDistribution(null);
-    aggregator.aggregate(counterUpdates);
   }
 }

@@ -15,12 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.counters;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 
 /**
  * CounterUpdateAggregator performs aggregation over a list of CounterUpdate and return combined
@@ -37,33 +35,4 @@ interface CounterUpdateAggregator {
    * @return Aggregated CounterUpdate.
    */
   CounterUpdate aggregate(List<CounterUpdate> counterUpdates);
-
-  /**
-   * CounterUpdate {@link
-   * org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind kind}
-   */
-  Kind getKind();
-
-  /**
-   * Check whether the aggregator is able to perform aggregation on the kind of CounterUpdate.
-   *
-   * @param counterUpdate the counterUpdate object to check.
-   * @return true if the aggregator can perform aggregation over these type of CounterUpdate.
-   */
-  default boolean isCorrespondingCounterUpdate(CounterUpdate counterUpdate) {
-    return (counterUpdate.getStructuredNameAndMetadata() != null
-            && counterUpdate.getStructuredNameAndMetadata().getMetadata() != null
-            && getKind()
-                .toString()
-                .equals(counterUpdate.getStructuredNameAndMetadata().getMetadata().getKind()))
-        || (counterUpdate.getNameAndKind() != null
-            && getKind().toString().equals(counterUpdate.getNameAndKind().getKind()));
-  }
-
-  static List<CounterUpdateAggregator> getAllAvailableCounterUpdateAggregators() {
-    return Arrays.asList(
-        new SumCounterUpdateAggregator(),
-        new MeanCounterUpdateAggregator(),
-        new DistributionCounterUpdateAggregator());
-  }
 }

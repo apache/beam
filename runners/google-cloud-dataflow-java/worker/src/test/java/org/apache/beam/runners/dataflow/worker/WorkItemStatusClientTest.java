@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind.*;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -54,6 +53,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.DataflowReaderPosition;
 import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedSourceSplit;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
@@ -347,7 +347,7 @@ public class WorkItemStatusClientTest {
   public void populateCounterUpdatesWithOutputCounters() throws Exception {
     final CounterUpdate counter =
         new CounterUpdate()
-            .setNameAndKind(new NameAndKind().setName("some-counter").setKind(SUM.toString()))
+            .setNameAndKind(new NameAndKind().setName("some-counter").setKind(Kind.SUM.toString()))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -369,7 +369,7 @@ public class WorkItemStatusClientTest {
   public void populateCounterUpdatesWithMetricsAndCounters() throws Exception {
     final CounterUpdate expectedCounter =
         new CounterUpdate()
-            .setNameAndKind(new NameAndKind().setName("some-counter").setKind(SUM.toString()))
+            .setNameAndKind(new NameAndKind().setName("some-counter").setKind(Kind.SUM.toString()))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -386,7 +386,7 @@ public class WorkItemStatusClientTest {
                             .setOriginNamespace("namespace")
                             .setName("some-counter")
                             .setOriginalStepName("step"))
-                    .setMetadata(new CounterMetadata().setKind(SUM.toString())))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
@@ -423,7 +423,7 @@ public class WorkItemStatusClientTest {
                             .setOrigin("SYSTEM")
                             .setName("start-msecs")
                             .setOriginalStepName("step"))
-                    .setMetadata(new CounterMetadata().setKind(SUM.toString())))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 

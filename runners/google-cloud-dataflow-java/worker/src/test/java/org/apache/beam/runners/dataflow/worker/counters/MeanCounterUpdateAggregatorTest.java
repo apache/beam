@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.counters;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
@@ -24,39 +24,43 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
+import com.google.api.services.dataflow.model.IntegerMean;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.junit.Before;
 import org.junit.Test;
 
-public class SumCounterUpdateAggregatorTest {
+public class MeanCounterUpdateAggregatorTest {
+
   private List<CounterUpdate> counterUpdates;
-  private SumCounterUpdateAggregator aggregator;
+  private MeanCounterUpdateAggregator aggregator;
 
   @Before
   public void setUp() {
     counterUpdates = new ArrayList<>();
-    aggregator = new SumCounterUpdateAggregator();
+    aggregator = new MeanCounterUpdateAggregator();
     for (int i = 0; i < 10; i++) {
       counterUpdates.add(
           new CounterUpdate()
               .setStructuredNameAndMetadata(
                   new CounterStructuredNameAndMetadata()
-                      .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
-              .setInteger(longToSplitInt((long) i)));
+                      .setMetadata(new CounterMetadata().setKind(Kind.MEAN.toString())))
+              .setIntegerMean(
+                  new IntegerMean().setSum(longToSplitInt((long) i)).setCount(longToSplitInt(1L))));
     }
   }
 
   @Test
   public void testAggregate() {
     CounterUpdate combined = aggregator.aggregate(counterUpdates);
-    assertEquals(45L, splitIntToLong(combined.getInteger()));
+    assertEquals(45L, splitIntToLong(combined.getIntegerMean().getSum()));
+    assertEquals(10L, splitIntToLong(combined.getIntegerMean().getCount()));
   }
 
   @Test(expected = UnsupportedOperationException.class)
-  public void testAggregateWithNullInteger() {
-    counterUpdates.get(0).setInteger(null);
+  public void testAggregateWithNullIntegerMean() {
+    counterUpdates.get(0).setIntegerMean(null);
     aggregator.aggregate(counterUpdates);
   }
 }
