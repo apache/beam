@@ -78,6 +78,7 @@ import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.Str
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
+import org.apache.beam.runners.dataflow.worker.counters.CounterUpdateAggregators;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
@@ -129,6 +130,7 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
@@ -197,6 +199,8 @@ public class StreamingDataflowWorker {
 
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
+
+  private final AtomicLong counterAggregationErrorCount = new AtomicLong();
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
   private static boolean isOutOfMemoryError(Throwable t) {
@@ -1891,6 +1895,8 @@ public class StreamingDataflowWorker {
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
       if (hasExperiment(options, "beam_fn_api")) {
+        Map<Object, List<CounterUpdate>> fnApiCounters = new HashMap<>();
+
         while (!this.pendingMonitoringInfos.isEmpty()) {
           final CounterUpdate item = this.pendingMonitoringInfos.poll();
 
@@ -1900,16 +1906,49 @@ public class StreamingDataflowWorker {
           // WorkItem.
           if (item.getCumulative()) {
             item.setCumulative(false);
+            // Group counterUpdates by counterUpdateKey so they can be aggregated before sending to
+            // dataflow service.
+            fnApiCounters
+                .computeIfAbsent(getCounterUpdateKey(item), k -> new ArrayList<>())
+                .add(item);
           } else {
             // In current world all counters coming from FnAPI are cumulative.
             // This is a safety check in case new counter type appears in FnAPI.
             throw new UnsupportedOperationException(
                 "FnApi counters are expected to provide cumulative values."
-                    + " Please, update convertion to delta logic"
+                    + " Please, update conversion to delta logic"
                     + " if non-cumulative counter type is required.");
           }
+        }
 
-          counterUpdates.add(item);
+        // Aggregates counterUpdates with same counterUpdateKey to single CounterUpdate if possible
+        // so we can avoid excessive I/Os for reporting to dataflow service.
+        for (List<CounterUpdate> counterUpdateList : fnApiCounters.values()) {
+          if (counterUpdateList.isEmpty()) {
+            continue;
+          }
+          List<CounterUpdate> aggregatedCounterUpdateList =
+              CounterUpdateAggregators.aggregate(counterUpdateList);
+
+          // Log a warning message if encountered enough non-aggregatable counter updates since this
+          // can lead to a severe performance penalty if dataflow service can not handle the
+          // updates.
+          if (aggregatedCounterUpdateList.size() > 10) {
+            CounterUpdate head = aggregatedCounterUpdateList.get(0);
+            this.counterAggregationErrorCount.getAndIncrement();
+            // log warning message only when error count is the power of 2 to avoid spamming.
+            if (this.counterAggregationErrorCount.get() > 10
+                && Long.bitCount(this.counterAggregationErrorCount.get()) == 1) {
+              LOG.warn(
+                  "Found non-aggregated counter updates of size {} with kind {}, this will likely "
+                      + "cause performance degradation and excessive GC if size is large.",
+                  counterUpdateList.size(),
+                  MoreObjects.firstNonNull(
+                      head.getNameAndKind(), head.getStructuredNameAndMetadata()));
+            }
+          }
+
+          counterUpdates.addAll(aggregatedCounterUpdateList);
         }
       }
     }
