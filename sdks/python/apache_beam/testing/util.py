@@ -121,15 +121,21 @@ def equal_to(expected):
 
     # Try to compare actual and expected by sorting. This fails with a
     # TypeError in Python 3 if different types are present in the same
-    # collection.
+    # collection. It can also raise false negatives for types that don't have
+    # a deterministic sort order, like pyarrow Tables as of 0.14.1
     try:
       sorted_expected = sorted(expected)
       sorted_actual = sorted(actual)
       if sorted_expected != sorted_actual:
         raise BeamAssertException(
             'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
-    # Fall back to slower method which works for different types on Python 3.
-    except TypeError:
+    # Slower method, used in two cases:
+    # 1) If sorted expected != actual, use this method to verify the inequality.
+    #    This ensures we don't raise any false negatives for types that don't
+    #    have a deterministic sort order.
+    # 2) As a fallback if we encounter a TypeError in python 3. this method
+    #    works on collections that have different types.
+    except (BeamAssertException, TypeError):
       for element in actual:
         try:
           expected_list.remove(element)
