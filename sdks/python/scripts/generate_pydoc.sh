@@ -48,6 +48,9 @@ members,\
 undoc-members,\
 show-inheritance
 
+python_version=`python -V`
+current_minor_version=`echo ${python_version} | sed -E "s/Python 3.([0-9])\..*/\1/"`
+
 # Exclude internal, test, and Cython paths/patterns from the documentation.
 excluded_patterns=(
     apache_beam/coders/stream.*
@@ -76,8 +79,7 @@ excluded_patterns=(
     *_pb2.py
     *_test.py
     *_test_common.py
-    # TODO(BEAM-7847): Remove this once doc generation can parse Py3 syntax.
-    *_py3*.py
+    *_py3[`echo $(($current_minor_version+1))`-9]*.py
 )
 
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
@@ -90,6 +92,8 @@ import os
 import sys
 
 import sphinx_rtd_theme
+
+import numpy
 
 sys.path.insert(0, os.path.abspath('../../..'))
 
@@ -111,6 +115,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 project = 'Apache Beam'
 
 autoclass_content = 'both'
+autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 
 doctest_global_setup = '''
@@ -118,7 +123,7 @@ import apache_beam as beam
 '''
 
 intersphinx_mapping = {
-  'python': ('https://docs.python.org/2', None),
+  'python': ('https://docs.python.org/3', None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
   'google-cloud': ('https://google-cloud-python.readthedocs.io/en/stable/', None),
 }
@@ -172,7 +177,8 @@ ignore_identifiers = [
   'apache_beam.utils.windowed_value._IntervalWindowBase',
 
   # Private classes which are used within the same module
-  'WindowedTypeConstraint',  # apache_beam.typehints.typehints
+  'apache_beam.transforms.external_test.PayloadBase',
+  'apache_beam.typehints.typehints.WindowedTypeConstraint',
 
   # stdlib classes without documentation
   'unittest.case.TestCase',
@@ -184,7 +190,13 @@ ignore_identifiers = [
   '_RestrictionDoFnParam',
 
   # Sphinx cannot find this py:class reference target
+  'callable',
+  'types.FunctionType',
   'typing.Generic',
+  'uuid',
+  'google.cloud.datastore.key.Key',
+  'google.cloud.datastore.entity.Entity',
+  'google.cloud.datastore.batch.Batch',
 ]
 
 # When inferring a base class it will use ':py:class'; if inferring a function

@@ -342,8 +342,8 @@ class CompressedFile(object):
         should be negative).
 
     Raises:
-      ~exceptions.IOError: When this buffer is closed.
-      ~exceptions.ValueError: When whence is invalid or the file is not seekable
+      IOError: When this buffer is closed.
+      ValueError: When whence is invalid or the file is not seekable
     """
     if whence == os.SEEK_SET:
       absolute_offset = offset

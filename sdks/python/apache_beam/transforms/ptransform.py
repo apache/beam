@@ -339,7 +339,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      ~exceptions.TypeError: If **input_type_hint** is not a valid type-hint.
+      TypeError: If **input_type_hint** is not a valid type-hint.
         See
         :obj:`apache_beam.typehints.typehints.validate_composite_type_param()`
         for further details.
@@ -363,7 +363,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         or a :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      ~exceptions.TypeError: If **type_hint** is not a valid type-hint. See
+      TypeError: If **type_hint** is not a valid type-hint. See
         :obj:`~apache_beam.typehints.typehints.validate_composite_type_param()`
         for further details.
 
@@ -728,7 +728,7 @@ class PTransformWithSideInputs(PTransform):
       FlatMap().with_input_types(int, int, bool)
 
     Raises:
-      :class:`~exceptions.TypeError`: If **type_hint** is not a valid type-hint.
+      :class:`TypeError`: If **type_hint** is not a valid type-hint.
         See
         :func:`~apache_beam.typehints.typehints.validate_composite_type_param`
         for further details.

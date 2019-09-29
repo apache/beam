@@ -39,7 +39,11 @@ test.dependsOn testPy37Cython
 // project.
 testPy37Cython.mustRunAfter testPython37, testPy37Gcp
 
+toxTask "docs", "docs"
+assemble.dependsOn docs
+
 task preCommitPy37() {
+    dependsOn "docs"
     dependsOn "testPython37"
     dependsOn "testPy37Gcp"
     dependsOn "testPy37Cython"

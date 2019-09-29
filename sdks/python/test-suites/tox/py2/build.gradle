@@ -51,7 +51,6 @@ assemble.dependsOn docs
 toxTask "cover", "cover"
 
 task preCommitPy2() {
-  dependsOn "docs"
   dependsOn "testPy2Cython"
   dependsOn "testPython2"
   dependsOn "testPy2Gcp"

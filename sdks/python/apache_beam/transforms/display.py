@@ -130,7 +130,7 @@ class DisplayData(object):
       DisplayData: A :class:`DisplayData` instance with populated items.
 
     Raises:
-      ~exceptions.ValueError: If the **has_display_data** argument is
+      ValueError: If the **has_display_data** argument is
         not an instance of :class:`HasDisplayData`.
     """
     from apache_beam.options.pipeline_options import PipelineOptions
@@ -153,7 +153,7 @@ class DisplayData(object):
       DisplayData: A :class:`DisplayData` instance with populated items.
 
     Raises:
-      ~exceptions.ValueError: If the **has_display_data** argument is
+      ValueError: If the **has_display_data** argument is
         not an instance of :class:`HasDisplayData`.
     """
     if not isinstance(has_display_data, HasDisplayData):
@@ -228,7 +228,7 @@ class DisplayDataItem(object):
     :data:`None`.
 
     Raises:
-      ~exceptions.ValueError: If the item does not have a key, namespace,
+      ValueError: If the item does not have a key, namespace,
         value or type.
     """
     if self.key is None:
@@ -269,7 +269,7 @@ class DisplayDataItem(object):
       the :class:`DisplayDataItem`.
 
     Raises:
-      ~exceptions.ValueError: if the item is not valid.
+      ValueError: if the item is not valid.
     """
     self.is_valid()
     return self._get_dict()
