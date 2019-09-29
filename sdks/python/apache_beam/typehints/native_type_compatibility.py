@@ -190,7 +190,7 @@ def convert_to_beam_type(typ):
     conversion.
 
   Raises:
-    ~exceptions.ValueError: The type was malformed.
+    ValueError: The type was malformed.
   """
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
@@ -302,7 +302,7 @@ def convert_to_typing_type(typ):
     Converted version of typ, or unchanged.
 
   Raises:
-    ~exceptions.ValueError: The type was malformed or could not be converted.
+    ValueError: The type was malformed or could not be converted.
   """
   if isinstance(typ, typehints.TypeVariable):
     # This is a special case, as it's not parameterized by types.
