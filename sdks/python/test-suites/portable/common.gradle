@@ -17,6 +17,8 @@
  */
 
 def pythonRootDir = "${rootDir}/sdks/python"
+def pythonContainerSuffix = project.ext.pythonVersion == '2.7' ? '2' : project.ext.pythonVersion.replace('.', '')
+def pythonContainerTask = ":sdks:python:container:py${pythonContainerSuffix}:docker"
 
 class CompatibilityMatrixConfig {
   // Execute batch or streaming pipelines.
@@ -45,7 +47,7 @@ def flinkCompatibilityMatrix = {
     dependsOn 'setupVirtualenv'
     dependsOn ':runners:flink:1.8:job-server:shadowJar'
     if (workerType.toLowerCase() == 'docker')
-      dependsOn ':sdks:python:container:py2:docker'
+      dependsOn pythonContainerTask
     else if (workerType.toLowerCase() == 'process')
       dependsOn 'createProcessWorker'
     doLast {
