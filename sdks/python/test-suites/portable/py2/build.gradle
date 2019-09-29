@@ -34,6 +34,8 @@ task preCommitPy2() {
   dependsOn portableWordCountStreaming
 }
 
+// TODO: Move the rest of this file into ../common.gradle.
+
 // Before running this, you need to:
 //
 // 1. Build the SDK container:

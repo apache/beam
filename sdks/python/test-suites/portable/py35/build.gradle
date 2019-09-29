@@ -20,6 +20,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 // Required to setup a Python 3.5 virtualenv.
 pythonVersion = '3.5'
+apply from: "../common.gradle"
 
 addPortableWordCountTasks()
 
@@ -29,4 +30,3 @@ task preCommitPy35() {
     dependsOn portableWordCountBatch
     dependsOn portableWordCountStreaming
 }
-
