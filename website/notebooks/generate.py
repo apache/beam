@@ -96,7 +96,7 @@ def run(docs, variables=None,
       print('')
       print(input_file)
       print('-' * len(input_file))
-      traceback.print_tb(e.__traceback__)
+      traceback.print_exception(type(e), e, e.__traceback__)
 
   print('')
   print('{} files processed ({} succeeded, {} failed)'.format(

@@ -43,18 +43,18 @@ We use the function `str.split` which takes a single `str` element and outputs a
 This pipeline splits the input element using whitespaces, creating a list of zero or more elements.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_simple %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_simple %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 ### Example 2: FlatMap with a function
@@ -62,18 +62,18 @@ Output `PCollection` after `FlatMap`:
 We define a function `split_words` which splits an input `str` element using the delimiter `','` and outputs a `list` of `str`s.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_function %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_function %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 ### Example 3: FlatMap with a lambda function
@@ -83,18 +83,18 @@ Each input element is already an `iterable`, where each element is what we want 
 We use a lambda function that returns the same input element it received.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_lambda %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_lambda %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 ### Example 4: FlatMap with a generator
@@ -104,18 +104,18 @@ We use a generator to iterate over the input list and yield each of the elements
 Each yielded result in the generator is an element in the resulting `PCollection`.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_generator %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_generator %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 ### Example 5: FlatMapTuple for key-value pairs
@@ -124,18 +124,18 @@ If your `PCollection` consists of `(key, value)` pairs,
 you can use `FlatMapTuple` to unpack them into different function arguments.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_tuple %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_tuple %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMapTuple`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 ### Example 6: FlatMap with multiple arguments
@@ -146,18 +146,18 @@ They are passed as additional positional arguments or keyword arguments to the f
 In this example, `split_words` takes `text` and `delimiter` as arguments.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_multiple_arguments %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_multiple_arguments %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 ### Example 7: FlatMap with side inputs as singletons
@@ -169,18 +169,18 @@ In this example, we pass a `PCollection` the value `','` as a singleton.
 We then use that value as the delimiter for the `str.split` method.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_singleton %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_side_inputs_singleton %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 ### Example 8: FlatMap with side inputs as iterators
@@ -190,18 +190,18 @@ This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_iter %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_side_inputs_iter %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:valid_plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
@@ -215,25 +215,25 @@ Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py tag:flat_map_side_inputs_dict %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py tag:flatmap_side_inputs_dict %}```
 
 {:.notebook-skip}
 Output `PCollection` after `FlatMap`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py tag:valid_plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
 %}
 
 ## Related transforms
 
 * [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just 
   deciding whether to output an element or not.
-* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
+* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs. 
 * [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
 

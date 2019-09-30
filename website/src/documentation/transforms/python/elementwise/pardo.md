@@ -24,17 +24,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.core" class="ParDo" %}
 
 A transform for generic parallel processing.
 A `ParDo` transform considers each element in the input `PCollection`,
@@ -57,24 +47,17 @@ The `process` method is called once per element,
 and it can yield zero or more output elements.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py tag:pardo_dofn %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn %}```
 
 Output `PCollection` after `ParDo`:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo_test.py tag:plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:plants %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
+%}
 
 ### Example 2: ParDo with timestamp and window information
 
@@ -90,24 +73,17 @@ In this example, we add new parameters to the `process` method to bind parameter
   object.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py tag:pardo_dofn_params %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn_params %}```
 
 `stdout` output:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo_test.py tag:dofn_params %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:dofn_params %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
+%}
 
 ### Example 3: ParDo with DoFn methods
 
@@ -155,24 +131,17 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   For example, if the worker crashes, `teardown` might not be called.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py tag:pardo_dofn_methods %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn_methods %}```
 
 `stdout` output:
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo_test.py tag:results %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:results %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
+%}
 
 > *Known issues:*
 >
@@ -189,14 +158,4 @@ starts and finishes with `start_bundle` and `finish_bundle`.
 * [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.core" class="ParDo" %}
