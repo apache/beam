@@ -640,7 +640,7 @@ class FlinkBatchTransformTranslators {
       TypeInformation<WindowedValue<T>> outputType = context.getTypeInfo(collection);
 
       FlinkMultiOutputPruningFunction<T> pruningFunction =
-          new FlinkMultiOutputPruningFunction<>(integerTag);
+          new FlinkMultiOutputPruningFunction<>(integerTag, context.getPipelineOptions());
 
       FlatMapOperator<WindowedValue<RawUnionValue>, WindowedValue<T>> pruningOperator =
           new FlatMapOperator<>(taggedDataSet, outputType, pruningFunction, collection.getName());
