@@ -29,6 +29,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
@@ -47,7 +48,7 @@ import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -79,6 +80,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   // Main constructor fields. All must be Serializable because Flink distributes Functions to
   // task managers via java serialization.
 
+  // Pipeline options for initializing the FileSystems
+  private final SerializablePipelineOptions pipelineOptions;
   // The executable stage this function will run.
   private final RunnerApi.ExecutableStagePayload stagePayload;
   // Pipeline options. Used for provisioning api.
@@ -104,11 +107,13 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private transient Object currentTimerKey;
 
   public FlinkExecutableStageFunction(
+      PipelineOptions pipelineOptions,
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
       FlinkExecutableStageContextFactory contextFactory,
       Coder windowCoder) {
+    this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
@@ -120,8 +125,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   @Override
   public void open(Configuration parameters) throws Exception {
     // Register standard file systems.
-    // TODO Use actual pipeline options.
-    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
+    FileSystems.setDefaultPipelineOptions(pipelineOptions.get());
     executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
     container = new FlinkMetricContainer(getRuntimeContext());
