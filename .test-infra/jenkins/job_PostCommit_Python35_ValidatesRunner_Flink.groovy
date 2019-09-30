@@ -16,27 +16,23 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-// This job runs the suite of Python ValidatesRunner tests against the Flink runner on Python 2.
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Python_PVR_Flink',
-    gradleTask: ':sdks:python:test-suites:portable:py2:flinkValidatesRunner',
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^runners/core-construction-java/.*$',
-      '^runners/core-java/.*$',
-      '^runners/extensions-java/.*$',
-      '^runners/flink/.*$',
-      '^runners/java-fn-execution/.*$',
-      '^runners/reference/.*$',
-      '^sdks/python/.*$',
-      '^release/.*$',
-      // Test regressions of cross-language KafkaIO test
-      '^sdks/java/io/kafka/.*$',
-    ]
-)
-builder.build {
-    previousNames('beam_PostCommit_Python_VR_Flink')
+// This job runs the suite of Python ValidatesRunner tests against the Flink runner on Python 3.5.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python35_VR_Flink',
+  'Run Python 3.5 Flink ValidatesRunner', 'Python Flink ValidatesRunner Tests', this) {
+  description('Runs the Python ValidatesRunner suite on the Flink runner.')
+
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
+
+  // Gradle goals for this job.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:python:test-suites:portable:py35:flinkValidatesRunner')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+  }
 }
