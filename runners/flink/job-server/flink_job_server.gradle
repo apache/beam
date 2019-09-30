@@ -189,7 +189,8 @@ task testPipelineJar() {
         "--flink_job_server_jar ${shadowJar.archivePath}",
         "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
         "--python_root_dir ${project.rootDir}/sdks/python",
-        "--python_version 3.5"
+        "--python_version 3.5",
+        "--python_container_image apachebeam/python3.5_sdk:${project['python_sdk_version']}",
       ]
       args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
     }
