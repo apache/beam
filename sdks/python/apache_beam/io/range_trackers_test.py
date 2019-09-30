@@ -88,14 +88,10 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     tracker = range_trackers.OffsetRangeTracker(100, 200)
     self.assertFalse(tracker.try_split(150))
 
-  def test_split_at_offset(self):
+  def test_split_at_suggested_offset(self):
     tracker = range_trackers.OffsetRangeTracker(100, 200)
     self.assertTrue(tracker.try_claim(110))
-    # Example positions we shouldn't split at, when last record starts at 110:
-    self.assertFalse(tracker.try_split(109))
-    self.assertFalse(tracker.try_split(110))
-    self.assertFalse(tracker.try_split(200))
-    self.assertFalse(tracker.try_split(210))
+
     # Example positions we *should* split at:
     self.assertTrue(copy.copy(tracker).try_split(111))
     self.assertTrue(copy.copy(tracker).try_split(129))
@@ -122,6 +118,36 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     tracker.set_current_position(152)
     tracker.set_current_position(160)
     tracker.set_current_position(171)
+
+  def test_split_at_adjusted_position(self):
+    tracker = range_trackers.OffsetRangeTracker(100, 200)
+    self.assertTrue(tracker.try_claim(110))
+    # Suggested split position is invalid because it already past proposed stop
+    # offset.
+    split_pos, _ = tracker.try_split(109)
+    self.assertEqual(tracker.last_attempted_record_start + 1, split_pos)
+
+    tracker = range_trackers.OffsetRangeTracker(100, 200)
+    self.assertTrue(tracker.try_claim(110))
+    # Suggested split position is invalid because it's less than the start.
+    split_pos, _ = tracker.try_split(99)
+    self.assertEqual(tracker.last_attempted_record_start + 1, split_pos)
+
+    tracker = range_trackers.OffsetRangeTracker(100, 200)
+    self.assertTrue(tracker.try_claim(110))
+    # Suggested split position is invalid because it's greater than the stop.
+    split_pos, _ = tracker.try_split(210)
+    self.assertEqual(tracker.last_attempted_record_start + 1, split_pos)
+
+  def test_cannot_split_after_adjustment(self):
+    tracker = range_trackers.OffsetRangeTracker(100, 200)
+    self.assertTrue(tracker.try_claim(199))
+    # All the suggested split points are invalid. try_split try to split at
+    # (199 + 1), but still invalid, which means current range cannot be split
+    # further.
+    self.assertFalse(tracker.try_split(90))
+    self.assertFalse(tracker.try_split(199))
+    self.assertFalse(tracker.try_split(210))
 
   def test_get_position_for_fraction_dense(self):
     # Represents positions 3, 4, 5.

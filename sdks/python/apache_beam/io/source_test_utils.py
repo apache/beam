@@ -281,6 +281,13 @@ def _assert_split_at_fraction_behavior(
   reader_iter = iter(reader)
   for _ in range(num_items_to_read_before_split):
     current_items.append(next(reader_iter))
+  # When expected to read the whole file, invoke try_claim() one more time to
+  # claim the whole range.
+  if len(expected_items) == num_items_to_read_before_split:
+    try:
+      next(reader_iter)
+    except StopIteration:
+      pass
 
   suggested_split_position = range_tracker.position_at_fraction(
       split_fraction)

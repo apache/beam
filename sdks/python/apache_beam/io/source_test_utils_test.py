@@ -100,12 +100,10 @@ class SourceTestUtilsTest(unittest.TestCase):
   def test_split_at_fraction_fails(self):
     data = self._create_data(100)
     source = self._create_source(data)
-
     result = source_test_utils.assert_split_at_fraction_behavior(
-        source, 90, 0.1, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
+        source, 100, 0.1, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
     self.assertEqual(result[0], 100)
     self.assertEqual(result[1], -1)
-
     with self.assertRaises(ValueError):
       source_test_utils.assert_split_at_fraction_behavior(
           source, 10, 0.5, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
