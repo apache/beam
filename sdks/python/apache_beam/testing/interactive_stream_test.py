@@ -39,9 +39,6 @@ def get_open_port():
 
 def to_timestamp_proto(timestamp_secs):
   """Converts seconds since epoch to a google.protobuf.Timestamp.
-
-  Args:
-    timestamp_secs: The timestamp in seconds since epoch.
   """
   seconds = int(timestamp_secs)
   nanos = int((timestamp_secs - seconds) * 10**9)
@@ -58,7 +55,7 @@ class InMemoryReader(object):
           element=element,
           processing_time=to_timestamp_proto(i),
           watermark=to_timestamp_proto(i))
-      yield record
+      yield record.SerializeToString()
 
 
 class InteractiveStreamTest(unittest.TestCase):
@@ -75,13 +72,13 @@ class InteractiveStreamTest(unittest.TestCase):
     self.stub.Status(interactive_api.StatusRequest())
 
   def test_start_call(self):
-    self.stub.Start(interactive_api.StartRequest())
+    self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
 
     status = self.stub.Status(interactive_api.StatusRequest())
     self.assertEqual(status.state, interactive_api.StatusResponse.State.RUNNING)
 
   def test_stop_call(self):
-    self.stub.Start(interactive_api.StartRequest())
+    self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
     self.stub.Stop(interactive_api.StopRequest())
 
     status = self.stub.Status(interactive_api.StatusRequest())
@@ -93,7 +90,7 @@ class InteractiveStreamTest(unittest.TestCase):
     status = self.stub.Status(interactive_api.StatusRequest())
     self.assertEqual(status.state, interactive_api.StatusResponse.State.STOPPED)
 
-    self.stub.Start(interactive_api.StartRequest())
+    self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
 
     events = [e for e in self.stub.Events(interactive_api.EventsRequest())]
     self.assertTrue(events)

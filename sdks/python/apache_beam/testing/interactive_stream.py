@@ -23,8 +23,6 @@ from apache_beam.portability.api.beam_interactive_api_pb2_grpc import Interactiv
 from concurrent.futures import ThreadPoolExecutor
 
 class InteractiveStreamController(InteractiveServiceServicer):
-  # TODO(srohde): Add real-time playback with speed multiplier
-
   def __init__(self, endpoint, streaming_cache):
     self._endpoint = endpoint
     self._server = grpc.server(ThreadPoolExecutor(max_workers=10))
@@ -34,11 +32,13 @@ class InteractiveStreamController(InteractiveServiceServicer):
     self._server.start()
 
     self._streaming_cache = streaming_cache
-    self._interrupt = False
     self._state = 'STOPPED'
+    self._playback_speed = 1.0
 
   def Start(self, request, context):
     self._next_state('RUNNING')
+    self._playback_speed = request.playback_speed or 1.0
+    self._playback_speed = max(min(self._playback_speed, 1000000.0), 0.001)
     return beam_interactive_api_pb2.StartResponse()
 
   def Stop(self, request, context):
@@ -66,22 +66,27 @@ class InteractiveStreamController(InteractiveServiceServicer):
       return beam_interactive_api_pb2.StatusResponse.PAUSED
     return beam_interactive_api_pb2.StatusResponse.RUNNING
 
+  def _reset_state(self):
+    self._reader = None
+    self._playback_speed = 1.0
+    self._state = 'STOPPED'
+
   def _next_state(self, state):
     if not self._state or self._state == 'STOPPED':
       if state == 'RUNNING' or state == 'STEP':
         self._reader = self._streaming_cache.reader()
     elif self._state == 'RUNNING':
       if state == 'STOPPED':
-        self._reader = None
+        self._reset_state()
     self._state = state
 
   def Events(self, request, context):
     import time
-    while (self._state != 'RUNNING' and self._state != 'STEP'
-           and not self._interrupt):
+    while (self._state != 'RUNNING' and self._state != 'STEP' and
+           self._state != 'STOPPED'):
       time.sleep(0.01)
 
-    if self._interrupt:
+    if self._state == 'STOPPED':
       resp = beam_interactive_api_pb2.EventsResponse()
       resp.end_of_stream = True
       yield resp
@@ -90,6 +95,11 @@ class InteractiveStreamController(InteractiveServiceServicer):
     events = self._reader.read()
     if events:
       for e in events:
+        if e.HasField('processing_time_event'):
+          sleep_duration = (
+              e.processing_time_event.advance_duration / self._playback_speed
+              ) * 10**-6
+          time.sleep(sleep_duration)
         yield beam_interactive_api_pb2.EventsResponse(events=[e])
     else:
       resp = beam_interactive_api_pb2.EventsResponse()

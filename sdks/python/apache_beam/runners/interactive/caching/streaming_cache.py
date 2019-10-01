@@ -24,9 +24,6 @@ from google.protobuf import timestamp_pb2
 
 def to_timestamp(timestamp_secs):
   """Converts seconds since epoch to an apache_beam.util.Timestamp.
-
-  Args:
-    timestamp_secs: The timestamp in seconds since epoch.
   """
   return timestamp.Timestamp.of(timestamp_secs)
 
