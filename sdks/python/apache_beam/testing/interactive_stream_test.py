@@ -29,13 +29,13 @@ from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from google.protobuf import timestamp_pb2
 
 def get_open_port():
-    import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("",0))
-    s.listen(1)
-    port = s.getsockname()[1]
-    s.close()
-    return port
+  import socket
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  s.bind(('', 0))
+  s.listen(1)
+  port = s.getsockname()[1]
+  s.close()
+  return port
 
 def to_timestamp_proto(timestamp_secs):
   """Converts seconds since epoch to a google.protobuf.Timestamp.
@@ -48,12 +48,16 @@ def to_timestamp_proto(timestamp_secs):
   return timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
 
 
-class InMemoryReader:
+class InMemoryReader(object):
   def read(self):
     coder = coders.FastPrimitivesCoder()
     for i in range(10):
-      element = TestStreamPayload.TimestampedElement(encoded_element=coder.encode(i), timestamp=i)
-      record = InteractiveStreamRecord(element=element, processing_time=to_timestamp_proto(i), watermark=to_timestamp_proto(i))
+      element = TestStreamPayload.TimestampedElement(
+          encoded_element=coder.encode(i), timestamp=i)
+      record = InteractiveStreamRecord(
+          element=element,
+          processing_time=to_timestamp_proto(i),
+          watermark=to_timestamp_proto(i))
       yield record
 
 
@@ -61,9 +65,8 @@ class InteractiveStreamTest(unittest.TestCase):
   def setUp(self):
     endpoint = 'localhost:{}'.format(get_open_port())
 
-    streaming_cache = StreamingCache(readers=[ InMemoryReader() ])
-    server = InteractiveStreamController(endpoint, streaming_cache)
-
+    streaming_cache = StreamingCache(readers=[InMemoryReader()])
+    InteractiveStreamController(endpoint, streaming_cache)
     channel = grpc.insecure_channel(endpoint)
     self.stub = interactive_api_grpc.InteractiveServiceStub(channel)
 
@@ -85,6 +88,8 @@ class InteractiveStreamTest(unittest.TestCase):
     self.assertEqual(status.state, interactive_api.StatusResponse.State.STOPPED)
 
   def test_normal_run(self):
+    """Tests state transitions from STOPPED, RUNNING, to STOPPED.
+    """
     status = self.stub.Status(interactive_api.StatusRequest())
     self.assertEqual(status.state, interactive_api.StatusResponse.State.STOPPED)
 
