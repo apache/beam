@@ -63,6 +63,21 @@ public class BeamDDLTest {
         tableProvider.getTables().get("person"));
   }
 
+  @Test
+  public void testParseCreateExternalTable_WithComplexFields() {
+    TestTableProvider tableProvider = new TestTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
+
+    env.executeDdl(
+        "CREATE EXTERNAL TABLE PersonDetails"
+            + " ( personInfo MAP<VARCHAR, ROW<field_1 INTEGER,field_2 VARCHAR>> , "
+            + " additionalInfo ROW<field_0 TIMESTAMP,field_1 INTEGER,field_2 TINYINT> )"
+            + " TYPE 'text'"
+            + " LOCATION '/home/admin/person'");
+
+    assertNotNull(tableProvider.getTables().get("PersonDetails"));
+  }
+
   @Test(expected = ParseException.class)
   public void testParseCreateExternalTable_withoutType() throws Exception {
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(new TestTableProvider());
