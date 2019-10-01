@@ -81,10 +81,14 @@ public class EncoderHelpers {
     return Encoders.kryo((Class<T>) Object.class);
   }
 
-  /** Get a bytes {@link Encoder} for {@link Tuple2}. Bytes serialisation is issued by Kryo */
+/*
+  */
+/** Get a bytes {@link Encoder} for {@link Tuple2}. Bytes serialisation is issued by Kryo *//*
+
   public static <T1, T2> Encoder<Tuple2<T1, T2>> tuple2Encoder() {
     return Encoders.tuple(EncoderHelpers.genericEncoder(), EncoderHelpers.genericEncoder());
   }
+*/
 
   /*
    --------- Bridges from Beam Coders to Spark Encoders
