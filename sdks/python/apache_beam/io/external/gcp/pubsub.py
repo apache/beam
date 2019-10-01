@@ -21,6 +21,7 @@ import typing
 
 from past.builtins import unicode
 
+import apache_beam as beam
 from apache_beam.io.gcp import pubsub
 from apache_beam.transforms import Map
 from apache_beam.transforms.external import ExternalTransform
@@ -38,7 +39,7 @@ ReadFromPubsubSchema = typing.NamedTuple(
 )
 
 
-class ReadFromPubSub(ExternalTransform):
+class ReadFromPubSub(beam.PTransform):
   """An external ``PTransform`` for reading from Cloud Pub/Sub."""
 
   URN = 'beam:external:java:pubsub:read:v1'
@@ -78,25 +79,22 @@ class ReadFromPubSub(ExternalTransform):
           timestamp is optional, and digits beyond the first three (i.e., time
           units smaller than milliseconds) may be ignored.
     """
-    super(ReadFromPubSub, self).__init__(
-        self.URN,
-        NamedTupleBasedPayloadBuilder(
-            ReadFromPubsubSchema(
-                topic=topic,
-                subscription=subscription,
-                id_label=id_label,
-                with_attributes=with_attributes,
-                timestamp_attribute=timestamp_attribute,
-            )
-        ),
-        expansion_service
-    )
-    self.with_attributes = with_attributes
+    self.params = ReadFromPubsubSchema(
+        topic=topic,
+        subscription=subscription,
+        id_label=id_label,
+        with_attributes=with_attributes,
+        timestamp_attribute=timestamp_attribute)
+    self.expansion_service = expansion_service
 
-  def expand(self, pcoll):
-    pcoll = super(ReadFromPubSub, self).expand(pcoll)
-    if self.with_attributes:
-      pcoll = pcoll | Map(pubsub.PubsubMessage._from_proto_str)
+  def expand(self, pbegin):
+    pcoll = pbegin.apply(
+        ExternalTransform(
+            self.URN, NamedTupleBasedPayloadBuilder(self.params),
+            self.expansion_service))
+
+    if self.params.with_attributes:
+      pcoll = pcoll | 'FromProto' >> Map(pubsub.PubsubMessage._from_proto_str)
       pcoll.element_type = pubsub.PubsubMessage
     else:
       pcoll.element_type = bytes
@@ -136,18 +134,12 @@ class WriteToPubSub(beam.PTransform):
       timestamp_attribute: If set, will set an attribute for each Cloud Pub/Sub
         message with the given name and the message's publish time as the value.
     """
-    super(WriteToPubSub, self).__init__(
-        self.URN,
-        NamedTupleBasedPayloadBuilder(
-            WriteToPubsubSchema(
-                topic=topic,
-                id_label=id_label,
-                # with_attributes=with_attributes,
-                timestamp_attribute=timestamp_attribute,
-            )
-        ),
-        expansion_service
-    )
+    self.params = WriteToPubsubSchema(
+        topic=topic,
+        id_label=id_label,
+        # with_attributes=with_attributes,
+        timestamp_attribute=timestamp_attribute)
+    self.expansion_service = expansion_service
     self.with_attributes = with_attributes
 
   def expand(self, pvalue):
@@ -157,4 +149,10 @@ class WriteToPubSub(beam.PTransform):
       pcoll = pvalue | 'ToProto' >> Map(
           lambda x: pubsub.PubsubMessage(x, {})._to_proto_str())
     pcoll.element_type = bytes
-    return super(WriteToPubSub, self).expand(pcoll)
+
+    return pcoll.apply(
+        ExternalTransform(
+            self.URN,
+            NamedTupleBasedPayloadBuilder(self.params),
+            self.expansion_service)
+    )
