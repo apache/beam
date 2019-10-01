@@ -150,7 +150,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     ib.watch(locals())
 
     pin = instr.pin(p)
-    self.assertEqual(pin.cacheables(), {
+    self.assertEqual(pin.cacheables, {
         pin._cacheable_key(init_pcoll): {
             'var': 'init_pcoll',
             'version': str(id(init_pcoll)),

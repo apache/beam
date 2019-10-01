@@ -23,8 +23,6 @@ to transform original pipeline into a one-shot pipeline with interactivity.
 """
 from __future__ import absolute_import
 
-import logging
-
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import cache_manager as cache
@@ -82,7 +80,7 @@ class PipelineInstrument(object):
     # A mapping from PCollection id to python id() value in user defined
     # pipeline instance.
     (self._pcoll_version_map,
-     self._cacheables) = cacheables(self.pcolls_to_pcoll_id())
+     self._cacheables) = cacheables(self.pcolls_to_pcoll_id)
 
     # A dict from cache key to PCollection that is read from cache.
     # If exists, caller should reuse the PCollection read. If not, caller
@@ -94,6 +92,7 @@ class PipelineInstrument(object):
     """Always returns a new instance of portable instrumented proto."""
     return self._pipeline.to_runner_api(use_fake_coders=True)
 
+  @property
   def has_unbounded_source(self):
     """Checks if a given pipeline has any source that is unbounded.
 
@@ -105,6 +104,7 @@ class PipelineInstrument(object):
     """
     return self._has_unbounded_source
 
+  @property
   def cacheables(self):
     """Finds cacheable PCollections from the pipeline.
 
@@ -116,15 +116,18 @@ class PipelineInstrument(object):
     """
     return self._cacheables
 
+  @property
   def pcolls_to_pcoll_id(self):
     """Returns a dict mapping str(PCollection)s to IDs."""
     return self._pcolls_to_pcoll_id
 
+  @property
   def original_pipeline_proto(self):
     """Returns the portable proto representation of the pipeline before
     instrumentation."""
     return self._original_pipeline_proto
 
+  @property
   def original_pipeline(self):
     """Returns a snapshot of the pipeline before instrumentation."""
     return self._pipeline_snap
@@ -162,7 +165,7 @@ class PipelineInstrument(object):
     # Replace/wire inputs w/ cached PCollections from ReadCache transforms.
     self._replace_with_cached_inputs()
     # Write cache for all cacheables.
-    for _, cacheable in self.cacheables().items():
+    for _, cacheable in self.cacheables.items():
       self._write_cache(cacheable['pcoll'])
     # TODO(BEAM-7760): prune sub graphs that doesn't need to be executed.
 
@@ -190,12 +193,12 @@ class PipelineInstrument(object):
           self._process(out_pcoll)
 
       def _process(self, pcoll):
-        pcoll_id = self._pin.pcolls_to_pcoll_id().get(str(pcoll), '')
+        pcoll_id = self._pin.pcolls_to_pcoll_id.get(str(pcoll), '')
         if pcoll_id in self._pin._pcoll_version_map:
           cacheable_key = self._pin._cacheable_key(pcoll)
-          if (cacheable_key in self._pin.cacheables() and
-              self._pin.cacheables()[cacheable_key]['pcoll'] != pcoll):
-            self._pin.cacheables()[cacheable_key]['pcoll'] = pcoll
+          if (cacheable_key in self._pin.cacheables and
+              self._pin.cacheables[cacheable_key]['pcoll'] != pcoll):
+            self._pin.cacheables[cacheable_key]['pcoll'] = pcoll
 
     v = PreprocessVisitor(self)
     self._pipeline.visit(v)
@@ -206,21 +209,20 @@ class PipelineInstrument(object):
     For the given PCollection, by appending sub transform part that materialize
     the PCollection through sink into cache implementation. The cache write is
     not immediate. It happens when the runner runs the transformed pipeline
-    and thus not usable for this run as intended. It's the caller's
-    responsibility to make sure the PCollection is indeed cacheable. Otherwise,
-    cache resources might be wasted. If a cache with corresponding key exists,
-    noop since a cache write is only needed when the last cache is invalidated.
-    And if a cache is invalidated, the PCollection's new key is guaranteed to
-    not exist in current cache.
+    and thus not usable for this run as intended. This function always writes
+    the cache for the given PCollection as long as the PCollection belongs to
+    the pipeline being instrumented and the keyed cache is absent.
 
     Modifies:
       self._pipeline
     """
+    # Makes sure the pcoll belongs to the pipeline being instrumented.
     if pcoll.pipeline is not self._pipeline:
       return
+    # The keyed cache is always valid within this instrumentation.
     key = self.cache_key(pcoll)
+    # Only need to write when the cache with expected key doesn't exist.
     if not self._cache_manager.exists('full', key):
-      logging.debug('%s write cache: %s', pcoll.producer, key)
       _ = pcoll | '{}{}'.format(WRITE_CACHE, key) >> cache.WriteCache(
           self._cache_manager, key)
 
@@ -233,12 +235,14 @@ class PipelineInstrument(object):
     Modifies:
       self._pipeline
     """
+    # Makes sure the pcoll belongs to the pipeline being instrumented.
     if pcoll.pipeline is not self._pipeline:
       return
+    # The keyed cache is always valid within this instrumentation.
     key = self.cache_key(pcoll)
+    # Can only read from cache when the cache with expected key exists.
     if self._cache_manager.exists('full', key):
       if key not in self._cached_pcoll_read:
-        logging.debug('read cache: %s', key)
         # Mutates the pipeline with cache read transform attached
         # to root of the pipeline.
         pcoll_from_cache = (
@@ -246,7 +250,7 @@ class PipelineInstrument(object):
             | '{}{}'.format(READ_CACHE, key) >> cache.ReadCache(
                 self._cache_manager, key))
         self._cached_pcoll_read[key] = pcoll_from_cache
-    # else: NOOP when cache doesn't exist.
+    # else: NOOP when cache doesn't exist, just compute the original graph.
 
   def _replace_with_cached_inputs(self):
     """Replace PCollection inputs in the pipeline with cache if possible.
@@ -284,13 +288,13 @@ class PipelineInstrument(object):
   def _cacheable_inputs(self, transform):
     inputs = set()
     for in_pcoll in transform.inputs:
-      if self._cacheable_key(in_pcoll) in self.cacheables():
+      if self._cacheable_key(in_pcoll) in self.cacheables:
         inputs.add(in_pcoll)
     return inputs
 
   def _cacheable_key(self, pcoll):
     """Gets the key a cacheable PCollection is tracked within the instrument."""
-    return cacheable_key(pcoll, self.pcolls_to_pcoll_id(),
+    return cacheable_key(pcoll, self.pcolls_to_pcoll_id,
                          self._pcoll_version_map)
 
   def cache_key(self, pcoll):
@@ -302,54 +306,13 @@ class PipelineInstrument(object):
     Also, the pcoll can come from the original user defined pipeline object or
     an equivalent pcoll from a transformed copy of the original pipeline.
     """
-    cacheable = self.cacheables().get(self._cacheable_key(pcoll), None)
+    cacheable = self.cacheables.get(self._cacheable_key(pcoll), None)
     if cacheable:
       return '_'.join((cacheable['var'],
                        cacheable['version'],
                        cacheable['pcoll_id'],
                        cacheable['producer_version']))
     return ''
-
-  def _debug_appliedptransform(self, transform_node):
-    """Debugs AppliedPTransform at debug level logging.
-
-    Logs structure of an AppliedPTransform instance. Used for testing,
-    debugging and dev purpose.
-    """
-    logging.debug('parent is: %s', transform_node.parent)
-    logging.debug('full label of transform_node: %s',
-                  transform_node.full_label)
-    logging.debug('inputs: ')
-    for inp in transform_node.inputs:
-      logging.debug('  %s', inp)
-    logging.debug('parts: ')
-    for part in transform_node.parts:
-      logging.debug('  %s', part)
-    logging.debug('outputs: ')
-    for output in transform_node.outputs:
-      logging.debug('  %s', output)
-
-  def _debug_pipeline_graph(self):
-    """Debugs the pipeline at debug level logging.
-
-    The pipeline within the class is being instrumented and mutates. This
-    function logs structure of the pipeline exactly when invoked and can be
-    invoked multiple times at different instrumenting stages for testing,
-    debugging and dev purposes.
-    """
-
-    class DebugVisitor(PipelineVisitor):
-      def __init__(self, pin):
-        self._pin = pin
-
-      def enter_composite(self, transform_node):
-        self.visit_transform(transform_node)
-
-      def visit_transform(self, transform_node):
-        self._pin._debug_appliedptransform(transform_node)
-
-    v = DebugVisitor(self)
-    self._pipeline.visit(v)
 
 
 def pin(pipeline, options=None):
