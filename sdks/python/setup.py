@@ -126,7 +126,6 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
-    'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     ]
 
@@ -143,6 +142,7 @@ REQUIRED_TEST_PACKAGES = [
     'pandas>=0.23.4,<0.25',
     'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
+    'pyyaml>=3.12,<6.0.0',
     'tenacity>=5.0.2,<6.0',
     ]
 
