@@ -1,0 +1,106 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing a service that can be used in conjunction with
+ * the TestStream class in order to control a pipeline remotely.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.fn_execution.v1;
+
+option go_package = "fnexecution_v1";
+option java_package = "org.apache.beam.model.fnexecution.v1";
+option java_outer_classname = "BeamInteractiveApi";
+
+import "beam_runner_api.proto";
+import "google/protobuf/timestamp.proto";
+
+service InteractiveService {
+
+  // A TestStream will request for events using this RPC.
+  rpc Events(EventsRequest) returns (stream EventsResponse) {}
+
+  rpc Start (StartRequest) returns (StartResponse) {}
+  rpc Stop (StopRequest) returns (StopResponse) {}
+  rpc Pause (PauseRequest) returns (PauseResponse) {}
+  rpc Step (StepRequest) returns (StepResponse) {}
+  rpc Status (StatusRequest) returns (StatusResponse) {}
+}
+
+message StartRequest {
+  double playback_speed = 1;
+
+  google.protobuf.Timestamp start_time = 2;
+}
+message StartResponse { }
+
+message StopRequest { }
+message StopResponse { }
+
+message PauseRequest { }
+message PauseResponse { }
+
+message StatusRequest { }
+message StatusResponse {
+
+  // The current timestamp of the replay stream. Is MIN_TIMESTAMP when state
+  // is STOPPED.
+  google.protobuf.Timestamp stream_time = 1;
+
+  // The minimum watermark across all of the faked replayable unbounded sources.
+  // Is MIN_TIMESTAMP when state is STOPPED.
+  google.protobuf.Timestamp watermark = 2;
+
+  enum State {
+    // The InteractiveService is not replaying. Goes to RUNNING with a
+    // StartRequest.
+    STOPPED = 0;
+
+    // The InteractiveService is replaying events. Goes to PAUSED with a
+    // PauseRequest. Goes to STOPPED with a StopRequest.
+    RUNNING = 1;
+
+    // The InteractiveService is paused from replaying events. Goes to RUNNING
+    // with either a StartRequest or a StepRequest. Goes to STOPPED with a
+    // StopRequest.
+    PAUSED = 2;
+  }
+  State state = 3;
+}
+
+message StepRequest { }
+message StepResponse { }
+
+message EventsRequest { }
+message EventsResponse {
+  // The TestStreamPayloads that will be sent to the TestStream.
+  repeated org.apache.beam.model.pipeline.v1.TestStreamPayload.Event events = 1;
+
+  // Is true when there are no more events to read.
+  bool end_of_stream = 2;
+}
+
+message InteractiveStreamRecord {
+  org.apache.beam.model.pipeline.v1.TestStreamPayload.TimestampedElement element = 1;
+
+  google.protobuf.Timestamp processing_time = 2;
+
+  google.protobuf.Timestamp watermark = 3;
+}
