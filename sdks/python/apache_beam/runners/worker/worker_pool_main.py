@@ -47,21 +47,26 @@ from apache_beam.runners.worker import sdk_worker
 class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
 
-  def __init__(self, worker_threads, use_process=False,
-               container_executable=None):
+  def __init__(self, worker_threads,
+               use_process=False,
+               container_executable=None,
+               state_cache_size=0):
     self._worker_threads = worker_threads
     self._use_process = use_process
     self._container_executable = container_executable
+    self._state_cache_size = state_cache_size
     self._worker_processes = {}
 
   @classmethod
   def start(cls, worker_threads=1, use_process=False, port=0,
-            container_executable=None):
+            state_cache_size=0, container_executable=None):
     worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
         '[::]:%s' % port)
-    worker_pool = cls(worker_threads, use_process=use_process,
-                      container_executable=container_executable)
+    worker_pool = cls(worker_threads,
+                      use_process=use_process,
+                      container_executable=container_executable,
+                      state_cache_size=state_cache_size)
     beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
         worker_pool,
         worker_server)
@@ -81,10 +86,17 @@ class BeamFnExternalWorkerPoolServicer(
         command = ['python', '-c',
                    'from apache_beam.runners.worker.sdk_worker '
                    'import SdkHarness; '
-                   'SdkHarness("%s",worker_count=%d,worker_id="%s").run()' % (
+                   'SdkHarness('
+                   '"%s",'
+                   'worker_count=%d,'
+                   'worker_id="%s",'
+                   'state_cache_size=%d'
+                   ')'
+                   '.run()' % (
                        start_worker_request.control_endpoint.url,
                        self._worker_threads,
-                       start_worker_request.worker_id)]
+                       start_worker_request.worker_id,
+                       self._state_cache_size)]
         if self._container_executable:
           # command as per container spec
           # the executable is responsible to handle concurrency
@@ -109,7 +121,8 @@ class BeamFnExternalWorkerPoolServicer(
         worker = sdk_worker.SdkHarness(
             start_worker_request.control_endpoint.url,
             worker_count=self._worker_threads,
-            worker_id=start_worker_request.worker_id)
+            worker_id=start_worker_request.worker_id,
+            state_cache_size=self._state_cache_size)
         worker_thread = threading.Thread(
             name='run_worker_%s' % start_worker_request.worker_id,
             target=worker.run)
