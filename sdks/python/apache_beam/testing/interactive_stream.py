@@ -16,11 +16,20 @@
 #
 
 import grpc
+import time
 
 from apache_beam.portability.api import beam_interactive_api_pb2
 from apache_beam.portability.api import beam_interactive_api_pb2_grpc
 from apache_beam.portability.api.beam_interactive_api_pb2_grpc import InteractiveServiceServicer
 from concurrent.futures import ThreadPoolExecutor
+
+
+def to_api_state(state):
+  if state == 'STOPPED':
+    return beam_interactive_api_pb2.StatusResponse.STOPPED
+  if state == 'PAUSED':
+    return beam_interactive_api_pb2.StatusResponse.PAUSED
+  return beam_interactive_api_pb2.StatusResponse.RUNNING
 
 class InteractiveStreamController(InteractiveServiceServicer):
   def __init__(self, endpoint, streaming_cache):
@@ -36,35 +45,39 @@ class InteractiveStreamController(InteractiveServiceServicer):
     self._playback_speed = 1.0
 
   def Start(self, request, context):
+    """Requests that the Service starts emitting elements.
+    """
+
     self._next_state('RUNNING')
     self._playback_speed = request.playback_speed or 1.0
     self._playback_speed = max(min(self._playback_speed, 1000000.0), 0.001)
     return beam_interactive_api_pb2.StartResponse()
 
   def Stop(self, request, context):
+    """Requests that the Service stop emitting elements.
+    """
     self._next_state('STOPPED')
     return beam_interactive_api_pb2.StartResponse()
 
   def Pause(self, request, context):
+    """Requests that the Service pause emitting elements.
+    """
     self._next_state('PAUSED')
     return beam_interactive_api_pb2.PauseResponse()
 
   def Step(self, request, context):
+    """Requests that the Service emit a single element from each cached source.
+    """
     self._next_state('STEP')
     return beam_interactive_api_pb2.StepResponse()
 
   def Status(self, request, context):
+    """Returns the status of the service.
+    """
     resp = beam_interactive_api_pb2.StatusResponse()
     resp.stream_time.GetCurrentTime()
-    resp.state = self._to_api_state(self._state)
+    resp.state = to_api_state(self._state)
     return resp
-
-  def _to_api_state(self, state):
-    if state == 'STOPPED':
-      return beam_interactive_api_pb2.StatusResponse.STOPPED
-    if state == 'PAUSED':
-      return beam_interactive_api_pb2.StatusResponse.PAUSED
-    return beam_interactive_api_pb2.StatusResponse.RUNNING
 
   def _reset_state(self):
     self._reader = None
@@ -81,20 +94,16 @@ class InteractiveStreamController(InteractiveServiceServicer):
     self._state = state
 
   def Events(self, request, context):
-    import time
-    while (self._state != 'RUNNING' and self._state != 'STEP' and
-           self._state != 'STOPPED'):
+    # The TestStream will wait until the stream starts.
+    while self._state != 'RUNNING' and self._state != 'STEP':
       time.sleep(0.01)
-
-    if self._state == 'STOPPED':
-      resp = beam_interactive_api_pb2.EventsResponse()
-      resp.end_of_stream = True
-      yield resp
-      return
 
     events = self._reader.read()
     if events:
       for e in events:
+        # Here we assume that the first event is the processing_time_event so
+        # that we can sleep and then emit the element. Thereby, trying to
+        # emulate the original stream.
         if e.HasField('processing_time_event'):
           sleep_duration = (
               e.processing_time_event.advance_duration / self._playback_speed
@@ -108,5 +117,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
       yield resp
       return
 
+    # The Step command allows the user to send an individual element from each
+    # source down into the pipeline. It immediately pauses afterwards.
     if self._state == 'STEP':
       self._next_state('PAUSED')
