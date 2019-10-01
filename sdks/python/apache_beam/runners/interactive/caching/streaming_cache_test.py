@@ -49,7 +49,7 @@ class InMemoryReader:
         element=element_payload,
         processing_time=to_timestamp_proto(processing_time),
         watermark=to_timestamp_proto(watermark))
-    self._records.append(record)
+    self._records.append(record.SerializeToString())
 
   def read(self):
     for r in self._records:
@@ -75,24 +75,25 @@ class StreamingCacheTest(unittest.TestCase):
         event_time=0,
         processing_time=0,
         watermark=0)
-    cache = StreamingCache([ in_memory_reader ])
+    cache = StreamingCache([in_memory_reader])
     reader = cache.reader()
     coder = coders.FastPrimitivesCoder()
     events = all_events(reader)
 
     expected = []
     expected.append([
-      TestStreamPayload.Event(
-        processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-          advance_duration=0)),
-      TestStreamPayload.Event(
-        watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-          new_watermark=0)),
-      TestStreamPayload.Event(
-        element_event=TestStreamPayload.Event.AddElements(elements=[
-          TestStreamPayload.TimestampedElement(encoded_element=coder.encode(0),
-            timestamp=0)]))
-        ])
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=0)),
+        TestStreamPayload.Event(
+            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
+                new_watermark=0)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(elements=[
+                TestStreamPayload.TimestampedElement(
+                    encoded_element=coder.encode(0),
+                    timestamp=0)]))
+          ])
     expected.append([TestStreamPayload.Event(
       watermark_event=TestStreamPayload.Event.AdvanceWatermark(
         new_watermark=timestamp.MAX_TIMESTAMP.micros))])
