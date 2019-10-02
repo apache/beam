@@ -44,6 +44,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.RunnerPCollectionView;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TestStreamTranslation;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -69,6 +70,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestStream;
@@ -100,9 +102,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
@@ -399,7 +402,9 @@ public class FlinkStreamingPortablePipelineTranslator
 
     DataStream<WindowedValue<SingletonKeyedWorkItem<K, V>>> workItemStream =
         inputDataStream
-            .flatMap(new FlinkStreamingTransformTranslators.ToKeyedWorkItem<>())
+            .flatMap(
+                new FlinkStreamingTransformTranslators.ToKeyedWorkItem<>(
+                    context.getPipelineOptions()))
             .returns(workItemTypeInfo)
             .name("ToKeyedWorkItem");
 
@@ -517,12 +522,12 @@ public class FlinkStreamingPortablePipelineTranslator
         source =
             nonDedupSource
                 .keyBy(new FlinkStreamingTransformTranslators.ValueWithRecordIdKeySelector<>())
-                .transform("deduping", outputTypeInfo, new DedupingOperator<>())
+                .transform("deduping", outputTypeInfo, new DedupingOperator<>(pipelineOptions))
                 .uid(format("%s/__deduplicated__", transformName));
       } else {
         source =
             nonDedupSource
-                .flatMap(new FlinkStreamingTransformTranslators.StripIdsMap<>())
+                .flatMap(new FlinkStreamingTransformTranslators.StripIdsMap<>(pipelineOptions))
                 .returns(outputTypeInfo);
       }
     } catch (Exception e) {
@@ -914,7 +919,7 @@ public class FlinkStreamingPortablePipelineTranslator
           sideInput.getKey().getTransformId() + "-" + sideInput.getKey().getLocalName();
       WindowedValueCoder<KV<Void, Object>> kvCoder = kvCoders.get(intTag);
       DataStream<WindowedValue<KV<Void, Object>>> keyedSideInputStream =
-          sideInputStream.map(new ToVoidKeyValue());
+          sideInputStream.map(new ToVoidKeyValue(context.getPipelineOptions()));
 
       SingleOutputStreamOperator<WindowedValue<KV<Void, Iterable<Object>>>> viewStream =
           addGBK(
@@ -928,7 +933,9 @@ public class FlinkStreamingPortablePipelineTranslator
 
       DataStream<RawUnionValue> unionValueStream =
           viewStream
-              .map(new FlinkStreamingTransformTranslators.ToRawUnion<>(intTag))
+              .map(
+                  new FlinkStreamingTransformTranslators.ToRawUnion<>(
+                      intTag, context.getPipelineOptions()))
               .returns(unionTypeInformation);
 
       if (sideInputUnion == null) {
@@ -954,7 +961,21 @@ public class FlinkStreamingPortablePipelineTranslator
   }
 
   private static class ToVoidKeyValue<T>
-      implements MapFunction<WindowedValue<T>, WindowedValue<KV<Void, T>>> {
+      extends RichMapFunction<WindowedValue<T>, WindowedValue<KV<Void, T>>> {
+
+    private final SerializablePipelineOptions options;
+
+    public ToVoidKeyValue(PipelineOptions pipelineOptions) {
+      this.options = new SerializablePipelineOptions(pipelineOptions);
+    }
+
+    @Override
+    public void open(Configuration parameters) {
+      // Initialize FileSystems for any coders which may want to use the FileSystem,
+      // see https://issues.apache.org/jira/browse/BEAM-8303
+      FileSystems.setDefaultPipelineOptions(options.get());
+    }
+
     @Override
     public WindowedValue<KV<Void, T>> map(WindowedValue<T> value) {
       return value.withValue(KV.of(null, value.getValue()));
