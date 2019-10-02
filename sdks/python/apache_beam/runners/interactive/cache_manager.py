@@ -31,7 +31,6 @@ from apache_beam.io import filesystems
 from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.transforms import combiners
-from apache_beam.transforms import core
 
 try:                    # Python 3
   unquote_to_bytes = urllib.parse.unquote_to_bytes
@@ -40,6 +39,7 @@ except AttributeError:  # Python 2
   # pylint: disable=deprecated-urllib-function
   unquote_to_bytes = urllib.unquote
   quote = urllib.quote
+
 
 class CacheManager(object):
   """Abstract class for caching PCollections.
@@ -252,8 +252,7 @@ class WriteCache(beam.PTransform):
 
     if self._sample:
       pcoll |= 'Sample' >> (
-          core.CombineGlobally(combiners.SampleCombineFn(self._sample_size)).without_defaults()
-          # combiners.Sample.FixedSizeGlobally(self._sample_size)
+          combiners.Sample.FixedSizeGlobally(self._sample_size)
           | beam.FlatMap(lambda sample: sample))
     # pylint: disable=expression-not-assigned
     return pcoll | 'Write' >> beam.io.Write(
