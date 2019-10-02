@@ -49,5 +49,4 @@ task preCommitPy35() {
     dependsOn "testPython35"
     dependsOn "testPy35Gcp"
     dependsOn "testPy35Cython"
-    dependsOn "lint"
 }
