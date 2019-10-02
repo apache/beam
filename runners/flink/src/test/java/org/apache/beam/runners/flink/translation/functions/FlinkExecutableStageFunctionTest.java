@@ -41,6 +41,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
@@ -257,7 +258,13 @@ public class FlinkExecutableStageFunctionTest {
         Mockito.mock(FlinkExecutableStageContextFactory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
-        new FlinkExecutableStageFunction<>(stagePayload, jobInfo, outputMap, contextFactory, null);
+        new FlinkExecutableStageFunction<>(
+            PipelineOptionsFactory.create(),
+            stagePayload,
+            jobInfo,
+            outputMap,
+            contextFactory,
+            null);
     function.setRuntimeContext(runtimeContext);
     Whitebox.setInternalState(function, "stateRequestHandler", stateRequestHandler);
     return function;
