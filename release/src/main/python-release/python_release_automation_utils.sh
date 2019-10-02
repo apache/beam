@@ -81,11 +81,9 @@ function get_version() {
 #   $2 - python interpreter version: python2.7, python3.5, ...
 #######################################
 function download_files() {
-  VERSION=$(get_version)
-
   if [[ $1 = *"wheel"* ]]; then
     if [[ $2 == "python2.7" ]]; then
-        BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp27-cp27mu-manylinux1_x86_64.whl"
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp27-cp27mu-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.5" ]]; then
       BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp35-cp35m-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.6" ]]; then
