@@ -327,6 +327,7 @@ public class FlinkBatchPortablePipelineTranslator
 
     final FlinkExecutableStageFunction<InputT> function =
         new FlinkExecutableStageFunction<>(
+            context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
             outputMap,
@@ -601,7 +602,7 @@ public class FlinkBatchPortablePipelineTranslator
       String collectionId) {
     TypeInformation<WindowedValue<?>> outputType = new CoderTypeInformation<>(outputCoder);
     FlinkExecutableStagePruningFunction pruningFunction =
-        new FlinkExecutableStagePruningFunction(unionTag);
+        new FlinkExecutableStagePruningFunction(unionTag, context.getPipelineOptions());
     FlatMapOperator<RawUnionValue, WindowedValue<?>> pruningOperator =
         new FlatMapOperator<>(
             taggedDataset,
