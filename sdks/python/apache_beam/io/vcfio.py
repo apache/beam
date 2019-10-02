@@ -308,13 +308,13 @@ class _VcfSource(filebasedsource.FileBasedSource):
                                                   range_tracker)
       try:
         self._vcf_reader = vcf.Reader(fsock=self._create_generator())
-      except SyntaxError as e:
+      except SyntaxError:
         # Throw the exception inside the generator to ensure file is properly
         # closed (it's opened inside TextSource.read_records).
         self._text_lines.throw(
             ValueError('An exception was raised when reading header from VCF '
                        'file %s: %s' % (self._file_name,
-                                        traceback.format_exc(e))))
+                                        traceback.format_exc())))
 
     def _store_header_lines(self, header_lines):
       self._header_lines = header_lines
