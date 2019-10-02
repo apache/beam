@@ -120,7 +120,7 @@ import apache_beam as beam
 intersphinx_mapping = {
   'python': ('https://docs.python.org/2', None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
-  'google-cloud': ('https://google-cloud-python.readthedocs.io/en/stable/', None),
+  'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
