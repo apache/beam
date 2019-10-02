@@ -161,8 +161,9 @@ class AnnotationsTest(unittest.TestCase):
       def process(self, element: int) -> str:
         return str(element)
 
-    with self.assertRaisesRegex(ValueError, r'Return value not iterable'):
+    with self.assertLogs() as cm:
       _ = beam.ParDo(MyDoFn()).get_type_hints()
+    self.assertRegex(''.join(cm.output), r'MyDoFn.* not iterable')
 
   def test_pardo_wrapper(self):
     def do_fn(element: int) -> typehints.Iterable[str]:
@@ -186,8 +187,9 @@ class AnnotationsTest(unittest.TestCase):
     def do_fn(element: int) -> str:
       return str(element)
 
-    with self.assertRaisesRegex(ValueError, r'Return value not iterable'):
+    with self.assertLogs() as cm:
       _ = beam.ParDo(do_fn).get_type_hints()
+    self.assertRegex(''.join(cm.output), r'do_fn.* not iterable')
 
   def test_flat_map_wrapper(self):
     def map_fn(element: int) -> typehints.Iterable[int]:

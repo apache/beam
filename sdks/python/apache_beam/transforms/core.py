@@ -585,7 +585,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       try:
         fn_type_hints.strip_iterable()
       except ValueError as e:
-        raise ValueError('Return value not iterable: %s: %s' % (self, e))
+        logging.warning('%s: %s', self.default_label(), e)
     return fn_type_hints
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
@@ -686,7 +686,7 @@ class CallableWrapperDoFn(DoFn):
     try:
       type_hints.strip_iterable()
     except ValueError as e:
-      raise ValueError('Return value not iterable: %s: %s' % (self._fn, e))
+      logging.warning('%s: %s', self.display_data()['fn'].value, e)
     return type_hints
 
   def infer_output_type(self, input_type):
@@ -1094,8 +1094,8 @@ class ParDo(PTransformWithSideInputs):
   Args:
     pcoll (~apache_beam.pvalue.PCollection):
       a :class:`~apache_beam.pvalue.PCollection` to be processed.
-    fn (DoFn): a :class:`DoFn` object to be applied to each element
-      of **pcoll** argument.
+    fn (`typing.Union[DoFn, typing.Callable]`): a :class:`DoFn` object to be
+      applied to each element of **pcoll** argument, or a Callable.
     *args: positional arguments passed to the :class:`DoFn` object.
     **kwargs:  keyword arguments passed to the :class:`DoFn` object.
 
