@@ -57,7 +57,11 @@ public class JavaFilesystemArtifactStagingService extends AbstractArtifactStagin
 
   @Override
   public WritableByteChannel openUri(String uri) throws IOException {
-    Files.createDirectories(fileSystem.getPath(uri).getParent());
+    Path parent = fileSystem.getPath(uri).getParent();
+    if (parent == null) {
+      throw new RuntimeException("Provided URI did not have a parent: " + uri);
+    }
+    Files.createDirectories(parent);
     return Channels.newChannel(Files.newOutputStream(fileSystem.getPath(uri)));
   }
 
