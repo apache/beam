@@ -127,11 +127,11 @@ public class FlinkMetricContainerTest {
     SimpleCounter userCounter = new SimpleCounter();
     when(metricGroup.counter("ns1.metric1")).thenReturn(userCounter);
 
-    SimpleCounter elemCounter = new SimpleCounter();
-    when(metricGroup.counter("anyPTransform.metric:element_count:v1")).thenReturn(elemCounter);
+    SimpleCounter pCollectionCounter = new SimpleCounter();
+    when(metricGroup.counter(":pcoll.metric:element_count:v1")).thenReturn(pCollectionCounter);
 
-    SimpleCounter elemCounterWithName = new SimpleCounter();
-    when(metricGroup.counter("anyPTransform.myMetric")).thenReturn(elemCounterWithName);
+    SimpleCounter pTransformCounter = new SimpleCounter();
+    when(metricGroup.counter(":anyPTransform.myMetric")).thenReturn(pTransformCounter);
 
     MonitoringInfo userCountMonitoringInfo =
         new SimpleMonitoringInfoBuilder()
@@ -143,35 +143,32 @@ public class FlinkMetricContainerTest {
             .build();
     assertNotNull(userCountMonitoringInfo);
 
-    MonitoringInfo elemCountMonitoringInfo =
+    MonitoringInfo pCollectionScoped =
         new SimpleMonitoringInfoBuilder()
             .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
             .setInt64Value(222)
-            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
             .setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll")
             .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
             .build();
-    assertNotNull(elemCountMonitoringInfo);
+    assertNotNull(pCollectionScoped);
 
-    MonitoringInfo elemCountMonitoringInfoWithName =
+    MonitoringInfo transformScoped =
         new SimpleMonitoringInfoBuilder()
-            .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
+            .setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS)
             .setInt64Value(333)
-            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
-            .setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll")
             .setLabel(MonitoringInfoConstants.Labels.NAME, "myMetric")
             .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
             .build();
-    assertNotNull(elemCountMonitoringInfoWithName);
+    assertNotNull(transformScoped);
 
     assertThat(userCounter.getCount(), is(0L));
-    assertThat(elemCounter.getCount(), is(0L));
-    assertThat(elemCounterWithName.getCount(), is(0L));
+    assertThat(pCollectionCounter.getCount(), is(0L));
+    assertThat(pTransformCounter.getCount(), is(0L));
     container.updateMetrics(
-        "step", ImmutableList.of(userCountMonitoringInfo, elemCountMonitoringInfo, elemCountMonitoringInfoWithName));
+        "step", ImmutableList.of(userCountMonitoringInfo, pCollectionScoped, transformScoped));
     assertThat(userCounter.getCount(), is(111L));
-    assertThat(elemCounter.getCount(), is(222L));
-    assertThat(elemCounterWithName.getCount(), is(333L));
+    assertThat(pCollectionCounter.getCount(), is(222L));
+    assertThat(pTransformCounter.getCount(), is(333L));
   }
 
   @Test

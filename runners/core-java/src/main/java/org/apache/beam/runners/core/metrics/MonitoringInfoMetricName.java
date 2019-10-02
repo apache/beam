@@ -51,9 +51,14 @@ public class MonitoringInfoMetricName extends MetricName {
   @Override
   public String getNamespace() {
     if (labels.containsKey(MonitoringInfoConstants.Labels.NAMESPACE)) {
+      // User-generated metric
       return labels.getOrDefault(MonitoringInfoConstants.Labels.NAMESPACE, null);
+    } else if (labels.containsKey(MonitoringInfoConstants.Labels.PCOLLECTION)) {
+      // System-generated metric, prepend with a colon
+      return ":" + labels.getOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
     } else if (labels.containsKey(MonitoringInfoConstants.Labels.PTRANSFORM)) {
-      return labels.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
+      // System-generated metric, prepend with a colon
+      return ":" + labels.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     } else {
       return urn.split(":", 2)[0];
     }
