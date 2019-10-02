@@ -38,7 +38,7 @@ applyJavaNature(
 
 def sparkRunnerProject = project.parent.path
 
-description = project(sparkRunnerProject).description + " :: Job Server"
+description = "Apache Beam :: Runners :: Spark :: Job Server"
 
 configurations {
   validatesPortableRunner
