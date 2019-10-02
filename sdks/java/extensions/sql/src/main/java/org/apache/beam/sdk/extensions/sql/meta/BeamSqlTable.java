@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta;
 
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -24,14 +25,24 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 
 /** This interface defines a Beam Sql Table. */
 public interface BeamSqlTable {
   /** create a {@code PCollection<Row>} from source. */
   PCollection<Row> buildIOReader(PBegin begin);
 
+  /** create a {@code PCollection<Row>} from source with predicate and/or project pushed-down. */
+  PCollection<Row> buildIOReader(PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames);
+
   /** create a {@code IO.write()} instance to write to target. */
   POutput buildIOWriter(PCollection<Row> input);
+
+  /** Generate an IO implementation of {@code BeamSqlTableFilter} for predicate push-down. */
+  BeamSqlTableFilter constructFilter(List<RexNode> filter);
+
+  /** Whether project push-down is supported by the IO API. */
+  boolean supportsProjects();
 
   /** Whether this table is bounded (known to be finite) or unbounded (may or may not be finite). */
   PCollection.IsBounded isBounded();
