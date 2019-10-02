@@ -76,8 +76,8 @@ class MainInputTest(unittest.TestCase):
     # Type hints applied to ParDo instance take precedence over callable
     # decorators and annotations.
     @typehints.with_input_types(typehints.Tuple[int, int])
-    @typehints.with_output_types(int)
-    def do_fn(element: typehints.Tuple[int, int]) -> typehints.Generator[int]:
+    @typehints.with_output_types(typehints.Generator[int])
+    def do_fn(element: typehints.Tuple[int, int]) -> typehints.Generator[str]:
       yield str(element)
     pardo = beam.ParDo(do_fn).with_input_types(int).with_output_types(str)
 
@@ -92,10 +92,8 @@ class MainInputTest(unittest.TestCase):
                                 r'requires.*int.*got.*str'):
       _ = [1, 2, 3] | (pardo | 'again' >> pardo)
 
-  @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
   def test_typed_callable_iterable_output(self):
-    # TODO(BEAM-7981): Both Iterables get stripped in
-    #   CallableWrapperDoFn.default_type_hints, but only one should.
+    # Only the outer Iterable should be stripped.
     def do_fn(element: int) -> typehints.Iterable[typehints.Iterable[str]]:
       return [[str(element)] * 2]
 
@@ -173,6 +171,16 @@ class AnnotationsTest(unittest.TestCase):
     th = beam.ParDo(do_fn).get_type_hints()
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((str,), {}))
+
+  def test_pardo_wrapper_tuple(self):
+    # Test case for callables that return key-value pairs for GBK. The outer
+    # Iterable should be stripped but the inner Tuple left intact.
+    def do_fn(element: int) -> typehints.Iterable[typehints.Tuple[str, int]]:
+      return [(str(element), element)]
+
+    th = beam.ParDo(do_fn).get_type_hints()
+    self.assertEqual(th.input_types, ((int,), {}))
+    self.assertEqual(th.output_types, ((typehints.Tuple[str, int],), {}))
 
   def test_pardo_wrapper_not_iterable(self):
     def do_fn(element: int) -> str:
