@@ -33,7 +33,6 @@ from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import pipeline_analyzer
 from apache_beam.runners.interactive.display import display_manager
 from apache_beam.runners.interactive.display import pipeline_graph_renderer
-from apache_beam.testing.test_stream import InteractiveStreamController
 
 # size of PCollection samples cached.
 SAMPLE_SIZE = 8
@@ -49,8 +48,7 @@ class InteractiveRunner(runners.PipelineRunner):
                underlying_runner=None,
                cache_dir=None,
                cache_format='text',
-               render_option=None,
-               endpoint=''):
+               render_option=None):
     """Constructor of InteractiveRunner.
 
     Args:
@@ -66,7 +64,6 @@ class InteractiveRunner(runners.PipelineRunner):
     self._cache_manager = cache.FileBasedCacheManager(cache_dir, cache_format)
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
     self._in_session = False
-    self._interactive_stream_controller = InteractiveStreamController(endpoint)
 
   def is_fnapi_compatible(self):
     # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
