@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.seqgen;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-class GenerateSequenceTable extends BaseBeamTable implements Serializable {
+class GenerateSequenceTable extends SchemaBaseBeamTable implements Serializable {
   public static final Schema TABLE_SCHEMA =
       Schema.of(Field.of("sequence", FieldType.INT64), Field.of("event_time", FieldType.DATETIME));
 

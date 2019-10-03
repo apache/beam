@@ -15,22 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.schema;
+package org.apache.beam.sdk.extensions.sql.meta;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.schemas.Schema;
-
-/** Each IO in Beam has one table schema, by extending {@link BaseBeamTable}. */
-public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected Schema schema;
-
-  public BaseBeamTable(Schema schema) {
-    this.schema = schema;
-  }
-
-  @Override
-  public Schema getSchema() {
-    return schema;
-  }
-}
+/** Basic implementation of {@link BeamSqlTable} methods used by predicate and filter push-down. */
+public abstract class BaseBeamTable implements BeamSqlTable {}

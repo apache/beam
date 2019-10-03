@@ -24,8 +24,8 @@ import static org.junit.Assert.assertTrue;
 import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -124,7 +124,7 @@ public class BeamEnumerableConverterTest {
       assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
     }
 
-    private static class FakeTable extends BaseBeamTable {
+    private static class FakeTable extends SchemaBaseBeamTable {
       public FakeTable() {
         super(null);
       }
