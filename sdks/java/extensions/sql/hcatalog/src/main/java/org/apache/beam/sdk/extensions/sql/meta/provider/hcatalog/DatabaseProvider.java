@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
 import com.alibaba.fastjson.JSONObject;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchema;

@@ -20,7 +20,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -31,8 +32,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 
-/** {@link ParquetTable} is a {@link org.apache.beam.sdk.extensions.sql.BeamSqlTable}. */
-public class ParquetTable extends BaseBeamTable implements Serializable {
+/** {@link ParquetTable} is a {@link BeamSqlTable}. */
+public class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   private final String filePattern;
 
   public ParquetTable(Schema beamSchema, String filePattern) {

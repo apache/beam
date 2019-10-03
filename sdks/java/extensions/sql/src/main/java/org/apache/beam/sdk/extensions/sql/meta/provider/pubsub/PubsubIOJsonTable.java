@@ -25,8 +25,9 @@ import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -88,7 +89,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 @AutoValue
 @Internal
 @Experimental
-abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
+abstract class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
 
   /**
    * Optional attribute key of the Pubsub message from which to extract the event timestamp.
