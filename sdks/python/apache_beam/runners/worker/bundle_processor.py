@@ -1121,7 +1121,8 @@ def _create_pardo_operation(
         for tag, si in pardo_proto.side_inputs.items()]
     tagged_side_inputs.sort(
         key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
-                                        tag_si[0]).group(1)))
+                                        tag_si[0],
+                                        re.DOTALL).group(1)))
     side_input_maps = [
         StateBackedSideInputMap(
             factory.state_handler,
