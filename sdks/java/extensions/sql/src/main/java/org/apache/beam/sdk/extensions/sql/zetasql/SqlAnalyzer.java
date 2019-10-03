@@ -92,7 +92,7 @@ class SqlAnalyzer {
     return Analyzer.analyzeStatement(sql, options, catalog);
   }
 
-  private AnalyzerOptions initAnalyzerOptions(Map<String, Value> queryParams) {
+  static AnalyzerOptions initAnalyzerOptions() {
     AnalyzerOptions options = new AnalyzerOptions();
     options.setErrorMessageMode(ErrorMessageMode.ERROR_MESSAGE_MULTI_LINE_WITH_CARET);
     // +00:00 UTC offset
@@ -111,6 +111,12 @@ class SqlAnalyzer {
         .getLanguageOptions()
         .setSupportedStatementKinds(
             ImmutableSet.of(RESOLVED_QUERY_STMT, RESOLVED_CREATE_FUNCTION_STMT));
+
+    return options;
+  }
+
+  private static AnalyzerOptions initAnalyzerOptions(Map<String, Value> queryParams) {
+    AnalyzerOptions options = initAnalyzerOptions();
 
     for (Map.Entry<String, Value> entry : queryParams.entrySet()) {
       options.addQueryParameter(entry.getKey(), entry.getValue().getType());
