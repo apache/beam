@@ -107,12 +107,16 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(ValueError, r'str.*is not iterable'):
       _ = [1, 2, 3] | beam.ParDo(MyDoFn())
+    # with self.assertLogs() as cm:
+    #   [1, 2, 3] | beam.ParDo(MyDoFn())
+    # self.assertRegexpMatches(''.join(cm.output), r'str.*is not iterable')
 
   def test_typed_callable_not_iterable(self):
-    def do_fn(element: typehints.Tuple[int, int]) -> int:
-      return element[0]
-    with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
-      _ = [1, 2, 3] | beam.ParDo(do_fn)
+    def do_fn(element: int) -> int:
+      return [element]  # Return a list to not fail the pipeline.
+    with self.assertLogs() as cm:
+      [1, 2, 3] | beam.ParDo(do_fn)
+    self.assertRegexpMatches(''.join(cm.output), r'int.*is not iterable')
 
   def test_typed_dofn_kwonly(self):
     class MyDoFn(beam.DoFn):
