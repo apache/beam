@@ -133,6 +133,18 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_ReadFiles.Builder().setSchema(schema).build();
   }
 
+  private static <T> PCollection<T> setBeamSchema(PCollection pc, Class<T> clazz, Schema schema) {
+    org.apache.beam.sdk.schemas.Schema beamSchema =
+        org.apache.beam.sdk.schemas.utils.AvroUtils.getSchema(clazz, schema);
+
+    pc.setSchema(
+        beamSchema,
+        org.apache.beam.sdk.schemas.utils.AvroUtils.getToRowFunction(clazz, schema),
+        org.apache.beam.sdk.schemas.utils.AvroUtils.getFromRowFunction(clazz));
+
+    return pc;
+  }
+
   /** Implementation of {@link #read(Schema)}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<GenericRecord>> {
@@ -168,11 +180,15 @@ public class ParquetIO {
     public PCollection<GenericRecord> expand(PBegin input) {
       checkNotNull(getFilepattern(), "Filepattern cannot be null.");
 
-      return input
-          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-          .apply(FileIO.matchAll())
-          .apply(FileIO.readMatches())
-          .apply(readFiles(getSchema()));
+      PCollection<GenericRecord> read =
+          input
+              .apply(
+                  "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches())
+              .apply(readFiles(getSchema()));
+
+      return setBeamSchema(read, GenericRecord.class, getSchema());
     }
 
     @Override
@@ -201,7 +217,10 @@ public class ParquetIO {
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      return input.apply(ParDo.of(new ReadFn())).setCoder(AvroCoder.of(getSchema()));
+      PCollection<GenericRecord> read =
+          input.apply(ParDo.of(new ReadFn())).setCoder(AvroCoder.of(getSchema()));
+
+      return setBeamSchema(read, GenericRecord.class, getSchema());
     }
 
     static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
