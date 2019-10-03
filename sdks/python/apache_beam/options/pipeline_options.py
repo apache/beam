@@ -363,6 +363,9 @@ class StandardOptions(PipelineOptions):
                         default=False,
                         action='store_true',
                         help='Whether to enable streaming mode.')
+    parser.add_argument('--job_name',
+                        default=None,
+                        help='Name of the job.')
 
 
 class TypeOptions(PipelineOptions):
@@ -434,10 +437,6 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Name of the Cloud project owning the Dataflow '
                         'job.')
-    # Remote execution must check that this option is not None.
-    parser.add_argument('--job_name',
-                        default=None,
-                        help='Name of the Cloud Dataflow job.')
     # Remote execution must check that this option is not None.
     parser.add_argument('--staging_location',
                         default=None,

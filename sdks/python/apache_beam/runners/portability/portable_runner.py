@@ -296,7 +296,8 @@ class PortableRunner(runner.PipelineRunner):
 
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
-            job_name='job', pipeline=proto_pipeline,
+            job_name=options.view_as(StandardOptions).job_name or 'job',
+            pipeline=proto_pipeline,
             pipeline_options=job_utils.dict_to_struct(p_options)),
         timeout=portable_options.job_server_timeout)
     if prepare_response.artifact_staging_endpoint.url:
