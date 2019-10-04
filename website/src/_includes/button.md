@@ -12,10 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<div>
+{% if include.attrib %}
+{:{{ include.attrib }}}{% endif %}
 <table align="left" style="margin-right:1em">
   <td>
     <a class="button" target="_blank" href="{{ include.url }}">{% if include.logo %}<img src="{{ include.logo }}" width="32px" height="32px" alt="{{ include.text }}" /> {% endif %}{{ include.text }}</a>
   </td>
 </table>
-</div>

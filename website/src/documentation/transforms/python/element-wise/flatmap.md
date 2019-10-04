@@ -53,8 +53,8 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 ### Example 2: FlatMap with a function
@@ -72,8 +72,8 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 ### Example 3: FlatMap with a lambda function
@@ -93,8 +93,8 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 ### Example 4: FlatMap with a generator
@@ -114,8 +114,8 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 ### Example 5: FlatMapTuple for key-value pairs
@@ -134,8 +134,8 @@ Output `PCollection` after `FlatMapTuple`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 ### Example 6: FlatMap with multiple arguments
@@ -156,8 +156,8 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 ### Example 7: FlatMap with side inputs as singletons
@@ -179,8 +179,8 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 ### Example 8: FlatMap with side inputs as iterators
@@ -200,8 +200,8 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
@@ -225,8 +225,8 @@ Output `PCollection` after `FlatMap`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map_test.py tag:valid_plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/flat_map.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/flatmap"
 %}
 
 ## Related transforms
