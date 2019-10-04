@@ -62,7 +62,9 @@ public class DataCatalogGCSIT implements Serializable {
             "query",
             SqlTransform.query("SELECT id, name, type FROM " + gcsEntryId)
                 .withDefaultTableProvider(
-                    "dc", DataCatalogTableProvider.create(pipeline.getOptions())));
+                    "dc",
+                    DataCatalogTableProvider.create(
+                        pipeline.getOptions().as(DataCatalogPipelineOptions.class))));
 
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(true);
     PAssert.that(result)
