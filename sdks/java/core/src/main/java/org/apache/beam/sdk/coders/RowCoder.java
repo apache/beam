@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -246,5 +247,22 @@ public class RowCoder extends CustomCoder<Row> {
   public String toString() {
     String string = "Schema: " + schema + "  UUID: " + id + " delegateCoder: " + getDelegateCoder();
     return string;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    RowCoder rowCoder = (RowCoder) o;
+    return schema.equals(rowCoder.schema);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(schema);
   }
 }
