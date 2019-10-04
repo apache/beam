@@ -2128,8 +2128,8 @@ class TestPTransformFn(TypeHintTestCase):
       return pcoll | beam.ParDo(lambda x: [x]).with_output_types(str)
 
     p = TestPipeline()
-    with self.assertRaisesRegexp(beam.typehints.TypeCheckError,
-                                 r'expected.*int.*got.*str'):
+    with self.assertRaisesRegex(beam.typehints.TypeCheckError,
+                                r'expected.*int.*got.*str'):
       _ = (p
            | beam.Create([1, 2])
            | MyTransform().with_output_types(int))

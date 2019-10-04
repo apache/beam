@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import logging
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 # Protect against environments where datastore library is not available.
@@ -120,7 +122,7 @@ class TypesTest(unittest.TestCase):
 
   def testKeyToClientKeyMissingProject(self):
     k = Key(['k1', 1234], namespace=self._NAMESPACE)
-    with self.assertRaisesRegexp(ValueError, r'project'):
+    with self.assertRaisesRegex(ValueError, r'project'):
       _ = Key.from_client_key(k.to_client_key())
 
   def testQuery(self):

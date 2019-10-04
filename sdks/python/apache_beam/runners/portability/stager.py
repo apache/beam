@@ -564,7 +564,7 @@ class Stager(object):
         self.stage_artifact(sdk_local_file, staged_path)
         staged_sdk_files.append(sdk_binary_staged_name)
       except RuntimeError as e:
-        logging.warn(
+        logging.warning(
             'Failed to download requested binary distribution '
             'of the SDK: %s', repr(e))
 

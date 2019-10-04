@@ -270,8 +270,8 @@ class SdkHarness(object):
           if request_time:
             scheduling_delay = current_time - request_time
             if scheduling_delay > SdkHarness.SCHEDULING_DELAY_THRESHOLD_SEC:
-              logging.warn('Unable to schedule instruction %s for %s',
-                           instruction_id, scheduling_delay)
+              logging.warning('Unable to schedule instruction %s for %s',
+                              instruction_id, scheduling_delay)
 
 
 class BundleProcessorCache(object):

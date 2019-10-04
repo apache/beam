@@ -31,7 +31,8 @@ from __future__ import print_function
 import subprocess
 from distutils.command.build import build as _build
 
-import setuptools
+# workaround pylint bug: https://github.com/PyCQA/pylint/issues/3152
+import setuptools  # pylint: disable-all
 
 
 # This class handles the pip install mechanism.

@@ -154,8 +154,8 @@ class LocalFileSystemTest(unittest.TestCase):
 
   def test_match_file_exception(self):
     # Match files with None so that it throws an exception
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Match operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Match operation failed') as error:
       self.fs.match([None])
     self.assertEqual(list(error.exception.exception_details.keys()), [None])
 
@@ -229,8 +229,8 @@ class LocalFileSystemTest(unittest.TestCase):
   def test_copy_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Copy operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Copy operation failed') as error:
       self.fs.copy([path1], [path2])
     self.assertEqual(list(error.exception.exception_details.keys()),
                      [(path1, path2)])
@@ -262,8 +262,8 @@ class LocalFileSystemTest(unittest.TestCase):
   def test_rename_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Rename operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Rename operation failed') as error:
       self.fs.rename([path1], [path2])
     self.assertEqual(list(error.exception.exception_details.keys()),
                      [(path1, path2)])
@@ -437,8 +437,8 @@ class LocalFileSystemTest(unittest.TestCase):
     dir = os.path.join(self.tmpdir, 'dir')
     self.make_tree(dir, self._test_tree, expected_leaf_count=7)
 
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Delete operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Delete operation failed') as error:
       self.fs.delete([
           os.path.join(dir, 'path*'),
           os.path.join(dir, 'aaa', 'b*'),
@@ -465,8 +465,8 @@ class LocalFileSystemTest(unittest.TestCase):
         [os.path.join(dir, 'aaa', 'd*')]
     )
 
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Delete operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Delete operation failed') as error:
       self.fs.delete([
           os.path.join(dir, 'path*')  # doesn't match anything, will raise
       ])
@@ -503,8 +503,8 @@ class LocalFileSystemTest(unittest.TestCase):
 
   def test_delete_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Delete operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Delete operation failed') as error:
       self.fs.delete([path1])
     self.assertEqual(list(error.exception.exception_details.keys()), [path1])
 

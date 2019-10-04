@@ -37,7 +37,7 @@ from apache_beam.utils.counters import CounterFactory
 # These have to be at top level so the pickler can find them.
 
 
-class OldClassThatDoesNotImplementLen(object):  # pylint: disable=old-style-class
+class OldClassThatDoesNotImplementLen(object):
 
   def __init__(self):
     pass

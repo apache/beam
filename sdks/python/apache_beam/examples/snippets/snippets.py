@@ -638,8 +638,6 @@ def examples_wordcount_debugging(renames):
 def examples_wordcount_streaming(argv):
   import apache_beam as beam
   from apache_beam import window
-  from apache_beam.io import ReadFromPubSub
-  from apache_beam.io import WriteStringsToPubSub
   from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.options.pipeline_options import StandardOptions
 
@@ -1379,7 +1377,6 @@ def accessing_valueprovider_info_after_run():
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.utils.value_provider import RuntimeValueProvider
-  from apache_beam.io import WriteToText
 
   class MyOptions(PipelineOptions):
     @classmethod
