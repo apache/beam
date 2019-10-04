@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -34,7 +35,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -70,7 +70,7 @@ public class CommittedResultTest implements Serializable {
     CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.absent(),
+            Optional.empty(),
             Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
@@ -99,11 +99,11 @@ public class CommittedResultTest implements Serializable {
     CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.absent(),
+            Optional.empty(),
             Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getUnprocessedInputs(), Matchers.equalTo(Optional.absent()));
+    assertThat(result.getUnprocessedInputs(), Matchers.equalTo(Optional.empty()));
   }
 
   @Test
@@ -129,7 +129,7 @@ public class CommittedResultTest implements Serializable {
     CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.absent(),
+            Optional.empty(),
             outputs,
             EnumSet.of(OutputType.BUNDLE, OutputType.PCOLLECTION_VIEW));
 
