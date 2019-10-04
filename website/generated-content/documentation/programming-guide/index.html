@@ -3139,14 +3139,14 @@ windows.</p>
 
 <p>The simplest form of windowing is using <strong>fixed time windows</strong>: given a
 timestamped <code class="highlighter-rouge">PCollection</code> which might be continuously updating, each window
-might capture (for example) all elements with timestamps that fall into a five
-minute interval.</p>
+might capture (for example) all elements with timestamps that fall into a 30
+second interval.</p>
 
 <p>A fixed time window represents a consistent duration, non overlapping time
-interval in the data stream. Consider windows with a five-minute duration: all
+interval in the data stream. Consider windows with a 30 second duration: all
 of the elements in your unbounded <code class="highlighter-rouge">PCollection</code> with timestamp values from
-0:00:00 up to (but not including) 0:05:00 belong to the first window, elements
-with timestamp values from 0:05:00 up to (but not including) 0:10:00 belong to
+0:00:00 up to (but not including) 0:00:30 belong to the first window, elements
+with timestamp values from 0:00:30 up to (but not including) 0:01:00 belong to
 the second window, and so on.</p>
 
 <p><img src="/images/fixed-time-windows.png" alt="Diagram of fixed time windows, 30s in duration" title="Fixed time windows, 30s in duration" /></p>
@@ -3157,15 +3157,15 @@ the second window, and so on.</p>
 
 <p>A <strong>sliding time window</strong> also represents time intervals in the data stream;
 however, sliding time windows can overlap. For example, each window might
-capture five minutes worth of data, but a new window starts every ten seconds.
+capture 60 seconds worth of data, but a new window starts every 30 seconds.
 The frequency with which sliding windows begin is called the <em>period</em>.
-Therefore, our example would have a window <em>duration</em> of five minutes and a
-<em>period</em> of ten seconds.</p>
+Therefore, our example would have a window <em>duration</em> of 60 seconds and a
+<em>period</em> of 30 seconds.</p>
 
 <p>Because multiple windows overlap, most elements in a data set will belong to
 more than one window. This kind of windowing is useful for taking running
 averages of data; using sliding time windows, you can compute a running average
-of the past five minutes’ worth of data, updated every ten seconds, in our
+of the past 60 seconds’ worth of data, updated every 30 seconds, in our
 example.</p>
 
 <p><img src="/images/sliding-time-windows.png" alt="Diagram of sliding time windows, with 1 minute window duration and 30s window period" title="Sliding time windows, with 1 minute window duration and 30s window period" /></p>
