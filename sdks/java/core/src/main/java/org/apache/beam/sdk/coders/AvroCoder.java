@@ -34,6 +34,7 @@ import java.util.SortedSet;
 import javax.annotation.Nullable;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
+import org.apache.avro.data.TimeConversions.TimestampConversion;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -236,7 +237,9 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
     @Override
     public ReflectData get() {
-      return new ReflectData(clazz.getClassLoader());
+      ReflectData reflectData = new ReflectData(clazz.getClassLoader());
+      reflectData.addLogicalTypeConversion(new TimestampConversion());
+      return reflectData;
     }
   }
 

@@ -40,6 +40,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.reflect.AvroSchema;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -63,6 +64,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -296,11 +299,15 @@ public class PubsubIOTest {
     int intField;
     String stringField;
 
+    @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
+    public DateTime timestamp;
+
     public GenericClass() {}
 
-    public GenericClass(int intField, String stringField) {
+    public GenericClass(int intField, String stringField, DateTime timestamp) {
       this.intField = intField;
       this.stringField = stringField;
+      this.timestamp = timestamp;
     }
 
     @Override
@@ -308,12 +315,13 @@ public class PubsubIOTest {
       return MoreObjects.toStringHelper(getClass())
           .add("intField", intField)
           .add("stringField", stringField)
+          .add("timestamp", timestamp)
           .toString();
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(intField, stringField);
+      return Objects.hash(intField, stringField, timestamp);
     }
 
     @Override
@@ -322,7 +330,9 @@ public class PubsubIOTest {
         return false;
       }
       GenericClass o = (GenericClass) other;
-      return Objects.equals(intField, o.intField) && Objects.equals(stringField, o.stringField);
+      return Objects.equals(intField, o.intField)
+          && Objects.equals(stringField, o.stringField)
+          && Objects.equals(timestamp, o.timestamp);
     }
   }
 
@@ -426,7 +436,11 @@ public class PubsubIOTest {
   public void testAvroPojo() {
     AvroCoder<GenericClass> coder = AvroCoder.of(GenericClass.class);
     List<GenericClass> inputs =
-        Lists.newArrayList(new GenericClass(1, "foo"), new GenericClass(2, "bar"));
+        Lists.newArrayList(
+            new GenericClass(
+                1, "foo", new DateTime().withDate(2019, 10, 1).withZone(DateTimeZone.UTC)),
+            new GenericClass(
+                2, "bar", new DateTime().withDate(1986, 10, 1).withZone(DateTimeZone.UTC)));
     setupTestClient(inputs, coder);
     PCollection<GenericClass> read =
         readPipeline.apply(
