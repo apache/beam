@@ -52,8 +52,8 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
 %}
 
 ### Example 2: Filtering with a lambda function
@@ -71,8 +71,8 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
 %}
 
 ### Example 3: Filtering with multiple arguments
@@ -93,8 +93,8 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
 %}
 
 ### Example 4: Filtering with side inputs as singletons
@@ -116,8 +116,8 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
 %}
 
 ### Example 5: Filtering with side inputs as iterators
@@ -137,8 +137,8 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:valid_plants %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
 %}
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
@@ -162,8 +162,8 @@ Output `PCollection` after `Filter`:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter-py.ipynb"
-  code="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
 %}
 
 ## Related transforms
