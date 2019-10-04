@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -45,7 +46,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
@@ -178,7 +178,7 @@ class EvaluationContext {
         completedBundle,
         result.getTimerUpdate().withCompletedTimers(completedTimers),
         committedResult.getExecutable(),
-        committedResult.getUnprocessedInputs().orNull(),
+        committedResult.getUnprocessedInputs().orElse(null),
         committedResult.getOutputs(),
         result.getWatermarkHold());
     return committedResult;
@@ -193,7 +193,7 @@ class EvaluationContext {
   private Optional<? extends CommittedBundle<?>> getUnprocessedInput(
       CommittedBundle<?> completedBundle, TransformResult<?> result) {
     if (completedBundle == null || Iterables.isEmpty(result.getUnprocessedElements())) {
-      return Optional.absent();
+      return Optional.empty();
     }
     CommittedBundle<?> residual =
         completedBundle.withElements((Iterable) result.getUnprocessedElements());
