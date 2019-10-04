@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -70,7 +71,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
           .put(TypeName.BOOLEAN, BooleanCoder.of())
           .build();
 
-  private final Schema schema;
+  protected final Schema schema;
   private final SerializableFunction<T, Row> toRowFunction;
   private final SerializableFunction<Row, T> fromRowFunction;
   @Nullable private transient Coder<Row> delegateCoder;
@@ -219,5 +220,24 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       default:
         return;
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SchemaCoder<?> that = (SchemaCoder<?>) o;
+    return schema.equals(that.schema)
+        && toRowFunction.equals(that.toRowFunction)
+        && fromRowFunction.equals(that.fromRowFunction);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(schema, toRowFunction, fromRowFunction);
   }
 }

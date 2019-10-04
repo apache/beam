@@ -680,6 +680,16 @@ class DebugOptions(PipelineOptions):
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
 
+    parser.add_argument(
+        '--number_of_worker_harness_threads',
+        type=int,
+        default=None,
+        help=
+        ('Number of threads per worker to use on the runner. If left '
+         'unspecified, the runner will compute an appropriate number of '
+         'threads to use. Currently only enabled for DataflowRunner when '
+         'experiment \'use_unified_worker\' is enabled.'))
+
   def add_experiment(self, experiment):
     # pylint: disable=access-member-before-definition
     if self.experiments is None:
@@ -808,11 +818,17 @@ class PortableOptions(PipelineOptions):
   """
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--job_endpoint',
-                        default=None,
-                        help=
-                        ('Job service endpoint to use. Should be in the form '
-                         'of address and port, e.g. localhost:3000'))
+    parser.add_argument(
+        '--job_endpoint', default=None,
+        help=('Job service endpoint to use. Should be in the form of address '
+              'and port, e.g. localhost:3000'))
+    parser.add_argument(
+        '--job-server-timeout', default=60, type=int,
+        help=('Job service request timeout in seconds. The timeout '
+              'determines the max time the driver program will wait to '
+              'get a response from the job server. NOTE: the timeout does not '
+              'apply to the actual pipeline run time. The driver program can '
+              'still wait for job completion indefinitely.'))
     parser.add_argument(
         '--environment_type', default=None,
         help=('Set the default environment type for running '

@@ -27,6 +27,7 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -143,7 +144,11 @@ public class FlinkDoFnFunction<InputT, OutputT>
   }
 
   @Override
-  public void open(Configuration parameters) throws Exception {
+  public void open(Configuration parameters) {
+    // Note that the SerializablePipelineOptions already initialize FileSystems in the readObject()
+    // deserialization method. However, this is a hack, and we want to properly initialize the
+    // options where they are needed.
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
     doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
   }
 

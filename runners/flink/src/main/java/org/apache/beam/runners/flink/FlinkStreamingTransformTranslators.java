@@ -36,6 +36,7 @@ import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
@@ -57,7 +58,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Combine;
@@ -90,8 +93,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -224,10 +227,16 @@ class FlinkStreamingTransformTranslators {
           source =
               nonDedupSource
                   .keyBy(new ValueWithRecordIdKeySelector<>())
-                  .transform("deduping", outputTypeInfo, new DedupingOperator<>())
+                  .transform(
+                      "deduping",
+                      outputTypeInfo,
+                      new DedupingOperator<>(context.getPipelineOptions()))
                   .uid(format("%s/__deduplicated__", fullName));
         } else {
-          source = nonDedupSource.flatMap(new StripIdsMap<>()).returns(outputTypeInfo);
+          source =
+              nonDedupSource
+                  .flatMap(new StripIdsMap<>(context.getPipelineOptions()))
+                  .returns(outputTypeInfo);
         }
       } catch (Exception e) {
         throw new RuntimeException("Error while translating UnboundedSource: " + rawSource, e);
@@ -253,7 +262,20 @@ class FlinkStreamingTransformTranslators {
   }
 
   public static class StripIdsMap<T>
-      implements FlatMapFunction<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>> {
+      extends RichFlatMapFunction<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>> {
+
+    private final SerializablePipelineOptions options;
+
+    StripIdsMap(PipelineOptions options) {
+      this.options = new SerializablePipelineOptions(options);
+    }
+
+    @Override
+    public void open(Configuration parameters) {
+      // Initialize FileSystems for any coders which may want to use the FileSystem,
+      // see https://issues.apache.org/jira/browse/BEAM-8303
+      FileSystems.setDefaultPipelineOptions(options.get());
+    }
 
     @Override
     public void flatMap(
@@ -332,11 +354,20 @@ class FlinkStreamingTransformTranslators {
   }
 
   /** Wraps each element in a {@link RawUnionValue} with the given tag id. */
-  public static class ToRawUnion<T> implements MapFunction<T, RawUnionValue> {
+  public static class ToRawUnion<T> extends RichMapFunction<T, RawUnionValue> {
     private final int intTag;
+    private final SerializablePipelineOptions options;
 
-    public ToRawUnion(int intTag) {
+    ToRawUnion(int intTag, PipelineOptions pipelineOptions) {
       this.intTag = intTag;
+      this.options = new SerializablePipelineOptions(pipelineOptions);
+    }
+
+    @Override
+    public void open(Configuration parameters) {
+      // Initialize FileSystems for any coders which may want to use the FileSystem,
+      // see https://issues.apache.org/jira/browse/BEAM-8303
+      FileSystems.setDefaultPipelineOptions(options.get());
     }
 
     @Override
@@ -385,7 +416,9 @@ class FlinkStreamingTransformTranslators {
       final int intTag = tagToIntMapping.get(tag);
       DataStream<Object> sideInputStream = context.getInputDataStream(sideInput);
       DataStream<RawUnionValue> unionValueStream =
-          sideInputStream.map(new ToRawUnion<>(intTag)).returns(unionTypeInformation);
+          sideInputStream
+              .map(new ToRawUnion<>(intTag, context.getPipelineOptions()))
+              .returns(unionTypeInformation);
 
       if (sideInputUnion == null) {
         sideInputUnion = unionValueStream;
@@ -854,7 +887,7 @@ class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
-              .flatMap(new ToKeyedWorkItem<>())
+              .flatMap(new ToKeyedWorkItem<>(context.getPipelineOptions()))
               .returns(workItemTypeInfo)
               .name("ToKeyedWorkItem");
 
@@ -954,7 +987,7 @@ class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
-              .flatMap(new ToKeyedWorkItem<>())
+              .flatMap(new ToKeyedWorkItem<>(context.getPipelineOptions()))
               .returns(workItemTypeInfo)
               .name("ToKeyedWorkItem");
 
@@ -1089,7 +1122,7 @@ class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
-              .flatMap(new ToKeyedWorkItemInGlobalWindow<>())
+              .flatMap(new ToKeyedWorkItemInGlobalWindow<>(context.getPipelineOptions()))
               .returns(workItemTypeInfo)
               .name("ToKeyedWorkItem");
 
@@ -1104,6 +1137,19 @@ class FlinkStreamingTransformTranslators {
   private static class ToKeyedWorkItemInGlobalWindow<K, InputT>
       extends RichFlatMapFunction<
           WindowedValue<KV<K, InputT>>, WindowedValue<SingletonKeyedWorkItem<K, InputT>>> {
+
+    private final SerializablePipelineOptions options;
+
+    ToKeyedWorkItemInGlobalWindow(PipelineOptions options) {
+      this.options = new SerializablePipelineOptions(options);
+    }
+
+    @Override
+    public void open(Configuration parameters) {
+      // Initialize FileSystems for any coders which may want to use the FileSystem,
+      // see https://issues.apache.org/jira/browse/BEAM-8303
+      FileSystems.setDefaultPipelineOptions(options.get());
+    }
 
     @Override
     public void flatMap(
@@ -1198,6 +1244,19 @@ class FlinkStreamingTransformTranslators {
   static class ToKeyedWorkItem<K, InputT>
       extends RichFlatMapFunction<
           WindowedValue<KV<K, InputT>>, WindowedValue<SingletonKeyedWorkItem<K, InputT>>> {
+
+    private final SerializablePipelineOptions options;
+
+    ToKeyedWorkItem(PipelineOptions options) {
+      this.options = new SerializablePipelineOptions(options);
+    }
+
+    @Override
+    public void open(Configuration parameters) {
+      // Initialize FileSystems for any coders which may want to use the FileSystem,
+      // see https://issues.apache.org/jira/browse/BEAM-8303
+      FileSystems.setDefaultPipelineOptions(options.get());
+    }
 
     @Override
     public void flatMap(

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -32,5 +33,22 @@ public class RowCoder extends SchemaCoder<Row> {
 
   private RowCoder(Schema schema) {
     super(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    RowCoder rowCoder = (RowCoder) o;
+    return schema.equals(rowCoder.schema);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(schema);
   }
 }

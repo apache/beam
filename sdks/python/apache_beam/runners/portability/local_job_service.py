@@ -89,7 +89,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     if os.path.exists(self._staging_dir) and self._cleanup_staging_dir:
       shutil.rmtree(self._staging_dir, ignore_errors=True)
 
-  def Prepare(self, request, context=None):
+  def Prepare(self, request, context=None, timeout=None):
     # For now, just use the job name as the job id.
     logging.debug('Got Prepare request.')
     preparation_id = '%s-%s' % (request.job_name, uuid.uuid4())
@@ -121,13 +121,13 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         artifact_staging_endpoint=self._artifact_staging_endpoint,
         staging_session_token=preparation_id)
 
-  def Run(self, request, context=None):
+  def Run(self, request, context=None, timeout=None):
     job_id = request.preparation_id
     logging.info("Runing job '%s'", job_id)
     self._jobs[job_id].start()
     return beam_job_api_pb2.RunJobResponse(job_id=job_id)
 
-  def GetJobs(self, request, context=None):
+  def GetJobs(self, request, context=None, timeout=None):
     return beam_job_api_pb2.GetJobsResponse(
         [job.to_runner_api(context) for job in self._jobs.values()])
 
@@ -135,16 +135,16 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     return beam_job_api_pb2.GetJobStateResponse(
         state=self._jobs[request.job_id].state)
 
-  def GetPipeline(self, request, context=None):
+  def GetPipeline(self, request, context=None, timeout=None):
     return beam_job_api_pb2.GetJobPipelineResponse(
         pipeline=self._jobs[request.job_id]._pipeline_proto)
 
-  def Cancel(self, request, context=None):
+  def Cancel(self, request, context=None, timeout=None):
     self._jobs[request.job_id].cancel()
     return beam_job_api_pb2.CancelJobRequest(
         state=self._jobs[request.job_id].state)
 
-  def GetStateStream(self, request, context=None):
+  def GetStateStream(self, request, context=None, timeout=None):
     """Yields state transitions since the stream started.
       """
     if request.job_id not in self._jobs:
@@ -154,7 +154,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     for state in job.get_state_stream():
       yield beam_job_api_pb2.GetJobStateResponse(state=state)
 
-  def GetMessageStream(self, request, context=None):
+  def GetMessageStream(self, request, context=None, timeout=None):
     """Yields messages since the stream started.
       """
     if request.job_id not in self._jobs:
@@ -169,7 +169,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         resp = beam_job_api_pb2.JobMessagesResponse(message_response=msg)
       yield resp
 
-  def DescribePipelineOptions(self, request, context=None):
+  def DescribePipelineOptions(self, request, context=None, timeout=None):
     return beam_job_api_pb2.DescribePipelineOptionsResponse()
 
 

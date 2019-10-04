@@ -31,6 +31,7 @@ import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -615,6 +616,7 @@ public final class KinesisIO {
         putFutures = Collections.synchronizedList(new ArrayList<>());
         /** Keep only the first {@link MAX_NUM_FAILURES} occurred exceptions */
         failures = new LinkedBlockingDeque<>(MAX_NUM_FAILURES);
+        initKinesisProducer();
       }
 
       private synchronized void initKinesisProducer() {
@@ -630,7 +632,14 @@ public final class KinesisIO {
         config.setCredentialsRefreshDelay(100);
 
         // Init Kinesis producer
-        producer = spec.getAWSClientsProvider().createKinesisProducer(config);
+        if (producer == null) {
+          producer = spec.getAWSClientsProvider().createKinesisProducer(config);
+        }
+      }
+
+      private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
+        is.defaultReadObject();
+        initKinesisProducer();
       }
 
       /**
@@ -753,6 +762,14 @@ public final class KinesisIO {
                 "Some errors occurred writing to Kinesis. First %d errors: %s",
                 i, logEntry.toString());
         throw new IOException(errorMessage);
+      }
+
+      @Teardown
+      public void teardown() throws Exception {
+        if (producer != null && producer.getOutstandingRecordsCount() > 0) {
+          producer.flushSync();
+        }
+        producer = null;
       }
     }
   }
