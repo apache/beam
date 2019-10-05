@@ -129,11 +129,25 @@ class PortableRunner(runner.PipelineRunner):
               env=(config.get('env') or '')
           ).SerializeToString())
     elif environment_urn == common_urns.environments.EXTERNAL.urn:
+      def looks_like_json(environment_config):
+        import re
+        return re.match(r'\s*\{.*\}\s*$', environment_config)
+
+      if looks_like_json(portable_options.environment_config):
+        config = json.loads(portable_options.environment_config)
+        url = config.get('url')
+        if not url:
+          raise ValueError('External environment endpoint must be set.')
+        params = config.get('params')
+      else:
+        url = portable_options.environment_config
+        params = None
+
       return beam_runner_api_pb2.Environment(
           urn=common_urns.environments.EXTERNAL.urn,
           payload=beam_runner_api_pb2.ExternalPayload(
-              endpoint=endpoints_pb2.ApiServiceDescriptor(
-                  url=portable_options.environment_config)
+              endpoint=endpoints_pb2.ApiServiceDescriptor(url=url),
+              params=params
           ).SerializeToString())
     else:
       return beam_runner_api_pb2.Environment(
