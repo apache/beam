@@ -199,16 +199,18 @@ def getBranchRepo() {
   def author = System.env.ghprbPullAuthorLogin
   if (author == null) {
     // If the author is not defined, it's most probably running locally.
-    // Try to infer the author from the remote URL
-    for (remote in grgit.remote.list()) {
-      if (remote.getName() == 'origin') {
-        // remote.url = 'git@github.com:author/beam.git'
-        author = remote.url.split(':')[1].split('/')[0]
-        break
+    if (grgit != null) {
+      // If on git, try to infer the author from the remote URL
+      for (remote in grgit.remote.list()) {
+        if (remote.getName() == 'origin') {
+          // remote.url = 'git@github.com:author/beam.git'
+          author = remote.url.split(':')[1].split('/')[0]
+          break
+        }
       }
     }
   }
-  // Jenkins stores the branch in botho of the following environment variables.
+  // Jenkins stores the branch in both of the following environment variables.
   def branch = System.env.ghprbSourceBranch ?: System.env.GIT_BRANCH
   if (branch == null && grgit) {
     branch = grgit.branch.current().getName()
