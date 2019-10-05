@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -26,13 +27,23 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.RowJsonDeserializer.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 
-/** JsonToRowUtils. */
+/** Utilities for working with {@link RowJsonSerializer} and {@link RowJsonDeserializer}. */
 @Internal
-public class JsonToRowUtils {
+public class RowJsonUtils {
 
   public static ObjectMapper newObjectMapperWith(RowJsonDeserializer deserializer) {
     SimpleModule module = new SimpleModule("rowDeserializationModule");
     module.addDeserializer(Row.class, deserializer);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    objectMapper.registerModule(module);
+
+    return objectMapper;
+  }
+
+  public static ObjectMapper newObjectMapperWith(RowJsonSerializer serializer) {
+    SimpleModule module = new SimpleModule("rowSerializationModule");
+    module.addSerializer(Row.class, serializer);
 
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.registerModule(module);
@@ -47,6 +58,14 @@ public class JsonToRowUtils {
       throw new UnsupportedRowJsonException("Unable to parse Row", jsonException);
     } catch (IOException e) {
       throw new IllegalArgumentException("Unable to parse json object: " + jsonString, e);
+    }
+  }
+
+  public static String rowToJson(ObjectMapper objectMapper, Row row) {
+    try {
+      return objectMapper.writeValueAsString(row);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to serilize row: " + row);
     }
   }
 }
