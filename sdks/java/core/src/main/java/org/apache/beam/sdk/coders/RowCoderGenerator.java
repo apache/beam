@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
 import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.modifier.FieldManifestation;
@@ -114,7 +115,7 @@ public abstract class RowCoderGenerator {
     // Initialize the CODER_MAP with the StackManipulations to create the primitive coders.
     // Assumes that each class contains a static of() constructor method.
     CODER_MAP = Maps.newHashMap();
-    for (Map.Entry<TypeName, Coder> entry : RowCoder.CODER_MAP.entrySet()) {
+    for (Map.Entry<TypeName, Coder> entry : SchemaCoder.CODER_MAP.entrySet()) {
       StackManipulation stackManipulation =
           MethodInvocation.invoke(
               new ForLoadedType(entry.getValue().getClass())
