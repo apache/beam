@@ -49,6 +49,7 @@ from typing import Tuple
 from typing import Type
 from typing import TypeVar
 from typing import Union
+from typing import overload
 
 import grpc
 
@@ -142,8 +143,17 @@ class ControlConnection(object):
     for data in self._input:
       self._futures_by_id.pop(data.instruction_id).set(data)
 
+  @overload
   def push(self, req):
-    # type: (...) -> Optional[ControlFuture]
+    # type: (BeamFnControlServicer.DoneMarker) -> None
+    pass
+
+  @overload
+  def push(self, req):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> ControlFuture
+    pass
+
+  def push(self, req):
     if req == BeamFnControlServicer._DONE_MARKER:
       self._push_queue.put(req)
       return None
@@ -185,7 +195,10 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
   STARTED_STATE = 'started'
   DONE_STATE = 'done'
 
-  _DONE_MARKER = object()
+  class DoneMarker(object):
+    pass
+
+  _DONE_MARKER = DoneMarker()
 
   def __init__(self):
     self._lock = threading.Lock()
@@ -1842,6 +1855,7 @@ class BundleManager(object):
                             read_transform_id,  # type: str
                             byte_streams
                            ):
+    assert self._worker_handler is not None
     data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
     for byte_stream in byte_streams:
@@ -1853,6 +1867,7 @@ class BundleManager(object):
     if self._registered:
       registration_future = None
     else:
+      assert self._worker_handler is not None
       process_bundle_registration = beam_fn_api_pb2.InstructionRequest(
           register=beam_fn_api_pb2.RegisterRequest(
               process_bundle_descriptor=[self._bundle_descriptor]))
@@ -2039,13 +2054,18 @@ class ParallelBundleManager(BundleManager):
 
     merged_result = None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
     split_result_list = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
-    with futures.ThreadPoolExecutor(max_workers=self._num_workers) as executor:
-      for result, split_result in executor.map(lambda part: BundleManager(
+
+    def execute(part_map):
+      # type: (...) -> BundleProcessResult
+      bundle_manager = BundleManager(
           self._worker_handler_list, self._get_buffer,
           self._get_input_coder_impl, self._bundle_descriptor,
           self._progress_frequency, self._registered,
-          cache_token_generator=self._cache_token_generator).process_bundle(
-              part, expected_outputs), part_inputs):
+          cache_token_generator=self._cache_token_generator)
+      return bundle_manager.process_bundle(part_map, expected_outputs)
+
+    with futures.ThreadPoolExecutor(max_workers=self._num_workers) as executor:
+      for result, split_result in executor.map(execute, part_inputs):
 
         split_result_list += split_result
         if merged_result is None:

@@ -429,6 +429,7 @@ class DoFnInvoker(object):
     # type: () -> None
     """Invokes the DoFn.start_bundle() method.
     """
+    assert self.output_processor is not None
     self.output_processor.start_bundle_outputs(
         self.signature.start_bundle_method.method_value())
 
@@ -436,6 +437,7 @@ class DoFnInvoker(object):
     # type: () -> None
     """Invokes the DoFn.finish_bundle() method.
     """
+    assert self.output_processor is not None
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
 
@@ -446,6 +448,7 @@ class DoFnInvoker(object):
     self.signature.teardown_lifecycle_method.method_value()
 
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
+    assert self.output_processor is not None
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window,)),
         self.signature.timer_methods[timer_spec].invoke_timer_callback(
@@ -484,6 +487,7 @@ class SimpleInvoker(DoFnInvoker):
                     ):
     # type: (...) -> None
     if not output_processor:
+      assert self.output_processor is not None
       output_processor = self.output_processor
     output_processor.process_outputs(
         windowed_value, self.process_method(windowed_value.value))
@@ -605,6 +609,7 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs = {}
 
     if not output_processor:
+      assert self.output_processor is not None
       output_processor = self.output_processor
     self.context.set_element(windowed_value)
     # Call for the process function for each window if has windowed side inputs
@@ -870,6 +875,7 @@ class DoFnRunner(Receiver):
 
   def current_element_progress(self):
     # type: () -> Optional[iobase.RestrictionProgress]
+    assert isinstance(self.do_fn_invoker, PerWindowInvoker)
     return self.do_fn_invoker.current_element_progress()
 
   def process_user_timer(self, timer_spec, key, window, timestamp):

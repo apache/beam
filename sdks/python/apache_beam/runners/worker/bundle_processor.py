@@ -26,7 +26,6 @@ import collections
 import json
 import logging
 import random
-import re
 import threading
 from builtins import next
 from builtins import object
@@ -597,6 +596,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
                 window  # type: windowed_value.BoundedWindow
                ):
     # type: (...) -> OutputTimer
+    assert self._timer_receivers is not None
     return OutputTimer(
         key, window, self._timer_receivers[timer_spec.name])
 
@@ -849,6 +849,7 @@ class BundleProcessor(object):
                                  deferred_remainder  # type: Tuple[windowed_value.WindowedValue, Timestamp]
                                 ):
     # type: (...) -> beam_fn_api_pb2.DelayedBundleApplication
+    assert op.input_info is not None
     transform_id, main_input_tag, main_input_coder, outputs = op.input_info
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
     element_and_restriction, watermark = deferred_remainder
@@ -1103,13 +1104,13 @@ def create_source_runner(
   # TODO(robertwb): Consider generalizing if there are any more cases.
   output_pcoll = only_element(transform_proto.outputs.values())
   output_consumers = only_element(consumers.values())
-  if (len(output_consumers) == 1
-      and isinstance(only_element(output_consumers), operations.DoOperation)):
+  if len(output_consumers) == 1:
     do_op = only_element(output_consumers)
-    for tag, pcoll_id in do_op.timer_inputs.items():
-      if pcoll_id == output_pcoll:
-        output_consumers[:] = [TimerConsumer(tag, do_op)]
-        break
+    if isinstance(do_op, operations.DoOperation):
+      for tag, pcoll_id in do_op.timer_inputs.items():
+        if pcoll_id == output_pcoll:
+          output_consumers[:] = [TimerConsumer(tag, do_op)]
+          break
 
   if grpc_port.coder_id:
     output_coder = cast(coders.WindowedValueCoder,
@@ -1345,9 +1346,7 @@ def _create_pardo_operation(
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
         for tag, si in pardo_proto.side_inputs.items()]
     tagged_side_inputs.sort(
-        key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
-                                        tag_si[0],
-                                        re.DOTALL).group(1)))
+        key=lambda tag_si: sideinputs.get_sideinput_index(tag_si[0]))
     side_input_maps = [
         StateBackedSideInputMap(
             factory.state_handler,
