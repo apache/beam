@@ -982,7 +982,8 @@ class FnApiRunner(runner.PipelineRunner):
 
   # These classes are used to interact with the worker.
 
-  class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
+  class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
+                      sdk_worker.StateHandler):
 
     class CopyOnWriteState(object):
       def __init__(self, underlying):
@@ -1138,16 +1139,16 @@ class FnApiRunner(runner.PipelineRunner):
     """A singleton cache for a StateServicer."""
 
     def __init__(self, state_handler):
-      # type: (sdk_worker.StateHandler) -> None
+      # type: (sdk_worker.CachingMaterializingStateHandler) -> None
       self._state_handler = state_handler
 
     def create_state_handler(self, api_service_descriptor):
-      # type: (endpoints_pb2.ApiServiceDescriptor) -> sdk_worker.StateHandler
+      # type: (endpoints_pb2.ApiServiceDescriptor) -> sdk_worker.CachingMaterializingStateHandler
       """Returns the singleton state handler."""
       return self._state_handler
 
     def close(self):
-      # type: (...) -> None
+      # type: () -> None
       """Does nothing."""
       pass
 
@@ -1289,7 +1290,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
 
   def __init__(self,
                unused_payload,  # type: None
-               state,
+               state,  # type: sdk_worker.StateHandler
                provision_info,  # type: Optional[ExtendedProvisionInfo]
                unused_grpc_server=None
               ):

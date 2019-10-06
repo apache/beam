@@ -33,9 +33,11 @@ from builtins import object
 from builtins import range
 from concurrent import futures
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
+from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Optional
@@ -559,16 +561,43 @@ class SdkWorker(object):
       yield
 
 
+class StateHandler(with_metaclass(abc.ABCMeta, object)):
+  """An abstract object representing a ``StateHandler``."""
+
+  @abc.abstractmethod
+  def get_raw(self,
+              state_key,  # type: beam_fn_api_pb2.StateKey
+              continuation_token=None  # type: Optional[bytes]
+             ):
+    # type: (...) -> Tuple[bytes, Optional[bytes]]
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def append_raw(self,
+                 state_key,  # type: beam_fn_api_pb2.StateKey
+                 data  # type: bytes
+                ):
+    # type: (...) -> _Future
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def clear(self, state_key):
+    # type: (beam_fn_api_pb2.StateKey) -> _Future
+    raise NotImplementedError(type(self))
+
+
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
   """An abstract factory for creating ``DataChannel``."""
 
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):
+    # type: (endpoints_pb2.ApiServiceDescriptor) -> CachingMaterializingStateHandler
     """Returns a ``StateHandler`` from the given ApiServiceDescriptor."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
   def close(self):
+    # type: () -> None
     """Close all channels that this factory owns."""
     raise NotImplementedError(type(self))
 
@@ -580,14 +609,14 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
   """
 
   def __init__(self, state_cache_size, credentials=None):
-    self._state_handler_cache = {}  # type: Dict[str, GrpcStateHandler]
+    self._state_handler_cache = {}  # type: Dict[str, CachingMaterializingStateHandler]
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
     self._credentials = credentials
     self._state_cache = StateCache(state_cache_size)
 
   def create_state_handler(self, api_service_descriptor):
-    # type: (endpoints_pb2.ApiServiceDescriptor) -> GrpcStateHandler
+    # type: (endpoints_pb2.ApiServiceDescriptor) -> CachingMaterializingStateHandler
     if not api_service_descriptor:
       return self._throwing_state_handler
     url = api_service_descriptor.url
@@ -618,6 +647,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     return self._state_handler_cache[url]
 
   def close(self):
+    # type: () -> None
     logging.info('Closing all cached gRPC state handlers.')
     for _, state_handler in self._state_handler_cache.items():
       state_handler.done()
@@ -625,15 +655,15 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._state_cache.evict_all()
 
 
-class ThrowingStateHandler(object):
+class ThrowingStateHandler(StateHandler):
   """A state handler that errors on any requests."""
 
-  def blocking_get(self, state_key, coder):
+  def get_raw(self, state_key, coder):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'state ApiServiceDescriptor for state key %s.' % state_key)
 
-  def append(self, state_key, coder, elements):
+  def append_raw(self, state_key, coder, elements):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'state ApiServiceDescriptor for state key %s.' % state_key)
@@ -644,7 +674,7 @@ class ThrowingStateHandler(object):
         'state ApiServiceDescriptor for state key %s.' % state_key)
 
 
-class GrpcStateHandler(object):
+class GrpcStateHandler(StateHandler):
 
   _DONE = object()
 
@@ -742,6 +772,7 @@ class GrpcStateHandler(object):
     return future
 
   def _blocking_request(self, request):
+    # type: (beam_fn_api_pb2.StateRequest) -> beam_fn_api_pb2.StateResponse
     req_future = self._request(request)
     while not req_future.wait(timeout=1):
       if self._exc_info:
@@ -770,7 +801,10 @@ class GrpcStateHandler(object):
 class CachingMaterializingStateHandler(object):
   """ A State handler which retrieves and caches state. """
 
-  def __init__(self, global_state_cache, underlying_state):
+  def __init__(self,
+               global_state_cache,  # type: StateCache
+               underlying_state  # type: StateHandler
+              ):
     self._underlying = underlying_state
     self._state_cache = global_state_cache
     self._context = threading.local()
@@ -795,7 +829,12 @@ class CachingMaterializingStateHandler(object):
     finally:
       self._context.cache_token = None
 
-  def blocking_get(self, state_key, coder, is_cached=False):
+  def blocking_get(self,
+                   state_key,  # type: beam_fn_api_pb2.StateKey
+                   coder,  # type: coder_impl.CoderImpl
+                   is_cached=False
+                  ):
+    # type: (...) -> Iterator[Any]
     if not self._should_be_cached(is_cached):
       # Cache disabled / no cache token. Can't do a lookup/store in the cache.
       # Fall back to lazily materializing the state, one element at a time.
@@ -836,6 +875,7 @@ class CachingMaterializingStateHandler(object):
     return self._underlying.append_raw(state_key, out.get())
 
   def clear(self, state_key, is_cached=False):
+    # type: (beam_fn_api_pb2.StateKey, bool) -> _Future
     if self._should_be_cached(is_cached):
       cache_key = self._convert_to_cache_key(state_key)
       self._state_cache.clear(cache_key, self._context.cache_token)
@@ -845,7 +885,11 @@ class CachingMaterializingStateHandler(object):
     # type: () -> None
     self._underlying.done()
 
-  def _materialize_iter(self, state_key, coder):
+  def _materialize_iter(self,
+                        state_key,  # type: beam_fn_api_pb2.StateKey
+                        coder  # type: coder_impl.CoderImpl
+                       ):
+    # type: (...) -> Iterator[Any]
     """Materializes the state lazily, one element at a time.
        :return A generator which returns the next element if advanced.
     """

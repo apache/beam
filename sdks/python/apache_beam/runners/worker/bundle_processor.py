@@ -260,7 +260,7 @@ class DataInputOperation(RunnerIOOperation):
 
 class _StateBackedIterable(object):
   def __init__(self,
-               state_handler,
+               state_handler,  # type: sdk_worker.CachingMaterializingStateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
                coder_or_impl,  # type: Union[coders.Coder, coder_impl.CoderImpl]
                is_cached=False
@@ -289,7 +289,7 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
 
 class StateBackedSideInputMap(object):
   def __init__(self,
-               state_handler,
+               state_handler,  # type: sdk_worker.CachingMaterializingStateHandler
                transform_id,  # type: str
                tag,  # type: Optional[str]
                side_input_data,  # type: pvalue.SideInputData
@@ -421,7 +421,7 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
 
   def __init__(self,
-               state_handler,
+               state_handler,  # type: sdk_worker.CachingMaterializingStateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
                value_coder  # type: coders.Coder
               ):
@@ -466,7 +466,7 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
 class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
   def __init__(self,
-               state_handler,
+               state_handler,  # type: sdk_worker.CachingMaterializingStateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
                value_coder  # type: coders.Coder
               ):
@@ -558,7 +558,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
   """Interface for state and timers from SDK to Fn API servicer of state.."""
 
   def __init__(self,
-               state_handler,
+               state_handler,  # type: sdk_worker.CachingMaterializingStateHandler
                transform_id,  # type: str
                key_coder,  # type: coders.Coder
                window_coder,  # type: coders.Coder
@@ -675,7 +675,7 @@ class BundleProcessor(object):
 
   def __init__(self,
                process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
-               state_handler,  # type: Union[FnApiRunner.StateServicer, GrpcStateHandler]
+               state_handler,  # type: sdk_worker.CachingMaterializingStateHandler
                data_channel_factory  # type: data_plane.DataChannelFactory
               ):
     # type: (...) -> None
@@ -978,7 +978,7 @@ class BeamTransformFactory(object):
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,
                state_sampler,  # type: statesampler.StateSampler
-               state_handler
+               state_handler  # type: sdk_worker.CachingMaterializingStateHandler
               ):
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
