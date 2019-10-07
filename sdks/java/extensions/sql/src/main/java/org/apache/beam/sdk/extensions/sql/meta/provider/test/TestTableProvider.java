@@ -58,6 +58,7 @@ import org.apache.beam.sdk.values.Row;
 @AutoService(TableProvider.class)
 public class TestTableProvider extends InMemoryMetaTableProvider {
   static final Map<Long, Map<String, TableWithRows>> GLOBAL_TABLES = new ConcurrentHashMap<>();
+  public static final String PUSH_DOWN_OPTION = "push_down";
 
   private static final AtomicLong INSTANCES = new AtomicLong(0);
   private final long instanceId = INSTANCES.getAndIncrement();
@@ -124,6 +125,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
   private static class InMemoryTable extends BaseBeamTable {
     private TableWithRows tableWithRows;
+    private PushDownOptions options;
 
     @Override
     public PCollection.IsBounded isBounded() {
@@ -132,6 +134,16 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
     public InMemoryTable(TableWithRows tableWithRows) {
       this.tableWithRows = tableWithRows;
+
+      // The reason for introducing a property here is to simplify writing unit tests, testing
+      // project and predicate push-down behavior when run separate and together.
+      if (tableWithRows.table.getProperties().containsKey(PUSH_DOWN_OPTION)) {
+        options =
+            PushDownOptions.valueOf(
+                tableWithRows.table.getProperties().getString(PUSH_DOWN_OPTION).toUpperCase());
+      } else {
+        options = PushDownOptions.NONE;
+      }
     }
 
     public Coder<Row> rowCoder() {
@@ -156,17 +168,30 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     @Override
     public PCollection<Row> buildIOReader(
         PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+      if (!(filters instanceof DefaultTableFilter)
+          && (options == PushDownOptions.NONE || options == PushDownOptions.PROJECT)) {
+        throw new RuntimeException(
+            "Filter push-down is not supported, yet non-default filter was passed.");
+      }
+      if ((!fieldNames.isEmpty() && fieldNames.size() < getSchema().getFieldCount())
+          && (options == PushDownOptions.NONE || options == PushDownOptions.FILTER)) {
+        throw new RuntimeException(
+            "Project push-down is not supported, yet a list of fieldNames was passed.");
+      }
+
       PCollection<Row> withAllFields = buildIOReader(begin);
-      if (fieldNames.isEmpty() && filters instanceof DefaultTableFilter) {
+      if (options == PushDownOptions.NONE) { // needed for testing purposes
         return withAllFields;
       }
 
       PCollection<Row> result = withAllFields;
-      if (!(filters instanceof DefaultTableFilter)) {
+      if ((options == PushDownOptions.FILTER || options == PushDownOptions.BOTH)
+          && !(filters instanceof DefaultTableFilter)) {
         throw new RuntimeException("Unimplemented at the moment.");
       }
 
-      if (!fieldNames.isEmpty()) {
+      if ((options == PushDownOptions.PROJECT || options == PushDownOptions.BOTH)
+          && !fieldNames.isEmpty()) {
         result = result.apply(Select.fieldNames(fieldNames.toArray(new String[0])));
       }
 
@@ -181,7 +206,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public boolean supportsProjects() {
-      return true;
+      return options == PushDownOptions.BOTH || options == PushDownOptions.PROJECT;
     }
 
     @Override
@@ -204,5 +229,12 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       GLOBAL_TABLES.get(instanceId).get(tableName).rows.add(context.element());
       context.output(context.element());
     }
+  }
+
+  public enum PushDownOptions {
+    NONE,
+    PROJECT,
+    FILTER,
+    BOTH
   }
 }
