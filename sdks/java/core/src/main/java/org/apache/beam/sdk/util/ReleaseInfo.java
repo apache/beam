@@ -74,7 +74,11 @@ public abstract class ReleaseInfo implements Serializable {
         LOG.warn("Error loading Beam properties resource: ", e);
       }
       if (!properties.containsKey("name")) {
-        properties.setProperty("name", DEFAULT_NAME);
+        String javaVersion =
+            Float.parseFloat(System.getProperty("java.specification.version")) >= 9
+                ? " (JDK 11)"
+                : " (JRE 8)";
+        properties.setProperty("name", DEFAULT_NAME + javaVersion);
       }
       if (!properties.containsKey("version")) {
         properties.setProperty("version", DEFAULT_VERSION);
