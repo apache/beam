@@ -15,27 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.test;
+package org.apache.beam.sdk.extensions.sql.meta;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
+import java.io.Serializable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.Row;
 
-/** Base class for mocked table. */
-@Experimental
-public abstract class TestTable extends SchemaBaseBeamTable {
-  public static final AtomicInteger COUNTER = new AtomicInteger();
+/** Each IO in Beam has one table schema, by extending {@link SchemaBaseBeamTable}. */
+public abstract class SchemaBaseBeamTable extends BaseBeamTable implements Serializable {
+  protected Schema schema;
 
-  public TestTable(Schema beamSchema) {
-    super(beamSchema);
+  public SchemaBaseBeamTable(Schema schema) {
+    this.schema = schema;
   }
 
   @Override
-  public POutput buildIOWriter(PCollection<Row> input) {
-    throw new UnsupportedOperationException("buildIOWriter unsupported!");
+  public Schema getSchema() {
+    return schema;
   }
 }

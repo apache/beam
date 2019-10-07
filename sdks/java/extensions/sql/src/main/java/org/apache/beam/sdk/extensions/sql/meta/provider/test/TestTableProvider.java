@@ -29,8 +29,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -118,7 +119,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
   }
 
-  private static class InMemoryTable implements BeamSqlTable {
+  private static class InMemoryTable extends BaseBeamTable {
     private TableWithRows tableWithRows;
 
     @Override

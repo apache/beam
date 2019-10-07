@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to extend to convert
  * between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
  */
-public abstract class BeamKafkaTable extends BaseBeamTable {
+public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   private String bootstrapServers;
   private List<String> topics;
   private List<TopicPartition> topicPartitions;
