@@ -141,7 +141,7 @@ task javaPreCommit() {
 }
 
 task javaPreCommitBeamZetaSQL() {
-  dependsOn ":sdks:java:extensions:sql:runZetaSQLTest"
+  dependsOn ":sdks:java:extensions:sql:zetasql:test"
 }
 
 task javaPreCommitPortabilityApi() {
