@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.meta;
 
 import java.io.Serializable;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.provider.FullNameTableProvider;

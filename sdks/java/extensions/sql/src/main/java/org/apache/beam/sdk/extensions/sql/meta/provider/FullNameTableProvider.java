@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.CustomTableResolver;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
