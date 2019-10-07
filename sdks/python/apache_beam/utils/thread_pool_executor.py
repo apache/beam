@@ -29,8 +29,8 @@ except Exception:  # Python2
 
 
 class _WorkItem(object):
-  def __init__(self, f, fn, args, kwargs):
-    self._future = f
+  def __init__(self, future, fn, args, kwargs):
+    self._future = future
     self._fn = fn
     self._fn_args = args
     self._fn_kwargs = kwargs
@@ -40,9 +40,16 @@ class _WorkItem(object):
       # If the future wasn't cancelled, then attempt to execute it.
       try:
         self._future.set_result(self._fn(*self._fn_args, **self._fn_kwargs))
-      except:
-        e, tb = sys.exc_info()[1:]
-        self._future.set_exception_info(e, tb)
+      except BaseException as exc:
+        # Even though Python 2 futures library has #set_exection(),
+        # the way it generates the traceback doesn't align with
+        # the way in which Python 3 does it so we provide alternative
+        # implementations that match our test expectations.
+        if sys.version_info.major >= 3:
+          self._future.set_exception(exc)
+        else:
+          e, tb = sys.exc_info()[1:]
+          self._future.set_exception_info(e, tb)
 
 
 class _Worker(threading.Thread):
@@ -83,7 +90,8 @@ class _Worker(threading.Thread):
         #     around through to the wait() won't block and we will exit
         #     since _work_item will be unset.
 
-        # We only exit when _work_item is unset to prevent dropping of submitted work.
+        # We only exit when _work_item is unset to prevent dropping of
+        # submitted work.
         if self._work_item is None:
           self._shutdown = True
           return
@@ -125,15 +133,15 @@ class UnboundedThreadPoolExecutor(_base.Executor):
 
     A runtime error is raised if the pool has been shutdown.
     """
-    f = _base.Future()
-    work_item = _WorkItem(f, fn, args, kwargs)
+    future = _base.Future()
+    work_item = _WorkItem(future, fn, args, kwargs)
     try:
       # Keep trying to get an idle worker from the queue until we find one
       # that accepts the work.
       while not self._idle_worker_queue.get(
           block=False).accepted_work(work_item):
         pass
-      return f
+      return future
     except queue.Empty:
       with self._lock:
         if self._shutdown:
@@ -146,7 +154,7 @@ class UnboundedThreadPoolExecutor(_base.Executor):
         worker.daemon = True
         worker.start()
         self._workers.add(worker)
-        return f
+        return future
 
   def shutdown(self, wait=True):
     with self._lock:

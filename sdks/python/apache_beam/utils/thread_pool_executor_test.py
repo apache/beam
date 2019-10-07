@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import threading
 import time
+import traceback
 import unittest
 
 # patches unittest.TestCase to be python3 compatible
@@ -38,6 +39,9 @@ class UnboundedThreadPoolExecutorTest(unittest.TestCase):
     with self._lock:
       self._worker_idents.append(threading.current_thread().ident)
     time.sleep(sleep_time)
+
+  def raise_error(self, message):
+    raise ValueError(message)
 
   def test_shutdown_with_no_workers(self):
     with UnboundedThreadPoolExecutor():
@@ -83,6 +87,19 @@ class UnboundedThreadPoolExecutorTest(unittest.TestCase):
       self.assertEqual(10, len(self._worker_idents))
       self.assertTrue(len(set(self._worker_idents)) < 10)
 
+  def test_exception_propagation(self):
+    with UnboundedThreadPoolExecutor() as executor:
+      future = executor.submit(self.raise_error, 'footest')
+
+    try:
+      future.result()
+    except Exception:
+      message = traceback.format_exc()
+    else:
+      raise AssertionError('expected exception not raised')
+
+    self.assertIn('footest', message)
+    self.assertIn('raise_error', message)
 
 
 if __name__ == '__main__':
