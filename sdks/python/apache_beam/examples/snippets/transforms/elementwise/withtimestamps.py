@@ -43,7 +43,7 @@ def withtimestamps_event_time(test=None):
         | 'Get timestamp' >> beam.ParDo(GetTimestamp())
         | beam.Map(print)
     )
-    # [END event_time]
+    # [END withtimestamps_event_time]
     if test:
       test(plant_timestamps)
 
@@ -72,7 +72,7 @@ def withtimestamps_logical_clock(test=None):
         | 'Get timestamp' >> beam.ParDo(GetTimestamp())
         | beam.Map(print)
     )
-    # [END logical_clock]
+    # [END withtimestamps_logical_clock]
     if test:
       test(plant_events)
 
@@ -101,7 +101,7 @@ def withtimestamps_processing_time(test=None):
         | 'Get timestamp' >> beam.ParDo(GetTimestamp())
         | beam.Map(print)
     )
-    # [END processing_time]
+    # [END withtimestamps_processing_time]
     if test:
       test(plant_processing_times)
 
