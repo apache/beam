@@ -41,6 +41,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
@@ -299,6 +300,43 @@ class PortableRunnerInternalTest(unittest.TestCase):
             payload=beam_runner_api_pb2.ProcessPayload(
                 command='run.sh',
             ).SerializeToString()))
+
+  def test__create_external_environment(self):
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+            'environment_type': "EXTERNAL",
+            'environment_config': 'localhost:50000',
+        })), beam_runner_api_pb2.Environment(
+            urn=common_urns.environments.EXTERNAL.urn,
+            payload=beam_runner_api_pb2.ExternalPayload(
+                endpoint=endpoints_pb2.ApiServiceDescriptor(
+                    url='localhost:50000')
+            ).SerializeToString()))
+    raw_config = ' {"url":"localhost:50000", "params":{"test":"test"}} '
+    for env_config in (raw_config, raw_config.lstrip(), raw_config.strip()):
+      self.assertEqual(
+          PortableRunner._create_environment(PipelineOptions.from_dictionary({
+              'environment_type': "EXTERNAL",
+              'environment_config': env_config,
+          })), beam_runner_api_pb2.Environment(
+              urn=common_urns.environments.EXTERNAL.urn,
+              payload=beam_runner_api_pb2.ExternalPayload(
+                  endpoint=endpoints_pb2.ApiServiceDescriptor(
+                      url='localhost:50000'),
+                  params={"test": "test"}
+              ).SerializeToString()))
+    with self.assertRaises(ValueError):
+      PortableRunner._create_environment(PipelineOptions.from_dictionary({
+          'environment_type': "EXTERNAL",
+          'environment_config': '{invalid}',
+      }))
+    with self.assertRaises(ValueError) as ctx:
+      PortableRunner._create_environment(PipelineOptions.from_dictionary({
+          'environment_type': "EXTERNAL",
+          'environment_config': '{"params":{"test":"test"}}',
+      }))
+    self.assertTrue(
+        'External environment endpoint must be set.'in ctx.exception.args)
 
 
 def hasDockerImage():
