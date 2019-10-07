@@ -39,9 +39,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.EnumMap;
@@ -280,8 +278,7 @@ class SchemaUtil {
       if (date == null) {
         return null;
       }
-      ZonedDateTime zdt = ZonedDateTime.of(date.toLocalDate(), LocalTime.MIDNIGHT, ZoneOffset.UTC);
-      return new DateTime(zdt.toInstant().toEpochMilli(), ISOChronology.getInstanceUTC());
+      return new DateTime(date.getTime(), ISOChronology.getInstanceUTC()).withTimeAtStartOfDay();
     };
   }
 
