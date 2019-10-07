@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sample</title>
+  <title>Runtime environments</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/java/aggregation/sample/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/runtime/environments/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/java/aggregation/sample.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runtime/environments.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -456,8 +456,19 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
-  <li><a href="#related-transforms">Related transforms</a></li>
+  <li><a href="#customizing-container-images">Customizing container images</a>
+    <ul>
+      <li><a href="#writing-new-dockerfiles">Writing new Dockerfiles on top of the original</a></li>
+      <li><a href="#modifying-dockerfiles">Modifying the original Dockerfile</a></li>
+      <li><a href="#testing-customized-images">Testing customized images</a></li>
+    </ul>
+  </li>
+  <li><a href="#building-container-images">Building container images</a>
+    <ul>
+      <li><a href="#overriding-default-docker-targets">Overriding default Docker targets</a></li>
+    </ul>
+  </li>
+  <li><a href="#pushing-container-images">Pushing container images</a></li>
 </ul>
 
 
@@ -477,27 +488,180 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="sample">Sample</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sample.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px" alt="Javadoc" />
-     Javadoc
-    </a>
-</table>
-<p><br />
-Transforms for taking samples of the elements in a collection, or
-samples of the values associated with each key in a collection of key-value pairs.</p>
 
-<h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7703">BEAM-7703</a> for updates.</p>
+<h1 id="runtime-environments">Runtime environments</h1>
 
-<h2 id="related-transforms">Related transforms</h2>
+<p>The Beam SDK runtime environment is isolated from other runtime systems because the SDK runtime environment is <a href="https://s.apache.org/beam-fn-api-container-contract">containerized</a> with <a href="https://www.docker.com/">Docker</a>. This means that any execution engine can run the Beam SDK.</p>
+
+<p>This page describes how to customize, build, and push Beam SDK container images.</p>
+
+<p>Before you begin, install <a href="https://www.docker.com/">Docker</a> on your workstation.</p>
+
+<h2 id="customizing-container-images">Customizing container images</h2>
+
+<p>You can add extra dependencies to container images so that you don’t have to supply the dependencies to execution engines.</p>
+
+<p>To customize a container image, either:</p>
 <ul>
-  <li><a href="/documentation/transforms/java/aggregation/top">Top</a>
-finds the largest (or smallest) set of elements in a collection</li>
-  <li><a href="/documentation/transforms/java/aggregation/latest">Latest</a>
-computes the latest element in a collection</li>
+  <li><a href="#writing-new-dockerfiles">Write a new</a> <a href="https://docs.docker.com/engine/reference/builder/">Dockerfile</a> on top of the original.</li>
+  <li><a href="#modifying-dockerfiles">Modify</a> the <a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">original Dockerfile</a> and reimage the container.</li>
 </ul>
+
+<p>It’s often easier to write a new Dockerfile. However, by modifying the original Dockerfile, you can customize anything (including the base OS).</p>
+
+<h3 id="writing-new-dockerfiles">Writing new Dockerfiles on top of the original</h3>
+
+<ol>
+  <li>Pull a <a href="https://hub.docker.com/u/apachebeam">prebuilt SDK container image</a> for your <a href="https://docs.docker.com/docker-hub/repos/#searching-for-repositories">target</a> language and version. The following example pulls the latest Python SDK:
+    <div class="highlighter-rouge"><pre class="highlight"><code>docker pull apachebeam/python3.7_sdk
+</code></pre>
+    </div>
+  </li>
+  <li><a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">Write a new Dockerfile</a> that <a href="https://docs.docker.com/engine/reference/builder/#from">designates</a> the original as its <a href="https://docs.docker.com/glossary/?term=parent%20image">parent</a>.</li>
+  <li><a href="#building-container-images">Build</a> a child image.</li>
+</ol>
+
+<h3 id="modifying-dockerfiles">Modifying the original Dockerfile</h3>
+
+<ol>
+  <li>Clone the <code class="highlighter-rouge">beam</code> repository:
+    <div class="highlighter-rouge"><pre class="highlight"><code>git clone https://github.com/apache/beam.git
+</code></pre>
+    </div>
+  </li>
+  <li>Customize the <a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">Dockerfile</a>. If you’re adding dependencies from <a href="https://pypi.org/">PyPI</a>, use <a href="https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt"><code class="highlighter-rouge">base_image_requirements.txt</code></a> instead.</li>
+  <li><a href="#building-container-images">Reimage</a> the container.</li>
+</ol>
+
+<h3 id="testing-customized-images">Testing customized images</h3>
+
+<p>To test a customized image locally, run a pipeline with PortableRunner and set the <code class="highlighter-rouge">--environment_config</code> flag to the image path:</p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount \
+--input=/path/to/inputfile \
+--output /path/to/write/counts \
+--runner=PortableRunner \
+--job_endpoint=embed \
+--environment_config=path/to/container/image
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code># Start a Flink job server on localhost:8099
+./gradlew :runners:flink:1.5:job-server:runShadow
+
+# Run a pipeline on the Flink job server
+python -m apache_beam.examples.wordcount \
+--input=/path/to/inputfile \
+--output=/path/to/write/counts \
+--runner=PortableRunner \
+--job_endpoint=localhost:8099 \
+--environment_config=path/to/container/image
+</code></pre>
+</div>
+
+<div class="runner-spark-local highlighter-rouge"><pre class="highlight"><code># Start a Spark job server on localhost:8099
+./gradlew :runners:spark:job-server:runShadow
+
+# Run a pipeline on the Spark job server
+python -m apache_beam.examples.wordcount \
+--input=/path/to/inputfile \
+--output=path/to/write/counts \
+--runner=PortableRunner \
+--job_endpoint=localhost:8099 \
+--environment_config=path/to/container/image
+</code></pre>
+</div>
+
+<p>To test a customized image on the Google Cloud Dataflow runner, use the <code class="highlighter-rouge">DataflowRunner</code> option and the <code class="highlighter-rouge">worker_harness_container_image</code> flag:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount \ 
+--input=path/to/inputfile \
+--output=/path/to/write/counts \
+--runner=DataflowRunner \
+--project={gcp_project_id} \
+--temp_location={gcs_location} \ \
+--experiment=beam_fn_api \
+--sdk_location=[…]/beam/sdks/python/container/py{version}/build/target/apache-beam.tar.gz \
+--worker_harness_container_image=path/to/container/image
+
+# The sdk_location option accepts four Python version variables: 2, 35, 36, and 37
+</code></pre>
+</div>
+
+<h2 id="building-container-images">Building container images</h2>
+
+<p>To build Beam SDK container images:</p>
+
+<ol>
+  <li>Navigate to the local copy of your <a href="#customizing-container-images">customized container image</a>.</li>
+  <li>Run Gradle with the <code class="highlighter-rouge">docker</code> target. If you’re <a href="#writing-new-dockerfiles">building a child image</a>, set the optional <code class="highlighter-rouge">--file</code> flag to the new Dockerfile. If you’re <a href="#modifying-dockerfiles">building an image from an original Dockerfile</a>, ignore the <code class="highlighter-rouge">--file</code> flag and use a default repository:</li>
+</ol>
+
+<div class="highlighter-rouge"><pre class="highlight"><code># The default repository of each SDK
+./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:go:container:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py2:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py35:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py36:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py37:docker
+
+# Shortcut for building all four Python SDKs
+./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
+</code></pre>
+</div>
+
+<p>To examine the containers that you built, run <code class="highlighter-rouge">docker images</code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
+apachebeam/java_sdk                 latest              16ca619d489e        2 weeks ago        550MB
+apachebeam/python2.7_sdk            latest              b6fb40539c29        2 weeks ago       1.78GB
+apachebeam/python3.5_sdk            latest              bae309000d09        2 weeks ago       1.85GB
+apachebeam/python3.6_sdk            latest              42faad307d1a        2 weeks ago       1.86GB
+apachebeam/python3.7_sdk            latest              18267df54139        2 weeks ago       1.86GB
+apachebeam/go_sdk                   latest              30cf602e9763        2 weeks ago        124MB
+</code></pre>
+</div>
+
+<h3 id="overriding-default-docker-targets">Overriding default Docker targets</h3>
+
+<p>The default <a href="https://docs.docker.com/engine/reference/commandline/tag/">tag</a> is <code class="highlighter-rouge">latest</code> and the default repositories are in the Docker Hub <code class="highlighter-rouge">apachebeam</code> namespace. The <code class="highlighter-rouge">docker</code> command-line tool implicitly <a href="#pushing-container-images">pushes container images</a> to this location.</p>
+
+<p>To tag a local image, set the <code class="highlighter-rouge">docker-tag</code> option when building the container. The following command tags a Python SDK image with a date.</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:python:container:py2:docker -Pdocker-tag=2019-10-04
+</code></pre>
+</div>
+
+<p>To change the repository, set the <code class="highlighter-rouge">docker-repository-root</code> option to a new location. The following command sets the <code class="highlighter-rouge">docker-repository-root</code> to a Bintray repository named <code class="highlighter-rouge">apache</code>.</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:python:container:py2:docker -Pdocker-repository-root=$USER-docker-apache.bintray.io/beam/python
+</code></pre>
+</div>
+
+<h2 id="pushing-container-images">Pushing container images</h2>
+
+<p>After <a href="#building-container-images">building a container image</a>, you can store it in a remote Docker repository.</p>
+
+<p>The following steps push a Python SDK image to the <a href="#overriding-default-docker-targets"><code class="highlighter-rouge">docker-root-repository</code> value</a>.</p>
+
+<ol>
+  <li>Sign in to your Docker registry:
+    <div class="highlighter-rouge"><pre class="highlight"><code>docker login
+</code></pre>
+    </div>
+  </li>
+  <li>Navigate to the local copy of your container image and upload it to the remote repository:
+    <div class="highlighter-rouge"><pre class="highlight"><code>docker push apachebeam/python2.7_sdk
+</code></pre>
+    </div>
+  </li>
+</ol>
+
+<p>To download the image again, run <code class="highlighter-rouge">docker pull</code>:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>docker pull apachebeam/python2.7_sdk
+</code></pre>
+</div>
+
+<blockquote>
+  <p><strong>Note</strong>: After pushing a container image, the remote image ID and digest match the local image ID and digest.</p>
+</blockquote>
 
       </div>
     </div>

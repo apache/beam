@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sample</title>
+  <title>Execution model</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/java/aggregation/sample/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/runtime/model/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/java/aggregation/sample.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runtime/model.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -456,8 +456,20 @@
 
 
 <ul class="nav">
-  <li><a href="#examples">Examples</a></li>
-  <li><a href="#related-transforms">Related transforms</a></li>
+  <li><a href="#processing-of-elements">Processing of elements</a>
+    <ul>
+      <li><a href="#serialization-and-communication">Serialization and communication</a></li>
+      <li><a href="#bundling-and-persistence">Bundling and persistence</a></li>
+    </ul>
+  </li>
+  <li><a href="#parallelism">Failures and parallelism within and between transforms</a>
+    <ul>
+      <li><a href="#data-parallelism">Data-parallelism within one transform</a></li>
+      <li><a href="#dependent-parallellism">Dependent-parallelism between transforms</a></li>
+      <li><a href="#failures-within-one-transform">Failures within one transform</a></li>
+      <li><a href="#coupled-failure">Coupled failure: Failures between transforms</a></li>
+    </ul>
+  </li>
 </ul>
 
 
@@ -477,27 +489,194 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="sample">Sample</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sample.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px" alt="Javadoc" />
-     Javadoc
-    </a>
-</table>
-<p><br />
-Transforms for taking samples of the elements in a collection, or
-samples of the values associated with each key in a collection of key-value pairs.</p>
 
-<h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7703">BEAM-7703</a> for updates.</p>
+<h1 id="execution-model">Execution model</h1>
 
-<h2 id="related-transforms">Related transforms</h2>
+<p>The Beam model allows runners to execute your pipeline in different ways. You
+may observe various effects as a result of the runner’s choices. This page
+describes these effects so you can better understand how Beam pipelines execute.</p>
+
+<h2 id="processing-of-elements">Processing of elements</h2>
+
+<p>The serialization and communication of elements between machines is one of the
+most expensive operations in a distributed execution of your pipeline. Avoiding
+this serialization may require re-processing elements after failures or may
+limit the distribution of output to other machines.</p>
+
+<h3 id="serialization-and-communication">Serialization and communication</h3>
+
+<p>The runner might serialize elements between machines for communication purposes
+and for other reasons such as persistence.</p>
+
+<p>A runner may decide to transfer elements between transforms in a variety of
+ways, such as:</p>
+
 <ul>
-  <li><a href="/documentation/transforms/java/aggregation/top">Top</a>
-finds the largest (or smallest) set of elements in a collection</li>
-  <li><a href="/documentation/transforms/java/aggregation/latest">Latest</a>
-computes the latest element in a collection</li>
+  <li>Routing elements to a worker for processing as part of a grouping operation.
+This may involve serializing elements and grouping or sorting them by their
+key.</li>
+  <li>Redistributing elements between workers to adjust parallelism. This may
+involve serializing elements and communicating them to other workers.</li>
+  <li>Using the elements in a side input to a <code class="highlighter-rouge">ParDo</code>. This may require
+serializing the elements and broadcasting them to all the workers executing
+the <code class="highlighter-rouge">ParDo</code>.</li>
+  <li>Passing elements between transforms that are running on the same worker.
+This may allow the runner to avoid serializing elements; instead, the runner
+can just pass the elements in memory.</li>
 </ul>
+
+<p>Some situations where the runner may serialize and persist elements are:</p>
+
+<ol>
+  <li>When used as part of a stateful <code class="highlighter-rouge">DoFn</code>, the runner may persist values to some
+state mechanism.</li>
+  <li>When committing the results of processing, the runner may persist the outputs
+as a checkpoint.</li>
+</ol>
+
+<h3 id="bundling-and-persistence">Bundling and persistence</h3>
+
+<p>Beam pipelines often focus on “<a href="https://en.wikipedia.org/wiki/embarrassingly_parallel">embarassingly parallel</a>”
+problems. Because of this, the APIs emphasize processing elements in parallel,
+which makes it difficult to express actions like “assign a sequence number to
+each element in a PCollection”. This is intentional as such algorithms are much
+more likely to suffer from scalability problems.</p>
+
+<p>Processing all elements in parallel also has some drawbacks. Specifically, it
+makes it impossible to batch any operations, such as writing elements to a sink
+or checkpointing progress during processing.</p>
+
+<p>Instead of processing all elements simultaneously, the elements in a
+<code class="highlighter-rouge">PCollection</code> are processed in <em>bundles</em>. The division of the collection into
+bundles is arbitrary and selected by the runner. This allows the runner to
+choose an appropriate middle-ground between persisting results after every
+element, and having to retry everything if there is a failure. For example, a
+streaming runner may prefer to process and commit small bundles, and a batch
+runner may prefer to process larger bundles.</p>
+
+<h2 id="parallelism">Failures and parallelism within and between transforms</h2>
+
+<p>In this section, we discuss how elements in the input collection are processed
+in parallel, and how transforms are retried when failures occur.</p>
+
+<h3 id="data-parallelism">Data-parallelism within one transform</h3>
+
+<p>When executing a single <code class="highlighter-rouge">ParDo</code>, a runner might divide an example input
+collection of nine elements into two bundles as shown in figure 1.</p>
+
+<p><img src="/images/execution_model_bundling.svg" alt="Bundle A contains five elements. Bundle B contains four elements." /></p>
+
+<p><em>Figure 1: A runner divides an input collection into two bundles.</em></p>
+
+<p>When the <code class="highlighter-rouge">ParDo</code> executes, workers may process the two bundles in parallel as
+shown in figure 2.</p>
+
+<p><img src="/images/execution_model_bundling_gantt.svg" alt="Two workers process the two bundles in parallel. Worker one processes bundle
+  A. Worker two processes bundle B." /></p>
+
+<p><em>Figure 2: Two workers process the two bundles in parallel.</em></p>
+
+<p>Since elements cannot be split, the maximum parallelism for a transform depends
+on the number of elements in the collection. In figure 3, the input collection
+has nine elements, so the maximum parallelism is nine.</p>
+
+<p><img src="/images/execution_model_bundling_gantt_max.svg" alt="Nine workers process a nine element input collection in parallel." /></p>
+
+<p><em>Figure 3: Nine workers process a nine element input collection in parallel.</em></p>
+
+<p>Note: Splittable ParDo allows splitting the processing of a single input across
+multiple bundles. This feature is a work in progress.</p>
+
+<h3 id="dependent-parallellism">Dependent-parallelism between transforms</h3>
+
+<p><code class="highlighter-rouge">ParDo</code> transforms that are in sequence may be <em>dependently parallel</em> if the
+runner chooses to execute the consuming transform on the producing transform’s
+output elements without altering the bundling. In figure 4, <code class="highlighter-rouge">ParDo1</code> and
+<code class="highlighter-rouge">ParDo2</code> are <em>dependently parallel</em> if the output of <code class="highlighter-rouge">ParDo1</code> for a given
+element must be processed on the same worker.</p>
+
+<p><img src="/images/execution_model_bundling_multi.svg" alt="ParDo1 processes an input collection that contains bundles A and B. ParDo2 then
+  processes the output collection from ParDo1, which contains bundles C and D." /></p>
+
+<p><em>Figure 4: Two transforms in sequence and their corresponding input collections.</em></p>
+
+<p>Figure 5 shows how these dependently parallel transforms might execute. The
+first worker executes <code class="highlighter-rouge">ParDo1</code> on the elements in bundle A (which results in
+bundle C), and then executes <code class="highlighter-rouge">ParDo2</code> on the elements in bundle C. Similarly,
+the second worker executes <code class="highlighter-rouge">ParDo1</code> on the elements in bundle B (which results
+in bundle D), and then executes <code class="highlighter-rouge">ParDo2</code> on the elements in bundle D.</p>
+
+<p><img src="/images/execution_model_bundling_multi_gantt.svg" alt="Worker one executes ParDo1 on bundle A and Pardo2 on bundle C. Worker two
+  executes ParDo1 on bundle B and ParDo2 on bundle D." /></p>
+
+<p><em>Figure 5: Two workers execute dependently parallel ParDo transforms.</em></p>
+
+<p>Executing transforms this way allows a runner to avoid redistributing elements
+between workers, which saves on communication costs. However, the maximum parallelism
+now depends on the maximum parallelism of the first of the dependently parallel
+steps.</p>
+
+<h3 id="failures-within-one-transform">Failures within one transform</h3>
+
+<p>If processing of an element within a bundle fails, the entire bundle fails. The
+elements in the bundle must be retried (otherwise the entire pipeline fails),
+although they do not need to be retried with the same bundling.</p>
+
+<p>For this example, we will use the <code class="highlighter-rouge">ParDo</code> from figure 1 that has an input
+collection with nine elements and is divided into two bundles.</p>
+
+<p>In figure 6, the first worker successfully processes all five elements in bundle
+A. The second worker processes the four elements in bundle B: the first two
+elements were successfully processed, the third element’s processing failed, and
+there is one element still awaiting processing.</p>
+
+<p>We see that the runner retries all elements in bundle B and the processing
+completes successfully the second time. Note that the retry does not necessarily
+happen on the same worker as the original processing attempt, as shown in the
+figure.</p>
+
+<p><img src="/images/execution_model_failure_retry.svg" alt="Worker two fails to process an element in bundle B. Worker one finishes
+  processing bundle A and then successfully retries to execute bundle B." /></p>
+
+<p><em>Figure 6: The processing of an element within bundle B fails, and another worker
+retries the entire bundle.</em></p>
+
+<p>Because we encountered a failure while processing an element in the input
+bundle, we had to reprocess <em>all</em> of the elements in the input bundle. This means
+the runner must throw away the entire output bundle since all of the results it
+contains will be recomputed.</p>
+
+<p>Note that if the failed transform is a <code class="highlighter-rouge">ParDo</code>, then the <code class="highlighter-rouge">DoFn</code> instance is torn
+down and abandoned.</p>
+
+<h3 id="coupled-failure">Coupled failure: Failures between transforms</h3>
+
+<p>If a failure to process an element in <code class="highlighter-rouge">ParDo2</code> causes <code class="highlighter-rouge">ParDo1</code> to re-execute,
+these two steps are said to be <em>co-failing</em>.</p>
+
+<p>For this example, we will use the two <code class="highlighter-rouge">ParDo</code>s from figure 4.</p>
+
+<p>In figure 7, worker two successfully executes <code class="highlighter-rouge">ParDo1</code> on all elements in bundle
+B. However, the worker fails to process an element in bundle D, so <code class="highlighter-rouge">ParDo2</code>
+fails (shown as the red X). As a result, the runner must discard and recompute
+the output of <code class="highlighter-rouge">ParDo2</code>. Because the runner was executing <code class="highlighter-rouge">ParDo1</code> and <code class="highlighter-rouge">ParDo2</code>
+together, the output bundle from <code class="highlighter-rouge">ParDo1</code> must also be thrown away, and all
+elements in the input bundle must be retried. These two <code class="highlighter-rouge">ParDo</code>s are co-failing.</p>
+
+<p><img src="/images/execution_model_bundling_coupled_failure.svg" alt="Worker two fails to process en element in bundle D, so all elements in both
+  bundle B and bundle D must be retried." /></p>
+
+<p><em>Figure 7: Processing of an element within bundle D fails, so all elements in
+the input bundle are retried.</em></p>
+
+<p>Note that the retry does not necessarily have the same processing time as the
+original attempt, as shown in the diagram.</p>
+
+<p>All <code class="highlighter-rouge">DoFns</code> that experience coupled failures are terminated and must be torn
+down since they aren’t following the normal <code class="highlighter-rouge">DoFn</code> lifecycle .</p>
+
+<p>Executing transforms this way allows a runner to avoid persisting elements
+between transforms, saving on persistence costs.</p>
 
       </div>
     </div>
