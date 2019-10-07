@@ -1288,7 +1288,7 @@ class AccessingValueProviderInfoAfterRunTest(unittest.TestCase):
       # The DoFn is called when creating the pipeline branch.
       # This example logs the ValueProvider value, but
       # you could store it by pushing it to an external database.
-      def process(self, an_int, **kwargs):
+      def process(self, an_int):
         logging.info('The string_value is %s' % self.string_vp.get())
 
         yield self.string_vp.get()
