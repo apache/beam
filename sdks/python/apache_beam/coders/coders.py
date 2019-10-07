@@ -85,6 +85,9 @@ __all__ = [
 
 T = TypeVar('T')
 CoderT = TypeVar('CoderT', bound='Coder')
+TupleCoderT = TypeVar('TupleCoderT', bound='TupleCoder')
+TupleSequenceCoderT = TypeVar('TupleSequenceCoderT', bound='TupleSequenceCoder')
+IterableCoderT = TypeVar('IterableCoderT', bound='IterableCoder')
 ProtoCoderT = TypeVar('ProtoCoderT', bound='ProtoCoder')
 ConstructorFn = Callable[
     [Optional[Any],
@@ -353,7 +356,8 @@ class Coder(object):
           context)
     except Exception:
       if context.allow_proto_holders:
-        return RunnerAPICoderHolder(coder_proto)  # type: ignore  # too ambiguous
+        # typing: easier to pretend that this is the same as CoderT
+        return RunnerAPICoderHolder(coder_proto)  # type: ignore
       raise
 
   def to_runner_api_parameter(self, context):
@@ -868,10 +872,11 @@ class ProtoCoder(FastCoder):
   def __hash__(self):
     return hash(self.proto_message_type)
 
-  @staticmethod
-  def from_type_hint(typehint, unused_registry):
+  @classmethod
+  def from_type_hint(cls, typehint, unused_registry):
+    # type: (Type[ProtoCoderT], Any, CoderRegistry) -> ProtoCoderT
     if issubclass(typehint, google.protobuf.message.Message):
-      return ProtoCoder(typehint)
+      return cls(typehint)
     else:
       raise ValueError(('Expected a subclass of google.protobuf.message.Message'
                         ', but got a %s' % typehint))
@@ -955,10 +960,13 @@ class TupleCoder(FastCoder):
   def to_type_hint(self):
     return typehints.Tuple[tuple(c.to_type_hint() for c in self._coders)]
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
-    # type: (typehints.TupleConstraint, CoderRegistry) -> TupleCoder
-    return TupleCoder([registry.get_coder(t) for t in typehint.tuple_types])
+  @classmethod
+  def from_type_hint(cls,  # type: Type[TupleCoderT]
+                     typehint,  # type: typehints.TupleConstraint
+                     registry  # type: CoderRegistry
+                    ):
+    # type: (...) -> TupleCoderT
+    return cls([registry.get_coder(t) for t in typehint.tuple_types])
 
   def as_cloud_object(self, coders_context=None):
     if self.is_kv_coder():
@@ -1044,10 +1052,13 @@ class TupleSequenceCoder(FastCoder):
       return TupleSequenceCoder(
           self._elem_coder.as_deterministic_coder(step_label, error_message))
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
-    # type: (Any, CoderRegistry) -> TupleSequenceCoder
-    return TupleSequenceCoder(registry.get_coder(typehint.inner_type))
+  @classmethod
+  def from_type_hint(cls,  # type: Type[TupleSequenceCoderT]
+                     typehint,  # type: typehints.SequenceTypeConstraint
+                     registry  # type: CoderRegistry
+                    ):
+    # type: (...) -> TupleSequenceCoderT
+    return cls(registry.get_coder(typehint.inner_type))
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
@@ -1102,10 +1113,13 @@ class IterableCoder(FastCoder):
   def to_type_hint(self):
     return typehints.Iterable[self._elem_coder.to_type_hint()]
 
-  @staticmethod
-  def from_type_hint(typehint, registry):
-    # type: (Any, CoderRegistry) -> IterableCoder
-    return IterableCoder(registry.get_coder(typehint.inner_type))
+  @classmethod
+  def from_type_hint(cls,  # type: Type[IterableCoderT]
+                     typehint,  # type: typehints.SequenceTypeConstraint
+                     registry  # type: CoderRegistry
+                    ):
+    # type: (...) -> IterableCoderT
+    return cls(registry.get_coder(typehint.inner_type))
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
