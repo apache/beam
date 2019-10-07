@@ -47,7 +47,7 @@ If you have additional material that you would like to see here, please let us k
 *   **[Programming Guide](https://beam.apache.org/documentation/programming-guide/)** - The Programming Guide contains more in-depth information on most topics in the Apache Beam SDK. These include descriptions on how everything works as well as code snippets to see how to use every part. This can be used as a reference guidebook.
 *   **[The world beyond batch: Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101)** - Covers some basic background information, terminology, time domains, batch processing, and streaming.
 *   **[The world beyond batch: Streaming 102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102)** - Tour of the unified batch and streaming programming model in Beam, alongside with an example to explain many of the concepts.
-*   **[Apache Beam Execution Model](https://beam.apache.org/documentation/execution-model/)** - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.
+*   **[Apache Beam Execution Model](https://beam.apache.org/documentation/runtime/model)** - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.
 
 ### Common Patterns
 

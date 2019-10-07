@@ -1,8 +1,10 @@
 ---
 layout: section
-title: "Beam Execution Model"
+title: "Execution model"
 section_menu: section-menu/documentation.html
-permalink: /documentation/execution-model/
+permalink: /documentation/runtime/model/
+redirect_from:
+  - /documentation/execution-model/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Execution Model
+# Execution model
 
 The Beam model allows runners to execute your pipeline in different ways. You
 may observe various effects as a result of the runner’s choices. This page
