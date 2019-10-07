@@ -23,7 +23,6 @@ from __future__ import print_function
 import logging
 import unittest
 from builtins import range
-from concurrent import futures
 
 import grpc
 
@@ -31,6 +30,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
@@ -93,7 +93,7 @@ class SdkWorkerTest(unittest.TestCase):
 
       test_controller = BeamFnControlServicer(requests)
 
-      server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      server = grpc.server(UnboundedThreadPoolExecutor())
       beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
           test_controller, server)
       test_port = server.add_insecure_port("[::]:0")

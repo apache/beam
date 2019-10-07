@@ -25,7 +25,6 @@ import logging
 import sys
 import threading
 import unittest
-from concurrent import futures
 
 import grpc
 from future.utils import raise_
@@ -34,6 +33,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 def timeout(timeout_secs):
@@ -67,7 +67,7 @@ class DataChannelTest(unittest.TestCase):
     data_channel_service = \
       data_servicer.get_conn_by_worker_id(worker_id)
 
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
+    server = grpc.server(UnboundedThreadPoolExecutor())
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
         data_servicer, server)
     test_port = server.add_insecure_port('[::]:0')
