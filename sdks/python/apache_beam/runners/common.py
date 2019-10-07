@@ -168,7 +168,6 @@ class MethodWrapper(object):
     self.key_arg_name = None
     self.restriction_provider = None
     self.restriction_provider_arg_name = None
-    self.watermark_reporter_arg_name = None
 
     for kw, v in zip(self.args[-len(self.defaults):], self.defaults):
       if isinstance(v, core.DoFn.StateParam):
@@ -183,8 +182,6 @@ class MethodWrapper(object):
         self.window_arg_name = kw
       elif v == core.DoFn.KeyParam:
         self.key_arg_name = kw
-      elif v == core.DoFn.WatermarkReporterParam:
-        self.watermark_reporter_arg_name = kw
       elif isinstance(v, core.DoFn.RestrictionParam):
         self.restriction_provider = v.restriction_provider
         self.restriction_provider_arg_name = kw

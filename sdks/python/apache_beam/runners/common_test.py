@@ -118,7 +118,7 @@ class DoFnProcessTest(unittest.TestCase):
   def test_watermark_reporter(self):
     class DoFnWithWatermarkReporter(DoFn):
       def process(self, element, reporter=DoFn.WatermarkReporterParam):
-        assert(issubclass(reporter.__class__, WatermarkReporter))
+        assert issubclass(reporter.__class__, WatermarkReporter)
         yield element
 
     pipeline_options = PipelineOptions()

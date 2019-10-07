@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from apache_beam.utils.timestamp import Timestamp
+from __future__ import absolute_import
 
 
 class WatermarkReporter(object):
