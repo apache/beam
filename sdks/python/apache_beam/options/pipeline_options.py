@@ -847,9 +847,8 @@ class PortableOptions(PipelineOptions):
     parser.add_argument(
         '--sdk_worker_parallelism', default=0,
         help=('Sets the number of sdk worker processes that will run on each '
-              'worker node. Default is 0. If 0, it will be automatically set '
-              'by the runner by looking at different parameters (e.g. number '
-              'of CPU cores on the worker machine or configuration).'))
+              'worker node. Default is 0. If 0, a value will be chosen by the '
+              'runner.'))
     parser.add_argument(
         '--environment_cache_millis', default=0,
         help=('Duration in milliseconds for environment cache within a job. '
