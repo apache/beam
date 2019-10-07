@@ -54,8 +54,10 @@ We partition the `PCollection` into one `PCollection` for every duration type.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_function %}```
 
+{:.notebook-skip}
 Output `PCollection`s:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:partitions %}```
 
@@ -71,8 +73,10 @@ We can also use lambda functions to simplify **Example 1**.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_lambda %}```
 
+{:.notebook-skip}
 Output `PCollection`s:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:partitions %}```
 
@@ -116,8 +120,10 @@ You might want to adapt the bucket assignment to use a more appropriate or rando
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_multiple_arguments %}```
 
+{:.notebook-skip}
 Output `PCollection`s:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:train_test %}```
 

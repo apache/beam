@@ -36,8 +36,10 @@ Then, we apply `Keys` to extract the keys and discard the values.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/keys.py tag:keys %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Keys`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/keys_test.py tag:icons %}```
 

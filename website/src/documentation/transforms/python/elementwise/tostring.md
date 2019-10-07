@@ -43,8 +43,10 @@ You can specify a different delimiter using the `delimiter` argument.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py tag:tostring_kvs %}```
 
+{:.notebook-skip}
 Output `PCollection` after `ToString`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py tag:plants %}```
 
@@ -61,8 +63,10 @@ The string output will be equivalent to `str(element)`.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py tag:tostring_element %}```
 
+{:.notebook-skip}
 Output `PCollection` after `ToString`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py tag:plant_lists %}```
 
@@ -81,8 +85,10 @@ The string output will be equivalent to `iterable.join(delimiter)`.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py tag:tostring_iterables %}```
 
+{:.notebook-skip}
 Output `PCollection` after `ToString`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py tag:plants_csv %}```
 

@@ -37,8 +37,10 @@ Then, we apply `KvSwap` to swap the keys and values.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py tag:kvswap %}```
 
+{:.notebook-skip}
 Output `PCollection` after `KvSwap`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap_test.py tag:plants %}```
 

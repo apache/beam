@@ -49,8 +49,10 @@ and it can yield zero or more output elements.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn %}```
 
+{:.notebook-skip}
 Output `PCollection` after `ParDo`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:plants %}```
 
@@ -75,8 +77,10 @@ In this example, we add new parameters to the `process` method to bind parameter
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn_params %}```
 
+{:.notebook-skip}
 `stdout` output:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:dofn_params %}```
 
@@ -133,8 +137,10 @@ starts and finishes with `start_bundle` and `finish_bundle`.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn_methods %}```
 
+{:.notebook-skip}
 `stdout` output:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:results %}```
 

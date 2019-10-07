@@ -43,8 +43,10 @@ It strips the input element's whitespaces, including newlines and tabs.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_simple %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Map`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
@@ -60,8 +62,10 @@ We define a function `strip_header_and_newline` which strips any `'#'`, `' '`, a
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_function %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Map`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
@@ -77,8 +81,10 @@ We can also use lambda functions to simplify **Example 2**.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_lambda %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Map`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
@@ -97,8 +103,10 @@ In this example, `strip` takes `text` and `chars` as arguments.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_multiple_arguments %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Map`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
@@ -115,8 +123,10 @@ you can use `MapTuple` to unpack them into different function arguments.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_tuple %}```
 
+{:.notebook-skip}
 Output `PCollection` after `MapTuple`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
@@ -136,8 +146,10 @@ We then use that value as the characters for the `str.strip` method.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_side_inputs_singleton %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Map`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
@@ -155,8 +167,10 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_side_inputs_iter %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Map`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plants %}```
 
@@ -178,8 +192,10 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py tag:map_side_inputs_dict %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Map`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py tag:plant_details %}```
 

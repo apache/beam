@@ -41,8 +41,10 @@ in the form of seconds.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_event_time %}```
 
+{:.notebook-skip}
 Output `PCollection` after getting the timestamps:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_timestamps %}```
 
@@ -78,8 +80,10 @@ These numbers have to be converted to a *"seconds"* equivalent, which can be esp
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_logical_clock %}```
 
+{:.notebook-skip}
 Output `PCollection` after getting the timestamps:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_events %}```
 
@@ -99,8 +103,10 @@ By using processing time, there is no way of knowing if data is arriving late be
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_processing_time %}```
 
+{:.notebook-skip}
 Output `PCollection` after getting the timestamps:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_processing_times %}```
 

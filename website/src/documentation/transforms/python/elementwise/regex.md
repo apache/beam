@@ -69,8 +69,10 @@ To start matching at any point instead of the beginning of the string, use
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_matches %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.matches`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches %}```
 
@@ -95,8 +97,10 @@ To start matching at any point instead of the beginning of the string, use
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_all_matches %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.all_matches`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_all_matches %}```
 
@@ -122,8 +126,10 @@ To start matching at any point instead of the beginning of the string, use
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_matches_kv %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.matches_kv`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches_kv %}```
 
@@ -149,8 +155,10 @@ If you need to match from the start only, consider using
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.find`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches %}```
 
@@ -176,8 +184,10 @@ If you need to match all groups from the start only, consider using
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find_all %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.find_all`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_find_all %}```
 
@@ -204,8 +214,10 @@ If you need to match as key-value pairs from the start only, consider using
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find_kv %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.find_kv`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_find_kv %}```
 
@@ -224,8 +236,10 @@ on the `replacement`.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_replace_all %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.replace_all`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_replace_all %}```
 
@@ -244,8 +258,10 @@ on the `replacement`.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_replace_first %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.replace_first`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_replace_first %}```
 
@@ -262,8 +278,10 @@ The argument `outputEmpty` is set to `False` by default, but can be set to `True
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_split %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.split`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_split %}```
 

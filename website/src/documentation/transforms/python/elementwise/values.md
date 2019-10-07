@@ -36,8 +36,10 @@ Then, we apply `Values` to extract the values and discard the keys.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py tag:values %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Values`:
 
+{:.notebook-skip}
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/values_test.py tag:plants %}```
 

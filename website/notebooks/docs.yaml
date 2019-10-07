@@ -28,41 +28,41 @@ documentation/transforms/python/elementwise/flatmap:
   imports:
     1: [setup.md]
 
-# documentation/transforms/python/elementwise/keys:
-#   title: Keys - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/keys:
+  title: Keys - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
 
-# documentation/transforms/python/elementwise/kvswap:
-#   title: KvSwap - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/kvswap:
+  title: KvSwap - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
 
-# documentation/transforms/python/elementwise/map:
-#   title: Map - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/map:
+  title: Map - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
 
-# documentation/transforms/python/elementwise/pardo:
-#   title: ParDo - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/pardo:
+  title: ParDo - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
 
-# documentation/transforms/python/elementwise/partition:
-#   title: Partition - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/partition:
+  title: Partition - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
 
-# documentation/transforms/python/elementwise/regex:
-#   title: Regex - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/regex:
+  title: Regex - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
 
 # documentation/transforms/python/elementwise/reify:
 #   title: Reify - element-wise transform
@@ -70,17 +70,17 @@ documentation/transforms/python/elementwise/flatmap:
 #   imports:
 #     1: [setup.md]
 
-# documentation/transforms/python/elementwise/tostring:
-#   title: ToString - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/tostring:
+  title: ToString - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
 
-# documentation/transforms/python/elementwise/values:
-#   title: Values - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/values:
+  title: Values - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
 
 # documentation/transforms/python/elementwise/withkeys:
 #   title: WithKeys - element-wise transform
@@ -88,8 +88,8 @@ documentation/transforms/python/elementwise/flatmap:
 #   imports:
 #     1: [setup.md]
 
-# documentation/transforms/python/elementwise/withtimestamps:
-#   title: WithTimestamps - element-wise transform
-#   languages: py
-#   imports:
-#     1: [setup.md]
+documentation/transforms/python/elementwise/withtimestamps:
+  title: WithTimestamps - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
