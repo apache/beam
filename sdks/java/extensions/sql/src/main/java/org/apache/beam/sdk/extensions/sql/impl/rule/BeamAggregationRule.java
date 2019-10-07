@@ -57,6 +57,10 @@ public class BeamAggregationRule extends RelOptRule {
     final Aggregate aggregate = call.rel(0);
     final Project project = call.rel(1);
     RelNode x = updateWindow(call, aggregate, project);
+    if (x == null) {
+      // Non-windowed case should be handled by the BeamBasicAggregationRule
+      return;
+    }
     call.transformTo(x);
   }
 
@@ -80,6 +84,10 @@ public class BeamAggregationRule extends RelOptRule {
         windowFieldIndex = groupFieldIndex;
         projects.set(groupFieldIndex, rexCall.getOperands().get(0));
       }
+    }
+
+    if (windowFn == null) {
+      return null;
     }
 
     final Project newProject =

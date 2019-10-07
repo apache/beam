@@ -49,7 +49,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -701,7 +700,6 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-8317")
   public void testSupportsAggregationWithFilterWithoutProjection() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
