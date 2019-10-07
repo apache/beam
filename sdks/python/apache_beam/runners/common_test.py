@@ -27,6 +27,7 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.core import DoFn
+from apache_beam.transforms.watermark_reporter import WatermarkReporter
 
 
 class DoFnSignatureTest(unittest.TestCase):
@@ -113,6 +114,20 @@ class DoFnProcessTest(unittest.TestCase):
       (p
        | test_stream
        | beam.ParDo(DoFnProcessWithKeyparam()))
+
+  def test_watermark_reporter(self):
+    class DoFnWithWatermarkReporter(DoFn):
+      def process(self, element, reporter=DoFn.WatermarkReporterParam):
+        assert(issubclass(reporter.__class__, WatermarkReporter))
+        yield element
+
+    pipeline_options = PipelineOptions()
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream().advance_watermark_to(10).add_elements([1, 2]))
+      (p
+       | test_stream
+       | beam.ParDo(DoFnWithWatermarkReporter())
+       | beam.ParDo(self.record_dofn()))
 
 
 if __name__ == '__main__':
