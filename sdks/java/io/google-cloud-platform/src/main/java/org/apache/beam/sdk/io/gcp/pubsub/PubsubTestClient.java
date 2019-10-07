@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
@@ -38,7 +39,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}
  * methods. Relies on statics to mimic the Pubsub service, though we try to hide that.
  */
-class PubsubTestClient extends PubsubClient implements Serializable {
+@Experimental
+public class PubsubTestClient extends PubsubClient implements Serializable {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
    *
@@ -94,7 +96,7 @@ class PubsubTestClient extends PubsubClient implements Serializable {
    * Return a factory for testing publishers. Only one factory may be in-flight at a time. The
    * factory must be closed when the test is complete, at which point final validation will occur.
    */
-  static PubsubTestClientFactory createFactoryForPublish(
+  public static PubsubTestClientFactory createFactoryForPublish(
       final TopicPath expectedTopic,
       final Iterable<OutgoingMessage> expectedOutgoingMessages,
       final Iterable<OutgoingMessage> failingOutgoingMessages) {
