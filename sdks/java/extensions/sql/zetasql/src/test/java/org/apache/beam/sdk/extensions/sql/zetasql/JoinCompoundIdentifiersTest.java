@@ -54,7 +54,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for identifiers. */
 @RunWith(JUnit4.class)
-public class JoinCompoundIdentifiersTestZetaSQL {
+public class JoinCompoundIdentifiersTest {
 
   private static final Long TWO_MINUTES = 2L;
   private static final String DEFAULT_SCHEMA = "beam";
