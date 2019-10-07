@@ -95,7 +95,7 @@ import org.junit.runners.JUnit4;
 
 /** ZetaSQLDialectSpecTest. */
 @RunWith(JUnit4.class)
-public class ZetaSQLDialectSpecTestZetaSQL {
+public class ZetaSQLDialectSpecTest {
   private static final Long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
 
   private FrameworkConfig config;
