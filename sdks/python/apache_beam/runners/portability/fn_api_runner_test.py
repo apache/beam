@@ -22,6 +22,7 @@ import logging
 import os
 import random
 import shutil
+import sys
 import tempfile
 import threading
 import time
@@ -49,6 +50,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
@@ -1166,8 +1168,7 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC),
-            progress_request_frequency=1))
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
 
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
@@ -1580,6 +1581,31 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
   def test_split_half(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+
+class FnApiBasedLullLoggingTest(unittest.TestCase):
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC),
+            progress_request_frequency=1))
+
+  def test_lull_logging(self):
+
+    if sys.version_info < (3, 4):
+      self.skipTest("Log-based assertions are supported after Python 3.4")
+
+    with self.assertLogs('apache_beam.runners.worker.sdk_worker',
+                         level='WARNING') as logs:
+      with self.create_pipeline() as p:
+        sdk_worker.DEFAULT_LOG_LULL_TIMEOUT_NS = 1000 * 1000  # Lull after 1 msec
+
+        (p
+         | beam.Create([1, 2, 3])
+         | beam.Map(time.sleep))
+
+      self.assertRegex(logs.output[0], 'There has been a processing lull.*')
+      print(logs)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

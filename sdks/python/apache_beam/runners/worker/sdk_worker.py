@@ -344,12 +344,15 @@ class BundleProcessorCache(object):
 
 class SdkWorker(object):
 
-  def __init__(self, bundle_processor_cache,
+
+  def __init__(self,
+               bundle_processor_cache,
                profiler_factory=None,
-               log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS):
+               log_lull_timeout_ns=None):
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
-    self.log_lull_timeout_ns = log_lull_timeout_ns
+    self.log_lull_timeout_ns = (log_lull_timeout_ns
+                                or DEFAULT_LOG_LULL_TIMEOUT_NS)
 
   def do_instruction(self, request):
     request_type = request.WhichOneof('request')
@@ -414,6 +417,8 @@ class SdkWorker(object):
   def _log_lull_in_bundle_processor(self, processor):
     state_sampler = processor.state_sampler
     sampler_info = state_sampler.get_info()
+    logging.warning("State sampler %s with info %s, lull timeout: %s",
+                    state_sampler, sampler_info, self.log_lull_timeout_ns)
     if (sampler_info
         and sampler_info.time_since_transition
         and sampler_info.time_since_transition > self.log_lull_timeout_ns):
@@ -437,9 +442,9 @@ class SdkWorker(object):
 
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
-    processor = self.bundle_processor_cache.lookup(
-        request.instruction_id)
-    self._log_lull_in_bundle_processor(processor)
+    processor = self.bundle_processor_cache.lookup(request.instruction_id)
+    if processor:
+      self._log_lull_in_bundle_processor(processor)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
