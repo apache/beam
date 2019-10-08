@@ -40,7 +40,7 @@ the relevant section below.</p>
   <tr><td>avro</td><td>&gt;=1.8.1,&lt;2.0.0; python_version &lt; "3.0"</td></tr>
   <tr><td>cachetools</td><td>&gt;=3.1.0,&lt;4</td></tr>
   <tr><td>crcmod</td><td>&gt;=1.7,&lt;2.0</td></tr>
-  <tr><td>dill</td><td>&gt;=0.2.9,&lt;0.4.0</td></tr>
+  <tr><td>dill</td><td>&gt;=0.3.0,&lt;0.3.1</td></tr>
   <tr><td>fastavro</td><td>&gt;=0.21.4,&lt;0.22</td></tr>
   <tr><td>funcsigs</td><td>&gt;=1.0.2,&lt;2; python_version &lt; "3.0"</td></tr>
   <tr><td>future</td><td>&gt;=0.16.0,&lt;1.0.0</td></tr>
