@@ -46,20 +46,23 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private long lastBacklogBytes;
   private Instant backlogBytesLastCheckTime = new Instant(0L);
   private ShardReadersPool shardReadersPool;
+  private final Integer maxCapacityPerShard;
 
   KinesisReader(
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
       WatermarkPolicyFactory watermarkPolicyFactory,
-      Duration upToDateThreshold) {
+      Duration upToDateThreshold,
+      Integer maxCapacityPerShard) {
     this(
         kinesis,
         initialCheckpointGenerator,
         source,
         watermarkPolicyFactory,
         upToDateThreshold,
-        Duration.standardSeconds(30));
+        Duration.standardSeconds(30),
+        maxCapacityPerShard);
   }
 
   KinesisReader(
@@ -68,7 +71,8 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       KinesisSource source,
       WatermarkPolicyFactory watermarkPolicyFactory,
       Duration upToDateThreshold,
-      Duration backlogBytesCheckThreshold) {
+      Duration backlogBytesCheckThreshold,
+      Integer maxCapacityPerShard) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
     this.initialCheckpointGenerator =
         checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
@@ -76,6 +80,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     this.source = source;
     this.upToDateThreshold = upToDateThreshold;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
+    this.maxCapacityPerShard = maxCapacityPerShard;
   }
 
   /** Generates initial checkpoint and instantiates iterators for shards. */
@@ -177,6 +182,9 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   ShardReadersPool createShardReadersPool() throws TransientKinesisException {
     return new ShardReadersPool(
-        kinesis, initialCheckpointGenerator.generate(kinesis), watermarkPolicyFactory);
+        kinesis,
+        initialCheckpointGenerator.generate(kinesis),
+        watermarkPolicyFactory,
+        maxCapacityPerShard);
   }
 }
