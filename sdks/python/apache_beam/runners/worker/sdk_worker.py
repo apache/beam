@@ -344,7 +344,6 @@ class BundleProcessorCache(object):
 
 class SdkWorker(object):
 
-
   def __init__(self,
                bundle_processor_cache,
                profiler_factory=None,

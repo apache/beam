@@ -1611,6 +1611,8 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
               'root: WARNING: There has been a processing lull of over.*',
               log_line) for log_line in  logs.output))
       print(logs)
+      logging.warning("LOGS ARE HERE: %s", logs)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
