@@ -39,24 +39,19 @@ The elements themselves often already contain a timestamp field.
 in the form of seconds.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:event_time %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_event_time %}```
 
+{:.notebook-skip}
 Output `PCollection` after getting the timestamps:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps_test.py tag:plant_timestamps %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_timestamps %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
+%}
 
 To convert from a
 [`time.struct_time`](https://docs.python.org/3/library/time.html#time.struct_time)
@@ -66,7 +61,7 @@ For more information on time formatting options, see
 [`time.strftime`](https://docs.python.org/3/library/time.html#time.strftime).
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:time_tuple2unix_time %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:time_tuple2unix_time %}```
 
 To convert from a
 [`datetime.datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime)
@@ -74,7 +69,7 @@ to `unix_time` you can use convert it to a `time.struct_time` first with
 [`datetime.timetuple`](https://docs.python.org/3/library/datetime.html#datetime.datetime.timetuple).
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:datetime2unix_time %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:datetime2unix_time %}```
 
 ### Example 2: Timestamp by logical clock
 
@@ -83,24 +78,19 @@ If each element has a chronological number, these numbers can be used as a
 These numbers have to be converted to a *"seconds"* equivalent, which can be especially important depending on your windowing and late data rules.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:logical_clock %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_logical_clock %}```
 
+{:.notebook-skip}
 Output `PCollection` after getting the timestamps:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps_test.py tag:plant_events %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_events %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
+%}
 
 ### Example 3: Timestamp by processing time
 
@@ -111,24 +101,19 @@ Workers might have time deltas, so using this method is not a reliable way to do
 By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element *enters* into the pipeline.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py tag:processing_time %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_processing_time %}```
 
+{:.notebook-skip}
 Output `PCollection` after getting the timestamps:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps_test.py tag:plant_processing_times %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_processing_times %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
+%}
 
 ## Related transforms
 
