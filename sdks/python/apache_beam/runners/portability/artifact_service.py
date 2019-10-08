@@ -23,8 +23,6 @@ from __future__ import division
 from __future__ import print_function
 
 import hashlib
-import random
-import re
 import threading
 import zipfile
 
@@ -46,17 +44,17 @@ class AbstractArtifactService(
   def _sha256(self, string):
     return hashlib.sha256(string.encode('utf-8')).hexdigest()
 
-  def retrieval_token(self, staging_session_token):
-    return self._sha256(staging_session_token)
-
-  def _mkdir(self, retrieval_token):
+  def _join(self, *args):
     raise NotImplementedError(type(self))
 
-  def _join(self, *args):
+  def _dirname(self, path):
     raise NotImplementedError(type(self))
 
   def _temp_path(self, path):
     return path + '.tmp'
+
+  def _open(self, path, mode):
+    return self._zipfile.open(path, mode, force_zip64=True)
 
   def _rename(self, src, dest):
     raise NotImplementedError(type(self))
@@ -65,19 +63,18 @@ class AbstractArtifactService(
     raise NotImplementedError(type(self))
 
   def _artifact_path(self, retrieval_token, name):
-    # These are user-provided, best to check.
-    assert re.match('^[0-9a-f]+$', retrieval_token)
-    self._mkdir(retrieval_token)
-    return self._join(self._root, retrieval_token, self._sha256(name))
+    return self._join(self._dirname(retrieval_token), self._sha256(name))
 
   def _manifest_path(self, retrieval_token):
-    # These are user-provided, best to check.
-    assert re.match('^[0-9a-f]+$', retrieval_token)
-    self._mkdir(retrieval_token)
-    return self._join(self._root, retrieval_token, 'manifest.proto')
+    return retrieval_token
 
-  def _open(self, path, mode):
-    raise NotImplementedError(type(self))
+  def _get_manifest_proxy(self, retrieval_token):
+    with self._open(self._manifest_path(retrieval_token), 'r') as fin:
+      return beam_artifact_api_pb2.ProxyManifest.FromString(fin.read())
+
+  def retrieval_token(self, staging_session_token):
+    return self._join(
+        self._root, self._sha256(staging_session_token), 'MANIFEST')
 
   def PutArtifact(self, request_iterator, context=None):
     first = True
@@ -89,7 +86,6 @@ class AbstractArtifactService(
             request.metadata.staging_session_token)
         artifact_path = self._artifact_path(retrieval_token, metadata.name)
         temp_path = self._temp_path(artifact_path)
-        self._mkdir(retrieval_token)
         fout = self._open(temp_path, 'w')
         hasher = hashlib.sha256()
       else:
@@ -106,26 +102,35 @@ class AbstractArtifactService(
 
   def CommitManifest(self, request, context=None):
     retrieval_token = self.retrieval_token(request.staging_session_token)
+    proxy_manifest = beam_artifact_api_pb2.ProxyManifest(
+        manifest=request.manifest,
+        location=[
+            beam_artifact_api_pb2.ProxyManifest.Location(
+                name=metadata.name,
+                uri=self._artifact_path(retrieval_token, metadata.name))
+            for metadata in request.manifest.artifact])
     with self._open(self._manifest_path(retrieval_token), 'w') as fout:
-      fout.write(request.manifest.SerializeToString())
+      fout.write(proxy_manifest.SerializeToString())
     return beam_artifact_api_pb2.CommitManifestResponse(
         retrieval_token=retrieval_token)
 
   def GetManifest(self, request, context=None):
-    with self._open(self._manifest_path(request.retrieval_token), 'r') as fin:
-      return beam_artifact_api_pb2.GetManifestResponse(
-          manifest=beam_artifact_api_pb2.Manifest.FromString(
-              fin.read()))
+    return beam_artifact_api_pb2.GetManifestResponse(
+        manifest=self._get_manifest_proxy(request.retrieval_token).manifest)
 
   def GetArtifact(self, request, context=None):
-    with self._open(
-        self._artifact_path(request.retrieval_token, request.name), 'r') as fin:
-      # This value is not emitted, but lets us yield a single empty
-      # chunk on an empty file.
-      chunk = True
-      while chunk:
-        chunk = fin.read(self._chunk_size)
-        yield beam_artifact_api_pb2.ArtifactChunk(data=chunk)
+    for artifact in self._get_manifest_proxy(request.retrieval_token).location:
+      if artifact.name == request.name:
+        with self._open(artifact.uri, 'r') as fin:
+          # This value is not emitted, but lets us yield a single empty
+          # chunk on an empty file.
+          chunk = True
+          while chunk:
+            chunk = fin.read(self._chunk_size)
+            yield beam_artifact_api_pb2.ArtifactChunk(data=chunk)
+        break
+    else:
+      raise ValueError('Unknown artifact: %s' % request.name)
 
 
 class ZipFileArtifactService(AbstractArtifactService):
@@ -135,11 +140,11 @@ class ZipFileArtifactService(AbstractArtifactService):
     self._zipfile = zipfile.ZipFile(path, 'a')
     self._lock = threading.Lock()
 
-  def _mkdir(self, retrieval_token):
-    pass
-
   def _join(self, *args):
     return '/'.join(args)
+
+  def _dirname(self, path):
+    return path.rsplit('/', 1)[0]
 
   def _temp_path(self, path):
     return path  # ZipFile offers no move operation.
@@ -148,27 +153,11 @@ class ZipFileArtifactService(AbstractArtifactService):
     assert src == dest
 
   def _delete(self, path):
-    # ZipFile offers no delete operation: b/...
-    if self._exists(path):
-      while self._exists(path + '.deleted.deleted'):
-        path += path + '.deleted.deleted'
-      with self._open(path + '.deleted', 'w'):
-        pass
-
-  def _exists(self, path):
-    return (path in self._zipfile.namelist()
-        and not self._exists(path + '.deleted'))
+    # ZipFile offers no delete operation: https://bugs.python.org/issue6818
+    pass
 
   def _open(self, path, mode):
-    if path + '.deleted' in self._zipfile.namelist():
-      if 'r' in mode:
-        raise ValueError('Deleted file.')
-      else:
-        self._delete(path + '.deleted')
     return self._zipfile.open(path, mode, force_zip64=True)
-
-  def close(self):
-    self._zipflie.close()
 
   def PutArtifact(self, request_iterator, context=None):
     # ZipFile only supports one writable channel at a time.
@@ -182,19 +171,17 @@ class ZipFileArtifactService(AbstractArtifactService):
       return super(
           ZipFileArtifactService, self).CommitManifest(request, context)
 
+  def close(self):
+    self._zipfile.close()
+
 
 class BeamFilesystemArtifactService(AbstractArtifactService):
 
-  def _mkdir(self, retrieval_token):
-    dir = filesystems.FileSystems.join(self._root, retrieval_token)
-    if not filesystems.FileSystems.exists(dir):
-      try:
-        filesystems.FileSystems.mkdirs(dir)
-      except Exception:
-        pass
-
   def _join(self, *args):
     return filesystems.FileSystems.join(*args)
+
+  def _dirname(self, path):
+    return filesystems.FileSystems.split(path)[0]
 
   def _rename(self, src, dest):
     filesystems.FileSystems.rename([src], [dest])
@@ -203,6 +190,13 @@ class BeamFilesystemArtifactService(AbstractArtifactService):
     filesystems.FileSystems.delete([path])
 
   def _open(self, path, mode='r'):
+    dir = self._dirname(path)
+    if not filesystems.FileSystems.exists(dir):
+      try:
+        filesystems.FileSystems.mkdirs(dir)
+      except Exception:
+        pass
+
     if 'w' in mode:
       return filesystems.FileSystems.create(path)
     else:

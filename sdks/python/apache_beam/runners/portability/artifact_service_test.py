@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import hashlib
 import os
 import random
@@ -33,6 +34,7 @@ import grpc
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.runners.portability import artifact_service
+
 
 class AbstractArtifactServiceTest(unittest.TestCase):
 
@@ -126,6 +128,9 @@ class AbstractArtifactServiceTest(unittest.TestCase):
 
     manifest = beam_artifact_api_pb2.Manifest(artifact=[
         beam_artifact_api_pb2.ArtifactMetadata(name='name'),
+        beam_artifact_api_pb2.ArtifactMetadata(name='many_chunks'),
+        beam_artifact_api_pb2.ArtifactMetadata(name='long'),
+        beam_artifact_api_pb2.ArtifactMetadata(name='with_hash'),
     ])
 
     retrieval_token = staging_service.CommitManifest(
@@ -166,6 +171,7 @@ class AbstractArtifactServiceTest(unittest.TestCase):
   def test_concurrent_requests(self):
 
     num_sessions = 7
+    artifacts = collections.defaultdict(list)
 
     def name(index):
       # Overlapping names across sessions.
@@ -179,6 +185,8 @@ class AbstractArtifactServiceTest(unittest.TestCase):
       return ('%s_%d' % (data, index)).encode('ascii')
 
     def put(index):
+      artifacts[session(index)].append(
+          beam_artifact_api_pb2.ArtifactMetadata(name=name(index)))
       self._service.PutArtifact([
           self.put_metadata(session(index), name(index)),
           self.put_data(delayed_data('a', index)),
@@ -189,7 +197,8 @@ class AbstractArtifactServiceTest(unittest.TestCase):
       return session, self._service.CommitManifest(
           beam_artifact_api_pb2.CommitManifestRequest(
               staging_session_token=session,
-              manifest=beam_artifact_api_pb2.Manifest())).retrieval_token
+              manifest=beam_artifact_api_pb2.Manifest(
+                  artifact=artifacts[session]))).retrieval_token
 
     def check(index):
       self.assertEqual(
@@ -219,7 +228,6 @@ class BeamFilesystemArtifactServiceTest(AbstractArtifactServiceTest):
 
 # Don't discover/test the abstract base class.
 del AbstractArtifactServiceTest
-
 
 
 if __name__ == '__main__':
