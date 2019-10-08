@@ -20,6 +20,113 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam 2.16.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.16.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#2160-2019-10-07&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.16.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12345494&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Customizable Docker container images released and supported by Beam portable runners on Python 2.7, 3.5, 3.6, 3.7. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7907&quot;&gt;BEAM-7907&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Integration improvements for Python Streaming on Dataflow including service features like autoscaling, drain, update, streaming engine and counter updates.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A new count distinct transform based on BigQuery compatible HyperLogLog++ implementation. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7013&quot;&gt;BEAM-7013&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Element counters in the Web UI graph representations for transforms for Python streaming jobs in Google Cloud Dataflow. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7045&quot;&gt;BEAM-7045&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Add SetState in Python sdk. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7741&quot;&gt;BEAM-7741&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Add hot key detection to Dataflow Runner. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7820&quot;&gt;BEAM-7820&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Add ability to get the list of submitted jobs from gRPC JobService. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7927&quot;&gt;BEAM-7927&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Portable Flink pipelines can now be bundled into executable jars. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7966&quot;&gt;BEAM-7966&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7967&quot;&gt;BEAM-7967&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;SQL join selection should be done in planner, not in expansion to PTransform. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6114&quot;&gt;BEAM-6114&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;A Python Sink for BigQuery with File Loads in Streaming. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6611&quot;&gt;BEAM-6611&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Python BigQuery sink should be able to handle 15TB load job quota. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7588&quot;&gt;BEAM-7588&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Spark portable runner: reuse SDK harness. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7600&quot;&gt;BEAM-7600&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;BigQuery File Loads to work well with load job size limits. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7742&quot;&gt;BEAM-7742&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;External environment with containerized worker pool. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7980&quot;&gt;BEAM-7980&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Use OffsetRange as restriction for OffsetRestrictionTracker. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8014&quot;&gt;BEAM-8014&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Get logs for SDK worker Docker containers. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8015&quot;&gt;BEAM-8015&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;PCollection boundedness is tracked and propagated in python sdk. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8088&quot;&gt;BEAM-8088&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;dependency-changes&quot;&gt;Dependency Changes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Upgrade “com.amazonaws:amazon-kinesis-producer” to version 0.13.1. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7894&quot;&gt;BEAM-7894&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Upgrade to joda time 2.10.3 to get updated TZDB. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8161&quot;&gt;BEAM-8161&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Upgrade Jackson to version 2.9.10. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8299&quot;&gt;BEAM-8299&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Upgrade grpcio minimum required version to 1.12.1. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7986&quot;&gt;BEAM-7986&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Upgrade funcsigs minimum required version to 1.0.2 in Python2. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7060&quot;&gt;BEAM-7060&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Upgrade google-cloud-pubsub maximum required version to 1.0.0. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5539&quot;&gt;BEAM-5539&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Upgrade google-cloud-bigtable maximum required version to 1.0.0. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5539&quot;&gt;BEAM-5539&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Upgrade dill version to 0.3.0. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8324&quot;&gt;BEAM-8324&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Given that Python 2 will reach EOL on Jan 1 2020, Python 2 users of Beam will now receive a warning that new releases of Apache Beam will soon support Python 3 only.&lt;/li&gt;
+  &lt;li&gt;Filesystems not properly registered using FileIO.write in FlinkRunner. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8303&quot;&gt;BEAM-8303&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Performance regression in Java DirectRunner in streaming mode. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8363&quot;&gt;BEAM-8363&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed to the 2.16.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Ahmet Altay, Alex Van Boxel, Alexey Romanenko, Alexey Strokach, Alireza Samadian,
+Andre-Philippe Paquet, Andrew Pilloud, Ankur Goenka, Anton Kedin, Aryan Naraghi,
+B M VISHWAS, Bartok Jozsef, Bill Neubauer, Boyuan Zhang, Brian Hulette, Bruno Volpato,
+Chad Dombrova, Chamikara Jayalath, Charith Ellawala, Charles Chen, Claire McGinty,
+Cyrus Maden, Daniel Oliveira, Dante, David Cavazos, David Moravek, David Yan,
+Dominic Mitchell, Elias Djurfeldt, Enrico Canzonieri, Etienne Chauchot, Gleb Kanterov,
+Hai Lu, Hannah Jiang, Heejong Lee, Ian Lance Taylor, Ismaël Mejía, Jack Whelpton,
+James Wen, Jan Lukavský, Jean-Baptiste Onofré, Jofre, Kai Jiang, Kamil Wasilewski,
+Kasia Kucharczyk, Kenneth Jung, Kenneth Knowles, Kirill Kozlov, Kohki YAMAGIWA,
+Kyle Weaver, Kyle Winkelman, Ludovic Post, Luis Enrique Ortíz Ramirez, Luke Cwik,
+Mark Liu, Maximilian Michels, Michal Walenia, Mike Kaplinskiy, Mikhail Gryzykhin,
+NING KANG, Oliver Henlich, Pablo Estrada, Rakesh Kumar, Renat Nasyrov, Reuven Lax,
+Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Skraba, Sahith Nallapareddy,
+Salman Raza, Sam Rohde, Saul Chavez, Shoaib, Shoaib Zafar, Slava Chernyak, Tanay Tummalapalli,
+Thinh Ha, Thomas Weise, Tianzi Cai, Tim van der Lippe, Tomer Zeltzer, Tudor Marian,
+Udi Meiri, Valentyn Tymofieiev, Yichi Zhang, Yifan Zou, Yueyang Qiu, gxercavins,
+jesusrv1103, lostluck, matt-darwin, mrociorg, ostrokach, parahul, rahul8383, rosetn,
+sunjincheng121, the1plummie, ttanay, tvalentyn, venn001, yoshiki.obata, Łukasz Gajowy&lt;/p&gt;
+</description>
+        <pubDate>Mon, 07 Oct 2019 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2019/10/07/beam-2.16.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2019/10/07/beam-2.16.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Google Summer of Code '19</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1225,86 +1332,6 @@ You can find them over here : &lt;a href=&quot;https://github.com/apache/beam/tr
         <pubDate>Thu, 25 Apr 2019 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2019/04/25/beam-kotlin.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/04/25/beam-kotlin.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam 2.12.0</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are happy to present the new 2.12.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href=&quot;/get-started/downloads/#2120-2019-04-25&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
-For more information on changes in 2.12.0, check out the
-&lt;a href=&quot;https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12344944&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
-
-&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Add support for a BigQuery custom sink for Python SDK.&lt;/li&gt;
-  &lt;li&gt;Add support to specify a query in CassandraIO for Java SDK.&lt;/li&gt;
-  &lt;li&gt;Add experimental support for cross-language transforms,
-please see &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6730&quot;&gt;BEAM-6730&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;Add support in the Flink Runner for exactly-once Writes with KafkaIO&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Enable Bundle Finalization in Python SDK for portable runners.&lt;/li&gt;
-  &lt;li&gt;Add support to the Java SDK harness to merge windows.&lt;/li&gt;
-  &lt;li&gt;Add Kafka Sink EOS support on Flink runner.&lt;/li&gt;
-  &lt;li&gt;Added a dead letter queue to Python streaming BigQuery sink.&lt;/li&gt;
-  &lt;li&gt;Add Experimental Python 3.6 and 3.7 workloads enabled.
-Beam 2.12 supports starting Dataflow pipelines under Python 3.6, 3.7, however 3.5 remains the only recommended minor version for Dataflow runner. In addition to announced 2.11 limitations, Beam typehint annotations are currently not supported on Python &amp;gt;= 3.6.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
-
-&lt;p&gt;According to git shortlog, the following people contributed
-to the 2.12.0 release. Thank you to all contributors!&lt;/p&gt;
-
-&lt;p&gt;Ahmed El.Hussaini, Ahmet Altay, Alan Myrvold, Alex Amato, Alexander Savchenko,
-Alexey Romanenko, Andrew Brampton, Andrew Pilloud, Ankit Jhalaria,
-Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Chamikara Jayalath,
-Charles Chen, Colm O hEigeartaigh, Craig Chambers, Dan Duong, Daniel Mescheder,
-Daniel Oliveira, David Moravek, David Rieber, David Yan, Eric Roshan-Eisner,
-Etienne Chauchot, Gleb Kanterov, Heejong Lee, Ho Tien Vu, Ismaël Mejía,
-Jan Lukavský, Jean-Baptiste Onofré, Jeff Klukas, Juta, Kasia Kucharczyk,
-Kengo Seki, Kenneth Jung, Kenneth Knowles, kevin, Kyle Weaver, Kyle Winkelman,
-Łukasz Gajowy, Mark Liu, Mathieu Blanchard, Max Charas, Maximilian Michels,
-Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Kaplinskiy,
-Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Radoslaw Stankiewicz,
-Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang,
-Ruoyun Huang, Ryan Williams, Slava Chernyak, Shahar Frank, Sunil Pedapudi,
-Thomas Weise, Tim Robertson, Tanay Tummalapalli, Udi Meiri,
-Valentyn Tymofieiev, Xinyu Liu, Yifan Zou, Yueyang Qiu&lt;/p&gt;
-</description>
-        <pubDate>Thu, 25 Apr 2019 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2019/04/25/beam-2.12.0.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2019/04/25/beam-2.12.0.html</guid>
         
         
         <category>blog</category>
