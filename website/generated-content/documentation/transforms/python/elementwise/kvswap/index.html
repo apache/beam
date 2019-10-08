@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/element-wise/kvswap.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/elementwise/kvswap.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -484,15 +484,41 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
   </td>
 </table>
-<p><br /></p>
+
+<p><br /><br /><br /></p>
 
 <p>Takes a collection of key-value pairs and returns a collection of key-value pairs
 which has each key and value swapped.</p>
@@ -520,9 +546,9 @@ Then, we apply <code class="highlighter-rouge">KvSwap</code> to swap the keys an
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">KvSwap</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">KvSwap</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     ('Strawberry', '🍓'),
     ('Carrot', '🥕'),
     ('Eggplant', '🍆'),
@@ -532,15 +558,61 @@ Then, we apply <code class="highlighter-rouge">KvSwap</code> to swap the keys an
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/kvswap.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/kvswap-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
 
@@ -549,15 +621,42 @@ Then, we apply <code class="highlighter-rouge">KvSwap</code> to swap the keys an
   <li><a href="/documentation/transforms/python/elementwise/values">Values</a> for extracting the value of each element.</li>
 </ul>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.KvSwap"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
   </td>
 </table>
-<p><br /></p>
+
+<p><br /><br /><br /></p>
+
 
       </div>
     </div>

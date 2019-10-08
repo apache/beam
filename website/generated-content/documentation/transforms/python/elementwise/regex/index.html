@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/element-wise/regex.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/elementwise/regex.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -496,16 +496,43 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
   </td>
 </table>
-<p><br />
-Filters input string elements based on a regex. May also transform them based on the matching groups.</p>
+
+<p><br /><br /><br /></p>
+
+<p>Filters input string elements based on a regex. May also transform them based on the matching groups.</p>
 
 <h2 id="examples">Examples</h2>
 
@@ -569,9 +596,9 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_matches = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_matches = [
     '🍓, Strawberry, perennial',
     '🥕, Carrot, biennial',
     '🍆, Eggplant, perennial',
@@ -581,15 +608,61 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-2-regex-match-with-all-groups">Example 2: Regex match with all groups</h3>
 
@@ -626,9 +699,9 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.all_matches</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.all_matches</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_all_matches = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_all_matches = [
     ['🍓, Strawberry, perennial', '🍓', 'Strawberry', 'perennial'],
     ['🥕, Carrot, biennial', '🥕', 'Carrot', 'biennial'],
     ['🍆, Eggplant, perennial', '🍆', 'Eggplant', 'perennial'],
@@ -638,15 +711,61 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-3-regex-match-into-key-value-pairs">Example 3: Regex match into key-value pairs</h3>
 
@@ -684,9 +803,9 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches_kv</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches_kv</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_matches_kv = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_matches_kv = [
     ('🍓', '🍓, Strawberry, perennial'),
     ('🥕', '🥕, Carrot, biennial'),
     ('🍆', '🍆, Eggplant, perennial'),
@@ -696,15 +815,61 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-4-regex-find">Example 4: Regex find</h3>
 
@@ -740,9 +905,9 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_matches = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_matches = [
     '🍓, Strawberry, perennial',
     '🥕, Carrot, biennial',
     '🍆, Eggplant, perennial',
@@ -752,15 +917,61 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-5-regex-find-all">Example 5: Regex find all</h3>
 
@@ -796,9 +1007,9 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_all</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_all</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_find_all = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_find_all = [
     ['🍓, Strawberry, perennial'],
     ['🥕, Carrot, biennial'],
     ['🍆, Eggplant, perennial', '🍌, Banana, perennial'],
@@ -808,15 +1019,61 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-6-regex-find-as-key-value-pairs">Example 6: Regex find as key-value pairs</h3>
 
@@ -853,9 +1110,9 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_kv</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_kv</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_find_all = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_find_all = [
     ('🍓', '🍓, Strawberry, perennial'),
     ('🥕', '🥕, Carrot, biennial'),
     ('🍆', '🍆, Eggplant, perennial'),
@@ -867,15 +1124,61 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-7-regex-replace-all">Example 7: Regex replace all</h3>
 
@@ -902,9 +1205,9 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_all</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_all</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_replace_all = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_replace_all = [
     '🍓,Strawberry,perennial',
     '🥕,Carrot,biennial',
     '🍆,Eggplant,perennial',
@@ -914,15 +1217,61 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-8-regex-replace-first">Example 8: Regex replace first</h3>
 
@@ -949,9 +1298,9 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_first</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_first</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_replace_first = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_replace_first = [
     '🍓: Strawberry, perennial',
     '🥕: Carrot, biennial',
     '🍆: Eggplant, perennial',
@@ -961,15 +1310,61 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-9-regex-split">Example 9: Regex split</h3>
 
@@ -994,9 +1389,9 @@ The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code 
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.split</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.split</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants_split = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_split = [
     ['🍓', 'Strawberry', 'perennial'],
     ['🥕', 'Carrot', 'biennial'],
     ['🍆', 'Eggplant', 'perennial'],
@@ -1006,15 +1401,61 @@ The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code 
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
 
@@ -1024,15 +1465,42 @@ each input it may produce zero or more outputs.</li>
   <li><a href="/documentation/transforms/python/elementwise/map">Map</a> applies a simple 1-to-1 mapping function over each element in the collection</li>
 </ul>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
   </td>
 </table>
-<p><br /></p>
+
+<p><br /><br /><br /></p>
+
 
       </div>
     </div>

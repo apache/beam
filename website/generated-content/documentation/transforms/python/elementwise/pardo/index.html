@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/element-wise/pardo.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/elementwise/pardo.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -490,15 +490,41 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
   </td>
 </table>
-<p><br /></p>
+
+<p><br /><br /><br /></p>
 
 <p>A transform for generic parallel processing.
 A <code class="highlighter-rouge">ParDo</code> transform considers each element in the input <code class="highlighter-rouge">PCollection</code>,
@@ -543,9 +569,9 @@ and it can yield zero or more output elements.</p>
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ParDo</code>:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ParDo</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plants = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants = [
     '🍓Strawberry',
     '🥕Carrot',
     '🍆Eggplant',
@@ -555,15 +581,61 @@ and it can yield zero or more output elements.</p>
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-2-pardo-with-timestamp-and-window-information">Example 2: ParDo with timestamp and window information</h3>
 
@@ -611,9 +683,9 @@ object.</li>
 </code></pre>
 </div>
 
-<p><code class="highlighter-rouge">stdout</code> output:</p>
+<p class="notebook-skip"><code class="highlighter-rouge">stdout</code> output:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code># timestamp
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code># timestamp
 type(timestamp) -&gt; &lt;class 'apache_beam.utils.timestamp.Timestamp'&gt;
 timestamp.micros -&gt; 1584675660000000
 timestamp.to_rfc3339() -&gt; '2020-03-20T03:41:00Z'
@@ -627,15 +699,61 @@ window.max_timestamp() -&gt; Timestamp(1584675689.999999) (2020-03-20 03:41:29.9
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-3-pardo-with-dofn-methods">Example 3: ParDo with DoFn methods</h3>
 
@@ -727,9 +845,9 @@ For example, if the worker crashes, <code class="highlighter-rouge">teardown</co
 </code></pre>
 </div>
 
-<p><code class="highlighter-rouge">stdout</code> output:</p>
+<p class="notebook-skip"><code class="highlighter-rouge">stdout</code> output:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>__init__
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>__init__
 setup
 start_bundle
 * process: 🍓
@@ -742,15 +860,61 @@ teardown
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/pardo.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <blockquote>
   <p><em>Known issues:</em></p>
@@ -773,15 +937,42 @@ but for each input it may produce zero or more outputs.</li>
 deciding whether to output an element or not.</li>
 </ul>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
+    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
   </td>
 </table>
-<p><br /></p>
+
+<p><br /><br /><br /></p>
+
 
       </div>
     </div>

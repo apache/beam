@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/element-wise/withtimestamps.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/elementwise/withtimestamps.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -528,9 +528,9 @@ in the form of seconds.</p>
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plant_timestamps = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plant_timestamps = [
     '2020-04-01 00:00:00 - Strawberry',
     '2020-06-01 00:00:00 - Carrot',
     '2020-03-01 00:00:00 - Artichoke',
@@ -540,15 +540,61 @@ in the form of seconds.</p>
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/withtimestamps-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <p>To convert from a
 <a href="https://docs.python.org/3/library/time.html#time.struct_time"><code class="highlighter-rouge">time.struct_time</code></a>
@@ -609,9 +655,9 @@ These numbers have to be converted to a <em>“seconds”</em> equivalent, which
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plant_events = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plant_events = [
     '1 - Strawberry',
     '4 - Carrot',
     '2 - Artichoke',
@@ -621,15 +667,61 @@ These numbers have to be converted to a <em>“seconds”</em> equivalent, which
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/withtimestamps-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h3 id="example-3-timestamp-by-processing-time">Example 3: Timestamp by processing time</h3>
 
@@ -664,9 +756,9 @@ Workers might have time deltas, so using this method is not a reliable way to do
 </code></pre>
 </div>
 
-<p>Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
+<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>plant_processing_times = [
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plant_processing_times = [
     '2020-03-20 20:12:42.145594 - Strawberry',
     '2020-03-20 20:12:42.145827 - Carrot',
     '2020-03-20 20:12:42.145962 - Artichoke',
@@ -676,15 +768,61 @@ Workers might have time deltas, so using this method is not a reliable way to do
 </code></pre>
 </div>
 
-<table>
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py notebook-skip">
   <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/with_timestamps.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
+    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/withtimestamps-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
   </td>
 </table>
-<p><br /></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<table align="left" style="margin-right:1em" class="language-py">
+  <td>
+    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+  </td>
+</table>
+
+<p><br /><br /><br /></p>
 
 <h2 id="related-transforms">Related transforms</h2>
 
