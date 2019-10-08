@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import hashlib
+import os
 import random
 import shutil
 import tempfile
@@ -33,18 +34,18 @@ from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.runners.portability import artifact_service
 
-
-class BeamFilesystemArtifactServiceTest(unittest.TestCase):
+class AbstractArtifactServiceTest(unittest.TestCase):
 
   def setUp(self):
     self._staging_dir = tempfile.mkdtemp()
-    self._service = (
-        artifact_service.BeamFilesystemArtifactService(
-            self._staging_dir, chunk_size=10))
+    self._service = self.create_service(self._staging_dir)
 
   def tearDown(self):
     if self._staging_dir:
       shutil.rmtree(self._staging_dir)
+
+  def create_service(self, staging_dir):
+    raise NotImplementedError(type(self))
 
   @staticmethod
   def put_metadata(staging_token, name, sha256=None):
@@ -202,6 +203,23 @@ class BeamFilesystemArtifactServiceTest(unittest.TestCase):
     tokens = dict(pool.map(commit, sessions))
     # List forces materialization.
     _ = list(pool.map(check, range(100)))
+
+
+class ZipFileArtifactServiceTest(AbstractArtifactServiceTest):
+  def create_service(self, staging_dir):
+    return artifact_service.ZipFileArtifactService(
+        os.path.join(staging_dir, 'test.zip'), chunk_size=10)
+
+
+class BeamFilesystemArtifactServiceTest(AbstractArtifactServiceTest):
+  def create_service(self, staging_dir):
+    return artifact_service.BeamFilesystemArtifactService(
+        staging_dir, chunk_size=10)
+
+
+# Don't discover/test the abstract base class.
+del AbstractArtifactServiceTest
+
 
 
 if __name__ == '__main__':
