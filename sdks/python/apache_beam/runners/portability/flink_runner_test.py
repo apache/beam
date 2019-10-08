@@ -31,6 +31,7 @@ import apache_beam as beam
 from apache_beam import Impulse
 from apache_beam import Map
 from apache_beam import Pipeline
+from apache_beam.coders import VarIntCoder
 from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.io.external.kafka import ReadFromKafka
 from apache_beam.io.external.kafka import WriteToKafka
@@ -42,6 +43,7 @@ from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import userstate
 
 if __name__ == '__main__':
   # Run as
@@ -107,7 +109,8 @@ if __name__ == '__main__':
           f.write(linesep.join([
               'metrics.reporters: file',
               'metrics.reporter.file.class: %s' % file_reporter,
-              'metrics.reporter.file.path: %s' % cls.test_metrics_path
+              'metrics.reporter.file.path: %s' % cls.test_metrics_path,
+              'metrics.scope.operator: <operator_name>',
           ]))
 
     @classmethod
@@ -219,42 +222,102 @@ if __name__ == '__main__':
           with_transcoding=False)
 
     def test_metrics(self):
-      """Run a simple DoFn that increments a counter, and verify that its
-       expected value is written to a temporary file by the FileReporter"""
+      """Run a simple DoFn that increments a counter and verifies state
+      caching metrics. Verifies that its expected value is written to a
+      temporary file by the FileReporter"""
 
       counter_name = 'elem_counter'
+      state_spec = userstate.BagStateSpec('state', VarIntCoder())
 
       class DoFn(beam.DoFn):
         def __init__(self):
           self.counter = Metrics.counter(self.__class__, counter_name)
           logging.info('counter: %s' % self.counter.metric_name)
 
-        def process(self, v):
+        def process(self, kv, state=beam.DoFn.StateParam(state_spec)):
+          # Trigger materialization
+          list(state.read())
+          state.add(1)
           self.counter.inc()
 
       options = self.create_options()
       # Test only supports parallelism of 1
       options._all_options['parallelism'] = 1
-      n = 100
+      # Create multiple bundles to test cache metrics
+      options._all_options['max_bundle_size'] = 10
+      options._all_options['max_bundle_time_millis'] = 95130590130
+      experiments = options.view_as(DebugOptions).experiments or []
+      experiments.append('state_cache_size=123')
+      options.view_as(DebugOptions).experiments = experiments
       with Pipeline(self.get_runner(), options) as p:
         # pylint: disable=expression-not-assigned
         (p
-         | beam.Create(list(range(n)))
-         | beam.ParDo(DoFn()))
+         | "create" >> beam.Create(list(range(0, 110)))
+         | "mapper" >> beam.Map(lambda x: (x % 10, 'val'))
+         | "stateful" >> beam.ParDo(DoFn()))
 
+      lines_expected = {'counter: 110'}
+      if streaming:
+        lines_expected.update([
+            # Gauges for the last finished bundle
+            'stateful.beam.metric:statecache:capacity: 123',
+            # These are off by 10 because the first bundle contains all the keys
+            # once. Caching is only initialized after the first bundle. Caching
+            # depends on the cache token which is lazily initialized by the
+            # Runner's StateRequestHandlers.
+            'stateful.beam.metric:statecache:size: 10',
+            'stateful.beam.metric:statecache:get: 10',
+            'stateful.beam.metric:statecache:miss: 0',
+            'stateful.beam.metric:statecache:hit: 10',
+            'stateful.beam.metric:statecache:put: 0',
+            'stateful.beam.metric:statecache:extend: 10',
+            'stateful.beam.metric:statecache:evict: 0',
+            # Counters
+            # (total of get/hit will be off by 10 due to the caching
+            # only getting initialized after the first bundle.
+            # Caching depends on the cache token which is lazily
+            # initialized by the Runner's StateRequestHandlers).
+            'stateful.beam.metric:statecache:get_total: 100',
+            'stateful.beam.metric:statecache:miss_total: 10',
+            'stateful.beam.metric:statecache:hit_total: 90',
+            'stateful.beam.metric:statecache:put_total: 10',
+            'stateful.beam.metric:statecache:extend_total: 100',
+            'stateful.beam.metric:statecache:evict_total: 0',
+            ])
+      else:
+        # Batch has a different processing model. All values for
+        # a key are processed at once.
+        lines_expected.update([
+            # Gauges
+            'stateful).beam.metric:statecache:capacity: 123',
+            # For the first key, the cache token will not be set yet.
+            # It's lazily initialized after first access in StateRequestHandlers
+            'stateful).beam.metric:statecache:size: 9',
+            # We have 11 here because there are 110 / 10 elements per key
+            'stateful).beam.metric:statecache:get: 11',
+            'stateful).beam.metric:statecache:miss: 1',
+            'stateful).beam.metric:statecache:hit: 10',
+            # State is flushed back once per key
+            'stateful).beam.metric:statecache:put: 1',
+            'stateful).beam.metric:statecache:extend: 1',
+            'stateful).beam.metric:statecache:evict: 0',
+            # Counters
+            'stateful).beam.metric:statecache:get_total: 99',
+            'stateful).beam.metric:statecache:miss_total: 9',
+            'stateful).beam.metric:statecache:hit_total: 90',
+            'stateful).beam.metric:statecache:put_total: 9',
+            'stateful).beam.metric:statecache:extend_total: 9',
+            'stateful).beam.metric:statecache:evict_total: 0',
+            ])
+      lines_actual = set()
       with open(self.test_metrics_path, 'r') as f:
-        lines = [line for line in f.readlines() if counter_name in line]
-        self.assertEqual(
-            len(lines), 1,
-            msg='Expected 1 line matching "{}":\n{}'.format(
-                counter_name, '\n'.join(lines))
-        )
-        line = lines[0]
-        self.assertTrue(
-            '{}: {}'.format(counter_name in line, n),
-            msg='Failed to find expected counter {} in line {}'.format(
-                counter_name, line)
-        )
+        line = f.readline()
+        while line:
+          for metric_str in lines_expected:
+            if metric_str in line:
+              lines_actual.add(metric_str)
+          line = f.readline()
+      self.assertSetEqual(lines_actual, lines_expected)
 
     def test_sdf_with_sdf_initiated_checkpointing(self):
       raise unittest.SkipTest("BEAM-2939")
