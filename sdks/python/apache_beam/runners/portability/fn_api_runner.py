@@ -1133,14 +1133,14 @@ class EmbeddedWorkerHandler(WorkerHandler):
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self
     self.data_conn = self.data_plane_handler
+    state_cache = StateCache(STATE_CACHE_SIZE)
     self.worker = sdk_worker.SdkWorker(
         sdk_worker.BundleProcessorCache(
             FnApiRunner.SingletonStateHandlerFactory(
-                sdk_worker.CachingMaterializingStateHandler(
-                    StateCache(STATE_CACHE_SIZE), state)),
+                sdk_worker.CachingStateHandler(state_cache, state)),
             data_plane.InMemoryDataChannelFactory(
                 self.data_plane_handler.inverse()),
-            {}))
+            {}), state_cache_metrics_fn=state_cache.get_monitoring_infos)
     self._uid_counter = 0
 
   def push(self, request):
