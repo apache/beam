@@ -46,7 +46,6 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
-
 # This SDK harness will (by default), log a "lull" in processing if it sees no
 # transitions in over 5 minutes.
 # 5 minutes * 60 seconds * 1020 millis * 1000 micros * 1000 nanoseconds
