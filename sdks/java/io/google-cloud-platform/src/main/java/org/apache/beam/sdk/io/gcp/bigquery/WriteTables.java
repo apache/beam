@@ -93,7 +93,7 @@ class WriteTables<DestinationT>
   private final PCollectionView<String> loadJobIdPrefixView;
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
-  private Set<SchemaUpdateOption> schemaUpdateOptions;
+  private final Set<SchemaUpdateOption> schemaUpdateOptions;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
@@ -293,7 +293,9 @@ class WriteTables<DestinationT>
       int maxRetryJobs,
       boolean ignoreUnknownValues,
       String kmsKey,
-      String sourceFormat) {
+      String sourceFormat,
+      Set<SchemaUpdateOption> schemaUpdateOptions) {
+
     this.tempTable = tempTable;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -308,12 +310,7 @@ class WriteTables<DestinationT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.kmsKey = kmsKey;
     this.sourceFormat = sourceFormat;
-  }
-
-  public WriteTables<DestinationT> withSchemaUpdateOptions(
-      Set<SchemaUpdateOption> schemaUpdateOptions) {
     this.schemaUpdateOptions = schemaUpdateOptions;
-    return this;
   }
 
   @Override
