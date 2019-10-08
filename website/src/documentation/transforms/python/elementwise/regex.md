@@ -24,17 +24,8 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.util" class="Regex" %}
+
 Filters input string elements based on a regex. May also transform them based on the matching groups.
 
 ## Examples
@@ -76,24 +67,19 @@ To start matching at any point instead of the beginning of the string, use
 [`Regex.find(regex)`](#example-4-regex-find).
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_matches %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_matches %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.matches`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_matches %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ### Example 2: Regex match with all groups
 
@@ -109,24 +95,19 @@ To start matching at any point instead of the beginning of the string, use
 [`Regex.find_all(regex, group=Regex.ALL, outputEmpty=False)`](#example-5-regex-find-all).
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_all_matches %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_all_matches %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.all_matches`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_all_matches %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_all_matches %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ### Example 3: Regex match into key-value pairs
 
@@ -143,24 +124,19 @@ To start matching at any point instead of the beginning of the string, use
 [`Regex.find_kv(regex, keyGroup)`](#example-6-regex-find-as-key-value-pairs).
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_matches_kv %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_matches_kv %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.matches_kv`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_matches_kv %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches_kv %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ### Example 4: Regex find
 
@@ -177,24 +153,19 @@ If you need to match from the start only, consider using
 [`Regex.matches(regex)`](#example-1-regex-match).
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_find %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.find`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_matches %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ### Example 5: Regex find all
 
@@ -211,24 +182,19 @@ If you need to match all groups from the start only, consider using
 [`Regex.all_matches(regex)`](#example-2-regex-match-with-all-groups).
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_find_all %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find_all %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.find_all`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_find_all %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_find_all %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ### Example 6: Regex find as key-value pairs
 
@@ -246,24 +212,19 @@ If you need to match as key-value pairs from the start only, consider using
 [`Regex.matches_kv(regex)`](#example-3-regex-match-into-key-value-pairs).
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_find_kv %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find_kv %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.find_kv`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_find_kv %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_find_kv %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ### Example 7: Regex replace all
 
@@ -273,24 +234,19 @@ You can also use
 on the `replacement`.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_replace_all %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_replace_all %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.replace_all`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_replace_all %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_replace_all %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ### Example 8: Regex replace first
 
@@ -300,24 +256,19 @@ You can also use
 on the `replacement`.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_replace_first %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_replace_first %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.replace_first`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_replace_first %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_replace_first %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ### Example 9: Regex split
 
@@ -325,24 +276,19 @@ Output `PCollection` after `Regex.replace_first`:
 The argument `outputEmpty` is set to `False` by default, but can be set to `True` to keep empty items in the output list.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py tag:regex_split %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_split %}```
 
+{:.notebook-skip}
 Output `PCollection` after `Regex.split`:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex_test.py tag:plants_split %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_split %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/regex.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
+%}
 
 ## Related transforms
 
@@ -350,14 +296,4 @@ Output `PCollection` after `Regex.split`:
   each input it may produce zero or more outputs.
 * [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.util" class="Regex" %}

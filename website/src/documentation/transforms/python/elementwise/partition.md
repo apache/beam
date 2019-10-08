@@ -24,17 +24,8 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Partition">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.core" class="Partition" %}
+
 Separates elements in a collection into multiple output
 collections. The partitioning function contains the logic that determines how
 to separate the elements of the input collection into each resulting
@@ -61,48 +52,38 @@ In the following example, we have a known list of durations.
 We partition the `PCollection` into one `PCollection` for every duration type.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py tag:partition_function %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_function %}```
 
+{:.notebook-skip}
 Output `PCollection`s:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition_test.py tag:partitions %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:partitions %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
+%}
 
 ### Example 2: Partition with a lambda function
 
 We can also use lambda functions to simplify **Example 1**.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py tag:partition_lambda %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_lambda %}```
 
+{:.notebook-skip}
 Output `PCollection`s:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition_test.py tag:partitions %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:partitions %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
+%}
 
 ### Example 3: Partition with multiple arguments
 
@@ -137,42 +118,27 @@ This `split_dataset` function is generic enough to support any number of partiti
 You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py tag:partition_multiple_arguments %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_multiple_arguments %}```
 
+{:.notebook-skip}
 Output `PCollection`s:
 
+{:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition_test.py tag:train_test %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:train_test %}```
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/partition.py">
-      <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png"
-        width="20px" height="20px" alt="View on GitHub" />
-      View on GitHub
-    </a>
-  </td>
-</table>
-<br>
+{% include buttons-code-snippet.md
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
+%}
 
 ## Related transforms
 
 * [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
-* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
+* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
 * [CoGroupByKey]({{ site.baseurl }}/documentation/transforms/python/aggregation/cogroupbykey)
 performs a per-key equijoin.
 
-<table>
-  <td>
-    <a class="button" target="_blank"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Partition">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png"
-          width="20px" height="20px" alt="Pydoc" />
-      Pydoc
-    </a>
-  </td>
-</table>
-<br>
+{% include button-pydoc.md path="apache_beam.transforms.core" class="Partition" %}

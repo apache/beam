@@ -42,18 +42,18 @@ Then, we apply `Filter` in multiple ways to filter out produce by their duration
 We define a function `is_perennial` which returns `True` if the element's duration equals `'perennial'`, and `False` otherwise.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_function %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py tag:filter_function %}```
 
 {:.notebook-skip}
 Output `PCollection` after `Filter`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
 %}
 
 ### Example 2: Filtering with a lambda function
@@ -61,18 +61,18 @@ Output `PCollection` after `Filter`:
 We can also use lambda functions to simplify **Example 1**.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_lambda %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py tag:filter_lambda %}```
 
 {:.notebook-skip}
 Output `PCollection` after `Filter`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
 %}
 
 ### Example 3: Filtering with multiple arguments
@@ -83,18 +83,18 @@ They are passed as additional positional arguments or keyword arguments to the f
 In this example, `has_duration` takes `plant` and `duration` as arguments.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_multiple_arguments %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py tag:filter_multiple_arguments %}```
 
 {:.notebook-skip}
 Output `PCollection` after `Filter`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
 %}
 
 ### Example 4: Filtering with side inputs as singletons
@@ -106,18 +106,18 @@ In this example, we pass a `PCollection` the value `'perennial'` as a singleton.
 We then use that value to filter out perennials.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_singleton %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py tag:filter_side_inputs_singleton %}```
 
 {:.notebook-skip}
 Output `PCollection` after `Filter`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
 %}
 
 ### Example 5: Filtering with side inputs as iterators
@@ -127,18 +127,18 @@ This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_iter %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py tag:filter_side_inputs_iter %}```
 
 {:.notebook-skip}
 Output `PCollection` after `Filter`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:valid_plants %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_test.py tag:valid_plants %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
 %}
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
@@ -152,25 +152,25 @@ Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py tag:filter_side_inputs_dict %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py tag:filter_side_inputs_dict %}```
 
 {:.notebook-skip}
 Output `PCollection` after `Filter`:
 
 {:.notebook-skip}
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter_test.py tag:perennials %}```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_test.py tag:perennials %}```
 
 {% include buttons-code-snippet.md
-  py="sdks/python/apache_beam/examples/snippets/transforms/element_wise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/element-wise/filter"
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
 %}
 
 ## Related transforms
 
 * [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
   each input it might produce zero or more outputs.
-* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general element-wise mapping
+* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
 
 {% include button-pydoc.md path="apache_beam.transforms.core" class="Filter" %}
