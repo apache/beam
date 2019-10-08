@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.util.JsonToRowUtils.jsonToRow;
-import static org.apache.beam.sdk.util.JsonToRowUtils.newObjectMapperWith;
+import static org.apache.beam.sdk.util.RowJsonUtils.jsonToRow;
+import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.annotation.Nullable;
