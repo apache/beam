@@ -68,14 +68,14 @@ public class ToJsonTest implements Serializable {
                 Person.of("person4", 50, false),
                 Person.of("person5", 40, true)));
 
-  Schema personSchema =
-      Schema.builder()
-          .addStringField("name")
-          .addInt32Field("height")
-          .addBooleanField("knowsJavascript")
-          .build();
+    Schema personSchema =
+        Schema.builder()
+            .addStringField("name")
+            .addInt32Field("height")
+            .addBooleanField("knowsJavascript")
+            .build();
 
-  PCollection<Row> personRows =
+    PCollection<Row> personRows =
         persons.apply(ToJson.of()).apply(JsonToRow.withSchema(personSchema));
 
     PAssert.that(personRows)

@@ -31,9 +31,9 @@ import org.apache.beam.sdk.values.Row;
 /**
  * <i>Experimental</i>
  *
- * <p>Creates a {@link PTransform} that serializes UTF-8 JSON objects from a {@link Schema}-aware PCollection
- * (i.e. {@link PCollection#hasSchema()} returns true). JSON format is compatible with {@link
- * JsonToRow}.
+ * <p>Creates a {@link PTransform} that serializes UTF-8 JSON objects from a {@link Schema}-aware
+ * PCollection (i.e. {@link PCollection#hasSchema()} returns true). JSON format is compatible with
+ * {@link JsonToRow}.
  *
  * <p>For specifics of JSON serialization see {@link RowJsonSerializer}.
  */
@@ -50,14 +50,14 @@ public class ToJson<T> extends PTransform<PCollection<T>, PCollection<String>> {
     Schema inputSchema = rows.getSchema();
     SerializableFunction<T, Row> toRow = rows.getToRowFunction();
     return rows.apply(
-            ParDo.of(
-                new DoFn<T, String>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    context.output(
-                        rowToJson(objectMapper(inputSchema), toRow.apply(context.element())));
-                  }
-                }));
+        ParDo.of(
+            new DoFn<T, String>() {
+              @ProcessElement
+              public void processElement(ProcessContext context) {
+                context.output(
+                    rowToJson(objectMapper(inputSchema), toRow.apply(context.element())));
+              }
+            }));
   }
 
   private ObjectMapper objectMapper(Schema schema) {
