@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.util.RowJsonSerializer;
+import org.apache.beam.sdk.util.RowJson.RowJsonSerializer;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
