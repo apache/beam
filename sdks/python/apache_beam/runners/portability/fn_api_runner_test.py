@@ -1166,7 +1166,8 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+                urn=python_urns.EMBEDDED_PYTHON_GRPC),
+            progress_request_frequency=1))
 
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
