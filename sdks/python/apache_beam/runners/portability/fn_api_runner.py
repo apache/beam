@@ -53,6 +53,7 @@ from typing import cast
 from typing import overload
 
 import grpc
+from typing_extensions import Protocol
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam import coders
@@ -253,7 +254,21 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
                    in self._req_worker_mapping.items()])
 
 
-class _ListBuffer(list):
+class BufferProtocol(Protocol):
+  def partition(self, n):
+    # type: (int) -> List[List[bytes]]
+    pass
+
+  def append(self, elements_data):
+    # type: (bytes) -> None
+    pass
+
+  def __iter__(self):
+    # type: () -> Iterator[bytes]
+    pass
+
+
+class _ListBuffer(List[bytes]):
   """Used to support parititioning of a list."""
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
@@ -279,6 +294,7 @@ class _GroupingBuffer(object):
     # type: (bytes) -> None
     if self._grouped_output:
       raise RuntimeError('Grouping table append after read.')
+    assert self._table is not None
     input_stream = create_InputStream(elements_data)
     coder_impl = self._pre_grouped_coder.get_impl()
     key_coder_impl = self._key_coder.get_impl()
@@ -299,6 +315,7 @@ class _GroupingBuffer(object):
     is not supported now.
     """
     if not self._grouped_output:
+      assert self._table is not None
       if self._windowing.is_default():
         globally_window = GlobalWindows.windowed_value(None).with_value
         windowed_key_values = lambda key, values: [
@@ -547,7 +564,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     try:
       with self.maybe_profile():
-        pcoll_buffers = collections.defaultdict(_ListBuffer)  # type: DefaultDict[bytes, _ListBuffer]
+        pcoll_buffers = collections.defaultdict(_ListBuffer)  # type: DefaultDict[bytes, BufferProtocol]
         for stage in stages:
           stage_results = self._run_stage(
               worker_handler_manager.get_worker_handlers,
@@ -568,8 +585,10 @@ class FnApiRunner(runner.PipelineRunner):
                                   context,  # type: pipeline_context.PipelineContext
                                   pipeline_components,  # type: beam_runner_api_pb2.Components
                                   data_side_input,  # type: DataSideInput
-                                  pcoll_buffers,  # type: Mapping[bytes, _ListBuffer]
-                                  safe_coders):
+                                  pcoll_buffers,  # type: Mapping[bytes, BufferProtocol]
+                                  safe_coders
+                                 ):
+    # type: (...) -> None
     for (transform_id, tag), (buffer_id, si) in data_side_input.items():
       _, pcoll_id = split_buffer_id(buffer_id)
       value_coder = context.coders[safe_coders[
@@ -605,7 +624,7 @@ class FnApiRunner(runner.PipelineRunner):
       try:
         worker_handler.state.checkpoint()
         testing_bundle_manager = ParallelBundleManager(
-            worker_handler_list, lambda pcoll_id: [],
+            worker_handler_list, lambda pcoll_id: _ListBuffer(),
             get_input_coder_callable, process_bundle_descriptor,
             self._progress_frequency, k,
             num_workers=self._num_workers,
@@ -621,8 +640,9 @@ class FnApiRunner(runner.PipelineRunner):
       pipeline_components,  # type: beam_runner_api_pb2.Components
       stage,  # type: fn_api_runner_transforms.Stage
       get_buffer_callable,
-      deferred_inputs  # type: DefaultDict[str, _ListBuffer]
-      ):
+      deferred_inputs  # type: DefaultDict[str, BufferProtocol]
+  ):
+    # type: (...) -> None
 
     for transform_id, timer_writes in stage.timer_pcollections:
 
@@ -657,8 +677,9 @@ class FnApiRunner(runner.PipelineRunner):
       get_input_coder_callable,
       input_for_callable,
       last_sent,
-      deferred_inputs  # type: DefaultDict[str, _ListBuffer]
+      deferred_inputs  # type: DefaultDict[str, BufferProtocol]
   ):
+    # type: (...) -> None
 
     prev_stops = {}  # type: Dict[str, int]
     for split in splits:
@@ -699,11 +720,13 @@ class FnApiRunner(runner.PipelineRunner):
       stage,  # type: fn_api_runner_transforms.Stage
       pipeline_components,  # type: beam_runner_api_pb2.Components
       data_api_service_descriptor,
-      pcoll_buffers  # type: DefaultDict[bytes, _ListBuffer]
+      pcoll_buffers  # type: DefaultDict[bytes, BufferProtocol]
   ):
+    # type: (...) -> Tuple[Dict[Tuple[str, str], BufferProtocol], DataSideInput, Dict[Tuple[str, str], bytes]]
+
     # Returns maps of transform names to PCollection identifiers.
     # Also mutates IO stages to point to the data ApiServiceDescriptor.
-    data_input = {}
+    data_input = {}  # type: Dict[Tuple[str, str], BufferProtocol]
     data_side_input = {}   # type: DataSideInput
     data_output = {}    # type: Dict[Tuple[str, str], bytes]
     for transform in stage.transforms:
@@ -742,7 +765,7 @@ class FnApiRunner(runner.PipelineRunner):
                  worker_handler_factory,  # type: Callable[[Optional[str], int], List[WorkerHandler]]
                  pipeline_components,  # type: beam_runner_api_pb2.Components
                  stage,  # type: fn_api_runner_transforms.Stage
-                 pcoll_buffers,  # type: DefaultDict[bytes, _ListBuffer]
+                 pcoll_buffers,  # type: DefaultDict[bytes, BufferProtocol]
                  safe_coders
                 ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
@@ -809,6 +832,7 @@ class FnApiRunner(runner.PipelineRunner):
                                      safe_coders)
 
     def get_buffer(buffer_id):
+      # type: (bytes) -> BufferProtocol
       """Returns the buffer for a given (operation_type, PCollection ID).
 
       For grouping-typed operations, we produce a ``_GroupingBuffer``. For
@@ -879,7 +903,7 @@ class FnApiRunner(runner.PipelineRunner):
     last_sent = data_input
 
     while True:
-      deferred_inputs = collections.defaultdict(_ListBuffer)  # type: DefaultDict[str, _ListBuffer]
+      deferred_inputs = collections.defaultdict(_ListBuffer)  # type: DefaultDict[str, BufferProtocol]
 
       self._collect_written_timers_and_add_to_deferred_inputs(
           context, pipeline_components, stage, get_buffer, deferred_inputs)
@@ -926,9 +950,9 @@ class FnApiRunner(runner.PipelineRunner):
   def _extract_endpoints(stage,  # type: fn_api_runner_transforms.Stage
                          pipeline_components,  # type: beam_runner_api_pb2.Components
                          data_api_service_descriptor, # type: Optional[endpoints_pb2.ApiServiceDescriptor]
-                         pcoll_buffers  # type: DefaultDict[bytes, _ListBuffer]
+                         pcoll_buffers  # type: DefaultDict[bytes, BufferProtocol]
                         ):
-    # type: (...) -> Tuple[Dict[str, _ListBuffer], Dict[Tuple[str, str], Tuple[bytes, beam_runner_api_pb2.FunctionSpec]], Dict[str, bytes]]
+    # type: (...) -> Tuple[Dict[str, BufferProtocol], DataSideInput, DataOutput]
     """Returns maps of transform names to PCollection identifiers.
 
     Also mutates IO stages to point to the data ApiServiceDescriptor.
@@ -947,7 +971,7 @@ class FnApiRunner(runner.PipelineRunner):
         PCollection buffer; `data_output` is a dictionary mapping
         (transform_name, output_name) to a PCollection ID.
     """
-    data_input = {}  # type: Dict[str, _ListBuffer]
+    data_input = {}  # type: Dict[str, BufferProtocol]
     data_side_input = {}  # type: DataSideInput
     data_output = {}  # type: DataOutput
     for transform in stage.transforms:
@@ -986,12 +1010,23 @@ class FnApiRunner(runner.PipelineRunner):
   class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
                       sdk_worker.StateHandler):
 
+    class CopyOnWriteListProtocol(Protocol):
+      def __iter__(self):
+        # type: () -> Iterator[bytes]
+        pass
+
+      def append(self, item):
+        # type: (bytes) -> None
+        pass
+
     class CopyOnWriteState(object):
       def __init__(self, underlying):
+        # type: (DefaultDict[bytes, FnApiRunner.StateServicer.CopyOnWriteListProtocol]) -> None
         self._underlying = underlying
-        self._overlay = {}
+        self._overlay = {}  # type: Dict[bytes, FnApiRunner.StateServicer.CopyOnWriteListProtocol]
 
       def __getitem__(self, key):
+        # type: (bytes) -> FnApiRunner.StateServicer.CopyOnWriteListProtocol
         if key in self._overlay:
           return self._overlay[key]
         else:
@@ -1003,11 +1038,17 @@ class FnApiRunner(runner.PipelineRunner):
         self._overlay[key] = []
 
       def commit(self):
+        # type: () -> DefaultDict[bytes, FnApiRunner.StateServicer.CopyOnWriteListProtocol]
         self._underlying.update(self._overlay)
         return self._underlying
 
     class CopyOnWriteList(object):
-      def __init__(self, underlying, overlay, key):
+      def __init__(self,
+                   underlying,  # type: DefaultDict[bytes, FnApiRunner.StateServicer.CopyOnWriteListProtocol]
+                   overlay,  # type: Dict[bytes, FnApiRunner.StateServicer.CopyOnWriteListProtocol]
+                   key  # type: bytes
+                  ):
+        # type: (...) -> None
         self._underlying = underlying
         self._overlay = overlay
         self._key = key
@@ -1025,24 +1066,37 @@ class FnApiRunner(runner.PipelineRunner):
           self._overlay[self._key] = list(self._underlying[self._key])
         self._overlay[self._key].append(item)
 
+    StateType = Union[CopyOnWriteState,
+                      DefaultDict[bytes, CopyOnWriteListProtocol]]
+
     def __init__(self):
+      # type: () -> None
       self._lock = threading.Lock()
-      self._state = collections.defaultdict(list)  # type: DefaultDict[bytes, List[bytes]]
-      self._checkpoint = None
+      self._state = collections.defaultdict(list)  # type: FnApiRunner.StateServicer.StateType
+      self._checkpoint = None  # type: Optional[FnApiRunner.StateServicer.StateType]
       self._use_continuation_tokens = False
-      self._continuations = {}
+      self._continuations = {}  # type: Dict[str, Tuple[bytes, ...]]
 
     def checkpoint(self):
-      assert self._checkpoint is None
+      # type: () -> None
+      assert self._checkpoint is None and not \
+        isinstance(self._state, FnApiRunner.StateServicer.CopyOnWriteState)
       self._checkpoint = self._state
       self._state = FnApiRunner.StateServicer.CopyOnWriteState(self._state)
 
     def commit(self):
+      # type: () -> None
+      assert isinstance(self._state,
+                        FnApiRunner.StateServicer.CopyOnWriteState) and \
+             isinstance(self._checkpoint,
+                        FnApiRunner.StateServicer.CopyOnWriteState)
       self._state.commit()
       self._state = self._checkpoint.commit()
       self._checkpoint = None
 
     def restore(self):
+      # type: () -> None
+      assert self._checkpoint is not None
       self._state = self._checkpoint
       self._checkpoint = None
 
@@ -1675,6 +1729,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
            '--artifact_endpoint=%s' % self.control_address,
            '--provision_endpoint=%s' % self.control_address,
           ]).strip()
+      assert self._container_id is not None
       while True:
         status = subprocess.check_output([
             'docker',
@@ -1828,7 +1883,7 @@ class BundleManager(object):
 
   def __init__(self,
                worker_handler_list,  # type: Sequence[WorkerHandler]
-               get_buffer,  # type: Callable[[bytes], list]
+               get_buffer,  # type: Callable[[bytes], BufferProtocol]
                get_input_coder_impl,  # type: Callable[[str], CoderImpl]
                bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                progress_frequency=None,
@@ -1897,7 +1952,7 @@ class BundleManager(object):
 
   def _generate_splits_for_testing(self,
                                    split_manager,
-                                   inputs,  # type: Mapping[str, _ListBuffer]
+                                   inputs,  # type: Mapping[str, BufferProtocol]
                                    process_bundle_id):
     # type: (...) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     split_results = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
@@ -1959,7 +2014,7 @@ class BundleManager(object):
     return split_results
 
   def process_bundle(self,
-                     inputs,  # type: Mapping[str, _ListBuffer]
+                     inputs,  # type: Mapping[str, BufferProtocol]
                      expected_outputs  # type: DataOutput
                     ):
     # type: (...) -> BundleProcessResult
@@ -2032,7 +2087,7 @@ class ParallelBundleManager(BundleManager):
   def __init__(
       self,
       worker_handler_list,  # type: Sequence[WorkerHandler]
-      get_buffer,  # type: Callable[[bytes], list]
+      get_buffer,  # type: Callable[[bytes], BufferProtocol]
       get_input_coder_impl,  # type: Callable[[str], CoderImpl]
       bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
       progress_frequency=None,
@@ -2047,7 +2102,7 @@ class ParallelBundleManager(BundleManager):
     self._num_workers = kwargs.pop('num_workers', 1)
 
   def process_bundle(self,
-                     inputs,  # type: Mapping[str, _ListBuffer]
+                     inputs,  # type: Mapping[str, BufferProtocol]
                      expected_outputs  # type: DataOutput
                     ):
     # type: (...) -> BundleProcessResult
