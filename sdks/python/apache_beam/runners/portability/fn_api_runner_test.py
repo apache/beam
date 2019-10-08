@@ -1595,16 +1595,21 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
     if sys.version_info < (3, 4):
       self.skipTest("Log-based assertions are supported after Python 3.4")
 
-    with self.assertLogs('apache_beam.runners.worker.sdk_worker',
+    with self.assertLogs('root',
                          level='WARNING') as logs:
       with self.create_pipeline() as p:
-        sdk_worker.DEFAULT_LOG_LULL_TIMEOUT_NS = 1000 * 1000  # Lull after 1 msec
+        sdk_worker.DEFAULT_LOG_LULL_TIMEOUT_NS = 1000 * 1000  # Lull after 1 ms
 
-        (p
-         | beam.Create([1, 2, 3])
-         | beam.Map(time.sleep))
+        _ = (p
+             | beam.Create([1, 2, 3])
+             | beam.Map(time.sleep))
 
-      self.assertRegex(logs.output[0], 'There has been a processing lull.*')
+      import re
+
+      self.assertTrue(
+          any(re.match(
+              'root: WARNING: There has been a processing lull of over.*',
+              log_line) for log_line in  logs.output))
       print(logs)
 
 if __name__ == '__main__':

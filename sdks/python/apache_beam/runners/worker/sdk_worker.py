@@ -417,8 +417,6 @@ class SdkWorker(object):
   def _log_lull_in_bundle_processor(self, processor):
     state_sampler = processor.state_sampler
     sampler_info = state_sampler.get_info()
-    logging.warning("State sampler %s with info %s, lull timeout: %s",
-                    state_sampler, sampler_info, self.log_lull_timeout_ns)
     if (sampler_info
         and sampler_info.time_since_transition
         and sampler_info.time_since_transition > self.log_lull_timeout_ns):
