@@ -77,6 +77,10 @@ lkuligin:
     name: Leonid Kuligin
     email: kuligin@google.com
     twitter: lkulighin
+markliu:
+    name: Mark Liu
+    email: markliu@apache.org
+    twitter:
 robertwb:
     name: Robert Bradshaw
     email: robertwb@apache.org
@@ -127,4 +131,3 @@ ttanay:
     name: Tanay Tummalapalli
     email: ttanay100@gmail.com
     twitter: ttanay100
-
