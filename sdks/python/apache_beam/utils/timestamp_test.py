@@ -159,6 +159,14 @@ class TimestampTest(unittest.TestCase):
     self.assertEqual('Timestamp(-999999999)',
                      str(Timestamp(-999999999)))
 
+  def test_equality(self):
+    for min_val in (Timestamp(1), Duration(1), 1, 1.1):
+      for max_val in (Timestamp(123), Duration(123), 123, 123.4):
+        self.assertTrue(min_val < max_val, "%s < %s" % (min_val, max_val))
+        self.assertTrue(min_val <= max_val, "%s <= %s" % (min_val, max_val))
+        self.assertTrue(max_val > min_val, "%s > %s" % (max_val, min_val))
+        self.assertTrue(max_val >= min_val, "%s >= %s" % (max_val, min_val))
+
 
 class DurationTest(unittest.TestCase):
 
