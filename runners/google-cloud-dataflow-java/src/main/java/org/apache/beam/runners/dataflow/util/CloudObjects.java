@@ -29,7 +29,6 @@ import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -50,7 +49,6 @@ public class CloudObjects {
           ByteArrayCoder.class,
           KvCoder.class,
           VarLongCoder.class,
-          DoubleCoder.class,
           IntervalWindowCoder.class,
           IterableCoder.class,
           Timer.Coder.class,
