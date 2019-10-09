@@ -1610,8 +1610,8 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
              | beam.Map(time.sleep))
 
     self.assertRegexpMatches(
-        '.*There has been a processing lull of over.*',
         ''.join(logs.output),
+        '.*There has been a processing lull of over.*',
         'Unable to find a lull logged for this job.')
 
 
