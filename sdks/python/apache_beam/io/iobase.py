@@ -55,6 +55,7 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.utils.windowed_value import _IntervalWindowBase
 
 __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
@@ -1046,7 +1047,12 @@ class _WriteBundleDoFn(core.DoFn):
     if self.writer is not None:
       yield WindowedValue(self.writer.close(),
                           window.GlobalWindow().max_timestamp(),
-                          [window.GlobalWindow()])
+                          [
+                              _IntervalWindowBase(
+                                  0, window.GlobalWindow().max_timestamp()
+                              )
+                          ],
+                         )
 
 
 class _WriteKeyedBundleDoFn(core.DoFn):
