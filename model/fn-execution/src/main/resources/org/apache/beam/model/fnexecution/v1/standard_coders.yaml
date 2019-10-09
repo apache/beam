@@ -58,6 +58,14 @@ examples:
 ---
 
 coder:
+  urn: "beam:coder:bool:v1"
+examples:
+  "\0": False
+  "\u0001": True
+
+---
+
+coder:
   urn: "beam:coder:string_utf8:v1"
 nested: false
 examples:
@@ -126,6 +134,16 @@ examples:
 ---
 
 coder:
+  urn: "beam:coder:kv:v1"
+  components: [{urn: "beam:coder:bytes:v1"},
+               {urn: "beam:coder:bool:v1"}]
+examples:
+  "\u0003abc\u0001": {key: abc, value: True}
+  "\u0004ab\0c\0": {key: "ab\0c", value: False}
+
+---
+
+coder:
   urn: "beam:coder:interval_window:v1"
 examples:
   "\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0068\u0080\u00dd\u00db\u0001" : {end: 1454293425000, span: 3600000}
@@ -151,6 +169,16 @@ coder:
 examples:
   "\0\0\0\u0001\u0003abc": ["abc"]
   "\0\0\0\u0002\u0004ab\0c\u0004de\0f": ["ab\0c", "de\0f"]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:bool:v1"}]
+examples:
+  "\0\0\0\u0001\u0001": [True]
+  "\0\0\0\u0002\u0001\0": [True, False]
   "\0\0\0\0": []
 
 ---
