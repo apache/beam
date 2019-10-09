@@ -21,7 +21,6 @@ import collections
 import logging
 import os
 import random
-import re
 import shutil
 import sys
 import tempfile
@@ -1594,6 +1593,7 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
 
   def test_lull_logging(self):
 
+    # TODO(BEAM-1251): Remove this test skip after dropping Py 2 support.
     if sys.version_info < (3, 4):
       self.skipTest('Log-based assertions are supported after Python 3.4')
     try:
