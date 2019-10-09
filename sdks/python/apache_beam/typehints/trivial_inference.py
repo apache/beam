@@ -18,6 +18,20 @@
 """Trivial type inference for simple functions.
 
 For internal use only; no backwards-compatibility guarantees.
+
+Empty is used to denote container type for which there is
+no type information yet. For example a newly created list will be of type:
+  Empty[typing.List].
+If an int and str are appended to it it will become (through a series of
+union()s):
+  typing.List[int],
+and then
+  typing.List[typing.Union[int, str]].
+The finalize_hints() function removes any
+lingering Empties from the return value, e.g., if the inferred return value is:
+  typing.Tuple[int, Empty[typing.List]]
+then it will be converted to:
+  typing.Tuple[int, typing.List[typing.Any]]
 """
 from __future__ import absolute_import
 from __future__ import print_function
@@ -29,12 +43,23 @@ import pprint
 import sys
 import traceback
 import types
+import typing
 from builtins import object
 from builtins import zip
 from functools import reduce
 
-from apache_beam.typehints import Any
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
+from apache_beam.typehints.native_type_compatibility import convert_to_typing_types
+from apache_beam.typehints.native_type_compatibility import get_args
+from apache_beam.typehints.native_type_compatibility import is_Dict
+from apache_beam.typehints.native_type_compatibility import is_Iterable
+from apache_beam.typehints.native_type_compatibility import is_List
+from apache_beam.typehints.native_type_compatibility import is_Set
+from apache_beam.typehints.native_type_compatibility import is_Tuple
+from apache_beam.typehints.native_type_compatibility import is_typing_type
+from apache_beam.typehints.native_type_compatibility import same_container_type
+from apache_beam.typehints.native_type_compatibility import set_args
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:                  # Python 2
@@ -47,6 +72,25 @@ except ImportError:   # Python 3
 class TypeInferenceError(ValueError):
   """Error to raise when type inference failed."""
   pass
+
+
+_empty = typing.TypeVar('_empty')
+
+
+class Empty(typing.Generic[_empty]):
+  """Placeholder for containers with yet-unknown element types.
+
+  Will either be replaced with a specific type or Any (in finalize_hints).
+
+  Based on pytypes.Empty. https://github.com/Stewori/pytypes
+
+  Example: Empty[typing.List] denotes a list with unknown element type.
+  """
+
+
+def is_Empty(typ):
+  """Checks if a given type is the special Empty type."""
+  return getattr(typ, '__origin__', None) == Empty
 
 
 def instance_to_type(o):
@@ -81,6 +125,51 @@ def instance_to_type(o):
     raise TypeInferenceError('Unknown forbidden type: %s' % t)
 
 
+def instance_to_native_type(o):
+  """Given a Python object o, return the corresponding type hint.
+
+  Returns:
+    A Python ``type``, a ``typing`` module type, or ``Empty``. For
+    composite types, any combination of these types.
+  """
+  t = type(o)
+  if o is None:
+    return type(None)
+  if t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
+    # pylint: disable=deprecated-types-field
+    if sys.version_info[0] == 2 and t == types.InstanceType:
+      return o.__class__
+    if t == BoundMethod:
+      return types.MethodType
+    return t
+
+  if t == dict:
+    if len(o):
+      return typing.Dict[
+          typing.Union[tuple(instance_to_native_type(k) for k, v in o.items())],
+          typing.Union[tuple(instance_to_native_type(v) for k, v in o.items())],
+      ]
+    else:
+      return Empty[typing.Dict]
+
+  if t in [tuple, list, set]:
+    typs = tuple(instance_to_native_type(item) for item in o)
+    if t == tuple:
+      return typing.Tuple[typs]
+    elif t == list:
+      if len(o):
+        return typing.List[typing.Union[typs]]
+      else:
+        return Empty[typing.List]
+    elif t == set:
+      if len(o):
+        return typing.Set[typing.Union[typs]]
+      else:
+        return Empty[typing.Set]
+
+  raise TypeInferenceError('Unknown forbidden type: %s' % t)
+
+
 def union_list(xs, ys):
   assert len(xs) == len(ys)
   return [union(x, y) for x, y in zip(xs, ys)]
@@ -90,7 +179,7 @@ class Const(object):
 
   def __init__(self, value):
     self.value = value
-    self.type = instance_to_type(value)
+    self.type = instance_to_native_type(value)
 
   def __eq__(self, other):
     return isinstance(other, Const) and self.value == other.value
@@ -152,7 +241,7 @@ class FrameState(object):
   def closure_type(self, i):
     """Returns a TypeConstraint or Const."""
     val = self.get_closure(i)
-    if isinstance(val, typehints.TypeConstraint):
+    if is_typing_type(val):
       return val
     else:
       return Const(val)
@@ -163,7 +252,7 @@ class FrameState(object):
       return Const(self.f.__globals__[name])
     if name in builtins.__dict__:
       return Const(builtins.__dict__[name])
-    return Any
+    return typing.Any
 
   def get_name(self, i):
     return self.co.co_names[i]
@@ -185,46 +274,100 @@ class FrameState(object):
 
 def union(a, b):
   """Returns the union of two types or Const values.
+
+  If a is of type Empty then b is returned and vice versa.
+
+  If a and b are of the same composite type T, return T[Union[args_a + args_b]].
+  Not recursive, but could probably be made to be.
   """
+  a = Const.unwrap(a)
+  b = Const.unwrap(b)
   if a == b:
     return a
   elif not a:
     return b
   elif not b:
     return a
-  a = Const.unwrap(a)
-  b = Const.unwrap(b)
-  # TODO(robertwb): Work this into the Union code in a more generic way.
-  if type(a) == type(b) and element_type(a) == typehints.Union[()]:
+  if is_Empty(a) and same_container_type(get_args(a)[0], b):
     return b
-  elif type(a) == type(b) and element_type(b) == typehints.Union[()]:
+  if is_Empty(b) and same_container_type(a, get_args(b)[0]):
     return a
-  return typehints.Union[a, b]
+  if is_Dict(a) and is_Dict(b):
+    # Union keys and values separately.
+    args_dict = tuple(typing.Union[args]
+                      for args in zip(get_args(a), get_args(b)))
+    return typing.Dict[args_dict]
+  try:
+    args = [arg for arg in get_args(a) + get_args(b) if arg is not Ellipsis]
+    args_union = typing.Union[tuple(args)]
+    if is_List(a) and is_List(b):
+      return typing.List[args_union]
+    if is_Tuple(a) and is_Tuple(b):
+      return typing.Tuple[args_union, ...]
+    if is_Set(a) and is_Set(b):
+      return typing.Set[args_union]
+    if is_Iterable(a) and is_Iterable(b):
+      return typing.Iterable[args_union]
+  except AttributeError:
+    pass
+  return typing.Union[a, b]
 
 
-def finalize_hints(type_hint):
-  """Sets type hint for empty data structures to Any."""
-  def visitor(tc, unused_arg):
-    if isinstance(tc, typehints.DictConstraint):
-      empty_union = typehints.Union[()]
-      if tc.key_type == empty_union:
-        tc.key_type = Any
-      if tc.value_type == empty_union:
-        tc.value_type = Any
+def finalize_hints(th):
+  """Resolves Empty types from a type hint, recursively.
 
-  if isinstance(type_hint, typehints.TypeConstraint):
-    type_hint.visit(visitor, None)
+  Returns:
+    A possibly new type hint.
+  """
+  if is_Empty(th):
+    inner_t = get_args(th)[0]
+    if inner_t == typing.Dict:
+      return typing.Dict[typing.Any, typing.Any]
+    if inner_t in [typing.List, typing.Set, typing.Iterable]:
+      return inner_t[typing.Any]
+  # Special representation of Empty[Tuple]: Tuple[()]
+  if is_Tuple(th) and get_args(th) == ((), ):
+    return typing.Tuple[typing.Any, ...]
+
+  if is_typing_type(th):
+    try:
+      args = get_args(th)
+      new_args = [finalize_hints(arg) for arg in args]
+      set_args(th, tuple(new_args))
+    except AttributeError:
+      pass
+  return th
 
 
 def element_type(hint):
   """Returns the element type of a composite type.
+
+  Beam typing type version.
   """
   hint = Const.unwrap(hint)
   if isinstance(hint, typehints.SequenceTypeConstraint):
     return hint.inner_type
   elif isinstance(hint, typehints.TupleHint.TupleConstraint):
     return typehints.Union[hint.tuple_types]
-  return Any
+  return typehints.Any
+
+
+def element_typing_type(hint):
+  """Returns the element type of a composite type.
+
+  Python typing type version.
+  """
+  hint = Const.unwrap(hint)
+  if is_Set(hint) or is_List(hint) or is_Iterable(hint):
+    return get_args(hint)[0]
+  if is_Tuple(hint):
+    args = get_args(hint)
+    if len(args) == 2 and args[1] == Ellipsis:
+      return args[0]
+    if len(args) == 1 and args[0] == ():
+      return typing.Any
+    return typing.Union[args]
+  return typing.Any
 
 
 def key_value_types(kv_type):
@@ -235,7 +378,7 @@ def key_value_types(kv_type):
   if (isinstance(kv_type, typehints.TupleHint.TupleConstraint)
       and len(kv_type.tuple_types) == 2):
     return kv_type.tuple_types
-  return Any, Any
+  return typehints.Any, typehints.Any
 
 
 known_return_types = {len: int, hash: int,}
@@ -277,6 +420,14 @@ def infer_return_type(c, input_types, debug=False, depth=5):
     A TypeConstraint that that the return value of this function will (likely)
     satisfy given the specified inputs.
   """
+  # This is a wrapper that supports Beam typing types.
+  return convert_to_beam_type(
+      _infer_return_type(c, convert_to_typing_types(input_types), debug, depth),
+      fail_on_unknown_typing_type=True)
+
+
+def _infer_return_type(c, input_types, debug=False, depth=5):
+  # This implementation uses Python-native typing module types.
   try:
     if hashable(c) and c in known_return_types:
       return known_return_types[c]
@@ -292,24 +443,24 @@ def infer_return_type(c, input_types, debug=False, depth=5):
     elif inspect.isclass(c):
       if c in typehints.DISALLOWED_PRIMITIVE_TYPES:
         return {
-            list: typehints.List[Any],
-            set: typehints.Set[Any],
-            tuple: typehints.Tuple[Any, ...],
-            dict: typehints.Dict[Any, Any]
+            list: typing.List[typing.Any],
+            set: typing.Set[typing.Any],
+            tuple: typing.Tuple[typing.Any, ...],
+            dict: typing.Dict[typing.Any, typing.Any]
         }[c]
       return c
     else:
-      return Any
+      return typing.Any
   except TypeInferenceError:
     if debug:
       traceback.print_exc()
-    return Any
+    return typing.Any
   except Exception:
     if debug:
       sys.stdout.flush()
       raise
     else:
-      return Any
+      return typing.Any
 
 
 def infer_return_type_func(f, input_types, debug=False, depth=0):
@@ -322,8 +473,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     depth: Maximum inspection depth during type inference.
 
   Returns:
-    A TypeConstraint that that the return value of this function will (likely)
-    satisfy given the specified inputs.
+    A typing module type that that the return value of this function will
+    (likely) satisfy given the specified inputs.
 
   Raises:
     TypeInferenceError: if no type can be inferred.
@@ -345,8 +496,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   yields = set()
   returns = set()
   # TODO(robertwb): Default args via inspect module.
-  local_vars = list(input_types) + [typehints.Union[()]] * (len(co.co_varnames)
-                                                            - len(input_types))
+  local_vars = list(input_types) + [typing.Any] * (len(co.co_varnames)
+                                                   - len(input_types))
   state = FrameState(f, local_vars)
   states = collections.defaultdict(lambda: None)
   jumps = collections.defaultdict(int)
@@ -426,37 +577,37 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         kw_args = 'KW' in opname
         pop_count = standard_args + var_args + kw_args + 1
         if depth <= 0:
-          return_type = Any
+          return_type = typing.Any
         elif arg >> 8:
           # TODO(robertwb): Handle this case.
-          return_type = Any
+          return_type = typing.Any
         elif isinstance(state.stack[-pop_count], Const):
           # TODO(robertwb): Handle this better.
           if var_args or kw_args:
-            state.stack[-1] = Any
-            state.stack[-var_args - kw_args] = Any
-          return_type = infer_return_type(state.stack[-pop_count].value,
-                                          state.stack[1 - pop_count:],
-                                          debug=debug,
-                                          depth=depth - 1)
+            state.stack[-1] = typing.Any
+            state.stack[-var_args - kw_args] = typing.Any
+          return_type = _infer_return_type(state.stack[-pop_count].value,
+                                           state.stack[1 - pop_count:],
+                                           debug=debug,
+                                           depth=depth - 1)
         else:
-          return_type = Any
+          return_type = typing.Any
         state.stack[-pop_count:] = [return_type]
       else:  # Python 3.6+
         if opname == 'CALL_FUNCTION':
           pop_count = arg + 1
           if depth <= 0:
-            return_type = Any
+            return_type = typing.Any
           else:
-            return_type = infer_return_type(state.stack[-pop_count].value,
-                                            state.stack[1 - pop_count:],
-                                            debug=debug,
-                                            depth=depth - 1)
+            return_type = _infer_return_type(state.stack[-pop_count].value,
+                                             state.stack[1 - pop_count:],
+                                             debug=debug,
+                                             depth=depth - 1)
         elif opname == 'CALL_FUNCTION_KW':
           # TODO(udim): Handle keyword arguments. Requires passing them by name
           #   to infer_return_type.
           pop_count = arg + 2
-          return_type = Any
+          return_type = typing.Any
         elif opname == 'CALL_FUNCTION_EX':
           # stack[-has_kwargs]: Map of keyword args.
           # stack[-1 - has_kwargs]: Iterable of positional args.
@@ -466,19 +617,27 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           if has_kwargs:
             # TODO(udim): Unimplemented. Requires same functionality as a
             #   CALL_FUNCTION_KW implementation.
-            return_type = Any
+            return_type = typing.Any
           else:
             args = state.stack[-1]
             _callable = state.stack[-2]
-            if isinstance(args, typehints.ListConstraint):
-              # Case where there's a single var_arg argument.
-              args = [args]
-            elif isinstance(args, typehints.TupleConstraint):
-              args = list(args._inner_types())
-            return_type = infer_return_type(_callable.value,
-                                            args,
-                                            debug=debug,
-                                            depth=depth - 1)
+            return_type = None
+            # Extract positional arguments, args should be an iterable object.
+            if is_List(args):
+              # Function args are provided in a List, which is unfortunate since
+              # the number of args is unknown. Inference cannot continue here
+              # (possible solution is to use a Const).
+              return_type = typing.Any
+            elif is_Tuple(args):
+              args = get_args(args)
+            else:
+              # args has an unexpected type; this is an unhandled case.
+              return_type = typing.Any
+            if return_type is None:
+              return_type = _infer_return_type(_callable.value,
+                                               args,
+                                               debug=debug,
+                                               depth=depth - 1)
         else:
           raise TypeInferenceError('unable to handle %s' % opname)
         state.stack[-pop_count:] = [return_type]
@@ -486,10 +645,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       pop_count = 1 + arg
       # LOAD_METHOD will return a non-Const (Any) if loading from an Any.
       if isinstance(state.stack[-pop_count], Const) and depth > 0:
-        return_type = infer_return_type(state.stack[-pop_count].value,
-                                        state.stack[1 - pop_count:],
-                                        debug=debug,
-                                        depth=depth - 1)
+        return_type = _infer_return_type(state.stack[-pop_count].value,
+                                         state.stack[1 - pop_count:],
+                                         debug=debug,
+                                         depth=depth - 1)
       else:
         return_type = typehints.Any
       state.stack[-pop_count:] = [return_type]
@@ -522,7 +681,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       jmp = pc + arg
       jmp_state = state.copy()
       jmp_state.stack.pop()
-      state.stack.append(element_type(state.stack[-1]))
+      state.stack.append(element_typing_type(state.stack[-1]))
     else:
       raise TypeInferenceError('unable to handle %s' % opname)
 
@@ -540,10 +699,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       pprint.pprint(dict(item for item in states.items() if item[1]))
 
   if yields:
-    result = typehints.Iterable[reduce(union, Const.unwrap_all(yields))]
+    result = typing.Iterable[reduce(union, Const.unwrap_all(yields))]
   else:
     result = reduce(union, Const.unwrap_all(returns))
-  finalize_hints(result)
+  result = finalize_hints(result)
 
   if debug:
     print(f, id(f), input_types, '->', result)

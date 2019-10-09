@@ -36,6 +36,13 @@ _TypeMapEntry = collections.namedtuple(
     '_TypeMapEntry', ['match', 'arity', 'beam_type'])
 
 
+T = typing.TypeVar('T')
+
+
+class WindowedValue(typing.Generic[T]):
+  """Native version of typehints.WindowedValue."""
+
+
 def _get_compatible_args(typ):
   if isinstance(typ, typing.TypeVar):
     return (typ.__name__,)
@@ -50,15 +57,37 @@ def _get_compatible_args(typ):
   return None
 
 
-def _get_arg(typ, index):
-  """Returns the index-th argument to the given type."""
+def get_args(typ):
+  """Returns the arguments to the given type."""
   try:
-    return typ.__args__[index]
+    return typ.__args__
   except AttributeError:
     compatible_args = _get_compatible_args(typ)
     if compatible_args is None:
       raise
-    return compatible_args[index]
+    return compatible_args
+
+
+def set_args(typ, args):
+  """Set the arguments of a given type.
+
+  Args:
+    typ: A typing module type instance.
+    args (tuple): New args to set.
+  """
+  if hasattr(typ, '__args__'):
+    typ.__args__ = args
+  elif hasattr(typ, '__tuple_params__'):
+    typ.__tuple_params__ = args
+  elif hasattr(typ, '__union_params__'):
+    typ.__union_params__ = args
+  else:
+    raise TypeError('Could not set args for: %s', typ)
+
+
+def _get_arg(typ, index):
+  """Returns the index-th argument to the given type."""
+  return get_args(typ)[index]
 
 
 def _len_arg(typ):
@@ -111,7 +140,8 @@ def _match_is_exactly_iterable(user_type):
     expected_origin = typing.Iterable
   else:
     expected_origin = collections.abc.Iterable
-  return getattr(user_type, '__origin__', None) is expected_origin
+  return (user_type is expected_origin or
+          getattr(user_type, '__origin__', None) is expected_origin)
 
 
 def _match_is_named_tuple(user_type):
@@ -138,23 +168,61 @@ def _match_is_union(user_type):
   return False
 
 
+def is_typing_type(typ):
+  return getattr(typ, '__module__', None) == 'typing'
+
+
+is_Any = _match_same_type(typing.Any)
+is_Dict = _match_issubclass(typing.Dict)
+is_Iterable = _match_is_exactly_iterable
+is_List = _match_issubclass(typing.List)
+is_Set = _match_issubclass(typing.Set)
+
+
+def is_Tuple(typ, allow_ellipsis=True):
+  """Matches typing.Tuple, but not {typing,collections}.NamedTuple.
+
+  Args:
+    allow_ellipsis: (bool) If False, returns False for Tuple[ANY, ...].
+  """
+  if not _match_issubclass(typing.Tuple)(typ):
+    return False
+  if not hasattr(typ, '__args__'):
+    # typing.NamedTuple, collections.NamedTuple
+    return False
+  if not allow_ellipsis and _get_arg(typ, -1) == Ellipsis:
+    return False
+  return True
+
+
+def same_container_type(a, b):
+  """Return True if a and b are of the same container type."""
+  return ((is_Dict(a) and is_Dict(b)) or
+          (is_Iterable(a) and is_Iterable(b)) or
+          (is_List(a) and is_List(b)) or
+          (is_Set(a) and is_Set(b)) or
+          (is_Tuple(a) and is_Tuple(b)))
+
+
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
 _type_var_cache = {}
 
 
-def convert_to_beam_type(typ):
+def convert_to_beam_type(typ, fail_on_unknown_typing_type=False):
   """Convert a given typing type to a Beam type.
 
   Args:
     typ (type): typing type.
+    fail_on_unknown_typing_type (bool): Raises if typ is an unsupported typing
+      module type. Otherwise the typ is returned unconverted.
 
   Returns:
     type: The given type converted to a Beam type as far as we can do the
     conversion.
 
   Raises:
-    ~exceptions.ValueError: The type was malformed.
+    ~exceptions.ValueError: There was an error in converting the type.
   """
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
@@ -167,40 +235,32 @@ def convert_to_beam_type(typ):
       _type_var_cache[id(typ)] = new_type_variable
       _type_var_cache[id(new_type_variable)] = typ
     return _type_var_cache[id(typ)]
-  elif getattr(typ, '__module__', None) != 'typing':
+  elif _match_issubclass(WindowedValue)(typ):
+    # Special return value from convert_to_typing_type that is not a typing
+    # module type.
+    return typehints.WindowedValue[
+        convert_to_beam_type(_get_arg(typ, 0))]
+  elif _match_is_named_tuple(typ):
+    # NamedTuple is a subclass of Tuple, but it needs special handling.
+    # We just convert it to Any for now.
+    return typehints.Any
+  elif not is_typing_type(typ):
     # Only translate types from the typing module.
     return typ
 
   type_map = [
       _TypeMapEntry(
-          match=_match_same_type(typing.Any),
-          arity=0,
-          beam_type=typehints.Any),
+          match=is_Any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Dict),
-          arity=2,
-          beam_type=typehints.Dict),
+          match=is_Dict, arity=2, beam_type=typehints.Dict),
       _TypeMapEntry(
-          match=_match_is_exactly_iterable,
-          arity=1,
-          beam_type=typehints.Iterable),
+          match=is_Iterable, arity=1, beam_type=typehints.Iterable),
       _TypeMapEntry(
-          match=_match_issubclass(typing.List),
-          arity=1,
-          beam_type=typehints.List),
+          match=is_List, arity=1, beam_type=typehints.List),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Set),
-          arity=1,
-          beam_type=typehints.Set),
-      # NamedTuple is a subclass of Tuple, but it needs special handling.
-      # We just convert it to Any for now.
-      # This MUST appear before the entry for the normal Tuple.
+          match=is_Set, arity=1, beam_type=typehints.Set),
       _TypeMapEntry(
-          match=_match_is_named_tuple, arity=0, beam_type=typehints.Any),
-      _TypeMapEntry(
-          match=_match_issubclass(typing.Tuple),
-          arity=-1,
-          beam_type=typehints.Tuple),
+          match=is_Tuple, arity=-1, beam_type=typehints.Tuple),
       _TypeMapEntry(match=_match_is_union, arity=-1, beam_type=typehints.Union),
       _TypeMapEntry(
           match=_match_issubclass(typing.Generator),
@@ -215,7 +275,8 @@ def convert_to_beam_type(typ):
   # Find the first matching entry.
   matched_entry = next((entry for entry in type_map if entry.match(typ)), None)
   if not matched_entry:
-    # No match: return original type.
+    if fail_on_unknown_typing_type and is_typing_type(typ):
+      raise ValueError('Unsupported type in conversion to Beam type: %s', typ)
     return typ
 
   if matched_entry.arity == -1:
@@ -279,7 +340,7 @@ def convert_to_typing_type(typ):
       _type_var_cache[id(typ)] = new_type_variable
       _type_var_cache[id(new_type_variable)] = typ
     return _type_var_cache[id(typ)]
-  elif not getattr(typ, '__module__', None).endswith('typehints'):
+  elif not getattr(typ, '__module__', '').endswith('typehints'):
     # Only translate types from the typehints module.
     return typ
 
@@ -293,6 +354,8 @@ def convert_to_typing_type(typ):
   if isinstance(typ, typehints.IterableTypeConstraint):
     return typing.Iterable[convert_to_typing_type(typ.inner_type)]
   if isinstance(typ, typehints.UnionConstraint):
+    if not typ.union_types:
+      return typing.Any
     return typing.Union[tuple(convert_to_typing_types(typ.union_types))]
   if isinstance(typ, typehints.SetTypeConstraint):
     return typing.Set[convert_to_typing_type(typ.inner_type)]
@@ -302,6 +365,8 @@ def convert_to_typing_type(typ):
     return typing.Tuple[convert_to_typing_type(typ.inner_type), ...]
   if isinstance(typ, typehints.IteratorTypeConstraint):
     return typing.Iterator[convert_to_typing_type(typ.yielded_type)]
+  if isinstance(typ, typehints.WindowedTypeConstraint):
+    return WindowedValue[convert_to_typing_type(typ.inner_type)]
 
   raise ValueError('Failed to convert Beam type: %s' % typ)
 

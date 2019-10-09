@@ -20,10 +20,16 @@
 from __future__ import absolute_import
 
 import sys
+import typing
 import unittest
 
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
+from apache_beam.typehints.trivial_inference import Empty
+from apache_beam.typehints.trivial_inference import element_typing_type
+from apache_beam.typehints.trivial_inference import finalize_hints
+from apache_beam.typehints.trivial_inference import instance_to_native_type
+from apache_beam.typehints.trivial_inference import union
 
 global_int = 1
 
@@ -45,7 +51,9 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testTuples(self):
     self.assertReturnType(
-        typehints.Tuple[typehints.Tuple[()], int], lambda x: ((), x), [int])
+        typehints.Tuple[typehints.Tuple[typehints.Any, ...], int],
+        lambda x: ((), x),
+        [int])
     self.assertReturnType(
         typehints.Tuple[str, int, float], lambda x: (x, 0, 1.0), [str])
 
@@ -162,6 +170,21 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.List[typehints.Union[int, str]], lambda a, b: a + b,
         [typehints.List[int], typehints.List[str]])
+    self.assertReturnType(
+        typehints.Tuple[typehints.Union[int, str], ...], lambda a, b: a + b,
+        [typehints.Tuple[int], typehints.Tuple[str]])
+    self.assertReturnType(
+        typehints.Tuple[typehints.Union[int, str], ...], lambda a, b: a + b,
+        [typehints.Tuple[int, ...], typehints.Tuple[str]])
+    self.assertReturnType(
+        typehints.Set[typehints.Union[int, str]], lambda a, b: a - b,
+        [typehints.Set[int], typehints.Set[str]])
+    self.assertReturnType(
+        typehints.Iterable[typehints.Union[int, str]], lambda a, b: a + b,
+        [typehints.Iterable[int], typehints.Iterable[str]])
+
+    # Return type should ideally be str ('a' * 5 is 'aaaaa'), but Any is okay.
+    self.assertReturnType(typehints.Any, lambda a, b: a * b, [str, int])
 
   def testCall(self):
     f = lambda x, *args: x
@@ -257,11 +280,13 @@ class TrivialInferenceTest(unittest.TestCase):
 
   @unittest.skipIf(sys.version_info < (3, 6), 'CALL_FUNCTION_EX is new in 3.6')
   def testCallFunctionEx(self):
-    # Test when fn arguments are built using BUiLD_LIST.
+    # Test when fn arguments are built using BUILD_LIST.
     def fn(*args):
       return args
 
-    self.assertReturnType(typehints.List[typehints.Union[str, float]],
+    # Return type is Any due to implementation limitations. See comments in
+    # CALL_FUNCTION_EX for more.
+    self.assertReturnType(typehints.Any,
                           lambda x1, x2: fn(*[x1, x2]),
                           [str, float])
 
@@ -274,6 +299,92 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(typehints.Any,
                           lambda x1, x2, _dict: fn(x1, x2, **_dict),
                           [str, float, typehints.List[int]])
+
+  def test_instance_to_native_type(self):
+    self.assertEqual(int, instance_to_native_type(1))
+    self.assertEqual(float, instance_to_native_type(1.2))
+    self.assertEqual(str, instance_to_native_type('a'))
+
+    self.assertEqual(
+        typing.Dict[typing.Union[str, int], typing.Tuple[str, str]],
+        instance_to_native_type({'a': ('a', 'a'), 1: ('b', 'b')}))
+
+  def test_instance_to_native_type_empty_types(self):
+    self.assertEqual(Empty[typing.Dict], instance_to_native_type({}))
+    self.assertEqual(Empty[typing.Set], instance_to_native_type(set()))
+    self.assertEqual(Empty[typing.List], instance_to_native_type([]))
+    self.assertEqual(typing.Tuple[()], instance_to_native_type(()))
+
+  def test_instance_to_native_type_nested_empty_types(self):
+    self.assertEqual(
+        typing.List[typing.Union[str, int, Empty[typing.Set]]],
+        instance_to_native_type(['a', 5, set()]))
+    self.assertEqual(
+        typing.Dict[str, Empty[typing.List]],
+        instance_to_native_type({'a': [], 'b': []}))
+    # instance_to_native_type doesn't use union() to combine Empty containers
+    # with non-empty ones.
+    self.assertEqual(
+        typing.List[typing.Union[Empty[typing.Set], typing.Set[int]]],
+        instance_to_native_type([set(), set([5])]))
+    self.assertEqual(
+        typing.Dict[str, typing.Union[Empty[typing.List], typing.List[int]]],
+        instance_to_native_type({'a': [], 'b': [5]}))
+
+  def test_union(self):
+    self.assertEqual(typing.Union[str, int], union(str, int))
+    self.assertEqual(typing.Dict[str, int],
+                     union(typing.Dict[str, int], Empty[typing.Dict]))
+    self.assertEqual(typing.Dict[str, typing.Union[int, str]],
+                     union(typing.Dict[str, int], typing.Dict[str, str]))
+
+    self.assertEqual(typing.Set[typing.Union[int, str]],
+                     union(typing.Set[int], typing.Set[str]))
+    self.assertEqual(typing.Set[int], union(typing.Set[int], Empty[typing.Set]))
+    self.assertEqual(typing.Union[typing.Set[int], Empty[typing.List]],
+                     union(typing.Set[int], Empty[typing.List]))
+
+  def test_finalize_hints_noop(self):
+    self.assertEqual(int, finalize_hints(int))
+    self.assertEqual(typing.List[int], finalize_hints(typing.List[int]))
+    self.assertEqual(typing.Dict[typing.Any, typing.Tuple[int]],
+                     finalize_hints(typing.Dict[typing.Any, typing.Tuple[int]]))
+
+  def test_finalize_hints_basic(self):
+    self.assertEqual(typing.List[typing.Any],
+                     finalize_hints(Empty[typing.List]))
+    self.assertEqual(typing.Set[typing.Any],
+                     finalize_hints(Empty[typing.Set]))
+    self.assertEqual(typing.Tuple[typing.Any, ...],
+                     finalize_hints(typing.Tuple[()]))
+    self.assertEqual(typing.Dict[typing.Any, typing.Any],
+                     finalize_hints(Empty[typing.Dict]))
+    self.assertEqual(typing.Iterable[typing.Any],
+                     finalize_hints(Empty[typing.Iterable]))
+
+  def test_finalize_hints_recursive(self):
+    self.assertEqual(
+        str(typing.List[
+            typing.Dict[typing.List[typing.Any], typing.Set[typing.Any]]
+        ]),
+        str(finalize_hints(
+            typing.List[
+                typing.Dict[Empty[typing.List], Empty[typing.Set]]
+            ])))
+
+  def test_element_typing_type(self):
+    test_cases = [
+        ('not a typing type', typing.Any, str),
+        ('list', int, typing.List[int]),
+        ('empty tuple', typing.Any, typing.Tuple[()]),
+        ('tuple', str, typing.Tuple[str]),
+        ('variable length tuple', int, typing.Tuple[int, ...]),
+        ('set', int, typing.Set[int]),
+        ('dict', typing.Any, typing.Dict[int, str]),
+        ('dict', float, typing.Iterable[float]),
+    ]
+    for name, expected, type_hint in test_cases:
+      self.assertEqual(expected, element_typing_type(type_hint), name)
 
 
 if __name__ == '__main__':

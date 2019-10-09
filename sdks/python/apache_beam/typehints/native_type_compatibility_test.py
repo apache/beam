@@ -19,15 +19,24 @@
 
 from __future__ import absolute_import
 
+import collections
 import sys
 import typing
 import unittest
 
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import WindowedValue
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_types
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_types
+from apache_beam.typehints.native_type_compatibility import is_Any
+from apache_beam.typehints.native_type_compatibility import is_Dict
+from apache_beam.typehints.native_type_compatibility import is_Iterable
+from apache_beam.typehints.native_type_compatibility import is_List
+from apache_beam.typehints.native_type_compatibility import is_Set
+from apache_beam.typehints.native_type_compatibility import is_Tuple
+from apache_beam.typehints.native_type_compatibility import is_typing_type
 
 _TestNamedTuple = typing.NamedTuple('_TestNamedTuple',
                                     [('age', int), ('name', bytes)])
@@ -42,6 +51,7 @@ class _TestClass(object):
 class NativeTypeCompatibilityTest(unittest.TestCase):
 
   def test_convert_to_beam_type(self):
+    # Tests converting a typing type to Beam type and back to a typing type.
     test_cases = [
         ('raw bytes', bytes, bytes),
         ('raw int', int, int),
@@ -57,7 +67,6 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
          typehints.Tuple[bytes]),
         ('simple union', typing.Union[int, bytes, float],
          typehints.Union[int, bytes, float]),
-        ('namedtuple', _TestNamedTuple, _TestNamedTuple),
         ('test class', _TestClass, _TestClass),
         ('test class in list', typing.List[_TestClass],
          typehints.List[_TestClass]),
@@ -83,6 +92,8 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
                          typehints.TypeVariable('V')]),
         ('iterator', typing.Iterator[typing.Any],
          typehints.Iterator[typehints.Any]),
+        ('windowed value', WindowedValue[int], typehints.WindowedValue[int]),
+        ('kv', typing.Tuple[str, int], typehints.KV[str, int]),
     ]
 
     for test_case in test_cases:
@@ -96,6 +107,13 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
       self.assertEqual(converted_beam_type, expected_beam_type, description)
       converted_typing_type = convert_to_typing_type(converted_beam_type)
       self.assertEqual(converted_typing_type, typing_type, description)
+
+  def test_convert_to_beam_type_special_case(self):
+    # This conversion is not reversible.
+    self.assertEqual(typehints.Any, convert_to_beam_type(_TestNamedTuple))
+    # Test conversion from KV to typing type.
+    self.assertEqual(typing.Tuple[int, str],
+                     convert_to_typing_type(typehints.KV[int, str]))
 
   def test_generator_converted_to_iterator(self):
     self.assertEqual(
@@ -121,6 +139,57 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertEqual(converted_beam_types, beam_types)
     converted_typing_types = convert_to_typing_types(converted_beam_types)
     self.assertEqual(converted_typing_types, typing_types)
+
+  def test_is_typing_type(self):
+    for t in [typing.NamedTuple,
+              typing.List,
+              typing.List[int]]:
+      self.assertTrue(is_typing_type(t))
+
+  def test_is_foo_negative(self):
+    for t in [None,
+              type(None),
+              collections.namedtuple('Employee', ['name', 'id']),
+              typing.NamedTuple('Employee', [('name', str), ('id', int)]),
+              int,
+              'a',
+              type(self)]:
+      self.assertFalse(is_Any(t))
+      self.assertFalse(is_Dict(t))
+      self.assertFalse(is_Iterable(t))
+      self.assertFalse(is_List(t))
+      self.assertFalse(is_Set(t))
+      self.assertFalse(is_Tuple(t))
+      self.assertFalse(is_typing_type(t))
+
+  def test_is_Any(self):
+    self.assertTrue(is_Any(typing.Any))
+    self.assertFalse(is_Any(typing.List[int]))
+
+  def test_is_dict(self):
+    self.assertTrue(is_Dict(typing.Dict))
+    self.assertTrue(is_Dict(typing.Dict[typing.Any, str]))
+    self.assertFalse(is_Dict(typing.List[int]))
+
+  def test_is_iterable(self):
+    self.assertTrue(is_Iterable(typing.Iterable))
+    self.assertTrue(is_Iterable(typing.Iterable[str]))
+    self.assertFalse(is_Iterable(typing.List[int]))
+
+  def test_is_list(self):
+    self.assertTrue(is_List(typing.List))
+    self.assertTrue(is_List(typing.List[str]))
+    self.assertFalse(is_List(typing.Iterable[int]))
+
+  def test_is_set(self):
+    self.assertTrue(is_Set(typing.Set))
+    self.assertTrue(is_Set(typing.Set[str]))
+    self.assertFalse(is_Set(typing.Iterable[int]))
+
+  def test_is_tuple(self):
+    self.assertTrue(is_Tuple(typing.Tuple))
+    self.assertTrue(is_Tuple(typing.Tuple[str]))
+    self.assertFalse(is_Tuple(typing.Iterable[int]))
 
 
 if __name__ == '__main__':
