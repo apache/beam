@@ -24,7 +24,6 @@ import argparse
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 
 
@@ -42,10 +41,7 @@ def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
             '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  # We use the save_main_session option because one or more DoFn's in this
-  # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
   pipeline_options.view_as(StandardOptions).streaming = True
   p = beam.Pipeline(options=pipeline_options)
   runner_name = type(p.runner).__name__

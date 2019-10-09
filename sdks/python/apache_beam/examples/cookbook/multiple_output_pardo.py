@@ -134,7 +134,7 @@ class CountWords(beam.PTransform):
             | 'format' >> beam.Map(format_result))
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   """Runs the workflow counting the long words and short words separately."""
 
   parser = argparse.ArgumentParser()
@@ -148,7 +148,7 @@ def run(argv=None):
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   with beam.Pipeline(options=pipeline_options) as p:
 
     lines = p | ReadFromText(known_args.input)
