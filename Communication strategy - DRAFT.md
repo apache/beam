@@ -1,6 +1,6 @@
 # Apache Beam communication strategy - DRAFT
 
-Before we design a communicatoion strategy, I wanted to map out the existing channels and content. 
+Before we design a communication strategy, I wanted to map out the existing channels and content. 
 This is a diagram that shows channels and what type of content goes there: 
 
 ![Beam online content map](/comms-map.svg)
