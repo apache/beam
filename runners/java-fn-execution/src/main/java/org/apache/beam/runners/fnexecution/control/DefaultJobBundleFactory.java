@@ -36,6 +36,7 @@ import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ClassLoaderArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -377,6 +379,17 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       throws IOException {
     Preconditions.checkNotNull(serverFactory, "serverFactory can not be null");
 
+    PortablePipelineOptions portableOptions =
+        PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
+            .as(PortablePipelineOptions.class);
+    ArtifactRetrievalService artifactRetrievalService;
+
+    if (portableOptions.getRetrievalServiceType() == RetrievalServiceType.CLASSLOADER) {
+      artifactRetrievalService = new ClassLoaderArtifactRetrievalService();
+    } else {
+      artifactRetrievalService = BeamFileSystemArtifactRetrievalService.create();
+    }
+
     GrpcFnServer<FnApiControlClientPoolService> controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
@@ -386,8 +399,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     GrpcFnServer<ArtifactRetrievalService> retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            BeamFileSystemArtifactRetrievalService.create(), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(artifactRetrievalService, serverFactory);
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
