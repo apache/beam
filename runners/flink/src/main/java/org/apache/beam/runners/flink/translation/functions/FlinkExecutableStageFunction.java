@@ -90,8 +90,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private final Map<String, Integer> outputMap;
   private final FlinkExecutableStageContextFactory contextFactory;
   private final Coder windowCoder;
-  // Unique name for namespacing metrics; currently just takes the input ID
-  private final String stageName;
+  // Unique name for namespacing metrics
+  private final String stepName;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
@@ -107,19 +107,20 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private transient Object currentTimerKey;
 
   public FlinkExecutableStageFunction(
+      String stepName,
       PipelineOptions pipelineOptions,
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
       FlinkExecutableStageContextFactory contextFactory,
       Coder windowCoder) {
+    this.stepName = stepName;
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
     this.contextFactory = contextFactory;
     this.windowCoder = windowCoder;
-    this.stageName = stagePayload.getInput();
   }
 
   @Override
@@ -142,12 +143,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse progress) {
-            container.updateMetrics(stageName, progress.getMonitoringInfosList());
+            container.updateMetrics(stepName, progress.getMonitoringInfosList());
           }
 
           @Override
           public void onCompleted(ProcessBundleResponse response) {
-            container.updateMetrics(stageName, response.getMonitoringInfosList());
+            container.updateMetrics(stepName, response.getMonitoringInfosList());
           }
         };
   }

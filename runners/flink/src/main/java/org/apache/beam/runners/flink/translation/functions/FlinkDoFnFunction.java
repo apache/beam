@@ -25,6 +25,7 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileSystems;
@@ -131,7 +132,9 @@ public class FlinkDoFnFunction<InputT, OutputT>
             sideInputMapping);
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
-      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+      doFnRunner =
+          new DoFnRunnerWithMetricsUpdate<>(
+              stepName, doFnRunner, new FlinkMetricContainer(getRuntimeContext()));
     }
 
     doFnRunner.startBundle();

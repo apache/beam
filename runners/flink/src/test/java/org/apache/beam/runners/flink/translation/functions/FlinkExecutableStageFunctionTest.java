@@ -259,6 +259,7 @@ public class FlinkExecutableStageFunctionTest {
     when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
         new FlinkExecutableStageFunction<>(
+            "step",
             PipelineOptionsFactory.create(),
             stagePayload,
             jobInfo,
