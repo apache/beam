@@ -22,6 +22,7 @@ import logging
 import os
 import random
 import shutil
+import sys
 import tempfile
 import threading
 import time
@@ -49,11 +50,13 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.tools import utils
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
@@ -1578,6 +1581,38 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
 
   def test_split_half(self):
     raise unittest.SkipTest("This test is for a single worker only.")
+
+
+class FnApiBasedLullLoggingTest(unittest.TestCase):
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC),
+            progress_request_frequency=0.5))
+
+  def test_lull_logging(self):
+
+    # TODO(BEAM-1251): Remove this test skip after dropping Py 2 support.
+    if sys.version_info < (3, 4):
+      self.skipTest('Log-based assertions are supported after Python 3.4')
+    try:
+      utils.check_compiled('apache_beam.runners.worker.opcounters')
+    except RuntimeError:
+      self.skipTest('Cython is not available')
+
+    with self.assertLogs(level='WARNING') as logs:
+      with self.create_pipeline() as p:
+        sdk_worker.DEFAULT_LOG_LULL_TIMEOUT_NS = 1000 * 1000  # Lull after 1 ms
+
+        _ = (p
+             | beam.Create([1])
+             | beam.Map(time.sleep))
+
+    self.assertRegexpMatches(
+        ''.join(logs.output),
+        '.*There has been a processing lull of over.*',
+        'Unable to find a lull logged for this job.')
 
 
 if __name__ == '__main__':
