@@ -274,7 +274,8 @@ func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
 	// Find the smallest split index that we haven't yet processed, and set
 	// the promised split index to this value.
 	for _, s := range splits {
-		if s > 0 && s >= c && s < n.splitIdx {
+		// // Never split on the first element, or the current element.
+		if s > 0 && s > c && s < n.splitIdx {
 			n.splitIdx = s
 			fs := n.splitIdx
 			n.mu.Unlock()

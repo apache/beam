@@ -47,7 +47,6 @@ func TestDataSource_PerElement(t *testing.T) {
 				pw.Close()
 			},
 		},
-		// TODO: Test progress.
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -87,14 +86,14 @@ func TestDataSource_Iterators(t *testing.T) {
 		name       string
 		keys, vals []interface{}
 		Coder      *coder.Coder
-		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []interface{})
+    driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []interface{})
 	}{
 		{
 			name:  "beam:coder:iterable:v1-singleChunk",
 			keys:  []interface{}{int64(42), int64(53)},
 			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
-			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+      Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
+      driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
@@ -111,14 +110,14 @@ func TestDataSource_Iterators(t *testing.T) {
 			name:  "beam:coder:iterable:v1-multiChunk",
 			keys:  []interface{}{int64(42), int64(53)},
 			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
-			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+      Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
+      driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 
-					coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam runner proto says to use 0)
+          coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam runner proto says to use 0)
 					for _, v := range vs {
 						coder.EncodeVarInt(1, dmw) // Number of elements in this chunk.
 						vc.Encode(&FullValue{Elm: v}, dmw)
@@ -132,8 +131,8 @@ func TestDataSource_Iterators(t *testing.T) {
 			name:  "beam:coder:state_backed_iterable:v1",
 			keys:  []interface{}{int64(42), int64(53)},
 			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
-			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
+      Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
+      driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
@@ -195,7 +194,7 @@ func TestDataSource_Iterators(t *testing.T) {
 				iVals = append(iVals, i.Key)
 
 				if got, want := i.Values, expectedValues; !equalList(got, want) {
-					t.Errorf("DataSource => key(%v) = %#v, want %#v", i.Key, extractValues(got...), extractValues(want...))
+          t.Errorf("DataSource => key(%v) = %#v, want %#v", i.Key, extractValues(got...), extractValues(want...))
 				}
 			}
 
@@ -275,7 +274,7 @@ func TestDataSource_Split(t *testing.T) {
 			}
 			p.status = Active
 
-			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
+      runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
 			// SDK never splits on 0, so check that every test.
 			if splitIdx, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}}); err != nil {
@@ -289,6 +288,88 @@ func TestDataSource_Split(t *testing.T) {
 			validateSource(t, out, source, makeValues(test.expected...))
 		})
 	}
+
+	t.Run("whileProcessing", func(t *testing.T) {
+		// Check splitting *while* elements are in process.
+		tests := []struct {
+			name     string
+			expected []interface{}
+			splitIdx int64
+		}{
+			{splitIdx: 1},
+			{splitIdx: 2},
+			{splitIdx: 3},
+			{splitIdx: 4},
+			{splitIdx: 5},
+			{
+				name:     "wellBeyondRange",
+				expected: elements,
+				splitIdx: 1000,
+			},
+		}
+		for _, test := range tests {
+			test := test
+			if len(test.name) == 0 {
+				test.name = fmt.Sprintf("atIndex%d", test.splitIdx)
+			}
+			if test.expected == nil {
+				test.expected = elements[:test.splitIdx]
+			}
+			t.Run(test.name, func(t *testing.T) {
+				source, out, pr := initSourceTest(test.name)
+				unblockCh, blockedCh := make(chan struct{}), make(chan struct{}, 1)
+				// Block on the one less than the desired split,
+				// so the desired split is the first valid split.
+				blockOn := test.splitIdx - 1
+				blocker := &BlockingNode{
+					UID: 3,
+					Block: func(elm *FullValue) bool {
+						if source.index == blockOn {
+							// Signal to call Split
+							blockedCh <- struct{}{}
+							return true
+						}
+						return false
+					},
+					Unblock: unblockCh,
+					Out:     out,
+				}
+				source.Out = blocker
+
+				go func() {
+					// Wait to call Split until the DoFn is blocked at the desired element.
+					<-blockedCh
+					// Validate that we do not split on the element we're blocking on index.
+					// The first valid split is at test.splitIdx.
+					if splitIdx, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, -1); err != nil {
+						t.Errorf("error in Split: %v", err)
+					} else if got, want := splitIdx, test.splitIdx; got != want {
+						t.Errorf("error in Split: got splitIdx = %v, want %v ", got, want)
+					}
+					// Validate that our progress is where we expect it to be. (test.splitIdx - 1)
+					if got, want := source.Progress().Count, test.splitIdx -1; got != want {
+						t.Errorf("error in Progress: got finished processing Count = %v, want %v ", got, want)
+					}
+					unblockCh <- struct{}{}
+				}()
+
+				constructAndExecutePlanWithContext(t, []Unit{out, blocker, source}, DataContext{
+					Data: &TestDataManager{R: pr},
+				})
+
+				validateSource(t, out, source, makeValues(test.expected...))
+
+				// Adjust expectations to maximum number of elements.
+				adjustedExpectation := test.splitIdx
+				if adjustedExpectation > int64(len(elements)) {
+					adjustedExpectation = int64(len(elements))
+				}
+				if got, want := source.Progress().Count, adjustedExpectation; got != want {
+					t.Fatalf("progress didn't match split: got %v, want %v", got, want)
+				}
+			})
+		}
+	})
 
 	// Test expects splitting errors, but for processing to be successful.
 	t.Run("errors", func(t *testing.T) {
@@ -312,7 +393,7 @@ func TestDataSource_Split(t *testing.T) {
 		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
 			t.Fatal("plan not started, expected error when splitting, got nil")
 		}
-		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
+    runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
 			t.Fatal("plan started, expected error when splitting, got nil")
 		}
@@ -392,6 +473,6 @@ func validateSource(t *testing.T, out *CaptureNode, source *DataSource, expected
 		t.Fatalf("progress count didn't match: got %v, want %v", got, want)
 	}
 	if !equalList(out.Elements, expected) {
-		t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))
+    t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))
 	}
 }
