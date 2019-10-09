@@ -73,7 +73,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
     HashMap<String, String> labels = new HashMap<>();
     labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "anyTransform");
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
-    assertEquals(":anyTransform", name.getNamespace());
+    assertEquals("anyTransform", name.getNamespace());
   }
 
   @Test
@@ -81,7 +81,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
     HashMap<String, String> labels = new HashMap<>();
     labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "anyPCollection");
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
-    assertEquals(":anyPCollection", name.getNamespace());
+    assertEquals("anyPCollection", name.getNamespace());
   }
 
   @Test
