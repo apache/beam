@@ -195,6 +195,10 @@ def is_Tuple(typ, allow_ellipsis=True):
   return True
 
 
+def is_WindowedValue(typ):
+  return getattr(typ, '__origin__', None) is WindowedValue
+
+
 def same_container_type(a, b):
   """Return True if a and b are of the same container type."""
   return ((is_Dict(a) and is_Dict(b)) or
@@ -235,7 +239,7 @@ def convert_to_beam_type(typ, fail_on_unknown_typing_type=False):
       _type_var_cache[id(typ)] = new_type_variable
       _type_var_cache[id(new_type_variable)] = typ
     return _type_var_cache[id(typ)]
-  elif _match_issubclass(WindowedValue)(typ):
+  elif is_WindowedValue(typ):
     # Special return value from convert_to_typing_type that is not a typing
     # module type.
     return typehints.WindowedValue[

@@ -313,30 +313,31 @@ def union(a, b):
   return typing.Union[a, b]
 
 
-def finalize_hints(th):
-  """Resolves Empty types from a type hint, recursively.
+def finalize_hints(type_hint):
+  """Converts Empty containers to containers of Any, recursively.
 
   Returns:
     A possibly new type hint.
   """
-  if is_Empty(th):
-    inner_t = get_args(th)[0]
+  if is_Empty(type_hint):
+    inner_t = get_args(type_hint)[0]
     if inner_t == typing.Dict:
       return typing.Dict[typing.Any, typing.Any]
     if inner_t in [typing.List, typing.Set, typing.Iterable]:
       return inner_t[typing.Any]
   # Special representation of Empty[Tuple]: Tuple[()]
-  if is_Tuple(th) and get_args(th) == ((), ):
+  if is_Tuple(type_hint) and get_args(type_hint) == ((), ):
     return typing.Tuple[typing.Any, ...]
 
-  if is_typing_type(th):
+  if is_typing_type(type_hint):
     try:
-      args = get_args(th)
+      args = get_args(type_hint)
       new_args = [finalize_hints(arg) for arg in args]
-      set_args(th, tuple(new_args))
+      # TODO(udim): Create a new hint instead of in-place modification hack.
+      set_args(type_hint, tuple(new_args))
     except AttributeError:
       pass
-  return th
+  return type_hint
 
 
 def element_type(hint):
