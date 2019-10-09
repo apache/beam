@@ -26,7 +26,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.joda.time.Instant;
 
 /**
@@ -40,10 +39,10 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   private final DoFnRunner<InputT, OutputT> delegate;
 
   public DoFnRunnerWithMetricsUpdate(
-      String stepName, DoFnRunner<InputT, OutputT> delegate, RuntimeContext runtimeContext) {
+      String stepName, DoFnRunner<InputT, OutputT> delegate, FlinkMetricContainer metricContainer) {
     this.stepName = stepName;
     this.delegate = delegate;
-    container = new FlinkMetricContainer(runtimeContext);
+    this.container = metricContainer;
   }
 
   @Override

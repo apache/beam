@@ -56,6 +56,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.runners.flink.translation.utils.NoopLock;
@@ -191,6 +192,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private transient long pushedBackWatermark;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
+
+  /** Metrics container for reporting Beam metrics to Flink (null if metrics are disabled). */
+  @Nullable transient FlinkMetricContainer flinkMetricContainer;
 
   /** Use an AtomicBoolean because we start/stop bundles by a timer thread (see below). */
   private transient AtomicBoolean bundleStarted;
@@ -439,7 +443,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
-      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+      flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
     }
 
     bundleStarted = new AtomicBoolean(false);
