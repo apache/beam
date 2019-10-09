@@ -20,12 +20,10 @@ package org.apache.beam.runners.flink;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
@@ -42,6 +40,8 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.DetachedEnvironment;
@@ -143,15 +143,17 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
 
     FlinkPipelineRunnerConfiguration configuration = parseArgs(args);
     Pipeline pipeline = PortablePipelineJarUtils.getPipelineFromClasspath();
-    Struct options = PortablePipelineJarUtils.getPipelineOptionsFromClasspath();
-    FlinkPipelineOptions flinkOptions =
-        PipelineOptionsTranslation.fromProto(options).as(FlinkPipelineOptions.class);
+    Struct originalOptions = PortablePipelineJarUtils.getPipelineOptionsFromClasspath();
+
+    // Flink pipeline jars distribute and retrieve artifacts via the classpath.
+    PortablePipelineOptions portablePipelineOptions =
+        PipelineOptionsTranslation.fromProto(originalOptions).as(PortablePipelineOptions.class);
+    portablePipelineOptions.setRetrievalServiceType(RetrievalServiceType.CLASSLOADER);
+    String retrievalToken = PortablePipelineJarUtils.ARTIFACT_MANIFEST_PATH;
+
+    FlinkPipelineOptions flinkOptions = portablePipelineOptions.as(FlinkPipelineOptions.class);
     String invocationId =
         String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
-    ProxyManifest proxyManifest = PortablePipelineJarUtils.getArtifactManifestFromClassPath();
-    String retrievalToken =
-        PortablePipelineJarUtils.stageArtifacts(
-            proxyManifest, flinkOptions, invocationId, configuration.artifactStagingPath);
 
     FlinkPipelineRunner runner =
         new FlinkPipelineRunner(
@@ -159,7 +161,11 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
             configuration.flinkConfDir,
             detectClassPathResourcesToStage(FlinkPipelineRunner.class.getClassLoader()));
     JobInfo jobInfo =
-        JobInfo.create(invocationId, flinkOptions.getJobName(), retrievalToken, options);
+        JobInfo.create(
+            invocationId,
+            flinkOptions.getJobName(),
+            retrievalToken,
+            PipelineOptionsTranslation.toProto(flinkOptions));
     try {
       runner.run(pipeline, jobInfo);
     } catch (Exception e) {
@@ -169,10 +175,6 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
   }
 
   private static class FlinkPipelineRunnerConfiguration {
-    @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
-    private String artifactStagingPath =
-        Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
-
     @Option(
         name = "--flink-conf-dir",
         usage =
