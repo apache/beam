@@ -128,10 +128,10 @@ public class FlinkMetricContainerTest {
     when(metricGroup.counter("ns1.metric1")).thenReturn(userCounter);
 
     SimpleCounter pCollectionCounter = new SimpleCounter();
-    when(metricGroup.counter(":pcoll.metric:element_count:v1")).thenReturn(pCollectionCounter);
+    when(metricGroup.counter("pcoll.metric:element_count:v1")).thenReturn(pCollectionCounter);
 
     SimpleCounter pTransformCounter = new SimpleCounter();
-    when(metricGroup.counter(":anyPTransform.myMetric")).thenReturn(pTransformCounter);
+    when(metricGroup.counter("anyPTransform.myMetric")).thenReturn(pTransformCounter);
 
     MonitoringInfo userCountMonitoringInfo =
         new SimpleMonitoringInfoBuilder()
