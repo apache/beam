@@ -316,7 +316,8 @@ class FnApiRunner(runner.PipelineRunner):
       default_environment=None,
       bundle_repeat=0,
       use_state_iterables=False,
-      provision_info=None):
+      provision_info=None,
+      progress_request_frequency=None):
     """Creates a new Fn API Runner.
 
     Args:
@@ -326,6 +327,8 @@ class FnApiRunner(runner.PipelineRunner):
       use_state_iterables: Intentionally split gbk iterables over state API
           (for testing)
       provision_info: provisioning info to make available to workers, or None
+      progress_request_frequency: The frequency (in seconds) that the runner
+          waits before requesting progress from the SDK.
     """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
@@ -334,7 +337,7 @@ class FnApiRunner(runner.PipelineRunner):
         or beam_runner_api_pb2.Environment(urn=python_urns.EMBEDDED_PYTHON))
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
-    self._progress_frequency = None
+    self._progress_frequency = progress_request_frequency
     self._profiler_factory = None
     self._use_state_iterables = use_state_iterables
     self._provision_info = provision_info or ExtendedProvisionInfo(
@@ -505,13 +508,14 @@ class FnApiRunner(runner.PipelineRunner):
     for k in range(self._bundle_repeat):
       try:
         worker_handler.state.checkpoint()
-        ParallelBundleManager(
+        testing_bundle_manager = ParallelBundleManager(
             worker_handler_list, lambda pcoll_id: [],
             get_input_coder_callable, process_bundle_descriptor,
             self._progress_frequency, k,
             num_workers=self._num_workers,
             cache_token_generator=cache_token_generator
-        ).process_bundle(data_input, data_output)
+        )
+        testing_bundle_manager.process_bundle(data_input, data_output)
       finally:
         worker_handler.state.restore()
 
@@ -1516,6 +1520,8 @@ class WorkerHandlerManager(object):
         worker_handler = WorkerHandler.create(
             environment, self._state, self._job_provision_info,
             self._grpc_server)
+        logging.info("Created Worker handler %s for environment %s",
+                     worker_handler, environment)
         self._cached_handlers[environment_id].append(worker_handler)
         worker_handler.start_worker()
     return self._cached_handlers[environment_id][:num_workers]

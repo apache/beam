@@ -46,6 +46,11 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
+# This SDK harness will (by default), log a "lull" in processing if it sees no
+# transitions in over 5 minutes.
+# 5 minutes * 60 seconds * 1020 millis * 1000 micros * 1000 nanoseconds
+DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
+
 
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
@@ -338,10 +343,14 @@ class BundleProcessorCache(object):
 
 class SdkWorker(object):
 
-  def __init__(self, bundle_processor_cache,
-               profiler_factory=None):
+  def __init__(self,
+               bundle_processor_cache,
+               profiler_factory=None,
+               log_lull_timeout_ns=None):
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
+    self.log_lull_timeout_ns = (log_lull_timeout_ns
+                                or DEFAULT_LOG_LULL_TIMEOUT_NS)
 
   def do_instruction(self, request):
     request_type = request.WhichOneof('request')
@@ -403,10 +412,35 @@ class SdkWorker(object):
           instruction_id=instruction_id,
           error='Instruction not running: %s' % instruction_id)
 
+  def _log_lull_in_bundle_processor(self, processor):
+    state_sampler = processor.state_sampler
+    sampler_info = state_sampler.get_info()
+    if (sampler_info
+        and sampler_info.time_since_transition
+        and sampler_info.time_since_transition > self.log_lull_timeout_ns):
+      step_name = sampler_info.state_name.step_name
+      state_name = sampler_info.state_name.name
+      state_lull_log = (
+          'There has been a processing lull of over %.2f seconds in state %s'
+          % (sampler_info.time_since_transition / 1e9, state_name))
+      step_name_log = (' in step %s ' % step_name) if step_name else ''
+
+      exec_thread = getattr(sampler_info, 'tracked_thread', None)
+      if exec_thread is not None:
+        thread_frame = sys._current_frames().get(exec_thread.ident)  # pylint: disable=protected-access
+        stack_trace = '\n'.join(
+            traceback.format_stack(thread_frame)) if thread_frame else ''
+      else:
+        stack_trace = '-NOT AVAILABLE-'
+
+      logging.warning(
+          '%s%s. Traceback:\n%s', state_lull_log, step_name_log, stack_trace)
+
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
-    processor = self.bundle_processor_cache.lookup(
-        request.instruction_id)
+    processor = self.bundle_processor_cache.lookup(request.instruction_id)
+    if processor:
+      self._log_lull_in_bundle_processor(processor)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
