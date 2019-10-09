@@ -1,5 +1,7 @@
 # Apache Beam communication strategy - DRAFT
 
+_Please add your **comments by Wed, Oct 16**_
+
 Before we design a communication strategy, I wanted to map out the existing channels and content. 
 This is a diagram that shows channels and what type of content goes there: 
 
