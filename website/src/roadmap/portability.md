@@ -178,7 +178,7 @@ The Beam Python SDK allows configuration of the SDK harness to accommodate varyi
     each worker node.
   - `DOCKER` (default): User code is executed within a container started on each worker node.
     This requires docker to be installed on worker nodes. For more information, see
-    [here](https://github.com/apache/beam/blob/master/sdks/CONTAINERS.md).
+    [here]({{ site.baseurl }}/documentation/runtime/environments/).
 - `environment_config` configures the environment depending on the value of `environment_type`.
   - When `environment_type=DOCKER`: URL for the Docker container image.
   - When `environment_type=PROCESS`: JSON of the form `{"os": "<OS>", "arch": "<ARCHITECTURE>",
