@@ -1305,20 +1305,17 @@ class AccessingValueProviderInfoAfterRunTest(unittest.TestCase):
                    | 'LogValueProvider' >> beam.ParDo(
                 LogValueProvidersFn(my_options.string_value)))
 
-      # Test value provider argument : is equal to given string 'the quick brown fox jumps over the lazy dog'
-      assert_that(vp_output, equal_to(['the quick brown fox jumps over the lazy dog']),
-                  label='assert_value_provider')
-
       # The main pipeline.
       main_pipeline_output = (p
                               | 'CreatePCollection' >> beam.Create([1, 2, 3])
                               | 'AggregateSum' >> beam.CombineGlobally(sum))
 
-      # Test main pipeline output : Sum should be equal to 6.
-      assert_that(main_pipeline_output, equal_to([6]), label='assert_main_output')
-
       # [END AccessingValueProviderInfoAfterRunSnip1]
 
+      assert_that(vp_output, equal_to(['the quick brown fox jumps over the lazy dog']),
+                  label='assert_value_provider')
+      assert_that(main_pipeline_output, equal_to([6]), label='assert_main_output')
+          
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
