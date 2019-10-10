@@ -36,7 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-flink_2.11-job-server:validatesCrossLanguageRunner')
+      tasks(':runners:flink:1.8:job-server:validatesCrossLanguageRunner')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
