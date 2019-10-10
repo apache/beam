@@ -23,8 +23,11 @@ from __future__ import division
 from __future__ import print_function
 
 import hashlib
+import sys
 import threading
 import zipfile
+
+from google.protobuf import json_format
 
 from apache_beam.io import filesystems
 from apache_beam.portability.api import beam_artifact_api_pb2
@@ -39,7 +42,7 @@ class AbstractArtifactService(
 
   def __init__(self, root, chunk_size=None):
     self._root = root
-    self._chunk_size = chunk_size or _DEFAULT_CHUNK_SIZE
+    self._chunk_size = chunk_size or self._DEFAULT_CHUNK_SIZE
 
   def _sha256(self, string):
     return hashlib.sha256(string.encode('utf-8')).hexdigest()
@@ -70,7 +73,8 @@ class AbstractArtifactService(
 
   def _get_manifest_proxy(self, retrieval_token):
     with self._open(self._manifest_path(retrieval_token), 'r') as fin:
-      return beam_artifact_api_pb2.ProxyManifest.FromString(fin.read())
+      return json_format.Parse(
+          fin.read().decode('utf-8'), beam_artifact_api_pb2.ProxyManifest())
 
   def retrieval_token(self, staging_session_token):
     return self._join(
@@ -110,7 +114,7 @@ class AbstractArtifactService(
                 uri=self._artifact_path(retrieval_token, metadata.name))
             for metadata in request.manifest.artifact])
     with self._open(self._manifest_path(retrieval_token), 'w') as fout:
-      fout.write(proxy_manifest.SerializeToString())
+      fout.write(json_format.MessageToJson(proxy_manifest).encode('utf-8'))
     return beam_artifact_api_pb2.CommitManifestResponse(
         retrieval_token=retrieval_token)
 
@@ -134,8 +138,19 @@ class AbstractArtifactService(
 
 
 class ZipFileArtifactService(AbstractArtifactService):
+  """Stores artifacts in a zip file.
+
+  This is particularly useful for storing artifacts as part of an UberJar for
+  submitting to an upstream runner's cluster.
+
+  Writing to zip files requires Python 3.6+.
+  """
 
   def __init__(self, path, chunk_size=None):
+    if sys.version_info < (3, 6):
+      raise RuntimeError(
+          'Writing to zip files requires Python 3.6+, '
+          'but current version is %s' % sys.version)
     super(ZipFileArtifactService, self).__init__('', chunk_size)
     self._zipfile = zipfile.ZipFile(path, 'a')
     self._lock = threading.Lock()

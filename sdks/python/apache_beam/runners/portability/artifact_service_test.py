@@ -24,6 +24,7 @@ import hashlib
 import os
 import random
 import shutil
+import sys
 import tempfile
 import time
 import unittest
@@ -214,6 +215,7 @@ class AbstractArtifactServiceTest(unittest.TestCase):
     _ = list(pool.map(check, range(100)))
 
 
+@unittest.skipIf(sys.version_info < (3, 6), "Requires Python 3.6+")
 class ZipFileArtifactServiceTest(AbstractArtifactServiceTest):
   def create_service(self, staging_dir):
     return artifact_service.ZipFileArtifactService(
