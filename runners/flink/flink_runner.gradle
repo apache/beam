@@ -91,7 +91,7 @@ sourceSets {
  */
 spotless {
   java {
-    target project.sourceSets.main.allJava + project.sourceSets.test.allJava
+    target target + project.fileTree(project.projectDir.parentFile) { include 'src/*/java/**/*.java' }
   }
 }
 
