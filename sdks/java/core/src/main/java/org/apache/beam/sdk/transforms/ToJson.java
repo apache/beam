@@ -41,8 +41,11 @@ import org.apache.beam.sdk.values.Row;
 public class ToJson<T> extends PTransform<PCollection<T>, PCollection<String>> {
   private transient volatile @Nullable ObjectMapper objectMapper;
 
-  static <T> ToJson<T> of() {
-    return new ToJson<T>();
+  private ToJson() {
+  }
+
+  public static <T> ToJson<T> of() {
+    return new ToJson<>();
   }
 
   @Override
