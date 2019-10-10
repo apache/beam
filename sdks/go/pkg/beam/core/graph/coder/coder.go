@@ -159,6 +159,7 @@ type Kind string
 const (
 	Custom        Kind = "Custom" // Implicitly length-prefixed
 	Bytes         Kind = "bytes"  // Implicitly length-prefixed as part of the encoding
+	Bool          Kind = "bool"
 	VarInt        Kind = "varint"
 	WindowedValue Kind = "W"
 	KV            Kind = "KV"
@@ -243,6 +244,11 @@ func (c *Coder) String() string {
 // is always nested, for now.
 func NewBytes() *Coder {
 	return &Coder{Kind: Bytes, T: typex.New(reflectx.ByteSlice)}
+}
+
+// NewBool returns a new bool coder using the built-in scheme.
+func NewBool() *Coder {
+	return &Coder{Kind: Bool, T: typex.New(reflectx.Bool)}
 }
 
 // NewVarInt returns a new int64 coder using the built-in scheme.
