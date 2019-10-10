@@ -115,7 +115,7 @@ public class BatchDataflowWorker implements Closeable {
    */
   private final Cache<?, ?> sideInputWeakReferenceCache;
 
-  private static final int DEFAULT_STATUS_PORT = 18081;
+  private static final int DEFAULT_STATUS_PORT = 8081;
 
   /** Status pages returning health of worker. */
   private WorkerStatusPages statusPages;
