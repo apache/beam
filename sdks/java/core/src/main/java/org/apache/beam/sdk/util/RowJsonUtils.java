@@ -68,7 +68,7 @@ public class RowJsonUtils {
     try {
       return objectMapper.writeValueAsString(row);
     } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Unable to serilize row: " + row);
+      throw new IllegalArgumentException("Unable to serilize row: " + row, e);
     }
   }
 }
