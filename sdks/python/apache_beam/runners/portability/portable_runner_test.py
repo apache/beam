@@ -335,8 +335,8 @@ class PortableRunnerInternalTest(unittest.TestCase):
           'environment_type': "EXTERNAL",
           'environment_config': '{"params":{"test":"test"}}',
       }))
-    self.assertTrue(
-        'External environment endpoint must be set.'in ctx.exception.args)
+    self.assertIn(
+        'External environment endpoint must be set.', ctx.exception.args)
 
 
 def hasDockerImage():
