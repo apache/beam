@@ -267,8 +267,8 @@ If you have a Flink `JobManager` running on your local machine you can provide `
 <span class="language-py">
 As of now you will need a copy of Apache Beam's source code. You can
 download it on the [Downloads page]({{ site.baseurl
-}}/get-started/downloads/). In the future there will be pre-built Docker images
-available. To run a pipeline on an embedded Flink cluster:
+}}/get-started/downloads/). Pre-built Docker images
+available at Docker-Hub: [Python 2.7](https://hub.docker.com/r/apachebeam/python2.7_sdk), [Python 3.5](https://hub.docker.com/r/apachebeam/python3.5_sdk), [Python 3.6](https://hub.docker.com/r/apachebeam/python3.6_sdk), [Python 3.7](https://hub.docker.com/r/apachebeam/python3.7_sdk). To run a pipeline on an embedded Flink cluster:
 </span>
 
 <span class="language-py">1. Start the JobService endpoint: `./gradlew :runners:flink:1.8:job-server:runShadow`
@@ -298,7 +298,7 @@ with beam.Pipeline(options) as p:
 ```
 
 <span class="language-py">
-To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.5/quickstart/setup_quickstart.html):
+To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.8/tutorials/local_setup.html):
 </span>
 
 <span class="language-py">1. Start a Flink cluster which exposes the Rest interface on `localhost:8081` by default.
