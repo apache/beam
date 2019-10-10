@@ -38,6 +38,8 @@ task directRunnerIT {
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
         "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT",
         "apache_beam.io.gcp.bigquery_io_read_it_test",
+        "apache_beam.io.gcp.bigquery_read_it_test",
+        "apache_beam.io.gcp.bigquery_write_it_test",
         "apache_beam.io.gcp.datastore.v1new.datastore_write_it_test",
     ]
     def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
