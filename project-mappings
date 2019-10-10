@@ -100,9 +100,6 @@
 :beam-runners-flink-1.7-job-server-container :runners:flink:1.7:job-server-container
 :beam-runners-flink-1.7-job-server :runners:flink:1.7:job-server
 :beam-runners-flink-1.7 :runners:flink:1.7
-:beam-runners-flink-1.6-job-server-container :runners:flink:1.6:job-server-container
-:beam-runners-flink-1.6-job-server :runners:flink:1.6:job-server
-:beam-runners-flink-1.6 :runners:flink:1.6
 :beam-runners-extensions-java-metrics :runners:extensions-java:metrics
 :beam-runners-direct-java :runners:direct-java
 :beam-runners-core-java :runners:core-java
