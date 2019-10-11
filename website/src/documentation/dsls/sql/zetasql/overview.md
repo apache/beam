@@ -46,11 +46,11 @@ The following table summarizes the [ZetaSQL functions and operators](https://git
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/functions-and-operators.md#kll16-quantile-functions">KLL16 quantile functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/numbering_functions.md">Numbering functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/bit_functions.md">Bit functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/mathematical_functions.md">Mathematical functions</a></td><td>See Beam SQL <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/math-functions">mathematical functions</a></td></tr>
+  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/mathematical_functions.md">Mathematical functions</a></td><td>See <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/math-functions">mathematical functions</a></td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/navigation_functions.md">Navigation functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/aggregate_analytic_functions.md">Aggregate analytic functions</a></td><td>See Beam SQL <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/aggregate-functions">aggregate functions</a></td></tr>
+  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/aggregate_analytic_functions.md">Aggregate analytic functions</a></td><td>See <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/aggregate-functions">aggregate functions</a></td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/hash_functions.md">Hash functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/string_functions.md">String functions</a></td><td>See Beam SQL <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/string-functions">string functions</a></td></tr>
+  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/string_functions.md">String functions</a></td><td>See <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/string-functions">string functions</a></td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/json_functions.md">JSON functions</a></td><td>No</td></tr> 
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/array_functions.md">Array functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/date_functions.md">Date functions</a></td><td>No</td></tr>
@@ -61,7 +61,7 @@ The following table summarizes the [ZetaSQL functions and operators](https://git
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/security_functions.md">Security functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/net_functions.md">Net functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/operators.md">Operator precedence</a></td><td>Yes</td></tr>
-  <tr><td><a href="">Conditional expressions</a></td><td>See Beam SQL <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/conditional-expressions">conditional expressions</a></td></tr>
+  <tr><td><a href="">Conditional expressions</a></td><td>See <a href="{{ site.baseurl }}/documentation/dsls/sql/zetasql/conditional-expressions">conditional expressions</a></td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/expression_subqueries.md">Expression subqueries</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/debugging_functions.md">Debugging functions</a></td><td>No</td></tr>
 </table>
