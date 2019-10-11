@@ -228,6 +228,29 @@
       </ul>
     </li>
     <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">ZetaSQL dialect</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/dsls/sql/zetasql/overview/">ZetaSQL support overview</a></li>          
+        <li><a href="/documentation/dsls/sql/zetasql/syntax/">Function call rules</a></li>
+        <li><a href="/documentation/dsls/sql/zetasql/conversion-rules/">Conversion rules</a></li>
+        <li><a href="/documentation/dsls/sql/zetasql/query-syntax/">Query syntax</a></li>
+        <li><a href="/documentation/dsls/sql/zetasql/lexical/">Lexical structure</a></li>        
+        <li><a href="/documentation/dsls/sql/zetasql/data-types/">Data types</a></li>             
+        <li><a href="/documentation/dsls/sql/zetasql/operators/">Operators</a></li>
+
+        <li class="section-nav-item--collapsible">
+          <span class="section-nav-list-title">Scalar functions</span>
+          <ul class="section-nav-list">
+            <li><a href="/documentation/dsls/sql/zetasql/string-functions/">String functions</a></li>
+            <li><a href="/documentation/dsls/sql/zetasql/math-functions/">Mathematical functions</a></li>
+            <li><a href="/documentation/dsls/sql/zetasql/conditional-expressions/">Conditional expressions</a></li>
+          </ul>
+        </li>
+        <li><a href="/documentation/dsls/sql/zetasql/aggregate-functions/">Aggregate functions</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
       <span class="section-nav-list-title">Beam SQL extensions</span>
 
       <ul class="section-nav-list">
@@ -264,6 +287,7 @@
   <li><a href="#walkthrough">Walkthrough</a></li>
   <li><a href="#shell">Shell</a></li>
   <li><a href="#apache-calcite-dialect">Apache Calcite dialect</a></li>
+  <li><a href="#zetasql-dialect">ZetaSQL dialect</a></li>
   <li><a href="#beam-sql-extensions">Beam SQL extensions</a></li>
 </ul>
 
@@ -292,9 +316,17 @@ bounded and unbounded <code class="highlighter-rouge">PCollections</code> with S
 is translated to a <code class="highlighter-rouge">PTransform</code>, an encapsulated segment of a Beam pipeline.
 You can freely mix SQL <code class="highlighter-rouge">PTransforms</code> and other <code class="highlighter-rouge">PTransforms</code> in your pipeline.</p>
 
-<p><a href="http://calcite.apache.org">Apache Calcite</a> is a widespread SQL dialect used in
-big data processing with some streaming enhancements. Calcite provides the
-basic dialect underlying Beam SQL.</p>
+<p>Beam SQL includes the following dialects:</p>
+
+<ul>
+  <li><a href="http://calcite.apache.org">Beam Calcite SQL</a></li>
+  <li><a href="https://github.com/google/zetasql">Beam ZetaSQL</a></li>
+</ul>
+
+<p>Beam Calcite SQL is a variant of Apache Calcite, a dialect widespread in
+big data processing. Beam Calcite SQL is the default Beam SQL dialect. Beam ZetaSQL is more compatible with BigQuery, so it’s especially useful in pipelines that <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">write to or read from BigQuery tables</a>.</p>
+
+<p>To change dialects, pass <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/package-summary.html">the dialect’s full package name</a> to the <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/impl/BeamSqlPipelineOptions.html#setPlannerName-java.lang.String-"><code class="highlighter-rouge">setPlannerName</code></a> method in the <a href="https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html"><code class="highlighter-rouge">PipelineOptions</code></a> interface.</p>
 
 <p>There are two additional concepts you need to know to use SQL in your pipeline:</p>
 
@@ -312,13 +344,19 @@ the type of elements that Beam SQL operates on. A <code class="highlighter-rouge
 The <a href="/documentation/dsls/sql/shell">Shell page</a> describes how to work with the interactive Beam SQL shell.</p>
 
 <h2 id="apache-calcite-dialect">Apache Calcite dialect</h2>
-<p>The <a href="/documentation/dsls/sql/calcite/overview">Calcite overview</a> summarizes Apache Calcite operators,
-functions, syntax, and data types supported by Beam SQL.</p>
+<p>The <a href="/documentation/dsls/sql/calcite/overview">Beam Calcite SQL overview</a> summarizes Apache Calcite operators,
+functions, syntax, and data types supported by Beam Calcite SQL.</p>
+
+<h2 id="zetasql-dialect">ZetaSQL dialect</h2>
+<p>For more information on the ZetaSQL features in Beam SQL, see the <a href="/documentation/dsls/sql/zetasql/overview">Beam ZetaSQL dialect reference</a>.</p>
+
+<p>To switch to Beam ZetaSQL, configure the <a href="https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html">pipeline options</a> as follows:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner")
+</code></pre>
+</div>
 
 <h2 id="beam-sql-extensions">Beam SQL extensions</h2>
-<p>Beam SQL has additional <a href="/documentation/dsls/sql/extensions/create-external-table">extensions</a> to
-make it easy to leverage Beam’s unified batch/streaming model and support
-for complex data types.</p>
+<p>Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects.</p>
 
       </div>
     </div>

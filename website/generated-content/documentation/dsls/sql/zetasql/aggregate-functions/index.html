@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Calcite SQL data types</title>
+  <title>Beam ZetaSQL aggregate functions</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/calcite/data-types/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/zetasql/aggregate-functions/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/calcite/data-types.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/zetasql/aggregate-functions.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -283,6 +283,13 @@
 
 
 
+<ul class="nav">
+  <li><a href="#avg">AVG</a></li>
+  <li><a href="#count">COUNT</a></li>
+  <li><a href="#max">MAX</a></li>
+  <li><a href="#min">MIN</a></li>
+  <li><a href="#sum">SUM</a></li>
+</ul>
 
 
       </nav>
@@ -302,86 +309,232 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-calcite-sql-data-types">Beam Calcite SQL data types</h1>
+<h1 id="beam-zetasql-aggregate-functions">Beam ZetaSQL aggregate functions</h1>
 
-<p>Beam SQL supports standard SQL scalar data types as well as extensions
-including arrays, maps, and nested rows. This page documents supported
-<a href="http://calcite.apache.org/docs/reference.html#data-types">Apache Calcite data types</a> supported by Beam Calcite SQL.</p>
-
-<p>In Java, these types are mapped to Java types large enough to hold the
-full range of values.</p>
+<p>This page documents the ZetaSQL aggregate functions supported by Beam ZetaSQL.</p>
 
 <table class="table">
   <thead>
     <tr>
-      <th>SQL Type</th>
+      <th>Operator syntax</th>
       <th>Description</th>
-      <th>Java class</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>TINYINT</td>
-      <td>1 byte signed integer in range -128 to 127</td>
-      <td>java.lang.Byte</td>
+      <td><a href="#count">COUNT(*)</a></td>
+      <td>Returns the number of input rows</td>
     </tr>
     <tr>
-      <td>SMALLINT</td>
-      <td>2 byte signed integer in range -32768 to 32767</td>
-      <td>java.lang.Short</td>
+      <td><a href="#avg">AVG(FLOAT64)</a></td>
+      <td>Returns the average of non-<code class="highlighter-rouge">NULL</code> input values</td>
     </tr>
     <tr>
-      <td>INTEGER</td>
-      <td>4 byte signed integer in range -2147483648 to 2147483647</td>
-      <td>java.lang.Integer</td>
+      <td><a href="#sum">SUM(numeric)</a></td>
+      <td>Returns the sum of non-<code class="highlighter-rouge">NULL</code> values</td>
     </tr>
     <tr>
-      <td>BIGINT</td>
-      <td>8 byte signed integer in range -9223372036854775808 to 9223372036854775807</td>
-      <td>java.lang.Long</td>
+      <td><a href="#max">MAX(value)</a></td>
+      <td>Returns the maximum non-<code class="highlighter-rouge">NULL</code> value</td>
     </tr>
     <tr>
-      <td>FLOAT</td>
-      <td>4 byte floating point</td>
-      <td>java.lang.Float</td>
-    </tr>
-    <tr>
-      <td>DOUBLE</td>
-      <td>8 byte floating point</td>
-      <td>java.lang.Double</td>
-    </tr>
-    <tr>
-      <td>DECIMAL</td>
-      <td>Arbitrary precision decimal value</td>
-      <td>java.math.BigDecimal</td>
-    </tr>
-    <tr>
-      <td>VARCHAR</td>
-      <td>Arbitrary length string</td>
-      <td>java.lang.String</td>
-    </tr>
-    <tr>
-      <td>TIMESTAMP</td>
-      <td>Millisecond precision timestamp</td>
-      <td>org.joda.ReadableInstant</td>
-    </tr>
-    <tr>
-      <td>ARRAY<type></type></td>
-      <td>Ordered list of values</td>
-      <td>java.util.List</td>
-    </tr>
-    <tr>
-      <td>MAP&lt;type, type&gt;</td>
-      <td>Finite unordered map</td>
-      <td>java.util.Map</td>
-    </tr>
-    <tr>
-      <td>ROW<fields></fields></td>
-      <td>Nested row</td>
-      <td>org.apache.beam.sdk.values.Row</td>
+      <td><a href="#min">MIN(value)</a></td>
+      <td>Returns the minimum non-<code class="highlighter-rouge">NULL</code> value</td>
     </tr>
   </tbody>
 </table>
+
+<h2 id="avg">AVG</h2>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>AVG(expression)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the average of non-<code class="highlighter-rouge">NULL</code> input values.</p>
+
+<p><strong>Supported Argument Types</strong></p>
+
+<p>FLOAT64. Note that, for floating point input types, the return result
+is non-deterministic, which means you might receive a different result each time
+you use this function.</p>
+
+<p><strong>Returned Data Types</strong></p>
+
+<ul>
+  <li>FLOAT64</li>
+</ul>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT AVG(x) as avg
+FROM UNNEST([0, 2, NULL, 4, 4, 5]) as x;
+
++-----+
+| avg |
++-----+
+| 3   |
++-----+
+
+</code></pre>
+</div>
+
+<h2 id="count">COUNT</h2>
+
+<ol>
+  <li>
+    <p><code class="highlighter-rouge">COUNT(*)</code></p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">COUNT(expression)</code></p>
+  </li>
+</ol>
+
+<p><strong>Description</strong></p>
+
+<ol>
+  <li>Returns the number of rows in the input.</li>
+  <li>Returns the number of rows with <code class="highlighter-rouge">expression</code> evaluated to any value other
+than <code class="highlighter-rouge">NULL</code>.</li>
+</ol>
+
+<p><strong>Supported Argument Types</strong></p>
+
+<p><code class="highlighter-rouge">expression</code> can be any data type.</p>
+
+<p><strong>Return Data Types</strong></p>
+
+<p>INT64</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT COUNT(*) AS count_star, COUNT(x) AS count_x
+FROM UNNEST([1, 4, NULL, 4, 5]) AS x;
+
++------------+---------+
+| count_star | count_x |
++------------+---------+
+| 5          | 4       |
++------------+---------+
+
+
+</code></pre>
+</div>
+
+<h2 id="max">MAX</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>MAX(expression)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the maximum value of non-<code class="highlighter-rouge">NULL</code> expressions. Returns <code class="highlighter-rouge">NULL</code> if there
+are zero input rows or <code class="highlighter-rouge">expression</code> evaluates to <code class="highlighter-rouge">NULL</code> for all rows.</p>
+
+<p><strong>Supported Argument Types</strong></p>
+
+<p>Any data type except:</p>
+<ul>
+  <li><code class="highlighter-rouge">ARRAY</code></li>
+  <li><code class="highlighter-rouge">STRUCT</code></li>
+</ul>
+
+<p><strong>Return Data Types</strong></p>
+
+<p>Same as the data type used as the input values.</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT MAX(x) AS max
+FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
+
++-----+
+| max |
++-----+
+| 55  |
++-----+
+
+
+</code></pre>
+</div>
+
+<h2 id="min">MIN</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>MIN(expression)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the minimum value of non-<code class="highlighter-rouge">NULL</code> expressions. Returns <code class="highlighter-rouge">NULL</code> if there
+are zero input rows or <code class="highlighter-rouge">expression</code> evaluates to <code class="highlighter-rouge">NULL</code> for all rows.</p>
+
+<p><strong>Supported Argument Types</strong></p>
+
+<p>Any data type except:</p>
+<ul>
+  <li><code class="highlighter-rouge">ARRAY</code></li>
+  <li><code class="highlighter-rouge">STRUCT</code></li>
+</ul>
+
+<p><strong>Return Data Types</strong></p>
+
+<p>Same as the data type used as the input values.</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT MIN(x) AS min
+FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
+
++-----+
+| min |
++-----+
+| 4   |
++-----+
+
+
+</code></pre>
+</div>
+
+<h2 id="sum">SUM</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>SUM(expression)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the sum of non-null values.</p>
+
+<p>If the expression is a floating point value, the sum is non-deterministic, which means you might receive a different result each time you use this function.</p>
+
+<p><strong>Supported Argument Types</strong></p>
+
+<p>Any supported numeric data types.</p>
+
+<p><strong>Return Data Types</strong></p>
+
+<ul>
+  <li>Returns INT64 if the input is an integer.</li>
+  <li>Returns FLOAT64 if the input is a floating point
+value.</li>
+</ul>
+
+<p>Returns <code class="highlighter-rouge">NULL</code> if the input contains only <code class="highlighter-rouge">NULL</code>s.</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT SUM(x) AS sum
+FROM UNNEST([1, 2, 3, 4, 5, 4, 3, 2, 1]) AS x;
+
++-----+
+| sum |
++-----+
+| 25  |
++-----+
+
+
+</code></pre>
+</div>
 
       </div>
     </div>

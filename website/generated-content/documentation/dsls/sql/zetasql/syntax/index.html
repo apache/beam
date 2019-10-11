@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Calcite SQL data types</title>
+  <title>Beam ZetaSQL function call rules</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/calcite/data-types/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/zetasql/syntax/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/calcite/data-types.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/zetasql/syntax.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -302,86 +302,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-calcite-sql-data-types">Beam Calcite SQL data types</h1>
+<h1 id="beam-zetasql-function-call-rules">Beam ZetaSQL function call rules</h1>
 
-<p>Beam SQL supports standard SQL scalar data types as well as extensions
-including arrays, maps, and nested rows. This page documents supported
-<a href="http://calcite.apache.org/docs/reference.html#data-types">Apache Calcite data types</a> supported by Beam Calcite SQL.</p>
+<p>The following rules apply to all functions unless explicitly indicated otherwise in the function description:</p>
 
-<p>In Java, these types are mapped to Java types large enough to hold the
-full range of values.</p>
-
-<table class="table">
-  <thead>
-    <tr>
-      <th>SQL Type</th>
-      <th>Description</th>
-      <th>Java class</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>TINYINT</td>
-      <td>1 byte signed integer in range -128 to 127</td>
-      <td>java.lang.Byte</td>
-    </tr>
-    <tr>
-      <td>SMALLINT</td>
-      <td>2 byte signed integer in range -32768 to 32767</td>
-      <td>java.lang.Short</td>
-    </tr>
-    <tr>
-      <td>INTEGER</td>
-      <td>4 byte signed integer in range -2147483648 to 2147483647</td>
-      <td>java.lang.Integer</td>
-    </tr>
-    <tr>
-      <td>BIGINT</td>
-      <td>8 byte signed integer in range -9223372036854775808 to 9223372036854775807</td>
-      <td>java.lang.Long</td>
-    </tr>
-    <tr>
-      <td>FLOAT</td>
-      <td>4 byte floating point</td>
-      <td>java.lang.Float</td>
-    </tr>
-    <tr>
-      <td>DOUBLE</td>
-      <td>8 byte floating point</td>
-      <td>java.lang.Double</td>
-    </tr>
-    <tr>
-      <td>DECIMAL</td>
-      <td>Arbitrary precision decimal value</td>
-      <td>java.math.BigDecimal</td>
-    </tr>
-    <tr>
-      <td>VARCHAR</td>
-      <td>Arbitrary length string</td>
-      <td>java.lang.String</td>
-    </tr>
-    <tr>
-      <td>TIMESTAMP</td>
-      <td>Millisecond precision timestamp</td>
-      <td>org.joda.ReadableInstant</td>
-    </tr>
-    <tr>
-      <td>ARRAY<type></type></td>
-      <td>Ordered list of values</td>
-      <td>java.util.List</td>
-    </tr>
-    <tr>
-      <td>MAP&lt;type, type&gt;</td>
-      <td>Finite unordered map</td>
-      <td>java.util.Map</td>
-    </tr>
-    <tr>
-      <td>ROW<fields></fields></td>
-      <td>Nested row</td>
-      <td>org.apache.beam.sdk.values.Row</td>
-    </tr>
-  </tbody>
-</table>
+<ul>
+  <li>For functions that accept numeric types, if one operand is a floating point
+operand and the other operand is another numeric type, both operands are
+converted to FLOAT64 before the function is
+evaluated.</li>
+  <li>
+    <p>If an operand is <code class="highlighter-rouge">NULL</code>, the result is <code class="highlighter-rouge">NULL</code>, with the exception of the
+IS operator.</p>
+  </li>
+  <li>For functions that are time zone sensitive (as indicated in the function
+description), the default time zone, UTC, is used if a time
+zone is not specified.</li>
+</ul>
 
       </div>
     </div>

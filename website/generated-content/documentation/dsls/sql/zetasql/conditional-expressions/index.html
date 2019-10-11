@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Calcite SQL data types</title>
+  <title>Beam ZetaSQL conditional expressions</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/calcite/data-types/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/zetasql/conditional-expressions/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/calcite/data-types.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/zetasql/conditional-expressions.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -302,85 +302,100 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-calcite-sql-data-types">Beam Calcite SQL data types</h1>
+<h1 id="beam-zetasql-conditional-expressions">Beam ZetaSQL conditional expressions</h1>
 
-<p>Beam SQL supports standard SQL scalar data types as well as extensions
-including arrays, maps, and nested rows. This page documents supported
-<a href="http://calcite.apache.org/docs/reference.html#data-types">Apache Calcite data types</a> supported by Beam Calcite SQL.</p>
-
-<p>In Java, these types are mapped to Java types large enough to hold the
-full range of values.</p>
+<p>This page documents the ZetaSQL scalar functions supported by Beam ZetaSQL.</p>
 
 <table class="table">
-  <thead>
-    <tr>
-      <th>SQL Type</th>
-      <th>Description</th>
-      <th>Java class</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>TINYINT</td>
-      <td>1 byte signed integer in range -128 to 127</td>
-      <td>java.lang.Byte</td>
-    </tr>
-    <tr>
-      <td>SMALLINT</td>
-      <td>2 byte signed integer in range -32768 to 32767</td>
-      <td>java.lang.Short</td>
-    </tr>
-    <tr>
-      <td>INTEGER</td>
-      <td>4 byte signed integer in range -2147483648 to 2147483647</td>
-      <td>java.lang.Integer</td>
-    </tr>
-    <tr>
-      <td>BIGINT</td>
-      <td>8 byte signed integer in range -9223372036854775808 to 9223372036854775807</td>
-      <td>java.lang.Long</td>
-    </tr>
-    <tr>
-      <td>FLOAT</td>
-      <td>4 byte floating point</td>
-      <td>java.lang.Float</td>
-    </tr>
-    <tr>
-      <td>DOUBLE</td>
-      <td>8 byte floating point</td>
-      <td>java.lang.Double</td>
-    </tr>
-    <tr>
-      <td>DECIMAL</td>
-      <td>Arbitrary precision decimal value</td>
-      <td>java.math.BigDecimal</td>
-    </tr>
-    <tr>
-      <td>VARCHAR</td>
-      <td>Arbitrary length string</td>
-      <td>java.lang.String</td>
-    </tr>
-    <tr>
-      <td>TIMESTAMP</td>
-      <td>Millisecond precision timestamp</td>
-      <td>org.joda.ReadableInstant</td>
-    </tr>
-    <tr>
-      <td>ARRAY<type></type></td>
-      <td>Ordered list of values</td>
-      <td>java.util.List</td>
-    </tr>
-    <tr>
-      <td>MAP&lt;type, type&gt;</td>
-      <td>Finite unordered map</td>
-      <td>java.util.Map</td>
-    </tr>
-    <tr>
-      <td>ROW<fields></fields></td>
-      <td>Nested row</td>
-      <td>org.apache.beam.sdk.values.Row</td>
-    </tr>
-  </tbody>
+<thead>
+<tr>
+<th>Syntax</th>
+<th>Input Data Types</th>
+<th>Result Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+  <td><pre>CASE expr
+  WHEN value THEN result
+  [WHEN ...]
+  [ELSE else_result]
+  END</pre></td>
+<td><code>expr</code> and <code>value</code>: Any type</td>
+<td><code>result</code> and <code>else_result</code>: Supertype of input
+types.</td>
+<td>Compares <code>expr</code> to value of each successive <code>WHEN</code>
+clause and returns the first result where this comparison returns true. The
+remaining <code>WHEN</code> clauses and <code>else_result</code> are not
+evaluated. If the
+<code>expr = value</code> comparison returns false or <code>NULL</code> for
+all <code>WHEN</code> clauses, returns
+<code>else_result</code> if present; if not present, returns <code>NULL</code>.
+<code>expr</code> and <code>value</code> expressions
+must be implicitly coercible to a common supertype; equality comparisons are
+done on coerced values. <code>result</code> and <code>else_result</code>
+expressions must be coercible to a common supertype.</td>
+</tr>
+
+
+<tr>
+  <td><pre>CASE
+  WHEN cond1 THEN result
+  [WHEN cond2...]
+  [ELSE else_result]
+  END</pre></td>
+<td><code>cond</code>: BOOL</td>
+<td><code>result</code> and <code>else_result</code>: Supertype of input
+types.</td>
+<td>Evaluates condition <code>cond</code> of each successive <code>WHEN</code>
+clause and returns the first result where the condition is true; any remaining
+<code>WHEN</code> clauses and <code>else_result</code> are not evaluated. If all
+conditions are false or <code>NULL</code>, returns
+<code>else_result</code> if present; if not present, returns
+<code>NULL</code>. <code>result</code> and <code>else_result</code>
+expressions must be implicitly coercible to a common supertype. </td>
+</tr>
+
+<tr>
+<td><a id="coalesce"></a>COALESCE(expr1, ..., exprN)</td>
+<td>Any type</td>
+<td>Supertype of input types</td>
+<td>Returns the value of the first non-null expression. The remaining
+expressions are not evaluated. All input expressions must be implicitly
+coercible to a common supertype.</td>
+</tr>
+<tr>
+<td><a id="if"></a>IF(cond, true_result, else_result)</td>
+<td><code>cond</code>: BOOL</td>
+<td><code>true_result</code> and <code>else_result</code>: Any type.</td>
+<td>If <code>cond</code> is true, returns <code>true_result</code>, else returns
+<code>else_result</code>. <code>else_result</code> is not evaluated if
+<code>cond</code> is true. <code>true_result</code> is not evaluated if
+<code>cond</code> is false or <code>NULL</code>. <code>true_result</code> and
+<code>else_result</code> must be coercible to a common supertype.</td>
+</tr>
+<tr>
+<td><a id="ifnull"></a>IFNULL(expr, null_result)</td>
+<td>Any type</td>
+<td>Any type or supertype of input types.</td>
+<td>If <code>expr</code> is <code>NULL</code>, return <code>null_result</code>. Otherwise,
+return <code>expr</code>. If <code>expr</code> is not <code>NULL</code>,
+<code>null_result</code> is not evaluated. <code>expr</code> and
+<code>null_result</code> must be implicitly coercible to a common
+supertype. Synonym for <code>COALESCE(expr, null_result)</code>.</td>
+</tr>
+<tr>
+<td><a id="nullif"></a>NULLIF(expression, expression_to_match)</td>
+<td>Any type T or subtype of T</td>
+<td>Any type T or subtype of T</td>
+<td>Returns <code>NULL</code> if <code>expression = expression_to_match</code>
+is true, otherwise returns <code>expression</code>. <code>expression</code> and
+<code>expression_to_match</code> must be implicitly coercible to a common
+supertype; equality comparison is done on coerced values.</td>
+</tr>
+</tbody>
 </table>
 
       </div>

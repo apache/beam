@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Calcite SQL data types</title>
+  <title>Beam ZetaSQL conversion rules</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/calcite/data-types/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/zetasql/conversion-rules/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/calcite/data-types.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/zetasql/conversion-rules.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -283,6 +283,10 @@
 
 
 
+<ul class="nav">
+  <li><a href="#casting">Casting</a></li>
+  <li><a href="#coercion">Coercion</a></li>
+</ul>
 
 
       </nav>
@@ -302,86 +306,175 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-calcite-sql-data-types">Beam Calcite SQL data types</h1>
+<h1 id="beam-zetasql-conversion-rules">Beam ZetaSQL conversion rules</h1>
 
-<p>Beam SQL supports standard SQL scalar data types as well as extensions
-including arrays, maps, and nested rows. This page documents supported
-<a href="http://calcite.apache.org/docs/reference.html#data-types">Apache Calcite data types</a> supported by Beam Calcite SQL.</p>
+<p>Conversion includes, but is not limited to, casting and coercion:</p>
 
-<p>In Java, these types are mapped to Java types large enough to hold the
-full range of values.</p>
+<ul>
+  <li>Casting is explicit conversion and uses the <code class="highlighter-rouge">CAST()</code> function.</li>
+  <li>Coercion is implicit conversion, which Beam SQL performs
+automatically under the conditions described below.</li>
+</ul>
+
+<p>The table below summarizes all possible <code class="highlighter-rouge">CAST</code>s and coercions. “Coercion To” applies to all <em>expressions</em> of a given data type (e.g. a column).</p>
 
 <table class="table">
-  <thead>
-    <tr>
-      <th>SQL Type</th>
-      <th>Description</th>
-      <th>Java class</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>TINYINT</td>
-      <td>1 byte signed integer in range -128 to 127</td>
-      <td>java.lang.Byte</td>
-    </tr>
-    <tr>
-      <td>SMALLINT</td>
-      <td>2 byte signed integer in range -32768 to 32767</td>
-      <td>java.lang.Short</td>
-    </tr>
-    <tr>
-      <td>INTEGER</td>
-      <td>4 byte signed integer in range -2147483648 to 2147483647</td>
-      <td>java.lang.Integer</td>
-    </tr>
-    <tr>
-      <td>BIGINT</td>
-      <td>8 byte signed integer in range -9223372036854775808 to 9223372036854775807</td>
-      <td>java.lang.Long</td>
-    </tr>
-    <tr>
-      <td>FLOAT</td>
-      <td>4 byte floating point</td>
-      <td>java.lang.Float</td>
-    </tr>
-    <tr>
-      <td>DOUBLE</td>
-      <td>8 byte floating point</td>
-      <td>java.lang.Double</td>
-    </tr>
-    <tr>
-      <td>DECIMAL</td>
-      <td>Arbitrary precision decimal value</td>
-      <td>java.math.BigDecimal</td>
-    </tr>
-    <tr>
-      <td>VARCHAR</td>
-      <td>Arbitrary length string</td>
-      <td>java.lang.String</td>
-    </tr>
-    <tr>
-      <td>TIMESTAMP</td>
-      <td>Millisecond precision timestamp</td>
-      <td>org.joda.ReadableInstant</td>
-    </tr>
-    <tr>
-      <td>ARRAY<type></type></td>
-      <td>Ordered list of values</td>
-      <td>java.util.List</td>
-    </tr>
-    <tr>
-      <td>MAP&lt;type, type&gt;</td>
-      <td>Finite unordered map</td>
-      <td>java.util.Map</td>
-    </tr>
-    <tr>
-      <td>ROW<fields></fields></td>
-      <td>Nested row</td>
-      <td>org.apache.beam.sdk.values.Row</td>
-    </tr>
-  </tbody>
+<thead>
+<tr>
+<th>From Type</th>
+<th>CAST to</th>
+<th>Coercion To</th>
+</tr>
+</thead>
+<tbody>
+
+
+<tr>
+<td>INT64</td>
+<td><span>INT64</span><br /><span>FLOAT64</span><br /><span>STRING</span><br /></td>
+<td><span>FLOAT64</span><br /></td>
+</tr>
+
+<tr>
+<td>FLOAT64</td>
+<td><span>FLOAT64</span><br /></td>
+<td>&nbsp;</td>
+</tr>
+
+
+<tr>
+<td>BOOL</td>
+<td><span>BOOL</span><br /></td>
+<td>&nbsp;</td>
+</tr>
+
+
+<tr>
+<td>STRING</td>
+<td><span>INT64</span><br /><span>STRING</span><br /><span>BYTES</span><br /><span>TIMESTAMP</span><br /></td>
+<td>&nbsp;</td>
+</tr>
+
+
+<tr>
+<td>BYTES</td>
+<td><span>BYTES</span><br /><span>STRING</span><br /></td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td>TIMESTAMP</td>
+<td><span>STRING</span><br /><span>TIMESTAMP</span><br /></td>
+<td>&nbsp;</td>
+</tr>
+
+
+<tr>
+<td>ARRAY</td>
+<td>ARRAY</td>
+<td>&nbsp;</td>
+</tr>
+
+
+
+<tr>
+<td>STRUCT</td>
+<td>STRUCT</td>
+<td>&nbsp;</td>
+</tr>
+
+
+</tbody>
 </table>
+
+<h2 id="casting">Casting</h2>
+
+<p>Syntax:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CAST(expr AS typename)
+</code></pre>
+</div>
+
+<p>Cast syntax is used in a query to indicate that the result type of an
+expression should be converted to some other type.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CAST(x=1 AS STRING)
+</code></pre>
+</div>
+
+<p>This results in <code class="highlighter-rouge">"true"</code> if <code class="highlighter-rouge">x</code> is <code class="highlighter-rouge">1</code>, <code class="highlighter-rouge">"false"</code> for any other non-<code class="highlighter-rouge">NULL</code>
+value, and <code class="highlighter-rouge">NULL</code> if <code class="highlighter-rouge">x</code> is <code class="highlighter-rouge">NULL</code>.</p>
+
+<p>Casts between supported types that do not successfully map from the original
+value to the target domain produce runtime errors. For example, casting
+BYTES to STRING where the
+byte sequence is not valid UTF-8 results in a runtime error.</p>
+
+<p>When casting an expression <code class="highlighter-rouge">x</code> of the following types, these rules apply:</p>
+
+<table class="table">
+<tr>
+<th>From</th>
+<th>To</th>
+<th>Rule(s) when casting <code>x</code></th>
+</tr>
+<tr>
+<td>INT64</td>
+<td>FLOAT64</td>
+<td>Returns a close but potentially not exact
+FLOAT64
+value.</td>
+</tr>
+<tr>
+<td>FLOAT64</td>
+<td>STRING</td>
+<td>Returns an approximate string representation.<br />
+</td>
+</tr>
+<tr>
+<td>STRING</td>
+<td>BYTES</td>
+<td>STRINGs are cast to BYTES using UTF-8 encoding. For example, the STRING "&copy;",
+when cast to BYTES, would become a 2-byte sequence with the hex values C2 and
+A9.</td>
+</tr>
+
+<tr>
+<td>BYTES</td>
+<td>STRING</td>
+<td>Returns <code>x</code> interpreted as a UTF-8 STRING.<br />
+For example, the BYTES literal
+<code>b'\xc2\xa9'</code>, when cast to STRING, is interpreted as UTF-8 and
+becomes the unicode character "&copy;".<br />
+An error occurs if <code>x</code> is not valid UTF-8.</td>
+</tr>
+
+<tr>
+<td>ARRAY</td>
+<td>ARRAY</td>
+<td>Must be the exact same ARRAY type.</td>
+</tr>
+
+<tr>
+<td>STRUCT</td>
+<td>STRUCT</td>
+<td>Allowed if the following conditions are met:<br />
+<ol>
+<li>The two STRUCTs have the same number of fields.</li>
+<li>The original STRUCT field types can be explicitly cast to the corresponding
+target STRUCT field types (as defined by field order, not field name).</li>
+</ol>
+</td>
+</tr>
+
+</table>
+
+<h2 id="coercion">Coercion</h2>
+
+<p>Beam SQL coerces the result type of an expression to another type if
+needed to match function signatures.  For example, if function func() is defined to take a single argument of type INT64  and an expression is used as an argument that has a result type of FLOAT64, then the result of the expression will be coerced to INT64 type before func() is computed.</p>
 
       </div>
     </div>

@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Calcite SQL data types</title>
+  <title>Beam ZetaSQL string functions</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/calcite/data-types/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/zetasql/string-functions/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -141,7 +141,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/calcite/data-types.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/zetasql/string-functions.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -283,6 +283,19 @@
 
 
 
+<ul class="nav">
+  <li><a href="#char_length">CHAR_LENGTH</a></li>
+  <li><a href="#character_length">CHARACTER_LENGTH</a></li>
+  <li><a href="#concat">CONCAT</a></li>
+  <li><a href="#ends_with">ENDS_WITH</a></li>
+  <li><a href="#ltrim">LTRIM</a></li>
+  <li><a href="#replace">REPLACE</a></li>
+  <li><a href="#reverse">REVERSE</a></li>
+  <li><a href="#rtrim">RTRIM</a></li>
+  <li><a href="#starts_with">STARTS_WITH</a></li>
+  <li><a href="#substr">SUBSTR</a></li>
+  <li><a href="#trim">TRIM</a></li>
+</ul>
 
 
       </nav>
@@ -302,86 +315,679 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-calcite-sql-data-types">Beam Calcite SQL data types</h1>
+<h1 id="beam-zetasql-string-functions">Beam ZetaSQL string functions</h1>
 
-<p>Beam SQL supports standard SQL scalar data types as well as extensions
-including arrays, maps, and nested rows. This page documents supported
-<a href="http://calcite.apache.org/docs/reference.html#data-types">Apache Calcite data types</a> supported by Beam Calcite SQL.</p>
+<p>This page documents the ZetaSQL string functions supported by Beam ZetaSQL.</p>
 
-<p>In Java, these types are mapped to Java types large enough to hold the
-full range of values.</p>
+<p>These string functions work on STRING data. STRING values must be well-formed UTF-8. All string comparisons are done byte-by-byte, without regard to Unicode
+canonical equivalence.</p>
 
 <table class="table">
   <thead>
     <tr>
-      <th>SQL Type</th>
+      <th>Operator syntax</th>
       <th>Description</th>
-      <th>Java class</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>TINYINT</td>
-      <td>1 byte signed integer in range -128 to 127</td>
-      <td>java.lang.Byte</td>
+      <td><a href="#char_length">CHAR_LENGTH(value)</a></td>
+      <td>Returns the length of the string in characters</td>
     </tr>
     <tr>
-      <td>SMALLINT</td>
-      <td>2 byte signed integer in range -32768 to 32767</td>
-      <td>java.lang.Short</td>
+      <td><a href="#character_length">CHARACTER_LENGTH(value)</a></td>
+      <td>Synonym for CHAR_LENGTH</td>
     </tr>
     <tr>
-      <td>INTEGER</td>
-      <td>4 byte signed integer in range -2147483648 to 2147483647</td>
-      <td>java.lang.Integer</td>
+      <td><a href="#concat">CONCAT(value1[, …])</a></td>
+      <td>Concatenates up to five values into a single result</td>
     </tr>
     <tr>
-      <td>BIGINT</td>
-      <td>8 byte signed integer in range -9223372036854775808 to 9223372036854775807</td>
-      <td>java.lang.Long</td>
+      <td><a href="#ends_with">ENDS_WITH(value1, value2)</a></td>
+      <td>Returns TRUE if the second value is a suffix of the first</td>
     </tr>
     <tr>
-      <td>FLOAT</td>
-      <td>4 byte floating point</td>
-      <td>java.lang.Float</td>
+      <td><a href="#ltrim">LTRIM(value1[, value2])</a></td>
+      <td>Identical to TRIM, but only removes leading characters.</td>
     </tr>
     <tr>
-      <td>DOUBLE</td>
-      <td>8 byte floating point</td>
-      <td>java.lang.Double</td>
+      <td><a href="#replace">REPLACE(original_value, from_value, to_value)</a></td>
+      <td>Replaces all occurrences of <code class="highlighter-rouge">from_value</code> with <code class="highlighter-rouge">to_value</code> in <code class="highlighter-rouge">original_value</code></td>
     </tr>
     <tr>
-      <td>DECIMAL</td>
-      <td>Arbitrary precision decimal value</td>
-      <td>java.math.BigDecimal</td>
+      <td><a href="#reverse">REVERSE(value)</a></td>
+      <td>Returns the reverse of the input string</td>
     </tr>
     <tr>
-      <td>VARCHAR</td>
-      <td>Arbitrary length string</td>
-      <td>java.lang.String</td>
+      <td><a href="#rtrim">RTRIM(value1[, value2])</a></td>
+      <td>Identical to TRIM, but only removes trailing characters</td>
     </tr>
     <tr>
-      <td>TIMESTAMP</td>
-      <td>Millisecond precision timestamp</td>
-      <td>org.joda.ReadableInstant</td>
+      <td><a href="#starts_with">STARTS_WITH(value1, value2)</a></td>
+      <td>Returns TRUE if the second value is a prefix of the first.</td>
     </tr>
     <tr>
-      <td>ARRAY<type></type></td>
-      <td>Ordered list of values</td>
-      <td>java.util.List</td>
+      <td><a href="#substr">SUBSTR(value, position[, length])</a></td>
+      <td>Returns a substring of the supplied value</td>
     </tr>
     <tr>
-      <td>MAP&lt;type, type&gt;</td>
-      <td>Finite unordered map</td>
-      <td>java.util.Map</td>
-    </tr>
-    <tr>
-      <td>ROW<fields></fields></td>
-      <td>Nested row</td>
-      <td>org.apache.beam.sdk.values.Row</td>
+      <td><a href="#trim">TRIM(value1[, value2])</a></td>
+      <td>Removes all leading and trailing characters that match <code class="highlighter-rouge">value2</code></td>
     </tr>
   </tbody>
 </table>
+
+<h2 id="char_length">CHAR_LENGTH</h2>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CHAR_LENGTH(value)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the length of the STRING in characters.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>INT64</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+Table example:
+
++----------------+
+| characters     |
++----------------+
+| абвгд          |
++----------------+
+
+SELECT
+  characters,
+  CHAR_LENGTH(characters) AS char_length_example
+FROM example;
+
++------------+---------------------+
+| characters | char_length_example |
++------------+---------------------+
+| абвгд      |                   5 |
++------------+---------------------+
+
+</code></pre>
+</div>
+<h2 id="character_length">CHARACTER_LENGTH</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>CHARACTER_LENGTH(value)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Synonym for <a href="#char_length">CHAR_LENGTH</a>.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>INT64</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+Table example:
+
++----------------+
+| characters     |
++----------------+
+| абвгд          |
++----------------+
+
+SELECT
+  characters,
+  CHARACTER_LENGTH(characters) AS char_length_example
+FROM example;
+
++------------+---------------------+
+| characters | char_length_example |
++------------+---------------------+
+| абвгд      |                   5 |
++------------+---------------------+
+
+</code></pre>
+</div>
+
+<h2 id="concat">CONCAT</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>CONCAT(value1[, ...])
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Concatenates up to five values into a single
+result.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>STRING</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+Table Employees:
+
++-------------+-----------+
+| first_name  | last_name |
++-------------+-----------+
+| John        | Doe       |
+| Jane        | Smith     |
+| Joe         | Jackson   |
++-------------+-----------+
+
+SELECT
+  CONCAT(first_name, " ", last_name)
+  AS full_name
+FROM Employees;
+
++---------------------+
+| full_name           |
++---------------------+
+| John Doe            |
+| Jane Smith          |
+| Joe Jackson         |
++---------------------+
+</code></pre>
+</div>
+
+<h2 id="ends_with">ENDS_WITH</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>ENDS_WITH(value1, value2)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Takes two values. Returns TRUE if the second value is a
+suffix of the first.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>BOOL</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+Table items:
+
++----------------+
+| item           |
++----------------+
+| apple          |
+| banana         |
+| orange         |
++----------------+
+
+SELECT
+  ENDS_WITH(item, "e") as example
+FROM items;
+
++---------+
+| example |
++---------+
+|    True |
+|   False |
+|    True |
++---------+
+
+</code></pre>
+</div>
+
+<h2 id="ltrim">LTRIM</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>LTRIM(value1[, value2])
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Identical to <a href="#trim">TRIM</a>, but only removes leading characters.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>STRING</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+Table items:
+
++----------------+
+| item           |
++----------------+
+|    apple       |
+|    banana      |
+|    orange      |
++----------------+
+
+SELECT
+  CONCAT("#", LTRIM(item), "#") as example
+FROM items;
+
++-------------+
+| example     |
++-------------+
+| #apple   #  |
+| #banana   # |
+| #orange   # |
++-------------+
+
+
+Table items:
+
++----------------+
+| item           |
++----------------+
+| ***apple***    |
+| ***banana***   |
+| ***orange***   |
++----------------+
+
+SELECT
+  LTRIM(item, "*") as example
+FROM items;
+
++-----------+
+| example   |
++-----------+
+| apple***  |
+| banana*** |
+| orange*** |
++-----------+
+
+
+Table items:
+
++----------------+
+| item           |
++----------------+
+| xxxapplexxx    |
+| yyybananayyy   |
+| zzzorangezzz   |
+| xyzpearzyz     |
++----------------+
+
+SELECT
+  LTRIM(item, "xyz") as example
+FROM items;
+
++-----------+
+| example   |
++-----------+
+| applexxx  |
+| bananayyy |
+| orangezzz |
+| pearxyz   |
++-----------+
+</code></pre>
+</div>
+
+<h2 id="replace">REPLACE</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>REPLACE(original_value, from_value, to_value)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Replaces all occurrences of <code class="highlighter-rouge">from_value</code> with <code class="highlighter-rouge">to_value</code> in <code class="highlighter-rouge">original_value</code>.
+If <code class="highlighter-rouge">from_value</code> is empty, no replacement is made.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>STRING</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="language-sql highlighter-rouge"><pre class="highlight"><code>
+<span class="o">+</span><span class="c1">--------------------+</span>
+<span class="o">|</span> <span class="n">dessert</span>            <span class="o">|</span>
+<span class="o">+</span><span class="c1">--------------------+</span>
+<span class="o">|</span> <span class="n">apple</span> <span class="n">pie</span>          <span class="o">|</span>
+<span class="o">|</span> <span class="n">blackberry</span> <span class="n">pie</span>     <span class="o">|</span>
+<span class="o">|</span> <span class="n">cherry</span> <span class="n">pie</span>         <span class="o">|</span>
+<span class="o">+</span><span class="c1">--------------------+</span>
+
+<span class="k">SELECT</span>
+  <span class="k">REPLACE</span> <span class="p">(</span><span class="n">dessert</span><span class="p">,</span> <span class="nv">"pie"</span><span class="p">,</span> <span class="nv">"cobbler"</span><span class="p">)</span> <span class="k">as</span> <span class="n">example</span>
+<span class="k">FROM</span> <span class="n">desserts</span><span class="p">;</span>
+
+<span class="o">+</span><span class="c1">--------------------+</span>
+<span class="o">|</span> <span class="n">example</span>            <span class="o">|</span>
+<span class="o">+</span><span class="c1">--------------------+</span>
+<span class="o">|</span> <span class="n">apple</span> <span class="n">cobbler</span>      <span class="o">|</span>
+<span class="o">|</span> <span class="n">blackberry</span> <span class="n">cobbler</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">cherry</span> <span class="n">cobbler</span>     <span class="o">|</span>
+<span class="o">+</span><span class="c1">--------------------+</span>
+</code></pre>
+</div>
+
+<h2 id="reverse">REVERSE</h2>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>REVERSE(value)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Returns the reverse of the input STRING.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>STRING</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>WITH example AS (
+  SELECT "foo" AS sample_string UNION ALL
+  SELECT "абвгд" AS sample_string
+)
+SELECT
+  sample_string,
+  REVERSE(sample_string) AS reverse_string
+FROM example;
+
++---------------+----------------+
+| sample_string | reverse_string |
++---------------+----------------+
+| foo           | oof            |
+| абвгд         | дгвба          |
++---------------+----------------+
+</code></pre>
+</div>
+
+<h2 id="rtrim">RTRIM</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>RTRIM(value1[, value2])
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Identical to <a href="#trim">TRIM</a>, but only removes trailing characters.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>STRING</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+Table items:
+
++----------------+
+| item           |
++----------------+
+| ***apple***    |
+| ***banana***   |
+| ***orange***   |
++----------------+
+
+SELECT
+  RTRIM(item, "*") as example
+FROM items;
+
++-----------+
+| example   |
++-----------+
+| ***apple  |
+| ***banana |
+| ***orange |
++-----------+
+
+
+Table items:
+
++----------------+
+| item           |
++----------------+
+| applexxx       |
+| bananayyy      |
+| orangezzz      |
+| pearxyz        |
++----------------+
+
+SELECT
+  RTRIM(item, "xyz") as example
+FROM items;
+
++---------+
+| example |
++---------+
+| apple   |
+| banana  |
+| orange  |
+| pear    |
++---------+
+</code></pre>
+</div>
+
+<h2 id="starts_with">STARTS_WITH</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>STARTS_WITH(value1, value2)
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Takes two values. Returns TRUE if the second value is a prefix
+of the first.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>BOOL</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+SELECT
+  STARTS_WITH(item, "b") as example
+FROM (
+  SELECT "foo" as item
+  UNION ALL SELECT "bar" as item
+  UNION ALL SELECT "baz" as item) AS items;
+
+
++---------+
+| example |
++---------+
+|   False |
+|    True |
+|    True |
++---------+
+</code></pre>
+</div>
+<h2 id="substr">SUBSTR</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>SUBSTR(value, position[, length])
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Returns a substring of the supplied value. The
+<code class="highlighter-rouge">position</code> argument is an integer specifying the starting position of the
+substring, with position = 1 indicating the first character or byte. The
+<code class="highlighter-rouge">length</code> argument is the maximum number of characters for STRING arguments.</p>
+
+<p>If <code class="highlighter-rouge">position</code> is negative, the function counts from the end of <code class="highlighter-rouge">value</code>,
+with -1 indicating the last character.</p>
+
+<p>If <code class="highlighter-rouge">position</code> is a position off the left end of the
+STRING (<code class="highlighter-rouge">position</code> = 0 or
+<code class="highlighter-rouge">position</code> &lt; <code class="highlighter-rouge">-LENGTH(value)</code>), the function starts
+from position = 1. If <code class="highlighter-rouge">length</code> exceeds the length of
+<code class="highlighter-rouge">value</code>, returns fewer than <code class="highlighter-rouge">length</code> characters.</p>
+
+<p>If <code class="highlighter-rouge">length</code> is less than 0, the function returns an error.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>STRING</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+Table items:
+
++----------------+
+| item           |
++----------------+
+| apple          |
+| banana         |
+| orange         |
++----------------+
+
+SELECT
+  SUBSTR(item, 2) as example
+FROM items;
+
++---------+
+| example |
++---------+
+| pple    |
+| anana   |
+| range   |
++---------+
+
+
+Table items:
+
++----------------+
+| item           |
++----------------+
+| apple          |
+| banana         |
+| orange         |
++----------------+
+
+SELECT
+  SUBSTR(item, 2, 2) as example
+FROM items;
+
++---------+
+| example |
++---------+
+| pp      |
+| an      |
+| ra      |
++---------+
+
+
+Table items:
+
++----------------+
+| item           |
++----------------+
+| apple          |
+| banana         |
+| orange         |
++----------------+
+
+SELECT
+  SUBSTR(item, -2) as example
+FROM items;
+
++---------+
+| example |
++---------+
+| le      |
+| na      |
+| ge      |
++---------+
+</code></pre>
+</div>
+<h2 id="trim">TRIM</h2>
+<div class="highlighter-rouge"><pre class="highlight"><code>TRIM(value1[, value2])
+</code></pre>
+</div>
+
+<p><strong>Description</strong></p>
+
+<p>Removes all leading and trailing characters that match <code class="highlighter-rouge">value2</code>. If <code class="highlighter-rouge">value2</code> is
+not specified, all leading and trailing whitespace characters (as defined by the
+Unicode standard) are removed.</p>
+
+<p>If <code class="highlighter-rouge">value2</code> contains more than one character, the function removes all leading
+or trailing characters contained in <code class="highlighter-rouge">value2</code>.</p>
+
+<p><strong>Return type</strong></p>
+
+<p>STRING</p>
+
+<p><strong>Examples</strong></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>
+Table items:
+
++----------------+
+| item           |
++----------------+
+|    apple       |
+|    banana      |
+|    orange      |
++----------------+
+
+SELECT
+  CONCAT("#", TRIM(item), "#") as example
+FROM items;
+
++----------+
+| example  |
++----------+
+| #apple#  |
+| #banana# |
+| #orange# |
++----------+
+
+
+Table items:
+
++----------------+
+| item           |
++----------------+
+| ***apple***    |
+| ***banana***   |
+| ***orange***   |
++----------------+
+
+SELECT
+  TRIM(item, "*") as example
+FROM items;
+
++---------+
+| example |
++---------+
+| apple   |
+| banana  |
+| orange  |
++---------+
+
+
+Table items:
+
++----------------+
+| item           |
++----------------+
+| xxxapplexxx    |
+| yyybananayyy   |
+| zzzorangezzz   |
+| xyzpearxyz     |
++----------------+
+
+SELECT
+  TRIM(item, "xyz") as example
+FROM items;
+
++---------+
+| example |
++---------+
+| apple   |
+| banana  |
+| orange  |
+| pear    |
++---------+
+</code></pre>
+</div>
 
       </div>
     </div>

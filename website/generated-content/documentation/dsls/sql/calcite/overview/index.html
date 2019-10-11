@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam SQL in Calcite: Overview</title>
+  <title>Beam Calcite SQL overview</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -228,6 +228,29 @@
       </ul>
     </li>
     <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">ZetaSQL dialect</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/dsls/sql/zetasql/overview/">ZetaSQL support overview</a></li>          
+        <li><a href="/documentation/dsls/sql/zetasql/syntax/">Function call rules</a></li>
+        <li><a href="/documentation/dsls/sql/zetasql/conversion-rules/">Conversion rules</a></li>
+        <li><a href="/documentation/dsls/sql/zetasql/query-syntax/">Query syntax</a></li>
+        <li><a href="/documentation/dsls/sql/zetasql/lexical/">Lexical structure</a></li>        
+        <li><a href="/documentation/dsls/sql/zetasql/data-types/">Data types</a></li>             
+        <li><a href="/documentation/dsls/sql/zetasql/operators/">Operators</a></li>
+
+        <li class="section-nav-item--collapsible">
+          <span class="section-nav-list-title">Scalar functions</span>
+          <ul class="section-nav-list">
+            <li><a href="/documentation/dsls/sql/zetasql/string-functions/">String functions</a></li>
+            <li><a href="/documentation/dsls/sql/zetasql/math-functions/">Mathematical functions</a></li>
+            <li><a href="/documentation/dsls/sql/zetasql/conditional-expressions/">Conditional expressions</a></li>
+          </ul>
+        </li>
+        <li><a href="/documentation/dsls/sql/zetasql/aggregate-functions/">Aggregate functions</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
       <span class="section-nav-list-title">Beam SQL extensions</span>
 
       <ul class="section-nav-list">
@@ -284,30 +307,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="calcite-support-overview">Calcite support overview</h1>
+<h1 id="beam-calcite-sql-overview">Beam Calcite SQL overview</h1>
 
 <p><a href="http://calcite.apache.org">Apache Calcite</a> is a widespread SQL dialect used in
-big data processing with some streaming enhancements. Calcite provides the
-basic dialect underlying Beam SQL.</p>
+big data processing with some streaming enhancements. Beam Calcite SQL is the default Beam SQL dialect.</p>
 
-<p>We have added additional extensions to
-make it easy to leverage Beam’s unified batch/streaming model and support
-for complex data types.</p>
+<p>Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects, including Beam Calcite SQL.</p>
 
 <h2 id="query-syntax">Query syntax</h2>
-<p>Query statements scan one or more tables or expressions and return the computed result rows.
-The <a href="/documentation/dsls/sql/calcite/query-syntax">Query syntax</a> page describes Beam SQL’s syntax for queries when using Apache Calcite.</p>
+<p>Query statements scan one or more tables or expressions and return the computed result rows. For more information about query statements in Beam Calcite SQL, see the <a href="/documentation/dsls/sql/calcite/query-syntax">Query syntax</a> reference.</p>
 
 <h2 id="lexical-structure">Lexical structure</h2>
-<p>A Beam SQL statement comprises a series of tokens. 
-The <a href="/documentation/dsls/sql/calcite/lexical">Lexical structure</a> page documents Beam SQL’s lexical structure when using Apache Calcite.</p>
+<p>A Beam SQL statement comprises a series of tokens. For more information about tokens in Beam Calcite SQL, see the <a href="/documentation/dsls/sql/calcite/lexical">Lexical structure</a> reference.</p>
 
 <h2 id="data-types">Data types</h2>
-<p>Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows.
-Read about supported <a href="/documentation/dsls/sql/calcite/data-types">data types</a> in Beam SQL when using Apache Calcite.</p>
+<p>Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. For more information about scalar data in Beam Calcite SQL, see the <a href="/documentation/dsls/sql/calcite/data-types">Data types</a> reference.</p>
 
 <h2 id="functions-and-operators">Functions and operators</h2>
-<p>The following table summarizes Apache Calcite operators and functions supported by Beam SQL.</p>
+<p>The following table summarizes the Apache Calcite functions and operators supported by Beam Calcite SQL.</p>
 
 <table class="table-bordered table-striped">
   <tr><th>Operators and functions</th><th>Beam SQL support status</th></tr>
