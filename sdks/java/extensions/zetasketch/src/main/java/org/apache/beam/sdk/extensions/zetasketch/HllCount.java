@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.zetasketch;
 
 import com.google.zetasketch.HyperLogLogPlusPlus;
+import java.nio.ByteBuffer;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -106,6 +108,23 @@ public final class HllCount {
 
   // Cannot be instantiated. This class is intended to be a namespace only.
   private HllCount() {}
+
+  /**
+   * Converts the passed-in sketch from {@code ByteBuffer} to {@code byte[]}, mapping {@code null
+   * ByteBuffer}s (representing empty sketches) to empty {@code byte[]}s.
+   *
+   * <p>Utility method to convert sketches materialized with ZetaSQL/BigQuery to valid inputs for
+   * Beam {@code HllCount} transforms.
+   */
+  public static byte[] getSketchFromByteBuffer(@Nullable ByteBuffer bf) {
+    if (bf == null) {
+      return new byte[0];
+    } else {
+      byte[] result = new byte[bf.remaining()];
+      bf.get(result);
+      return result;
+    }
+  }
 
   /**
    * Provides {@code PTransform}s to aggregate inputs into HLL++ sketches. The four supported input
