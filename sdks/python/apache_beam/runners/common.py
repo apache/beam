@@ -245,6 +245,9 @@ class DoFnSignature(object):
     self.create_tracker_method = (
         MethodWrapper(restriction_provider, 'create_tracker')
         if restriction_provider else None)
+    self.create_tracker_operator_method = (
+        MethodWrapper(restriction_provider, 'create_tracker_operator')
+        if restriction_provider else None)
     self.split_method = (
         MethodWrapper(restriction_provider, 'split')
         if restriction_provider else None)
@@ -554,8 +557,10 @@ class PerWindowInvoker(DoFnInvoker):
     if self.is_splittable and not restriction_tracker:
       restriction = self.invoke_initial_restriction(windowed_value.value)
       restriction_tracker = self.invoke_create_tracker(restriction)
+      restriction_tracker_operator = self.invoke_create_tracker_operator(restriction_tracker)
+      restriction_operation_wrapper = RestrictionOperationWrapper(restriction_tracker, restriction_tracker_operator)
 
-    if restriction_tracker:
+    if restriction_operation_wrapper:
       if len(windowed_value.windows) > 1 and self.has_windowed_inputs:
         # Should never get here due to window explosion in
         # the upstream pair-with-restriction.
@@ -570,7 +575,7 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs[restriction_tracker_param] = restriction_tracker
       try:
         self.current_windowed_value = windowed_value
-        self.restriction_tracker = restriction_tracker
+        self.restriction_tracker = restriction_operation_wrapper
         return self._invoke_process_per_window(
             windowed_value, additional_args, additional_kwargs,
             output_processor)
