@@ -61,8 +61,8 @@ public class SamzaDoFnRunners {
       SamzaPipelineOptions pipelineOptions,
       DoFn<InT, FnOutT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
-      String stepName,
-      String stateId,
+      String transformFullName,
+      String transformId,
       Context context,
       TupleTag<FnOutT> mainOutputTag,
       SideInputHandler sideInputHandler,
@@ -80,7 +80,7 @@ public class SamzaDoFnRunners {
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stateId, keyCoder, context.getTaskContext(), pipelineOptions, signature);
+            transformId, keyCoder, context.getTaskContext(), pipelineOptions, signature);
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
@@ -112,7 +112,7 @@ public class SamzaDoFnRunners {
     final DoFnRunner<InT, FnOutT> doFnRunnerWithMetrics =
         pipelineOptions.getEnableMetrics()
             ? DoFnRunnerWithMetrics.wrap(
-                underlyingRunner, executionContext.getMetricsContainer(), stepName)
+                underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
             : underlyingRunner;
 
     if (keyedInternals != null) {
@@ -168,14 +168,14 @@ public class SamzaDoFnRunners {
       TupleTag<FnOutT> mainOutputTag,
       Map<String, TupleTag<?>> idToTupleTagMap,
       Context context,
-      String stepName) {
+      String transformFullName) {
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
     final DoFnRunner<InT, FnOutT> sdkHarnessDoFnRunner =
         new SdkHarnessDoFnRunner<>(
             outputManager, stageBundleFactory, mainOutputTag, idToTupleTagMap);
     return DoFnRunnerWithMetrics.wrap(
-        sdkHarnessDoFnRunner, executionContext.getMetricsContainer(), stepName);
+        sdkHarnessDoFnRunner, executionContext.getMetricsContainer(), transformFullName);
   }
 
   private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
