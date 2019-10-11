@@ -17,10 +17,15 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator.Feature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Message.Builder;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
@@ -41,30 +46,40 @@ import org.slf4j.LoggerFactory;
  *       </ul>
  *   <li>BEAM-PIPELINE/
  *       <ul>
- *         <li>pipeline.json
- *         <li>pipeline-options.json
- *       </ul>
- *   <li>BEAM-ARTIFACT-STAGING/
- *       <ul>
- *         <li>artifact-manifest.json
- *         <li>artifacts/
+ *         <li>pipeline-manifest.json
+ *         <li>[1st pipeline (default)]
  *             <ul>
- *               <li>...artifact files...
+ *               <li>pipeline.json
+ *               <li>pipeline-options.json
+ *               <li>artifact-manifest.json
+ *               <li>artifacts/
+ *                   <ul>
+ *                     <li>...artifact files...
+ *                   </ul>
  *             </ul>
- *       </ul>
+ *         <li>[nth pipeline]
+ *             <ul>
+ *               Same as above
+ *         </ul>
+ *   </ul>
  *   <li>...Java classes...
  * </ul>
  */
 public abstract class PortablePipelineJarUtils {
-  private static final String ARTIFACT_STAGING_FOLDER_PATH = "BEAM-ARTIFACT-STAGING";
-  static final String ARTIFACT_FOLDER_PATH = ARTIFACT_STAGING_FOLDER_PATH + "/artifacts";
-  private static final String PIPELINE_FOLDER_PATH = "BEAM-PIPELINE";
-  public static final String ARTIFACT_MANIFEST_PATH =
-      ARTIFACT_STAGING_FOLDER_PATH + "/artifact-manifest.json";
-  static final String PIPELINE_PATH = PIPELINE_FOLDER_PATH + "/pipeline.json";
-  static final String PIPELINE_OPTIONS_PATH = PIPELINE_FOLDER_PATH + "/pipeline-options.json";
+  private static final String ARTIFACT_FOLDER = "artifacts";
+  private static final String PIPELINE_FOLDER = "BEAM-PIPELINE";
+  private static final String ARTIFACT_MANIFEST = "artifact-manifest.json";
+  private static final String PIPELINE = "pipeline.json";
+  private static final String PIPELINE_OPTIONS = "pipeline-options.json";
+  private static final String PIPELINE_MANIFEST = PIPELINE_FOLDER + "/pipeline-manifest.json";
 
-  private static final Logger LOG = LoggerFactory.getLogger(PortablePipelineJarCreator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PortablePipelineJarUtils.class);
+  private static final ObjectMapper OBJECT_MAPPER =
+      new ObjectMapper(new JsonFactory().configure(Feature.AUTO_CLOSE_TARGET, false));
+
+  private static class PipelineManifest {
+    public String defaultJobName;
+  }
 
   private static InputStream getResourceFromClassPath(String resourcePath) throws IOException {
     InputStream inputStream =
@@ -84,15 +99,47 @@ public abstract class PortablePipelineJarUtils {
     }
   }
 
-  public static Pipeline getPipelineFromClasspath() throws IOException {
+  public static Pipeline getPipelineFromClasspath(String jobName) throws IOException {
     Pipeline.Builder builder = Pipeline.newBuilder();
-    parseJsonResource(PIPELINE_PATH, builder);
+    parseJsonResource(getPipelineUri(jobName), builder);
     return builder.build();
   }
 
-  public static Struct getPipelineOptionsFromClasspath() throws IOException {
+  public static Struct getPipelineOptionsFromClasspath(String jobName) throws IOException {
     Struct.Builder builder = Struct.newBuilder();
-    parseJsonResource(PIPELINE_OPTIONS_PATH, builder);
+    parseJsonResource(getPipelineOptionsUri(jobName), builder);
     return builder.build();
+  }
+
+  public static String getArtifactManifestUri(String jobName) {
+    return PIPELINE_FOLDER + "/" + jobName + "/" + ARTIFACT_MANIFEST;
+  }
+
+  static String getPipelineUri(String jobName) {
+    return PIPELINE_FOLDER + "/" + jobName + "/" + PIPELINE;
+  }
+
+  static String getPipelineOptionsUri(String jobName) {
+    return PIPELINE_FOLDER + "/" + jobName + "/" + PIPELINE_OPTIONS;
+  }
+
+  static String getArtifactUri(String jobName, String artifactId) {
+    return PIPELINE_FOLDER + "/" + jobName + "/" + ARTIFACT_FOLDER + "/" + artifactId;
+  }
+
+  public static String getDefaultJobName() throws IOException {
+    try (InputStream inputStream = getResourceFromClassPath(PIPELINE_MANIFEST)) {
+      PipelineManifest pipelineManifest =
+          OBJECT_MAPPER.readValue(inputStream, PipelineManifest.class);
+      return pipelineManifest.defaultJobName;
+    }
+  }
+
+  public static void writeDefaultJobName(JarOutputStream outputStream, String jobName)
+      throws IOException {
+    outputStream.putNextEntry(new JarEntry(PIPELINE_MANIFEST));
+    PipelineManifest pipelineManifest = new PipelineManifest();
+    pipelineManifest.defaultJobName = jobName;
+    OBJECT_MAPPER.writeValue(outputStream, pipelineManifest);
   }
 }
