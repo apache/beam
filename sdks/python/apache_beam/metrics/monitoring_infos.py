@@ -300,6 +300,13 @@ def parse_namespace_and_name(monitoring_info_proto):
   return split[0], split[1]
 
 
+def get_step_name(monitoring_info_proto):
+  """Returns a step name for the given monitoring info or None if step name
+  cannot be specified."""
+  # Right now only metrics that have a PTRANSFORM are taken into account
+  return monitoring_info_proto.labels.get(PTRANSFORM_LABEL)
+
+
 def to_key(monitoring_info_proto):
   """Returns a key based on the URN and labels.
 
