@@ -211,7 +211,7 @@ class SimplifiedKinesisClient {
     } catch (ExpiredIteratorException e) {
       throw e;
     } catch (LimitExceededException | ProvisionedThroughputExceededException e) {
-      throw new TransientKinesisException(
+      throw new KinesisClientThrottledException(
           "Too many requests to Kinesis. Wait some time and retry.", e);
     } catch (AmazonServiceException e) {
       if (e.getErrorType() == AmazonServiceException.ErrorType.Service) {

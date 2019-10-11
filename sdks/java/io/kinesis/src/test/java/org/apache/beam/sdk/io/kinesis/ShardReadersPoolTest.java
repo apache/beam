@@ -54,7 +54,8 @@ public class ShardReadersPoolTest {
   @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock private SimplifiedKinesisClient kinesis;
   @Mock private KinesisRecord a, b, c, d;
-  @Mock private WatermarkPolicyFactory factory;
+  @Mock private WatermarkPolicyFactory watermarkPolicyFactory;
+  @Mock private RateLimitPolicyFactory rateLimitPolicyFactory;
 
   private KinesisReaderCheckpoint checkpoint;
   private ShardReadersPool shardReadersPool;
@@ -75,12 +76,18 @@ public class ShardReadersPoolTest {
     when(thirdIterator.getShardId()).thenReturn("shard3");
     when(fourthIterator.getShardId()).thenReturn("shard4");
 
-    WatermarkPolicy policy = WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+    WatermarkPolicy watermarkPolicy =
+        WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+    RateLimitPolicy rateLimitPolicy = RateLimitPolicyFactory.withoutLimiter().getRateLimitPolicy();
 
     checkpoint = new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint, factory, 100));
+    shardReadersPool =
+        Mockito.spy(
+            new ShardReadersPool(
+                kinesis, checkpoint, watermarkPolicyFactory, rateLimitPolicyFactory, 100));
 
-    when(factory.createWatermarkPolicy()).thenReturn(policy);
+    when(watermarkPolicyFactory.createWatermarkPolicy()).thenReturn(watermarkPolicy);
+    when(rateLimitPolicyFactory.getRateLimitPolicy()).thenReturn(rateLimitPolicy);
 
     doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
     doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
@@ -178,8 +185,10 @@ public class ShardReadersPoolTest {
         new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
 
     WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    RateLimitPolicyFactory rateLimitPolicyFactory = RateLimitPolicyFactory.withoutLimiter();
     ShardReadersPool shardReadersPool =
-        new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory, 2);
+        new ShardReadersPool(
+            kinesis, checkpoint, watermarkPolicyFactory, rateLimitPolicyFactory, 2);
     shardReadersPool.start();
 
     Stopwatch stopwatch = Stopwatch.createStarted();
@@ -237,12 +246,14 @@ public class ShardReadersPoolTest {
   public void shouldReturnAbsentOptionalWhenStartedWithNoIterators() throws Exception {
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(Collections.emptyList());
     WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    RateLimitPolicyFactory rateLimitPolicyFactory = RateLimitPolicyFactory.withoutLimiter();
     shardReadersPool =
         Mockito.spy(
             new ShardReadersPool(
                 kinesis,
                 checkpoint,
                 watermarkPolicyFactory,
+                rateLimitPolicyFactory,
                 ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD));
     doReturn(firstIterator)
         .when(shardReadersPool)

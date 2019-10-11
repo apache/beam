@@ -239,6 +239,7 @@ public final class KinesisIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setUpToDateThreshold(Duration.ZERO)
         .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
+        .setRateLimitPolicyFactory(RateLimitPolicyFactory.withoutLimiter())
         .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD)
         .build();
   }
@@ -273,6 +274,8 @@ public final class KinesisIO {
 
     abstract WatermarkPolicyFactory getWatermarkPolicyFactory();
 
+    abstract RateLimitPolicyFactory getRateLimitPolicyFactory();
+
     abstract Integer getMaxCapacityPerShard();
 
     abstract Builder toBuilder();
@@ -295,6 +298,8 @@ public final class KinesisIO {
       abstract Builder setRequestRecordsLimit(Integer limit);
 
       abstract Builder setWatermarkPolicyFactory(WatermarkPolicyFactory watermarkPolicyFactory);
+
+      abstract Builder setRateLimitPolicyFactory(RateLimitPolicyFactory rateLimitPolicyFactory);
 
       abstract Builder setMaxCapacityPerShard(Integer maxCapacity);
 
@@ -425,6 +430,35 @@ public final class KinesisIO {
       return toBuilder().setWatermarkPolicyFactory(watermarkPolicyFactory).build();
     }
 
+    /**
+     * Specifies the rate limit policy as FixedDelayRateLimiter with the default delay of 1 second.
+     */
+    public Read withFixedDelayRateLimitPolicy() {
+      return toBuilder().setRateLimitPolicyFactory(RateLimitPolicyFactory.withFixedDelay()).build();
+    }
+
+    /**
+     * Specifies the rate limit policy as FixedDelayRateLimiter with the given delay.
+     *
+     * @param delay Denotes the fixed delay duration.
+     */
+    public Read withFixedDelayRateLimitPolicy(Duration delay) {
+      checkArgument(delay != null, "delay cannot be null");
+      return toBuilder()
+          .setRateLimitPolicyFactory(RateLimitPolicyFactory.withFixedDelay(delay))
+          .build();
+    }
+
+    /**
+     * Specifies the {@code RateLimitPolicyFactory} for a custom rate limiter.
+     *
+     * @param rateLimitPolicyFactory Custom rate limit policy factory.
+     */
+    public Read withCustomRateLimitPolicy(RateLimitPolicyFactory rateLimitPolicyFactory) {
+      checkArgument(rateLimitPolicyFactory != null, "rateLimitPolicyFactory cannot be null");
+      return toBuilder().setRateLimitPolicyFactory(rateLimitPolicyFactory).build();
+    }
+
     /** Specifies the maximum number of messages per one shard. */
     public Read withMaxCapacityPerShard(Integer maxCapacity) {
       checkArgument(maxCapacity > 0, "maxCapacity must be positive, but was: %s", maxCapacity);
@@ -441,6 +475,7 @@ public final class KinesisIO {
                   getInitialPosition(),
                   getUpToDateThreshold(),
                   getWatermarkPolicyFactory(),
+                  getRateLimitPolicyFactory(),
                   getRequestRecordsLimit(),
                   getMaxCapacityPerShard()));
 
