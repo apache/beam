@@ -519,6 +519,12 @@ def _to_decimal(value):
   return decimal.Decimal(value)
 
 
+def _to_bytes(value):
+  """Converts value from str to bytes on Python 3.x. Does nothing on
+  Python 2.7."""
+  return value.encode('utf-8')
+
+
 class _BigQueryRowCoder(coders.Coder):
   """A coder for a table row (represented as a dict) from a JSON string which
   applies additional conversions.
@@ -535,6 +541,7 @@ class _BigQueryRowCoder(coders.Coder):
         'FLOAT': float,
         'BOOLEAN': _to_bool,
         'NUMERIC': _to_decimal,
+        'BYTES': _to_bytes,
     }
 
   def decode(self, value):
