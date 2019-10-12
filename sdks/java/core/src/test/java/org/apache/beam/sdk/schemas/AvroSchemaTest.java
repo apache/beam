@@ -20,9 +20,9 @@ package org.apache.beam.sdk.schemas;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.ByteBuffer;
-import java.time.temporal.ChronoUnit;
 import java.time.Month;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
