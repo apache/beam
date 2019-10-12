@@ -261,6 +261,7 @@ public class AvroSchemaTest {
       new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4);
   private static final LocalDate DATE = new LocalDate(1979, 3, 14);
   private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
+
   private static final TestAvro AVRO_SPECIFIC_RECORD =
       new TestAvro(
           true,
@@ -271,7 +272,7 @@ public class AvroSchemaTest {
           "mystring",
           ByteBuffer.wrap(BYTE_ARRAY),
           new fixed4(BYTE_ARRAY),
-          DATE,
+          java.time.LocalDate.from(DATE),
           DATE_TIME,
           TestEnum.abc,
           AVRO_NESTED_SPECIFIC_RECORD,
