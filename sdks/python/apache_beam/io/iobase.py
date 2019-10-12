@@ -32,6 +32,7 @@ the sink.
 from __future__ import absolute_import
 from __future__ import division
 
+import datetime
 import logging
 import math
 import random
@@ -1281,6 +1282,50 @@ class RestrictionTracker(object):
     ``ProcessContinuation``.
     """
     raise NotImplementedError
+
+
+class RestrictionTrackerDnFnWrapper(object):
+  def __init__(self, lock, restriction_tracker):
+    self._lock = lock
+    self._restriction_tracker = restriction_tracker
+
+  def current_restriction(self):
+    with self._lock:
+      return self._restriction_tracker.current_restriction()
+
+  def try_claim(self, position):
+    with self._lock:
+      return self._restriction_tracker.try_claim(position)
+
+  def defer_remainder(self, timestamp):
+    if timestamp is None:
+      timestamp = datetime.timedelta(microseconds=0)
+    elif (not isinstance(timestamp, datetime.datetime) and
+          not isinstance(timestamp, datetime.timedelta)):
+      raise TypeError('The timestamp of deter_remainder() should either be a datetime or timedelta.')
+    with self._lock:
+      self._restriction_tracker.defer_remainder(timestamp)
+
+
+class RestrictionTrackerHarnessWrapper(object):
+  def __init__(self, lock, restriction_tracker):
+    self._lock = lock
+    self._restriction_tracker = restriction_tracker
+
+  def check_done(self):
+    with self._lock:
+      self._restriction_tracker.check_done()
+
+  def current_progress(self):
+    with self._lock:
+      return self._restriction_tracker.current_progress()
+
+  def try_split(self, fraction_of_remainder):
+    with self._lock:
+      return self._restriction_tracker.try_split(fraction_of_remainder)
+
+  def deferred_status(self):
+    return self._restriction_tracker.deferred_status()
 
 
 class RestrictionProgress(object):

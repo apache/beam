@@ -25,6 +25,8 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import traceback
+import threading
+
 from builtins import next
 from builtins import object
 from builtins import zip
@@ -458,7 +460,9 @@ class PerWindowInvoker(DoFnInvoker):
         signature.is_stateful_dofn())
     self.user_state_context = user_state_context
     self.is_splittable = signature.is_splittable_dofn()
-    self.restriction_tracker = None
+    self.restriction_lock = threading.lock()
+    self.dofn_restriction_tracker = None
+    self.harness_restriction_tracker = None
     self.current_windowed_value = None
     self.bundle_finalizer_param = bundle_finalizer_param
     self.is_key_param_required = False
@@ -561,21 +565,25 @@ class PerWindowInvoker(DoFnInvoker):
         # the upstream pair-with-restriction.
         raise NotImplementedError(
             'SDFs in multiply-windowed values with windowed arguments.')
-      restriction_tracker_param = (
-          self.signature.process_method.restriction_provider_arg_name)
-      if not restriction_tracker_param:
-        raise ValueError(
-            'A RestrictionTracker %r was provided but DoFn does not have a '
-            'RestrictionTrackerParam defined' % restriction_tracker)
-      additional_kwargs[restriction_tracker_param] = restriction_tracker
       try:
         self.current_windowed_value = windowed_value
-        self.restriction_tracker = restriction_tracker
+        self.dofn_restriction_tracker = RestrictionTrackerDnFnWrapper(
+            self.restriction_lock, restriction_tracker)
+        self.harness_restriction_tracker = RestrictionTrackerHarnessWrapper(
+            self.restriction_lock, restriction_tracker)
+        restriction_tracker_param = (
+            self.signature.process_method.restriction_provider_arg_name)
+        if not restriction_tracker_param:
+          raise ValueError(
+              'A RestrictionTracker %r was provided but DoFn does not have a '
+              'RestrictionTrackerParam defined' % restriction_tracker)
+        additional_kwargs[restriction_tracker_param] = self.dofn_restriction_tracker
         return self._invoke_process_per_window(
             windowed_value, additional_args, additional_kwargs,
             output_processor)
       finally:
-        self.restriction_tracker = None
+        self.dofn_restriction_tracker = None
+        self.harness_restriction_tracker = None
         self.current_windowed_value = windowed_value
 
     elif self.has_windowed_inputs and len(windowed_value.windows) != 1:
@@ -660,7 +668,7 @@ class PerWindowInvoker(DoFnInvoker):
           windowed_value, self.process_method(*args_for_process))
 
     if self.is_splittable:
-      deferred_status = self.restriction_tracker.deferred_status()
+      deferred_status = self.harness_restriction_tracker.deferred_status()
       if deferred_status:
         deferred_restriction, deferred_watermark = deferred_status
         element = windowed_value.value
@@ -671,7 +679,7 @@ class PerWindowInvoker(DoFnInvoker):
             deferred_watermark)
 
   def try_split(self, fraction):
-    restriction_tracker = self.restriction_tracker
+    restriction_tracker = self.harness_restriction_tracker
     current_windowed_value = self.current_windowed_value
     if restriction_tracker and current_windowed_value:
       # Temporary workaround for [BEAM-7473]: get current_watermark before
@@ -694,7 +702,7 @@ class PerWindowInvoker(DoFnInvoker):
              current_watermark))
 
   def current_element_progress(self):
-    restriction_tracker = self.restriction_tracker
+    restriction_tracker = self.harness_restriction_tracker
     if restriction_tracker:
       return restriction_tracker.current_progress()
 
