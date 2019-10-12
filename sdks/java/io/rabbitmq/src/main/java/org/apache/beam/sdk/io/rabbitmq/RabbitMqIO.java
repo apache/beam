@@ -71,8 +71,8 @@ import org.joda.time.Instant;
  * instead of directly from a queue:
  *
  * <pre>{@code
- * PCollection<RabbitMqMessage> messages = pipeline.apply(
- *   RabbitMqIO.read().withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE"));
+ * 	PCollection<RabbitMqMessage> messages = pipeline.apply(RabbitMqIO.read()
+ * 			.withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE"));
  * }</pre>
  *
  * <h3>Publishing messages to RabbitMQ server</h3>
