@@ -33,7 +33,11 @@ public class RowCoder extends SchemaCoder<Row> {
   }
 
   private RowCoder(Schema schema) {
-    super(schema, TypeDescriptors.rows(), SerializableFunctions.identity(), SerializableFunctions.identity());
+    super(
+        schema,
+        TypeDescriptors.rows(),
+        SerializableFunctions.identity(),
+        SerializableFunctions.identity());
   }
 
   @Override
