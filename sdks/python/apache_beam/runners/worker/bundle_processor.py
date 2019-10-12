@@ -199,26 +199,19 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class _StateBackedIterable(object):
-  def __init__(self, state_handler, state_key, coder_or_impl):
+  def __init__(self, state_handler, state_key, coder_or_impl,
+               is_cached=False):
     self._state_handler = state_handler
     self._state_key = state_key
     if isinstance(coder_or_impl, coders.Coder):
       self._coder_impl = coder_or_impl.get_impl()
     else:
       self._coder_impl = coder_or_impl
+    self._is_cached = is_cached
 
   def __iter__(self):
-    # This is the continuation token this might be useful
-    data, continuation_token = self._state_handler.blocking_get(self._state_key)
-    while True:
-      input_stream = coder_impl.create_InputStream(data)
-      while input_stream.size() > 0:
-        yield self._coder_impl.decode_from_stream(input_stream, True)
-      if not continuation_token:
-        break
-      else:
-        data, continuation_token = self._state_handler.blocking_get(
-            self._state_key, continuation_token)
+    return self._state_handler.blocking_get(
+        self._state_key, self._coder_impl, is_cached=self._is_cached)
 
   def __reduce__(self):
     return list, (list(self),)
@@ -244,7 +237,7 @@ class StateBackedSideInputMap(object):
     if target_window not in self._cache:
       state_key = beam_fn_api_pb2.StateKey(
           multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-              ptransform_id=self._transform_id,
+              transform_id=self._transform_id,
               side_input_id=self._tag,
               window=self._target_window_coder.encode(target_window),
               key=b''))
@@ -294,6 +287,7 @@ class StateBackedSideInputMap(object):
 
 
 class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
+
   def __init__(self, underlying_bag_state, combinefn):
     self._combinefn = combinefn
     self._underlying_bag_state = underlying_bag_state
@@ -347,8 +341,8 @@ class _ConcatIterable(object):
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
-# TODO(BEAM-5428): Implement cross-bundle state caching.
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
+
   def __init__(self, state_handler, state_key, value_coder):
     self._state_handler = state_handler
     self._state_key = state_key
@@ -359,7 +353,8 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def read(self):
     return _ConcatIterable(
         [] if self._cleared else _StateBackedIterable(
-            self._state_handler, self._state_key, self._value_coder),
+            self._state_handler, self._state_key, self._value_coder,
+            is_cached=True),
         self._added_elements)
 
   def add(self, value):
@@ -370,17 +365,20 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
     self._added_elements = []
 
   def _commit(self):
+    to_await = None
     if self._cleared:
-      self._state_handler.blocking_clear(self._state_key)
+      to_await = self._state_handler.clear(self._state_key, is_cached=True)
     if self._added_elements:
-      value_coder_impl = self._value_coder.get_impl()
-      out = coder_impl.create_OutputStream()
-      for element in self._added_elements:
-        value_coder_impl.encode_to_stream(element, out, True)
-      self._state_handler.blocking_append(self._state_key, out.get())
+      to_await = self._state_handler.extend(
+          self._state_key,
+          self._value_coder.get_impl(),
+          self._added_elements,
+          is_cached=True)
+    if to_await:
+      # To commit, we need to wait on the last state request future to complete.
+      to_await.get()
 
 
-# TODO(BEAM-5428): Implement cross-bundle state caching.
 class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
   def __init__(self, state_handler, state_key, value_coder):
@@ -393,17 +391,17 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
   def _compact_data(self, rewrite=True):
     accumulator = set(_ConcatIterable(
         set() if self._cleared else _StateBackedIterable(
-            self._state_handler, self._state_key, self._value_coder),
+            self._state_handler, self._state_key, self._value_coder,
+            is_cached=True),
         self._added_elements))
 
     if rewrite and accumulator:
-      self._state_handler.blocking_clear(self._state_key)
-
-      value_coder_impl = self._value_coder.get_impl()
-      out = coder_impl.create_OutputStream()
-      for element in accumulator:
-        value_coder_impl.encode_to_stream(element, out, True)
-      self._state_handler.blocking_append(self._state_key, out.get())
+      self._state_handler.clear(self._state_key, is_cached=True)
+      self._state_handler.extend(
+          self._state_key,
+          self._value_coder.get_impl(),
+          accumulator,
+          is_cached=True)
 
       # Since everthing is already committed so we can safely reinitialize
       # added_elements here.
@@ -417,7 +415,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
   def add(self, value):
     if self._cleared:
       # This is a good time explicitly clear.
-      self._state_handler.blocking_clear(self._state_key)
+      self._state_handler.clear(self._state_key, is_cached=True)
       self._cleared = False
 
     self._added_elements.add(value)
@@ -430,13 +428,13 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
   def _commit(self):
     if self._cleared:
-      self._state_handler.blocking_clear(self._state_key)
+      self._state_handler.clear(self._state_key, is_cached=True).get()
     if self._added_elements:
-      value_coder_impl = self._value_coder.get_impl()
-      out = coder_impl.create_OutputStream()
-      for element in self._added_elements:
-        value_coder_impl.encode_to_stream(element, out, True)
-      self._state_handler.blocking_append(self._state_key, out.get())
+      self._state_handler.extend(
+          self._state_key,
+          self._value_coder.get_impl(),
+          self._added_elements,
+          is_cached=True).get()
 
 
 class OutputTimer(object):
@@ -505,10 +503,11 @@ class FnApiUserStateContext(userstate.UserStateContext):
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
-                  ptransform_id=self._transform_id,
+                  transform_id=self._transform_id,
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),
-                  key=self._key_coder.encode(key))),
+                  # State keys are expected in nested encoding format
+                  key=self._key_coder.encode_nested(key))),
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
@@ -519,10 +518,11 @@ class FnApiUserStateContext(userstate.UserStateContext):
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
-                  ptransform_id=self._transform_id,
+                  transform_id=self._transform_id,
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),
-                  key=self._key_coder.encode(key))),
+                  # State keys are expected in nested encoding format
+                  key=self._key_coder.encode_nested(key))),
           value_coder=state_spec.coder)
     else:
       raise NotImplementedError(state_spec)
@@ -660,7 +660,7 @@ class BundleProcessor(object):
         for data in data_channel.input_elements(
             instruction_id, expected_transforms):
           input_op_by_transform_id[
-              data.ptransform_id].process_encoded(data.data)
+              data.transform_id].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
@@ -707,14 +707,14 @@ class BundleProcessor(object):
                     self.delayed_bundle_application(*element_residual))
               split_response.channel_splits.extend([
                   beam_fn_api_pb2.ProcessBundleSplitResponse.ChannelSplit(
-                      ptransform_id=op.transform_id,
+                      transform_id=op.transform_id,
                       last_primary_element=primary_end,
                       first_residual_element=residual_start)])
 
     return split_response
 
   def delayed_bundle_application(self, op, deferred_remainder):
-    ptransform_id, main_input_tag, main_input_coder, outputs = op.input_info
+    transform_id, main_input_tag, main_input_coder, outputs = op.input_info
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
     element_and_restriction, watermark = deferred_remainder
     if watermark:
@@ -725,7 +725,7 @@ class BundleProcessor(object):
       output_watermarks = None
     return beam_fn_api_pb2.DelayedBundleApplication(
         application=beam_fn_api_pb2.BundleApplication(
-            ptransform_id=ptransform_id,
+            transform_id=transform_id,
             input_id=main_input_tag,
             output_watermarks=output_watermarks,
             element=main_input_coder.get_impl().encode_nested(
@@ -1121,7 +1121,8 @@ def _create_pardo_operation(
         for tag, si in pardo_proto.side_inputs.items()]
     tagged_side_inputs.sort(
         key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
-                                        tag_si[0]).group(1)))
+                                        tag_si[0],
+                                        re.DOTALL).group(1)))
     side_input_maps = [
         StateBackedSideInputMap(
             factory.state_handler,

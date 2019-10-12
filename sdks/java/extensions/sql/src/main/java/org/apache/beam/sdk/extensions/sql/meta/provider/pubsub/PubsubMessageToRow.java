@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.util.JsonToRowUtils.newObjectMapperWith;
+import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
@@ -31,9 +31,9 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.JsonToRowUtils;
 import org.apache.beam.sdk.util.RowJsonDeserializer;
 import org.apache.beam.sdk.util.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
@@ -127,7 +127,7 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
       objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema()));
     }
 
-    return JsonToRowUtils.jsonToRow(objectMapper, payloadJson);
+    return RowJsonUtils.jsonToRow(objectMapper, payloadJson);
   }
 
   @AutoValue.Builder

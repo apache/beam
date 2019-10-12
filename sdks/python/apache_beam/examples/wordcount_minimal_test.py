@@ -44,9 +44,10 @@ class WordCountMinimalTest(unittest.TestCase):
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'\w+', self.SAMPLE_TEXT):
       expected_words[word] += 1
-    wordcount_minimal.run([
-        '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path])
+    wordcount_minimal.run(
+        ['--input=%s*' % temp_path,
+         '--output=%s.result' % temp_path],
+        save_main_session=False)
     # Parse result file and compare.
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:

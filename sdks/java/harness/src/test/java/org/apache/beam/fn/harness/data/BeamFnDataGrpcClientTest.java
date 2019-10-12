@@ -77,8 +77,8 @@ public class BeamFnDataGrpcClientTest {
           BeamFnApi.Elements.newBuilder()
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
-                      .setInstructionReference(ENDPOINT_A.getInstructionId())
-                      .setPtransformId(ENDPOINT_A.getPTransformId())
+                      .setInstructionId(ENDPOINT_A.getInstructionId())
+                      .setTransformId(ENDPOINT_A.getTransformId())
                       .setData(
                           ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("ABC")))
                               .concat(
@@ -89,22 +89,22 @@ public class BeamFnDataGrpcClientTest {
           BeamFnApi.Elements.newBuilder()
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
-                      .setInstructionReference(ENDPOINT_A.getInstructionId())
-                      .setPtransformId(ENDPOINT_A.getPTransformId())
+                      .setInstructionId(ENDPOINT_A.getInstructionId())
+                      .setTransformId(ENDPOINT_A.getTransformId())
                       .setData(
                           ByteString.copyFrom(
                               encodeToByteArray(CODER, valueInGlobalWindow("GHI")))))
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
-                      .setInstructionReference(ENDPOINT_A.getInstructionId())
-                      .setPtransformId(ENDPOINT_A.getPTransformId()))
+                      .setInstructionId(ENDPOINT_A.getInstructionId())
+                      .setTransformId(ENDPOINT_A.getTransformId()))
               .build();
       ELEMENTS_B_1 =
           BeamFnApi.Elements.newBuilder()
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
-                      .setInstructionReference(ENDPOINT_B.getInstructionId())
-                      .setPtransformId(ENDPOINT_B.getPTransformId())
+                      .setInstructionId(ENDPOINT_B.getInstructionId())
+                      .setTransformId(ENDPOINT_B.getTransformId())
                       .setData(
                           ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("JKL")))
                               .concat(
@@ -112,8 +112,8 @@ public class BeamFnDataGrpcClientTest {
                                       encodeToByteArray(CODER, valueInGlobalWindow("MNO"))))))
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
-                      .setInstructionReference(ENDPOINT_B.getInstructionId())
-                      .setPtransformId(ENDPOINT_B.getPTransformId()))
+                      .setInstructionId(ENDPOINT_B.getInstructionId())
+                      .setTransformId(ENDPOINT_B.getTransformId()))
               .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);

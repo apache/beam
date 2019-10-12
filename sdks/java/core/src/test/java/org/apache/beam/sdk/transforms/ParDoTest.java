@@ -2294,6 +2294,64 @@ public class ParDoTest implements Serializable {
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));
       pipeline.run();
     }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
+    public void testStateSideInput() {
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+      pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
+      final PCollectionView<Integer> sideInput =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2))
+              .apply("ViewSideInput1", View.asSingleton());
+
+      TestSimpleStatefulDoFn fn = new TestSimpleStatefulDoFn(sideInput);
+      pipeline
+          .apply(Create.of(KV.of(1, 2)))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput));
+
+      pipeline.run();
+    }
+
+    private static class TestSimpleStatefulDoFn extends DoFn<KV<Integer, Integer>, Integer> {
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+      private final PCollectionView<Integer> view;
+
+      final String stateId = "foo";
+      Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+      @StateId(stateId)
+      private final StateSpec<BagState<MyInteger>> bufferState = StateSpecs.bag();
+
+      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {
+        this.view = view;
+      }
+
+      @ProcessElement
+      public void processElem(
+          ProcessContext c,
+          @SideInput(sideInputTag1) Integer sideInputTag,
+          @StateId(stateId) BagState<MyInteger> state) {
+        state.add(new MyInteger(sideInputTag));
+        c.output(sideInputTag);
+      }
+
+      @Override
+      public boolean equals(Object other) {
+        return other instanceof TestSimpleStatefulDoFn;
+      }
+
+      @Override
+      public int hashCode() {
+        return getClass().hashCode();
+      }
+    }
   }
 
   /** Tests for state coder inference behaviors. */

@@ -348,7 +348,7 @@ public class DataflowWorkerLoggingHandlerTest {
         .setLogLocation("LoggerName")
         .setSeverity(BeamFnApi.LogEntry.Severity.Enum.INFO)
         .setMessage(message)
-        .setInstructionReference("1")
+        .setInstructionId("1")
         .setThread("2")
         .setTimestamp(Timestamp.newBuilder().setSeconds(0).setNanos(1 * 1000000))
         .build();

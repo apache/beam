@@ -220,7 +220,7 @@ public class ProcessBundleHandler {
     // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
     QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
 
-    String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
+    String bundleId = request.getProcessBundle().getProcessBundleDescriptorId();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
@@ -264,13 +264,13 @@ public class ProcessBundleHandler {
             // Reset primaries and accumulate residuals.
             Multimap<String, BundleApplication> newPrimaries = ArrayListMultimap.create();
             for (BundleApplication primary : primaries) {
-              newPrimaries.put(primary.getPtransformId(), primary);
+              newPrimaries.put(primary.getTransformId(), primary);
             }
             allPrimaries.clear();
             allPrimaries.putAll(newPrimaries);
 
             for (DelayedBundleApplication residual : residuals) {
-              allResiduals.put(residual.getApplication().getPtransformId(), residual);
+              allResiduals.put(residual.getApplication().getTransformId(), residual);
             }
           };
 

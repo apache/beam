@@ -240,7 +240,7 @@ class UserSessionActivity(beam.DoFn):
     yield (window.end.micros - window.start.micros)//1000000
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   """Main entry point; defines and runs the hourly_team_score pipeline."""
   parser = argparse.ArgumentParser()
 
@@ -296,7 +296,7 @@ def run(argv=None):
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
-  options.view_as(SetupOptions).save_main_session = True
+  options.view_as(SetupOptions).save_main_session = save_main_session
 
   # Enforce that this pipeline is always run in streaming mode
   options.view_as(StandardOptions).streaming = True

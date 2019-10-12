@@ -27,7 +27,8 @@ import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
-    archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName
+    automaticModuleName: 'org.apache.beam.runners.flink',
+    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName)
 )
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
@@ -83,14 +84,7 @@ test {
   }
   // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  if (project.path == ":runners:flink:1.6") {
-    mustRunAfter(":runners:flink:1.5:test")
-  } else if (project.path == ":runners:flink:1.7") {
-    mustRunAfter(":runners:flink:1.5:test")
-    mustRunAfter(":runners:flink:1.6:test")
-  } else if (project.path == ":runners:flink:1.8") {
-    mustRunAfter(":runners:flink:1.5:test")
-    mustRunAfter(":runners:flink:1.6:test")
+  if (project.path == ":runners:flink:1.8") {
     mustRunAfter(":runners:flink:1.7:test")
   }
 }
@@ -100,12 +94,13 @@ configurations {
 }
 
 dependencies {
+  compileOnly project(":sdks:java:build-tools")
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
-  compile project(":sdks:java:build-tools")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.vendored_grpc_1_21_0
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
@@ -187,5 +182,5 @@ task validatesRunner {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:flink:1.5:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.8:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')

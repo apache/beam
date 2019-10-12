@@ -103,12 +103,33 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td>>=2.13.0</td>
+  <td rowspan="2">2.17.0</td>
   <td>1.8.x</td>
   <td>beam-runners-flink-1.8</td>
 </tr>
 <tr>
-  <td rowspan="3">>=2.10.0</td>
+  <td>1.7.x</td>
+  <td>beam-runners-flink-1.7</td>
+</tr>
+<tr>
+  <td rowspan="4">2.13.0 - 2.16.0</td>
+  <td>1.8.x</td>
+  <td>beam-runners-flink-1.8</td>
+</tr>
+<tr>
+  <td>1.7.x</td>
+  <td>beam-runners-flink-1.7</td>
+</tr>
+<tr>
+  <td>1.6.x</td>
+  <td>beam-runners-flink-1.6</td>
+</tr>
+<tr>
+  <td>1.5.x</td>
+  <td>beam-runners-flink_2.11</td>
+</tr>
+<tr>
+  <td rowspan="3">2.10.0 - 2.16.0</td>
   <td>1.7.x</td>
   <td>beam-runners-flink-1.7</td>
 </tr>
@@ -250,7 +271,7 @@ download it on the [Downloads page]({{ site.baseurl
 available. To run a pipeline on an embedded Flink cluster:
 </span>
 
-<span class="language-py">1. Start the JobService endpoint: `./gradlew :runners:flink:1.5:job-server:runShadow`
+<span class="language-py">1. Start the JobService endpoint: `./gradlew :runners:flink:1.8:job-server:runShadow`
 </span>
 
 <span class="language-py">
@@ -283,7 +304,7 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 <span class="language-py">1. Start a Flink cluster which exposes the Rest interface on `localhost:8081` by default.
 </span>
 
-<span class="language-py">2. Start JobService with Flink Rest endpoint: `./gradlew :runners:flink:1.5:job-server:runShadow -PflinkMasterUrl=localhost:8081`.
+<span class="language-py">2. Start JobService with Flink Rest endpoint: `./gradlew :runners:flink:1.8:job-server:runShadow -PflinkMasterUrl=localhost:8081`.
 </span>
 
 <span class="language-py">3. Submit the pipeline as above.

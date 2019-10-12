@@ -74,6 +74,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -121,10 +122,17 @@ public class DataflowPipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private static byte[] serializeWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) {
+  private static byte[] serializeWindowingStrategy(
+      WindowingStrategy<?, ?> windowingStrategy, PipelineOptions options) {
     try {
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+
+      String workerHarnessContainerImageURL =
+          DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
+      RunnerApi.Environment defaultEnvironmentForDataflow =
+          Environments.createDockerEnvironment(workerHarnessContainerImageURL);
+      sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
+
       return WindowingStrategyTranslation.toMessageProto(windowingStrategy, sdkComponents)
           .toByteArray();
     } catch (Exception e) {
@@ -164,7 +172,13 @@ public class DataflowPipelineTranslator {
 
     // Capture the sdkComponents for look up during step translations
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+
+    String workerHarnessContainerImageURL =
+        DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
+    RunnerApi.Environment defaultEnvironmentForDataflow =
+        Environments.createDockerEnvironment(workerHarnessContainerImageURL);
+    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
+
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
 
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(pipelineProto));
@@ -754,7 +768,8 @@ public class DataflowPipelineTranslator {
             WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
             stepContext.addInput(
                 PropertyNames.WINDOWING_STRATEGY,
-                byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
+                byteArrayToJsonString(
+                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
@@ -898,7 +913,8 @@ public class DataflowPipelineTranslator {
             stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
             stepContext.addInput(
                 PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
+                byteArrayToJsonString(
+                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
@@ -1039,7 +1055,8 @@ public class DataflowPipelineTranslator {
             stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
 
             WindowingStrategy<?, ?> strategy = context.getOutput(transform).getWindowingStrategy();
-            byte[] serializedBytes = serializeWindowingStrategy(strategy);
+            byte[] serializedBytes =
+                serializeWindowingStrategy(strategy, context.getPipelineOptions());
             String serializedJson = byteArrayToJsonString(serializedBytes);
             stepContext.addInput(PropertyNames.SERIALIZED_FN, serializedJson);
           }

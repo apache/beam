@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 
 /**
  * An interface that planners should implement to convert sql statement to {@link BeamRelNode} or

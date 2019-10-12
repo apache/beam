@@ -130,6 +130,14 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether javadoc is exported for this project. */
     boolean exportJavadoc = true
+
+    /**
+     * Automatic-Module-Name Header value to be set in MANFIEST.MF file.
+     * This is a required parameter unless publishing to Maven is disabled for this project.
+     *
+     * @see: https://github.com/GoogleCloudPlatform/cloud-opensource-java/blob/master/library-best-practices/JLBP-20.md
+     */
+    String automaticModuleName = null
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -144,6 +152,17 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
     String archivesBaseName = null;
+
+    /** Controls whether this project is published to Maven. */
+    boolean publish = true
+
+    /**
+     * Automatic-Module-Name Header value to be set in MANFIEST.MF file.
+     * This is a required parameter unless publishing to Maven is disabled for this project.
+     *
+     * @see: https://github.com/GoogleCloudPlatform/cloud-opensource-java/blob/master/library-best-practices/JLBP-20.md
+     */
+    String automaticModuleName
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -349,7 +368,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.6.0"
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.43.0"
-    def generated_grpc_dc_beta_version = "0.4.0-alpha"
+    def generated_grpc_dc_beta_version = "0.27.0-alpha"
     def google_auth_version = "0.12.0"
     def google_clients_version = "1.27.0"
     def google_cloud_bigdataoss_version = "1.9.16"
@@ -359,7 +378,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def guava_version = "20.0"
     def hadoop_version = "2.7.3"
     def hamcrest_version = "2.1"
-    def jackson_version = "2.9.9"
+    def jackson_version = "2.9.10"
     def jaxb_api_version = "2.2.12"
     def kafka_version = "1.0.0"
     def nemo_version = "0.1"
@@ -403,6 +422,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_cloudwatch                    : "software.amazon.awssdk:cloudwatch:$aws_java_sdk2_version",
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
+        aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
@@ -464,7 +484,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_annotations                         : "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
         jackson_jaxb_annotations                    : "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:$jackson_version",
         jackson_core                                : "com.fasterxml.jackson.core:jackson-core:$jackson_version",
-        jackson_databind                            : "com.fasterxml.jackson.core:jackson-databind:2.9.9.3",
+        jackson_databind                            : "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
         jackson_dataformat_cbor                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jackson_version",
         jackson_dataformat_yaml                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
         jackson_datatype_joda                       : "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
@@ -504,6 +524,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_bytebuddy_1_9_3                    : "org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1",
         vendored_grpc_1_21_0                        : "org.apache.beam:beam-vendor-grpc-1_21_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
+        vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.3.8-3",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
@@ -861,6 +882,8 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.jar {
+        setAutomaticModuleNameHeader(configuration, project)
+
         zip64 true
         into("META-INF/") {
           from "${project.rootProject.projectDir}/LICENSE"
@@ -1280,7 +1303,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntime it.project(path: ":runners:flink:1.5", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:flink:1.8", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
@@ -1457,7 +1480,9 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.applyJavaNature(
               exportJavadoc: false,
               enableSpotbugs: false,
+              publish: configuration.publish,
               archivesBaseName: configuration.archivesBaseName,
+              automaticModuleName: configuration.automaticModuleName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
               shadowClosure: GrpcVendoring.shadowClosure() << {
                 // We perform all the code relocations but don't include
@@ -1699,7 +1724,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn setupTask
           // We need flink-job-server-container dependency since Python PortableRunner automatically
           // brings the flink-job-server-container up when --job_endpoint is not specified.
-          dependsOn ':runners:flink:1.5:job-server-container:docker'
+          dependsOn ':runners:flink:1.8:job-server-container:docker'
         }
         mainTask.dependsOn pythonTask
         cleanupTask.mustRunAfter pythonTask
@@ -1881,7 +1906,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.task('portableWordCount' + (isStreaming ? 'Streaming' : 'Batch')) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
-            ':runners:flink:1.5:job-server-container:docker',
+            ':runners:flink:1.8:job-server-container:docker',
             ':sdks:python:container:py2:docker',
             ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',
@@ -1933,6 +1958,16 @@ class BeamModulePlugin implements Plugin<Project> {
         ->
         addPortableWordCountTask(false)
         addPortableWordCountTask(true)
+      }
+    }
+  }
+
+  private void setAutomaticModuleNameHeader(JavaNatureConfiguration configuration, Project project) {
+    if (configuration.publish && !configuration.automaticModuleName) {
+      throw new GradleException("Expected automaticModuleName to be set for the module that is published to maven repository.")
+    } else if (configuration.automaticModuleName) {
+      project.jar.manifest {
+        attributes 'Automatic-Module-Name': configuration.automaticModuleName
       }
     }
   }

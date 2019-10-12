@@ -24,7 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -48,7 +48,7 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
   private static final boolean nullable = true;
 
   /** Test table for JOIN-AS-LOOKUP. */
-  public static class SiteLookupTable extends BaseBeamTable implements BeamSqlSeekableTable {
+  public static class SiteLookupTable extends SchemaBaseBeamTable implements BeamSqlSeekableTable {
 
     public SiteLookupTable(Schema schema) {
       super(schema);

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
@@ -29,8 +29,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -118,7 +119,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
   }
 
-  private static class InMemoryTable implements BeamSqlTable {
+  private static class InMemoryTable extends BaseBeamTable {
     private TableWithRows tableWithRows;
 
     @Override

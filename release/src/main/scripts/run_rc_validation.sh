@@ -209,7 +209,7 @@ if [[ "$java_quickstart_flink_local" = true ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Flink local runner"
   echo "*************************************************************"
-  ./gradlew :runners:flink:1.5:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.8:runQuickstartJavaFlinkLocal \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE_VER}
 else
@@ -453,7 +453,7 @@ if [[ ("$python_leaderboard_direct" = true || \
       --topic projects/${USER_GCP_PROJECT}/topics/${SHARED_PUBSUB_TOPIC} \
       --dataset ${LEADERBOARD_DF_DATASET} \
       --runner DataflowRunner \
-      --temp_location=${MOBILE_GAME_GCS_BUCKET}/temp/ \
+      --temp_location=${USER_GCS_BUCKET}/temp/ \
       --sdk_location apache-beam-${RELEASE_VER}.zip; \
       exec bash"
 

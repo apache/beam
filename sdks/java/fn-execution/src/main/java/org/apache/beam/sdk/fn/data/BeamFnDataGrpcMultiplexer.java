@@ -127,8 +127,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
     public void onNext(BeamFnApi.Elements value) {
       for (BeamFnApi.Elements.Data data : value.getDataList()) {
         try {
-          LogicalEndpoint key =
-              LogicalEndpoint.of(data.getInstructionReference(), data.getPtransformId());
+          LogicalEndpoint key = LogicalEndpoint.of(data.getInstructionId(), data.getTransformId());
           CompletableFuture<Consumer<BeamFnApi.Elements.Data>> consumer = receiverFuture(key);
           if (!consumer.isDone()) {
             LOG.debug(
@@ -147,15 +146,15 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
         } catch (ExecutionException | InterruptedException e) {
           LOG.error(
               "Client interrupted during handling of data for instruction {} and transform {}",
-              data.getInstructionReference(),
-              data.getPtransformId(),
+              data.getInstructionId(),
+              data.getTransformId(),
               e);
           outboundObserver.onError(e);
         } catch (RuntimeException e) {
           LOG.error(
               "Client failed to handle data for instruction {} and transform {}",
-              data.getInstructionReference(),
-              data.getPtransformId(),
+              data.getInstructionId(),
+              data.getTransformId(),
               e);
           outboundObserver.onError(e);
         }

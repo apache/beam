@@ -446,6 +446,38 @@ class BytesCoderImpl(CoderImpl):
     return encoded
 
 
+class BooleanCoderImpl(CoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for bool objects."""
+
+  def encode_to_stream(self, value, out, nested):
+    out.write_byte(1 if value else 0)
+
+  def decode_from_stream(self, in_stream, nested):
+    value = in_stream.read_byte()
+    if value is 0:
+      return False
+    elif value is 1:
+      return True
+    raise ValueError("Expected 0 or 1, got %s" % value)
+
+  def encode(self, value):
+    return b'\x01' if value else b'\x00'
+
+  def decode(self, encoded):
+    value = ord(encoded)
+    if value is 0:
+      return False
+    elif value is 1:
+      return True
+    raise ValueError("Expected 0 or 1, got %s" % value)
+
+  def estimate_size(self, unused_value, nested=False):
+    # Note that booleans are encoded the same way regardless of nesting.
+    return 1
+
+
 class FloatCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
 

@@ -700,6 +700,37 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   @Test
+  public void testSupportsAggregationWithFilterWithoutProjection() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema =
+        Schema.builder().addInt32Field("f_intGroupingKey").addInt32Field("f_intValue").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2,
+                            1, 3,
+                            2, 4,
+                            2, 5)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql =
+        "SELECT SUM(f_intValue) FROM PCOLLECTION WHERE f_intValue < 5 GROUP BY f_intGroupingKey";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowsWithSingleIntField("sum", Arrays.asList(3, 3, 4)));
+
+    pipeline.run();
+  }
+
+  @Test
   public void testSupportsNonGlobalWindowWithCustomTrigger() {
     DateTime startTime = parseTimestampWithoutTimeZone("2017-1-1 0:0:0");
 

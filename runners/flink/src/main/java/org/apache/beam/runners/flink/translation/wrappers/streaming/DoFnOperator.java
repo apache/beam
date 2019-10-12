@@ -56,6 +56,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.runners.flink.translation.utils.NoopLock;
@@ -192,6 +193,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
+  /** Metrics container for reporting Beam metrics to Flink (null if metrics are disabled). */
+  @Nullable transient FlinkMetricContainer flinkMetricContainer;
+
   /** Use an AtomicBoolean because we start/stop bundles by a timer thread (see below). */
   private transient AtomicBoolean bundleStarted;
   /** Number of processed elements in the current bundle. */
@@ -312,8 +316,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       Output<StreamRecord<WindowedValue<OutputT>>> output) {
 
     // make sure that FileSystems is initialized correctly
-    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
-    FileSystems.setDefaultPipelineOptions(options);
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
 
     super.setup(containingTask, config, output);
   }
@@ -440,7 +443,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
-      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+      flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
     }
 
     bundleStarted = new AtomicBoolean(false);

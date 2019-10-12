@@ -39,13 +39,13 @@ from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
-from apache_beam.utils import subprocess_server
 
 # Protect against environments where grpc is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import grpc
   from apache_beam.portability.api import beam_expansion_api_pb2_grpc
+  from apache_beam.utils import subprocess_server
 except ImportError:
   grpc = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports

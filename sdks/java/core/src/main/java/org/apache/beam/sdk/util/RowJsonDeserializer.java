@@ -88,7 +88,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
           .put(DECIMAL, decimalValueExtractor())
           .build();
 
-  private Schema schema;
+  private final Schema schema;
 
   /** Creates a deserializer for a {@link Row} {@link Schema}. */
   public static RowJsonDeserializer forSchema(Schema schema) {

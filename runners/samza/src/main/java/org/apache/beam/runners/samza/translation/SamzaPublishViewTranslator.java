@@ -58,7 +58,7 @@ class SamzaPublishViewTranslator<ElemT, ViewT>
         ctx.getPipelineOptions().getMaxSourceParallelism() == 1
             ? elementStream
             : elementStream.broadcast(
-                SamzaCoders.toSerde(elementCoder), "view-" + ctx.getCurrentTopologicalId());
+                SamzaCoders.toSerde(elementCoder), "view-" + ctx.getTransformId());
 
     final String viewId = ctx.getViewId(transform.getView());
     final MessageStream<OpMessage<Iterable<ElemT>>> outputStream =

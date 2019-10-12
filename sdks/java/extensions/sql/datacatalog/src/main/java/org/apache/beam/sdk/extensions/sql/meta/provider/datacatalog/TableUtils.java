@@ -22,7 +22,7 @@ import java.net.URI;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 
 /** Common utilities to create Beam SQL tables from Data Catalog schemas. */
 class TableUtils {
@@ -45,15 +45,24 @@ class TableUtils {
               + "' in Data Catalog: "
               + entry.toString());
     }
+    Schema schema = SchemaUtils.fromDataCatalog(entry.getSchema());
 
     String service = URI.create(entry.getLinkedResource()).getAuthority().toLowerCase();
 
-    if (!TABLE_FACTORIES.containsKey(service)) {
-      throw new UnsupportedOperationException(
-          "Unsupported SQL source kind: " + entry.getLinkedResource());
+    Table.Builder table = null;
+    if (TABLE_FACTORIES.containsKey(service)) {
+      table = TABLE_FACTORIES.get(service).tableBuilder(entry);
     }
 
-    Schema schema = SchemaUtils.fromDataCatalog(entry.getSchema());
-    return TABLE_FACTORIES.get(service).tableBuilder(entry).schema(schema).name(tableName).build();
+    if (GcsUtils.isGcs(entry)) {
+      table = GcsUtils.tableBuilder(entry);
+    }
+
+    if (table != null) {
+      return table.schema(schema).name(tableName).build();
+    }
+
+    throw new UnsupportedOperationException(
+        "Unsupported SQL source kind: " + entry.getLinkedResource());
   }
 }

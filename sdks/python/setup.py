@@ -105,7 +105,8 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
     'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    'dill>=0.2.9,<0.4.0',
+    # Dill doesn't guarantee comatibility between releases within minor version.
+    'dill>=0.3.0,<0.3.1',
     'fastavro>=0.21.4,<0.22',
     'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.16.0,<1.0.0',
@@ -125,7 +126,6 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
-    'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     ]
 
@@ -142,6 +142,7 @@ REQUIRED_TEST_PACKAGES = [
     'pandas>=0.23.4,<0.25',
     'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
+    'pyyaml>=3.12,<6.0.0',
     'tenacity>=5.0.2,<6.0',
     ]
 

@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    automaticModuleName: 'org.apache.beam.sdk.nexmark',
     exportJavadoc: false,
     archivesBaseName: 'beam-sdks-java-nexmark'
 )
@@ -56,7 +57,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(path: ":sdks:java:extensions:sql", configuration: "shadow")
+  compile project(":sdks:java:extensions:sql")
   compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:testing:test-utils")
   compile library.java.google_api_services_bigquery
@@ -68,7 +69,6 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.commons_lang3
   compile library.java.kafka_clients
-  compile project(path: ":runners:direct-java", configuration: "shadow")
   provided library.java.junit
   provided library.java.hamcrest_core
   testRuntimeClasspath library.java.slf4j_jdk14
@@ -102,7 +102,7 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.5"
+//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.8"
 //       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args

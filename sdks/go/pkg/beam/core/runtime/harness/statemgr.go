@@ -119,10 +119,10 @@ func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, 
 	key := &pb.StateKey{
 		Type: &pb.StateKey_MultimapSideInput_{
 			MultimapSideInput: &pb.StateKey_MultimapSideInput{
-				PtransformId: id.PtransformID,
-				SideInputId:  sideInputID,
-				Window:       w,
-				Key:          k,
+				TransformId: id.PtransformID,
+				SideInputId: sideInputID,
+				Window:      w,
+				Key:         k,
 			},
 		},
 	}
@@ -166,8 +166,8 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 
 		req := &pb.StateRequest{
 			// Id: set by channel
-			InstructionReference: r.instID,
-			StateKey:             r.key,
+			InstructionId: r.instID,
+			StateKey:      r.key,
 			Request: &pb.StateRequest_Get{
 				Get: &pb.StateGetRequest{
 					ContinuationToken: r.token,
