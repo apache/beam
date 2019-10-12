@@ -32,6 +32,8 @@ from builtins import range
 from builtins import zip
 from functools import reduce
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 from nose.plugins.attrib import attr
 

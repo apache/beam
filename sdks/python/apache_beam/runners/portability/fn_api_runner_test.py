@@ -32,6 +32,8 @@ import unittest
 import uuid
 from builtins import range
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest  # pylint: disable=ungrouped-imports
 import mock
 from hamcrest.core.matcher import Matcher

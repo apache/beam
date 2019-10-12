@@ -24,6 +24,8 @@ import logging
 import unittest
 from builtins import object
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 

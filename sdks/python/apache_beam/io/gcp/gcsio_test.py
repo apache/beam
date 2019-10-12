@@ -31,6 +31,8 @@ from builtins import object
 from builtins import range
 from email.message import Message
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import httplib2
 import mock
 

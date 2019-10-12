@@ -26,6 +26,8 @@ import sys
 import unittest
 from builtins import object
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 from future.utils import itervalues
 
 from apache_beam.io import hadoopfilesystem as hdfs

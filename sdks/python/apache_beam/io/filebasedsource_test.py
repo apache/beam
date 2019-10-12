@@ -30,6 +30,8 @@ import unittest
 from builtins import object
 from builtins import range
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 
 import apache_beam as beam
