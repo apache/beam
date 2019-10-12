@@ -20,6 +20,9 @@ package org.apache.beam.sdk.schemas;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.ByteBuffer;
+import java.time.temporal.ChronoUnit;
+import java.time.Month;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -259,7 +262,7 @@ public class AvroSchemaTest {
   private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
   private static final DateTime DATE_TIME =
       new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4);
-  private static final LocalDate DATE = new LocalDate(1979, 3, 14);
+  private static final java.time.LocalDate DATE = java.time.LocalDate.of(1979, Month.March, 14)
   private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
 
   private static final TestAvro AVRO_SPECIFIC_RECORD =
@@ -272,7 +275,7 @@ public class AvroSchemaTest {
           "mystring",
           ByteBuffer.wrap(BYTE_ARRAY),
           new fixed4(BYTE_ARRAY),
-          java.time.LocalDate.from(DATE),
+          DATE,
           DATE_TIME,
           TestEnum.abc,
           AVRO_NESTED_SPECIFIC_RECORD,
@@ -297,7 +300,7 @@ public class AvroSchemaTest {
               GenericData.get()
                   .createFixed(
                       null, BYTE_ARRAY, org.apache.avro.Schema.createFixed("fixed4", "", "", 4)))
-          .set("date", (int) Days.daysBetween(new LocalDate(1970, 1, 1), DATE).getDays())
+          .set("date", (int) ChronoUnit.DAYS.daysBetween(java.time.LocalDate.of(1970, Month.January, 1), DATE))
           .set("timestampMillis", DATE_TIME.getMillis())
           .set("testEnum", TestEnum.abc)
           .set("row", AVRO_NESTED_GENERIC_RECORD)
@@ -396,7 +399,7 @@ public class AvroSchemaTest {
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
               BYTE_ARRAY,
-              DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
+              DATE.atStartOfDay().atZone(ZoneId.of("UTC")),
               DATE_TIME,
               "abc",
               NESTED_ROW,
