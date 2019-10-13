@@ -275,6 +275,20 @@ public class RabbitMqIO {
       return builder().setMaxReadTime(maxReadTime).build();
     }
 
+    /**
+     * Toggles deduplication of messages based on the amqp correlation-id property on incoming
+     * messages.
+     *
+     * <p>When set to {@code true} all read messages will require the amqp correlation-id property
+     * to be set.
+     *
+     * <p>When set to {@code false} the correlation-id property will not be used by the Reader and
+     * no automatic deduplication will occur.
+     */
+    public Read withUseCorrelationId(boolean useCorrelationId) {
+      return builder().setUseCorrelationId(useCorrelationId).build();
+    }
+
     @Override
     public PCollection<RabbitMqMessage> expand(PBegin input) {
       org.apache.beam.sdk.io.Read.Unbounded<RabbitMqMessage> unbounded =
