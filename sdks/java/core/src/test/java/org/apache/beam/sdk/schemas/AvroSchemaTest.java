@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static java.time.temporal.ChronoUnit.DAYS;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.ByteBuffer;
@@ -300,7 +299,8 @@ public class AvroSchemaTest {
               GenericData.get()
                   .createFixed(
                       null, BYTE_ARRAY, org.apache.avro.Schema.createFixed("fixed4", "", "", 4)))
-          .set("date", (int) DAYS.daysBetween(java.time.LocalDate.of(1970, Month.January, 1), DATE))
+          .set("date", (int) java.time.temporal.ChronoUnit.DAYS.daysBetween(
+              java.time.LocalDate.of(1970, Month.January, 1), DATE))
           .set("timestampMillis", DATE_TIME.getMillis())
           .set("testEnum", TestEnum.abc)
           .set("row", AVRO_NESTED_GENERIC_RECORD)
