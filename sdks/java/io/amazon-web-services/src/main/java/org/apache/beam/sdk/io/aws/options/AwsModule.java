@@ -36,7 +36,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.type.WritableTypeId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -156,8 +158,9 @@ public class AwsModule extends SimpleModule {
         SerializerProvider serializers,
         TypeSerializer typeSerializer)
         throws IOException {
-      typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
-
+      WritableTypeId typeId =
+          typeSerializer.writeTypePrefix(
+              jsonGenerator, typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
       if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
         jsonGenerator.writeStringField(
             AWS_ACCESS_KEY_ID, credentialsProvider.getCredentials().getAWSAccessKeyId());
@@ -197,7 +200,7 @@ public class AwsModule extends SimpleModule {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
-      typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
+      typeSerializer.writeTypeSuffix(jsonGenerator, typeId);
     }
   }
 
