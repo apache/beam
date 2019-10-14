@@ -96,10 +96,6 @@ rat {
     "ownership/**/*",
     "**/OWNERS",
 
-    // FIXME add license header
-    "project-mappings",
-    "deprecation-warning.txt",
-
     // Json doesn't support comments.
     "**/*.json",
 
