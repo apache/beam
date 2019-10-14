@@ -106,7 +106,8 @@ public class CoderProperties {
 
   /**
    * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and value of type {@code
-   * T}, encoding followed by decoding yields an equal value of type {@code T}.
+   * T}, encoding followed by decoding yields a value of type {@code T} and tests that the matcher
+   * succeeds on the values.
    */
   public static <T> void coderDecodeEncodeInContext(
       Coder<T> coder, Coder.Context context, T value, org.hamcrest.Matcher<T> matcher)
