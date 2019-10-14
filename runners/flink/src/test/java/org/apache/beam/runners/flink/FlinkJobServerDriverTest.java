@@ -43,7 +43,6 @@ public class FlinkJobServerDriverTest {
     assertThat(config.getArtifactPort(), is(8098));
     assertThat(config.getExpansionPort(), is(8097));
     assertThat(config.getFlinkMasterUrl(), is("[auto]"));
-    assertThat(config.getSdkWorkerParallelism(), is(1L));
     assertThat(config.isCleanArtifactsPerJob(), is(true));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
@@ -62,7 +61,6 @@ public class FlinkJobServerDriverTest {
               "--expansion-port",
               "44",
               "--flink-master-url=jobmanager",
-              "--sdk-worker-parallelism=4",
               "--clean-artifacts-per-job=false",
             });
     FlinkJobServerDriver.FlinkServerConfiguration config =
@@ -72,7 +70,6 @@ public class FlinkJobServerDriverTest {
     assertThat(config.getArtifactPort(), is(43));
     assertThat(config.getExpansionPort(), is(44));
     assertThat(config.getFlinkMasterUrl(), is("jobmanager"));
-    assertThat(config.getSdkWorkerParallelism(), is(4L));
     assertThat(config.isCleanArtifactsPerJob(), is(false));
   }
 
