@@ -159,7 +159,7 @@ public class AwsModule extends SimpleModule {
         TypeSerializer typeSerializer)
         throws IOException {
       WritableTypeId typeId = typeSerializer.writeTypePrefix(jsonGenerator,
-              typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
+          typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
       if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
         jsonGenerator.writeStringField(
             AWS_ACCESS_KEY_ID, credentialsProvider.getCredentials().getAWSAccessKeyId());

@@ -143,7 +143,7 @@ public class AwsModule extends SimpleModule {
         throws IOException {
 
       WritableTypeId typeId = typeSerializer.writeTypePrefix(jsonGenerator,
-              typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
+          typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
       if (credentialsProvider.getClass().equals(StaticCredentialsProvider.class)) {
         jsonGenerator.writeStringField(
             ACCESS_KEY_ID, credentialsProvider.resolveCredentials().accessKeyId());
