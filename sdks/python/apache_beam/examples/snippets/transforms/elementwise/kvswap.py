@@ -16,6 +16,9 @@
 # limitations under the License.
 #
 
+# Beam docs:
+# https://beam.apache.org/documentation/transforms/python/elementwise/kvswap/
+
 from __future__ import absolute_import
 from __future__ import print_function
 
