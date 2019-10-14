@@ -447,6 +447,10 @@ public class JdbcIO {
       abstract ReadRows build();
     }
 
+    public ReadRows withDataSourceConfiguration(final DataSourceConfiguration config) {
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
+    }
+
     public ReadRows withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
       return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
@@ -1388,20 +1392,19 @@ public class JdbcIO {
     }
   }
 
+  // DataSourceProvider which provides the DataSource from DataSourceConfiguration. If the
+  // DataSourceConfigurations are different i.e. read/write from multiple databases, provides
+  // different DataSources.
   private static class DataSourceProviderFromDataSourceConfiguration
       implements SerializableFunction<Void, DataSource>, HasDisplayData {
     private final DataSourceConfiguration config;
-    private static DataSourceProviderFromDataSourceConfiguration instance;
 
     private DataSourceProviderFromDataSourceConfiguration(DataSourceConfiguration config) {
       this.config = config;
     }
 
     public static SerializableFunction<Void, DataSource> of(DataSourceConfiguration config) {
-      if (instance == null) {
-        instance = new DataSourceProviderFromDataSourceConfiguration(config);
-      }
-      return instance;
+      return (new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
     @Override
