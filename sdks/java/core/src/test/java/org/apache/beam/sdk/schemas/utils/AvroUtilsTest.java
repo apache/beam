@@ -502,7 +502,13 @@ public class AvroUtilsTest {
 
   @Test
   public void testGenericRecordToBeamRow() {
+    GenericRecord genericRecord = getGenericRecord();
     Row row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
+    assertEquals(getBeamRow(), row);
+
+    // Alternatively, a timestamp-millis logical type can have a joda datum.
+    genericRecord.put("timestampMillis", new DateTime(genericRecord.get("timestampMillis")));
+    row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
     assertEquals(getBeamRow(), row);
   }
 
