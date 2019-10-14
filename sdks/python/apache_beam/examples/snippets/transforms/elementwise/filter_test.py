@@ -31,31 +31,26 @@ from . import filter
 
 
 def check_perennials(actual):
-  # [START perennials]
-  perennials = [
-      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-      {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-  ]
-  # [END perennials]
-  assert_that(actual, equal_to(perennials))
+  expected = '''[START perennials]
+{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+[END perennials]'''.splitlines()[1:-1]
+  assert_that(actual, equal_to(expected))
 
 
 def check_valid_plants(actual):
-  # [START valid_plants]
-  valid_plants = [
-      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-  ]
-  # [END valid_plants]
-  assert_that(actual, equal_to(valid_plants))
+  expected = '''[START valid_plants]
+{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+[END valid_plants]'''.splitlines()[1:-1]
+  assert_that(actual, equal_to(expected))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.filter.print', lambda elem: elem)
+@mock.patch('apache_beam.examples.snippets.transforms.elementwise.filter.print', str)
 # pylint: enable=line-too-long
 class FilterTest(unittest.TestCase):
   def test_filter_function(self):

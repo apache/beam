@@ -35,21 +35,19 @@ from . import pardo
 
 
 def check_plants(actual):
-  # [START plants]
-  plants = [
-      '🍓Strawberry',
-      '🥕Carrot',
-      '🍆Eggplant',
-      '🍅Tomato',
-      '🥔Potato',
-  ]
-  # [END plants]
-  assert_that(actual, equal_to(plants))
+  expected = '''[START plants]
+🍓Strawberry
+🥕Carrot
+🍆Eggplant
+🍅Tomato
+🥔Potato
+[END plants]'''.splitlines()[1:-1]
+  assert_that(actual, equal_to(expected))
 
 
 def check_dofn_params(actual):
   # pylint: disable=line-too-long
-  dofn_params = '\n'.join('''[START dofn_params]
+  expected = '\n'.join('''[START dofn_params]
 # timestamp
 type(timestamp) -> <class 'apache_beam.utils.timestamp.Timestamp'>
 timestamp.micros -> 1584675660000000
@@ -63,7 +61,7 @@ window.end -> Timestamp(1584675690) (2020-03-20 03:41:30)
 window.max_timestamp() -> Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)
 [END dofn_params]'''.splitlines()[1:-1])
   # pylint: enable=line-too-long
-  assert_that(actual, equal_to([dofn_params]))
+  assert_that(actual, equal_to([expected]))
 
 
 def check_dofn_methods(actual):
@@ -83,9 +81,7 @@ teardown
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.pardo.print', lambda elem: elem)
-# pylint: enable=line-too-long
+@mock.patch('apache_beam.examples.snippets.transforms.elementwise.pardo.print', str)
 class ParDoTest(unittest.TestCase):
   def test_pardo_dofn(self):
     pardo.pardo_dofn(check_plants)

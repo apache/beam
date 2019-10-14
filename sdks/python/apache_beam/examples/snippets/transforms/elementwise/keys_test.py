@@ -31,22 +31,18 @@ from . import keys
 
 
 def check_icons(actual):
-  # [START icons]
-  icons = [
-      '🍓',
-      '🥕',
-      '🍆',
-      '🍅',
-      '🥔',
-  ]
-  # [END icons]
-  assert_that(actual, equal_to(icons))
+  expected = '''[START icons]
+🍓
+🥕
+🍆
+🍅
+🥔
+[END icons]'''.splitlines()[1:-1]
+  assert_that(actual, equal_to(expected))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.keys.print', lambda elem: elem)
-# pylint: enable=line-too-long
+@mock.patch('apache_beam.examples.snippets.transforms.elementwise.keys.print', str)
 class KeysTest(unittest.TestCase):
   def test_keys(self):
     keys.keys(check_icons)

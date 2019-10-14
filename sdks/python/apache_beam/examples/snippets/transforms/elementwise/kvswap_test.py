@@ -31,22 +31,18 @@ from . import kvswap
 
 
 def check_plants(actual):
-  # [START plants]
-  plants = [
-      ('Strawberry', '🍓'),
-      ('Carrot', '🥕'),
-      ('Eggplant', '🍆'),
-      ('Tomato', '🍅'),
-      ('Potato', '🥔'),
-  ]
-  # [END plants]
-  assert_that(actual, equal_to(plants))
+  expected = '''[START plants]
+('Strawberry', '🍓')
+('Carrot', '🥕')
+('Eggplant', '🍆')
+('Tomato', '🍅')
+('Potato', '🥔')
+[END plants]'''.splitlines()[1:-1]
+  assert_that(actual, equal_to(expected))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.kvswap.print', lambda elem: elem)
-# pylint: enable=line-too-long
+@mock.patch('apache_beam.examples.snippets.transforms.elementwise.kvswap.print', str)
 class KvSwapTest(unittest.TestCase):
   def test_kvswap(self):
     kvswap.kvswap(check_plants)
