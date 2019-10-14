@@ -32,12 +32,15 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -151,9 +154,34 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
 
     @Override
+    public PCollection<Row> buildIOReader(
+        PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+      PCollection<Row> withAllFields = buildIOReader(begin);
+      if (fieldNames.isEmpty() && filters instanceof DefaultTableFilter) {
+        return withAllFields;
+      }
+
+      PCollection<Row> result = withAllFields;
+      if (!(filters instanceof DefaultTableFilter)) {
+        throw new RuntimeException("Unimplemented at the moment.");
+      }
+
+      if (!fieldNames.isEmpty()) {
+        result = result.apply(Select.fieldNames(fieldNames.toArray(new String[0])));
+      }
+
+      return result;
+    }
+
+    @Override
     public POutput buildIOWriter(PCollection<Row> input) {
       input.apply(ParDo.of(new CollectorFn(tableWithRows)));
       return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    public boolean supportsProjects() {
+      return true;
     }
 
     @Override
