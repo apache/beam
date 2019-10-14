@@ -72,6 +72,7 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
+from apache_beam.transforms import environments
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
@@ -344,7 +345,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._last_uid = -1
     self._default_environment = (
         default_environment
-        or beam_runner_api_pb2.Environment(urn=python_urns.EMBEDDED_PYTHON))
+        or environments.EmbeddedPythonEnvironment())
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
