@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import json
 import logging
 import os
 import shutil
@@ -78,12 +79,17 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
 class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
 
   # These must agree with those defined in PortablePipelineJarUtils.java.
-  PIPELINE_FOLDER_PATH = "BEAM-PIPELINE"
-  PIPELINE_PATH = PIPELINE_FOLDER_PATH + "/pipeline.json"
-  PIPELINE_OPTIONS_PATH = PIPELINE_FOLDER_PATH + "/pipeline-options.json"
-  ARTIFACT_STAGING_FOLDER_PATH = "BEAM-ARTIFACT-STAGING"
-  ARTIFACT_MANIFEST_PATH = (
-      ARTIFACT_STAGING_FOLDER_PATH + "/artifact-manifest.json")
+  PIPELINE_FOLDER = 'BEAM-PIPELINE'
+  PIPELINE_MANIFEST = PIPELINE_FOLDER + '/pipeline-manifest.json'
+
+  # We only stage a single pipeline in the jar.
+  PIPELINE_NAME = 'pipeline'
+  PIPELINE_PATH = '/'.join(
+      [PIPELINE_FOLDER, PIPELINE_NAME, "pipeline.json"])
+  PIPELINE_OPTIONS_PATH = '/'.join(
+      [PIPELINE_FOLDER, PIPELINE_NAME, 'pipeline-options.json'])
+  ARTIFACT_MANIFEST_PATH = '/'.join(
+      [PIPELINE_FOLDER, PIPELINE_NAME, 'artifact-manifest.json'])
 
   def __init__(
       self, master_url, executable_jar, job_id, job_name, pipeline, options):
@@ -104,6 +110,9 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
       with z.open(self.PIPELINE_OPTIONS_PATH, 'w') as fout:
         fout.write(json_format.MessageToJson(
             self._pipeline_options).encode('utf-8'))
+      with z.open(self.PIPELINE_MANIFEST, 'w') as fout:
+        fout.write(json.dumps(
+            {'defaultJobName': self.PIPELINE_NAME}).encode('utf-8'))
     self._start_artifact_service(self._jar)
 
   def _start_artifact_service(self, jar):
