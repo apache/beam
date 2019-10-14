@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * ProtoDomain is a container class for Protobuf descriptors. By using a domain for all descriptors
@@ -72,6 +73,7 @@ public final class ProtoDomain implements Serializable {
     return map;
   }
 
+  @Nullable
   private static Descriptors.FileDescriptor convertToFileDescriptorMap(
       String name,
       Map<String, DescriptorProtos.FileDescriptorProto> inMap,
