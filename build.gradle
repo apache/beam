@@ -33,6 +33,12 @@ plugins {
   id "org.sonarqube" version "2.7"
 }
 
+repositories {
+  maven {
+    url "https://oss.sonatype.org/content/repositories/comgooglezetasql-1011"
+  }
+}
+
 /*************************************************************************************************/
 // Configure the root project
 
