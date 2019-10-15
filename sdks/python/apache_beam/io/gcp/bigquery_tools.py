@@ -722,7 +722,7 @@ class BigQueryWrapper(object):
         break
       page_token = response.pageToken
 
-  def insert_rows(self, project_id, dataset_id, table_id, rows,
+  def insert_rows(self, project_id, dataset_id, table_id, rows, insert_ids=None,
                   skip_invalid_rows=False):
     """Inserts rows into the specified table.
 
@@ -747,24 +747,27 @@ class BigQueryWrapper(object):
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
     final_rows = []
-    for row in rows:
-      json_object = bigquery.JsonObject()
-      for k, v in iteritems(row):
-        if isinstance(v, decimal.Decimal):
-          # decimal values are converted into string because JSON does not
-          # support the precision that decimal supports. BQ is able to handle
-          # inserts into NUMERIC columns by receiving JSON with string attrs.
-          v = str(v)
-        json_object.additionalProperties.append(
-            bigquery.JsonObject.AdditionalProperty(
-                key=k, value=to_json_value(v)))
-      final_rows.append(
-          bigquery.TableDataInsertAllRequest.RowsValueListEntry(
-              insertId=str(self.unique_row_id),
-              json=json_object))
+    for i, row in enumerate(rows):
+      json_row = self._convert_to_json_row(row)
+      insert_id = str(self.unique_row_id) if not insert_ids else insert_ids[i]
+      final_rows.append(bigquery.TableDataInsertAllRequest.RowsValueListEntry(
+          insertId=insert_id, json=json_row))
     result, errors = self._insert_all_rows(
         project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
     return result, errors
+
+  def _convert_to_json_row(self, row):
+    json_object = bigquery.JsonObject()
+    for k, v in iteritems(row):
+      if isinstance(v, decimal.Decimal):
+        # decimal values are converted into string because JSON does not
+        # support the precision that decimal supports. BQ is able to handle
+        # inserts into NUMERIC columns by receiving JSON with string attrs.
+        v = str(v)
+      json_object.additionalProperties.append(
+          bigquery.JsonObject.AdditionalProperty(
+              key=k, value=to_json_value(v)))
+    return json_object
 
   def _convert_cell_value_to_dict(self, value, field):
     if field.type == 'STRING':
