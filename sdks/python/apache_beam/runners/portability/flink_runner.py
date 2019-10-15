@@ -20,7 +20,10 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import sys
+
 from apache_beam.options import pipeline_options
+from apache_beam.runners.portability import flink_uber_jar_job_server
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 
@@ -29,7 +32,12 @@ PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8']
 
 class FlinkRunner(portable_runner.PortableRunner):
   def default_job_server(self, options):
-    return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
+    flink_master_url = options.view_as(FlinkRunnerOptions).flink_master_url
+    if flink_master_url == '[local]' or sys.version_info < (3, 6):
+      # TOOD(BEAM-8396): Also default to LOOPBACK for [local].
+      return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
+    else:
+      return flink_uber_jar_job_server.FlinkUberJarJobServer(flink_master_url)
 
 
 class FlinkRunnerOptions(pipeline_options.PipelineOptions):
