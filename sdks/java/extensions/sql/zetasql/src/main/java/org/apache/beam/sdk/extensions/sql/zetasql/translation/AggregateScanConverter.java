@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalAggregate;
@@ -97,7 +98,6 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
             getCluster(),
             input.getTraitSet(),
             input,
-            false,
             groupSet,
             ImmutableList.of(groupSet),
             aggregateCalls);
@@ -225,6 +225,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     }
 
     String aggName = getTrait().resolveAlias(computedColumn.getColumn());
-    return AggregateCall.create(sqlAggFunction, false, false, argList, -1, returnType, aggName);
+    return AggregateCall.create(
+        sqlAggFunction, false, false, false, argList, -1, RelCollations.EMPTY, returnType, aggName);
   }
 }
