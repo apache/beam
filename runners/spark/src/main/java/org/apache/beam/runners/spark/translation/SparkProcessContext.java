@@ -165,7 +165,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
           timer.getTimerId(),
           window,
           timer.getTimestamp(),
-          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
           timer.getDomain());
     }
   }

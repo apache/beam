@@ -352,7 +352,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
           timer.getTimerId(),
           window,
           timer.getTimestamp(),
-          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
           timer.getDomain());
     }
   }

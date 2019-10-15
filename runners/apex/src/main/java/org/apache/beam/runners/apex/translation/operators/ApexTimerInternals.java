@@ -82,7 +82,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
       Instant target,
       Instant targetOutput,
       TimeDomain timeDomain) {
-    TimerData timerData = TimerData.of(timerId, namespace, target, timeDomain);
+    TimerData timerData = TimerData.of(timerId, namespace, target, targetOutput, timeDomain);
     setTimer(timerData);
   }
 
