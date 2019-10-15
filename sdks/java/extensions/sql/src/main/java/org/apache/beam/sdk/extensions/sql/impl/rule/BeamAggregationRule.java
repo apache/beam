@@ -97,7 +97,6 @@ public class BeamAggregationRule extends RelOptRule {
         aggregate.getCluster(),
         aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convert(newProject, newProject.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        aggregate.indicator,
         aggregate.getGroupSet(),
         aggregate.getGroupSets(),
         aggregate.getAggCallList(),
