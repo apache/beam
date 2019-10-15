@@ -123,7 +123,7 @@ class KeyedInternals<K> {
         Instant target,
         Instant targetOutput,
         TimeDomain timeDomain) {
-      getInternals().setTimer(namespace, timerId, target, target, timeDomain);
+      getInternals().setTimer(namespace, timerId, target, targetOutput, timeDomain);
     }
 
     @Override

@@ -66,7 +66,7 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
           timer.getTimerId(),
           window,
           timer.getTimestamp(),
-          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
           timer.getDomain());
     } finally {
       clearKeyedInternals();

@@ -93,7 +93,7 @@ public class StatefulParDoP<OutputT>
     StateNamespace namespace = timer.getNamespace();
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
     doFnRunner.onTimer(
-        timer.getTimerId(), window, timer.getTimestamp(), timer.getTimestamp(), timer.getDomain());
+        timer.getTimerId(), window, timer.getTimestamp(), timer.getOutputTimestamp(), timer.getDomain());
   }
 
   @Override

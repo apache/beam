@@ -361,7 +361,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           timer.getTimerId(),
           window,
           timer.getTimestamp(),
-          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
           timer.getDomain());
     }
   }
