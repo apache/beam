@@ -302,12 +302,11 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testReadRows() {
-    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+  public void testReadRowsWithDataSourceConfiguration() {
     PCollection<Row> rows =
         pipeline.apply(
             JdbcIO.readRows()
-                .withDataSourceProviderFn(dataSourceProvider)
+                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                 .withQuery(String.format("select name,id from %s where name = ?", readTableName))
                 .withStatementPreparator(
                     preparedStatement ->
