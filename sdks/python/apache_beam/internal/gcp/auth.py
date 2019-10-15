@@ -104,7 +104,7 @@ class _Credentials(object):
         logging.info("Setting socket default timeout to 60 seconds.")
         socket.setdefaulttimeout(60)
       logging.info(
-          "socket default timeout is % seconds.", socket.getdefaulttimeout())
+          "socket default timeout is %s seconds.", socket.getdefaulttimeout())
 
       cls._credentials = cls._get_service_credentials()
       cls._credentials_init = True
