@@ -802,6 +802,10 @@ words = ...
 > **Note:** You can use Java 8 lambda functions with several other Beam
 > transforms, including `Filter`, `FlatMapElements`, and `Partition`.
 
+##### 4.2.1.4. DoFn lifecycle {#dofn}
+![This is a sequence diagram that shows the lifecycle of the DoFn](
+  {{ "/images/dofn-sequence-diagram.png" | prepend: site.baseurl }})
+
 #### 4.2.2. GroupByKey {#groupbykey}
 
 `GroupByKey` is a Beam transform for processing collections of key/value pairs.
@@ -3099,3 +3103,7 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
   }
 }
 ```
+## 10. Focus on DoFn {#dofn}
+![This is a sequence diagram that shows the lifecycle of the DoFn](
+  {{ "/images/dofn-sequence-diagram.png" | prepend: site.baseurl }})
+  
