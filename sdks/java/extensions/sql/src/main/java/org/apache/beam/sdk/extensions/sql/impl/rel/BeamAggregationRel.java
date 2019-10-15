@@ -71,14 +71,13 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode child,
-      boolean indicator,
       ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls,
       @Nullable WindowFn<Row, IntervalWindow> windowFn,
       int windowFieldIndex) {
 
-    super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
+    super(cluster, traits, child, groupSet, groupSets, aggCalls);
 
     this.windowFn = windowFn;
     this.windowFieldIndex = windowFieldIndex;
@@ -344,14 +343,6 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls) {
     return new BeamAggregationRel(
-        getCluster(),
-        traitSet,
-        input,
-        indicator,
-        groupSet,
-        groupSets,
-        aggCalls,
-        windowFn,
-        windowFieldIndex);
+        getCluster(), traitSet, input, groupSet, groupSets, aggCalls, windowFn, windowFieldIndex);
   }
 }

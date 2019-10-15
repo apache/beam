@@ -146,7 +146,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       final RexBuilder rexBuilder = getCluster().getRexBuilder();
       final RelMetadataQuery mq = RelMetadataQuery.instance();
       final RelOptPredicateList predicates = mq.getPulledUpPredicates(getInput());
-      final RexSimplify simplify = new RexSimplify(rexBuilder, predicates, false, RexUtil.EXECUTOR);
+      final RexSimplify simplify = new RexSimplify(rexBuilder, predicates, RexUtil.EXECUTOR);
       final RexProgram program = BeamCalcRel.this.program.normalize(rexBuilder, simplify);
 
       Expression condition =
