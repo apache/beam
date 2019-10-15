@@ -101,6 +101,10 @@ For example, if you'd like to read from a new file format that contains many
 records per file, or if you'd like to read from a key-value store that supports
 read operations in sorted key order.
 
+### Source lifecycle {#source}
+  ![This is a sequence diagram that shows the lifecycle of the Source](
+    {{ "/images/source-sequence-diagram.png" | prepend: site.baseurl }})
+
 ### Using ParDo and GroupByKey
 
 For data stores or file types where the data can be read in parallel, you can
