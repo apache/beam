@@ -37,10 +37,21 @@ service InteractiveService {
   // A TestStream will request for events using this RPC.
   rpc Events(EventsRequest) returns (stream EventsResponse) {}
 
+  // Starts the stream of events to the EventsRequest.
   rpc Start (StartRequest) returns (StartResponse) {}
+
+  // Stops and resets the stream to the beginning.
   rpc Stop (StopRequest) returns (StopResponse) {}
+
+  // Pauses the stream of events to the EventsRequest. If there is already an
+  // outstanding EventsRequest streaming events, then the stream will pause
+  // after the EventsResponse is completed.
   rpc Pause (PauseRequest) returns (PauseResponse) {}
+
+  // Sends a single element to the EventsRequest then closes the stream.
   rpc Step (StepRequest) returns (StepResponse) {}
+
+  // Responds with debugging and other cache-specific metadata.
   rpc Status (StatusRequest) returns (StatusResponse) {}
 }
 
