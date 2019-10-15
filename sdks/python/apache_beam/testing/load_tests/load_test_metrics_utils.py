@@ -171,7 +171,7 @@ class MetricsReader(object):
   publishers = []
 
   def __init__(self, project_name=None, bq_table=None, bq_dataset=None,
-               filters=None):
+               publish_to_bq=False, filters=None):
     """Initializes :class:`MetricsReader` .
 
     Args:
@@ -182,7 +182,8 @@ class MetricsReader(object):
     """
     self._namespace = bq_table
     self.publishers.append(ConsoleMetricsPublisher())
-    check = project_name and bq_table and bq_dataset
+
+    check = project_name and bq_table and bq_dataset and publish_to_bq
     if check:
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)
