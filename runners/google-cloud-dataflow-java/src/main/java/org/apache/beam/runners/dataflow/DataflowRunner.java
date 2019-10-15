@@ -334,7 +334,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String userAgent =
         String.format(
-                "%s/%s%s", 
+                "%s/%s%s",
                 dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion(), javaVersion)
             .replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
