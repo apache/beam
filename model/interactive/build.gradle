@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyPortabilityNature(shadowJarValidationExcludes: ["org/apache/beam/model/fnexecution/v1/**"])
+applyPortabilityNature(shadowJarValidationExcludes: ["org/apache/beam/model/interactive/v1/**"])
 
 description = "Apache Beam :: Model :: Interactive"
 ext.summary = "Portable definitions for interactivity."

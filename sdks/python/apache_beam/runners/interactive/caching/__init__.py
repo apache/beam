@@ -16,5 +16,4 @@
 #
 from __future__ import absolute_import
 
-from apache_beam.runners.interactive.caching.pcollection_cache import PCollectionCache
-from apache_beam.runners.interactive.caching.file_based_cache import FileBasedCache
+from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
