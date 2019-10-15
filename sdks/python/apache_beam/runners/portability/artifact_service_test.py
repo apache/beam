@@ -19,9 +19,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import hashlib
+import os
 import random
 import shutil
+import sys
 import tempfile
 import time
 import unittest
@@ -34,17 +37,18 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.runners.portability import artifact_service
 
 
-class BeamFilesystemArtifactServiceTest(unittest.TestCase):
+class AbstractArtifactServiceTest(unittest.TestCase):
 
   def setUp(self):
     self._staging_dir = tempfile.mkdtemp()
-    self._service = (
-        artifact_service.BeamFilesystemArtifactService(
-            self._staging_dir, chunk_size=10))
+    self._service = self.create_service(self._staging_dir)
 
   def tearDown(self):
     if self._staging_dir:
       shutil.rmtree(self._staging_dir)
+
+  def create_service(self, staging_dir):
+    raise NotImplementedError(type(self))
 
   @staticmethod
   def put_metadata(staging_token, name, sha256=None):
@@ -125,6 +129,9 @@ class BeamFilesystemArtifactServiceTest(unittest.TestCase):
 
     manifest = beam_artifact_api_pb2.Manifest(artifact=[
         beam_artifact_api_pb2.ArtifactMetadata(name='name'),
+        beam_artifact_api_pb2.ArtifactMetadata(name='many_chunks'),
+        beam_artifact_api_pb2.ArtifactMetadata(name='long'),
+        beam_artifact_api_pb2.ArtifactMetadata(name='with_hash'),
     ])
 
     retrieval_token = staging_service.CommitManifest(
@@ -165,6 +172,7 @@ class BeamFilesystemArtifactServiceTest(unittest.TestCase):
   def test_concurrent_requests(self):
 
     num_sessions = 7
+    artifacts = collections.defaultdict(list)
 
     def name(index):
       # Overlapping names across sessions.
@@ -178,6 +186,8 @@ class BeamFilesystemArtifactServiceTest(unittest.TestCase):
       return ('%s_%d' % (data, index)).encode('ascii')
 
     def put(index):
+      artifacts[session(index)].append(
+          beam_artifact_api_pb2.ArtifactMetadata(name=name(index)))
       self._service.PutArtifact([
           self.put_metadata(session(index), name(index)),
           self.put_data(delayed_data('a', index)),
@@ -188,7 +198,8 @@ class BeamFilesystemArtifactServiceTest(unittest.TestCase):
       return session, self._service.CommitManifest(
           beam_artifact_api_pb2.CommitManifestRequest(
               staging_session_token=session,
-              manifest=beam_artifact_api_pb2.Manifest())).retrieval_token
+              manifest=beam_artifact_api_pb2.Manifest(
+                  artifact=artifacts[session]))).retrieval_token
 
     def check(index):
       self.assertEqual(
@@ -202,6 +213,23 @@ class BeamFilesystemArtifactServiceTest(unittest.TestCase):
     tokens = dict(pool.map(commit, sessions))
     # List forces materialization.
     _ = list(pool.map(check, range(100)))
+
+
+@unittest.skipIf(sys.version_info < (3, 6), "Requires Python 3.6+")
+class ZipFileArtifactServiceTest(AbstractArtifactServiceTest):
+  def create_service(self, staging_dir):
+    return artifact_service.ZipFileArtifactService(
+        os.path.join(staging_dir, 'test.zip'), chunk_size=10)
+
+
+class BeamFilesystemArtifactServiceTest(AbstractArtifactServiceTest):
+  def create_service(self, staging_dir):
+    return artifact_service.BeamFilesystemArtifactService(
+        staging_dir, chunk_size=10)
+
+
+# Don't discover/test the abstract base class.
+del AbstractArtifactServiceTest
 
 
 if __name__ == '__main__':

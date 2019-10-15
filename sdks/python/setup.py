@@ -146,6 +146,7 @@ REQUIRED_TEST_PACKAGES = [
     'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
     'pyyaml>=3.12,<6.0.0',
+    'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
     ]
 
