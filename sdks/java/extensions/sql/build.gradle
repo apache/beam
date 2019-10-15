@@ -53,6 +53,7 @@ dependencies {
   compile "org.codehaus.janino:commons-compiler:3.0.11"
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:io:mongodb")
   provided project(":sdks:java:io:parquet")
   provided library.java.kafka_clients
   testCompile library.java.vendored_calcite_1_20_0
@@ -62,6 +63,7 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
+  testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
   testRuntimeClasspath library.java.slf4j_jdk14
 }
 
@@ -156,6 +158,7 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/KafkaCSVTableIT.java'
+  exclude '**/MongoDbReadWriteIT.java'
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
           .sourceSets
