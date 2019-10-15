@@ -325,10 +325,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
     }
 
+    // Adding the Java version to the SDK name for user's and support convenience.
+    String javaVersion =
+        Float.parseFloat(System.getProperty("java.specification.version")) >= 9
+            ? "(JDK 11 environment)"
+            : "(JRE 8 environment)";
+
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String userAgent =
-        String.format("%s/%s", dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion())
-            .replace(" ", "_");
+        String.format("%s/%s%s", 
+            dataflowRunnerInfo.getName(), 
+            dataflowRunnerInfo.getVersion(),
+            javaVersion).replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
 
     return new DataflowRunner(dataflowOptions);
