@@ -404,7 +404,7 @@ class Stager(object):
             'This functionality is not officially supported. Since wheel '
             'packages are binary distributions, this package must be '
             'binary-compatible with the worker environment (e.g. Python 2.7 '
-            'running on an x64 Linux host).')
+            'running on an x64 Linux host).' % package)
 
       if not os.path.isfile(package):
         if Stager._is_remote_path(package):
