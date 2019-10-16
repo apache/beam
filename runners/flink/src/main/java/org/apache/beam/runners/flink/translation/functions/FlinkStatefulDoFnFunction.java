@@ -211,7 +211,11 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
     doFnRunner.onTimer(
-        timer.getTimerId(), window, timer.getTimestamp(), timer.getOutputTimestamp(), timer.getDomain());
+        timer.getTimerId(),
+        window,
+        timer.getTimestamp(),
+        timer.getOutputTimestamp(),
+        timer.getDomain());
   }
 
   @Override
