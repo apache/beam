@@ -902,8 +902,8 @@ class _StreamToBigQuery(PTransform):
                write_disposition,
                kms_key,
                retry_strategy,
-               test_client,
-               additional_bq_parameters):
+               additional_bq_parameters,
+               test_client=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
     self.schema_side_inputs = schema_side_inputs
@@ -945,11 +945,6 @@ class _StreamToBigQuery(PTransform):
             | 'AppendDestination' >> beam.ParDo(
                 bigquery_tools.AppendDestinationsFn(self.table_reference),
                 *self.table_side_inputs)
-            # We shard the destinations into 50 shards, so we'll have good
-            # parallelism when inserting into BQ, but we'll still do a reshuffle
-            # to commit insertIds for each row.
-            | 'ShardKeyedDestinations' >> beam.Map(
-                lambda x: ((x[0], random.randrange(50)), x[1]))
             | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
             | 'CommitInsertIds' >> beam.Reshuffle()
             | 'StreamInsertRows' >> ParDo(
@@ -1239,8 +1234,8 @@ bigquery_v2_messages.TableSchema):
                                           self.write_disposition,
                                           self.kms_key,
                                           self.insert_retry_strategy,
-                                          self.test_client,
-                                          self.additional_bq_parameters)
+                                          self.additional_bq_parameters,
+                                          test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
