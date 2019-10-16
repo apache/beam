@@ -15,26 +15,26 @@
 # limitations under the License.
 #
 
-import grpc
 import time
+from concurrent.futures import ThreadPoolExecutor
+
+import grpc
 
 from apache_beam.portability.api import beam_interactive_api_pb2
 from apache_beam.portability.api import beam_interactive_api_pb2_grpc
 from apache_beam.portability.api.beam_interactive_api_pb2_grpc import InteractiveServiceServicer
-from concurrent.futures import ThreadPoolExecutor
 
+STRING_TO_API_STATE = {
+    'STOPPED': beam_interactive_api_pb2.StatusResponse.STOPPED,
+    'PAUSED': beam_interactive_api_pb2.StatusResponse.PAUSED,
+    'RUNNING': beam_interactive_api_pb2.StatusResponse.RUNNING,
+}
 
-def to_api_state(state):
-  if state == 'STOPPED':
-    return beam_interactive_api_pb2.StatusResponse.STOPPED
-  if state == 'PAUSED':
-    return beam_interactive_api_pb2.StatusResponse.PAUSED
-  return beam_interactive_api_pb2.StatusResponse.RUNNING
 
 class InteractiveStreamController(InteractiveServiceServicer):
   def __init__(self, endpoint, streaming_cache):
     self._endpoint = endpoint
-    self._server = grpc.server(ThreadPoolExecutor(max_workers=10))
+    self._server = grpc.server(ThreadPoolExecutor(max_workers=2))
     beam_interactive_api_pb2_grpc.add_InteractiveServiceServicer_to_server(
         self, self._server)
     self._server.add_insecure_port(self._endpoint)
@@ -76,7 +76,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
     """
     resp = beam_interactive_api_pb2.StatusResponse()
     resp.stream_time.GetCurrentTime()
-    resp.state = to_api_state(self._state)
+    resp.state = STRING_TO_API_STATE[self._state]
     return resp
 
   def _reset_state(self):
@@ -85,7 +85,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
     self._state = 'STOPPED'
 
   def _next_state(self, state):
-    if not self._state or self._state == 'STOPPED':
+    if self._state == 'STOPPED':
       if state == 'RUNNING' or state == 'STEP':
         self._reader = self._streaming_cache.reader()
     elif self._state == 'RUNNING':

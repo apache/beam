@@ -500,6 +500,7 @@ message TestStreamPayload {
 
     message AdvanceWatermark {
       int64 new_watermark = 1;
+      string tag = 2;
     }
 
     message AdvanceProcessingTime {
@@ -508,6 +509,7 @@ message TestStreamPayload {
 
     message AddElements {
       repeated TimestampedElement elements = 1;
+      string tag = 3;
     }
   }
 

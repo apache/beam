@@ -15,30 +15,12 @@
 # limitations under the License.
 #
 
+from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.utils import timestamp
+from apache_beam.utils.timestamp import Timestamp
 
-from google.protobuf import timestamp_pb2
-
-
-def to_timestamp(timestamp_secs):
-  """Converts seconds since epoch to an apache_beam.util.Timestamp.
-  """
-  return timestamp.Timestamp.of(timestamp_secs)
-
-def from_timestamp_proto(timestamp_proto):
-  return timestamp.Timestamp(seconds=timestamp_proto.seconds,
-                             micros=timestamp_proto.nanos * 1000)
-
-def to_timestamp_usecs(ts):
-  """Converts a google.protobuf.Timestamp and
-     apache_beam.util.timestamp.Timestamp to seconds since epoch.
-  """
-  if isinstance(ts, timestamp_pb2.Timestamp):
-    return (ts.seconds * 10**6) + (ts.nanos * 10**-3)
-  if isinstance(ts, timestamp.Timestamp):
-    return ts.micros
 
 class StreamingCache(object):
   """Abstraction that holds the logic for reading and writing to cache.
@@ -56,19 +38,34 @@ class StreamingCache(object):
     clock advancement events, and watermark advancement events.
     """
     def __init__(self, readers):
-      self._readers = [reader.read() for reader in readers]
-      self._watermark = timestamp.MIN_TIMESTAMP
-      self._timestamp = timestamp.MIN_TIMESTAMP
+      self._timestamp = Timestamp.of(0)
+      self._readers = {}
+      self._headers = {}
+      readers = [r.read() for r in readers]
+
+      # The header allows for metadata about an entire stream, so that the data
+      # isn't copied per record.
+      for r in readers:
+        header = InteractiveStreamHeader()
+        header.ParseFromString(next(r))
+
+        # Main PCollections in Beam have a tag as None. Deserializing a Proto
+        # with an empty tag becomes an empty string. Here we normalize to what
+        # Beam expects.
+        self._headers[header.tag if header.tag else None] = header
+        self._readers[header.tag if header.tag else None] = r
+
+      self._watermarks = {tag: timestamp.MIN_TIMESTAMP for tag in self._headers}
 
     def read(self):
       """Reads records from PCollection readers.
       """
-      records = []
-      for r in self._readers:
+      records = {}
+      for tag, r in self._readers.items():
         try:
           record = InteractiveStreamRecord()
           record.ParseFromString(next(r))
-          records.append(record)
+          records[tag] = record
         except StopIteration:
           pass
 
@@ -76,15 +73,18 @@ class StreamingCache(object):
       if not records:
         self.advance_watermark(timestamp.MAX_TIMESTAMP, events)
 
-      records.sort(key=lambda x: x.processing_time)
-      for r in records:
+      records = sorted(records.items(), key=lambda x: x[1].processing_time)
+      for tag, r in records:
+        # We always send the processing time event first so that the TestStream
+        # can sleep so as to emulate the original stream.
         self.advance_processing_time(
-            from_timestamp_proto(r.processing_time), events)
-        self.advance_watermark(from_timestamp_proto(r.watermark), events)
+            Timestamp.from_proto(r.processing_time), events)
+        self.advance_watermark(Timestamp.from_proto(r.watermark), events,
+                               tag=tag)
 
         events.append(TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[r.element])))
+                elements=[r.element], tag=tag)))
       return events
 
     def advance_processing_time(self, processing_time, events):
@@ -94,30 +94,29 @@ class StreamingCache(object):
       if self._timestamp != processing_time:
         duration = timestamp.Duration(
             micros=processing_time.micros - self._timestamp.micros)
-        if self._timestamp == timestamp.MIN_TIMESTAMP:
-          duration = timestamp.Duration(micros=processing_time.micros)
-        self._timestamp = to_timestamp(processing_time)
+
+        self._timestamp = processing_time
         processing_time_event = TestStreamPayload.Event.AdvanceProcessingTime(
             advance_duration=duration.micros)
         events.append(TestStreamPayload.Event(
             processing_time_event=processing_time_event))
 
-    def advance_watermark(self, watermark, events):
+    def advance_watermark(self, watermark, events, tag=None):
       """Advances the internal clock state and injects an AdvanceWatermark
          event.
       """
-      if self._watermark < watermark:
-        self._watermark = watermark
+      if self._watermarks[tag] < watermark:
+        self._watermarks[tag] = watermark
         payload = TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=to_timestamp_usecs(self._watermark)))
+                new_watermark=self._watermarks[tag].micros, tag=tag))
         events.append(payload)
 
     def stream_time(self):
       return self._timestamp
 
     def watermark(self):
-      return self._watermark
+      return min(self._watermarks.values())
 
   def reader(self):
     return StreamingCache.Reader(self._readers)

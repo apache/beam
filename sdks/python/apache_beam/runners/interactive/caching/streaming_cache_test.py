@@ -17,13 +17,15 @@
 
 import unittest
 
+from google.protobuf import timestamp_pb2
+
 from apache_beam import coders
+from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.utils import timestamp
 
-from google.protobuf import timestamp_pb2
 
 def to_timestamp_proto(timestamp_secs):
   """Converts seconds since epoch to a google.protobuf.Timestamp.
@@ -32,9 +34,10 @@ def to_timestamp_proto(timestamp_secs):
   nanos = int((timestamp_secs - seconds) * 10**9)
   return timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
 
+
 class InMemoryReader(object):
-  def __init__(self):
-    self._records = []
+  def __init__(self, tag=None):
+    self._records = [InteractiveStreamHeader(tag=tag).SerializeToString()]
     self._coder = coders.FastPrimitivesCoder()
 
   def add_element(self, element, event_time, processing_time, watermark):
@@ -51,6 +54,7 @@ class InMemoryReader(object):
     for r in self._records:
       yield r
 
+
 def all_events(reader):
   events = []
   while True:
@@ -59,6 +63,7 @@ def all_events(reader):
       break
     events.append(e)
   return events
+
 
 class StreamingCacheTest(unittest.TestCase):
   def setUp(self):
@@ -80,10 +85,6 @@ class StreamingCacheTest(unittest.TestCase):
 
     expected = []
     expected.append([
-        # Event to advance the clock to 0.
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=0)),
         # Event to advance the watermark to 0.
         TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
@@ -103,9 +104,8 @@ class StreamingCacheTest(unittest.TestCase):
     self.assertSequenceEqual(events, expected)
 
   def test_advances_processing_time(self):
-    """Tests that there is an emitted event to advance the clock when there an
-       element comes at a later time.
-    """
+    """Tests that the service advances the clock. """
+
     in_memory_reader = InMemoryReader()
     in_memory_reader.add_element(
         element=0,
@@ -124,10 +124,6 @@ class StreamingCacheTest(unittest.TestCase):
 
     expected = []
     expected.append([
-        # Event to advance the clock to 0.
-        TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=0)),
         # Event to advance the watermark to 0.
         TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
@@ -163,6 +159,7 @@ class StreamingCacheTest(unittest.TestCase):
         watermark_event=TestStreamPayload.Event.AdvanceWatermark(
             new_watermark=timestamp.MAX_TIMESTAMP.micros))])
     self.assertSequenceEqual(events, expected)
+
 
 if __name__ == '__main__':
   unittest.main()

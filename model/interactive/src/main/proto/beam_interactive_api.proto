@@ -108,6 +108,13 @@ message EventsResponse {
   bool end_of_stream = 2;
 }
 
+// The first record to be read in an interactive stream. This contains metadata
+// about the stream and how to properly process it.
+message InteractiveStreamHeader {
+  // The PCollection tag this stream is associated with.
+  string tag = 1;
+}
+
 message InteractiveStreamRecord {
   org.apache.beam.model.pipeline.v1.TestStreamPayload.TimestampedElement element = 1;
 

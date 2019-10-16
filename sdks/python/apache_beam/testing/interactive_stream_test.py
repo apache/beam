@@ -15,18 +15,20 @@
 # limitations under the License.
 #
 
-import grpc
 import unittest
+
+import grpc
+from google.protobuf import timestamp_pb2
 
 from apache_beam import coders
 from apache_beam.portability.api import beam_interactive_api_pb2 as interactive_api
 from apache_beam.portability.api import beam_interactive_api_pb2_grpc as interactive_api_grpc
-from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
-from apache_beam.testing.interactive_stream import InteractiveStreamController
+from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
+from apache_beam.testing.interactive_stream import InteractiveStreamController
 
-from google.protobuf import timestamp_pb2
 
 def get_open_port():
   import socket
@@ -36,6 +38,7 @@ def get_open_port():
   port = s.getsockname()[1]
   s.close()
   return port
+
 
 def to_timestamp_proto(timestamp_secs):
   """Converts seconds since epoch to a google.protobuf.Timestamp.
@@ -48,6 +51,9 @@ def to_timestamp_proto(timestamp_secs):
 class InMemoryReader(object):
   def read(self):
     coder = coders.FastPrimitivesCoder()
+    header = InteractiveStreamHeader(tag=None)
+
+    yield header.SerializeToString()
     for i in range(10):
       element = TestStreamPayload.TimestampedElement(
           encoded_element=coder.encode(i), timestamp=i)
@@ -66,7 +72,6 @@ class InteractiveStreamTest(unittest.TestCase):
     InteractiveStreamController(endpoint, streaming_cache)
     channel = grpc.insecure_channel(endpoint)
     self.stub = interactive_api_grpc.InteractiveServiceStub(channel)
-
 
   def test_server_connectivity(self):
     self.stub.Status(interactive_api.StatusRequest())
