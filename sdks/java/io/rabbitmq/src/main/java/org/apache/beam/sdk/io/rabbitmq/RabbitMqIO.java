@@ -415,7 +415,7 @@ public class RabbitMqIO {
   private static class RabbitMQCheckpointMark
       implements UnboundedSource.CheckpointMark, Serializable {
     transient Channel channel;
-    Instant oldestTimestamp = Instant.now();
+    Instant latestTimestamp = Instant.now();
     final List<Long> sessionIds = new ArrayList<>();
 
     @Override
@@ -424,13 +424,15 @@ public class RabbitMqIO {
         channel.basicAck(sessionId, false);
       }
       channel.txCommit();
-      oldestTimestamp = Instant.now();
+      latestTimestamp = Instant.now();
       sessionIds.clear();
     }
   }
 
   private static class UnboundedRabbitMqReader
       extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
+    private static final IDLE_WATERMARK_DELTA = Duration.standardSeconds(2);
+
     private final RabbitMQSource source;
 
     private RabbitMqMessage current;
@@ -449,7 +451,7 @@ public class RabbitMqIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.oldestTimestamp;
+      return checkpointMark.latestTimestamp;
     }
 
     @Override
@@ -530,6 +532,10 @@ public class RabbitMqIO {
         // we consume message without autoAck (we want to do the ack ourselves)
         GetResponse delivery = channel.basicGet(queueName, false);
         if (delivery == null) {
+          Instant idleWatermark = Instant.now().minus(IDLE_WATERMARK_DELTA);
+          if (idleWatermark.isAfter(checkpointMark.latestTimestamp)) {
+            checkpointMark.latestTimestamp = idleWatermark;
+          }
           return false;
         }
         if (source.spec.useCorrelationId()) {
@@ -546,8 +552,8 @@ public class RabbitMqIO {
 
         current = new RabbitMqMessage(source.spec.routingKey(), delivery);
         currentTimestamp = new Instant(delivery.getProps().getTimestamp());
-        if (currentTimestamp.isBefore(checkpointMark.oldestTimestamp)) {
-          checkpointMark.oldestTimestamp = currentTimestamp;
+        if (currentTimestamp.isAfter(checkpointMark.latestTimestamp)) {
+          checkpointMark.latestTimestamp = currentTimestamp;
         }
       } catch (IOException e) {
         throw e;
