@@ -36,8 +36,8 @@ import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
-from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
+from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -311,7 +311,6 @@ class TestWriteToBigQuery(unittest.TestCase):
   def tearDown(self):
     self._cleanup_files()
 
-
   def test_noop_schema_parsing(self):
     expected_table_schema = None
     table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(
@@ -526,18 +525,18 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client.tabledata.InsertAll = mock.Mock(side_effect=store_callback)
 
     with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
-      res = (p
-             | beam.Create([{'columnA':'value1', 'columnB':'value2'},
-                            {'columnA':'value3', 'columnB':'value4'},
-                            {'columnA':'value5', 'columnB':'value6'}])
-             | _StreamToBigQuery(
-                 'project:dataset.table',
-                 [], [],
-                 'anyschema',
-                 None,
-                 'CREATE_NEVER', None,
-                 None, None,
-                 [], test_client=client))
+      _ = (p
+           | beam.Create([{'columnA':'value1', 'columnB':'value2'},
+                          {'columnA':'value3', 'columnB':'value4'},
+                          {'columnA':'value5', 'columnB':'value6'}])
+           | _StreamToBigQuery(
+               'project:dataset.table',
+               [], [],
+               'anyschema',
+               None,
+               'CREATE_NEVER', None,
+               None, None,
+               [], test_client=client))
 
     self.assertEqual(
         json.load(open('insert_calls1')),
