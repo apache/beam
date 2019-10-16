@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -50,7 +52,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
 
     self._next_state('RUNNING')
     self._playback_speed = request.playback_speed or 1.0
-    self._playback_speed = max(min(self._playback_speed, 1000000.0), 0.001)
+    self._playback_speed = 1.0 / max(min(self._playback_speed, 1000000.0), 0.1)
     return beam_interactive_api_pb2.StartResponse()
 
   def Stop(self, request, context):
@@ -106,7 +108,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
         # emulate the original stream.
         if e.HasField('processing_time_event'):
           sleep_duration = (
-              e.processing_time_event.advance_duration / self._playback_speed
+              e.processing_time_event.advance_duration * self._playback_speed
               ) * 10**-6
           time.sleep(sleep_duration)
         yield beam_interactive_api_pb2.EventsResponse(events=[e])
