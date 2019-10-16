@@ -130,7 +130,7 @@ class FileSystemsTest(unittest.TestCase):
       FileSystems.match([None])
     self.assertEqual(list(error.exception.exception_details), [None])
 
-  def test_match_directory(self):
+  def test_match_directory_with_files(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
     open(path1, 'a').close()

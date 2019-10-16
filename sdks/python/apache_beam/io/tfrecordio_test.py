@@ -288,7 +288,7 @@ class TestReadFromTFRecord(unittest.TestCase):
                       validate=True))
         assert_that(result, equal_to([b'foo', b'bar']))
 
-  def test_process_gzip(self):
+  def test_process_gzip_with_coder(self):
     with TempDir() as temp_dir:
       path = temp_dir.create_temp_file('result')
       _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
@@ -299,6 +299,17 @@ class TestReadFromTFRecord(unittest.TestCase):
                       coder=coders.BytesCoder(),
                       compression_type=CompressionTypes.GZIP,
                       validate=True))
+        assert_that(result, equal_to([b'foo', b'bar']))
+
+  def test_process_gzip_without_coder(self):
+    with TempDir() as temp_dir:
+      path = temp_dir.create_temp_file('result')
+      _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
+      with TestPipeline() as p:
+        result = (p
+                  | ReadFromTFRecord(
+                      path,
+                      compression_type=CompressionTypes.GZIP))
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_auto(self):
@@ -312,16 +323,6 @@ class TestReadFromTFRecord(unittest.TestCase):
                       coder=coders.BytesCoder(),
                       compression_type=CompressionTypes.AUTO,
                       validate=True))
-        assert_that(result, equal_to([b'foo', b'bar']))
-
-  def test_process_gzip(self):
-    with TempDir() as temp_dir:
-      path = temp_dir.create_temp_file('result')
-      _write_file_gzip(path, FOO_BAR_RECORD_BASE64)
-      with TestPipeline() as p:
-        result = (p
-                  | ReadFromTFRecord(
-                      path, compression_type=CompressionTypes.GZIP))
         assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_gzip_auto(self):
