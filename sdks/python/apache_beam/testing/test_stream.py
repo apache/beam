@@ -47,7 +47,7 @@ __all__ = [
 
 
 @total_ordering
-class Event(with_metaclass(ABCMeta, object)):
+class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   """Test stream event to be emitted during execution of a TestStream."""
 
   @abstractmethod

@@ -561,7 +561,7 @@ class SdkWorker(object):
       yield
 
 
-class StateHandler(with_metaclass(abc.ABCMeta, object)):
+class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """An abstract object representing a ``StateHandler``."""
 
   @abc.abstractmethod
