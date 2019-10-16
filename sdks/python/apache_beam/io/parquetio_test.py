@@ -398,7 +398,7 @@ class TestParquet(unittest.TestCase):
     splits = [
         split for split in source.split(desired_bundle_size=1)
     ]
-    self.assertNotEquals(len(splits), 1)
+    self.assertNotEqual(len(splits), 1)
 
   def _convert_to_timestamped_record(self, record):
     timestamped_record = record.copy()

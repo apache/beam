@@ -33,7 +33,8 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
-from setuptools.command.develop import develop
+# TODO: (BEAM-8411): re-enable lint check.
+from setuptools.command.develop import develop  # pylint: disable-all
 from setuptools.command.egg_info import egg_info
 from setuptools.command.test import test
 

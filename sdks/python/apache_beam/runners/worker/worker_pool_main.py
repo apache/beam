@@ -113,7 +113,7 @@ class BeamFnExternalWorkerPoolServicer(
                      % start_worker_request.control_endpoint.url,
                     ]
 
-        logging.warn("Starting worker with command %s" % command)
+        logging.warning("Starting worker with command %s" % command)
         worker_process = subprocess.Popen(command, stdout=subprocess.PIPE,
                                           close_fds=True)
         self._worker_processes[start_worker_request.worker_id] = worker_process

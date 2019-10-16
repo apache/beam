@@ -410,7 +410,7 @@ class FnApiRunner(runner.PipelineRunner):
       path = profiler.profile_output
       print('CPU Profile written to %s' % path)
       try:
-        import gprof2dot  # pylint: disable=unused-variable
+        import gprof2dot  # pylint: disable=unused-import
         if not subprocess.call([
             sys.executable, '-m', 'gprof2dot',
             '-f', 'pstats', path, '-o', path + '.dot']):

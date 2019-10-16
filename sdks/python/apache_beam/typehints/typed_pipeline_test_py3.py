@@ -44,11 +44,11 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
-      ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
+      _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
-      [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
+      _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_instance(self):
     # Type hints applied to DoFn instance take precedence over decorators and
@@ -66,11 +66,11 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
-      ['a', 'b', 'c'] | beam.ParDo(my_do_fn)
+      _ = ['a', 'b', 'c'] | beam.ParDo(my_do_fn)
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
-      [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
+      _ = [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
   def test_typed_callable_instance(self):
     # Type hints applied to ParDo instance take precedence over callable
@@ -86,11 +86,11 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
-      ['a', 'b', 'c'] | pardo
+      _ = ['a', 'b', 'c'] | pardo
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
-      [1, 2, 3] | (pardo | 'again' >> pardo)
+      _ = [1, 2, 3] | (pardo | 'again' >> pardo)
 
   @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
   def test_typed_callable_iterable_output(self):
@@ -108,13 +108,13 @@ class MainInputTest(unittest.TestCase):
         return str(element)
 
     with self.assertRaisesRegex(ValueError, r'str.*is not iterable'):
-      [1, 2, 3] | beam.ParDo(MyDoFn())
+      _ = [1, 2, 3] | beam.ParDo(MyDoFn())
 
   def test_typed_callable_not_iterable(self):
     def do_fn(element: typehints.Tuple[int, int]) -> int:
       return element[0]
     with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
-      [1, 2, 3] | beam.ParDo(do_fn)
+      _ = [1, 2, 3] | beam.ParDo(do_fn)
 
   def test_typed_dofn_kwonly(self):
     class MyDoFn(beam.DoFn):
@@ -130,7 +130,7 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*str.*got.*int.*side_input'):
-      [1, 2, 3] | beam.ParDo(my_do_fn, side_input=1)
+      _ = [1, 2, 3] | beam.ParDo(my_do_fn, side_input=1)
 
   def test_type_dofn_var_kwargs(self):
     class MyDoFn(beam.DoFn):
@@ -144,7 +144,7 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*str.*got.*int.*side_inputs'):
-      [1, 2, 3] | beam.ParDo(my_do_fn, a=1)
+      _ = [1, 2, 3] | beam.ParDo(my_do_fn, a=1)
 
 
 class AnnotationsTest(unittest.TestCase):
@@ -163,7 +163,7 @@ class AnnotationsTest(unittest.TestCase):
       def process(self, element: int) -> str:
         return str(element)
 
-    with self.assertRaisesRegexp(ValueError, r'Return value not iterable'):
+    with self.assertRaisesRegex(ValueError, r'Return value not iterable'):
       _ = beam.ParDo(MyDoFn()).get_type_hints()
 
   def test_pardo_wrapper(self):
@@ -178,7 +178,7 @@ class AnnotationsTest(unittest.TestCase):
     def do_fn(element: int) -> str:
       return str(element)
 
-    with self.assertRaisesRegexp(ValueError, r'Return value not iterable'):
+    with self.assertRaisesRegex(ValueError, r'Return value not iterable'):
       _ = beam.ParDo(do_fn).get_type_hints()
 
   def test_flat_map_wrapper(self):

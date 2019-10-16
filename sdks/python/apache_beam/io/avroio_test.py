@@ -25,6 +25,9 @@ import tempfile
 import unittest
 from builtins import range
 import sys
+
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 
 import avro
@@ -375,7 +378,7 @@ class AvroBase(object):
 
     source = _create_avro_source(
         corrupted_file_name, use_fastavro=self.use_fastavro)
-    with self.assertRaisesRegexp(ValueError, r'expected sync marker'):
+    with self.assertRaisesRegex(ValueError, r'expected sync marker'):
       source_test_utils.read_from_source(source, None, None)
 
   def test_read_from_avro(self):

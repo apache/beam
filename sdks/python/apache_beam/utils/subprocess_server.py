@@ -78,7 +78,7 @@ class SubprocessServer(object):
         port, = pick_port(None)
         cmd = [arg.replace('{{PORT}}', str(port)) for arg in self._cmd]
       endpoint = 'localhost:%s' % port
-      logging.warn("Starting service with %s", str(cmd).replace("',", "'"))
+      logging.warning("Starting service with %s", str(cmd).replace("',", "'"))
       try:
         self._process = subprocess.Popen(cmd)
         wait_secs = .1

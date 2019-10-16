@@ -16,9 +16,7 @@
 #    limitations under the License.
 #
 
-# This script will run python3 ready style checks
-#
-#   Currently only flake8 E999
+# This script runs a basic pylint on python2 to detect syntax errors
 #
 # The exit-code of the script indicates success or a failure.
 
@@ -38,13 +36,8 @@ set -o pipefail
 
 MODULE=apache_beam
 
-PYTHON_MINOR=$(python -c 'import sys; print(sys.version_info[1])')
-if [[ "${PYTHON_MINOR}" == 5 ]]; then
-  EXCLUDED_PY3_FILES=$(find ${MODULE} | grep 'py3[6-9]\.py$')
-  echo -e "Excluding Py3 files:\n${EXCLUDED_PY3_FILES}"
-else
-  EXCLUDED_PY3_FILES=""
-fi
+EXCLUDED_PY3_FILES=$(find ${MODULE} | grep 'py3.*\.py$')
+echo -e "Excluding Py3 files:\n${EXCLUDED_PY3_FILES}"
 
 FILES_TO_IGNORE=""
 for file in ${EXCLUDED_PY3_FILES}; do

@@ -440,7 +440,7 @@ def getcallargs_forhints_impl_py2(func, typeargs, typekwargs):
   # TODO(BEAM-5490): Reimplement getcallargs and stop relying on monkeypatch.
   inspect.getargspec = getfullargspec
   try:
-    callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)
+    callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)  # pylint: disable=deprecated-method
   except TypeError as e:
     raise TypeCheckError(e)
   finally:

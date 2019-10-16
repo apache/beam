@@ -352,15 +352,16 @@ class CompressedFile(object):
     elif whence == os.SEEK_END:
       # Determine and cache the uncompressed size of the file
       if not self._uncompressed_size:
-        logger.warn("Seeking relative from end of file is requested. "
-                    "Need to decompress the whole file once to determine "
-                    "its size. This might take a while...")
+        logger.warning("Seeking relative from end of file is requested. "
+                       "Need to decompress the whole file once to determine "
+                       "its size. This might take a while...")
         uncompress_start_time = time.time()
         while self.read(self._read_size):
           pass
         uncompress_end_time = time.time()
-        logger.warn("Full file decompression for seek from end took %.2f secs",
-                    (uncompress_end_time - uncompress_start_time))
+        logger.warning("Full file decompression for seek "
+                       "from end took %.2f secs",
+                       (uncompress_end_time - uncompress_start_time))
         self._uncompressed_size = self._uncompressed_position
       absolute_offset = self._uncompressed_size + offset
     else:

@@ -19,7 +19,7 @@ from __future__ import absolute_import
 
 import unittest
 
-import mock as mock
+import mock
 
 from apache_beam.io import OffsetRangeTracker
 from apache_beam.io import source_test_utils
