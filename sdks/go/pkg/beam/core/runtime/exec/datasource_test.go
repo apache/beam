@@ -86,14 +86,14 @@ func TestDataSource_Iterators(t *testing.T) {
 		name       string
 		keys, vals []interface{}
 		Coder      *coder.Coder
-    driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []interface{})
+		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []interface{})
 	}{
 		{
 			name:  "beam:coder:iterable:v1-singleChunk",
 			keys:  []interface{}{int64(42), int64(53)},
 			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
-      Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-      driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
@@ -110,14 +110,14 @@ func TestDataSource_Iterators(t *testing.T) {
 			name:  "beam:coder:iterable:v1-multiChunk",
 			keys:  []interface{}{int64(42), int64(53)},
 			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
-      Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-      driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 
-          coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam runner proto says to use 0)
+					coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam runner proto says to use 0)
 					for _, v := range vs {
 						coder.EncodeVarInt(1, dmw) // Number of elements in this chunk.
 						vc.Encode(&FullValue{Elm: v}, dmw)
@@ -131,8 +131,8 @@ func TestDataSource_Iterators(t *testing.T) {
 			name:  "beam:coder:state_backed_iterable:v1",
 			keys:  []interface{}{int64(42), int64(53)},
 			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
-      Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-      driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
+			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
+			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
@@ -194,7 +194,7 @@ func TestDataSource_Iterators(t *testing.T) {
 				iVals = append(iVals, i.Key)
 
 				if got, want := i.Values, expectedValues; !equalList(got, want) {
-          t.Errorf("DataSource => key(%v) = %#v, want %#v", i.Key, extractValues(got...), extractValues(want...))
+					t.Errorf("DataSource => key(%v) = %#v, want %#v", i.Key, extractValues(got...), extractValues(want...))
 				}
 			}
 
@@ -274,7 +274,7 @@ func TestDataSource_Split(t *testing.T) {
 			}
 			p.status = Active
 
-      runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
+			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
 			// SDK never splits on 0, so check that every test.
 			if splitIdx, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}}); err != nil {
@@ -347,7 +347,7 @@ func TestDataSource_Split(t *testing.T) {
 						t.Errorf("error in Split: got splitIdx = %v, want %v ", got, want)
 					}
 					// Validate that our progress is where we expect it to be. (test.splitIdx - 1)
-					if got, want := source.Progress().Count, test.splitIdx -1; got != want {
+					if got, want := source.Progress().Count, test.splitIdx-1; got != want {
 						t.Errorf("error in Progress: got finished processing Count = %v, want %v ", got, want)
 					}
 					unblockCh <- struct{}{}
@@ -393,7 +393,7 @@ func TestDataSource_Split(t *testing.T) {
 		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
 			t.Fatal("plan not started, expected error when splitting, got nil")
 		}
-    runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
+		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
 			t.Fatal("plan started, expected error when splitting, got nil")
 		}
@@ -473,6 +473,6 @@ func validateSource(t *testing.T, out *CaptureNode, source *DataSource, expected
 		t.Fatalf("progress count didn't match: got %v, want %v", got, want)
 	}
 	if !equalList(out.Elements, expected) {
-    t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))
+		t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))
 	}
 }
