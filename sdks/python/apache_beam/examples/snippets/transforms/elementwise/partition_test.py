@@ -23,10 +23,8 @@ import unittest
 
 import mock
 
-import apache_beam as beam
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import partition
 
@@ -56,12 +54,9 @@ perennial: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
       if line.split(':', 1)[0] == 'perennial'
   ]
 
-  assert_that(actual1 | 'annuals str' >> beam.Map(str),
-              equal_to(annuals), label='assert annuals')
-  assert_that(actual2 | 'biennials str' >> beam.Map(str),
-              equal_to(biennials), label='assert biennials')
-  assert_that(actual3 | 'perennials str' >> beam.Map(str),
-              equal_to(perennials), label='assert perennials')
+  assert_matches_stdout(actual1, annuals, 'annuals')
+  assert_matches_stdout(actual2, biennials, 'biennials')
+  assert_matches_stdout(actual3, perennials, 'perennials')
 
 
 def check_split_datasets(actual1, actual2):
@@ -84,14 +79,14 @@ train: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
       if line.split(':', 1)[0] == 'test'
   ]
 
-  assert_that(actual1 | 'train str' >> beam.Map(str),
-              equal_to(train_dataset), label='assert train')
-  assert_that(actual2 | 'test str' >> beam.Map(str),
-              equal_to(test_dataset), label='assert test')
+  assert_matches_stdout(actual1, train_dataset, 'train_dataset')
+  assert_matches_stdout(actual2, test_dataset, 'test_dataset')
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.partition.print', lambda x: x)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.partition.print',
+    lambda elem: elem)
 class PartitionTest(unittest.TestCase):
   def test_partition_function(self):
     partition.partition_function(check_partitions)

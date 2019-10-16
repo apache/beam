@@ -18,20 +18,26 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
-from __future__ import unicode_literals
 
-import io
 import platform
 import sys
 import unittest
 
 import mock
 
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 from . import pardo
+
+# TODO: Remove this after Python 2 deprecation.
+# https://issues.apache.org/jira/browse/BEAM-8124
+if sys.version_info[0] == 2:
+  from io import BytesIO as StringIO
+else:
+  from io import StringIO
 
 
 def check_plants(actual):
@@ -42,7 +48,7 @@ def check_plants(actual):
 🍅Tomato
 🥔Potato
 [END plants]'''.splitlines()[1:-1]
-  assert_that(actual, equal_to(expected))
+  assert_matches_stdout(actual, expected)
 
 
 def check_dofn_params(actual):
@@ -81,21 +87,22 @@ teardown
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.pardo.print', str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.pardo.print', str)
 class ParDoTest(unittest.TestCase):
   def test_pardo_dofn(self):
     pardo.pardo_dofn(check_plants)
 
   # TODO: Remove this after Python 2 deprecation.
   # https://issues.apache.org/jira/browse/BEAM-8124
-  @unittest.skipIf(sys.version_info[0] < 3 and platform.system() == 'Windows',
+  @unittest.skipIf(sys.version_info[0] == 2 and platform.system() == 'Windows',
                    'Python 2 on Windows uses `long` rather than `int`')
   def test_pardo_dofn_params(self):
     pardo.pardo_dofn_params(check_dofn_params)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch('sys.stdout', new_callable=io.StringIO)
+@mock.patch('sys.stdout', new_callable=StringIO)
 class ParDoStdoutTest(unittest.TestCase):
   def test_pardo_dofn_methods(self, mock_stdout):
     expected = pardo.pardo_dofn_methods(check_dofn_methods)

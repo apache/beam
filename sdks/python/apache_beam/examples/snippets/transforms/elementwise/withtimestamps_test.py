@@ -24,9 +24,8 @@ import unittest
 import mock
 
 import apache_beam as beam
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import withtimestamps
 
@@ -39,7 +38,7 @@ def check_plant_timestamps(actual):
 2020-05-01 00:00:00 - Tomato
 2020-09-01 00:00:00 - Potato
 [END plant_timestamps]'''.splitlines()[1:-1]
-  assert_that(actual, equal_to(expected))
+  assert_matches_stdout(actual, expected)
 
 
 def check_plant_events(actual):
@@ -50,7 +49,7 @@ def check_plant_events(actual):
 3 - Tomato
 5 - Potato
 [END plant_events]'''.splitlines()[1:-1]
-  assert_that(actual, equal_to(expected))
+  assert_matches_stdout(actual, expected)
 
 
 def check_plant_processing_times(actual):
@@ -66,11 +65,13 @@ def check_plant_processing_times(actual):
   # simply strip the timestamp information before testing the results.
   actual = actual | beam.Map(lambda row: row.split('-')[-1].strip())
   expected = [row.split('-')[-1].strip() for row in expected]
-  assert_that(actual, equal_to(expected))
+  assert_matches_stdout(actual, expected)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.withtimestamps.print', str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.withtimestamps.print',
+    str)
 class WithTimestampsTest(unittest.TestCase):
   def test_event_time(self):
     withtimestamps.withtimestamps_event_time(check_plant_timestamps)

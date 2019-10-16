@@ -23,9 +23,8 @@ import unittest
 
 import mock
 
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import flatmap
 
@@ -38,7 +37,7 @@ def check_plants(actual):
 🍅Tomato
 🥔Potato
 [END plants]'''.splitlines()[1:-1]
-  assert_that(actual, equal_to(expected))
+  assert_matches_stdout(actual, expected)
 
 
 def check_valid_plants(actual):
@@ -48,11 +47,12 @@ def check_valid_plants(actual):
 {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
 {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
 [END valid_plants]'''.splitlines()[1:-1]
-  assert_that(actual, equal_to(expected))
+  assert_matches_stdout(actual, expected)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.flatmap.print', str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap.print', str)
 class FlatMapTest(unittest.TestCase):
   def test_flatmap_simple(self):
     flatmap.flatmap_simple(check_plants)
