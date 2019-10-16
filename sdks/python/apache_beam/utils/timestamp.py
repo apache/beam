@@ -24,7 +24,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 import datetime
-import functools
 from builtins import object
 from typing import Any
 from typing import Union
@@ -36,7 +35,6 @@ from past.builtins import long
 from apache_beam.portability import common_urns
 
 
-@functools.total_ordering
 class Timestamp(object):
   """Represents a Unix second timestamp with microsecond granularity.
 
@@ -174,6 +172,18 @@ class Timestamp(object):
       other = Timestamp.of(other)
     return self.micros < other.micros
 
+  def __gt__(self, other):
+    # type: (Union[int, float, Timestamp, Duration]) -> bool
+    return not (self < other or self == other)
+
+  def __le__(self, other):
+    # type: (Union[int, float, Timestamp, Duration]) -> bool
+    return self < other or self == other
+
+  def __ge__(self, other):
+    # type: (Union[int, float, Timestamp, Duration]) -> bool
+    return not self < other
+
   def __hash__(self):
     return hash(self.micros)
 
@@ -203,7 +213,6 @@ MAX_TIMESTAMP = Timestamp(micros=int(
     common_urns.constants.MAX_TIMESTAMP_MILLIS.constant)*1000)
 
 
-@functools.total_ordering
 class Duration(object):
   """Represents a second duration with microsecond granularity.
 
@@ -273,11 +282,23 @@ class Duration(object):
     return not self == other
 
   def __lt__(self, other):
-    # type: (Union[int, float, Duration, Timestamp]) -> bool
+    # type: (Union[int, float, Timestamp, Duration]) -> bool
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
     return self.micros < other.micros
+
+  def __gt__(self, other):
+    # type: (Union[int, float, Timestamp, Duration]) -> bool
+    return not (self < other or self == other)
+
+  def __le__(self, other):
+    # type: (Union[int, float, Timestamp, Duration]) -> bool
+    return self < other or self == other
+
+  def __ge__(self, other):
+    # type: (Union[int, float, Timestamp, Duration]) -> bool
+    return not self < other
 
   def __hash__(self):
     return hash(self.micros)
