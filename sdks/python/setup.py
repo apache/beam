@@ -33,7 +33,7 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
-# workaround pylint bug: https://github.com/PyCQA/pylint/issues/3152
+# TODO: (BEAM-8411): re-enable lint check.
 from setuptools.command.develop import develop  # pylint: disable-all
 from setuptools.command.egg_info import egg_info
 from setuptools.command.test import test

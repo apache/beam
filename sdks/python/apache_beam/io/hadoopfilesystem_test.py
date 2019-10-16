@@ -69,7 +69,7 @@ class FakeFile(io.BytesIO):
 
   @property
   def size(self):
-    if self.closed:
+    if self.closed:  # pylint: disable=using-constant-test
       if self.saved_data is None:
         return 0
       return len(self.saved_data)

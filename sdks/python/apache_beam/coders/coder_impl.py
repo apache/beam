@@ -456,9 +456,9 @@ class BooleanCoderImpl(CoderImpl):
 
   def decode_from_stream(self, in_stream, nested):
     value = in_stream.read_byte()
-    if value is 0:
+    if value == 0:
       return False
-    elif value is 1:
+    elif value == 1:
       return True
     raise ValueError("Expected 0 or 1, got %s" % value)
 
@@ -467,9 +467,9 @@ class BooleanCoderImpl(CoderImpl):
 
   def decode(self, encoded):
     value = ord(encoded)
-    if value is 0:
+    if value == 0:
       return False
-    elif value is 1:
+    elif value == 1:
       return True
     raise ValueError("Expected 0 or 1, got %s" % value)
 

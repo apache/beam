@@ -31,7 +31,7 @@ from __future__ import print_function
 import subprocess
 from distutils.command.build import build as _build
 
-# workaround pylint bug: https://github.com/PyCQA/pylint/issues/3152
+# TODO: (BEAM-8411): re-enable lint check.
 import setuptools  # pylint: disable-all
 
 

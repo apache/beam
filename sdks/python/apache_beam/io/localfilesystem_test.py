@@ -337,7 +337,7 @@ class LocalFileSystemTest(unittest.TestCase):
           'Unexpected value in tempdir tree: %s' % value
       )
 
-    if expected_leaf_count != None:
+    if expected_leaf_count is not None:
       self.assertEqual(
           self.check_tree(path, value),
           expected_leaf_count
@@ -380,7 +380,7 @@ class LocalFileSystemTest(unittest.TestCase):
           'Unexpected value in tempdir tree: %s' % value
       )
 
-    if expected_leaf_count != None:
+    if expected_leaf_count is not None:
       self.assertEqual(actual_leaf_count, expected_leaf_count)
 
     return actual_leaf_count
