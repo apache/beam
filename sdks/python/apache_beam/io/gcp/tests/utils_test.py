@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import logging
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -73,7 +75,7 @@ class UtilsTest(unittest.TestCase):
         'table_ref')
     mock_client.return_value.delete_table.side_effect = gexc.NotFound('test')
 
-    with self.assertRaisesRegexp(Exception, r'does not exist:.*table_ref'):
+    with self.assertRaisesRegex(Exception, r'does not exist:.*table_ref'):
       utils.delete_bq_table('unused_project',
                             'unused_dataset',
                             'unused_table')
@@ -252,9 +254,9 @@ class PubSubUtilTest(unittest.TestCase):
   def test_read_from_pubsub_invalid_arg(self):
     sub_client = mock.Mock()
     subscription_path = "project/fakeproj/subscriptions/fakesub"
-    with self.assertRaisesRegexp(ValueError, "number_of_elements"):
+    with self.assertRaisesRegex(ValueError, "number_of_elements"):
       utils.read_from_pubsub(sub_client, subscription_path)
-    with self.assertRaisesRegexp(ValueError, "number_of_elements"):
+    with self.assertRaisesRegex(ValueError, "number_of_elements"):
       utils.read_from_pubsub(
           sub_client, subscription_path, with_attributes=True)
 

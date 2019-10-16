@@ -26,6 +26,8 @@ import unittest
 from builtins import range
 from builtins import zip
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import yaml
 
 import apache_beam as beam
@@ -382,7 +384,7 @@ class TriggerTest(unittest.TestCase):
         2)
 
   def test_picklable_output(self):
-    global_window = trigger.GlobalWindow(),
+    global_window = (trigger.GlobalWindow(),)
     driver = trigger.DiscardingGlobalTriggerDriver()
     unpicklable = (WindowedValue(k, 0, global_window)
                    for k in range(10))
@@ -509,7 +511,7 @@ class TranscriptTest(unittest.TestCase):
 
   def _run_log_test(self, spec):
     if 'error' in spec:
-      self.assertRaisesRegexp(
+      self.assertRaisesRegex(
           AssertionError, spec['error'], self._run_log, spec)
     else:
       self._run_log(spec)

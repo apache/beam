@@ -27,6 +27,8 @@ import time
 import unittest
 import uuid
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 from nose.plugins.attrib import attr
@@ -119,12 +121,12 @@ class TestTableRowJsonCoder(unittest.TestCase):
     test_row = bigquery.TableRow(
         f=[bigquery.TableCell(v=to_json_value(e))
            for e in ['abc', 123, 123.456, True]])
-    with self.assertRaisesRegexp(AttributeError,
-                                 r'^The TableRowJsonCoder requires'):
+    with self.assertRaisesRegex(AttributeError,
+                                r'^The TableRowJsonCoder requires'):
       coder.encode(test_row)
 
   def json_compliance_exception(self, value):
-    with self.assertRaisesRegexp(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
+    with self.assertRaisesRegex(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
       schema_definition = [('f', 'FLOAT')]
       schema = bigquery.TableSchema(
           fields=[bigquery.TableFieldSchema(name=k, type=v)

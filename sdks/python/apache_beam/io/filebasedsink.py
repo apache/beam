@@ -210,8 +210,8 @@ class FileBasedSink(iobase.Sink):
                       for file_metadata in mr.metadata_list]
 
     if dst_glob_files:
-      logging.warn('Deleting %d existing files in target path matching: %s',
-                   len(dst_glob_files), self.shard_name_glob_format)
+      logging.warning('Deleting %d existing files in target path matching: %s',
+                      len(dst_glob_files), self.shard_name_glob_format)
       FileSystems.delete(dst_glob_files)
 
   def _check_state_for_finalize_write(self, writer_results, num_shards):

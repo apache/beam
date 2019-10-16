@@ -26,12 +26,6 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.5'
 
-task lint {}
-check.dependsOn lint
-
-toxTask "lintPy35", "py35-lint"
-lint.dependsOn lintPy35
-
 toxTask "testPython35", "py35"
 test.dependsOn testPython35
 

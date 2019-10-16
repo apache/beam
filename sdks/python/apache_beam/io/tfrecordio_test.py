@@ -32,6 +32,8 @@ import zlib
 from builtins import range
 
 import crcmod
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 
 import apache_beam as beam
 from apache_beam import Create
@@ -110,7 +112,7 @@ class TestTFRecordUtil(unittest.TestCase):
       return bytes(l)
 
   def _test_error(self, record, error_text):
-    with self.assertRaisesRegexp(ValueError, re.escape(error_text)):
+    with self.assertRaisesRegex(ValueError, re.escape(error_text)):
       _TFRecordUtil.read_record(self._as_file_handle(record))
 
   def test_masked_crc32c(self):

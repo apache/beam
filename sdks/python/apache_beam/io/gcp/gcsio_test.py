@@ -31,6 +31,8 @@ from builtins import object
 from builtins import range
 from email.message import Message
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import httplib2
 import mock
 
@@ -426,7 +428,7 @@ class TestGCSIO(unittest.TestCase):
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
     # Test copy of non-existent files.
-    with self.assertRaisesRegexp(HttpError, r'Not Found'):
+    with self.assertRaisesRegex(HttpError, r'Not Found'):
       self.gcs.copy('gs://gcsio-test/non-existent',
                     'gs://gcsio-test/non-existent-destination')
 

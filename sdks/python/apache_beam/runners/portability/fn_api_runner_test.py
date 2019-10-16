@@ -32,6 +32,8 @@ import unittest
 import uuid
 from builtins import range
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest  # pylint: disable=ungrouped-imports
 import mock
 from hamcrest.core.matcher import Matcher
@@ -91,7 +93,7 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
-    with self.assertRaisesRegexp(Exception, 'Failed assert'):
+    with self.assertRaisesRegex(Exception, 'Failed assert'):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
@@ -1609,7 +1611,7 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
              | beam.Create([1])
              | beam.Map(time.sleep))
 
-    self.assertRegexpMatches(
+    self.assertRegex(
         ''.join(logs.output),
         '.*There has been a processing lull of over.*',
         'Unable to find a lull logged for this job.')

@@ -441,7 +441,7 @@ class DataflowRunner(PipelineRunner):
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
     if dataflow_worker_jar is not None:
       if not apiclient._use_fnapi(options):
-        logging.warn(
+        logging.warning(
             'Typical end users should not use this worker jar feature. '
             'It can only be used when FnAPI is enabled.')
       else:

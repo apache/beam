@@ -35,7 +35,7 @@ class FastCoders(unittest.TestCase):
     except RuntimeError:
       self.skipTest('Cython is not installed')
     # pylint: disable=wrong-import-order, wrong-import-position
-    # pylint: disable=unused-variable
+    # pylint: disable=unused-import
     import apache_beam.coders.stream
 
 

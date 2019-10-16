@@ -23,6 +23,9 @@ import sys
 import typing
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
+
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -89,12 +92,12 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.ParDo(MyDoFn())
     self.assertEqual(['1', '2', '3'], sorted(result))
 
-    with self.assertRaisesRegexp(typehints.TypeCheckError,
-                                 r'requires.*int.*got.*str'):
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*int.*got.*str'):
       ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
-    with self.assertRaisesRegexp(typehints.TypeCheckError,
-                                 r'requires.*int.*got.*str'):
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*int.*got.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
@@ -186,8 +189,8 @@ class SideInputTest(unittest.TestCase):
       ['a', 'bb', 'c'] | beam.Map(repeat, 3, 4)
     if all(param.default == param.empty
            for param in get_signature(repeat).parameters.values()):
-      with self.assertRaisesRegexp(typehints.TypeCheckError,
-                                   r'(takes exactly|missing a required)'):
+      with self.assertRaisesRegex(typehints.TypeCheckError,
+                                  r'(takes exactly|missing a required)'):
         ['a', 'bb', 'c'] | beam.Map(repeat)
 
   def test_basic_side_input_hint(self):
@@ -225,7 +228,7 @@ class SideInputTest(unittest.TestCase):
     self.assertEqual(['aaa', 'bbbbbb', 'ccc'], sorted(result))
 
     if sys.version_info >= (3,):
-      with self.assertRaisesRegexp(
+      with self.assertRaisesRegex(
           typehints.TypeCheckError,
           r'requires Tuple\[int, ...\] but got Tuple\[str, ...\]'):
         ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
@@ -248,7 +251,7 @@ class SideInputTest(unittest.TestCase):
     self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     if sys.version_info >= (3,):
-      with self.assertRaisesRegexp(
+      with self.assertRaisesRegex(
           typehints.TypeCheckError,
           r'requires Tuple\[Union\[int, str\], ...\] but got '
           r'Tuple\[Union\[float, int\], ...\]'):
@@ -264,7 +267,7 @@ class SideInputTest(unittest.TestCase):
                      sorted(result))
 
     if sys.version_info >= (3,):
-      with self.assertRaisesRegexp(
+      with self.assertRaisesRegex(
           typehints.TypeCheckError,
           r'requires Dict\[str, str\] but got Dict\[str, int\]'):
         _ = (['a', 'b', 'c']

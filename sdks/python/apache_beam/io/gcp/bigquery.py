@@ -437,7 +437,7 @@ class BigQuerySource(dataflow_io.NativeSource):
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base import py  # pylint: disable=unused-variable
+      from apitools.base import py  # pylint: disable=unused-import
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
@@ -574,7 +574,7 @@ bigquery_v2_messages.TableSchema` object.
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base import py  # pylint: disable=unused-variable
+      from apitools.base import py  # pylint: disable=unused-import
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '

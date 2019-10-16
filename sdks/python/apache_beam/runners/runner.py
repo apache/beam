@@ -380,6 +380,6 @@ class PipelineResult(object):
   # pylint: disable=unused-argument
   def aggregated_values(self, aggregator_or_name):
     """Return a dict of step names to values of the Aggregator."""
-    logging.warn('%s does not implement aggregated_values',
-                 self.__class__.__name__)
+    logging.warning('%s does not implement aggregated_values',
+                    self.__class__.__name__)
     return {}

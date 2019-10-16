@@ -24,6 +24,9 @@ import json
 import logging
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
+
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.worker import sdk_worker_main
 
@@ -49,7 +52,7 @@ class SdkWorkerMainTest(unittest.TestCase):
     def wrapped_method_for_test():
       lines = sdk_worker_main.StatusServer.get_thread_dump()
       threaddump = '\n'.join(lines)
-      self.assertRegexpMatches(threaddump, '.*wrapped_method_for_test.*')
+      self.assertRegex(threaddump, '.*wrapped_method_for_test.*')
 
     wrapped_method_for_test()
 
