@@ -952,7 +952,7 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformOverride(with_metaclass(abc.ABCMeta, object)):
+class PTransformOverride(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.

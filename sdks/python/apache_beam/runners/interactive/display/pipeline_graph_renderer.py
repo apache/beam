@@ -33,7 +33,7 @@ from future.utils import with_metaclass
 from apache_beam.utils.plugin import BeamPlugin
 
 
-class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):
+class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
   """Abstract class for renderers, who decide how pipeline graphs are rendered.
   """
 

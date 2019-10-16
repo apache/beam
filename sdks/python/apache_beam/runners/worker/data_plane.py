@@ -70,7 +70,7 @@ class ClosableOutputStream(type(coder_impl.create_OutputStream())):
       self._close_callback(self.get())
 
 
-class DataChannel(with_metaclass(abc.ABCMeta, object)):
+class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """Represents a channel for reading and writing data over the data plane.
 
   Read from this channel with the input_elements method::
@@ -317,7 +317,7 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
       yield elements
 
 
-class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):
+class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
 
   @abc.abstractmethod

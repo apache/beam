@@ -112,7 +112,7 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
+class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):  # type: ignore[misc]
   """An abstract windowing function defining a basic assign and merge."""
 
   class AssignContext(object):
