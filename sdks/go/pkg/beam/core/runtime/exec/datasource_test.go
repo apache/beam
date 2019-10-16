@@ -47,7 +47,6 @@ func TestDataSource_PerElement(t *testing.T) {
 				pw.Close()
 			},
 		},
-		// TODO: Test progress.
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -289,6 +288,88 @@ func TestDataSource_Split(t *testing.T) {
 			validateSource(t, out, source, makeValues(test.expected...))
 		})
 	}
+
+	t.Run("whileProcessing", func(t *testing.T) {
+		// Check splitting *while* elements are in process.
+		tests := []struct {
+			name     string
+			expected []interface{}
+			splitIdx int64
+		}{
+			{splitIdx: 1},
+			{splitIdx: 2},
+			{splitIdx: 3},
+			{splitIdx: 4},
+			{splitIdx: 5},
+			{
+				name:     "wellBeyondRange",
+				expected: elements,
+				splitIdx: 1000,
+			},
+		}
+		for _, test := range tests {
+			test := test
+			if len(test.name) == 0 {
+				test.name = fmt.Sprintf("atIndex%d", test.splitIdx)
+			}
+			if test.expected == nil {
+				test.expected = elements[:test.splitIdx]
+			}
+			t.Run(test.name, func(t *testing.T) {
+				source, out, pr := initSourceTest(test.name)
+				unblockCh, blockedCh := make(chan struct{}), make(chan struct{}, 1)
+				// Block on the one less than the desired split,
+				// so the desired split is the first valid split.
+				blockOn := test.splitIdx - 1
+				blocker := &BlockingNode{
+					UID: 3,
+					Block: func(elm *FullValue) bool {
+						if source.index == blockOn {
+							// Signal to call Split
+							blockedCh <- struct{}{}
+							return true
+						}
+						return false
+					},
+					Unblock: unblockCh,
+					Out:     out,
+				}
+				source.Out = blocker
+
+				go func() {
+					// Wait to call Split until the DoFn is blocked at the desired element.
+					<-blockedCh
+					// Validate that we do not split on the element we're blocking on index.
+					// The first valid split is at test.splitIdx.
+					if splitIdx, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, -1); err != nil {
+						t.Errorf("error in Split: %v", err)
+					} else if got, want := splitIdx, test.splitIdx; got != want {
+						t.Errorf("error in Split: got splitIdx = %v, want %v ", got, want)
+					}
+					// Validate that our progress is where we expect it to be. (test.splitIdx - 1)
+					if got, want := source.Progress().Count, test.splitIdx-1; got != want {
+						t.Errorf("error in Progress: got finished processing Count = %v, want %v ", got, want)
+					}
+					unblockCh <- struct{}{}
+				}()
+
+				constructAndExecutePlanWithContext(t, []Unit{out, blocker, source}, DataContext{
+					Data: &TestDataManager{R: pr},
+				})
+
+				validateSource(t, out, source, makeValues(test.expected...))
+
+				// Adjust expectations to maximum number of elements.
+				adjustedExpectation := test.splitIdx
+				if adjustedExpectation > int64(len(elements)) {
+					adjustedExpectation = int64(len(elements))
+				}
+				if got, want := source.Progress().Count, adjustedExpectation; got != want {
+					t.Fatalf("progress didn't match split: got %v, want %v", got, want)
+				}
+			})
+		}
+	})
 
 	// Test expects splitting errors, but for processing to be successful.
 	t.Run("errors", func(t *testing.T) {
