@@ -3102,11 +3102,4 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
     context.output(context.element());
   }
 }
-```
-## 10. Focus on DoFn {#dofn}
-![This is a sequence diagram that shows the lifecycle of the DoFn](
-  {{ "/images/dofn-sequence-diagram.png" | prepend: site.baseurl }})
-  
-## 11. Focus on Source {#source}
-  ![This is a sequence diagram that shows the lifecycle of the Source](
-    {{ "/images/source-sequence-diagram.png" | prepend: site.baseurl }})
+```  
