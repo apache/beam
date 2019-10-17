@@ -197,3 +197,4 @@ public abstract class AbstractArtifactRetrievalService
     return proxyManifest;
   }
 }
+
