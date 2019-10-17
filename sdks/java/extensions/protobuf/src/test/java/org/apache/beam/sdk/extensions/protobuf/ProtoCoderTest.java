@@ -188,6 +188,36 @@ public class ProtoCoderTest {
   }
 
   @Test
+  public void testDynamicNestedRepeatedMessage() throws Exception {
+    DynamicMessage message =
+        DynamicMessage.newBuilder(MessageA.getDescriptor())
+            .setField(
+                MessageA.getDescriptor().findFieldByNumber(MessageA.FIELD1_FIELD_NUMBER), "foo")
+            .addRepeatedField(
+                MessageA.getDescriptor().findFieldByNumber(MessageA.FIELD2_FIELD_NUMBER),
+                DynamicMessage.newBuilder(MessageB.getDescriptor())
+                    .setField(
+                        MessageB.getDescriptor().findFieldByNumber(MessageB.FIELD1_FIELD_NUMBER),
+                        true)
+                    .build())
+            .addRepeatedField(
+                MessageA.getDescriptor().findFieldByNumber(MessageA.FIELD2_FIELD_NUMBER),
+                DynamicMessage.newBuilder(MessageB.getDescriptor())
+                    .setField(
+                        MessageB.getDescriptor().findFieldByNumber(MessageB.FIELD1_FIELD_NUMBER),
+                        false)
+                    .build())
+            .build();
+    Coder<DynamicMessage> coder = ProtoCoder.of(message.getDescriptorForType());
+
+    // Special code to check the DynamicMessage equality (@see IsDynamicMessageEqual)
+    for (Coder.Context context : ALL_CONTEXTS) {
+      CoderProperties.coderDecodeEncodeInContext(
+          coder, context, message, IsDynamicMessageEqual.equalTo(message));
+    }
+  }
+
+  @Test
   public void testSerialVersionID() {
     long serialVersionID = ObjectStreamClass.lookup(ProtoCoder.class).getSerialVersionUID();
     assertEquals(-5043999806040629525L, serialVersionID);
