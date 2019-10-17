@@ -23,9 +23,11 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSinkRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.AbstractQueryableTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.QueryProvider;
@@ -97,7 +99,13 @@ public class BeamCalciteTable extends AbstractQueryableTable
   @Override
   public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
     return new BeamIOSourceRel(
-        context.getCluster(), relOptTable, beamTable, pipelineOptionsMap, this);
+        context.getCluster(),
+        context.getCluster().traitSetOf(BeamLogicalConvention.INSTANCE),
+        relOptTable,
+        beamTable,
+        ImmutableList.of(),
+        pipelineOptionsMap,
+        this);
   }
 
   @Override
