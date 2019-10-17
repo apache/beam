@@ -708,8 +708,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
           }
           if (errorCount.incrementAndGet() % logEveryNStreamFailures == 0) {
             LOG.debug(
-                "{} streaming Windmill RPC errors for a stream, last was: {} with status {}. " +
-                        "This is normal during autoscaling.",
+                "{} streaming Windmill RPC errors for a stream, last was: {} with status {}. "
+                    + "This is normal during autoscaling.",
                 errorCount.get(),
                 t.toString(),
                 status);
