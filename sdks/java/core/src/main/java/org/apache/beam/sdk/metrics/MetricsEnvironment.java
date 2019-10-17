@@ -114,7 +114,7 @@ public class MetricsEnvironment {
   public static MetricsContainer getCurrentContainer() {
     MetricsContainer container = CONTAINER_FOR_THREAD.get();
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
-      if (METRICS_SUPPORTED.get()) {
+      if (isMetricsSupported()) {
         LOG.error(
             "Unable to update metrics on the current thread. "
                 + "Most likely caused by using metrics outside the managed work-execution thread.");
