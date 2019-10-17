@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeoutException;
@@ -418,6 +419,18 @@ public class RabbitMqIO {
     Instant latestTimestamp = Instant.now();
     final List<Long> sessionIds = new ArrayList<>();
 
+    /**
+     * Advances the watermark to the provided time, provided said time is after the current
+     * watermark. If the provided time is before the latest, this function no-ops.
+     *
+     * @param time The time to advance the watermark to
+     */
+    public void advanceWatermark(Instant time) {
+      if (time.isAfter(latestTimestamp)) {
+        latestTimestamp = time;
+      }
+    }
+
     @Override
     public void finalizeCheckpoint() throws IOException {
       for (Long sessionId : sessionIds) {
@@ -431,8 +444,6 @@ public class RabbitMqIO {
 
   private static class UnboundedRabbitMqReader
       extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
-    private static final IDLE_WATERMARK_DELTA = Duration.standardSeconds(2);
-
     private final RabbitMQSource source;
 
     private RabbitMqMessage current;
@@ -532,10 +543,7 @@ public class RabbitMqIO {
         // we consume message without autoAck (we want to do the ack ourselves)
         GetResponse delivery = channel.basicGet(queueName, false);
         if (delivery == null) {
-          Instant idleWatermark = Instant.now().minus(IDLE_WATERMARK_DELTA);
-          if (idleWatermark.isAfter(checkpointMark.latestTimestamp)) {
-            checkpointMark.latestTimestamp = idleWatermark;
-          }
+          checkpointMark.advanceWatermark(Instant.now());
           return false;
         }
         if (source.spec.useCorrelationId()) {
@@ -551,10 +559,10 @@ public class RabbitMqIO {
         checkpointMark.sessionIds.add(deliveryTag);
 
         current = new RabbitMqMessage(source.spec.routingKey(), delivery);
-        currentTimestamp = new Instant(delivery.getProps().getTimestamp());
-        if (currentTimestamp.isAfter(checkpointMark.latestTimestamp)) {
-          checkpointMark.latestTimestamp = currentTimestamp;
-        }
+        Date deliveryTimestamp = delivery.getProps().getTimestamp();
+        currentTimestamp =
+            (deliveryTimestamp != null) ? new Instant(deliveryTimestamp) : Instant.now();
+        checkpointMark.advanceWatermark(currentTimestamp);
       } catch (IOException e) {
         throw e;
       } catch (Exception e) {
