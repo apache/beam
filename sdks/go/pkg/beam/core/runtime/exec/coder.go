@@ -66,6 +66,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	case coder.Bytes:
 		return &bytesEncoder{}
 
+	case coder.Bool:
+		return &boolEncoder{}
+
 	case coder.VarInt:
 		return &varIntEncoder{}
 
@@ -92,6 +95,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 	switch c.Kind {
 	case coder.Bytes:
 		return &bytesDecoder{}
+
+	case coder.Bool:
+		return &boolDecoder{}
 
 	case coder.VarInt:
 		return &varIntDecoder{}
@@ -145,6 +151,39 @@ func (*bytesDecoder) Decode(r io.Reader) (*FullValue, error) {
 		return nil, err
 	}
 	return &FullValue{Elm: data}, nil
+}
+
+type boolEncoder struct{}
+
+func (*boolEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: false = 0, true = 1
+	var err error
+	if val.Elm.(bool) {
+		_, err = ioutilx.WriteUnsafe(w, []byte{1})
+	} else {
+		_, err = ioutilx.WriteUnsafe(w, []byte{0})
+	}
+	if err != nil {
+		return fmt.Errorf("error encoding bool: %v", err)
+	}
+	return nil
+}
+
+type boolDecoder struct{}
+
+func (*boolDecoder) Decode(r io.Reader) (*FullValue, error) {
+	// Encoding: false = 0, true = 1
+	b := make([]byte, 1, 1)
+	if err := ioutilx.ReadNBufUnsafe(r, b); err != nil {
+		return nil, fmt.Errorf("error decoding bool: %v", err)
+	}
+	switch b[0] {
+	case 0:
+		return &FullValue{Elm: false}, nil
+	case 1:
+		return &FullValue{Elm: true}, nil
+	}
+	return nil, fmt.Errorf("error decoding bool: received invalid value %v", b)
 }
 
 type varIntEncoder struct{}
