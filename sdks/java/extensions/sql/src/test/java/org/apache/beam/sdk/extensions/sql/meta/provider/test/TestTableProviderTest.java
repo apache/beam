@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
+import static org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider.PUSH_DOWN_OPTION;
+
+import com.alibaba.fastjson.JSON;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider.PushDownOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -115,6 +119,9 @@ public class TestTableProviderTest {
         .name(name)
         .comment(name + " table")
         .schema(BASIC_SCHEMA)
+        .properties(
+            JSON.parseObject(
+                "{ " + PUSH_DOWN_OPTION + ": " + "\"" + PushDownOptions.BOTH.toString() + "\" }"))
         .type("test")
         .build();
   }
