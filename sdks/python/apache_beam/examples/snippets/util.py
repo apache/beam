@@ -37,11 +37,11 @@ def assert_matches_stdout(actual, expected_stdout, label=''):
   def stdout_to_python_object(elem_str):
     try:
       return ast.literal_eval(elem_str)
-    except SyntaxError:
+    except (SyntaxError, ValueError):
       return elem_str
 
   actual = actual | label >> beam.Map(stdout_to_python_object)
-  expected = map(stdout_to_python_object, expected_stdout)
+  expected = list(map(stdout_to_python_object, expected_stdout))
   assert_that(actual, equal_to(expected), 'assert ' + label)
 
 
