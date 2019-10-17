@@ -164,8 +164,13 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 				return nil, err
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+
 		case reflectx.ByteSlice:
 			return &coder.Coder{Kind: coder.Bytes, T: t}, nil
+
+		case reflectx.Bool:
+			return &coder.Coder{Kind: coder.Bool, T: t}, nil
+
 		default:
 			et := t.Type()
 			if c := coder.LookupCustomCoder(et); c != nil {
