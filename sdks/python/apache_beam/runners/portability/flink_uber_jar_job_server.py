@@ -42,6 +42,11 @@ from apache_beam.runners.portability import job_server
 
 
 class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
+  """A Job server which submits a self-contained Jar to a Flink cluster.
+
+  The jar contains the Beam pipeline definition, dependencies, and
+  the pipeline artifacts.
+  """
 
   def __init__(self, master_url, executable_jar=None):
     super(FlinkUberJarJobServer, self).__init__()
@@ -77,6 +82,8 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
 
 
 class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
+  """Runs a single Beam job on Flink by staging all contents into a Jar
+  and uploading it via the Flink Rest API."""
 
   # These must agree with those defined in PortablePipelineJarUtils.java.
   PIPELINE_FOLDER = 'BEAM-PIPELINE'
@@ -208,7 +215,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
         'RECONCILING': beam_job_api_pb2.JobState.RUNNING,
         'IN_PROGRESS': beam_job_api_pb2.JobState.RUNNING,
         'COMPLETED': beam_job_api_pb2.JobState.DONE,
-    }.get(flink_status, beam_job_api_pb2.JobState.DONE)
+    }.get(flink_status, beam_job_api_pb2.JobState.UNSPECIFIED)
     if beam_state in abstract_job_service.TERMINAL_STATES:
       self.delete_jar()
     return beam_state
