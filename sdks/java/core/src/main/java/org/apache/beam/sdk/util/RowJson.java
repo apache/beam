@@ -145,12 +145,9 @@ public class RowJson {
         throw new UnsupportedRowJsonException(
             "Expected JSON object for field '"
                 + rowFieldValue.name()
-                + "'. "
-                + "Unable to convert '"
+                + "'. Unable to convert '"
                 + rowFieldValue.jsonValue().asText()
-                + "'"
-                + " to Beam Row, it is not a JSON object. Currently only JSON objects "
-                + "can be parsed to Beam Rows");
+                + "' to Beam Row, it is not a JSON object. Currently only JSON objects can be parsed to Beam Rows");
       }
 
       return rowFieldValue.rowSchema().getFields().stream()
@@ -169,8 +166,7 @@ public class RowJson {
         throw new UnsupportedRowJsonException(
             "Expected JSON array for field '"
                 + arrayFieldValue.name()
-                + "'. "
-                + "Instead got "
+                + "'. Instead got "
                 + arrayFieldValue.jsonNodeType().name());
       }
 
@@ -193,11 +189,9 @@ public class RowJson {
         throw new UnsupportedRowJsonException(
             "Unable to get value from field '"
                 + fieldValue.name()
-                + "'. "
-                + "Schema type '"
+                + "'. Schema type '"
                 + fieldValue.typeName()
-                + "'. "
-                + "JSON node type "
+                + "'. JSON node type "
                 + fieldValue.jsonNodeType().name(),
             e);
       }
