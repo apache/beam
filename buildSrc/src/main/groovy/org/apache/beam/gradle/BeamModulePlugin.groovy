@@ -78,9 +78,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
-    /** Controls the JDK source language and target compatibility. */
-    double javaVersion = 1.8
-
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
@@ -596,7 +593,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Configures a project with a default set of plugins that should apply to all Java projects.
     //
     // Users should invoke this method using Groovy map syntax. For example:
-    // applyJavaNature(javaVersion: 1.8)
+    // applyJavaNature(enableSpotbugs: true)
     //
     // See JavaNatureConfiguration for the set of accepted properties.
     //
@@ -656,8 +653,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
       // we configure the Java compiler to use UTF-8.
-      project.sourceCompatibility = configuration.javaVersion
-      project.targetCompatibility = configuration.javaVersion
+      project.sourceCompatibility = project.javaVersion
+      project.targetCompatibility = project.javaVersion
 
       def defaultLintSuppressions = [
         'options',
