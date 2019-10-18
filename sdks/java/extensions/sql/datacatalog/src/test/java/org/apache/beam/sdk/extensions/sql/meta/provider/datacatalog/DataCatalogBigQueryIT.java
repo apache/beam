@@ -25,6 +25,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
@@ -64,6 +65,11 @@ public class DataCatalogBigQueryIT {
         String.format(
             "bigquery.`table`.`%s`.`%s`.`%s`",
             bqTable.getProjectId(), bqTable.getDatasetId(), bqTable.getTableId());
+
+    readPipeline
+        .getOptions()
+        .as(BeamSqlPipelineOptions.class)
+        .setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner");
 
     PCollection<Row> result =
         readPipeline.apply(
