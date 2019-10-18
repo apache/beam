@@ -35,6 +35,7 @@ from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import background_caching_job
+from apache_beam.runners.interactive import samza_cache_manager as samza_cache
 from apache_beam.runners.interactive.display import pipeline_graph
 
 # size of PCollection samples cached.
@@ -78,8 +79,12 @@ class InteractiveRunner(runners.PipelineRunner):
     self._underlying_runner = (
         underlying_runner or direct_runner.DirectRunner())
     if not ie.current_env().cache_manager():
-      ie.current_env().set_cache_manager(
-          cache.FileBasedCacheManager(cache_dir, cache_format))
+        if self._underlying_runner.__class__.__name__ == 'SamzaPortableRunner':
+            ie.current_env().set_cache_manager(
+                samza_cache.SamzaFileBasedCacheManager(cache_dir, cache_format))
+        else:
+            ie.current_env().set_cache_manager(
+                cache.FileBasedCacheManager(cache_dir, cache_format))
     self._cache_manager = ie.current_env().cache_manager()
     self._render_option = render_option
     self._in_session = False
@@ -168,7 +173,10 @@ class InteractiveRunner(runners.PipelineRunner):
     if user_pipeline:
       ie.current_env().set_pipeline_result(
           user_pipeline, main_job_result, is_main_job=True)
-    main_job_result.wait_until_finish()
+    if self._underlying_runner.__class__.__name__ == 'SamzaPortableRunner':
+        main_job_result.wait_until_finish(exit_on_finish=True)
+    else:
+        main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
       # pylint: disable=dict-values-not-iterating

@@ -251,6 +251,13 @@ class WriteCache(beam.PTransform):
         coders.registry.get_coder(pcoll.element_type), prefix, self._label)
 
     if self._sample:
+      # todo: LISAMZA-13429 implement a samza supported sampling transform
+      if self._cache_manager.__class__.__name__ == 'SamzaFileBasedCacheManager':
+        return pcoll | 'Sample' >> beam.io.Write(
+          self._cache_manager.sink(prefix, self._label))
+
+      # 'Sample.FixedSizeGlobally', like all global combine transforms,
+      # isn't currently supported by samza.
       pcoll |= 'Sample' >> (
           combiners.Sample.FixedSizeGlobally(self._sample_size)
           | beam.FlatMap(lambda sample: sample))
