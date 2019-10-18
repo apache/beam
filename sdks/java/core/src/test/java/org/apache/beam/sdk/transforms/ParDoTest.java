@@ -91,6 +91,7 @@ import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
@@ -3504,7 +3505,8 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTimersInParDo.class,
       UsesTestStream.class,
-      UsesStatefulParDo.class
+      UsesStatefulParDo.class,
+      UsesStrictTimerOrdering.class
     })
     public void testEventTimeTimerOrdering() throws Exception {
       final int numTestElements = 100;
@@ -3524,7 +3526,12 @@ public class ParDoTest implements Serializable {
 
     /** A test makes sure that an event time timers are correctly ordered using Create transform. */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesStatefulParDo.class,
+      UsesStrictTimerOrdering.class
+    })
     public void testEventTimeTimerOrderingWithCreate() throws Exception {
       final int numTestElements = 100;
       final Instant now = new Instant(1500000000000L);
@@ -3696,7 +3703,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesStrictTimerOrdering.class
+    })
     public void testTwoTimersSettingEachOther() {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
@@ -3709,7 +3721,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
     public void testTwoTimersSettingEachOtherWithCreateAsInput() {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
