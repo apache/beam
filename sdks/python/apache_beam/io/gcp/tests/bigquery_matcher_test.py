@@ -33,7 +33,6 @@ from apache_beam.testing.test_utils import patch_retry
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  # TODO: fix usage
   from google.cloud import bigquery
   from google.cloud.exceptions import NotFound
 except ImportError:

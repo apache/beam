@@ -29,6 +29,8 @@ import tempfile
 import unittest
 from builtins import range
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 
@@ -311,7 +313,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     error_str = 'mock rename error description'
     rename_mock.side_effect = BeamIOError(
         'mock rename error', {('src', 'dst'): error_str})
-    with self.assertRaisesRegexp(Exception, error_str):
+    with self.assertRaisesRegex(Exception, error_str):
       list(sink.finalize_write(init_token, writer_results,
                                pre_finalize_results))
 
@@ -323,7 +325,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     pre_finalize_results = sink.pre_finalize(init_token, writer_results)
 
     os.remove(writer_results[0])
-    with self.assertRaisesRegexp(Exception, r'not exist'):
+    with self.assertRaisesRegex(Exception, r'not exist'):
       list(sink.finalize_write(init_token, writer_results,
                                pre_finalize_results))
 
@@ -398,7 +400,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     error_str = 'mock rename error description'
     delete_mock.side_effect = BeamIOError(
         'mock rename error', {shard2: error_str})
-    with self.assertRaisesRegexp(Exception, error_str):
+    with self.assertRaisesRegex(Exception, error_str):
       sink.pre_finalize(init_token, [res1, res2])
 
 

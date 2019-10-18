@@ -48,7 +48,7 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
   print("Sources:", num_sources)
 
   times = []
-  for i in range(num_runs):
+  for _ in range(num_runs):
     counter_factory = CounterFactory()
     state_sampler = statesampler.StateSampler('basic', counter_factory)
     state_sampler.start()

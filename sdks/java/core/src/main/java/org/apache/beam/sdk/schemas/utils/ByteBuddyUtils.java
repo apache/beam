@@ -69,9 +69,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 import org.joda.time.ReadablePartial;
+import org.joda.time.base.BaseLocal;
 
 class ByteBuddyUtils {
   private static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
@@ -80,6 +82,7 @@ class ByteBuddyUtils {
   private static final ForLoadedType BYTE_BUFFER_TYPE = new ForLoadedType(ByteBuffer.class);
   private static final ForLoadedType CHAR_SEQUENCE_TYPE = new ForLoadedType(CharSequence.class);
   private static final ForLoadedType INSTANT_TYPE = new ForLoadedType(Instant.class);
+  private static final ForLoadedType DATE_TIME_ZONE_TYPE = new ForLoadedType(DateTimeZone.class);
   private static final ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
   private static final ForLoadedType READABLE_INSTANT_TYPE =
       new ForLoadedType(ReadableInstant.class);
@@ -574,31 +577,62 @@ class ByteBuddyUtils {
       // that the POJO can accept.
 
       // Generate the following code:
-      // return new T(value.getMillis());
+      //   return new T(value.getMillis());
+      // Unless T is a sub-class of BaseLocal. Then generate:
+      //   return new T(value.getMillis(), DateTimeZone.UTC);
 
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-      return new Compound(
-          // Create a new instance of the target type.
-          TypeCreation.of(loadedType),
-          Duplication.SINGLE,
-          // Load the parameter and cast it to a ReadableInstant.
-          readValue,
-          TypeCasting.to(READABLE_INSTANT_TYPE),
-          // Call ReadableInstant.getMillis to extract the millis since the epoch.
+      List<StackManipulation> stackManipulations = new ArrayList<>();
+
+      // Create a new instance of the target ype.
+      stackManipulations.add(TypeCreation.of(loadedType));
+      stackManipulations.add(Duplication.SINGLE);
+      // Load the parameter and cast it to a ReadableInstant.
+      stackManipulations.add(readValue);
+      stackManipulations.add(TypeCasting.to(READABLE_INSTANT_TYPE));
+      // Call ReadableInstant.getMillis to extract the millis since the epoch.
+      stackManipulations.add(
           MethodInvocation.invoke(
               READABLE_INSTANT_TYPE
                   .getDeclaredMethods()
                   .filter(ElementMatchers.named("getMillis"))
-                  .getOnly()),
-          // All subclasses of ReadableInstant and ReadablePartial contain a ()(long) constructor
-          // that takes in a millis argument. Call that constructor of the field to initialize it.
-          MethodInvocation.invoke(
-              loadedType
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.isConstructor()
-                          .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
                   .getOnly()));
+      if (type.isSubtypeOf(TypeDescriptor.of(BaseLocal.class))) {
+        // Access DateTimeZone.UTC
+        stackManipulations.add(
+            FieldAccess.forField(
+                    DATE_TIME_ZONE_TYPE
+                        .getDeclaredFields()
+                        .filter(ElementMatchers.named("UTC"))
+                        .getOnly())
+                .read());
+        // All subclasses of BaseLocal contain a ()(long, DateTimeZone) constructor
+        // that takes in a millis and time zone argument. Call that constructor of the field to
+        // initialize it.
+        stackManipulations.add(
+            MethodInvocation.invoke(
+                loadedType
+                    .getDeclaredMethods()
+                    .filter(
+                        ElementMatchers.isConstructor()
+                            .and(
+                                ElementMatchers.takesArguments(
+                                    ForLoadedType.of(long.class), DATE_TIME_ZONE_TYPE)))
+                    .getOnly()));
+      } else {
+        // All subclasses of ReadableInstant and ReadablePartial contain a ()(long) constructor
+        // that takes in a millis argument. Call that constructor of the field to initialize it.
+        stackManipulations.add(
+            MethodInvocation.invoke(
+                loadedType
+                    .getDeclaredMethods()
+                    .filter(
+                        ElementMatchers.isConstructor()
+                            .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
+                    .getOnly()));
+      }
+
+      return new Compound(stackManipulations);
     }
 
     @Override

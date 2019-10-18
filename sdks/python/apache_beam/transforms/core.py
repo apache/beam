@@ -450,7 +450,7 @@ class _BundleFinalizerParam(_DoFnParam):
       try:
         callback()
       except Exception as e:
-        logging.warn("Got exception from finalization call: %s", e)
+        logging.warning("Got exception from finalization call: %s", e)
 
   def has_callbacks(self):
     return len(self._callbacks) > 0

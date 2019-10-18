@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import static org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTable.METHOD_PROPERTY;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTE;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -109,6 +111,150 @@ public class BigQueryReadWriteIT implements Serializable {
             + "LOCATION '"
             + bigQueryTestingTypes.tableSpec()
             + "'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "TIMESTAMP '2018-05-28 20:17:40.123', "
+            + "'varchar', "
+            + "'char', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    String selectTableStatement = "SELECT * FROM TEST";
+    PCollection<Row> output =
+        BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            row(
+                SOURCE_SCHEMA_TWO,
+                9223372036854775807L,
+                (byte) 127,
+                (short) 32767,
+                2147483647,
+                (float) 1.0,
+                1.0,
+                true,
+                parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
+                "varchar",
+                "char",
+                Arrays.asList("123", "456")));
+    PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+    assertEquals(state, State.DONE);
+  }
+
+  @Test
+  public void testSQLRead_withExport() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   c_bigint BIGINT, \n"
+            + "   c_tinyint TINYINT, \n"
+            + "   c_smallint SMALLINT, \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_double DOUBLE, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_timestamp TIMESTAMP, \n"
+            + "   c_varchar VARCHAR, \n "
+            + "   c_char CHAR, \n"
+            + "   c_arr ARRAY<VARCHAR> \n"
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQueryTestingTypes.tableSpec()
+            + "' \n"
+            + "TBLPROPERTIES "
+            + "'{ "
+            + METHOD_PROPERTY
+            + ": \""
+            + Method.EXPORT.toString()
+            + "\" }'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "TIMESTAMP '2018-05-28 20:17:40.123', "
+            + "'varchar', "
+            + "'char', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    String selectTableStatement = "SELECT * FROM TEST";
+    PCollection<Row> output =
+        BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            row(
+                SOURCE_SCHEMA_TWO,
+                9223372036854775807L,
+                (byte) 127,
+                (short) 32767,
+                2147483647,
+                (float) 1.0,
+                1.0,
+                true,
+                parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
+                "varchar",
+                "char",
+                Arrays.asList("123", "456")));
+    PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+    assertEquals(state, State.DONE);
+  }
+
+  @Test
+  public void testSQLRead_withDirectRead() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   c_bigint BIGINT, \n"
+            + "   c_tinyint TINYINT, \n"
+            + "   c_smallint SMALLINT, \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_double DOUBLE, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_timestamp TIMESTAMP, \n"
+            + "   c_varchar VARCHAR, \n "
+            + "   c_char CHAR, \n"
+            + "   c_arr ARRAY<VARCHAR> \n"
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQueryTestingTypes.tableSpec()
+            + "' \n"
+            + "TBLPROPERTIES "
+            + "'{ "
+            + METHOD_PROPERTY
+            + ": \""
+            + Method.DIRECT_READ.toString()
+            + "\" }'";
     sqlEnv.executeDdl(createTableStatement);
 
     String insertStatement =

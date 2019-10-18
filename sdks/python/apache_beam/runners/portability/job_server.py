@@ -46,12 +46,13 @@ class JobServer(object):
 
 
 class ExternalJobServer(JobServer):
-  def __init__(self, endpoint):
+  def __init__(self, endpoint, timeout=None):
     self._endpoint = endpoint
+    self._timeout = timeout
 
   def start(self):
     channel = grpc.insecure_channel(self._endpoint)
-    grpc.channel_ready_future(channel).result()
+    grpc.channel_ready_future(channel).result(timeout=self._timeout)
     return beam_job_api_pb2_grpc.JobServiceStub(channel)
 
   def stop(self):

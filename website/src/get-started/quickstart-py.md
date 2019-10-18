@@ -27,6 +27,8 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 * TOC
 {:toc}
 
+The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)). For best results, use Beam with Python 3.
+
 ## Set up your environment
 
 ### Check your Python version

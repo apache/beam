@@ -20,7 +20,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.avro;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -32,8 +33,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 
-/** {@link AvroTable} is a {@link org.apache.beam.sdk.extensions.sql.BeamSqlTable}. */
-public class AvroTable extends BaseBeamTable implements Serializable {
+/** {@link AvroTable} is a {@link BeamSqlTable}. */
+public class AvroTable extends SchemaBaseBeamTable implements Serializable {
   private final String filePattern;
   private final String tableName;
 

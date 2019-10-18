@@ -60,10 +60,28 @@ public class MonitoringInfoMetricNameTest implements Serializable {
 
   @Test
   public void testGetNamespaceReturnsNamespaceIfLabelIsPresent() {
-    HashMap<String, String> labels = new HashMap<String, String>();
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "anyTransform");
     labels.put(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace");
+    labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "anyPCollection");
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
     assertEquals("anyNamespace", name.getNamespace());
+  }
+
+  @Test
+  public void testGetNamespaceReturnsTransformIfNamespaceLabelIsNotPresent() {
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "anyTransform");
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
+    assertEquals("anyTransform", name.getNamespace());
+  }
+
+  @Test
+  public void testGetNamespaceReturnsPCollectionIfNamespaceLabelIsNotPresent() {
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "anyPCollection");
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
+    assertEquals("anyPCollection", name.getNamespace());
   }
 
   @Test

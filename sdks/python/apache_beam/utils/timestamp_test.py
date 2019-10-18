@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import datetime
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import pytz
 
 from apache_beam.utils.timestamp import Duration
@@ -75,9 +77,9 @@ class TimestampTest(unittest.TestCase):
                        Timestamp.from_rfc3339(rfc3339_str))
 
   def test_from_rfc3339_failure(self):
-    with self.assertRaisesRegexp(ValueError, 'parse'):
+    with self.assertRaisesRegex(ValueError, 'parse'):
       Timestamp.from_rfc3339('not rfc3339')
-    with self.assertRaisesRegexp(ValueError, 'parse'):
+    with self.assertRaisesRegex(ValueError, 'parse'):
       Timestamp.from_rfc3339('2016-03-18T23:22:59.123456Z unparseable')
 
   def test_from_utc_datetime(self):
@@ -85,7 +87,7 @@ class TimestampTest(unittest.TestCase):
         Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1,
                                                       tzinfo=pytz.utc)),
         Timestamp(0))
-    with self.assertRaisesRegexp(ValueError, r'UTC'):
+    with self.assertRaisesRegex(ValueError, r'UTC'):
       Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1))
 
   def test_arithmetic(self):

@@ -98,7 +98,7 @@ public class StreamingStepMetricsContainerTest {
                                 .setOriginNamespace("ns")
                                 .setName("name2")
                                 .setOriginalStepName("s2"))
-                        .setMetadata(new CounterMetadata().setKind("SUM")))
+                        .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
                 .setCumulative(false)
                 .setInteger(longToSplitInt(12))));
 

@@ -21,12 +21,15 @@ from __future__ import absolute_import
 import decimal
 import json
 import logging
+import os
 import random
 import re
 import time
 import unittest
 import uuid
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 from nose.plugins.attrib import attr
@@ -36,6 +39,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
+from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -119,12 +123,12 @@ class TestTableRowJsonCoder(unittest.TestCase):
     test_row = bigquery.TableRow(
         f=[bigquery.TableCell(v=to_json_value(e))
            for e in ['abc', 123, 123.456, True]])
-    with self.assertRaisesRegexp(AttributeError,
-                                 r'^The TableRowJsonCoder requires'):
+    with self.assertRaisesRegex(AttributeError,
+                                r'^The TableRowJsonCoder requires'):
       coder.encode(test_row)
 
   def json_compliance_exception(self, value):
-    with self.assertRaisesRegexp(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
+    with self.assertRaisesRegex(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
       schema_definition = [('f', 'FLOAT')]
       schema = bigquery.TableSchema(
           fields=[bigquery.TableFieldSchema(name=k, type=v)
@@ -296,6 +300,19 @@ class TestBigQuerySink(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteToBigQuery(unittest.TestCase):
 
+  def _cleanup_files(self):
+    if os.path.exists('insert_calls1'):
+      os.remove('insert_calls1')
+
+    if os.path.exists('insert_calls2'):
+      os.remove('insert_calls2')
+
+  def setUp(self):
+    self._cleanup_files()
+
+  def tearDown(self):
+    self._cleanup_files()
+
   def test_noop_schema_parsing(self):
     expected_table_schema = None
     table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(
@@ -425,8 +442,8 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         test_client=client)
 
     fn.start_bundle()
-    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
-    fn.process(('project_id:dataset_id.table_id', {'month': 2}))
+    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
+    fn.process(('project_id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
     # InsertRows called as batch size is hit
     self.assertTrue(client.tabledata.InsertAll.called)
 
@@ -451,7 +468,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
-    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
+    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit
@@ -485,6 +502,47 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.finish_bundle()
     # InsertRows not called in finish bundle as no records
     self.assertFalse(client.tabledata.InsertAll.called)
+
+  def test_failure_has_same_insert_ids(self):
+
+    def store_callback(arg):
+      insert_ids = [r.insertId for r in arg.tableDataInsertAllRequest.rows]
+      colA_values = [r.json.additionalProperties[0].value.string_value
+                     for r in arg.tableDataInsertAllRequest.rows]
+      json_output = {'insertIds': insert_ids,
+                     'colA_values': colA_values}
+      # The first time we try to insert, we save those insertions in
+      # file insert_calls1.
+      if not os.path.exists('insert_calls1'):
+        json.dump(json_output, open('insert_calls1', 'w'))
+        raise Exception()
+      else:
+        json.dump(json_output, open('insert_calls2', 'w'))
+
+      res = mock.Mock()
+      res.insertErrors = []
+      return res
+
+    client = mock.Mock()
+    client.tabledata.InsertAll = mock.Mock(side_effect=store_callback)
+
+    with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+      _ = (p
+           | beam.Create([{'columnA':'value1', 'columnB':'value2'},
+                          {'columnA':'value3', 'columnB':'value4'},
+                          {'columnA':'value5', 'columnB':'value6'}])
+           | _StreamToBigQuery(
+               'project:dataset.table',
+               [], [],
+               'anyschema',
+               None,
+               'CREATE_NEVER', None,
+               None, None,
+               [], test_client=client))
+
+    self.assertEqual(
+        json.load(open('insert_calls1')),
+        json.load(open('insert_calls2')))
 
 
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):

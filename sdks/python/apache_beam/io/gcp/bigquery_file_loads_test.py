@@ -329,9 +329,9 @@ class TestPartitionFiles(unittest.TestCase):
           .with_outputs(bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
                         bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
       multiple_partitions = partitioned_files[bqfl.PartitionFiles\
-        .MULTIPLE_PARTITIONS_TAG]
+                                              .MULTIPLE_PARTITIONS_TAG]
       single_partition = partitioned_files[bqfl.PartitionFiles\
-        .SINGLE_PARTITION_TAG]
+                                           .SINGLE_PARTITION_TAG]
 
     assert_that(multiple_partitions, equal_to(multiple_partitions_result),
                 label='CheckMultiplePartitions')
@@ -351,9 +351,9 @@ class TestPartitionFiles(unittest.TestCase):
           .with_outputs(bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
                         bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
       multiple_partitions = partitioned_files[bqfl.PartitionFiles\
-        .MULTIPLE_PARTITIONS_TAG]
+                                              .MULTIPLE_PARTITIONS_TAG]
       single_partition = partitioned_files[bqfl.PartitionFiles\
-        .SINGLE_PARTITION_TAG]
+                                           .SINGLE_PARTITION_TAG]
 
     assert_that(multiple_partitions, equal_to(multiple_partitions_result),
                 label='CheckMultiplePartitions')

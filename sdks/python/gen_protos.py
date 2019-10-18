@@ -52,7 +52,7 @@ MODEL_RESOURCES = [
 def generate_proto_files(force=False, log=None):
 
   try:
-    import grpc_tools  # pylint: disable=unused-variable
+    import grpc_tools  # pylint: disable=unused-import
   except ImportError:
     warnings.warn('Installing grpcio-tools is recommended for development.')
 

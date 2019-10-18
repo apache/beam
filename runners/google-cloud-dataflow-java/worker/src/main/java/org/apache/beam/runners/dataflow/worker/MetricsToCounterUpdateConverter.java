@@ -52,6 +52,7 @@ public class MetricsToCounterUpdateConverter {
   /** Well-defined {@code kind} strings for use in {@link CounterUpdate} protos. */
   public enum Kind {
     DISTRIBUTION("DISTRIBUTION"),
+    MEAN("MEAN"),
     SUM("SUM");
 
     private final String kind;

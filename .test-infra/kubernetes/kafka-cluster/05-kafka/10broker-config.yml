@@ -172,7 +172,7 @@ data:
 
     # The interval at which log segments are checked to see if they can be deleted according
     # to the retention policies
-    #log.retention.check.interval.ms=300000
+    log.cleanup.interval.mins=15
 
     ############################# Zookeeper #############################
 

@@ -20,6 +20,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 // Required to setup a Python 3.6 virtualenv.
 pythonVersion = '3.6'
+apply from: "../common.gradle"
 
 addPortableWordCountTasks()
 

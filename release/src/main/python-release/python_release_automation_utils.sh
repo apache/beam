@@ -81,11 +81,9 @@ function get_version() {
 #   $2 - python interpreter version: python2.7, python3.5, ...
 #######################################
 function download_files() {
-  VERSION=$(get_version)
-
   if [[ $1 = *"wheel"* ]]; then
     if [[ $2 == "python2.7" ]]; then
-        BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp27-cp27mu-manylinux1_x86_64.whl"
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp27-cp27mu-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.5" ]]; then
       BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp35-cp35m-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.6" ]]; then
@@ -218,10 +216,11 @@ function create_pubsub() {
 #   None
 #######################################
 function cleanup_pubsub() {
-  # Suppress error since topic/subscription may not exist
-  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1 2> /dev/null
-  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2 2> /dev/null
-  gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION 2> /dev/null
+  # Suppress error and pass quietly if topic/subscription not exists. We don't want the script
+  # to be interrupted in this case.
+  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1 2> /dev/null || true
+  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2 2> /dev/null || true
+  gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION 2> /dev/null || true
 }
 
 
@@ -322,7 +321,7 @@ function verify_hourly_team_score() {
 
 # Python RC configurations
 VERSION=$(get_version)
-RC_STAGING_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
+RC_STAGING_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/python"
 
 # Cloud Configurations
 PROJECT_ID='apache-beam-testing'

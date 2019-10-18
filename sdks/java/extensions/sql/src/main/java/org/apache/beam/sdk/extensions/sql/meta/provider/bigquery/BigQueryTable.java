@@ -20,12 +20,16 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
@@ -44,16 +48,45 @@ import org.slf4j.LoggerFactory;
  * support being a source.
  */
 @Experimental
-class BigQueryTable extends BaseBeamTable implements Serializable {
+class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
+  @VisibleForTesting static final String METHOD_PROPERTY = "method";
   @VisibleForTesting final String bqLocation;
   private final ConversionOptions conversionOptions;
   private BeamTableStatistics rowCountStatistics = null;
   private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryTable.class);
+  @VisibleForTesting final Method method;
 
   BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
     super(table.getSchema());
     this.conversionOptions = options;
     this.bqLocation = table.getLocation();
+
+    if (table.getProperties().containsKey(METHOD_PROPERTY)) {
+      List<String> validMethods =
+          Arrays.stream(Method.values()).map(Enum::toString).collect(Collectors.toList());
+      // toUpperCase should make it case-insensitive
+      String selectedMethod = table.getProperties().getString(METHOD_PROPERTY).toUpperCase();
+
+      if (validMethods.contains(selectedMethod)) {
+        method = Method.valueOf(selectedMethod);
+      } else {
+        InvalidPropertyException e =
+            new InvalidPropertyException(
+                "Invalid method "
+                    + "'"
+                    + selectedMethod
+                    + "'. "
+                    + "Supported methods are: "
+                    + validMethods.toString()
+                    + ".");
+
+        throw e;
+      }
+    } else {
+      method = Method.DEFAULT;
+    }
+
+    LOGGER.info("BigQuery method is set to: " + method.toString());
   }
 
   @Override
@@ -79,6 +112,7 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
             BigQueryIO.read(
                     record ->
                         BigQueryUtils.toBeamRow(record.getRecord(), getSchema(), conversionOptions))
+                .withMethod(method)
                 .from(bqLocation)
                 .withCoder(SchemaCoder.of(getSchema())))
         .setRowSchema(getSchema());
@@ -110,5 +144,11 @@ class BigQueryTable extends BaseBeamTable implements Serializable {
     }
 
     return BeamTableStatistics.BOUNDED_UNKNOWN;
+  }
+
+  public static class InvalidPropertyException extends UnsupportedOperationException {
+    private InvalidPropertyException(String s) {
+      super(s);
+    }
   }
 }

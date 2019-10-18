@@ -100,7 +100,8 @@ class SdkWorkerTest(unittest.TestCase):
       server.start()
 
       harness = sdk_worker.SdkHarness(
-          "localhost:%s" % test_port, worker_count=worker_count)
+          "localhost:%s" % test_port, worker_count=worker_count,
+          state_cache_size=100)
       harness.run()
 
       for worker in harness.workers.queue:

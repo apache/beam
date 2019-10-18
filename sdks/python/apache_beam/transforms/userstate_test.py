@@ -20,6 +20,8 @@ from __future__ import absolute_import
 
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 import apache_beam as beam
@@ -242,7 +244,7 @@ class InterfaceTest(unittest.TestCase):
   def test_validation_typos(self):
     # (1) Here, the user mistakenly used the same timer spec twice for two
     # different timer callbacks.
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         r'Multiple on_timer callbacks registered for TimerSpec\(expiry1\).'):
       class StatefulDoFnWithTimerWithTypo1(DoFn):  # pylint: disable=unused-variable
@@ -289,7 +291,7 @@ class InterfaceTest(unittest.TestCase):
         return 'StatefulDoFnWithTimerWithTypo2'
 
     dofn = StatefulDoFnWithTimerWithTypo2()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         (r'The on_timer callback for TimerSpec\(expiry1\) is not the '
          r'specified .on_expiry_1 method for DoFn '
@@ -319,7 +321,7 @@ class InterfaceTest(unittest.TestCase):
         return 'StatefulDoFnWithTimerWithTypo3'
 
     dofn = StatefulDoFnWithTimerWithTypo3()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         (r'DoFn StatefulDoFnWithTimerWithTypo3 has a TimerSpec without an '
          r'associated on_timer callback: TimerSpec\(expiry2\).')):
@@ -572,7 +574,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()
     values = p | beam.Create([1, 2, 3])
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         ('Input elements to the transform .* with stateful DoFn must be '
          'key-value pairs.')):

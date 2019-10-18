@@ -236,6 +236,7 @@ import itertools
 import json
 import logging
 import time
+import uuid
 from builtins import object
 from builtins import zip
 
@@ -437,7 +438,7 @@ class BigQuerySource(dataflow_io.NativeSource):
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base import py  # pylint: disable=unused-variable
+      from apitools.base import py  # pylint: disable=unused-import
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
@@ -574,7 +575,7 @@ bigquery_v2_messages.TableSchema` object.
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base import py  # pylint: disable=unused-variable
+      from apitools.base import py  # pylint: disable=unused-import
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
@@ -820,8 +821,8 @@ class BigQueryWriteFn(DoFn):
 
     destination = bigquery_tools.get_hashable_destination(destination)
 
-    row = element[1]
-    self._rows_buffer[destination].append(row)
+    row_and_insert_id = element[1]
+    self._rows_buffer[destination].append(row_and_insert_id)
     self._total_buffered_rows += 1
     if len(self._rows_buffer[destination]) >= self._max_batch_size:
       return self._flush_batch(destination)
@@ -842,7 +843,7 @@ class BigQueryWriteFn(DoFn):
   def _flush_batch(self, destination):
 
     # Flush the current batch of rows to BigQuery.
-    rows = self._rows_buffer[destination]
+    rows_and_insert_ids = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
 
     if table_reference.projectId is None:
@@ -850,15 +851,18 @@ class BigQueryWriteFn(DoFn):
           'project', str, '')
 
     logging.debug('Flushing data to %s. Total %s rows.',
-                  destination, len(rows))
+                  destination, len(rows_and_insert_ids))
+
+    rows = [r[0] for r in rows_and_insert_ids]
+    insert_ids = [r[1] for r in rows_and_insert_ids]
 
     while True:
-      # TODO: Figure out an insertId to make calls idempotent.
       passed, errors = self.bigquery_wrapper.insert_rows(
           project_id=table_reference.projectId,
           dataset_id=table_reference.datasetId,
           table_id=table_reference.tableId,
           rows=rows,
+          insert_ids=insert_ids,
           skip_invalid_rows=True)
 
       logging.debug("Passed: %s. Errors are %s", passed, errors)
@@ -883,6 +887,68 @@ class BigQueryWriteFn(DoFn):
     return [pvalue.TaggedOutput(BigQueryWriteFn.FAILED_ROWS,
                                 GlobalWindows.windowed_value(
                                     (destination, row))) for row in failed_rows]
+
+
+class _StreamToBigQuery(PTransform):
+
+  def __init__(self,
+               table_reference,
+               table_side_inputs,
+               schema_side_inputs,
+               schema,
+               batch_size,
+               create_disposition,
+               write_disposition,
+               kms_key,
+               retry_strategy,
+               additional_bq_parameters,
+               test_client=None):
+    self.table_reference = table_reference
+    self.table_side_inputs = table_side_inputs
+    self.schema_side_inputs = schema_side_inputs
+    self.schema = schema
+    self.batch_size = batch_size
+    self.create_disposition = create_disposition
+    self.write_disposition = write_disposition
+    self.kms_key = kms_key
+    self.retry_strategy = retry_strategy
+    self.test_client = test_client
+    self.additional_bq_parameters = additional_bq_parameters
+
+  class InsertIdPrefixFn(DoFn):
+
+    def start_bundle(self):
+      self.prefix = str(uuid.uuid4())
+      self._row_count = 0
+
+    def process(self, element):
+      key = element[0]
+      value = element[1]
+
+      insert_id = '%s-%s' % (self.prefix, self._row_count)
+      self._row_count += 1
+      yield (key, (value, insert_id))
+
+  def expand(self, input):
+    bigquery_write_fn = BigQueryWriteFn(
+        schema=self.schema,
+        batch_size=self.batch_size,
+        create_disposition=self.create_disposition,
+        write_disposition=self.write_disposition,
+        kms_key=self.kms_key,
+        retry_strategy=self.retry_strategy,
+        test_client=self.test_client,
+        additional_bq_parameters=self.additional_bq_parameters)
+
+    return (input
+            | 'AppendDestination' >> beam.ParDo(
+                bigquery_tools.AppendDestinationsFn(self.table_reference),
+                *self.table_side_inputs)
+            | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
+            | 'CommitInsertIds' >> beam.Reshuffle()
+            | 'StreamInsertRows' >> ParDo(
+                bigquery_write_fn, *self.schema_side_inputs).with_outputs(
+                    BigQueryWriteFn.FAILED_ROWS, main='main'))
 
 
 # Flag to be passed to WriteToBigQuery to force schema autodetection
@@ -1157,23 +1223,18 @@ bigquery_v2_messages.TableSchema):
       if self.triggering_frequency:
         raise ValueError('triggering_frequency can only be used with '
                          'FILE_LOADS method of writing to BigQuery.')
-      bigquery_write_fn = BigQueryWriteFn(
-          schema=self.schema,
-          batch_size=self.batch_size,
-          create_disposition=self.create_disposition,
-          write_disposition=self.write_disposition,
-          kms_key=self.kms_key,
-          retry_strategy=self.insert_retry_strategy,
-          test_client=self.test_client,
-          additional_bq_parameters=self.additional_bq_parameters)
 
-      outputs = (pcoll
-                 | 'AppendDestination' >> beam.ParDo(
-                     bigquery_tools.AppendDestinationsFn(self.table_reference),
-                     *self.table_side_inputs)
-                 | 'StreamInsertRows' >> ParDo(
-                     bigquery_write_fn, *self.schema_side_inputs).with_outputs(
-                         BigQueryWriteFn.FAILED_ROWS, main='main'))
+      outputs = pcoll | _StreamToBigQuery(self.table_reference,
+                                          self.table_side_inputs,
+                                          self.schema_side_inputs,
+                                          self.schema,
+                                          self.batch_size,
+                                          self.create_disposition,
+                                          self.write_disposition,
+                                          self.kms_key,
+                                          self.insert_retry_strategy,
+                                          self.additional_bq_parameters,
+                                          test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
