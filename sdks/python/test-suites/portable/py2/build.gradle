@@ -128,6 +128,8 @@ task crossLanguagePortableWordCount {
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
         "--expansion_service_jar=${testServiceExpansionJar}",
+        // Writes to local filesystem might fail for multiple SDK workers.
+        "--sdk_worker_parallelism=1"
     ]
     exec {
       executable 'sh'
