@@ -212,12 +212,20 @@ class ParDoBoundMultiTranslator<InT, OutT>
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+
     String inputId = stagePayload.getInput();
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStreamById(inputId);
+
     // TODO: support side input
+    if (!stagePayload.getSideInputsList().isEmpty()) {
+      throw new UnsupportedOperationException("Side inputs in portable pipelines are not supported in samza");
+    }
+
+    // set side inputs to empty until it's supported
     final List<MessageStream<OpMessage<InT>>> sideInputStreams = Collections.emptyList();
 
     final Map<TupleTag<?>, Integer> tagToIndexMap = new HashMap<>();
+    final Map<Integer, String> indexToIdMap = new HashMap<>();
     final Map<String, TupleTag<?>> idToTupleTagMap = new HashMap<>();
 
     // first output as the main output
@@ -232,9 +240,10 @@ class ParDoBoundMultiTranslator<InT, OutT>
             outputName -> {
               TupleTag<?> tupleTag = new TupleTag<>(outputName);
               tagToIndexMap.put(tupleTag, index.get());
-              index.incrementAndGet();
               String collectionId = outputs.get(outputName);
+              indexToIdMap.put(index.get(), collectionId);
               idToTupleTagMap.put(collectionId, tupleTag);
+              index.incrementAndGet();
             });
 
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
@@ -288,6 +297,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
         mergedStreams.flatMap(OpAdapter.adapt(op));
 
     for (int outputIndex : tagToIndexMap.values()) {
+      @SuppressWarnings("unchecked")
       final MessageStream<OpMessage<OutT>> outputStream =
           taggedOutputStream
               .filter(
@@ -296,7 +306,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
                           || message.getElement().getValue().getUnionTag() == outputIndex)
               .flatMap(OpAdapter.adapt(new RawUnionValueToValue()));
 
-      ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
+      ctx.registerMessageStream(indexToIdMap.get(outputIndex), outputStream);
     }
   }
 
