@@ -57,6 +57,10 @@ public class BeamAggregationRule extends RelOptRule {
     final Aggregate aggregate = call.rel(0);
     final Project project = call.rel(1);
     RelNode x = updateWindow(call, aggregate, project);
+    if (x == null) {
+      // Non-windowed case should be handled by the BeamBasicAggregationRule
+      return;
+    }
     call.transformTo(x);
   }
 
@@ -82,6 +86,10 @@ public class BeamAggregationRule extends RelOptRule {
       }
     }
 
+    if (windowFn == null) {
+      return null;
+    }
+
     final Project newProject =
         project.copy(project.getTraitSet(), project.getInput(), projects, project.getRowType());
 
@@ -89,7 +97,6 @@ public class BeamAggregationRule extends RelOptRule {
         aggregate.getCluster(),
         aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convert(newProject, newProject.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        aggregate.indicator,
         aggregate.getGroupSet(),
         aggregate.getGroupSets(),
         aggregate.getAggCallList(),

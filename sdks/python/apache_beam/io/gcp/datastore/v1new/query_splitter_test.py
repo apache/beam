@@ -21,6 +21,8 @@ from __future__ import absolute_import
 
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 # Protect against environments where datastore library is not available.
@@ -77,7 +79,7 @@ class QuerySplitterTest(QuerySplitterTestBase):
 
   def test_get_splits_query_with_num_splits_of_one(self):
     query = self.create_query()
-    with self.assertRaisesRegexp(self.split_error, r'num_splits'):
+    with self.assertRaisesRegex(self.split_error, r'num_splits'):
       query_splitter.get_splits(None, query, 1)
 
   def test_create_scatter_query(self):

@@ -185,6 +185,12 @@ import org.slf4j.LoggerFactory;
  * TypedRead#from(String)} and {@link TypedRead#fromQuery} respectively. Exactly one of these must
  * be specified.
  *
+ * <p>If you are reading from an authorized view wih {@link TypedRead#fromQuery}, you need to use
+ * {@link TypedRead#withQueryLocation(String)} to set the location of the BigQuery job. Otherwise,
+ * Beam will ty to determine that location by reading the metadata of the dataset that contains the
+ * underlying tables. With authorized views, that will result in a 403 error and the query will not
+ * be resolved.
+ *
  * <p><b>Type Conversion Table</b>
  *
  * <table border="1" cellspacing="1">
@@ -267,7 +273,7 @@ import org.slf4j.LoggerFactory;
  * <p>Users can optionally specify a query priority using {@link TypedRead#withQueryPriority(
  * TypedRead.QueryPriority)} and a geographic location where the query will be executed using {@link
  * TypedRead#withQueryLocation(String)}. Query location must be specified for jobs that are not
- * executed in US or EU. See <a
+ * executed in US or EU, or if you are reading from an authorized view. See <a
  * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
  * query</a>.
  *
@@ -1448,8 +1454,9 @@ public class BigQueryIO {
      * BigQuery geographic location where the query <a
      * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs">job</a> will be
      * executed. If not specified, Beam tries to determine the location by examining the tables
-     * referenced by the query. Location must be specified for queries not executed in US or EU. See
-     * <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
+     * referenced by the query. Location must be specified for queries not executed in US or EU, or
+     * when you are reading from an authorized view. See <a
+     * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
      * query</a>.
      */
     public TypedRead<T> withQueryLocation(String location) {

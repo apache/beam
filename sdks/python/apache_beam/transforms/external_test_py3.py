@@ -45,7 +45,8 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
                    integer_example: int,
                    string_example: str,
                    list_of_strings: typing.List[str],
-                   optional_kv: typing.Optional[typing.Tuple[str, float]] = None,
+                   optional_kv: typing.Optional[
+                       typing.Tuple[str, float]] = None,
                    optional_integer: typing.Optional[int] = None,
                    expansion_service=None):
         super(AnnotatedTransform, self).__init__(
@@ -71,7 +72,8 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
                    integer_example: int,
                    string_example: str,
                    list_of_strings: typehints.List[str],
-                   optional_kv: typehints.Optional[typehints.KV[str, float]] = None,
+                   optional_kv: typehints.Optional[
+                       typehints.KV[str, float]] = None,
                    optional_integer: typehints.Optional[int] = None,
                    expansion_service=None):
         super(AnnotatedTransform, self).__init__(
@@ -88,6 +90,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
         )
 
     return get_payload(AnnotatedTransform(**values))
+
 
 if __name__ == '__main__':
   unittest.main()

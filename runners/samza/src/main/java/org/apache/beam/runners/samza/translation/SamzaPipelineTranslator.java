@@ -55,7 +55,6 @@ public class SamzaPipelineTranslator {
   public static void translate(Pipeline pipeline, TranslationContext ctx) {
     final TransformVisitorFn translateFn =
         new TransformVisitorFn() {
-          private int topologicalId = 0;
 
           @Override
           public <T extends PTransform<?, ?>> void apply(
@@ -64,7 +63,6 @@ public class SamzaPipelineTranslator {
               Pipeline pipeline,
               TransformTranslator<T> translator) {
             ctx.setCurrentTransform(node.toAppliedPTransform(pipeline));
-            ctx.setCurrentTopologicalId(topologicalId++);
 
             translator.translate(transform, node, ctx);
 

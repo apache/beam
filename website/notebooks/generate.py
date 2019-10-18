@@ -67,6 +67,7 @@ def run(docs, variables=None,
             imports=imports,
             notebook_title=doc.get('title', os.path.basename(basename).replace('-', ' ')),
             keep_classes=['language-' + lang, 'shell-sh'],
+            filter_classes='notebook-skip',
             docs_url='https://beam.apache.org/' + basename.replace('-', ''),
             docs_logo_url=docs_logo_url,
             github_ipynb_url='https://github.com/apache/beam/blob/master/' + ipynb_file,
@@ -95,7 +96,7 @@ def run(docs, variables=None,
       print('')
       print(input_file)
       print('-' * len(input_file))
-      traceback.print_tb(e.__traceback__)
+      traceback.print_exception(type(e), e, e.__traceback__)
 
   print('')
   print('{} files processed ({} succeeded, {} failed)'.format(

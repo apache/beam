@@ -96,7 +96,6 @@ class NativeSourceReader(object):
       A SourceReaderProgress object that gives the current progress of the
       reader.
     """
-    return
 
   def request_dynamic_split(self, dynamic_split_request):
     """Attempts to split the input in two parts.
@@ -140,7 +139,6 @@ class NativeSourceReader(object):
         'SourceReader %r does not support dynamic splitting. Ignoring dynamic '
         'split request: %r',
         self, dynamic_split_request)
-    return
 
 
 class ReaderProgress(object):

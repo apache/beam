@@ -94,12 +94,13 @@ configurations {
 }
 
 dependencies {
+  compileOnly project(":sdks:java:build-tools")
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
-  compile project(":sdks:java:build-tools")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.vendored_grpc_1_21_0
   compile library.java.jackson_annotations
   compile library.java.slf4j_api

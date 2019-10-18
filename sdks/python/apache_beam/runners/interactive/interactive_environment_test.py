@@ -44,7 +44,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
                 ie.current_env().watching()])
 
   def _a_function_with_local_watched(self):
-    local_var_watched = 123  # pylint: disable=unused-variable
+    local_var_watched = 123  # pylint: disable=possibly-unused-variable
     ie.current_env().watch(locals())
 
   def _a_function_not_watching_local(self):

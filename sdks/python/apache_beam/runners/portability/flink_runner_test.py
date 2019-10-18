@@ -30,6 +30,7 @@ from tempfile import mkdtemp
 import apache_beam as beam
 from apache_beam import Impulse
 from apache_beam import Map
+from apache_beam import Pipeline
 from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.io.external.kafka import ReadFromKafka
 from apache_beam.io.external.kafka import WriteToKafka
@@ -140,7 +141,7 @@ if __name__ == '__main__':
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = [
           'beam_fn_api'] + extra_experiments
-      options._all_options['parallelism'] = 1
+      options._all_options['parallelism'] = 2
       options._all_options['shutdown_sources_on_final_watermark'] = True
       options.view_as(PortableOptions).environment_type = (
           environment_type.upper())
@@ -231,28 +232,27 @@ if __name__ == '__main__':
         def process(self, v):
           self.counter.inc()
 
-      p = self.create_pipeline()
+      options = self.create_options()
+      # Test only supports parallelism of 1
+      options._all_options['parallelism'] = 1
       n = 100
-
-      # pylint: disable=expression-not-assigned
-      p \
-      | beam.Create(list(range(n))) \
-      | beam.ParDo(DoFn())
-
-      result = p.run()
-      result.wait_until_finish()
+      with Pipeline(self.get_runner(), options) as p:
+        # pylint: disable=expression-not-assigned
+        (p
+         | beam.Create(list(range(n)))
+         | beam.ParDo(DoFn()))
 
       with open(self.test_metrics_path, 'r') as f:
         lines = [line for line in f.readlines() if counter_name in line]
         self.assertEqual(
             len(lines), 1,
-            msg='Expected 1 line matching "%s":\n%s' % (
+            msg='Expected 1 line matching "{}":\n{}'.format(
                 counter_name, '\n'.join(lines))
         )
         line = lines[0]
         self.assertTrue(
-            '%s: 100' % counter_name in line,
-            msg='Failed to find expected counter %s in line %s' % (
+            '{}: {}'.format(counter_name in line, n),
+            msg='Failed to find expected counter {} in line {}'.format(
                 counter_name, line)
         )
 

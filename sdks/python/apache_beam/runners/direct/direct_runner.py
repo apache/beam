@@ -115,7 +115,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     # Also ensure grpc is available.
     try:
-      # pylint: disable=unused-variable
+      # pylint: disable=unused-import
       import grpc
     except ImportError:
       use_fnapi_runner = False

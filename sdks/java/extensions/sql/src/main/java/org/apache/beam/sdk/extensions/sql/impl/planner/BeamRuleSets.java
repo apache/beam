@@ -25,6 +25,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCoGBKJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOPushDownRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinAssociateRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinPushThroughJoinRule;
@@ -78,6 +79,7 @@ public class BeamRuleSets {
           ProjectCalcMergeRule.INSTANCE,
           FilterToCalcRule.INSTANCE,
           ProjectToCalcRule.INSTANCE,
+          BeamIOPushDownRule.INSTANCE,
           // disabled due to https://issues.apache.org/jira/browse/BEAM-6810
           // CalcRemoveRule.INSTANCE,
           CalcMergeRule.INSTANCE,

@@ -404,7 +404,7 @@ class Stager(object):
             'This functionality is not officially supported. Since wheel '
             'packages are binary distributions, this package must be '
             'binary-compatible with the worker environment (e.g. Python 2.7 '
-            'running on an x64 Linux host).')
+            'running on an x64 Linux host).' % package)
 
       if not os.path.isfile(package):
         if Stager._is_remote_path(package):
@@ -564,7 +564,7 @@ class Stager(object):
         self.stage_artifact(sdk_local_file, staged_path)
         staged_sdk_files.append(sdk_binary_staged_name)
       except RuntimeError as e:
-        logging.warn(
+        logging.warning(
             'Failed to download requested binary distribution '
             'of the SDK: %s', repr(e))
 

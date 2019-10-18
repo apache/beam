@@ -33,7 +33,8 @@ import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 from setuptools.command.build_py import build_py
-from setuptools.command.develop import develop
+# TODO: (BEAM-8411): re-enable lint check.
+from setuptools.command.develop import develop  # pylint: disable-all
 from setuptools.command.egg_info import egg_info
 from setuptools.command.test import test
 
@@ -105,7 +106,8 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
     'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    'dill>=0.2.9,<0.4.0',
+    # Dill doesn't guarantee comatibility between releases within minor version.
+    'dill>=0.3.0,<0.3.1',
     'fastavro>=0.21.4,<0.22',
     'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.16.0,<1.0.0',
@@ -118,14 +120,16 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<4',
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.11.1,<0.15.0; python_version >= "3.0" or '
+    # [BEAM-8392] pyarrow 0.14.0 and 0.15.0 triggers an exception when importing
+    # apache_beam on macOS 10.15. Update version bounds as soon as the fix is
+    # ready
+    ('pyarrow>=0.11.1,<0.14.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
-    'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     ]
 
@@ -142,6 +146,8 @@ REQUIRED_TEST_PACKAGES = [
     'pandas>=0.23.4,<0.25',
     'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
+    'pyyaml>=3.12,<6.0.0',
+    'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
     ]
 

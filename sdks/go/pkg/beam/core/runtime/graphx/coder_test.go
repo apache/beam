@@ -46,6 +46,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			coder.NewBytes(),
 		},
 		{
+			"bool",
+			coder.NewBool(),
+		},
+		{
 			"varint",
 			coder.NewVarInt(),
 		},

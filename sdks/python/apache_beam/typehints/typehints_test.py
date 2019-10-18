@@ -25,6 +25,9 @@ import unittest
 from builtins import next
 from builtins import range
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
+
 import apache_beam.typehints.typehints as typehints
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
@@ -915,13 +918,13 @@ class InputDecoratorTestCase(TypeHintTestCase):
       return a + b
 
   def test_invalid_kw_hint(self):
-    with self.assertRaisesRegexp(TypeError, r'\[1, 2\]'):
+    with self.assertRaisesRegex(TypeError, r'\[1, 2\]'):
       @with_input_types(a=[1, 2])
       def unused_foo(a):
         pass
 
   def test_invalid_pos_hint(self):
-    with self.assertRaisesRegexp(TypeError, r'\[1, 2\]'):
+    with self.assertRaisesRegex(TypeError, r'\[1, 2\]'):
       @with_input_types([1, 2])
       def unused_foo(a):
         pass
@@ -943,7 +946,7 @@ class OutputDecoratorTestCase(TypeHintTestCase):
       return 5, 'bar'
 
   def test_no_kwargs_accepted(self):
-    with self.assertRaisesRegexp(ValueError, r'must be positional'):
+    with self.assertRaisesRegex(ValueError, r'must be positional'):
       @with_output_types(m=int)
       def unused_foo():
         return 5
@@ -1209,7 +1212,7 @@ class TestGetYieldedType(unittest.TestCase):
     self.assertEqual(int, typehints.get_yielded_type(typehints.Set[int]))
 
   def test_not_iterable(self):
-    with self.assertRaisesRegexp(ValueError, r'not iterable'):
+    with self.assertRaisesRegex(ValueError, r'not iterable'):
       typehints.get_yielded_type(int)
 
 
@@ -1235,7 +1238,7 @@ class TestCoerceToKvType(TypeHintTestCase):
         ((typehints.List[Any],), r'compatible'),
     ]
     for args, regex in cases:
-      with self.assertRaisesRegexp(ValueError, regex):
+      with self.assertRaisesRegex(ValueError, regex):
         typehints.coerce_to_kv_type(*args)
 
 

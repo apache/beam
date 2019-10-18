@@ -53,9 +53,10 @@ class MultipleOutputParDo(unittest.TestCase):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     result_prefix = temp_path + '.result'
 
-    multiple_output_pardo.run([
-        '--input=%s*' % temp_path,
-        '--output=%s' % result_prefix])
+    multiple_output_pardo.run(
+        ['--input=%s*' % temp_path,
+         '--output=%s' % result_prefix],
+        save_main_session=False)
 
     expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))
     with open_shards(result_prefix + '-chars-*-of-*') as f:

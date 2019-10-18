@@ -39,6 +39,9 @@ how to implement Beam concepts in your pipelines.
   </ul>
 </nav>
 
+{:.language-py}
+The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)). For best results, use Beam with Python 3.
+
 ## 1. Overview {#overview}
 
 To use Beam, you need to first create a driver program using the classes in one
@@ -2380,14 +2383,14 @@ windows.
 
 The simplest form of windowing is using **fixed time windows**: given a
 timestamped `PCollection` which might be continuously updating, each window
-might capture (for example) all elements with timestamps that fall into a five
-minute interval.
+might capture (for example) all elements with timestamps that fall into a 30
+second interval.
 
 A fixed time window represents a consistent duration, non overlapping time
-interval in the data stream. Consider windows with a five-minute duration: all
+interval in the data stream. Consider windows with a 30 second duration: all
 of the elements in your unbounded `PCollection` with timestamp values from
-0:00:00 up to (but not including) 0:05:00 belong to the first window, elements
-with timestamp values from 0:05:00 up to (but not including) 0:10:00 belong to
+0:00:00 up to (but not including) 0:00:30 belong to the first window, elements
+with timestamp values from 0:00:30 up to (but not including) 0:01:00 belong to
 the second window, and so on.
 
 ![Diagram of fixed time windows, 30s in duration]({{ "/images/fixed-time-windows.png" | prepend: site.baseurl }} "Fixed time windows, 30s in duration")
@@ -2398,15 +2401,15 @@ the second window, and so on.
 
 A **sliding time window** also represents time intervals in the data stream;
 however, sliding time windows can overlap. For example, each window might
-capture five minutes worth of data, but a new window starts every ten seconds.
+capture 60 seconds worth of data, but a new window starts every 30 seconds.
 The frequency with which sliding windows begin is called the _period_.
-Therefore, our example would have a window _duration_ of five minutes and a
-_period_ of ten seconds.
+Therefore, our example would have a window _duration_ of 60 seconds and a
+_period_ of 30 seconds.
 
 Because multiple windows overlap, most elements in a data set will belong to
 more than one window. This kind of windowing is useful for taking running
 averages of data; using sliding time windows, you can compute a running average
-of the past five minutes' worth of data, updated every ten seconds, in our
+of the past 60 seconds' worth of data, updated every 30 seconds, in our
 example.
 
 ![Diagram of sliding time windows, with 1 minute window duration and 30s window period]({{ "/images/sliding-time-windows.png" | prepend: site.baseurl }} "Sliding time windows, with 1 minute window duration and 30s window period")

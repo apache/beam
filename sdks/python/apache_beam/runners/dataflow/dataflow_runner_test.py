@@ -26,6 +26,8 @@ from builtins import object
 from builtins import range
 from datetime import datetime
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 import apache_beam as beam
@@ -96,7 +98,7 @@ class DataflowRunnerTest(unittest.TestCase):
         self.dataflow_client.list_messages = mock.MagicMock(
             return_value=([], None))
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         DataflowRuntimeException, 'Dataflow pipeline failed. State: FAILED'):
       failed_runner = MockDataflowRunner([values_enum.JOB_STATE_FAILED])
       failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
@@ -127,7 +129,7 @@ class DataflowRunnerTest(unittest.TestCase):
       self.assertEqual(result, PipelineState.RUNNING)
 
     with mock.patch('time.time', mock.MagicMock(side_effect=[1, 1, 2, 2, 3])):
-      with self.assertRaisesRegexp(
+      with self.assertRaisesRegex(
           DataflowRuntimeException,
           'Dataflow pipeline failed. State: CANCELLED'):
         duration_failed_runner = MockDataflowRunner(
@@ -153,7 +155,7 @@ class DataflowRunnerTest(unittest.TestCase):
         self.dataflow_client.list_messages = mock.MagicMock(
             return_value=([], None))
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         DataflowRuntimeException, 'Failed to cancel job'):
       failed_runner = MockDataflowRunner(values_enum.JOB_STATE_RUNNING, False)
       failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
@@ -224,8 +226,8 @@ class DataflowRunnerTest(unittest.TestCase):
     self.default_properties.append("--streaming")
     p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
     _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
-    with self.assertRaisesRegexp(ValueError,
-                                 r'source is not currently available'):
+    with self.assertRaisesRegex(ValueError,
+                                r'source is not currently available'):
       p.run()
 
   def test_remote_runner_display_data(self):
@@ -326,7 +328,7 @@ class DataflowRunnerTest(unittest.TestCase):
           r"Input to 'label' must be compatible with KV\[Any, Any\]. "
           "Found .*")
       for pcoll in [pcoll1, pcoll2]:
-        with self.assertRaisesRegexp(ValueError, err_msg):
+        with self.assertRaisesRegex(ValueError, err_msg):
           DataflowRunner.group_by_key_input_visitor().visit_transform(
               AppliedPTransform(None, transform, "label", [pcoll]))
 

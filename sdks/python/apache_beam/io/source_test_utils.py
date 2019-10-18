@@ -588,7 +588,7 @@ def assert_split_at_fraction_exhaustive(
         num_trials += 1
         if (num_trials >
             MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM):
-          logging.warn(
+          logging.warning(
               'After %d concurrent splitting trials at item #%d, observed '
               'only %s, giving up on this item',
               num_trials,
@@ -613,8 +613,8 @@ def assert_split_at_fraction_exhaustive(
     num_total_trials += num_trials
 
     if num_total_trials > MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL:
-      logging.warn('After %d total concurrent splitting trials, considered '
-                   'only %d items, giving up.', num_total_trials, i)
+      logging.warning('After %d total concurrent splitting trials, considered '
+                      'only %d items, giving up.', num_total_trials, i)
       break
 
   logging.info('%d total concurrent splitting trials for %d items',

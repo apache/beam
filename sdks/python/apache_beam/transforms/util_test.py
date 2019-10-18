@@ -30,6 +30,9 @@ import unittest
 from builtins import object
 from builtins import range
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
+
 import apache_beam as beam
 from apache_beam import WindowInto
 from apache_beam.coders import coders
@@ -270,7 +273,7 @@ class IdentityWindowTest(unittest.TestCase):
                       | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
     assert_that(after_identity, equal_to(expected_windows),
                 label='after_identity', reify_windows=True)
-    with self.assertRaisesRegexp(ValueError, r'window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
       pipeline.run()
 
 

@@ -60,16 +60,8 @@ EXCLUDED_GENERATED_FILES=(
 apache_beam/portability/api/*pb2*.py
 )
 
-PYTHON_MAJOR=$(python -c 'import sys; print(sys.version_info[0])')
-if [[ "${PYTHON_MAJOR}" == 2 ]]; then
-  EXCLUDED_PY3_FILES=$(find ${MODULE} | grep 'py3[0-9]*\.py$')
-  echo -e "Excluding Py3 files:\n${EXCLUDED_PY3_FILES}"
-else
-  EXCLUDED_PY3_FILES=""
-fi
-
 FILES_TO_IGNORE=""
-for file in "${EXCLUDED_GENERATED_FILES[@]}" ${EXCLUDED_PY3_FILES}; do
+for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   if test -z "$FILES_TO_IGNORE"
     then FILES_TO_IGNORE="$(basename $file)"
     else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
@@ -81,8 +73,6 @@ echo -e "Linting modules:\n${MODULE}"
 
 echo "Running pylint..."
 pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
-echo "Running pycodestyle..."
-pycodestyle ${MODULE} --exclude="$FILES_TO_IGNORE"
 echo "Running flake8..."
 flake8 ${MODULE} --count --select=E9,F821,F822,F823 --show-source --statistics \
   --exclude="${FILES_TO_IGNORE}"

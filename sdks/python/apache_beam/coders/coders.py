@@ -58,11 +58,14 @@ except ImportError:
   import dill
 
 
-__all__ = ['Coder',
-           'AvroCoder', 'BytesCoder', 'DillCoder', 'FastPrimitivesCoder',
-           'FloatCoder', 'IterableCoder', 'PickleCoder', 'ProtoCoder',
-           'SingletonCoder', 'StrUtf8Coder', 'TimestampCoder', 'TupleCoder',
-           'TupleSequenceCoder', 'VarIntCoder', 'WindowedValueCoder']
+__all__ = [
+    'Coder',
+    'AvroCoder', 'BooleanCoder', 'BytesCoder', 'DillCoder',
+    'FastPrimitivesCoder', 'FloatCoder', 'IterableCoder', 'PickleCoder',
+    'ProtoCoder', 'SingletonCoder', 'StrUtf8Coder', 'TimestampCoder',
+    'TupleCoder', 'TupleSequenceCoder', 'VarIntCoder',
+    'WindowedValueCoder'
+]
 
 
 def serialize_coder(coder):
@@ -418,6 +421,26 @@ class BytesCoder(FastCoder):
 
 
 Coder.register_structured_urn(common_urns.coders.BYTES.urn, BytesCoder)
+
+
+class BooleanCoder(FastCoder):
+  def _create_impl(self):
+    return coder_impl.BooleanCoderImpl()
+
+  def is_deterministic(self):
+    return True
+
+  def to_type_hint(self):
+    return bool
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+Coder.register_structured_urn(common_urns.coders.BOOL.urn, BooleanCoder)
 
 
 class VarIntCoder(FastCoder):

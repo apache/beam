@@ -28,8 +28,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Portabi
   description('Runs the ValidatesRunner suite on the Dataflow PortabilityApi runner.')
   previousNames(/beam_PostCommit_Java_ValidatesRunner_PortabilityApi_Dataflow_Gradle/)
 
-  // Set common parameters. Sets a 3 hour timeout.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 400)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
 
   // Publish all test results to Jenkins
   publishers {

@@ -25,6 +25,8 @@ import re
 import time
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import,ungrouped-imports
 import mock
 from future.utils import iteritems
 
@@ -369,14 +371,14 @@ class TestBigQueryReader(unittest.TestCase):
     self.assertFalse(reader.flatten_results)
 
   def test_using_both_query_and_table_fails(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         r'Both a BigQuery table and a query were specified\. Please specify '
         r'only one of these'):
       beam.io.BigQuerySource(table='dataset.table', query='query')
 
   def test_using_neither_query_nor_table_fails(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, r'A BigQuery table or a query must be specified'):
       beam.io.BigQuerySource()
 
@@ -459,7 +461,7 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         RuntimeError, r'Table project:dataset\.table not found but create '
                       r'disposition is CREATE_NEVER'):
       with beam.io.BigQuerySink(
@@ -492,7 +494,7 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         RuntimeError, r'Table project:dataset\.table requires a schema\. None '
                       r'can be inferred because the table does not exist'):
       with beam.io.BigQuerySink(
@@ -510,7 +512,7 @@ class TestBigQueryWriter(unittest.TestCase):
         schema=bigquery.TableSchema())
     client.tabledata.List.return_value = bigquery.TableDataList(totalRows=1)
     write_disposition = beam.io.BigQueryDisposition.WRITE_EMPTY
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         RuntimeError, r'Table project:dataset\.table is not empty but write '
                       r'disposition is WRITE_EMPTY'):
       with beam.io.BigQuerySink(
@@ -640,7 +642,7 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
     self.assertEqual(output_value, coder.decode(coder.encode(test_value)))
 
   def json_compliance_exception(self, value):
-    with self.assertRaisesRegexp(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
+    with self.assertRaisesRegex(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
       coder = RowAsDictJsonCoder()
       test_value = {'s': value}
       coder.decode(coder.encode(test_value))

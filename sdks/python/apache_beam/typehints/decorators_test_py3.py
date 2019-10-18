@@ -21,6 +21,9 @@ from __future__ import absolute_import
 
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
+
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
 from apache_beam.typehints import List
@@ -102,9 +105,9 @@ class IOTypeHintsTest(unittest.TestCase):
     def fn(a, b=None, *args, foo, **kwargs):
       return a, b, args, foo, kwargs
 
-    with self.assertRaisesRegexp(decorators.TypeCheckError, "missing.*'a'"):
+    with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'a'"):
       decorators.getcallargs_forhints(fn, foo=List[int])
-    with self.assertRaisesRegexp(decorators.TypeCheckError, "missing.*'foo'"):
+    with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'foo'"):
       decorators.getcallargs_forhints(fn, 5)
 
 
