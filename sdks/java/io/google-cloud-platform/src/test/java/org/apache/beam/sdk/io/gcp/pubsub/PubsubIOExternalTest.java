@@ -30,8 +30,8 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -52,7 +52,7 @@ public class PubsubIOExternalTest {
   public void testConstructPubsubRead() throws Exception {
     String topic = "projects/project-1234/topics/topic_name";
     String idAttribute = "id_foo";
-    Long needsAttributes = 1L;
+    Boolean needsAttributes = true;
 
     ExternalTransforms.ExternalConfigurationPayload payload =
         ExternalTransforms.ExternalConfigurationPayload.newBuilder()
@@ -71,8 +71,8 @@ public class PubsubIOExternalTest {
             .putConfiguration(
                 "with_attributes",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeVarLong(needsAttributes)))
+                    .addCoderUrn("beam:coder:bool:v1")
+                    .setPayload(ByteString.copyFrom(encodeBoolean(needsAttributes)))
                     .build())
             .build();
 
@@ -210,9 +210,9 @@ public class PubsubIOExternalTest {
     return baos.toByteArray();
   }
 
-  private static byte[] encodeVarLong(Long value) throws IOException {
+  private static byte[] encodeBoolean(Boolean value) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    VarLongCoder.of().encode(value, baos);
+    BooleanCoder.of().encode(value, baos);
     return baos.toByteArray();
   }
 

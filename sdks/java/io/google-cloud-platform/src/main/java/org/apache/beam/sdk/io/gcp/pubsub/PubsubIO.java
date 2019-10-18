@@ -813,8 +813,10 @@ public class PubsubIO {
           this.timestampAttribute = timestampAttribute;
         }
 
-        public void setWithAttributes(Long needsAttributes) {
-          this.needsAttributes = needsAttributes >= 1;
+        public void setWithAttributes(Boolean needsAttributes) {
+          // we must use Boolean instead of boolean because the external payload system
+          // inspects the native type of each coder urn, and BooleanCoder wants Boolean.
+          this.needsAttributes = needsAttributes;
         }
       }
     }
