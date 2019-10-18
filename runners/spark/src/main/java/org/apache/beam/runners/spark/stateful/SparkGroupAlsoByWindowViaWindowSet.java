@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.LateDataUtils;
@@ -43,6 +42,7 @@ import org.apache.beam.runners.spark.translation.ReifyTimestampsAndWindowsFuncti
 import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
+import org.apache.beam.runners.spark.util.TimerUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -339,17 +339,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
               outputHolder.getWindowedValues();
 
           if (!outputs.isEmpty() || !stateInternals.getState().isEmpty()) {
-            Collection<TimerInternals.TimerData> filteredTimers =
-                timerInternals.getTimers().stream()
-                    .filter(
-                        timer ->
-                            timer
-                                .getTimestamp()
-                                .plus(windowingStrategy.getAllowedLateness())
-                                .isBefore(timerInternals.currentInputWatermarkTime()))
-                    .collect(Collectors.toList());
 
-            filteredTimers.forEach(timerInternals::deleteTimer);
+            TimerUtils.dropExpiredTimers(timerInternals, windowingStrategy);
 
             // empty outputs are filtered later using DStream filtering
             final StateAndTimers updated =
