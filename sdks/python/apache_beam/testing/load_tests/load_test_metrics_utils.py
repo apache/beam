@@ -312,8 +312,8 @@ class RuntimeMetric(Metric):
     min_values = []
     max_values = []
     for dist in distributions:
-      min_values.append(dist.committed.min)
-      max_values.append(dist.committed.max)
+      min_values.append(dist.result.min)
+      max_values.append(dist.result.max)
     # finding real start
     min_value = min(min_values)
     # finding real end
