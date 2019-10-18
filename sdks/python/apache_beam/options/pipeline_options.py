@@ -363,6 +363,9 @@ class StandardOptions(PipelineOptions):
                         default=False,
                         action='store_true',
                         help='Whether to enable streaming mode.')
+    parser.add_argument('--job_name',
+                        default=None,
+                        help='Name of the job. Usage depends on the runner.')
 
 
 class TypeOptions(PipelineOptions):
@@ -421,6 +424,10 @@ class GoogleCloudOptions(PipelineOptions):
   STORAGE_API_SERVICE = 'storage.googleapis.com'
   DATAFLOW_ENDPOINT = 'https://dataflow.googleapis.com'
 
+  job_name = property(
+      lambda self: return self.view_as(StandardOptions).job_name,
+      lambda self, job_name: self.view_as(StandardOptions).job_name = job_name)
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
@@ -434,10 +441,6 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Name of the Cloud project owning the Dataflow '
                         'job.')
-    # Remote execution must check that this option is not None.
-    parser.add_argument('--job_name',
-                        default=None,
-                        help='Name of the Cloud Dataflow job.')
     # Remote execution must check that this option is not None.
     parser.add_argument('--staging_location',
                         default=None,
