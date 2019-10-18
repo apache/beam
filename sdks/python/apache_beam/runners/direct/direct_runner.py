@@ -69,6 +69,9 @@ class SwitchingDirectRunner(PipelineRunner):
   implemented in the FnApiRunner.
   """
 
+  def is_fnapi_compatible(self):
+    return BundleBasedDirectRunner.is_fnapi_compatible()
+
   def run_pipeline(self, pipeline, options):
 
     from apache_beam.pipeline import PipelineVisitor
@@ -335,6 +338,10 @@ def _get_pubsub_transform_overrides(pipeline_options):
 
 class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
+
+  @staticmethod
+  def is_fnapi_compatible():
+    return False
 
   def run_pipeline(self, pipeline, options):
     """Execute the entire pipeline and returns an DirectPipelineResult."""

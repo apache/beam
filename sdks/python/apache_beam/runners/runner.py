@@ -198,6 +198,10 @@ class PipelineRunner(object):
         'Execution of [%s] not implemented in runner %s.' % (
             transform_node.transform, self))
 
+  def is_fnapi_compatible(self):
+    """Whether to enable the beam_fn_api experiment by default."""
+    return True
+
 
 class PValueCache(object):
   """For internal use only; no backwards-compatibility guarantees.

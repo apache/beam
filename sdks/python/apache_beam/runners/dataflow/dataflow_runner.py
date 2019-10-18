@@ -111,6 +111,9 @@ class DataflowRunner(PipelineRunner):
     self._cache = cache if cache is not None else PValueCache()
     self._unique_step_id = 0
 
+  def is_fnapi_compatible(self):
+    return False
+
   def _get_unique_step_name(self):
     self._unique_step_id += 1
     return 's%s' % self._unique_step_id
