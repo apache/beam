@@ -149,13 +149,17 @@ To contribute code, you need
 
 1. Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
    have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
-1. Add unit tests for your change
+
+1. Add unit tests for your change.
+
+1. Use descriptive commit messages that make it easy to identify changes and provide a clear history.
+
 1. When your change is ready to be reviewed and merged, create a pull request.
-   Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
+
+1. Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
    where you replace BEAM-XXX with the appropriate JIRA issue.
    This will automatically link the pull request to the issue.
-   Use descriptive commit messages that make it easy to identify changes and provide a clear history.
-   To support efficient and quality review, avoid tiny or out-of-context changes and huge mega-changes.
+
 1. The pull request and any changes pushed to it will trigger [pre-commit
    jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
@@ -163,9 +167,9 @@ To contribute code, you need
 
         retest this please
 
-   There are other trigger phrases for post-commit tests found in
-   .testinfra/jenkins, but use these sparingly because post-commit
-   tests consume shared development resources.
+   Pull request template has a link to a [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
+   that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
+
 1. Pull requests can only be merged by a
    [Beam committer]({{ site.baseurl }}/contribute/team/).
    To find a committer for your area, either:
@@ -174,11 +178,27 @@ To contribute code, you need
     - ask on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
 
    Use `R: @username` in the pull request to notify a reviewer.
+
 1. If you don't get any response in 3 business days, email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us) to ask for someone to look at your pull
    request.
-1. Review feedback typically leads to follow-up changes. You can add these changes as additional "fixup" commits to the
-   existing PR/branch. This will allow reviewer(s) to track the incremental progress. After review is complete and the
-   PR accepted, multiple commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
+
+### Make reviewer's job easier
+
+1. Provide context for your changes in the associated JIRA issue and/or PR description.
+
+1. Avoid huge mega-changes.
+
+1. Review feedback typically leads to follow-up changes. It is easier to review follow-up changes when they are added as additional "fixup" commits to the
+   existing PR/branch. This allows reviewer(s) to track the incremental progress and focus on new changes,
+   and keeps comment threads attached to the code.
+   Please refrain from squashing new commits into reviewed commits before review is completed.
+   Because squashing reviewed and unreviewed commits often makes it harder to
+   see the the difference between the review iterations, reviewers may ask you to unsquash new changes.
+
+1. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
+   Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
+   all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
+   then the PR author should help squashing fixup commits to maintain a clean commmit history.
 
 ## When will my change show up in an Apache Beam release?
 
