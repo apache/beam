@@ -57,7 +57,7 @@ class AbstractArtifactService(
     return path + '.tmp'
 
   def _open(self, path, mode):
-    return self._zipfile.open(path, mode, force_zip64=True)
+    raise NotImplementedError(type(self))
 
   def _rename(self, src, dest):
     raise NotImplementedError(type(self))
@@ -185,6 +185,16 @@ class ZipFileArtifactService(AbstractArtifactService):
     with self._lock:
       return super(
           ZipFileArtifactService, self).CommitManifest(request, context)
+
+  def GetManifest(self, request, context=None):
+    # ZipFile appears to not be threadsafe on some platforms.
+    with self._lock:
+      return super(ZipFileArtifactService, self).GetManifest(request, context)
+
+  def GetArtifact(self, request, context=None):
+    # ZipFile appears to not be threadsafe on some platforms.
+    with self._lock:
+      return super(ZipFileArtifactService, self).GetArtifact(request, context)
 
   def close(self):
     self._zipfile.close()
