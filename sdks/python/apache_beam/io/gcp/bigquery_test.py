@@ -505,6 +505,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     self.assertFalse(client.tabledata.InsertAll.called)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
 
   def test_failure_has_same_insert_ids(self):
