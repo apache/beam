@@ -65,6 +65,10 @@ class InteractiveRunner(runners.PipelineRunner):
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
     self._in_session = False
 
+  def is_fnapi_compatible(self):
+    # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
+    return False
+
   def set_render_option(self, render_option):
     """Sets the rendering option.
 
