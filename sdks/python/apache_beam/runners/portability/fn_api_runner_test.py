@@ -529,7 +529,6 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def _run_sdf_wrapper_pipeline(self, source, expected_value):
     with self.create_pipeline() as p:
-      from apache_beam.options.pipeline_options import DebugOptions
       experiments = (p._options.view_as(DebugOptions).experiments or [])
 
       # Setup experiment option to enable using SDFBoundedSourceWrapper
@@ -696,7 +695,7 @@ class FnApiRunnerTest(unittest.TestCase):
     pcoll | 'count1' >> beam.FlatMap(lambda x: counter.inc())
     pcoll | 'count2' >> beam.FlatMap(lambda x: counter.inc(len(x)))
     pcoll | 'dist' >> beam.FlatMap(lambda x: distribution.update(len(x)))
-    pcoll | 'gauge' >> beam.FlatMap(lambda x: gauge.set(len(x)))
+    pcoll | 'gauge' >> beam.FlatMap(lambda x: gauge.set(3))
 
     res = p.run()
     res.wait_until_finish()
