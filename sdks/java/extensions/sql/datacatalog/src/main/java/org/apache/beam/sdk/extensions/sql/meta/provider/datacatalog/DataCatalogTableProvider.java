@@ -98,9 +98,8 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
   }
 
   @Override
-  public @Nullable Table getTable(String tableNamePart) {
-    throw new UnsupportedOperationException(
-        "Loading a table by partial name '" + tableNamePart + "' is unsupported");
+  public @Nullable Table getTable(String tableName) {
+    return loadTable(tableName);
   }
 
   @Override

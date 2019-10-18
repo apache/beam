@@ -129,11 +129,16 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     final SqlOperatorTable opTab0 =
         connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
 
+    Object[] contexts =
+        org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList.of(
+                connection.config(), TableResolutionContext.joinCompoundIds("datacatalog"))
+            .toArray();
+
     return Frameworks.newConfigBuilder()
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
-        .context(Contexts.of(connection.config()))
+        .context(Contexts.of(contexts))
         .ruleSets(ruleSets)
         .costFactory(null)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
