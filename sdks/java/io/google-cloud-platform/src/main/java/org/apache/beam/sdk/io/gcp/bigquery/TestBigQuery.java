@@ -171,7 +171,7 @@ public class TestBigQuery implements TestRule {
     }
 
     if (description.getMethodName() != null) {
-      topicName.append(description.getMethodName()).append("_");
+      topicName.append(description.getMethodName().replaceAll("[\\[\\]\\.]", "_")).append("_");
     }
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
