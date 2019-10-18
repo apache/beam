@@ -325,8 +325,12 @@ class GlobalWindows(NonMergingWindowFn):
   """A windowing function that assigns everything to one global window."""
 
   @classmethod
-  def windowed_value(cls, value, timestamp=MIN_TIMESTAMP):
-    return WindowedValue(value, timestamp, (GlobalWindow(),))
+  def windowed_value(
+      cls,
+      value,
+      timestamp=MIN_TIMESTAMP,
+      pane_info=windowed_value.PANE_INFO_UNKNOWN):
+    return WindowedValue(value, timestamp, (GlobalWindow(),), pane_info)
 
   def assign(self, assign_context):
     return [GlobalWindow()]
