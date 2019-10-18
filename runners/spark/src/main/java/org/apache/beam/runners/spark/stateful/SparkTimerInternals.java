@@ -100,7 +100,7 @@ public class SparkTimerInternals implements TimerInternals {
         : forStreamFromSources(Lists.newArrayList(watermarks.keySet()), watermarks);
   }
 
-  Collection<TimerData> getTimers() {
+  public Collection<TimerData> getTimers() {
     return timers;
   }
 
