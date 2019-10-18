@@ -1334,9 +1334,9 @@ class GrpcWorkerHandler(WorkerHandler):
     super(GrpcWorkerHandler, self).close()
 
   def port_from_worker(self, port):
-    return '%s:%s' % (self.localhost_from_worker(), port)
+    return '%s:%s' % (self.host_from_worker(), port)
 
-  def localhost_from_worker(self):
+  def host_from_worker(self):
     return 'localhost'
 
 
@@ -1364,6 +1364,10 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
   def stop_worker(self):
     pass
+
+  def host_from_worker(self):
+    import socket
+    return socket.getfqdn()
 
 
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
@@ -1425,12 +1429,12 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     self._container_image = payload.container_image
     self._container_id = None
 
-  def localhost_from_worker(self):
+  def host_from_worker(self):
     if sys.platform == "darwin":
       # See https://docs.docker.com/docker-for-mac/networking/
       return 'host.docker.internal'
     else:
-      return super(DockerSdkWorkerHandler, self).localhost_from_worker()
+      return super(DockerSdkWorkerHandler, self).host_from_worker()
 
   def start_worker(self):
     with SUBPROCESS_LOCK:
