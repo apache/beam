@@ -674,6 +674,13 @@ class BeamModulePlugin implements Plugin<Project> {
         'varargs',
       ]
 
+      // Enable errorprone static analysis
+      project.apply plugin: 'net.ltgt.errorprone'
+
+      project.dependencies {
+        errorproneJavac 'com.google.errorprone:error_prone_core:2.3.1'
+      }
+
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
@@ -683,11 +690,14 @@ class BeamModulePlugin implements Plugin<Project> {
           '-parameters',
           '-Xlint:all',
           '-Werror',
+        ]
+        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+
+        options.errorprone.errorproneArgs = [
           '-XepDisableWarningsInGeneratedCode',
           '-XepExcludedPaths:(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*',
           '-Xep:MutableConstantField:OFF' // Guava's immutable collections cannot appear on API surface.
         ]
-        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
 
       // Configure the default test tasks set of tests executed
@@ -854,11 +864,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.analyzeTestClassesDependencies.enabled = false
         project.tasks.analyzeDependencies.enabled = false
       }
-
-      // Enable errorprone static analysis
-      project.apply plugin: 'net.ltgt.errorprone'
-
-      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.1' }
 
       if (configuration.shadowClosure) {
         // Enables a plugin which can perform shading of classes. See the general comments
