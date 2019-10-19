@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable.createImplementor;
 
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.CallImplementor;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.NotNullImplementor;
@@ -28,7 +29,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumera
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expression;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expressions;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ImplementableFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
@@ -37,7 +37,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTyp
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
 /** ZetaSQLCastFunctionImpl. */
-public class ZetaSQLCastFunctionImpl implements Function, ImplementableFunction {
+public class ZetaSQLCastFunctionImpl implements ImplementableFunction {
   public static final SqlUserDefinedFunction ZETASQL_CAST_OP =
       new SqlUserDefinedFunction(
           new SqlIdentifier("CAST", SqlParserPos.ZERO),
@@ -54,7 +54,7 @@ public class ZetaSQLCastFunctionImpl implements Function, ImplementableFunction 
 
   @Override
   public List<FunctionParameter> getParameters() {
-    return null;
+    return Collections.emptyList();
   }
 
   private static class ZetaSQLCastCallNotNullImplementor implements NotNullImplementor {
