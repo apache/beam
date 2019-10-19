@@ -290,9 +290,8 @@ class PipelineTest(unittest.TestCase):
       pipeline.apply(transform, pcoll2)
     self.assertEqual(
         cm.exception.args[0],
-        'Transform "CustomTransform" does not have a stable unique label. '
-        'This will prevent updating of pipelines. '
-        'To apply a transform with a specified label write '
+        'A transform with label "CustomTransform" already exists in the '
+        'pipeline. To apply a transform with a specified label write '
         'pvalue | "label" >> transform')
 
   def test_reuse_cloned_custom_transform_instance(self):
