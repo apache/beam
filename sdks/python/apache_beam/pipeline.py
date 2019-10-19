@@ -486,8 +486,7 @@ class Pipeline(object):
                            label or transform.label]).lstrip('/')
     if full_label in self.applied_labels:
       raise RuntimeError(
-          'Transform "%s" does not have a stable unique label. '
-          'This will prevent updating of pipelines. '
+          'A transform with label "%s" already exists in the pipeline. '
           'To apply a transform with a specified label write '
           'pvalue | "label" >> transform'
           % full_label)
