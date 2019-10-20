@@ -586,7 +586,7 @@ class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     raise NotImplementedError(type(self))
 
 
-class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
+class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
 
   @abc.abstractmethod
