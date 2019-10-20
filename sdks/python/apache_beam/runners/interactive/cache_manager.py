@@ -36,9 +36,8 @@ try:                    # Python 3
   unquote_to_bytes = urllib.parse.unquote_to_bytes
   quote = urllib.parse.quote
 except AttributeError:  # Python 2
-  # pylint: disable=deprecated-urllib-function
-  unquote_to_bytes = urllib.unquote
-  quote = urllib.quote
+  unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
+  quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 
 
 class CacheManager(object):
