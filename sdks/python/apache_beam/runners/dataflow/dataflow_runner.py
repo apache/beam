@@ -68,9 +68,8 @@ if sys.version_info[0] > 2:
   unquote_to_bytes = urllib.parse.unquote_to_bytes
   quote = urllib.parse.quote
 else:
-  # pylint: disable=deprecated-urllib-function
-  unquote_to_bytes = urllib.unquote
-  quote = urllib.quote
+  unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
+  quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 
 
 __all__ = ['DataflowRunner']

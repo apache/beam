@@ -31,8 +31,7 @@ from __future__ import print_function
 import subprocess
 from distutils.command.build import build as _build  # type: ignore
 
-# TODO: (BEAM-8411): re-enable lint check.
-import setuptools  # pylint: disable-all
+import setuptools
 
 
 # This class handles the pip install mechanism.

@@ -37,8 +37,7 @@ from pkg_resources import normalize_path
 from pkg_resources import to_filename
 from setuptools import Command
 from setuptools.command.build_py import build_py
-# TODO: (BEAM-8411): re-enable lint check.
-from setuptools.command.develop import develop  # pylint: disable-all
+from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
 from setuptools.command.test import test
 
