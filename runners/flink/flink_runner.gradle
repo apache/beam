@@ -171,6 +171,8 @@ def createValidatesRunnerTask(Map m) {
       // TODO[BEAM-8205]: figure out if we can make the test work on Flink runner, or maybe create a
       // new category tag and change the following line to: excludeCategories '<category tag>'.
       exclude '**/AvroSchemaTest.class'
+      // https://issues.apache.org/jira/browse/BEAM-8440 temporarily disable ParDoLifecycleTest
+      exclude '**/ParDoLifecycleTest.class'
     }
   }
 }
