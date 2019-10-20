@@ -64,7 +64,8 @@ class ReadFromPubSub(beam.PTransform):
         that no duplicate data will be delivered on the Pub/Sub stream. In this
         case, deduplication of the stream will be strictly best effort.
       with_attributes:
-        True - output elements will be :class:`~PubsubMessage` objects.
+        True - output elements will be
+        :class:`~apache_beam.io.gcp.pubsub.PubsubMessage` objects.
         False - output elements will be of type ``bytes`` (message
         data only).
       timestamp_attribute: Message value to use as element timestamp. If None,
@@ -125,7 +126,8 @@ class WriteToPubSub(beam.PTransform):
     Args:
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
       with_attributes:
-        True - input elements will be :class:`~PubsubMessage` objects.
+        True - input elements will be
+        :class:`~apache_beam.io.gcp.pubsub.PubsubMessage` objects.
         False - input elements will be of type ``bytes`` (message
         data only).
       id_label: If set, will set an attribute for each Cloud Pub/Sub message
