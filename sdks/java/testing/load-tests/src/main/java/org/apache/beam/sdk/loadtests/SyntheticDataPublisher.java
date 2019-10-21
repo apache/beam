@@ -26,9 +26,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
@@ -73,8 +73,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
  */
 public class SyntheticDataPublisher {
 
-  private static final KvCoder<byte[], byte[]> RECORD_CODER =
-      KvCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of());
+  private static final Coder RECORD_CODER = StringUtf8Coder.of();
 
   private static Options options;
 
@@ -215,7 +214,7 @@ public class SyntheticDataPublisher {
 
   private static byte[] encodeInputElement(KV<byte[], byte[]> input) {
     try {
-      return encodeToByteArray(RECORD_CODER, input);
+      return encodeToByteArray(RECORD_CODER, new String(input.getValue(), UTF_8));
     } catch (CoderException e) {
       throw new RuntimeException(String.format("Couldn't encode element. Exception: %s", e));
     }
