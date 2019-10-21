@@ -224,6 +224,7 @@ public class SamzaDoFnRunners {
                 StateRequestHandler.unsupported(),
                 BundleProgressHandler.ignored());
 
+        // TODO: side input support needs to implement to handle this properly
         inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
         bundledEventsBag
             .read()

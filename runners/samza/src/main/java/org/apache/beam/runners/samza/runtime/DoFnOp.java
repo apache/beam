@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -382,9 +380,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void processSideInput(
       String id, WindowedValue<? extends Iterable<?>> elements, OpEmitter<OutT> emitter) {
-    checkState(
-        !isBundleStarted.get(),
-        "Side input not supported in bundling mode. Please disable bundling.");
     @SuppressWarnings("unchecked")
     final WindowedValue<Iterable<?>> retypedElements = (WindowedValue<Iterable<?>>) elements;
 
@@ -410,9 +405,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   @Override
   public void processSideInputWatermark(Instant watermark, OpEmitter<OutT> emitter) {
-    checkState(
-        !isBundleStarted.get(),
-        "Side input not supported in bundling mode. Please disable bundling.");
     sideInputWatermark = watermark;
 
     if (sideInputWatermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
@@ -429,10 +421,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       scheduleNextBundleCheck();
       return;
     }
-
-    checkState(
-        !isBundleStarted.get(),
-        "Timer not yet supported in bundling mode. Please disable bundling.");
 
     pushbackFnRunner.startBundle();
     fireTimer(keyedTimerData);
