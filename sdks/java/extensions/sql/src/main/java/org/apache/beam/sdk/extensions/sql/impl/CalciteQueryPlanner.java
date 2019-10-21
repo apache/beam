@@ -67,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * The core component to handle through a SQL statement, from explain execution plan, to generate a
  * Beam pipeline.
  */
-class CalciteQueryPlanner implements QueryPlanner {
+public class CalciteQueryPlanner implements QueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(CalciteQueryPlanner.class);
 
   private final Planner planner;
