@@ -61,18 +61,18 @@ class TypesTest(unittest.TestCase):
     exclude_from_indexes = ('datetime', 'key')
     e = Entity(k, exclude_from_indexes=exclude_from_indexes)
     properties = {
-      'datetime': datetime.datetime.utcnow(),
-      'key_ref': Key(['kind2', 1235]),
-      'bool': True,
-      'float': 1.21,
-      'int': 1337,
-      'unicode': 'text',
-      'bytes': b'bytes',
-      'geopoint': GeoPoint(0.123, 0.456),
-      'none': None,
-      'list': [1, 2, 3],
-      'entity': Entity(Key(['kind', 111])),
-      'dict': {'property': 5},
+        'datetime': datetime.datetime.utcnow(),
+        'key_ref': Key(['kind2', 1235]),
+        'bool': True,
+        'float': 1.21,
+        'int': 1337,
+        'unicode': 'text',
+        'bytes': b'bytes',
+        'geopoint': GeoPoint(0.123, 0.456),
+        'none': None,
+        'list': [1, 2, 3],
+        'entity': Entity(Key(['kind', 111])),
+        'dict': {'property': 5},
     }
     e.set_properties(properties)
     ec = e.to_client_entity()
