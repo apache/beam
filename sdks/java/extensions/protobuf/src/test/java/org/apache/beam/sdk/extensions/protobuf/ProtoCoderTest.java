@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.sdk.testing.CoderProperties.ALL_CONTEXTS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.protobuf.DynamicMessage;
 import java.io.ObjectStreamClass;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -169,52 +167,6 @@ public class ProtoCoderTest {
     // Assert the encoded messages are not equal.
     Coder<MessageWithMap> coder = ProtoCoder.of(MessageWithMap.class);
     assertNotEquals(CoderUtils.encodeToBase64(coder, msg2), CoderUtils.encodeToBase64(coder, msg1));
-  }
-
-  @Test
-  public void testDynamicMessage() throws Exception {
-    DynamicMessage message =
-        DynamicMessage.newBuilder(MessageA.getDescriptor())
-            .setField(
-                MessageA.getDescriptor().findFieldByNumber(MessageA.FIELD1_FIELD_NUMBER), "foo")
-            .build();
-    Coder<DynamicMessage> coder = ProtoCoder.of(message.getDescriptorForType());
-
-    // Special code to check the DynamicMessage equality (@see IsDynamicMessageEqual)
-    for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.coderDecodeEncodeInContext(
-          coder, context, message, IsDynamicMessageEqual.equalTo(message));
-    }
-  }
-
-  @Test
-  public void testDynamicNestedRepeatedMessage() throws Exception {
-    DynamicMessage message =
-        DynamicMessage.newBuilder(MessageA.getDescriptor())
-            .setField(
-                MessageA.getDescriptor().findFieldByNumber(MessageA.FIELD1_FIELD_NUMBER), "foo")
-            .addRepeatedField(
-                MessageA.getDescriptor().findFieldByNumber(MessageA.FIELD2_FIELD_NUMBER),
-                DynamicMessage.newBuilder(MessageB.getDescriptor())
-                    .setField(
-                        MessageB.getDescriptor().findFieldByNumber(MessageB.FIELD1_FIELD_NUMBER),
-                        true)
-                    .build())
-            .addRepeatedField(
-                MessageA.getDescriptor().findFieldByNumber(MessageA.FIELD2_FIELD_NUMBER),
-                DynamicMessage.newBuilder(MessageB.getDescriptor())
-                    .setField(
-                        MessageB.getDescriptor().findFieldByNumber(MessageB.FIELD1_FIELD_NUMBER),
-                        false)
-                    .build())
-            .build();
-    Coder<DynamicMessage> coder = ProtoCoder.of(message.getDescriptorForType());
-
-    // Special code to check the DynamicMessage equality (@see IsDynamicMessageEqual)
-    for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.coderDecodeEncodeInContext(
-          coder, context, message, IsDynamicMessageEqual.equalTo(message));
-    }
   }
 
   @Test
