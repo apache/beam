@@ -79,6 +79,12 @@ message StatusResponse {
   // Is MIN_TIMESTAMP when state is STOPPED.
   google.protobuf.Timestamp watermark = 2;
 
+  // The latest timestamp of the recording stream. Is MIN_TIMESTAMP if there is
+  // no recording.
+  google.protobuf.Timestamp recording_time = 3;
+
+  double playback_speed = 4;
+
   enum State {
     // The InteractiveService is not replaying. Goes to RUNNING with a
     // StartRequest.
@@ -93,7 +99,7 @@ message StatusResponse {
     // StopRequest.
     PAUSED = 2;
   }
-  State state = 3;
+  State state = 5;
 }
 
 message StepRequest { }
