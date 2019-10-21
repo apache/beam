@@ -44,7 +44,12 @@ class FlinkRunnerOptions(pipeline_options.PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--flink_master',
-                        default='[local]')
+                        default='[auto]',
+                        help='Flink master address (host:port) to submit the'
+                             ' job against. Use "[local]" to start a local'
+                             ' cluster for the execution. Use "[auto]" if you'
+                             ' plan to either execute locally or submit through'
+                             ' Flink\'s CLI.')
     parser.add_argument('--flink_version',
                         default=PUBLISHED_FLINK_VERSIONS[-1],
                         choices=PUBLISHED_FLINK_VERSIONS,
