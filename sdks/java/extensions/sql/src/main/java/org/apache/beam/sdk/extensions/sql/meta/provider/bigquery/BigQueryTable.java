@@ -25,16 +25,22 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -106,16 +112,32 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    return begin
-        .apply(
-            "Read Input BQ Rows",
-            BigQueryIO.read(
-                    record ->
-                        BigQueryUtils.toBeamRow(record.getRecord(), getSchema(), conversionOptions))
-                .withMethod(method)
-                .from(bqLocation)
-                .withCoder(SchemaCoder.of(getSchema())))
-        .setRowSchema(getSchema());
+    return begin.apply("Read Input BQ Rows", getBigQueryReadBuilder(getSchema()));
+  }
+
+  @Override
+  public PCollection<Row> buildIOReader(
+      PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+    if (!method.equals(Method.DIRECT_READ)) {
+      LOGGER.info("Predicate/project push-down only available for `DIRECT_READ` method, skipping.");
+      return buildIOReader(begin);
+    }
+
+    final FieldAccessDescriptor resolved =
+        FieldAccessDescriptor.withFieldNames(fieldNames).resolve(getSchema());
+    final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
+
+    TypedRead<Row> builder = getBigQueryReadBuilder(newSchema);
+
+    if (!(filters instanceof DefaultTableFilter)) {
+      throw new RuntimeException("Unimplemented at the moment.");
+    }
+
+    if (!fieldNames.isEmpty()) {
+      builder.withSelectedFields(fieldNames);
+    }
+
+    return begin.apply("Read Input BQ Rows with push-down", builder);
   }
 
   @Override
@@ -125,6 +147,19 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
             .withSchema(BigQueryUtils.toTableSchema(getSchema()))
             .withFormatFunction(BigQueryUtils.toTableRow())
             .to(bqLocation));
+  }
+
+  @Override
+  public boolean supportsProjects() {
+    return true;
+  }
+
+  private TypedRead<Row> getBigQueryReadBuilder(Schema schema) {
+    return BigQueryIO.read(
+            record -> BigQueryUtils.toBeamRow(record.getRecord(), schema, conversionOptions))
+        .withMethod(method)
+        .from(bqLocation)
+        .withCoder(SchemaCoder.of(schema));
   }
 
   private static BeamTableStatistics getRowCountFromBQ(PipelineOptions o, String bqLocation) {
