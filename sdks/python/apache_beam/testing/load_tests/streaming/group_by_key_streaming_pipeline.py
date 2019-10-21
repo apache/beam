@@ -49,7 +49,17 @@ def run(argv=None):
         k, v = item.attributes.popitem()
         yield (str(k), str(v))
 
+  class ParserToBytes(beam.DoFn):
+    # Parsing to bytes is required for saving in PubSub.
+    def process(self, item):
+      _, v = item
+      yield bytes(v, encoding='utf8')
+
   parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--output_topic', required=True,
+      help=('Output PubSub topic of the form '
+            '"projects/<PROJECT>/topic/<TOPIC>".'))
   parser.add_argument(
       '--input_subscription',
       help=('Input PubSub subscription of the form '
@@ -78,6 +88,8 @@ def run(argv=None):
    | 'Ungroup' >> beam.FlatMap(lambda elm: [(elm[0], v) for v in elm[1]])
    | 'Measure time: End' >> beam.ParDo(
        MeasureTime(known_args.metrics_namespace))
+   | 'Parse to bytes' >> beam.ParDo(ParserToBytes())
+   | 'Write' >> beam.io.WriteToPubSub(topic=known_args.output_topic)
   )
 
   result = p.run()
