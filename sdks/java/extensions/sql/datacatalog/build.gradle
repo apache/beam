@@ -26,8 +26,7 @@ dependencies {
   compile library.java.grpc_google_cloud_datacatalog_v1beta1
   compile library.java.proto_google_cloud_datacatalog_v1beta1
   provided project(":sdks:java:extensions:sql")
-  provided project(":sdks:java:extensions:sql:zetasql")
-  
+
   // For Data Catalog GRPC client
   provided library.java.grpc_all
   provided library.java.google_auth_library_oauth2_http
@@ -37,6 +36,8 @@ dependencies {
   // Dependencies for the example
   provided project(":sdks:java:io:google-cloud-platform")
   provided library.java.slf4j_api
+
+  testCompile project(":sdks:java:extensions:sql:zetasql")
   testRuntimeOnly library.java.slf4j_simple
 }
 
