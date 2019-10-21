@@ -157,12 +157,14 @@ public class ZetaSQLPlannerImpl implements Planner {
 
   @Override
   public RelNode convert(SqlNode sqlNode) {
-    throw new RuntimeException("convert(SqlNode) is not implemented.");
+    throw new UnsupportedOperationException(
+        String.format("%s.convert(SqlNode) is not implemented.", getClass().getCanonicalName()));
   }
 
   @Override
   public RelDataTypeFactory getTypeFactory() {
-    throw new RuntimeException("getTypeFactory() is not implemented.");
+    throw new UnsupportedOperationException(
+        String.format("%s.getTypeFactor() is not implemented.", getClass().getCanonicalName()));
   }
 
   @Override
@@ -190,7 +192,9 @@ public class ZetaSQLPlannerImpl implements Planner {
 
   @Override
   public RelTraitSet getEmptyTraitSet() {
-    throw new RuntimeException("getEmptyTraitSet() is not implemented.");
+    throw new UnsupportedOperationException(
+        String.format(
+            "%s.getEmptyTraitSet() is not implemented", this.getClass().getCanonicalName()));
   }
 
   public static LanguageOptions getLanguageOptions() {
