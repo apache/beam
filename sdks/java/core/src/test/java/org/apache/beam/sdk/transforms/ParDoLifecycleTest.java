@@ -29,6 +29,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.fail;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -172,7 +174,7 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      validate();
+      validate(CallState.TEARDOWN);
     }
   }
 
@@ -185,7 +187,7 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      validate();
+      validate(CallState.START_BUNDLE, CallState.TEARDOWN);
     }
   }
 
@@ -198,7 +200,7 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      validate();
+      validate(CallState.START_BUNDLE, CallState.PROCESS_ELEMENT, CallState.TEARDOWN);
     }
   }
 
@@ -211,7 +213,11 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      validate();
+      validate(
+          CallState.START_BUNDLE,
+          CallState.PROCESS_ELEMENT,
+          CallState.FINISH_BUNDLE,
+          CallState.TEARDOWN);
     }
   }
 
@@ -224,7 +230,7 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      validate();
+      validate(CallState.TEARDOWN);
     }
   }
 
@@ -237,7 +243,7 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      validate();
+      validate(CallState.START_BUNDLE, CallState.TEARDOWN);
     }
   }
 
@@ -250,11 +256,28 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      validate();
+      validate(CallState.START_BUNDLE, CallState.PROCESS_ELEMENT, CallState.TEARDOWN);
     }
   }
 
-  private void validate() {
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
+  public void testTeardownCalledAfterExceptionInFinishBundleStateful() {
+    ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.FINISH_BUNDLE);
+    p.apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3))).apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      validate(
+          CallState.START_BUNDLE,
+          CallState.PROCESS_ELEMENT,
+          CallState.FINISH_BUNDLE,
+          CallState.TEARDOWN);
+    }
+  }
+
+  private void validate(CallState... requiredCallStates) {
     assertThat(ExceptionThrowingFn.callStateMap, is(not(anEmptyMap())));
     // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect
     // teardown to be called on fn itself, but on any deserialized instance on which any other
@@ -267,19 +290,17 @@ public class ParDoLifecycleTest implements Serializable {
                     "Function should have been torn down after exception",
                     value.finalState(),
                     is(CallState.TEARDOWN)));
-  }
 
-  @Test
-  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
-  public void testTeardownCalledAfterExceptionInFinishBundleStateful() {
-    ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.FINISH_BUNDLE);
-    p.apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3))).apply(ParDo.of(fn));
-    try {
-      p.run();
-      fail("Pipeline should have failed with an exception");
-    } catch (Exception e) {
-      validate();
-    }
+    Arrays.stream(requiredCallStates)
+        .forEach(
+            callState ->
+                assertThat(
+                    "At least one "
+                        + callState
+                        + " lifecycle method should be called, got "
+                        + ExceptionThrowingFn.callStateMap.values(),
+                    ExceptionThrowingFn.callStateMap.values().stream()
+                        .anyMatch(value -> value.callStateVisited.containsKey(callState))));
   }
 
   @Before
@@ -291,6 +312,7 @@ public class ParDoLifecycleTest implements Serializable {
   private static class DelayedCallStateTracker {
     private CountDownLatch latch;
     private AtomicReference<CallState> callState;
+    private Map<CallState, Integer> callStateVisited = new ConcurrentHashMap<>();
 
     private DelayedCallStateTracker(CallState setup) {
       latch = new CountDownLatch(1);
@@ -307,12 +329,17 @@ public class ParDoLifecycleTest implements Serializable {
         latch.countDown();
       }
 
+      callStateVisited.put(val, 1);
       return this;
     }
 
     @Override
     public String toString() {
-      return "DelayedCallStateTracker{" + "latch=" + latch + ", callState=" + callState + '}';
+      return MoreObjects.toStringHelper(this)
+          .add("latch", latch)
+          .add("callState", callState)
+          .add("callStateVisited", callStateVisited.keySet())
+          .toString();
     }
 
     CallState callState() {
@@ -377,9 +404,9 @@ public class ParDoLifecycleTest implements Serializable {
     @FinishBundle
     public void postBundle() throws Exception {
       assertThat(
-          "processing bundle should have been called before finish bundle",
+          "processing bundle or start bundle should have been called before finish bundle",
           getCallState(),
-          is(CallState.PROCESS_ELEMENT));
+          anyOf(equalTo(CallState.PROCESS_ELEMENT), equalTo(CallState.START_BUNDLE)));
       updateCallState(CallState.FINISH_BUNDLE);
       throwIfNecessary(MethodForException.FINISH_BUNDLE);
     }
@@ -416,8 +443,8 @@ public class ParDoLifecycleTest implements Serializable {
       return System.identityHashCode(this);
     }
 
-    private void updateCallState(CallState processElement) {
-      callStateMap.get(id()).update(processElement);
+    private void updateCallState(CallState state) {
+      callStateMap.get(id()).update(state);
     }
 
     private CallState getCallState() {
