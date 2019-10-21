@@ -20,10 +20,13 @@ from __future__ import absolute_import
 
 import sys
 
+MAX_SUPPORTED_PYTHON_VERSION = (3, 8)
+
 # See pytest.ini for main collection rules.
 collect_ignore_glob = []
 if sys.version_info < (3,):
-  collect_ignore_glob.append('*_py3.py')
-for minor in [5, 6, 7, 8, 9]:
-  if sys.version_info < (3, minor):
+  collect_ignore_glob.append('*_py3*.py')
+else:
+  for minor in range(sys.version_info.minor + 1,
+                     MAX_SUPPORTED_PYTHON_VERSION[1] + 1):
     collect_ignore_glob.append('*_py3%d.py' % minor)
