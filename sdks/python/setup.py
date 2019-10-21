@@ -204,6 +204,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-bigtable>=0.31.1,<1.1.0',
     # [BEAM-4543] googledatastore is not supported in Python 3.
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    'google-cloud-spanner>=1.7.1<1.8.0',
+    'grpcio-gcp>=0.2.2,<1',
 ]
 
 INTERACTIVE_BEAM = [
