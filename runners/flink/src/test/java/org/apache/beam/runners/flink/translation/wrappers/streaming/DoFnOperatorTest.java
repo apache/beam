@@ -1274,7 +1274,8 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("d"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
 
-    // A final bundle will be created when sending the MAX watermark
+    // No bundle will be created when sending the MAX watermark
+    // (unless pushed back items are emitted)
     newHarness.close();
 
     assertThat(
@@ -1282,7 +1283,6 @@ public class DoFnOperatorTest {
         contains(
             WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("d"),
-            WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
 
     // close() will also call dispose(), but call again to verify no new bundle
@@ -1294,7 +1294,6 @@ public class DoFnOperatorTest {
         contains(
             WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("d"),
-            WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
   }
 
