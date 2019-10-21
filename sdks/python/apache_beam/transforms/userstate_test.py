@@ -551,6 +551,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
       @on_timer(EMIT_TIMER)
       def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
+        print('emitin')
         yield sorted(set_state.read())
 
     print('start')
@@ -565,6 +566,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      | beam.WindowInto(window.FixedWindows(1))
                      | beam.ParDo(SetStateClearingStatefulDoFn()))
 
+    actual_values | 'printe' >> beam.Map(print)
     # TODO(pabloem, MUST): Remove this fixing.
     #assert_that(actual_values, equal_to([[100]]))
 

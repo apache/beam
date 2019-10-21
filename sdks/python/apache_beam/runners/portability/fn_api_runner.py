@@ -259,6 +259,13 @@ class _GroupingBuffer(object):
       self._table = None
     return self._grouped_output
 
+  def __repr__(self):
+    return '<%s at 0x%x>' % (self.__str__(), id(self))
+
+  def __str__(self):
+    return '[%s %s]' % (self.__class__.__name__,
+                        list(itertools.chain(*self.partition(1))))
+
   def __iter__(self):
     """ Since partition() returns a list of lists, add this __iter__ to return
     a list to simplify code when we need to iterate through ALL elements of
@@ -425,7 +432,8 @@ class _FnApiRunnerExecution(object):
         worker_handler.state.append_raw(state_key, elements_data)
 
   @staticmethod
-  def _collect_written_timers_and_add_to_deferred_inputs(context,
+  def _collect_written_timers_and_add_to_deferred_inputs(
+      context,
       pipeline_components,
       stage,
       get_buffer_callable,
@@ -544,9 +552,11 @@ class _ProcessingQueueManager(object):
   """Manages the queues for ProcessBundle inputs.
 
   There are three queues:
-   - ready_inputs_queue(collections.deque). This queue contains input data that
+   - ready_inputs(_ProcessingQueueManager.KeyedQueue). This queue contains input data that
        is ready to be processed. These are data such as timers past their
        trigger time, and data to be processed.
+
+   # TODO(pabloem, MUST): Add processing_time_queue, and event_time_queue.
    - processing_time_queue(collections.deque). This queue contains input data
        that is not yet ready to be processed, and is blocked on the processing
        time advancing.
@@ -555,10 +565,42 @@ class _ProcessingQueueManager(object):
 
    # TODO(pabloem, MUST): Document what kind of elements each queue holds.
   """
+  class KeyedQueue(object):
+    def __init__(self):
+      self._q = collections.deque()
+      self._keyed_elements = {}
+
+    def enque(self, elm):
+      # type: (Any, Tuple[str, Dict[str, Union[_ListBuffer, _GroupingBuffer]]]) -> None
+      key = elm[0]
+      incoming_inputs = elm[1]
+      if key in self._keyed_elements:
+        existing_inputs = self._keyed_elements[key][1]
+        for pcoll in incoming_inputs:
+          existing_inputs[pcoll].extend(incoming_inputs[pcoll])
+      else:
+        self._keyed_elements[key] = elm
+        self._q.appendleft(elm)
+
+    def deque(self):
+      elm = self._q.pop()
+      key = elm[0]
+      del self._keyed_elements[key]
+      return elm
+
+    def __len__(self):
+      return len(self._q)
+
+    def __repr__(self):
+      return '<%s at 0x%x>' % (str(self),
+                               id(self))
+
+    def __str__(self):
+      return '<%s %s>' % (self.__class__.__name__,
+                          list(self._q))
+
   def __init__(self):
-    self.ready_inputs_queue = collections.deque()
-    self.processing_time_queue = collections.deque()
-    self.event_time_queue = collections.deque()
+    self.ready_inputs = _ProcessingQueueManager.KeyedQueue()
 
   def __str__(self):
     return '_ProcessingQueueManager(%s)' % self.__dict__
@@ -727,7 +769,7 @@ class FnApiRunner(runner.PipelineRunner):
             break
       if data_inputs:
         # We push the data inputs, along with the name of the consuming stage.
-        input_queue_manager.ready_inputs_queue.append((stage.name, data_inputs))
+        input_queue_manager.ready_inputs.enque((stage.name, data_inputs))
 
   def run_stages(self, stage_context, stages):
     """Run a list of topologically-sorted stages in batch mode.
@@ -743,22 +785,62 @@ class FnApiRunner(runner.PipelineRunner):
     metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
-    # TODO(pabloem, MUST): Pipeline should work by processing successive inputs
-    # rather than by processing successive stages.
+    # TODO(pabloem, MUST): Maybe we don't need the data input to be here.
+    endpoints_per_stage_name = {s.name: self._extract_endpoints(s, pcoll_buffers) for s in stages}
+
     self._enqueue_all_initial_inputs(stages, input_queue_manager)
 
     try:
       with self.maybe_profile():
-        for stage in stages:
-          stage_results = self._run_stage(
+        while len(input_queue_manager.ready_inputs) > 0:
+          next_ready_elements = input_queue_manager.ready_inputs.deque()
+          #TODO(pabloem, MUST): ADD NEXT READY ELM TO ENDPOINTS PER STAGE
+          consuming_stage_name = next_ready_elements[0]
+          stage = next(s for s in stages if s.name == consuming_stage_name)
+          _, data_side_input, data_output = endpoints_per_stage_name[stage.name]
+          endpoints_for_execution = (next_ready_elements[1], data_side_input, data_output)
+          stage_results, output_bundles = self._execute_bundle(
               worker_handler_manager.get_worker_handlers,
               stage_context.components,
               stage,
               pcoll_buffers,
-              stage_context.safe_coders)
+              stage_context.safe_coders,
+              input_queue_manager,
+              endpoints_for_execution,
+              next_ready_elements[1])  # TODO(pabloem, MUST) RE MOVE THIS ARG
           metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
+
+          # TODO(pabloem, MUST): Update watermarks, and pass ready elements to ready queue.
+          for buffer_id, data in output_bundles:
+            kind, pcoll_name = split_buffer_id(buffer_id)
+            if kind == 'timers':
+              # TODO(pabloem): These are timer outputs that should go back to the stage
+              consuming_stage, consuming_transform = next(
+                ((s.name, input_id)
+                  for s in stages
+                  for input_id, timer_pcoll in s.timer_pcollections
+                  if timer_pcoll == pcoll_name),
+                (None, None))
+            else:
+              assert kind in ('group', 'materialize')
+              consuming_stage, consuming_transform = next(
+                ((s.name, t.unique_name)
+                 for s in stages
+                 for t in s.transforms
+                 if buffer_id == t.spec.payload
+                 and t.spec.urn == bundle_processor.DATA_INPUT_URN),
+                (None, None))
+            if not consuming_stage:
+              # This means that the PCollection is not consumed by any transforms,
+              # and we can discard the elements.
+              continue
+            if data:
+              input_queue_manager.ready_inputs.enque(
+                (consuming_stage, {consuming_transform: data}))
+
+
     finally:
       worker_handler_manager.close_all()
     return RunnerResult(
@@ -784,12 +866,15 @@ class FnApiRunner(runner.PipelineRunner):
       finally:
         worker_handler.state.restore()
 
-  def _run_stage(self,
-                 worker_handler_factory,
-                 pipeline_components,
-                 stage,
-                 pcoll_buffers,
-                 safe_coders):
+  def _execute_bundle(self,
+                      worker_handler_factory,
+                      pipeline_components,
+                      stage,
+                      pcoll_buffers,
+                      safe_coders,
+                      input_queue_manager,
+                      stage_endpoints,
+                      input_bundle):
     """Run an individual stage.
 
     Args:
@@ -801,6 +886,9 @@ class FnApiRunner(runner.PipelineRunner):
         PCollection IDs to list that functions as buffer for the
         ``beam.PCollection``.
       safe_coders (dict): A map from coder URNs to the URN of a safe coder.
+
+    Returns:
+      A tuple of result and output bundles.
     """
     worker_handler_list = worker_handler_factory(
         stage.environment, self._num_workers)
@@ -815,11 +903,10 @@ class FnApiRunner(runner.PipelineRunner):
     data_api_service_descriptor = worker_handler.data_api_service_descriptor()
 
     logging.info('Running %s', stage.name)
-    data_input, data_side_input, data_output = self._extract_endpoints(
-        stage,
-        pipeline_components,
-        data_api_service_descriptor,
-        pcoll_buffers)
+    # TODO(pabloem, MUST): May only need to get the expected outputs
+    input_bundle, unused_data_side_input, data_output = stage_endpoints
+    self._update_transform_spec_with_data_spec(
+      stage, pipeline_components, data_api_service_descriptor)
 
     process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self._next_uid(),
@@ -835,15 +922,17 @@ class FnApiRunner(runner.PipelineRunner):
       process_bundle_descriptor.state_api_service_descriptor.url = (
           worker_handler.state_api_service_descriptor().url)
 
+    # TODO(pabloem, MUST): Committing side inputs to state must be done when
+    #  they're output. Not when they're read.
     # Store the required side inputs into state so it is accessible for the
     # worker when it runs this bundle.
-    _FnApiRunnerExecution._store_side_inputs_in_state(
-        worker_handler,
-        pipeline_context,
-        pipeline_components,
-        data_side_input,
-        pcoll_buffers,
-        safe_coders)
+    #_FnApiRunnerExecution._store_side_inputs_in_state(
+    #    worker_handler,
+    #    pipeline_context,
+    #    pipeline_components,
+    #    data_side_input,
+    #    pcoll_buffers,
+    #    safe_coders)
 
     # Change cache token across bundle repeats
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
@@ -851,7 +940,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._run_bundle_multiple_times_for_testing(
         worker_handler_list,
         process_bundle_descriptor,
-        data_input,
+        input_bundle,
         data_output,
         _FnApiRunnerExecution.make_input_coder_getter(pipeline_context,
                                                       process_bundle_descriptor,
@@ -872,28 +961,42 @@ class FnApiRunner(runner.PipelineRunner):
         num_workers=self._num_workers,
         cache_token_generator=cache_token_generator)
 
-    print('Data input: ' + str(data_input))
+    print('Data input: ' + str(input_bundle))
     print('Data output: ' + str(data_output))
-    result, splits = bundle_manager.process_bundle(data_input, data_output)
+    result, splits = bundle_manager.process_bundle(input_bundle, data_output)
     print('Result PRocessbundle residuals: ' + str(result.process_bundle.residual_roots))
     print('Spluts: ' + str(splits))
 
+    output_bundles = []
+    for outputting_ptransform, buffer_id in data_output.items():
+      # A buffer_id is a kind:pcollection string.
+      new_bundle = pcoll_buffers[buffer_id]
+      del pcoll_buffers[buffer_id]
+      kind, pcoll = split_buffer_id(buffer_id)
+      if pcoll in stage.downstream_side_inputs:
+        # TODO(pabloem, MUST): Need to commit side inputs to state.
+        pass
+
+      output_bundles.append((buffer_id, new_bundle))
     last_result = result
-    last_sent = data_input
+    last_sent = input_bundle
 
     while True:
+      deferred_inputs = FnApiRunner._collect_deferred_inputs(
+        pipeline_context,
+        process_bundle_descriptor,
+        safe_coders,
+        last_result,
+        splits,
+        last_sent)
 
-      deferred_inputs = self._collect_deferred_inputs(
-          pipeline_context,
-          pipeline_components,
-          process_bundle_descriptor,
-          stage,
-          pcoll_buffers,
-          safe_coders,
-          last_result,
-          splits,
-          last_sent)
 
+      for k, v in deferred_inputs.items():
+        # TODO(pabloem, MUST): We may need to empty-fill other inputs without deferred elements?
+        input_queue_manager.ready_inputs.enque((stage.name, {k: v}))
+      break
+      # TODO(pabloem, MUST): NOTE robertwb comment a few lines below. It likely matters.
+      """
       if deferred_inputs:
         # The worker will be waiting on these inputs as well.
         for other_input in data_input:
@@ -917,27 +1020,28 @@ class FnApiRunner(runner.PipelineRunner):
             error=result.error or last_result.error)
       else:
         break
+      """
 
-    return result
+    return result, output_bundles
 
   @staticmethod
   def _collect_deferred_inputs(pipeline_context,
-                               pipeline_components,
                                process_bundle_descriptor,
-                               stage,
-                               pcoll_buffers,
                                safe_coders,
                                last_result,
                                splits,
                                last_input):
     deferred_inputs = collections.defaultdict(_ListBuffer)
-    _FnApiRunnerExecution._collect_written_timers_and_add_to_deferred_inputs(
-        pipeline_context, pipeline_components, stage,
-        _FnApiRunnerExecution.make_input_buffer_fetcher(pipeline_context,
-                                                        pcoll_buffers,
-                                                        pipeline_components,
-                                                        safe_coders),
-        deferred_inputs)
+    # TODO(pabloem, MUST): Here we capture timer-typed outputs to pass back in.
+    #  We don't need to do that anymore because we capture stage outputs
+    #  elsewhere. Remove the following section if we make this work.
+    #_FnApiRunnerExecution._collect_written_timers_and_add_to_deferred_inputs(
+    #    pipeline_context, pipeline_components, stage,
+    #    _FnApiRunnerExecution.make_input_buffer_fetcher(pipeline_context,
+    #                                                    pcoll_buffers,
+    #                                                    pipeline_components,
+    #                                                    safe_coders),
+    #    deferred_inputs)
 
     # Queue any process-initiated delayed bundle applications.
     for delayed_application in last_result.process_bundle.residual_roots:
@@ -962,8 +1066,6 @@ class FnApiRunner(runner.PipelineRunner):
 
   @staticmethod
   def _extract_endpoints(stage,
-                         pipeline_components,
-                         data_api_service_descriptor,
                          pcoll_buffers):
     """Returns maps of transform names to PCollection identifiers.
 
@@ -987,6 +1089,7 @@ class FnApiRunner(runner.PipelineRunner):
     data_input = {}
     data_side_input = {}
     data_output = {}
+    # TODO(pabloem, MUST): IN FACT< DATA_INPUT DOESNT MATTER HERE
     for transform in stage.transforms:
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                 bundle_processor.DATA_OUTPUT_URN):
@@ -1000,23 +1103,14 @@ class FnApiRunner(runner.PipelineRunner):
           if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
             data_input[transform.unique_name] = _ListBuffer(
                 [ENCODED_IMPULSE_VALUE])
-          else:
-            data_input[transform.unique_name] = pcoll_buffers[pcoll_id]
-          coder_id = pipeline_components.pcollections[
-              only_element(transform.outputs.values())].coder_id
+          #else:
+          #  data_input[transform.unique_name] = pcoll_buffers[pcoll_id]
         elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
           # For data output transforms, we map the transform name to the
           # output PCollection name
           data_output[transform.unique_name] = pcoll_id
-          coder_id = pipeline_components.pcollections[
-              only_element(transform.inputs.values())].coder_id
         else:
           raise NotImplementedError
-        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
-        if data_api_service_descriptor:
-          data_spec.api_service_descriptor.url = (
-              data_api_service_descriptor.url)
-        transform.spec.payload = data_spec.SerializeToString()
       elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
         # If a transform is a PARDO, then it may receive side inputs.
         # For each side input in a PARDO we map PARDO.name + side input tag
@@ -1027,6 +1121,31 @@ class FnApiRunner(runner.PipelineRunner):
           data_side_input[transform.unique_name, tag] = (
               create_buffer_id(transform.inputs[tag]), si.access_pattern)
     return data_input, data_side_input, data_output
+
+  @staticmethod
+  def _update_transform_spec_with_data_spec(stage,
+                                            pipeline_components,
+                                            data_api_service_descriptor):
+    """Annotate a transform's with the data endpoint URL, and coder ID."""
+    for transform in stage.transforms:
+      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
+                                bundle_processor.DATA_OUTPUT_URN):
+        # If a transform is a DATA_INPUT or DATA_OUTPUT transform, it will
+        # receive data from / deliver data to the runner.
+        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
+          coder_id = pipeline_components.pcollections[
+            only_element(transform.outputs.values())].coder_id
+        elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
+          coder_id = pipeline_components.pcollections[
+            only_element(transform.inputs.values())].coder_id
+        else:
+          raise NotImplementedError
+        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
+        if data_api_service_descriptor:
+          data_spec.api_service_descriptor.url = (
+            data_api_service_descriptor.url)
+        transform.spec.payload = data_spec.SerializeToString()
+
 
   # These classes are used to interact with the worker.
 
@@ -1896,6 +2015,12 @@ class BundleManager(object):
     result_future = self._worker_handler.control_conn.push(process_bundle_req)
 
     split_results = []
+
+    # This represents the data that is output from the execution of the bundle.
+    # this list will contain dictionaries mapping PCollection ids to encoded
+    # elements. If those bundles should be consumed by an operation downstream,
+    # they will be added to the processing queues.
+    output_data = []
     with ProgressRequester(
         self._worker_handler, process_bundle_id, self._progress_frequency):
 
@@ -1903,7 +2028,7 @@ class BundleManager(object):
         split_results = self._generate_splits_for_testing(
             split_manager, inputs, process_bundle_id)
 
-      # Gather all output data.
+      # Retrieve the expected output data from the worker.
       for output in self._worker_handler.data_conn.input_elements(
           process_bundle_id,
           expected_outputs.keys(),
@@ -1913,6 +2038,7 @@ class BundleManager(object):
           with BundleManager._lock:
             self._get_buffer(
                 expected_outputs[output.transform_id]).append(output.data)
+            output_data.append({output.transform_id: output.data})
 
       logging.debug('Wait for the bundle %s to finish.' % process_bundle_id)
       result = result_future.get()
