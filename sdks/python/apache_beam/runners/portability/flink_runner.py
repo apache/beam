@@ -43,7 +43,8 @@ class FlinkRunner(portable_runner.PortableRunner):
 class FlinkRunnerOptions(pipeline_options.PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--flink_master', default='[local]')
+    parser.add_argument('--flink_master',
+                        default='[local]')
     parser.add_argument('--flink_version',
                         default=PUBLISHED_FLINK_VERSIONS[-1],
                         choices=PUBLISHED_FLINK_VERSIONS,
