@@ -23,6 +23,7 @@ import static com.google.zetasql.CivilTimeEncoder.encodePacked64TimeNanos;
 import com.google.zetasql.Value;
 import io.grpc.Status;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.DateString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimeString;
@@ -222,7 +223,7 @@ public class DateTimeUtils {
    * @return Unchanged timestamp sent for validation.
    */
   @SuppressWarnings("GoodTime")
-  public static Long validateTimestamp(Long ts) {
+  public static @Nullable Long validateTimestamp(@Nullable Long ts) {
     if (ts == null) {
       return null;
     }
@@ -251,7 +252,7 @@ public class DateTimeUtils {
    * @return Argument for the interval.
    */
   @SuppressWarnings("GoodTime")
-  public static Long validateTimeInterval(Long arg, TimeUnit unit) {
+  public static @Nullable Long validateTimeInterval(@Nullable Long arg, TimeUnit unit) {
     if (arg == null) {
       return null;
     }
