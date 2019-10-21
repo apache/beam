@@ -113,7 +113,11 @@ message StatusResponse {
   State state = 5;
 }
 
-message StepRequest { }
+message StepRequest {
+  // The count of events to stream. If unspecified, the default is 1, i.e. only
+  // read a single element from each source and send it through the pipeline.
+  int64 count = 1;
+}
 message StepResponse { }
 
 message EventsRequest { }
