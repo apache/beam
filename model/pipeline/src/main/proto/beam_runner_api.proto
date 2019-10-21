@@ -491,6 +491,8 @@ message TestStreamPayload {
 
   repeated Event events = 2;
 
+  ApiServiceDescriptor endpoint = 3;
+
   message Event {
     oneof event {
       AdvanceWatermark watermark_event = 1;
