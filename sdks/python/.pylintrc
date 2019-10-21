@@ -152,6 +152,9 @@ disable =
 [REPORTS]
 # Tells whether to display a full report or only the messages
 reports=no
+# Set the output format. Available formats are text, parseable, colorized, msvs
+# (visual studio) and html.
+output-format=colorized
 
 [CLASSES]
 # List of method names used to declare (i.e. assign) instance attributes.
