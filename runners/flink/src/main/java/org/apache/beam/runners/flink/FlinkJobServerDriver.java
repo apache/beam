@@ -38,11 +38,14 @@ public class FlinkJobServerDriver extends JobServerDriver {
 
   /** Flink runner-specific Configuration for the jobServer. */
   public static class FlinkServerConfiguration extends ServerConfiguration {
-    @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
-    private String flinkMasterUrl = "[auto]";
+    @Option(
+        name = "--flink-master",
+        aliases = {"--flink-master-url"},
+        usage = "Flink master address (host:port) to submit job.")
+    private String flinkMaster = "[auto]";
 
-    String getFlinkMasterUrl() {
-      return this.flinkMasterUrl;
+    String getFlinkMaster() {
+      return this.flinkMaster;
     }
 
     @Option(
