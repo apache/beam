@@ -41,7 +41,11 @@ import os
 import unittest
 import uuid
 
+from hamcrest.core.core.allof import all_of
+
+from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing import test_utils
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.streaming import group_by_key_streaming_pipeline
 
@@ -67,10 +71,20 @@ class GroupByKeyStreamingTest(LoadTest):
     self.topic_short_name = self.pipeline.get_option('pubsub_topic_name')
     self.setup_pubsub()
 
+    timeout = self.pipeline.get_option('timeout') or DEFAULT_TIMEOUT
+    expected_num_of_records = self.pipeline.get_option('num_of_records')
+    pubsub_msg_verifier = PubSubMessageMatcher(
+        self.project_id,
+        self.output_sub.name,
+        expected_msg_len=int(expected_num_of_records),
+        timeout=int(timeout))
+
     self.extra_opts = {
         'input_subscription': self.input_sub.name,
+        'output_topic': self.output_topic.name,
         'metrics_namespace': self.metrics_namespace,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION,
+        'on_success_matcher': all_of(pubsub_msg_verifier)
     }
 
   def setup_pubsub(self):
@@ -101,6 +115,10 @@ class GroupByKeyStreamingTest(LoadTest):
   # If the test timeouts on Dataflow it may not cleanup pubsub after
   def tearDown(self):
     super(GroupByKeyStreamingTest, self).tearDown()
+    test_utils.cleanup_subscriptions(self.sub_client,
+                                     [self.input_sub, self.output_sub])
+    test_utils.cleanup_topics(self.pub_client,
+                              [self.input_topic, self.output_topic])
 
   def testGroupByKey(self):
     args = self.pipeline.get_full_options_as_args(**self.extra_opts)
