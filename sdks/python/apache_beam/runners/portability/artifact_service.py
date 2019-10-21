@@ -194,7 +194,9 @@ class ZipFileArtifactService(AbstractArtifactService):
   def GetArtifact(self, request, context=None):
     # ZipFile appears to not be threadsafe on some platforms.
     with self._lock:
-      return super(ZipFileArtifactService, self).GetArtifact(request, context)
+      for chunk in super(ZipFileArtifactService, self).GetArtifact(
+          request, context):
+        yield chunk
 
   def close(self):
     self._zipfile.close()
