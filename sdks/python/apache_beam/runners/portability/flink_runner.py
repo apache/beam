@@ -34,7 +34,9 @@ class FlinkRunner(portable_runner.PortableRunner):
   def default_job_server(self, options):
     flink_master = options.view_as(FlinkRunnerOptions).flink_master
     if flink_master == '[local]' or sys.version_info < (3, 6):
-      # TOOD(BEAM-8396): Also default to LOOPBACK for [local].
+      portable_options = options.view_as(pipeline_options.PortableOptions)
+      if flink_master == '[local]' and not portable_options.environment_type:
+        portable_options.environment_type == 'LOOPBACK'
       return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
     else:
       return flink_uber_jar_job_server.FlinkUberJarJobServer(flink_master)
