@@ -31,6 +31,7 @@ option java_outer_classname = "BeamInteractiveApi";
 
 import "beam_runner_api.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 
 service InteractiveService {
 
@@ -56,9 +57,19 @@ service InteractiveService {
 }
 
 message StartRequest {
+  // How quickly the stream will be played back, e.g. if playback_speed == 2,
+  // then the stream will replay events twice as fast as they were recorded.
   double playback_speed = 1;
 
-  google.protobuf.Timestamp start_time = 2;
+  oneof starting_placement {
+    // (Optional) if present, will start the stream at the specified timestamp.
+    google.protobuf.Timestamp start_at = 2;
+
+    // (Optional) if present, will advance the stream by replaying events as
+    // quickly as possible until the stream timestamp has advanced by the
+    // specified amount.
+    google.protobuf.Duration advance_by = 3;
+  }
 }
 message StartResponse { }
 
