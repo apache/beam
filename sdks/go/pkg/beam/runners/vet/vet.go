@@ -67,9 +67,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		e.summary()
 		e.Generate("main")
 		e.diag("*/\n")
-		err := errors.Errorf("pipeline is not performant, see diagnostic summary:\n%s\n%s", string(e.d.Bytes()), string(e.Bytes()))
+		err := errors.Errorf("pipeline is not conformant, see diagnostic summary:\n%s\n%s", string(e.d.Bytes()), string(e.Bytes()))
 		err = errors.WithContext(err, "validating pipeline with vet runner")
-		return errors.SetTopLevelMsg(err, "pipeline is not performant")
+		return errors.SetTopLevelMsg(err, "pipeline is not conformant")
 	}
 	// Pipeline nas no further tasks.
 	return nil
