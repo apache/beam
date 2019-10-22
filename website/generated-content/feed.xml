@@ -92,6 +92,7 @@ For more information on changes in 2.16.0, check out the
   &lt;li&gt;Given that Python 2 will reach EOL on Jan 1 2020, Python 2 users of Beam will now receive a warning that new releases of Apache Beam will soon support Python 3 only.&lt;/li&gt;
   &lt;li&gt;Filesystems not properly registered using FileIO.write in FlinkRunner. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8303&quot;&gt;BEAM-8303&lt;/a&gt;)&lt;/li&gt;
   &lt;li&gt;Performance regression in Java DirectRunner in streaming mode. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8363&quot;&gt;BEAM-8363&lt;/a&gt;)&lt;/li&gt;
+  &lt;li&gt;Can’t install the Python SDK on macOS 10.15. (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8368&quot;&gt;BEAM-8368&lt;/a&gt;)&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
@@ -280,6 +281,7 @@ For more information on changes in 2.15.0, check out the
 &lt;ul&gt;
   &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7616&quot;&gt;BEAM-7616&lt;/a&gt; urlopen calls may get stuck. (Regression from 2.14.0)&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8111&quot;&gt;BEAM-8111&lt;/a&gt; SchemaCoder fails on Dataflow, preventing the use of SqlTransform and schema-aware transforms. (Regression from 2.14.0)&lt;/li&gt;
+  &lt;li&gt;(&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8368&quot;&gt;BEAM-8368&lt;/a&gt;) Can’t install the Python SDK on macOS 10.15.&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
@@ -394,6 +396,7 @@ For more information on changes in 2.14.0, check out the
 
 &lt;ul&gt;
   &lt;li&gt;Do &lt;strong&gt;NOT&lt;/strong&gt; use Python MongoDB source in this release. Python MongoDB source &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5148&quot;&gt;added&lt;/a&gt; in this release has a known issue that can result in data loss. See (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7866&quot;&gt;BEAM-7866&lt;/a&gt;) for details.&lt;/li&gt;
+  &lt;li&gt;Can’t install the Python SDK on macOS 10.15. See (&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8368&quot;&gt;BEAM-8368&lt;/a&gt;) for details.&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
