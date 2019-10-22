@@ -19,77 +19,52 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import sys
 import unittest
 
 import mock
 
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import tostring
 
 
 def check_plants(actual):
-  # [START plants]
-  plants = [
-      '🍓,Strawberry',
-      '🥕,Carrot',
-      '🍆,Eggplant',
-      '🍅,Tomato',
-      '🥔,Potato',
-  ]
-  # [END plants]
-  assert_that(actual, equal_to(plants))
+  expected = '''[START plants]
+🍓,Strawberry
+🥕,Carrot
+🍆,Eggplant
+🍅,Tomato
+🥔,Potato
+[END plants]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 
 def check_plant_lists(actual):
-  # [START plant_lists]
-  plant_lists = [
-      "['🍓', 'Strawberry', 'perennial']",
-      "['🥕', 'Carrot', 'biennial']",
-      "['🍆', 'Eggplant', 'perennial']",
-      "['🍅', 'Tomato', 'annual']",
-      "['🥔', 'Potato', 'perennial']",
-  ]
-  # [END plant_lists]
-
-  # Some unicode characters become escaped with double backslashes.
-  import apache_beam as beam
-
-  def normalize_escaping(elem):
-    # In Python 2 all utf-8 characters are escaped with double backslashes.
-    # TODO: Remove this after Python 2 deprecation.
-    # https://issues.apache.org/jira/browse/BEAM-8124
-    if sys.version_info.major == 2:
-      return elem.decode('string-escape')
-
-    # In Python 3.5 some utf-8 characters are escaped with double backslashes.
-    if '\\' in elem:
-      return bytes(elem, 'utf-8').decode('unicode-escape')
-    return elem
-  actual = actual | beam.Map(normalize_escaping)
-  assert_that(actual, equal_to(plant_lists))
+  expected = '''[START plant_lists]
+['🍓', 'Strawberry', 'perennial']
+['🥕', 'Carrot', 'biennial']
+['🍆', 'Eggplant', 'perennial']
+['🍅', 'Tomato', 'annual']
+['🥔', 'Potato', 'perennial']
+[END plant_lists]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 
 def check_plants_csv(actual):
-  # [START plants_csv]
-  plants_csv = [
-      '🍓,Strawberry,perennial',
-      '🥕,Carrot,biennial',
-      '🍆,Eggplant,perennial',
-      '🍅,Tomato,annual',
-      '🥔,Potato,perennial',
-  ]
-  # [END plants_csv]
-  assert_that(actual, equal_to(plants_csv))
+  expected = '''[START plants_csv]
+🍓,Strawberry,perennial
+🥕,Carrot,biennial
+🍆,Eggplant,perennial
+🍅,Tomato,annual
+🥔,Potato,perennial
+[END plants_csv]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.tostring.print', lambda elem: elem)
-# pylint: enable=line-too-long
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.tostring.print', str)
 class ToStringTest(unittest.TestCase):
   def test_tostring_kvs(self):
     tostring.tostring_kvs(check_plants)
