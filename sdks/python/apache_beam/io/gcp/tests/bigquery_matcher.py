@@ -47,7 +47,7 @@ except ImportError:
 MAX_RETRIES = 5
 
 
-def retry_on_http_and_value_error(exception):
+def retry_on_http_timeout_and_value_error(exception):
   """Filter allowing retries on Bigquery errors and value error."""
   return isinstance(exception, (GoogleCloudError,
                                 ValueError,
@@ -205,7 +205,7 @@ class BigQueryTableMatcher(BaseMatcher):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
+      retry_filter=retry_on_http_timeout_and_value_error)
   def _get_table_with_retry(self, bigquery_wrapper):
     return bigquery_wrapper.get_table(self.project, self.dataset, self.table)
 
