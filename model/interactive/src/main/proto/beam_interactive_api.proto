@@ -33,13 +33,17 @@ import "beam_runner_api.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
-service InteractiveService {
 
+service InteractiveService {
   // A TestStream will request for events using this RPC.
   rpc Events(EventsRequest) returns (stream EventsResponse) {}
 
   // Starts the stream of events to the EventsRequest.
   rpc Start (StartRequest) returns (StartResponse) {}
+
+  // Advances the stream to the specified offset then pauses the stream. This
+  // starts the stream if it is not RUNNING.
+  rpc Advance (AdvanceRequest) returns (AdvanceResponse) {}
 
   // Stops and resets the stream to the beginning.
   rpc Stop (StopRequest) returns (StopResponse) {}
@@ -57,21 +61,22 @@ service InteractiveService {
 }
 
 message StartRequest {
-  // How quickly the stream will be played back, e.g. if playback_speed == 2,
-  // then the stream will replay events twice as fast as they were recorded.
+  // (Optional) How quickly the stream will be played back, e.g. if
+  // playback_speed == 2, then the stream will replay events twice as fast as
+  // they were recorded. If unspecified, this will default to 1.
   double playback_speed = 1;
 
-  oneof starting_placement {
-    // (Optional) if present, will start the stream at the specified timestamp.
-    google.protobuf.Timestamp start_at = 2;
-
-    // (Optional) if present, will advance the stream by replaying events as
-    // quickly as possible until the stream timestamp has advanced by the
-    // specified amount.
-    google.protobuf.Duration advance_by = 3;
-  }
+  // (Optional) if present, will start the stream at the specified timestamp.
+  google.protobuf.Timestamp start_at = 2;
 }
 message StartResponse { }
+
+message AdvanceRequest {
+  // (Required) Will advance the stream by replaying events as quickly as
+  // possible until the stream timestamp has advanced by the specified amount.
+  google.protobuf.Duration advance_by = 1;
+}
+message AdvanceResponse {}
 
 message StopRequest { }
 message StopResponse { }
@@ -81,7 +86,6 @@ message PauseResponse { }
 
 message StatusRequest { }
 message StatusResponse {
-
   // The current timestamp of the replay stream. Is MIN_TIMESTAMP when state
   // is STOPPED.
   google.protobuf.Timestamp stream_time = 1;
@@ -94,6 +98,7 @@ message StatusResponse {
   // no recording.
   google.protobuf.Timestamp recording_time = 3;
 
+  // The set playback_speed from either the StartRequest or the AdvanceRequest.
   double playback_speed = 4;
 
   enum State {
@@ -114,8 +119,9 @@ message StatusResponse {
 }
 
 message StepRequest {
-  // The count of events to stream. If unspecified, the default is 1, i.e. only
-  // read a single element from each source and send it through the pipeline.
+  // (Optional) The count of events to stream. If unspecified, the default is
+  // 1, i.e. only read a single element from each source and send it through
+  // the pipeline.
   int64 count = 1;
 }
 message StepResponse { }
@@ -136,10 +142,16 @@ message InteractiveStreamHeader {
   string tag = 1;
 }
 
+// A record is a recorded element that sound source produced. Its function is
+// to give enough information to the InteractiveService to create a faithful
+// recreation of the original source of data.
 message InteractiveStreamRecord {
+  // The recorded element with its event timestamp (when it was produced).
   org.apache.beam.model.pipeline.v1.TestStreamPayload.TimestampedElement element = 1;
 
+  // The timestamp of when this element was ingested into the pipeline.
   google.protobuf.Timestamp processing_time = 2;
 
+  // The output watermark of the source producing this element.
   google.protobuf.Timestamp watermark = 3;
 }
