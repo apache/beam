@@ -98,7 +98,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
   def Events(self, request, context):
     # The TestStream will wait until the stream starts.
     while self._state != 'RUNNING' and self._state != 'STEP':
-      time.sleep(0.01)
+      time.sleep(0.25)
 
     events = self._reader.read()
     if events:
