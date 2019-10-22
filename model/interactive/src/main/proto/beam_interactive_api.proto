@@ -38,7 +38,8 @@ service InteractiveService {
   // A TestStream will request for events using this RPC.
   rpc Events(EventsRequest) returns (stream EventsResponse) {}
 
-  // Starts the stream of events to the EventsRequest.
+  // Starts the stream of events to the EventsRequest. It is also allowed for
+  // setting the playback_speed while RUNNING.
   rpc Start (StartRequest) returns (StartResponse) {}
 
   // Advances the stream to the specified offset then pauses the stream. This
@@ -66,9 +67,6 @@ message StartRequest {
   // playback_speed == 2, then the stream will replay events twice as fast as
   // they were recorded. If unspecified, this will default to 1.
   double playback_speed = 1;
-
-  // (Optional) if present, will start the stream at the specified timestamp.
-  google.protobuf.Timestamp start_at = 2;
 }
 message StartResponse { }
 
