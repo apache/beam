@@ -39,6 +39,10 @@ include ":runners:flink:1.7:job-server-container"
 include ":runners:flink:1.8"
 include ":runners:flink:1.8:job-server"
 include ":runners:flink:1.8:job-server-container"
+// Flink 1.9
+include ":runners:flink:1.9"
+include ":runners:flink:1.9:job-server"
+include ":runners:flink:1.9:job-server-container"
 /* End Flink Runner related settings */
 include ":runners:gearpump"
 include ":runners:google-cloud-dataflow-java"

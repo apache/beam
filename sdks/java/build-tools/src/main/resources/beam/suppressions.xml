@@ -92,5 +92,6 @@
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
   <suppress checks="JavadocPackage" files=".*runners.flink.*CoderTypeSerializer\.java"/>
   <suppress checks="JavadocPackage" files=".*runners.flink.*EncodedTypeSerializer\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*BeamStoppableFunction\.java"/>
 
 </suppressions>
