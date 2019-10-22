@@ -208,5 +208,5 @@ tasks.register('validatesRunner') {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:flink:1.8:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.9:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
