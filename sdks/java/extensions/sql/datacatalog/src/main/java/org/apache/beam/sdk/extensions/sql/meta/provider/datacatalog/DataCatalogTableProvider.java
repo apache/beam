@@ -27,9 +27,9 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.auth.MoreCallCredentials;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -43,79 +43,35 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTablePr
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** Uses DataCatalog to get the source type and schema for a table. */
 public class DataCatalogTableProvider extends FullNameTableProvider {
 
-  private static final Map<String, TableFactory> TABLE_FACTORIES =
-      ImmutableMap.<String, TableFactory>builder()
-          .put("bigquery.googleapis.com", BigQueryUtils::tableBuilder)
-          .put("pubsub.googleapis.com", PubsubUtils::tableBuilder)
-          .build();
-  private final Map<String, TableProvider> delegateProviders;
-  private final DataCatalogBlockingStub dataCatalog;
-  private final boolean truncateTimestamps;
+  private static final TableFactory PUBSUB_TABLE_FACTORY = new PubsubTableFactory();
+  private static final TableFactory GCS_TABLE_FACTORY = new GcsTableFactory();
 
+  private static final Map<String, TableProvider> DELEGATE_PROVIDERS =
+      Stream.of(new PubsubJsonTableProvider(), new BigQueryTableProvider(), new TextTableProvider())
+          .collect(toMap(TableProvider::getTableType, p -> p));
+
+  private final DataCatalogBlockingStub dataCatalog;
   private final Map<String, Table> tableCache;
+  private final TableFactory tableFactory;
 
   private DataCatalogTableProvider(
-      Map<String, TableProvider> delegateProviders,
-      DataCatalogBlockingStub dataCatalog,
-      boolean truncateTimestamps) {
+      DataCatalogBlockingStub dataCatalog, boolean truncateTimestamps) {
 
     this.tableCache = new HashMap<>();
-    this.delegateProviders = ImmutableMap.copyOf(delegateProviders);
     this.dataCatalog = dataCatalog;
-    this.truncateTimestamps = truncateTimestamps;
+    this.tableFactory =
+        ChainedTableFactory.of(
+            PUBSUB_TABLE_FACTORY, GCS_TABLE_FACTORY, new BigQueryTableFactory(truncateTimestamps));
   }
 
   public static DataCatalogTableProvider create(DataCatalogPipelineOptions options) {
     return new DataCatalogTableProvider(
-        getSupportedProviders(), createDataCatalogClient(options), options.getTruncateTimestamps());
-  }
-
-  private static DataCatalogBlockingStub createDataCatalogClient(
-      DataCatalogPipelineOptions options) {
-    return DataCatalogGrpc.newBlockingStub(
-            ManagedChannelBuilder.forTarget(options.getDataCatalogEndpoint()).build())
-        .withCallCredentials(
-            MoreCallCredentials.from(options.as(GcpOptions.class).getGcpCredential()));
-  }
-
-  private static Map<String, TableProvider> getSupportedProviders() {
-    return Stream.of(
-            new PubsubJsonTableProvider(), new BigQueryTableProvider(), new TextTableProvider())
-        .collect(toMap(TableProvider::getTableType, p -> p));
-  }
-
-  static Table toBeamTable(String tableName, Entry entry) {
-    if (entry.getSchema().getColumnsCount() == 0) {
-      throw new UnsupportedOperationException(
-          "Entry doesn't have a schema. Please attach a schema to '"
-              + tableName
-              + "' in Data Catalog: "
-              + entry.toString());
-    }
-    Schema schema = SchemaUtils.fromDataCatalog(entry.getSchema());
-
-    String service = URI.create(entry.getLinkedResource()).getAuthority().toLowerCase();
-
-    Table.Builder table = null;
-    if (TABLE_FACTORIES.containsKey(service)) {
-      table = TABLE_FACTORIES.get(service).tableBuilder(entry);
-    }
-
-    if (GcsUtils.isGcs(entry)) {
-      table = GcsUtils.tableBuilder(entry);
-    }
-
-    if (table != null) {
-      return table.schema(schema).name(tableName).build();
-    }
-
-    throw new UnsupportedOperationException(
-        "Unsupported SQL source kind: " + entry.getLinkedResource());
+        createDataCatalogClient(options), options.getTruncateTimestamps());
   }
 
   @Override
@@ -159,6 +115,11 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
     return loadTable(fullEscapedTableName);
   }
 
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    return DELEGATE_PROVIDERS.get(table.getType()).buildBeamSqlTable(table);
+  }
+
   private @Nullable Table loadTable(String tableName) {
     if (!tableCache.containsKey(tableName)) {
       tableCache.put(tableName, loadTableFromDC(tableName));
@@ -169,7 +130,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
 
   private Table loadTableFromDC(String tableName) {
     try {
-      return toBeamTable(
+      return toCalciteTable(
           tableName,
           dataCatalog.lookupEntry(
               LookupEntryRequest.newBuilder().setSqlResource(tableName).build()));
@@ -181,12 +142,35 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
     }
   }
 
-  @Override
-  public BeamSqlTable buildBeamSqlTable(Table table) {
-    return delegateProviders.get(table.getType()).buildBeamSqlTable(table);
+  private static DataCatalogBlockingStub createDataCatalogClient(
+      DataCatalogPipelineOptions options) {
+    return DataCatalogGrpc.newBlockingStub(
+            ManagedChannelBuilder.forTarget(options.getDataCatalogEndpoint()).build())
+        .withCallCredentials(
+            MoreCallCredentials.from(options.as(GcpOptions.class).getGcpCredential()));
   }
 
-  interface TableFactory {
-    Table.Builder tableBuilder(Entry entry);
+  private Table toCalciteTable(String tableName, Entry entry) {
+    if (entry.getSchema().getColumnsCount() == 0) {
+      throw new UnsupportedOperationException(
+          "Entry doesn't have a schema. Please attach a schema to '"
+              + tableName
+              + "' in Data Catalog: "
+              + entry.toString());
+    }
+    Schema schema = SchemaUtils.fromDataCatalog(entry.getSchema());
+
+    Optional<Table.Builder> tableBuilder = tableFactory.tableBuilder(entry);
+    if (!tableBuilder.isPresent()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Unsupported Data Catalog entry: %s",
+              MoreObjects.toStringHelper(entry)
+                  .add("linkedResource", entry.getLinkedResource())
+                  .add("hasGcsFilesetSpec", entry.hasGcsFilesetSpec())
+                  .toString()));
+    }
+
+    return tableBuilder.get().schema(schema).name(tableName).build();
   }
 }
