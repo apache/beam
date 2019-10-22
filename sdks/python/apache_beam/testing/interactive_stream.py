@@ -34,17 +34,28 @@ STRING_TO_API_STATE = {
 
 
 class InteractiveStreamController(InteractiveServiceServicer):
-  def __init__(self, endpoint, streaming_cache):
-    self._endpoint = endpoint
+  def __init__(self, streaming_cache, endpoint=None):
     self._server = grpc.server(ThreadPoolExecutor(max_workers=2))
+
+    if endpoint:
+      self.endpoint = endpoint
+      self._server.add_insecure_port(self.endpoint)
+    else:
+      port = self._server.add_insecure_port('[::]:0')
+      self.endpoint = '[::]:{}'.format(port)
+
     beam_interactive_api_pb2_grpc.add_InteractiveServiceServicer_to_server(
         self, self._server)
-    self._server.add_insecure_port(self._endpoint)
-    self._server.start()
-
     self._streaming_cache = streaming_cache
     self._state = 'STOPPED'
     self._playback_speed = 1.0
+
+  def start(self):
+    self._server.start()
+
+  def stop(self):
+    self._server.stop(0)
+    self._server.wait_for_termination()
 
   def Start(self, request, context):
     """Requests that the Service starts emitting elements.

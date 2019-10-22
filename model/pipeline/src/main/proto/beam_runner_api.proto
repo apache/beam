@@ -489,15 +489,12 @@ message TestStreamPayload {
   // (Required) the coder for elements in the TestStream events
   string coder_id = 1;
 
-  // (Required) The events to replay.
-  oneof event_source {
-    // If specified, the TestStream will replay these events.
-    repeated Event events = 2;
+  // (Optional) If specified, the TestStream will replay these events.
+  repeated Event events = 2;
 
-    // If specified, the TestStream will use the InteractiveService protocol
-    // found in beam_interactive_api.proto to retrieve events.
-    ApiServiceDescriptor endpoint = 3;
-  }
+  // (Optional) If specified, the TestStream will use the InteractiveService
+  // protocol found in beam_interactive_api.proto to retrieve events.
+  ApiServiceDescriptor endpoint = 3;
 
   message Event {
     oneof event {

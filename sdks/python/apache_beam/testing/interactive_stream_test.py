@@ -30,24 +30,7 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStre
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.testing.interactive_stream import InteractiveStreamController
-
-
-def get_open_port():
-  import socket
-  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  s.bind(('', 0))
-  s.listen(1)
-  port = s.getsockname()[1]
-  s.close()
-  return port
-
-
-def to_timestamp_proto(timestamp_secs):
-  """Converts seconds since epoch to a google.protobuf.Timestamp.
-  """
-  seconds = int(timestamp_secs)
-  nanos = int((timestamp_secs - seconds) * 10**9)
-  return timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
+from apache_beam.utils.timestamp import Timestamp
 
 
 class InMemoryReader(object):
@@ -61,19 +44,22 @@ class InMemoryReader(object):
           encoded_element=coder.encode(i), timestamp=i)
       record = InteractiveStreamRecord(
           element=element,
-          processing_time=to_timestamp_proto(i),
-          watermark=to_timestamp_proto(i))
+          processing_time=Timestamp.of(i).to_proto(),
+          watermark=Timestamp.of(i).to_proto())
       yield record.SerializeToString()
 
 
 class InteractiveStreamTest(unittest.TestCase):
   def setUp(self):
-    endpoint = 'localhost:{}'.format(get_open_port())
-
     streaming_cache = StreamingCache(readers=[InMemoryReader()])
-    InteractiveStreamController(endpoint, streaming_cache)
-    channel = grpc.insecure_channel(endpoint)
+    self.controller = InteractiveStreamController(streaming_cache)
+    self.controller.start()
+
+    channel = grpc.insecure_channel(self.controller.endpoint)
     self.stub = interactive_api_grpc.InteractiveServiceStub(channel)
+
+  def tearDown(self):
+    self.controller.stop()
 
   def test_server_connectivity(self):
     self.stub.Status(interactive_api.StatusRequest())
