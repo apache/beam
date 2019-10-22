@@ -43,7 +43,8 @@ service InteractiveService {
   rpc Start (StartRequest) returns (StartResponse) {}
 
   // Advances the stream to the specified offset then pauses the stream. This
-  // starts the stream if it is not RUNNING.
+  // starts the stream if it is not RUNNING then pauses the stream when the
+  // offset is reached.
   rpc Advance (AdvanceRequest) returns (AdvanceResponse) {}
 
   // Stops and resets the stream to the beginning.
