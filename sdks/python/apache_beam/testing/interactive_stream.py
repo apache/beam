@@ -99,7 +99,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
 
   def _next_state(self, state):
     if self._state == 'STOPPED':
-      if state == 'RUNNING' or state == 'STEP':
+      if state in ('RUNNING', 'STEP'):
         self._reader = self._streaming_cache.reader()
     elif self._state == 'RUNNING':
       if state == 'STOPPED':
