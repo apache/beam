@@ -554,7 +554,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         print('emitin')
         yield sorted(set_state.read())
 
-    print('start')
     p = TestPipeline()
     values = p | beam.Create([('key', 1),
                               ('key', 2),
@@ -572,7 +571,48 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
     result = p.run()
     result.wait_until_finish()
-    print('end')
+
+  def test_stateful_sum_then_gbk(self):
+
+    class SetStateClearingStatefulDoFn(beam.DoFn):
+
+      SET_STATE = SetStateSpec('buffer', VarIntCoder())
+      EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
+
+      def process(self,
+          element,
+          set_state=beam.DoFn.StateParam(SET_STATE),
+          emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+        _, value = element
+        set_state.add(value)
+
+        all_elements = [element for element in set_state.read()]
+
+        if len(all_elements) == 5:
+          emit_timer.set(1)
+        yield element
+
+      @on_timer(EMIT_TIMER)
+      def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
+        return [('key', i) for i in set_state.read()]
+
+    p = TestPipeline()
+    values = p | beam.Create([('key', 1),
+                              ('key', 2),
+                              ('key', 3),
+                              ('key', 4),
+                              ('key', 5)])
+    actual_values = (values
+                     | beam.Map(lambda t: window.TimestampedValue(t, 1))
+                     | beam.WindowInto(window.FixedWindows(1))
+                     | beam.ParDo(SetStateClearingStatefulDoFn())
+                     | beam.GroupByKey())
+
+    actual_values | 'printe' >> beam.Map(print)
+    # TODO(pabloem, MUST): Remove this fixing.
+
+    result = p.run()
+    result.wait_until_finish()
 
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()

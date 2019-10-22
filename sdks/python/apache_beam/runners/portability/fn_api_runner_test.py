@@ -187,6 +187,7 @@ class FnApiRunnerTest(unittest.TestCase):
       main = p | 'main' >> beam.Create(['a', 'b', 'c'])
       side = p | 'side' >> beam.Create(['x', 'y'])
       res = main | beam.FlatMap(cross_product, beam.pvalue.AsList(side))
+      res | beam.Map(print)
       # TODO(pabloem, MUST): Uncomment the assertion.
       #assert_that(res,
       #            equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'),

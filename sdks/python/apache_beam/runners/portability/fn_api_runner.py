@@ -787,6 +787,11 @@ class FnApiRunner(runner.PipelineRunner):
 
     # TODO(pabloem, MUST): Maybe we don't need the data input to be here.
     endpoints_per_stage_name = {s.name: self._extract_endpoints(s, pcoll_buffers) for s in stages}
+    consuming_stage_transform_names_per_input_buffer_id = {
+        t.spec.payload: (s.name, t.unique_name)
+        for s in stages
+        for t in s.transforms
+        if t.spec.urn == bundle_processor.DATA_INPUT_URN}
 
     self._enqueue_all_initial_inputs(stages, input_queue_manager)
 
@@ -806,8 +811,7 @@ class FnApiRunner(runner.PipelineRunner):
               pcoll_buffers,
               stage_context.safe_coders,
               input_queue_manager,
-              endpoints_for_execution,
-              next_ready_elements[1])  # TODO(pabloem, MUST) RE MOVE THIS ARG
+              endpoints_for_execution)
           metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
@@ -825,13 +829,7 @@ class FnApiRunner(runner.PipelineRunner):
                 (None, None))
             else:
               assert kind in ('group', 'materialize')
-              consuming_stage, consuming_transform = next(
-                ((s.name, t.unique_name)
-                 for s in stages
-                 for t in s.transforms
-                 if buffer_id == t.spec.payload
-                 and t.spec.urn == bundle_processor.DATA_INPUT_URN),
-                (None, None))
+              consuming_stage, consuming_transform = consuming_stage_transform_names_per_input_buffer_id.get(buffer_id, (None, None))
             if not consuming_stage:
               # This means that the PCollection is not consumed by any transforms,
               # and we can discard the elements.
@@ -873,8 +871,7 @@ class FnApiRunner(runner.PipelineRunner):
                       pcoll_buffers,
                       safe_coders,
                       input_queue_manager,
-                      stage_endpoints,
-                      input_bundle):
+                      stage_endpoints):
     """Run an individual stage.
 
     Args:
@@ -903,8 +900,7 @@ class FnApiRunner(runner.PipelineRunner):
     data_api_service_descriptor = worker_handler.data_api_service_descriptor()
 
     logging.info('Running %s', stage.name)
-    # TODO(pabloem, MUST): May only need to get the expected outputs
-    input_bundle, unused_data_side_input, data_output = stage_endpoints
+    input_bundle, data_side_input, data_output = stage_endpoints
     self._update_transform_spec_with_data_spec(
       stage, pipeline_components, data_api_service_descriptor)
 
@@ -963,6 +959,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     print('Data input: ' + str(input_bundle))
     print('Data output: ' + str(data_output))
+    print('Data side input: ' + str(data_side_input))
     result, splits = bundle_manager.process_bundle(input_bundle, data_output)
     print('Result PRocessbundle residuals: ' + str(result.process_bundle.residual_roots))
     print('Spluts: ' + str(splits))
