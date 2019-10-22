@@ -23,42 +23,36 @@ import unittest
 
 import mock
 
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import flatmap
 
 
 def check_plants(actual):
-  # [START plants]
-  plants = [
-      '🍓Strawberry',
-      '🥕Carrot',
-      '🍆Eggplant',
-      '🍅Tomato',
-      '🥔Potato',
-  ]
-  # [END plants]
-  assert_that(actual, equal_to(plants))
+  expected = '''[START plants]
+🍓Strawberry
+🥕Carrot
+🍆Eggplant
+🍅Tomato
+🥔Potato
+[END plants]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 
 def check_valid_plants(actual):
-  # [START valid_plants]
-  valid_plants = [
-      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-  ]
-  # [END valid_plants]
-  assert_that(actual, equal_to(valid_plants))
+  expected = '''[START valid_plants]
+{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+[END valid_plants]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.flatmap.print', lambda elem: elem)
-# pylint: enable=line-too-long
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap.print', str)
 class FlatMapTest(unittest.TestCase):
   def test_flatmap_simple(self):
     flatmap.flatmap_simple(check_plants)
