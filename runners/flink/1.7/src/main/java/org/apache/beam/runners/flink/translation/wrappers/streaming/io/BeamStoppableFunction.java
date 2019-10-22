@@ -4,29 +4,26 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * License); you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-def basePath = '..'
+import org.apache.flink.api.common.functions.StoppableFunction;
 
-/* All properties required for loading the Flink build script */
-project.ext {
-  // Set the version of all Flink-related dependencies here.
-  flink_version = '1.8.2'
-  // Version specific code overrides.
-  main_source_overrides = ["${basePath}/1.7/src/main/java", './src/main/java']
-  test_source_overrides = ["${basePath}/1.7/src/test/java", './src/test/java']
-  archives_base_name = 'beam-runners-flink-1.8'
-}
-
-// Load the main build script which contains all build logic.
-apply from: "$basePath/flink_runner.gradle"
+/**
+ * Custom StoppableFunction for backward compatibility.
+ *
+ * @see <a
+ *     href="https://github.com/apache/flink/commit/e95b347dda5233f22fb03e408f2aa521ff924996">Flink
+ *     interface removal commit.</a>
+ */
+public interface BeamStoppableFunction extends StoppableFunction {}

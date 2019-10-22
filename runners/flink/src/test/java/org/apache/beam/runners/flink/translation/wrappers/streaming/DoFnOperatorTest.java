@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
@@ -1038,7 +1039,7 @@ public class DoFnOperatorTest {
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(helloElement, worldElement));
+        containsInAnyOrder(helloElement, worldElement));
 
     testHarness.close();
   }

@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -64,7 +63,10 @@ import org.slf4j.LoggerFactory;
 /** Wrapper for executing {@link UnboundedSource UnboundedSources} as a Flink Source. */
 public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<ValueWithRecordId<OutputT>>>
-    implements ProcessingTimeCallback, StoppableFunction, CheckpointListener, CheckpointedFunction {
+    implements ProcessingTimeCallback,
+        BeamStoppableFunction,
+        CheckpointListener,
+        CheckpointedFunction {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
@@ -422,6 +424,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     }
 
     OperatorStateStore stateStore = context.getOperatorStateStore();
+    @SuppressWarnings("unchecked")
     CoderTypeInformation<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
         typeInformation = (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder);
     stateForCheckpoint =
