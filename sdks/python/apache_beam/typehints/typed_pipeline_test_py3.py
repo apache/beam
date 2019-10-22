@@ -107,9 +107,6 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(ValueError, r'str.*is not iterable'):
       _ = [1, 2, 3] | beam.ParDo(MyDoFn())
-    # with self.assertLogs() as cm:
-    #   [1, 2, 3] | beam.ParDo(MyDoFn())
-    # self.assertRegexpMatches(''.join(cm.output), r'str.*is not iterable')
 
   def test_typed_callable_not_iterable(self):
     def do_fn(element: int) -> int:
@@ -165,9 +162,8 @@ class AnnotationsTest(unittest.TestCase):
       def process(self, element: int) -> str:
         return str(element)
 
-    with self.assertLogs() as cm:
+    with self.assertRaisesRegex(ValueError, r'str.*is not iterable'):
       _ = beam.ParDo(MyDoFn()).get_type_hints()
-    self.assertRegex(''.join(cm.output), r'MyDoFn.* not iterable')
 
   def test_pardo_wrapper(self):
     def do_fn(element: int) -> typehints.Iterable[str]:

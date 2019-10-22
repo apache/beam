@@ -582,11 +582,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def default_type_hints(self):
     fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
     if fn_type_hints is not None:
-      try:
-        fn_type_hints.strip_iterable()
-      except ValueError as e:
-        logging.warning('%s: %s', self.default_label(), e)
-    return fn_type_hints
+      return fn_type_hints.strip_iterable()
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
@@ -677,14 +673,10 @@ class CallableWrapperDoFn(DoFn):
   def default_type_hints(self):
     fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self._fn)
     type_hints = get_type_hints(self._fn).with_defaults(fn_type_hints)
-    # Do not modify self._fn's type hints object. This method may be called more
-    # than once (such as once for input and once for output type checks) and
-    # strip_iterable modifies the object.
-    type_hints = type_hints.copy()
     # The fn's output type should be iterable. Strip off the outer
     # container type due to the 'flatten' portion of FlatMap/ParDo.
     try:
-      type_hints.strip_iterable()
+      type_hints = type_hints.strip_iterable()
     except ValueError as e:
       logging.warning('%s: %s', self.display_data()['fn'].value, e)
     return type_hints
