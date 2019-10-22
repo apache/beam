@@ -24,13 +24,8 @@ import grpc
 
 from apache_beam.portability.api import beam_interactive_api_pb2
 from apache_beam.portability.api import beam_interactive_api_pb2_grpc
+from apache_beam.portability.api.beam_interactive_api_pb2 import State as ServiceState
 from apache_beam.portability.api.beam_interactive_api_pb2_grpc import InteractiveServiceServicer
-
-STRING_TO_API_STATE = {
-    'STOPPED': beam_interactive_api_pb2.StatusResponse.STOPPED,
-    'PAUSED': beam_interactive_api_pb2.StatusResponse.PAUSED,
-    'RUNNING': beam_interactive_api_pb2.StatusResponse.RUNNING,
-}
 
 
 class InteractiveStreamController(InteractiveServiceServicer):
@@ -47,7 +42,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
     beam_interactive_api_pb2_grpc.add_InteractiveServiceServicer_to_server(
         self, self._server)
     self._streaming_cache = streaming_cache
-    self._state = 'STOPPED'
+    self._state = ServiceState.STOPPED
     self._playback_speed = 1.0
 
   def start(self):
@@ -61,7 +56,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
     """Requests that the Service starts emitting elements.
     """
 
-    self._next_state('RUNNING')
+    self._next_state(ServiceState.RUNNING)
     self._playback_speed = request.playback_speed or 1.0
     self._playback_speed = 1.0 / max(min(self._playback_speed, 1000000.0), 0.1)
     return beam_interactive_api_pb2.StartResponse()
@@ -69,19 +64,19 @@ class InteractiveStreamController(InteractiveServiceServicer):
   def Stop(self, request, context):
     """Requests that the Service stop emitting elements.
     """
-    self._next_state('STOPPED')
+    self._next_state(ServiceState.STOPPED)
     return beam_interactive_api_pb2.StartResponse()
 
   def Pause(self, request, context):
     """Requests that the Service pause emitting elements.
     """
-    self._next_state('PAUSED')
+    self._next_state(ServiceState.PAUSED)
     return beam_interactive_api_pb2.PauseResponse()
 
   def Step(self, request, context):
     """Requests that the Service emit a single element from each cached source.
     """
-    self._next_state('STEP')
+    self._next_state(ServiceState.STEPPING)
     return beam_interactive_api_pb2.StepResponse()
 
   def Status(self, request, context):
@@ -89,26 +84,27 @@ class InteractiveStreamController(InteractiveServiceServicer):
     """
     resp = beam_interactive_api_pb2.StatusResponse()
     resp.stream_time.GetCurrentTime()
-    resp.state = STRING_TO_API_STATE[self._state]
+    resp.state = self._state
     return resp
 
   def _reset_state(self):
     self._reader = None
     self._playback_speed = 1.0
-    self._state = 'STOPPED'
+    self._state = ServiceState.STOPPED
 
   def _next_state(self, state):
-    if self._state == 'STOPPED':
-      if state in ('RUNNING', 'STEP'):
+    if self._state == ServiceState.STOPPED:
+      if state in (ServiceState.RUNNING, ServiceState.STEPPING):
         self._reader = self._streaming_cache.reader()
-    elif self._state == 'RUNNING':
-      if state == 'STOPPED':
+    elif self._state == ServiceState.RUNNING:
+      if state == ServiceState.STOPPED:
         self._reset_state()
     self._state = state
 
   def Events(self, request, context):
     # The TestStream will wait until the stream starts.
-    while self._state != 'RUNNING' and self._state != 'STEP':
+    while (self._state != ServiceState.RUNNING and
+           self._state != ServiceState.STEPPING):
       time.sleep(0.25)
 
     events = self._reader.read()
@@ -126,11 +122,11 @@ class InteractiveStreamController(InteractiveServiceServicer):
     else:
       resp = beam_interactive_api_pb2.EventsResponse()
       resp.end_of_stream = True
-      self._next_state('STOPPED')
+      self._next_state(ServiceState.STOPPED)
       yield resp
       return
 
     # The Step command allows the user to send an individual element from each
     # source down into the pipeline. It immediately pauses afterwards.
-    if self._state == 'STEP':
-      self._next_state('PAUSED')
+    if self._state == ServiceState.STEPPING:
+      self._next_state(ServiceState.PAUSED)

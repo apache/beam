@@ -39,7 +39,8 @@ service InteractiveService {
   rpc Events(EventsRequest) returns (stream EventsResponse) {}
 
   // Starts the stream of events to the EventsRequest. It is also allowed for
-  // setting the playback_speed while RUNNING.
+  // setting the playback_speed while RUNNING. If the stream is paused, this
+  // will unpause the stream at the specified playback speed.
   rpc Start (StartRequest) returns (StartResponse) {}
 
   // Advances the stream to the specified offset then pauses the stream. This
@@ -56,11 +57,36 @@ service InteractiveService {
   // To un-pause, send either a Start or Advance request.
   rpc Pause (PauseRequest) returns (PauseResponse) {}
 
-  // Sends a single element to the EventsRequest then closes the stream.
+  // Sends a single element to the EventsRequest then pauses the stream.
   rpc Step (StepRequest) returns (StepResponse) {}
 
   // Responds with debugging and other cache-specific metadata.
   rpc Status (StatusRequest) returns (StatusResponse) {}
+}
+
+// The state of the InteractiveService. The default state is STOPPED.
+enum State {
+  // The InteractiveService is not replaying. Goes to RUNNING with a
+  // StartRequest.
+  STOPPED = 0;
+
+  // The InteractiveService is replaying events. Goes to PAUSED with a
+  // PauseRequest. Goes to STOPPED with a StopRequest.
+  RUNNING = 1;
+
+  // The InteractiveService is paused from replaying events. Goes to RUNNING
+  // with either a StartRequest or a StepRequest. Goes to STOPPED with a
+  // StopRequest.
+  PAUSED = 2;
+
+  // The InteractiveService is stepping through a single event. Will move to
+  // PAUSED after quiescence.
+  STEPPING = 3;
+
+
+  // The InteractiveService is advancing until a specified duration is reached.
+  // Will move to PAUSED after the stream advances sufficiently.
+  ADVANCING = 4;
 }
 
 message StartRequest {
@@ -82,7 +108,13 @@ message StopRequest { }
 message StopResponse { }
 
 message PauseRequest { }
-message PauseResponse { }
+message PauseResponse {
+  // The current timestamp of the replay stream.
+  google.protobuf.Timestamp stream_time = 1;
+
+  // The minimum watermark across all of the faked replayable unbounded sources.
+  google.protobuf.Timestamp watermark = 2;
+}
 
 message StatusRequest { }
 message StatusResponse {
@@ -103,26 +135,13 @@ message StatusResponse {
   // is still happening, the playback speed is 1, else 0.
   double playback_speed = 4;
 
-  enum State {
-    // The InteractiveService is not replaying. Goes to RUNNING with a
-    // StartRequest.
-    STOPPED = 0;
-
-    // The InteractiveService is replaying events. Goes to PAUSED with a
-    // PauseRequest. Goes to STOPPED with a StopRequest.
-    RUNNING = 1;
-
-    // The InteractiveService is paused from replaying events. Goes to RUNNING
-    // with either a StartRequest or a StepRequest. Goes to STOPPED with a
-    // StopRequest.
-    PAUSED = 2;
-  }
+  // The state of the InteractiveService. The default state is STOPPED.
   State state = 5;
 }
 
 message StepRequest {
   // (Optional) The count of events to stream. If unspecified, the default is
-  // 1, i.e. only read a single element from each source and send it through
+  // 1, i.e. only read a single element from any source and send it through
   // the pipeline.
   int64 count = 1;
 }

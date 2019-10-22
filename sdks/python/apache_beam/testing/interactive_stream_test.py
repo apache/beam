@@ -24,6 +24,7 @@ import grpc
 from apache_beam import coders
 from apache_beam.portability.api import beam_interactive_api_pb2 as interactive_api
 from apache_beam.portability.api import beam_interactive_api_pb2_grpc as interactive_api_grpc
+from apache_beam.portability.api.beam_interactive_api_pb2 import State as ServiceState
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
@@ -67,20 +68,20 @@ class InteractiveStreamTest(unittest.TestCase):
     self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
 
     status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, interactive_api.StatusResponse.State.RUNNING)
+    self.assertEqual(status.state, ServiceState.RUNNING)
 
   def test_stop_call(self):
     self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
     self.stub.Stop(interactive_api.StopRequest())
 
     status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, interactive_api.StatusResponse.State.STOPPED)
+    self.assertEqual(status.state, ServiceState.STOPPED)
 
   def test_normal_run(self):
     """Tests state transitions from STOPPED, RUNNING, to STOPPED.
     """
     status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, interactive_api.StatusResponse.State.STOPPED)
+    self.assertEqual(status.state, ServiceState.STOPPED)
 
     self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
 
@@ -88,7 +89,7 @@ class InteractiveStreamTest(unittest.TestCase):
     self.assertTrue(events)
 
     status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, interactive_api.StatusResponse.State.RUNNING)
+    self.assertEqual(status.state, ServiceState.RUNNING)
 
     while True:
       events = [e for e in self.stub.Events(interactive_api.EventsRequest())]
@@ -96,7 +97,7 @@ class InteractiveStreamTest(unittest.TestCase):
         break
 
     status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, interactive_api.StatusResponse.State.STOPPED)
+    self.assertEqual(status.state, ServiceState.STOPPED)
 
 
 if __name__ == '__main__':
