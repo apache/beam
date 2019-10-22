@@ -45,6 +45,7 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -270,12 +271,12 @@ import org.slf4j.LoggerFactory;
  *     .fromQuery("SELECT year, mean_temp FROM [samples.weather_stations]"));
  * }</pre>
  *
- * <p>Users can optionally specify a query priority using {@link TypedRead#withQueryPriority(
- * TypedRead.QueryPriority)} and a geographic location where the query will be executed using {@link
- * TypedRead#withQueryLocation(String)}. Query location must be specified for jobs that are not
- * executed in US or EU, or if you are reading from an authorized view. See <a
- * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
- * query</a>.
+ * <p>Users can optionally specify a query priority using {@link
+ * TypedRead#withQueryPriority(TypedRead.QueryPriority)} and a geographic location where the query
+ * will be executed using {@link TypedRead#withQueryLocation(String)}. Query location must be
+ * specified for jobs that are not executed in US or EU, or if you are reading from an authorized
+ * view. See <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery
+ * Jobs: query</a>.
  *
  * <h3>Writing</h3>
  *
@@ -716,6 +717,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryLocation(String location);
 
+      abstract Builder<T> setQueryTempDataset(String queryTempDataset);
+
       @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setMethod(Method method);
 
@@ -773,6 +776,9 @@ public class BigQueryIO {
 
     @Nullable
     abstract String getQueryLocation();
+
+    @Nullable
+    abstract String getQueryTempDataset();
 
     @Experimental(Experimental.Kind.SOURCE_SINK)
     abstract Method getMethod();
@@ -858,6 +864,7 @@ public class BigQueryIO {
                 getUseLegacySql(),
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
                 getQueryLocation(),
+                getQueryTempDataset(),
                 getKmsKey());
       }
       return sourceDef;
@@ -872,6 +879,7 @@ public class BigQueryIO {
           getUseLegacySql(),
           MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
           getQueryLocation(),
+          getQueryTempDataset(),
           getKmsKey(),
           getParseFn(),
           outputCoder,
@@ -957,6 +965,10 @@ public class BigQueryIO {
             getUseLegacySql() == null,
             "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect"
                 + " preference, which only applies to queries");
+        checkArgument(
+            getQueryTempDataset() == null,
+            "Invalid BigQueryIO.Read: Specifies a temp dataset, which can"
+                + " only be specified when using fromQuery()");
         if (table.isAccessible() && Strings.isNullOrEmpty(table.get().getProjectId())) {
           LOG.info(
               "Project of {} not set. The value of {}.getProject() at execution time will be used.",
@@ -1309,16 +1321,23 @@ public class BigQueryIO {
               BigQueryOptions options = c.getPipelineOptions().as(BigQueryOptions.class);
               String jobUuid = c.getJobId();
 
+              Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
+
               TableReference tempTable =
                   createTempTableReference(
-                      options.getProject(), createJobIdToken(options.getJobName(), jobUuid));
+                      options.getProject(),
+                      createJobIdToken(options.getJobName(), jobUuid),
+                      queryTempDataset);
 
               DatasetService datasetService = getBigQueryServices().getDatasetService(options);
               LOG.info("Deleting temporary table with query results {}", tempTable);
               datasetService.deleteTable(tempTable);
-              LOG.info(
-                  "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
-              datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+              // Delete dataset only if it was created by Beam
+              if (!queryTempDataset.isPresent()) {
+                LOG.info(
+                    "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
+                datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+              }
             }
           };
 
@@ -1461,6 +1480,20 @@ public class BigQueryIO {
      */
     public TypedRead<T> withQueryLocation(String location) {
       return toBuilder().setQueryLocation(location).build();
+    }
+
+    /**
+     * Temporary dataset reference when using {@link #fromQuery(String)}. When reading from a query,
+     * BigQuery will create a temporary dataset and a temporary table to store the results of the
+     * query. With this option, you can set an existing dataset to create the temporary table.
+     * BigQueryIO will create a temporary table in that dataset, and will remove it once it is not
+     * needed. No other tables in the dataset will be modified. If your job does not have
+     * permissions to create a new dataset, and you want to use {@link #fromQuery(String)} (for
+     * instance, to read from a view), you should use this option. Remember that the dataset must
+     * exist and your job needs permissions to create and remove tables inside that dataset.
+     */
+    public TypedRead<T> withQueryTempDataset(String queryTempDatasetRef) {
+      return toBuilder().setQueryTempDataset(queryTempDatasetRef).build();
     }
 
     /** See {@link Method}. */
