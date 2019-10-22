@@ -21,7 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
@@ -72,10 +74,6 @@ public class BeamIOPushDownRule extends RelOptRule {
     final BeamIOSourceRel ioSourceRel = call.rel(1);
     final BeamSqlTable beamSqlTable = ioSourceRel.getBeamSqlTable();
 
-    if (!beamSqlTable.supportsProjects()) {
-      return;
-    }
-
     // Nested rows are not supported at the moment
     for (RelDataTypeField field : ioSourceRel.getRowType().getFieldList()) {
       if (field.getType() instanceof RelRecordType) {
@@ -88,27 +86,34 @@ public class BeamIOPushDownRule extends RelOptRule {
     final Pair<ImmutableList<RexNode>, ImmutableList<RexNode>> projectFilter = program.split();
     final RelDataType calcInputRowType = program.getInputRowType();
 
+    final BeamSqlTableFilter tableFilter = beamSqlTable.constructFilter(projectFilter.right);
+    if (!beamSqlTable.supportsProjects() && tableFilter instanceof DefaultTableFilter) {
+      return;
+    }
+
     // Find all input refs used by projects
-    Set<String> usedFields = new HashSet<>();
+    Set<String> usedFields = new LinkedHashSet<>();
     for (RexNode project : projectFilter.left) {
       findUtilizedInputRefs(calcInputRowType, project, usedFields);
     }
 
     // Find all input refs used by filters
-    for (RexNode filter : projectFilter.right) {
+    for (RexNode filter : tableFilter.getNotSupported()) {
       findUtilizedInputRefs(calcInputRowType, filter, usedFields);
     }
 
     FieldAccessDescriptor resolved =
-        FieldAccessDescriptor.withFieldNames(usedFields).resolve(beamSqlTable.getSchema());
+        FieldAccessDescriptor.withFieldNames(usedFields).withOrderByFieldInsertionOrder().resolve(beamSqlTable.getSchema());
     Schema newSchema =
         SelectHelpers.getOutputSchema(ioSourceRel.getBeamSqlTable().getSchema(), resolved);
     RelDataType calcInputType =
         CalciteUtils.toCalciteRowType(newSchema, ioSourceRel.getCluster().getTypeFactory());
 
     // Check if the calc can be dropped
-    if (isProjectRenameOnlyProgram(program)) {
-      call.transformTo(ioSourceRel.copy(calc.getRowType(), newSchema.getFieldNames()));
+    // 1. Calc only does projects and renames
+    // 2. Predicate can be completely pushed-down to IO level
+    if (isProjectRenameOnlyProgram(program) || tableFilter.getNotSupported().isEmpty()) {
+      call.transformTo(ioSourceRel.copy(calc.getRowType(), newSchema.getFieldNames(), tableFilter));
       return;
     }
 
@@ -118,7 +123,7 @@ public class BeamIOPushDownRule extends RelOptRule {
       return;
     }
 
-    BeamIOSourceRel newIoSourceRel = ioSourceRel.copy(calcInputType, newSchema.getFieldNames());
+    BeamIOSourceRel newIoSourceRel = ioSourceRel.copy(calcInputType, newSchema.getFieldNames(), tableFilter);
     RelBuilder relBuilder = call.builder();
     relBuilder.push(newIoSourceRel);
 
@@ -136,7 +141,7 @@ public class BeamIOPushDownRule extends RelOptRule {
             .collect(Collectors.toList());
 
     // Map filters to new RexInputRef
-    for (RexNode filter : projectFilter.right) {
+    for (RexNode filter : tableFilter.getNotSupported()) {
       newFilter.add(reMapRexNodeToNewInputs(filter, mapping));
     }
     // Map projects to new RexInputRef
