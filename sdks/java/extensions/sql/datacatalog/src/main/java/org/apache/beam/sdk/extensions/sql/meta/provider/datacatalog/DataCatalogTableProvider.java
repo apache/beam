@@ -45,20 +45,26 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 /** Uses DataCatalog to get the source type and schema for a table. */
 public class DataCatalogTableProvider extends FullNameTableProvider {
 
-  private Map<String, TableProvider> delegateProviders;
-  private Map<String, Table> tableCache;
-  private DataCatalogBlockingStub dataCatalog;
+  private final Map<String, TableProvider> delegateProviders;
+  private final DataCatalogBlockingStub dataCatalog;
+  private final boolean truncateTimestamps;
+
+  private final Map<String, Table> tableCache;
 
   private DataCatalogTableProvider(
-      Map<String, TableProvider> delegateProviders, DataCatalogBlockingStub dataCatalog) {
+      Map<String, TableProvider> delegateProviders,
+      DataCatalogBlockingStub dataCatalog,
+      boolean truncateTimestamps) {
 
     this.tableCache = new HashMap<>();
     this.delegateProviders = ImmutableMap.copyOf(delegateProviders);
     this.dataCatalog = dataCatalog;
+    this.truncateTimestamps = truncateTimestamps;
   }
 
   public static DataCatalogTableProvider create(DataCatalogPipelineOptions options) {
-    return new DataCatalogTableProvider(getSupportedProviders(), createDataCatalogClient(options));
+    return new DataCatalogTableProvider(
+        getSupportedProviders(), createDataCatalogClient(options), options.getTruncateTimestamps());
   }
 
   private static DataCatalogBlockingStub createDataCatalogClient(
