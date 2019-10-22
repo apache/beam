@@ -570,34 +570,20 @@ We partition the <code class="highlighter-rouge">PCollection</code> into one <co
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Partition'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Partition</span><span class="p">(</span><span class="n">by_duration</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">durations</span><span class="p">))</span>
   <span class="p">)</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">annuals</span>
-      <span class="o">|</span> <span class="s">'Annuals'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'annual: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-  <span class="p">)</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">biennials</span>
-      <span class="o">|</span> <span class="s">'Biennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'biennial: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-  <span class="p">)</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">perennials</span>
-      <span class="o">|</span> <span class="s">'Perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'perennial: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-  <span class="p">)</span>
+
+  <span class="n">annuals</span> <span class="o">|</span> <span class="s">'Annuals'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'annual: {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="n">biennials</span> <span class="o">|</span> <span class="s">'Biennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'biennial: {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="n">perennials</span> <span class="o">|</span> <span class="s">'Perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'perennial: {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
 </code></pre>
 </div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code>s:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>annuals = [
-    {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-]
-biennials = [
-    {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-]
-perennials = [
-    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>perennial: {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+biennial: {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+perennial: {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+annual: {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+perennial: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
 </code></pre>
 </div>
 
@@ -680,34 +666,20 @@ limitations under the License.
           <span class="nb">len</span><span class="p">(</span><span class="n">durations</span><span class="p">),</span>
       <span class="p">)</span>
   <span class="p">)</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">annuals</span>
-      <span class="o">|</span> <span class="s">'Annuals'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'annual: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-  <span class="p">)</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">biennials</span>
-      <span class="o">|</span> <span class="s">'Biennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'biennial: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-  <span class="p">)</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">perennials</span>
-      <span class="o">|</span> <span class="s">'Perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'perennial: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-  <span class="p">)</span>
+
+  <span class="n">annuals</span> <span class="o">|</span> <span class="s">'Annuals'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'annual: {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="n">biennials</span> <span class="o">|</span> <span class="s">'Biennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'biennial: {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="n">perennials</span> <span class="o">|</span> <span class="s">'Perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'perennial: {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
 </code></pre>
 </div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code>s:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>annuals = [
-    {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-]
-biennials = [
-    {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-]
-perennials = [
-    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>perennial: {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+biennial: {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+perennial: {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+annual: {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+perennial: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
 </code></pre>
 </div>
 
@@ -824,28 +796,19 @@ You might want to adapt the bucket assignment to use a more appropriate or rando
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Partition'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Partition</span><span class="p">(</span><span class="n">split_dataset</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">ratio</span><span class="o">=</span><span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
   <span class="p">)</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">train_dataset</span>
-      <span class="o">|</span> <span class="s">'Train'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'train: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-  <span class="p">)</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">test_dataset</span>
-      <span class="o">|</span> <span class="s">'Test'</span>  <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'test: '</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-  <span class="p">)</span>
+
+  <span class="n">train_dataset</span> <span class="o">|</span> <span class="s">'Train'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'train: {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+  <span class="n">test_dataset</span> <span class="o">|</span> <span class="s">'Test'</span>  <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">'test: {}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
 </code></pre>
 </div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code>s:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>train_dataset = [
-    {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-    {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-    {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-]
-test_dataset = [
-    {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-    {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>train: {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+train: {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+test: {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+test: {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+train: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
 </code></pre>
 </div>
 

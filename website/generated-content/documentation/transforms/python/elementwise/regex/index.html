@@ -598,13 +598,11 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_matches = [
-    '🍓, Strawberry, perennial',
-    '🥕, Carrot, biennial',
-    '🍆, Eggplant, perennial',
-    '🍅, Tomato, annual',
-    '🥔, Potato, perennial',
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓, Strawberry, perennial
+🥕, Carrot, biennial
+🍆, Eggplant, perennial
+🍅, Tomato, annual
+🥔, Potato, perennial
 </code></pre>
 </div>
 
@@ -701,13 +699,11 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.all_matches</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_all_matches = [
-    ['🍓, Strawberry, perennial', '🍓', 'Strawberry', 'perennial'],
-    ['🥕, Carrot, biennial', '🥕', 'Carrot', 'biennial'],
-    ['🍆, Eggplant, perennial', '🍆', 'Eggplant', 'perennial'],
-    ['🍅, Tomato, annual', '🍅', 'Tomato', 'annual'],
-    ['🥔, Potato, perennial', '🥔', 'Potato', 'perennial'],
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>['🍓, Strawberry, perennial', '🍓', 'Strawberry', 'perennial']
+['🥕, Carrot, biennial', '🥕', 'Carrot', 'biennial']
+['🍆, Eggplant, perennial', '🍆', 'Eggplant', 'perennial']
+['🍅, Tomato, annual', '🍅', 'Tomato', 'annual']
+['🥔, Potato, perennial', '🥔', 'Potato', 'perennial']
 </code></pre>
 </div>
 
@@ -805,13 +801,11 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches_kv</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_matches_kv = [
-    ('🍓', '🍓, Strawberry, perennial'),
-    ('🥕', '🥕, Carrot, biennial'),
-    ('🍆', '🍆, Eggplant, perennial'),
-    ('🍅', '🍅, Tomato, annual'),
-    ('🥔', '🥔, Potato, perennial'),
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>('🍓', '🍓, Strawberry, perennial')
+('🥕', '🥕, Carrot, biennial')
+('🍆', '🍆, Eggplant, perennial')
+('🍅', '🍅, Tomato, annual')
+('🥔', '🥔, Potato, perennial')
 </code></pre>
 </div>
 
@@ -907,13 +901,11 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_matches = [
-    '🍓, Strawberry, perennial',
-    '🥕, Carrot, biennial',
-    '🍆, Eggplant, perennial',
-    '🍅, Tomato, annual',
-    '🥔, Potato, perennial',
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓, Strawberry, perennial
+🥕, Carrot, biennial
+🍆, Eggplant, perennial
+🍅, Tomato, annual
+🥔, Potato, perennial
 </code></pre>
 </div>
 
@@ -1009,13 +1001,11 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_all</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_find_all = [
-    ['🍓, Strawberry, perennial'],
-    ['🥕, Carrot, biennial'],
-    ['🍆, Eggplant, perennial', '🍌, Banana, perennial'],
-    ['🍅, Tomato, annual', '🍉, Watermelon, annual'],
-    ['🥔, Potato, perennial'],
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>['🍓, Strawberry, perennial']
+['🥕, Carrot, biennial']
+['🍆, Eggplant, perennial', '🍌, Banana, perennial']
+['🍅, Tomato, annual', '🍉, Watermelon, annual']
+['🥔, Potato, perennial']
 </code></pre>
 </div>
 
@@ -1112,15 +1102,13 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_kv</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_find_all = [
-    ('🍓', '🍓, Strawberry, perennial'),
-    ('🥕', '🥕, Carrot, biennial'),
-    ('🍆', '🍆, Eggplant, perennial'),
-    ('🍌', '🍌, Banana, perennial'),
-    ('🍅', '🍅, Tomato, annual'),
-    ('🍉', '🍉, Watermelon, annual'),
-    ('🥔', '🥔, Potato, perennial'),
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>('🍓', '🍓, Strawberry, perennial')
+('🥕', '🥕, Carrot, biennial')
+('🍆', '🍆, Eggplant, perennial')
+('🍌', '🍌, Banana, perennial')
+('🍅', '🍅, Tomato, annual')
+('🍉', '🍉, Watermelon, annual')
+('🥔', '🥔, Potato, perennial')
 </code></pre>
 </div>
 
@@ -1207,13 +1195,11 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_all</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_replace_all = [
-    '🍓,Strawberry,perennial',
-    '🥕,Carrot,biennial',
-    '🍆,Eggplant,perennial',
-    '🍅,Tomato,annual',
-    '🥔,Potato,perennial',
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓,Strawberry,perennial
+🥕,Carrot,biennial
+🍆,Eggplant,perennial
+🍅,Tomato,annual
+🥔,Potato,perennial
 </code></pre>
 </div>
 
@@ -1300,13 +1286,11 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_first</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_replace_first = [
-    '🍓: Strawberry, perennial',
-    '🥕: Carrot, biennial',
-    '🍆: Eggplant, perennial',
-    '🍅: Tomato, annual',
-    '🥔: Potato, perennial',
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓: Strawberry, perennial
+🥕: Carrot, biennial
+🍆: Eggplant, perennial
+🍅: Tomato, annual
+🥔: Potato, perennial
 </code></pre>
 </div>
 
@@ -1391,13 +1375,11 @@ The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code 
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.split</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>plants_split = [
-    ['🍓', 'Strawberry', 'perennial'],
-    ['🥕', 'Carrot', 'biennial'],
-    ['🍆', 'Eggplant', 'perennial'],
-    ['🍅', 'Tomato', 'annual'],
-    ['🥔', 'Potato', 'perennial'],
-]
+<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>['🍓', 'Strawberry', 'perennial']
+['🥕', 'Carrot', 'biennial']
+['🍆', 'Eggplant', 'perennial']
+['🍅', 'Tomato', 'annual']
+['🥔', 'Potato', 'perennial']
 </code></pre>
 </div>
 
