@@ -20,7 +20,6 @@ from __future__ import absolute_import
 import unittest
 
 import grpc
-from google.protobuf import timestamp_pb2
 
 from apache_beam import coders
 from apache_beam.portability.api import beam_interactive_api_pb2 as interactive_api
