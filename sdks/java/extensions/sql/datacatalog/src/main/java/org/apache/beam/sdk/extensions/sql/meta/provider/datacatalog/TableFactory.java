@@ -17,27 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.Validation;
+import com.google.cloud.datacatalog.Entry;
+import java.util.Optional;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 
-/** Pipeline options for Data Catalog table provider. */
-public interface DataCatalogPipelineOptions extends PipelineOptions {
+/**
+ * A {@link TableFactory} <i>may</i> be able to interpret a given Data Catalog {@link Entry} into
+ * Beam SQL {@link Table}.
+ */
+interface TableFactory {
 
-  /** DataCatalog endpoint. */
-  @Description("Data catalog endpoint.")
-  @Validation.Required
-  @Default.String("datacatalog.googleapis.com")
-  String getDataCatalogEndpoint();
-
-  void setDataCatalogEndpoint(String dataCatalogEndpoint);
-
-  /** Whether to truncate timestamps in tables described by Data Catalog. */
-  @Description("Truncate sub-millisecond precision timestamps in tables described by Data Catalog")
-  @Validation.Required
-  @Default.Boolean(false)
-  boolean getTruncateTimestamps();
-
-  void setTruncateTimestamps(boolean newValue);
+  /**
+   * If this {@link TableFactory} instance can interpret the given {@link Entry}, then a Beam SQL
+   * {@link Table} is constructed, else returns {@link Optional#empty}.
+   *
+   * <p>The {@link Table} is returned as a builder for further customization by the caller.
+   */
+  Optional<Table.Builder> tableBuilder(Entry entry);
 }
