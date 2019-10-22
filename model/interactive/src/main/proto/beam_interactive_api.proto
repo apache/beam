@@ -41,27 +41,62 @@ service InteractiveService {
   // Starts the stream of events to the EventsRequest. It is also allowed for
   // setting the playback_speed while RUNNING. If the stream is paused, this
   // will unpause the stream at the specified playback speed.
-  rpc Start (StartRequest) returns (StartResponse) {}
+  //
+  // Allows state transitions from (sets state to RUNNING):
+  //   STOPPED
+  //   RUNNING
+  //   PAUSED
+  //
+  // Service transitions state when (new state, condition)
+  //   STOPPED -> When stream ends.
+  rpc Start(StartRequest) returns (StartResponse) {}
 
   // Advances the stream to the specified offset then pauses the stream. This
   // starts the stream if it is not RUNNING then pauses the stream when the
   // offset is reached.
-  rpc Advance (AdvanceRequest) returns (AdvanceResponse) {}
+  //
+  // Allows state transitions from (sets state to ADVANCING):
+  //   STOPPED
+  //   RUNNING
+  //   PAUSED
+  //   ADVANCING
+  //
+  // Service transitions state when (new state, condition)
+  //   PAUSED -> When stream reaches specified offset.
+  rpc Advance(AdvanceRequest) returns (AdvanceResponse) {}
 
   // Stops and resets the stream to the beginning.
-  rpc Stop (StopRequest) returns (StopResponse) {}
+  //
+  // Allows state transitions from (sets state to STOPPED):
+  //   *
+  rpc Stop(StopRequest) returns (StopResponse) {}
 
   // Pauses the stream of events to the EventsRequest. If there is already an
   // outstanding EventsRequest streaming events, then the stream will pause
   // after the EventsResponse is completed.
   // To un-pause, send either a Start or Advance request.
-  rpc Pause (PauseRequest) returns (PauseResponse) {}
+  //
+  // Allows state transitions from (sets state to PAUSED):
+  //   RUNNING
+  //   PAUSED
+  //   ADVANCING
+  rpc Pause(PauseRequest) returns (PauseResponse) {}
 
-  // Sends a single element to the EventsRequest then pauses the stream.
-  rpc Step (StepRequest) returns (StepResponse) {}
+  // Sends a single element to the EventsRequest then pauses the stream after
+  // quiescence.
+  //
+  // Allows state transitions from (sets state to STEPPING):
+  //   STOPPED
+  //   RUNNING
+  //   PAUSED
+  //
+  // Service transitions state when (new state, condition)
+  //   STOPPED -> When stream ends (user sends StepRequest at end of stream).
+  //   PAUSED -> After quiescence.
+  rpc Step(StepRequest) returns (StepResponse) {}
 
   // Responds with debugging and other cache-specific metadata.
-  rpc Status (StatusRequest) returns (StatusResponse) {}
+  rpc Status(StatusRequest) returns (StatusResponse) {}
 }
 
 // The state of the InteractiveService. The default state is STOPPED.
@@ -70,22 +105,17 @@ enum State {
   // StartRequest.
   STOPPED = 0;
 
-  // The InteractiveService is replaying events. Goes to PAUSED with a
-  // PauseRequest. Goes to STOPPED with a StopRequest.
+  // The InteractiveService is replaying events.
   RUNNING = 1;
 
-  // The InteractiveService is paused from replaying events. Goes to RUNNING
-  // with either a StartRequest or a StepRequest. Goes to STOPPED with a
-  // StopRequest.
+  // The InteractiveService is paused from replaying events.
   PAUSED = 2;
 
-  // The InteractiveService is stepping through a single event. Will move to
-  // PAUSED after quiescence.
+  // The InteractiveService is stepping through a single event.
   STEPPING = 3;
 
 
   // The InteractiveService is advancing until a specified duration is reached.
-  // Will move to PAUSED after the stream advances sufficiently.
   ADVANCING = 4;
 }
 
@@ -105,7 +135,14 @@ message AdvanceRequest {
 message AdvanceResponse {}
 
 message StopRequest { }
-message StopResponse { }
+message StopResponse {
+  // The final timestamp of the replay stream.
+  google.protobuf.Timestamp stream_time = 1;
+
+  // The final minimum watermark across all of the faked replayable unbounded
+  // sources.
+  google.protobuf.Timestamp watermark = 2;
+}
 
 message PauseRequest { }
 message PauseResponse {
@@ -145,7 +182,13 @@ message StepRequest {
   // the pipeline.
   int64 count = 1;
 }
-message StepResponse { }
+message StepResponse {
+  // The current timestamp of the replay stream.
+  google.protobuf.Timestamp stream_time = 1;
+
+  // The minimum watermark across all of the faked replayable unbounded sources.
+  google.protobuf.Timestamp watermark = 2;
+}
 
 message EventsRequest { }
 message EventsResponse {
