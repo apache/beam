@@ -319,7 +319,11 @@ period.</p>
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td rowspan="2">2.17.0</td>
+  <td rowspan="3">2.17.0</td>
+  <td>1.9.x</td>
+  <td>beam-runners-flink-1.9</td>
+</tr>
+<tr>
   <td>1.8.x</td>
   <td>beam-runners-flink-1.8</td>
 </tr>
@@ -492,7 +496,7 @@ download it on the <a href="/get-started/downloads/">Downloads page</a>.</span><
 <p>To run a pipeline on an embedded Flink cluster:
 &lt;/span&gt;</p>
 
-<p><span class="language-py">1. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.8:job-server:runShadow</code>
+<p><span class="language-py">1. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.9:job-server:runShadow</code>
 </span></p>
 
 <p><span class="language-py">
@@ -525,7 +529,7 @@ To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-re
 <p><span class="language-py">1. Start a Flink cluster which exposes the Rest interface on <code class="highlighter-rouge">localhost:8081</code> by default.
 </span></p>
 
-<p><span class="language-py">2. Start JobService with Flink Rest endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.8:job-server:runShadow -PflinkMasterUrl=localhost:8081</code>.
+<p><span class="language-py">2. Start JobService with Flink Rest endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.9:job-server:runShadow -PflinkMasterUrl=localhost:8081</code>.
 </span></p>
 
 <p><span class="language-py">3. Submit the pipeline as above.
