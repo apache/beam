@@ -19,15 +19,12 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import ast
 import unittest
 
 import mock
 
-import apache_beam as beam
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import cogroupbykey
 
@@ -41,20 +38,18 @@ def check_plants(actual):
 [END plants]'''.splitlines()[1:-1]
 
   # Make it deterministic by sorting all sublists in each element.
-  def normalize_element(plant_str):
-    name, details = ast.literal_eval(plant_str)
+  def normalize_element(elem):
+    name, details = elem
     details['icons'] = sorted(details['icons'])
     details['durations'] = sorted(details['durations'])
     return name, details
-  actual = actual | beam.Map(normalize_element)
-  expected = [normalize_element(elem) for elem in expected]
-  assert_that(actual, equal_to(expected))
+  assert_matches_stdout(actual, expected, normalize_element)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.aggregation.cogroupbykey.print', str)
-# pylint: enable=line-too-long
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.cogroupbykey.print',
+    str)
 class CoGroupByKeyTest(unittest.TestCase):
   def test_cogroupbykey(self):
     cogroupbykey.cogroupbykey(check_plants)
