@@ -51,6 +51,7 @@ service InteractiveService {
   // Pauses the stream of events to the EventsRequest. If there is already an
   // outstanding EventsRequest streaming events, then the stream will pause
   // after the EventsResponse is completed.
+  // To un-pause, send either a Start or Advance request.
   rpc Pause (PauseRequest) returns (PauseResponse) {}
 
   // Sends a single element to the EventsRequest then closes the stream.
@@ -98,7 +99,9 @@ message StatusResponse {
   // no recording.
   google.protobuf.Timestamp recording_time = 3;
 
-  // The set playback_speed from either the StartRequest or the AdvanceRequest.
+  // The set playback_speed from the StartRequest. Playback speed is set by
+  // StartRequest, or if the stream_time is the current time and the recording
+  // is still happening, the playback speed is 1, else 0.
   double playback_speed = 4;
 
   enum State {
