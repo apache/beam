@@ -101,7 +101,8 @@ public class EncoderHelpers {
   public static <T> Encoder<T> fromBeamCoder(Coder<T> beamCoder) {
 
     List<Expression> serialiserList = new ArrayList<>();
-    Class<T> claz = (Class<T>) Object.class;
+    Class<? super T> claz = beamCoder.getEncodedTypeDescriptor().getRawType();
+
     serialiserList.add(
         new EncodeUsingBeamCoder<>(new BoundReference(0, new ObjectType(claz), true), beamCoder));
     ClassTag<T> classTag = ClassTag$.MODULE$.apply(claz);
