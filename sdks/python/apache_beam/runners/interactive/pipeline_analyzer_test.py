@@ -285,19 +285,16 @@ class PipelineInfoTest(unittest.TestCase):
         return pcoll
 
     p = beam.Pipeline(runner=self.runner)
-
-    pcoll = (p
-             | beam.Impulse()
-             | Passthrough())
+    p | beam.Impulse() | Passthrough()  # pylint: disable=expression-not-assigned
     proto = to_stable_runner_api(p).components
     info = pipeline_analyzer.PipelineInfo(proto)
     for pcoll_id in info.all_pcollections():
-        # FIXME: If PipelineInfo does not support passthrough PTransforms, this
-        #        will only fail some of the time, depending on the ordering of
-        #        transforms in the Pipeline proto.
+      # FIXME: If PipelineInfo does not support passthrough PTransforms, this
+      #        will only fail some of the time, depending on the ordering of
+      #        transforms in the Pipeline proto.
 
-        # Should not throw exception
-        info.cache_label(pcoll_id)
+      # Should not throw exception
+      info.cache_label(pcoll_id)
 
 
 if __name__ == '__main__':
