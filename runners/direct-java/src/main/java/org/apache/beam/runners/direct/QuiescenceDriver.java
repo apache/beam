@@ -249,6 +249,7 @@ class QuiescenceDriver implements ExecutionDriver {
    * Exception)}.
    */
   private class TimerIterableCompletionCallback implements CompletionCallback {
+
     private final Iterable<TimerData> timers;
 
     TimerIterableCompletionCallback(Iterable<TimerData> timers) {
@@ -258,8 +259,9 @@ class QuiescenceDriver implements ExecutionDriver {
     @Override
     public final CommittedResult handleResult(
         CommittedBundle<?> inputBundle, TransformResult<?> result) {
-      CommittedResult<AppliedPTransform<?, ?, ?>> committedResult =
-          evaluationContext.handleResult(inputBundle, timers, result);
+
+      final CommittedResult<AppliedPTransform<?, ?, ?>> committedResult;
+      committedResult = evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         pendingWork.offer(
             WorkUpdate.fromBundle(
