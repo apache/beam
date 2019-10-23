@@ -186,8 +186,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       }
       if ((!fieldNames.isEmpty() && fieldNames.size() < getSchema().getFieldCount())
           && (options == PushDownOptions.NONE || options == PushDownOptions.FILTER)) {
-        //throw new RuntimeException(
-        //    "Project push-down is not supported, yet a list of fieldNames was passed.");
+        throw new RuntimeException(
+            "Project push-down is not supported, yet a list of fieldNames was passed.");
       }
 
       PCollection<Row> withAllFields = buildIOReader(begin);
@@ -198,6 +198,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       PCollection<Row> result = withAllFields;
       if ((options == PushDownOptions.FILTER || options == PushDownOptions.BOTH)
           && filters instanceof TestTableFilter) {
+        // Create a filter for each supported node.
         for (RexNode node : ((TestTableFilter) filters).getSupported()) {
           result = result.apply("IOPushDownFilter_" + node.toString(), filterFromNode(node));
         }
@@ -205,7 +206,12 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
       if ((options == PushDownOptions.PROJECT || options == PushDownOptions.BOTH)
           && !fieldNames.isEmpty()) {
-        result = result.apply("IOPushDownProject", Select.fieldAccess(FieldAccessDescriptor.withFieldNames(fieldNames).withOrderByFieldInsertionOrder()));
+        result =
+            result.apply(
+                "IOPushDownProject",
+                Select.fieldAccess(
+                    FieldAccessDescriptor.withFieldNames(fieldNames)
+                        .withOrderByFieldInsertionOrder()));
       }
 
       return result;
@@ -236,9 +242,16 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       return tableWithRows.table.getSchema();
     }
 
+    /**
+     * A helper method to create a {@code Filter} from {@code RexNode}.
+     *
+     * @param node {@code RexNode} to create a filter from.
+     * @return {@code Filter} PTransform.
+     */
     private PTransform<PCollection<Row>, PCollection<Row>> filterFromNode(RexNode node) {
       if (!(node instanceof RexCall)) {
-        throw new RuntimeException("Was expecting a RexCall, but received: " + node.getClass().getSimpleName());
+        throw new RuntimeException(
+            "Was expecting a RexCall, but received: " + node.getClass().getSimpleName());
       }
 
       List<RexNode> operands = ((RexCall) node).getOperands();
@@ -255,7 +268,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           RexLiteral literal = (RexLiteral) operand;
           literals.add(literal);
         } else {
-          throw new RuntimeException("Encountered an unexpected operand: " + operand.getClass().getSimpleName());
+          throw new RuntimeException(
+              "Encountered an unexpected operand: " + operand.getClass().getSimpleName());
         }
       }
 
@@ -285,10 +299,27 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           throw new RuntimeException("Unsupported node kind: " + node.getKind().toString());
       }
 
-      return Filter.<Row>create().whereFieldIds(fieldIds, createFilter(operands, fieldIds, inputRefs, literals, comparison));
+      return Filter.<Row>create()
+          .whereFieldIds(
+              fieldIds, createFilter(operands, fieldIds, inputRefs, literals, comparison));
     }
 
-    private SerializableFunction<Row, Boolean> createFilter(List<RexNode> operands, List<Integer> fieldIds, List<RexInputRef> inputRefs, List<RexLiteral> literals, SerializableFunction<Integer, Boolean> comparison) {
+    /**
+     * A helper method to create a serializable function comparing row fields.
+     *
+     * @param operands A list of operands used in a comparison.
+     * @param fieldIds A list of operand ids.
+     * @param inputRefs A list of operands, which are an instanceof {@code RexInputRef}.
+     * @param literals A list of operands, which are an instanceof {@code RexLiteral}.
+     * @param comparison A comparison to perform between operands.
+     * @return A filter comparing row fields to literals/other fields.
+     */
+    private SerializableFunction<Row, Boolean> createFilter(
+        List<RexNode> operands,
+        List<Integer> fieldIds,
+        List<RexInputRef> inputRefs,
+        List<RexLiteral> literals,
+        SerializableFunction<Integer, Boolean> comparison) {
       if (inputRefs.size() == 2) { // Comparing 2 columns.
         final int op0 = fieldIds.indexOf(inputRefs.get(0).getIndex());
         final int op1 = fieldIds.indexOf(inputRefs.get(1).getIndex());
@@ -299,7 +330,11 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         final int op0 = fieldIds.indexOf(fieldSchemaIndex);
 
         // Find Java type of the op0 in Schema
-        final Comparable op1 = literals.get(0).<Comparable>getValueAs(FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
+        final Comparable op1 =
+            literals
+                .get(0)
+                .<Comparable>getValueAs(
+                    FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
         if (operands.get(0) instanceof RexLiteral) { // First operand is a literal
           return row -> comparison.apply(op1.compareTo(row.getValue(op0)));
         } else { // First operand is a column value
