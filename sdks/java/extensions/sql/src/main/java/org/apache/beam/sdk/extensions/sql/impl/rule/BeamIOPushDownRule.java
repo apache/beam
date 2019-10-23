@@ -118,8 +118,9 @@ public class BeamIOPushDownRule extends RelOptRule {
     }
 
     // TODO: will need to be updated for predicate push-down
-    if (usedFields.size()
-        == ioSourceRel.getRowType().getFieldCount()) { // Already most optimal case
+    // Already most optimal case for project push-down
+    if (tableFilter instanceof DefaultTableFilter
+        && usedFields.size() == ioSourceRel.getRowType().getFieldCount()) {
       return;
     }
 

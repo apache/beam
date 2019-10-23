@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -41,8 +40,9 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvide
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.schemas.transforms.Select;
@@ -199,13 +199,13 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       if ((options == PushDownOptions.FILTER || options == PushDownOptions.BOTH)
           && filters instanceof TestTableFilter) {
         for (RexNode node : ((TestTableFilter) filters).getSupported()) {
-          result = result.apply("PushDownFilter_" + node.toString(), filterFromNode(node));
+          result = result.apply("IOPushDownFilter_" + node.toString(), filterFromNode(node));
         }
       }
 
       if ((options == PushDownOptions.PROJECT || options == PushDownOptions.BOTH)
           && !fieldNames.isEmpty()) {
-        result = result.apply("PushDownProject", Select.fieldAccess(FieldAccessDescriptor.withFieldNames(fieldNames).withOrderByFieldInsertionOrder()));
+        result = result.apply("IOPushDownProject", Select.fieldAccess(FieldAccessDescriptor.withFieldNames(fieldNames).withOrderByFieldInsertionOrder()));
       }
 
       return result;
@@ -259,73 +259,54 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         }
       }
 
+      SerializableFunction<Integer, Boolean> comparison;
       // TODO: add support for expressions like:
       //  =(CAST($3):INTEGER NOT NULL, 200)
       switch (node.getKind()) {
-        case IN:
-          break;
         case LESS_THAN:
-          // Cast Object to Comparable
+          comparison = i -> i < 0;
           break;
         case GREATER_THAN:
+          comparison = i -> i > 0;
           break;
         case LESS_THAN_OR_EQUAL:
+          comparison = i -> i <= 0;
           break;
         case GREATER_THAN_OR_EQUAL:
+          comparison = i -> i >= 0;
           break;
         case EQUALS:
-          SerializableFunction<Row, Boolean> filter;
-          // Comparing 2 columns.
-          if (inputRefs.size() == 2) {
-            final int op0 = fieldIds.indexOf(inputRefs.get(0).getIndex());
-            final int op1 = fieldIds.indexOf(inputRefs.get(1).getIndex());
-            filter = row -> row.getValue(op0).equals(op1);
-          // Comparing a column to a literal.
-          } else {
-            int fieldSchemaIndex = inputRefs.get(0).getIndex();
-            TypeName beamFieldType = getSchema().getField(fieldSchemaIndex).getType().getTypeName();
-            final int op0 = fieldIds.indexOf(fieldSchemaIndex);
-
-            // Find Java type of the op0 in Schema
-            final Comparable op1 = literals.get(0).<Comparable>getValueAs(lookupJavaClass(beamFieldType));
-            filter = row -> row.getValue(op0).equals(op1);
-          }
-          // Case where we compare 2 Literals should never appear and get optimized away.
-          return Filter.<Row>create().whereFieldIds(fieldIds, filter);
+          comparison = i -> i == 0;
+          break;
         case NOT_EQUALS:
+          comparison = i -> i != 0;
           break;
         default:
           throw new RuntimeException("Unsupported node kind: " + node.getKind().toString());
       }
 
-      return null;
+      return Filter.<Row>create().whereFieldIds(fieldIds, createFilter(operands, fieldIds, inputRefs, literals, comparison));
     }
 
-    private static Class lookupJavaClass(TypeName type) {
-      switch (type) {
-        case BYTE:
-          return Byte.class;
-        case BYTES:
-          return byte[].class;
-        case INT16:
-          return Short.class;
-        case INT32:
-          return Integer.class;
-        case INT64:
-          return Long.class;
-        case DECIMAL:
-          return BigDecimal.class;
-        case FLOAT:
-          return Float.class;
-        case DOUBLE:
-          return Double.class;
-        case STRING:
-          return String.class;
-        case BOOLEAN:
-          return Boolean.class;
-        default:
-          throw new RuntimeException("Could not resolve beam type [" + type.toString() + "] to Java class");
+    private SerializableFunction<Row, Boolean> createFilter(List<RexNode> operands, List<Integer> fieldIds, List<RexInputRef> inputRefs, List<RexLiteral> literals, SerializableFunction<Integer, Boolean> comparison) {
+      if (inputRefs.size() == 2) { // Comparing 2 columns.
+        final int op0 = fieldIds.indexOf(inputRefs.get(0).getIndex());
+        final int op1 = fieldIds.indexOf(inputRefs.get(1).getIndex());
+        return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
+      } else { // Comparing a column to a literal.
+        int fieldSchemaIndex = inputRefs.get(0).getIndex();
+        FieldType beamFieldType = getSchema().getField(fieldSchemaIndex).getType();
+        final int op0 = fieldIds.indexOf(fieldSchemaIndex);
+
+        // Find Java type of the op0 in Schema
+        final Comparable op1 = literals.get(0).<Comparable>getValueAs(FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
+        if (operands.get(0) instanceof RexLiteral) { // First operand is a literal
+          return row -> comparison.apply(op1.compareTo(row.getValue(op0)));
+        } else { // First operand is a column value
+          return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
+        }
       }
+      // Case where we compare 2 Literals should never appear and get optimized away.
     }
   }
 
