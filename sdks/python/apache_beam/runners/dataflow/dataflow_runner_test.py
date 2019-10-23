@@ -279,7 +279,8 @@ class DataflowRunnerTest(unittest.TestCase):
                      {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
                       'value': 42, 'key': 'dofn_value'}]
     expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])
-    self.assertEqual(len(disp_data), 3)
+    # Fail the test to see warning messages.
+    self.assertEqual(len(disp_data), 4)
     self.assertEqual(disp_data, expected_data)
 
   def test_no_group_by_key_directly_after_bigquery(self):

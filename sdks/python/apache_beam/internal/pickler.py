@@ -51,7 +51,7 @@ if not getattr(dill, '_dill', None):
   dill._dill = dill.dill
   sys.modules['dill._dill'] = dill.dill
 
-
+sys.setrecursionlimit(5555)
 def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
   return (isinstance(cls, type)
@@ -59,6 +59,7 @@ def _is_nested_class(cls):
           and cls.__module__ != '__builtin__'  # Python 2
           and cls.__name__ not in sys.modules[cls.__module__].__dict__)
 
+find_class_inner_calls = 0
 
 def _find_containing_class(nested_class):
   """Finds containing class of a nested class passed as argument."""
@@ -66,6 +67,10 @@ def _find_containing_class(nested_class):
   seen = set()
 
   def _find_containing_class_inner(outer):
+    global find_class_inner_calls
+    find_class_inner_calls += 1
+    logging.warning("_find_containing_class_inner called %s times",
+                    find_class_inner_calls)
     if outer in seen:
       return None
     seen.add(outer)
