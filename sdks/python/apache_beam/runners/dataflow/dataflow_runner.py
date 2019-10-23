@@ -23,6 +23,7 @@ to the Dataflow Service for remote execution by a worker.
 from __future__ import absolute_import
 from __future__ import division
 
+import base64
 import json
 import logging
 import sys
@@ -110,6 +111,9 @@ class DataflowRunner(PipelineRunner):
     # "executes" a pipeline.
     self._cache = cache if cache is not None else PValueCache()
     self._unique_step_id = 0
+
+  def is_fnapi_compatible(self):
+    return False
 
   def _get_unique_step_name(self):
     self._unique_step_id += 1
@@ -629,8 +633,16 @@ class DataflowRunner(PipelineRunner):
           coders.BytesCoder(),
           coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
               window.GlobalWindows.windowed_value(b''))
+
+      from apache_beam.runners.dataflow.internal import apiclient
+      if apiclient._use_fnapi(options):
+        encoded_impulse_as_str = self.byte_array_to_json_string(
+            encoded_impulse_element)
+      else:
+        encoded_impulse_as_str = base64.b64encode(
+            encoded_impulse_element).decode('ascii')
       step.add_property(PropertyNames.IMPULSE_ELEMENT,
-                        self.byte_array_to_json_string(encoded_impulse_element))
+                        encoded_impulse_as_str)
 
     step.encoding = self._get_encoded_output_coder(transform_node)
     step.add_property(

@@ -194,6 +194,13 @@ class PTransformTest(unittest.TestCase):
     assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
     pipeline.run()
 
+  @attr('ValidatesRunner')
+  def test_impulse(self):
+    pipeline = TestPipeline()
+    result = pipeline | beam.Impulse() | beam.Map(lambda _: 0)
+    assert_that(result, equal_to([0]))
+    pipeline.run()
+
   # TODO(BEAM-3544): Disable this test in streaming temporarily.
   # Remove sickbay-streaming tag after it's resolved.
   @attr('ValidatesRunner', 'sickbay-streaming')

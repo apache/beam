@@ -221,6 +221,8 @@ class Entity(object):
     for name, value in client_entity.items():
       if isinstance(value, key.Key):
         value = Key.from_client_key(value)
+      if isinstance(value, entity.Entity):
+        value = Entity.from_client_entity(value)
       res.properties[name] = value
     return res
 
@@ -236,6 +238,10 @@ class Entity(object):
         if not value.project:
           value.project = self.key.project
         value = value.to_client_key()
+      if isinstance(value, Entity):
+        if not value.key.project:
+          value.key.project = self.key.project
+        value = value.to_client_entity()
       res[name] = value
     return res
 

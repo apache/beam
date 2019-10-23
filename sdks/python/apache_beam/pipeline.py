@@ -154,10 +154,9 @@ class Pipeline(object):
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
 
-    # set default experiments for portable runner
+    # set default experiments for portable runners
     # (needs to occur prior to pipeline construction)
-    portable_runners = ['PortableRunner', 'FlinkRunner']
-    if self._options.view_as(StandardOptions).runner in portable_runners:
+    if runner.is_fnapi_compatible():
       experiments = (self._options.view_as(DebugOptions).experiments or [])
       if not 'beam_fn_api' in experiments:
         experiments.append('beam_fn_api')
@@ -486,8 +485,7 @@ class Pipeline(object):
                            label or transform.label]).lstrip('/')
     if full_label in self.applied_labels:
       raise RuntimeError(
-          'Transform "%s" does not have a stable unique label. '
-          'This will prevent updating of pipelines. '
+          'A transform with label "%s" already exists in the pipeline. '
           'To apply a transform with a specified label write '
           'pvalue | "label" >> transform'
           % full_label)

@@ -19,9 +19,12 @@ package org.apache.beam.runners.direct;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -116,14 +119,30 @@ class WatermarkCallbackExecutor {
    * Schedule all pending callbacks that must have produced output by the time of the provided
    * watermark.
    */
-  public void fireForWatermark(AppliedPTransform<?, ?, ?> step, Instant watermark) {
+  public void fireForWatermark(AppliedPTransform<?, ?, ?> step, Instant watermark)
+      throws InterruptedException {
     PriorityQueue<WatermarkCallback> callbackQueue = callbacks.get(step);
     if (callbackQueue == null) {
       return;
     }
     synchronized (callbackQueue) {
+      List<Runnable> toFire = new ArrayList<>();
       while (!callbackQueue.isEmpty() && callbackQueue.peek().shouldFire(watermark)) {
-        executor.execute(callbackQueue.poll().getCallback());
+        toFire.add(callbackQueue.poll().getCallback());
+      }
+      if (!toFire.isEmpty()) {
+        CountDownLatch latch = new CountDownLatch(toFire.size());
+        toFire.forEach(
+            r ->
+                executor.execute(
+                    () -> {
+                      try {
+                        r.run();
+                      } finally {
+                        latch.countDown();
+                      }
+                    }));
+        latch.await();
       }
     }
   }

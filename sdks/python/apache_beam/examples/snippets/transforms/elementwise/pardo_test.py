@@ -18,38 +18,42 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
-from __future__ import unicode_literals
 
-import io
 import platform
 import sys
 import unittest
 
 import mock
 
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 from . import pardo
 
+# TODO: Remove this after Python 2 deprecation.
+# https://issues.apache.org/jira/browse/BEAM-8124
+if sys.version_info[0] == 2:
+  from io import BytesIO as StringIO
+else:
+  from io import StringIO
+
 
 def check_plants(actual):
-  # [START plants]
-  plants = [
-      '🍓Strawberry',
-      '🥕Carrot',
-      '🍆Eggplant',
-      '🍅Tomato',
-      '🥔Potato',
-  ]
-  # [END plants]
-  assert_that(actual, equal_to(plants))
+  expected = '''[START plants]
+🍓Strawberry
+🥕Carrot
+🍆Eggplant
+🍅Tomato
+🥔Potato
+[END plants]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 
 def check_dofn_params(actual):
   # pylint: disable=line-too-long
-  dofn_params = '\n'.join('''[START dofn_params]
+  expected = '\n'.join('''[START dofn_params]
 # timestamp
 type(timestamp) -> <class 'apache_beam.utils.timestamp.Timestamp'>
 timestamp.micros -> 1584675660000000
@@ -63,7 +67,7 @@ window.end -> Timestamp(1584675690) (2020-03-20 03:41:30)
 window.max_timestamp() -> Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)
 [END dofn_params]'''.splitlines()[1:-1])
   # pylint: enable=line-too-long
-  assert_that(actual, equal_to([dofn_params]))
+  assert_that(actual, equal_to([expected]))
 
 
 def check_dofn_methods(actual):
@@ -83,23 +87,22 @@ teardown
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.pardo.print', lambda elem: elem)
-# pylint: enable=line-too-long
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.pardo.print', str)
 class ParDoTest(unittest.TestCase):
   def test_pardo_dofn(self):
     pardo.pardo_dofn(check_plants)
 
   # TODO: Remove this after Python 2 deprecation.
   # https://issues.apache.org/jira/browse/BEAM-8124
-  @unittest.skipIf(sys.version_info[0] < 3 and platform.system() == 'Windows',
+  @unittest.skipIf(sys.version_info[0] == 2 and platform.system() == 'Windows',
                    'Python 2 on Windows uses `long` rather than `int`')
   def test_pardo_dofn_params(self):
     pardo.pardo_dofn_params(check_dofn_params)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-@mock.patch('sys.stdout', new_callable=io.StringIO)
+@mock.patch('sys.stdout', new_callable=StringIO)
 class ParDoStdoutTest(unittest.TestCase):
   def test_pardo_dofn_methods(self, mock_stdout):
     expected = pardo.pardo_dofn_methods(check_dofn_methods)
