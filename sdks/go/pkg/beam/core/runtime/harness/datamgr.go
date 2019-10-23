@@ -36,7 +36,7 @@ const (
 // The indirection makes it easier to control access.
 type ScopedDataManager struct {
 	mgr    *DataChannelManager
-	instID string
+	instID instructionID
 
 	// TODO(herohde) 7/20/2018: capture and force close open reads/writes. However,
 	// we would need the underlying Close to be idempotent or a separate method.
@@ -45,10 +45,11 @@ type ScopedDataManager struct {
 }
 
 // NewScopedDataManager returns a ScopedDataManager for the given instruction.
-func NewScopedDataManager(mgr *DataChannelManager, instID string) *ScopedDataManager {
+func NewScopedDataManager(mgr *DataChannelManager, instID instructionID) *ScopedDataManager {
 	return &ScopedDataManager{mgr: mgr, instID: instID}
 }
 
+// OpenRead opens an io.ReadCloser on the given stream.
 func (s *ScopedDataManager) OpenRead(ctx context.Context, id exec.StreamID) (io.ReadCloser, error) {
 	ch, err := s.open(ctx, id.Port)
 	if err != nil {
@@ -57,6 +58,7 @@ func (s *ScopedDataManager) OpenRead(ctx context.Context, id exec.StreamID) (io.
 	return ch.OpenRead(ctx, id.PtransformID, s.instID), nil
 }
 
+// OpenWrite opens an io.WriteCloser on the given stream.
 func (s *ScopedDataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io.WriteCloser, error) {
 	ch, err := s.open(ctx, id.Port)
 	if err != nil {
@@ -119,7 +121,7 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 // clientID identifies a client of a connected channel.
 type clientID struct {
 	ptransformID string
-	instID       string
+	instID       instructionID
 }
 
 // This is a reduced version of the full gRPC interface to help with testing.
@@ -169,11 +171,11 @@ func makeDataChannel(ctx context.Context, id string, client dataClient) *DataCha
 	return ret
 }
 
-func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID string) io.ReadCloser {
+func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID instructionID) io.ReadCloser {
 	return c.makeReader(ctx, clientID{ptransformID: ptransformID, instID: instID})
 }
 
-func (c *DataChannel) OpenWrite(ctx context.Context, ptransformID string, instID string) io.WriteCloser {
+func (c *DataChannel) OpenWrite(ctx context.Context, ptransformID string, instID instructionID) io.WriteCloser {
 	return c.makeWriter(ctx, clientID{ptransformID: ptransformID, instID: instID})
 }
 
@@ -198,7 +200,7 @@ func (c *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := clientID{ptransformID: elm.TransformId, instID: elm.GetInstructionId()}
+			id := clientID{ptransformID: elm.TransformId, instID: instructionID(elm.GetInstructionId())}
 
 			// log.Printf("Chan read (%v): %v\n", sid, elm.GetData())
 
@@ -333,7 +335,7 @@ func (w *dataWriter) Close() error {
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
-				InstructionId: w.id.instID,
+				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				// Empty data == sentinel
 			},
@@ -357,7 +359,7 @@ func (w *dataWriter) Flush() error {
 	msg := &pb.Elements{
 		Data: []*pb.Elements_Data{
 			{
-				InstructionId: w.id.instID,
+				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				Data:          w.buf,
 			},

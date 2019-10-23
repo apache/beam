@@ -37,7 +37,7 @@ type contextKey string
 
 const instKey contextKey = "beam:inst"
 
-func setInstID(ctx context.Context, id string) context.Context {
+func setInstID(ctx context.Context, id instructionID) context.Context {
 	return context.WithValue(ctx, instKey, id)
 }
 
