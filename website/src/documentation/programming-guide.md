@@ -803,6 +803,13 @@ words = ...
 > transforms, including `Filter`, `FlatMapElements`, and `Partition`.
 
 ##### 4.2.1.4. DoFn lifecycle {#dofn}
+Here is a sequence diagram that shows the lifecycle of the DoFn during
+ the execution of the ParDo transform. The comments give useful 
+ information to pipeline developers such as the constraints that 
+ apply to the objects or particular cases such as failover or 
+ instance reuse. They also give instanciation use cases.
+ 
+ 
 ![This is a sequence diagram that shows the lifecycle of the DoFn](
   {{ "/images/dofn-sequence-diagram.png" | prepend: site.baseurl }})
 

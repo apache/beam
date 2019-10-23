@@ -102,6 +102,12 @@ records per file, or if you'd like to read from a key-value store that supports
 read operations in sorted key order.
 
 ### Source lifecycle {#source}
+Here is a sequence diagram that shows the lifecycle of the Source during
+ the execution of the Read transform of an IO. The comments give useful 
+ information to IO developers such as the constraints that 
+ apply to the objects or particular cases such as streaming mode.
+ 
+ 
   ![This is a sequence diagram that shows the lifecycle of the Source](
     {{ "/images/source-sequence-diagram.png" | prepend: site.baseurl }})
 
