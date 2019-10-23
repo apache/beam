@@ -79,6 +79,7 @@ func (s *ScopedDataManager) open(ctx context.Context, port exec.Port) (*DataChan
 	return local.Open(ctx, port) // don't hold lock over potentially slow operation
 }
 
+// Close prevents new IO for this instruction.
 func (s *ScopedDataManager) Close() error {
 	s.mu.Lock()
 	s.closed = true
@@ -171,10 +172,12 @@ func makeDataChannel(ctx context.Context, id string, client dataClient) *DataCha
 	return ret
 }
 
+// OpenRead returns an io.ReadCloser of the data elements for the given instruction and ptransform.
 func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID instructionID) io.ReadCloser {
 	return c.makeReader(ctx, clientID{ptransformID: ptransformID, instID: instID})
 }
 
+// OpenWrite returns an io.WriteCloser of the data elements for the given instruction and ptransform.
 func (c *DataChannel) OpenWrite(ctx context.Context, ptransformID string, instID instructionID) io.WriteCloser {
 	return c.makeWriter(ctx, clientID{ptransformID: ptransformID, instID: instID})
 }
@@ -189,7 +192,7 @@ func (c *DataChannel) read(ctx context.Context) {
 				log.Warnf(ctx, "DataChannel.read %v closed", c.id)
 				return
 			}
-			log.Errorf(ctx, "DataChannel.read %v bad", c.id)
+			log.Errorf(ctx, "DataChannel.read %v bad: %v", c.id, err)
 			return
 		}
 
