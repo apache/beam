@@ -678,6 +678,7 @@ class CallableWrapperDoFn(DoFn):
     try:
       type_hints = type_hints.strip_iterable()
     except ValueError as e:
+      # TODO(BEAM-7981): Raise exception here if using stricter type checking.
       logging.warning('%s: %s', self.display_data()['fn'].value, e)
     return type_hints
 
