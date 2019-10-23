@@ -42,6 +42,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -96,6 +97,11 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   private final transient PipelineOptions options = PipelineOptionsFactory.create();
   private final transient StateInternals stateInternals =
       CopyOnAccessInMemoryStateInternals.<Object>withUnderlying(KEY, null);
+  private final transient DirectTimerInternals timerInternals =
+      DirectTimerInternals.create(
+          MockClock.fromInstant(Instant.now()),
+          Mockito.mock(TransformWatermarks.class),
+          TimerUpdate.builder(StructuralKey.of(KEY, StringUtf8Coder.of())));
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
 
@@ -103,10 +109,12 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   public transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
+  @SuppressWarnings("unchecked")
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
     when((StateInternals) mockStepContext.stateInternals()).thenReturn(stateInternals);
+    when(mockStepContext.timerInternals()).thenReturn(timerInternals);
     when(mockEvaluationContext.createSideInputReader(anyList()))
         .thenReturn(
             SideInputContainer.create(mockEvaluationContext, Collections.emptyList())

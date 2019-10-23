@@ -23,43 +23,37 @@ import unittest
 
 import mock
 
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import map
 
 
 def check_plants(actual):
-  # [START plants]
-  plants = [
-      '🍓Strawberry',
-      '🥕Carrot',
-      '🍆Eggplant',
-      '🍅Tomato',
-      '🥔Potato',
-  ]
-  # [END plants]
-  assert_that(actual, equal_to(plants))
+  expected = '''[START plants]
+🍓Strawberry
+🥕Carrot
+🍆Eggplant
+🍅Tomato
+🥔Potato
+[END plants]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 
 def check_plant_details(actual):
-  # [START plant_details]
-  plant_details = [
-      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-      {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
-  ]
-  # [END plant_details]
-  assert_that(actual, equal_to(plant_details))
+  expected = '''[START plant_details]
+{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+[END plant_details]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.map.print', lambda elem: elem)
-# pylint: enable=line-too-long
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.map.print', str)
 class MapTest(unittest.TestCase):
   def test_map_simple(self):
     map.map_simple(check_plants)

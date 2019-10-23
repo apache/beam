@@ -71,7 +71,10 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
 
   @Override
   public SqlNode parse(String sqlStatement) throws ParseException {
-    return null;
+    throw new UnsupportedOperationException(
+        String.format(
+            "%s.parse(String) is not implemented and should need be called",
+            this.getClass().getCanonicalName()));
   }
 
   public BeamRelNode convertToBeamRel(String sqlStatement, Map<String, Value> queryParams)
@@ -129,11 +132,16 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     final SqlOperatorTable opTab0 =
         connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
 
+    Object[] contexts =
+        org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList.of(
+                connection.config(), TableResolutionContext.joinCompoundIds("datacatalog"))
+            .toArray();
+
     return Frameworks.newConfigBuilder()
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
-        .context(Contexts.of(connection.config()))
+        .context(Contexts.of(contexts))
         .ruleSets(ruleSets)
         .costFactory(null)
         .typeSystem(connection.getTypeFactory().getTypeSystem())

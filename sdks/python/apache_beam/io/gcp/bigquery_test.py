@@ -36,6 +36,7 @@ from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -503,7 +504,14 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     # InsertRows not called in finish bundle as no records
     self.assertFalse(client.tabledata.InsertAll.called)
 
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
+
   def test_failure_has_same_insert_ids(self):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    file_name_1 = os.path.join(tempdir, 'file1')
+    file_name_2 = os.path.join(tempdir, 'file2')
 
     def store_callback(arg):
       insert_ids = [r.insertId for r in arg.tableDataInsertAllRequest.rows]
@@ -513,11 +521,13 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
                      'colA_values': colA_values}
       # The first time we try to insert, we save those insertions in
       # file insert_calls1.
-      if not os.path.exists('insert_calls1'):
-        json.dump(json_output, open('insert_calls1', 'w'))
-        raise Exception()
+      if not os.path.exists(file_name_1):
+        with open(file_name_1, 'w') as f:
+          json.dump(json_output, f)
+        raise RuntimeError()
       else:
-        json.dump(json_output, open('insert_calls2', 'w'))
+        with open(file_name_2, 'w') as f:
+          json.dump(json_output, f)
 
       res = mock.Mock()
       res.insertErrors = []
@@ -526,6 +536,8 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tabledata.InsertAll = mock.Mock(side_effect=store_callback)
 
+    # Using the bundle based direct runner to avoid pickling problems
+    # with mocks.
     with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
       _ = (p
            | beam.Create([{'columnA':'value1', 'columnB':'value2'},
@@ -540,9 +552,10 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
                None, None,
                [], test_client=client))
 
-    self.assertEqual(
-        json.load(open('insert_calls1')),
-        json.load(open('insert_calls2')))
+    with open(file_name_1) as f1, open(file_name_2) as f2:
+      self.assertEqual(
+          json.load(f1),
+          json.load(f2))
 
 
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
