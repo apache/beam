@@ -582,7 +582,10 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def default_type_hints(self):
     fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
     if fn_type_hints is not None:
-      return fn_type_hints.strip_iterable()
+      try:
+        return fn_type_hints.strip_iterable()
+      except ValueError as e:
+        raise ValueError('Return value not iterable: %s: %s' % (self, e))
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
@@ -678,7 +681,7 @@ class CallableWrapperDoFn(DoFn):
     try:
       type_hints = type_hints.strip_iterable()
     except ValueError as e:
-      # TODO(BEAM-7981): Raise exception here if using stricter type checking.
+      # TODO(BEAM-8466): Raise exception here if using stricter type checking.
       logging.warning('%s: %s', self.display_data()['fn'].value, e)
     return type_hints
 
