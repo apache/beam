@@ -88,13 +88,25 @@ public class BeamIOPushDownRule extends RelOptRule {
 
     final BeamSqlTableFilter tableFilter = beamSqlTable.constructFilter(projectFilter.right);
     if (!beamSqlTable.supportsProjects() && tableFilter instanceof DefaultTableFilter) {
+      // Either project or filter push-down must be supported by the IO.
+      return;
+    }
+
+    if (!(tableFilter instanceof DefaultTableFilter) && !beamSqlTable.supportsProjects()) {
+      // Filter push-down without project push-down is not supported for now.
       return;
     }
 
     // Find all input refs used by projects
+    boolean hasComplexProjects = false;
     Set<String> usedFields = new LinkedHashSet<>();
     for (RexNode project : projectFilter.left) {
       findUtilizedInputRefs(calcInputRowType, project, usedFields);
+      if (project instanceof RexCall) {
+        // Ex: 'SELECT field+10 FROM table'
+        hasComplexProjects = true;
+        break;
+      }
     }
 
     // Find all input refs used by filters
@@ -103,28 +115,38 @@ public class BeamIOPushDownRule extends RelOptRule {
     }
 
     FieldAccessDescriptor resolved =
-        FieldAccessDescriptor.withFieldNames(usedFields).withOrderByFieldInsertionOrder().resolve(beamSqlTable.getSchema());
+        FieldAccessDescriptor.withFieldNames(usedFields)
+            .withOrderByFieldInsertionOrder()
+            .resolve(beamSqlTable.getSchema());
     Schema newSchema =
         SelectHelpers.getOutputSchema(ioSourceRel.getBeamSqlTable().getSchema(), resolved);
     RelDataType calcInputType =
         CalciteUtils.toCalciteRowType(newSchema, ioSourceRel.getCluster().getTypeFactory());
 
-    // Check if the calc can be dropped
-    // 1. Calc only does projects and renames
-    // 2. Predicate can be completely pushed-down to IO level
-    if (isProjectRenameOnlyProgram(program) || tableFilter.getNotSupported().isEmpty()) {
+    // Check if the calc can be dropped:
+    // 1. There are no complex projects.
+    // 2. And
+    // 2.1. Calc only does projects and renames.
+    //      Or
+    // 2.2. Predicate can be completely pushed-down to IO level.
+    if (!hasComplexProjects
+        && (isProjectRenameOnlyProgram(program) || tableFilter.getNotSupported().isEmpty())) {
+      // Tell the optimizer to not use old IO, since the new one is better.
+      call.getPlanner().setImportance(ioSourceRel, 0.0);
       call.transformTo(ioSourceRel.copy(calc.getRowType(), newSchema.getFieldNames(), tableFilter));
       return;
     }
 
-    // TODO: will need to be updated for predicate push-down
-    // Already most optimal case for project push-down
-    if (tableFilter instanceof DefaultTableFilter
+    // Already most optimal case:
+    // Calc contains all unsupported filters.
+    // IO only projects fields utilised by a calc.
+    if (tableFilter.getNotSupported().equals(projectFilter.right)
         && usedFields.size() == ioSourceRel.getRowType().getFieldCount()) {
       return;
     }
 
-    BeamIOSourceRel newIoSourceRel = ioSourceRel.copy(calcInputType, newSchema.getFieldNames(), tableFilter);
+    BeamIOSourceRel newIoSourceRel =
+        ioSourceRel.copy(calcInputType, newSchema.getFieldNames(), tableFilter);
     RelBuilder relBuilder = call.builder();
     relBuilder.push(newIoSourceRel);
 
@@ -141,21 +163,31 @@ public class BeamIOPushDownRule extends RelOptRule {
             .map(FieldDescriptor::getFieldId)
             .collect(Collectors.toList());
 
-    // Map filters to new RexInputRef
+    // Map filters to new RexInputRef.
     for (RexNode filter : tableFilter.getNotSupported()) {
       newFilter.add(reMapRexNodeToNewInputs(filter, mapping));
     }
-    // Map projects to new RexInputRef
+    // Map projects to new RexInputRef.
     for (RexNode project : projectFilter.left) {
       newProjects.add(reMapRexNodeToNewInputs(project, mapping));
     }
 
     relBuilder.filter(newFilter);
-    relBuilder.project(newProjects, calc.getRowType().getFieldNames()); // Preserve named projects
+    relBuilder.project(
+        newProjects, calc.getRowType().getFieldNames(), true); // Always preserve named projects.
 
     RelNode result = relBuilder.build();
 
-    call.transformTo(result);
+    if (newFilter.size() < projectFilter.right.size()) {
+      // Smaller Calc programs are indisputably better.
+      // Tell the optimizer not to use old Calc and IO.
+      call.getPlanner().setImportance(calc, 0.0);
+      call.getPlanner().setImportance(ioSourceRel, 0.0);
+      call.transformTo(result);
+    } else if (newFilter.size() == projectFilter.right.size()) {
+      // But we can consider something with the same number of filters.
+      call.transformTo(result);
+    }
   }
 
   /**
