@@ -25,6 +25,8 @@ project.ext {
   // Version specific code overrides.
   main_source_overrides = ['./src/main/java']
   test_source_overrides = ['./src/test/java']
+  main_resources_overrides = []
+  test_resources_overrides = []
   archives_base_name = 'beam-runners-flink-1.7'
 }
 
