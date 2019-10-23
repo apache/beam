@@ -100,9 +100,14 @@ public class BeamIOPushDownRule extends RelOptRule {
     }
 
     // Find all input refs used by projects
+    boolean hasComplexProjects = false;
     Set<String> usedFields = new LinkedHashSet<>();
     for (RexNode project : projectFilter.left) {
       findUtilizedInputRefs(calcInputRowType, project, usedFields);
+      if (!hasComplexProjects && project instanceof RexCall) {
+        // Ex: 'SELECT field+10 FROM table'
+        hasComplexProjects = true;
+      }
     }
 
     // Find all input refs used by filters
