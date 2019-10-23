@@ -95,7 +95,7 @@ class Pipeline(object):
   (e.g. ``input | "label" >> my_tranform``).
   """
 
-  def __init__(self, runner=None, options=None, argv=None, interactive=None):
+  def __init__(self, runner=None, options=None, argv=None):
     """Initialize a pipeline object.
 
     Args:
@@ -111,8 +111,6 @@ class Pipeline(object):
         to be used for building a
         :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
         This will only be used if argument **options** is :data:`None`.
-      interactive (bool): a boolean value indicating whether the pipeline is
-        created in an interactive environment such as interactive notebooks.
 
     Raises:
       ~exceptions.ValueError: if either the runner or options argument is not
@@ -174,13 +172,10 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()
-    from apache_beam.runners.interactive import interactive_runner
-    if interactive:
-      self.interactive = interactive
-    elif isinstance(self.runner, interactive_runner.InteractiveRunner):
-      self.interactive = True
-    else:
-      self.interactive = False
+    # A boolean value indicating whether the pipeline is created in an
+    # interactive environment such as interactive notebooks. Initialized as
+    # None. The value is set ad hoc when `pipeline.run()` is invoked.
+    self.interactive = None
 
   @property
   @deprecated(since='First stable release',
@@ -405,15 +400,25 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
-  def run(self, test_runner_api=True, runner=None, options=None):
+  def run(self, test_runner_api=True, runner=None, options=None,
+          interactive=None):
     """Runs the pipeline. Returns whatever our runner returns after running.
 
     If another runner instance and options are provided, that runner will
     execute the pipeline with the given options. If either of them is not set,
-    the default runner will run the pipeline with the original options
-    assigned to the pipeline. The usage is similar to directly invoking
+    a ValueError is raised. The usage is similar to directly invoking
     `runner.run_pipeline(pipeline, options)`.
+    Additionally, an interactive field can be set to override the pipeline's
+    self.interactive field to mark current pipeline as being initiated from an
+    interactive environment.
     """
+    from apache_beam.runners.interactive import interactive_runner
+    if interactive:
+      self.interactive = interactive
+    elif isinstance(self.runner, interactive_runner.InteractiveRunner):
+      self.interactive = True
+    else:
+      self.interactive = False
     runner_in_use = self.runner
     options_in_use = self._options
     if runner and options:
@@ -430,8 +435,8 @@ class Pipeline(object):
       return Pipeline.from_runner_api(
           self.to_runner_api(use_fake_coders=True),
           runner_in_use,
-          options_in_use,
-          interactive=self.interactive).run(False)
+          options_in_use).run(test_runner_api=False,
+                              interactive=self.interactive)
 
     if options_in_use.view_as(TypeOptions).runtime_type_check:
       from apache_beam.typehints import typecheck
@@ -696,9 +701,9 @@ class Pipeline(object):
 
   @staticmethod
   def from_runner_api(proto, runner, options, return_context=False,
-                      allow_proto_holders=False, interactive=None):
+                      allow_proto_holders=False):
     """For internal use only; no backwards-compatibility guarantees."""
-    p = Pipeline(runner=runner, options=options, interactive=interactive)
+    p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
         proto.components, allow_proto_holders=allow_proto_holders)
