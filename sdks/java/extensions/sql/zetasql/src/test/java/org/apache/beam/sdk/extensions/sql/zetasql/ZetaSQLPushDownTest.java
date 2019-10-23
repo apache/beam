@@ -187,6 +187,8 @@ public class ZetaSQLPushDownTest {
             .defaultSchema(defaultSchemaPlus)
             .traitDefs(traitDefs)
             .context(Contexts.of(contexts))
+            // TODO[BEAM-8630]: change to BeamRuleSets.getZetaSqlRuleSets()
+            //   once we have fully migrated to BeamZetaSqlCalcRel
             .ruleSets(BeamRuleSets.getRuleSets())
             .costFactory(BeamCostModel.FACTORY)
             .typeSystem(jdbcConnection.getTypeFactory().getTypeSystem())

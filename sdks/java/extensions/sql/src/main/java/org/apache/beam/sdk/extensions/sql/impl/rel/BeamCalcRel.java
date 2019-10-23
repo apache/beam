@@ -91,7 +91,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.ReadableInstant;
 
 /** BeamRelNode to replace a {@code Project} node. */
-public class BeamCalcRel extends Calc implements BeamRelNode {
+public class BeamCalcRel extends Calc implements BeamRelNode, WithLimitableInput {
 
   private static final ParameterExpression outputSchemaParam =
       Expressions.parameter(Schema.class, "outputSchema");
@@ -147,7 +147,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       final RelMetadataQuery mq = RelMetadataQuery.instance();
       final RelOptPredicateList predicates = mq.getPulledUpPredicates(getInput());
       final RexSimplify simplify = new RexSimplify(rexBuilder, predicates, RexUtil.EXECUTOR);
-      final RexProgram program = BeamCalcRel.this.program.normalize(rexBuilder, simplify);
+      final RexProgram program = getProgram().normalize(rexBuilder, simplify);
 
       Expression condition =
           RexToLixTranslator.translateCondition(
@@ -210,6 +210,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
   }
 
+  @Override
   public int getLimitCountOfSortRel() {
     if (input instanceof BeamSortRel) {
       return ((BeamSortRel) input).getCount();
@@ -247,6 +248,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     return BeamCostModel.FACTORY.makeCost(inputStat.getRowCount(), inputStat.getRate());
   }
 
+  @Override
   public boolean isInputSortRelAndLimitOnly() {
     return (input instanceof BeamSortRel) && ((BeamSortRel) input).isLimitOnly();
   }
@@ -306,7 +308,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
           .put(TypeName.DOUBLE, Double.class)
           .build();
 
-  private Expression castOutput(Expression value, FieldType toType) {
+  private static Expression castOutput(Expression value, FieldType toType) {
     if (value.getType() == Object.class || !(value.getType() instanceof Class)) {
       // fast copy path, just pass object through
       return value;
@@ -334,7 +336,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     return value;
   }
 
-  private Expression castOutputTime(Expression value, FieldType toType) {
+  private static Expression castOutputTime(Expression value, FieldType toType) {
     Expression valueDateTime = value;
 
     // First, convert to millis
