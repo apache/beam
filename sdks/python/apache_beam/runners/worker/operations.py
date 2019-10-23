@@ -655,11 +655,7 @@ class DoOperation(Operation):
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
-      delayed_application = self.dofn_receiver.receive(o)
-      if delayed_application:
-        assert self.execution_context is not None
-        self.execution_context.delayed_applications.append(
-            (self, delayed_application))
+      self.dofn_receiver.receive(o)
 
   def finalize_bundle(self):
     # type: () -> None
