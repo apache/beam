@@ -1,6 +1,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.COMPARISON;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.IN;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +48,11 @@ public class TestTableFilter implements BeamSqlTableFilter {
 
       // Only support comparisons in a predicate
       if (!node.getKind().belongsTo(COMPARISON)) {
+        return false;
+      }
+
+      // Not support IN operator for now
+      if (node.getKind().equals(IN)) {
         return false;
       }
 

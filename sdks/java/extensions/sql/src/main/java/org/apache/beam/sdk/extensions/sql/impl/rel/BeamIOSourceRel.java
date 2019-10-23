@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
@@ -41,9 +42,11 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.RelOptTableImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelWriter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.TableScan;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 
 /** BeamRelNode to replace a {@code TableScan} node. */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
@@ -110,6 +113,24 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     return new Transform();
   }
 
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    super.explainTerms(pw);
+
+    // This is done to tell Calcite planner that BeamIOSourceRel cannot be simply substituted by
+    //  another BeamIOSourceRel, except for when they carry the same content.
+    if (!usedFields.isEmpty()) {
+      pw.item("usedFields", usedFields.toString());
+    }
+    if (!tableFilters.getNotSupported().isEmpty()) {
+      String filter = tableFilters.getNotSupported().stream().map(RexNode::toString)
+          .collect(Collectors.joining());
+      pw.item("notSupportedFilters", filter);
+    }
+
+    return pw;
+  }
+
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
@@ -142,9 +163,26 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
-    return BeamCostModel.FACTORY
-        .makeCost(estimates.getRowCount(), estimates.getRate())
-        .multiplyBy(getRowType().getFieldCount());
+    BeamCostModel cost = BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
+
+    // Favor IOs with more projected fields pushed-down
+    cost = cost.multiplyBy(getRowType().getFieldCount());
+
+    // We need to tell the optimizer to favor IOs with smaller number of not supported filters.
+    // Best case: entire predicate is pushed-down, in other words '0' of not supported filters.
+    double notSupportedFilters = tableFilters.getNotSupported().size();
+    /* For example:
+      | notSupportedFilters | filterPushDownFactor |
+      |         0           |          0           |
+      |         1           |         0.5          |
+      |         2           |         0.33         |
+      |         3           |         0.25         |
+     */
+    final double filterPushDownFactor = notSupportedFilters / (notSupportedFilters + 1);
+    // Increase cost by a coefficient of a current cost
+    cost = cost.plus(cost.multiplyBy(filterPushDownFactor));
+
+    return cost;
   }
 
   public BeamSqlTable getBeamSqlTable() {
