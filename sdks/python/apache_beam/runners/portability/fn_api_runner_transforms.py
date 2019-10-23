@@ -294,8 +294,9 @@ class TransformContext(object):
     self.components = components
     self.known_runner_urns = known_runner_urns
     self.use_state_iterables = use_state_iterables
-    self.bytes_coder_id = self.add_or_get_coder_id(
-        coders.BytesCoder().to_runner_api(None), 'bytes_coder')
+    # ok to pass None for context because BytesCoder has no components
+    coder_proto = coders.BytesCoder().to_runner_api(None)  # type: ignore[arg-type]
+    self.bytes_coder_id = self.add_or_get_coder_id(coder_proto, 'bytes_coder')
     self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
 
   def add_or_get_coder_id(self, coder_proto, coder_prefix='coder'):
@@ -833,7 +834,9 @@ def expand_sdf(stages, context):
                 component_coder_ids=[
                     paired_coder_id,
                     context.add_or_get_coder_id(
-                        coders.FloatCoder().to_runner_api(None),
+                        # context can be None here only because FloatCoder does
+                        # not have components
+                        coders.FloatCoder().to_runner_api(None), # type: ignore
                         'doubles_coder')
                 ]))
 
