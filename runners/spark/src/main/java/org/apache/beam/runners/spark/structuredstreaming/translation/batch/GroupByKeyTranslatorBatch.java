@@ -62,8 +62,7 @@ class GroupByKeyTranslatorBatch<K, V>
     // group by key only
     Coder<K> keyCoder = kvCoder.getKeyCoder();
     KeyValueGroupedDataset<K, WindowedValue<KV<K, V>>> groupByKeyOnly =
-        input.groupByKey(KVHelpers.extractKey(), EncoderHelpers.fromBeamCoder(
-            keyCoder));
+        input.groupByKey(KVHelpers.extractKey(), EncoderHelpers.fromBeamCoder(keyCoder));
 
     // Materialize groupByKeyOnly values, potential OOM because of creation of new iterable
     Coder<V> valueCoder = kvCoder.getValueCoder();
@@ -92,8 +91,9 @@ class GroupByKeyTranslatorBatch<K, V>
             EncoderHelpers.fromBeamCoder(KvCoder.of(keyCoder, iterableCoder)));
 
     // group also by windows
-    WindowedValue.FullWindowedValueCoder<KV<K, Iterable<V>>> outputCoder = WindowedValue.FullWindowedValueCoder
-        .of(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)),
+    WindowedValue.FullWindowedValueCoder<KV<K, Iterable<V>>> outputCoder =
+        WindowedValue.FullWindowedValueCoder.of(
+            KvCoder.of(keyCoder, IterableCoder.of(valueCoder)),
             windowingStrategy.getWindowFn().windowCoder());
     Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
         materialized.flatMap(

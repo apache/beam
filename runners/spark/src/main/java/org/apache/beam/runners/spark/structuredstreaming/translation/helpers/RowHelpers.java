@@ -53,7 +53,7 @@ public final class RowHelpers {
   }
 
   /**
-   * Serialize a windowedValue to bytes using windowed {@link WindowedValue.FullWindowedValueCoder}
+   * Serialize a windowedValue to bytes using windowedValueCoder {@link WindowedValue.FullWindowedValueCoder}
    * and stores it an InternalRow.
    */
   public static <T> InternalRow storeWindowedValueInRow(
