@@ -136,7 +136,8 @@ class MainInputTest(unittest.TestCase):
     even, odd = (p
                  | beam.Create([1, 2, 3])
                  | 'even_odd' >> beam.Partition(lambda e, _: e % 2, 2))
-    # Test that the element type of even and odd is int.
+    self.assertIsNotNone(even.element_type)
+    self.assertIsNotNone(odd.element_type)
     res_even = (even
                 | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
     res_odd = (odd
@@ -157,7 +158,8 @@ class MainInputTest(unittest.TestCase):
     res = (p
            | beam.Create([1, 2, 3])
            | beam.ParDo(MyDoFn()).with_outputs('odd', 'even'))
-    # Test that the element type of even and odd is int.
+    self.assertIsNotNone(res['even'].element_type)
+    self.assertIsNotNone(res['odd'].element_type)
     res_even = (res['even']
                 | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
     res_odd = (res['odd']
