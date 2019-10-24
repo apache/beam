@@ -76,8 +76,8 @@ class MainInputTest(unittest.TestCase):
     # Type hints applied to ParDo instance take precedence over callable
     # decorators and annotations.
     @typehints.with_input_types(typehints.Tuple[int, int])
-    @typehints.with_output_types(int)
-    def do_fn(element: typehints.Tuple[int, int]) -> typehints.Generator[int]:
+    @typehints.with_output_types(typehints.Generator[int])
+    def do_fn(element: typehints.Tuple[int, int]) -> typehints.Generator[str]:
       yield str(element)
     pardo = beam.ParDo(do_fn).with_input_types(int).with_output_types(str)
 
@@ -92,10 +92,8 @@ class MainInputTest(unittest.TestCase):
                                 r'requires.*int.*got.*str'):
       _ = [1, 2, 3] | (pardo | 'again' >> pardo)
 
-  @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
   def test_typed_callable_iterable_output(self):
-    # TODO(BEAM-7981): Both Iterables get stripped in
-    #   CallableWrapperDoFn.default_type_hints, but only one should.
+    # Only the outer Iterable should be stripped.
     def do_fn(element: int) -> typehints.Iterable[typehints.Iterable[str]]:
       return [[str(element)] * 2]
 
@@ -111,10 +109,11 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.ParDo(MyDoFn())
 
   def test_typed_callable_not_iterable(self):
-    def do_fn(element: typehints.Tuple[int, int]) -> int:
-      return element[0]
-    with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
+    def do_fn(element: int) -> int:
+      return [element]  # Return a list to not fail the pipeline.
+    with self.assertLogs() as cm:
       _ = [1, 2, 3] | beam.ParDo(do_fn)
+    self.assertRegex(''.join(cm.output), r'int.*is not iterable')
 
   def test_typed_dofn_kwonly(self):
     class MyDoFn(beam.DoFn):
@@ -163,7 +162,7 @@ class AnnotationsTest(unittest.TestCase):
       def process(self, element: int) -> str:
         return str(element)
 
-    with self.assertRaisesRegex(ValueError, r'Return value not iterable'):
+    with self.assertRaisesRegex(ValueError, r'str.*is not iterable'):
       _ = beam.ParDo(MyDoFn()).get_type_hints()
 
   def test_pardo_wrapper(self):
@@ -174,12 +173,23 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((str,), {}))
 
+  def test_pardo_wrapper_tuple(self):
+    # Test case for callables that return key-value pairs for GBK. The outer
+    # Iterable should be stripped but the inner Tuple left intact.
+    def do_fn(element: int) -> typehints.Iterable[typehints.Tuple[str, int]]:
+      return [(str(element), element)]
+
+    th = beam.ParDo(do_fn).get_type_hints()
+    self.assertEqual(th.input_types, ((int,), {}))
+    self.assertEqual(th.output_types, ((typehints.Tuple[str, int],), {}))
+
   def test_pardo_wrapper_not_iterable(self):
     def do_fn(element: int) -> str:
       return str(element)
 
-    with self.assertRaisesRegex(ValueError, r'Return value not iterable'):
+    with self.assertLogs() as cm:
       _ = beam.ParDo(do_fn).get_type_hints()
+    self.assertRegex(''.join(cm.output), r'do_fn.* not iterable')
 
   def test_flat_map_wrapper(self):
     def map_fn(element: int) -> typehints.Iterable[int]:
