@@ -74,6 +74,8 @@ public class FlinkMetricContainer {
       metricsAccumulator = new MetricsAccumulator();
       try {
         runtimeContext.addAccumulator(ACCUMULATOR_NAME, metricsAccumulator);
+      } catch (UnsupportedOperationException e) {
+        // Not supported in all environments, e.g. tests
       } catch (Exception e) {
         LOG.error("Failed to create metrics accumulator.", e);
       }
@@ -119,8 +121,8 @@ public class FlinkMetricContainer {
       Counter counter =
           flinkCounterCache.computeIfAbsent(
               flinkMetricName, n -> runtimeContext.getMetricGroup().counter(n));
-      counter.dec(counter.getCount());
-      counter.inc(update);
+      // Beam counters are already pre-aggregated, just update with the current value here
+      counter.inc(update - counter.getCount());
     }
   }
 
@@ -190,7 +192,7 @@ public class FlinkMetricContainer {
   }
 
   /** Flink {@link Gauge} for {@link GaugeResult}. */
-  public static class FlinkGauge implements Gauge<GaugeResult> {
+  public static class FlinkGauge implements Gauge<Long> {
 
     GaugeResult data;
 
@@ -203,8 +205,8 @@ public class FlinkMetricContainer {
     }
 
     @Override
-    public GaugeResult getValue() {
-      return data;
+    public Long getValue() {
+      return data.getValue();
     }
   }
 }

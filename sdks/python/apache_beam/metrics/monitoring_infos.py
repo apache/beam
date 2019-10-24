@@ -217,6 +217,25 @@ def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
                                 labels)
 
 
+def int64_gauge(urn, metric, ptransform=None, tag=None):
+  """Return the gauge monitoring info for the URN, metric and labels.
+
+  Args:
+    urn: The URN of the monitoring info/metric.
+    metric: The metric proto field to use in the monitoring info.
+    ptransform: The ptransform/step name used as a label.
+    tag: The output tag name, used as a label.
+  """
+  labels = create_labels(ptransform=ptransform, tag=tag)
+  if isinstance(metric, int):
+    metric = metrics_pb2.Metric(
+        counter_data=metrics_pb2.CounterData(
+            int64_value=metric
+        )
+    )
+  return create_monitoring_info(urn, LATEST_INT64_TYPE, metric, labels)
+
+
 def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
   """Return the gauge monitoring info for the URN, type, metric and labels.
 
