@@ -1,0 +1,6 @@
+type: edu
+files:
+- name: src/org/apache/beam/learning/katas/io/builtinios/Task.java
+  visible: true
+- name: test/org/apache/beam/learning/katas/io/builtinios/TaskTest.java
+  visible: false

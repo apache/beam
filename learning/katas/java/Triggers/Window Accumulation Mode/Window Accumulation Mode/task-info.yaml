@@ -1,0 +1,12 @@
+type: edu
+files:
+- name: src/org/apache/beam/learning/katas/triggers/windowaccummode/GenerateEvent.java
+  visible: true
+- name: src/org/apache/beam/learning/katas/triggers/windowaccummode/Task.java
+  visible: true
+  placeholders:
+  - offset: 1972
+    length: 471
+    placeholder_text: TODO()
+- name: test/org/apache/beam/learning/katas/triggers/windowaccummode/TaskTest.java
+  visible: false

@@ -1,0 +1,14 @@
+title: Beam Katas - Java
+language: English
+summary: "This course provides a series of katas to get familiar with Apache Beam.\
+  \ \n\nApache Beam website – https://beam.apache.org/"
+programming_language: Java
+programming_language_version: 8
+content:
+- Introduction
+- Core Transforms
+- Common Transforms
+- IO
+- Windowing
+- Triggers
+- Examples

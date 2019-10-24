@@ -1,0 +1,10 @@
+type: edu
+files:
+- name: src/org/apache/beam/learning/katas/commontransforms/filter/filter/Task.java
+  visible: true
+  placeholders:
+  - offset: 1718
+    length: 49
+    placeholder_text: TODO()
+- name: test/org/apache/beam/learning/katas/commontransforms/filter/filter/TaskTest.java
+  visible: false

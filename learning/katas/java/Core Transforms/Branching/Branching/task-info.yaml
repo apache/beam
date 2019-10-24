@@ -1,0 +1,13 @@
+type: edu
+files:
+- name: src/org/apache/beam/learning/katas/coretransforms/branching/Task.java
+  visible: true
+  placeholders:
+  - offset: 1994
+    length: 78
+    placeholder_text: TODO()
+  - offset: 2175
+    length: 80
+    placeholder_text: TODO()
+- name: test/org/apache/beam/learning/katas/coretransforms/branching/TaskTest.java
+  visible: false
