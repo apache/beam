@@ -18,6 +18,7 @@
 -->
 
 # Apache Beam
+Trigger nightly.
 
 [Apache Beam](http://beam.apache.org/) is a unified model for defining both batch and streaming data-parallel processing pipelines, as well as a set of language-specific SDKs for constructing pipelines and Runners for executing them on distributed processing backends, including [Apache Apex](http://apex.apache.org/), [Apache Flink](http://flink.apache.org/), [Apache Spark](http://spark.apache.org/), [Google Cloud Dataflow](http://cloud.google.com/dataflow/) and [Hazelcast Jet](https://jet.hazelcast.org/).
 
