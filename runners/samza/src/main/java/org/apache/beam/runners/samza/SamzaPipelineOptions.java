@@ -105,4 +105,16 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   List<MetricsReporter> getMetricsReporters();
 
   void setMetricsReporters(List<MetricsReporter> reporters);
+
+  @Description("The maximum number of elements in a bundle.")
+  @Default.Long(1)
+  long getMaxBundleSize();
+
+  void setMaxBundleSize(long maxBundleSize);
+
+  @Description("The maximum time to wait before finalising a bundle (in milliseconds).")
+  @Default.Long(1000)
+  long getMaxBundleTimeMs();
+
+  void setMaxBundleTimeMs(long maxBundleTimeMs);
 }

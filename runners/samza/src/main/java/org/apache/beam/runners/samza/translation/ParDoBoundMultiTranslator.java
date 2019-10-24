@@ -144,6 +144,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             transform.getFn(),
             keyCoder,
             (Coder<InT>) input.getCoder(),
+            null,
             outputCoders,
             transform.getSideInputs().values(),
             transform.getAdditionalOutputTags().getAll(),
@@ -254,6 +255,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             new NoOpDoFn<>(),
             null, // key coder not in use
             windowedInputCoder.getValueCoder(), // input coder not in use
+            windowedInputCoder,
             Collections.emptyMap(), // output coders not in use
             Collections.emptyList(), // sideInputs not in use until side input support
             new ArrayList<>(idToTupleTagMap.values()), // used by java runner only
