@@ -195,9 +195,9 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
                     | beam.Map(lambda rf:
-                        rf.open(
-                            compression_type=CompressionTypes.GZIP)
-                        .read(len(file_contents))))
+                               rf.open(
+                                   compression_type=CompressionTypes.GZIP)
+                               .read(len(file_contents))))
 
       assert_that(content_pc, equal_to([file_contents]))
 
