@@ -499,9 +499,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     with self.assertRaises(Exception):
       with TestPipeline('DirectRunner') as p:
         references = beam.pvalue.AsList(p | 'job_ref' >> beam.Create(dest_list))
-        outputs = (p
-                   | beam.Create([''])
-                   | beam.ParDo(waiting_dofn, references))
+        _ = (p
+             | beam.Create([''])
+             | beam.ParDo(waiting_dofn, references))
 
     sleep_mock.assert_called_once()
 
