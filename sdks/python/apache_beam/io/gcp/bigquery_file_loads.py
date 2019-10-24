@@ -527,6 +527,8 @@ class WaitForBQJobs(beam.DoFn):
         return WaitForBQJobs.FAILED
       elif job.status.state == 'DONE':
         continue
+      else:
+        return WaitForBQJobs.WAITING
 
     return WaitForBQJobs.ALL_DONE
 
