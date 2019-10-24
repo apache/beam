@@ -64,7 +64,8 @@ class ReadFromKafka(ExternalTransform):
     Note: Runners need to support translating Read operations in order to use
     this source. At the moment only the Flink Runner supports this.
 
-    Experimental; no backwards compatibility guarantees.
+    Experimental; no backwards compatibility guarantees.  It requires special
+    preparation of the Java SDK.  See BEAM-7870.
   """
 
   # Returns the key/value data as raw byte arrays
@@ -128,7 +129,8 @@ class WriteToKafka(ExternalTransform):
     If no Kafka Serializer for key/value is provided, then key/value are
     assumed to be byte arrays.
 
-    Experimental; no backwards compatibility guarantees.
+    Experimental; no backwards compatibility guarantees.  It requires special
+    preparation of the Java SDK.  See BEAM-7870.
   """
 
   # Default serializer which passes raw bytes to Kafka
