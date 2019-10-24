@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -57,7 +55,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.samza.config.TaskConfig;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.functions.FlatMapFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
@@ -79,36 +76,11 @@ class ParDoBoundMultiTranslator<InT, OutT>
     doFnInvokerRegistrar = invokerReg.hasNext() ? Iterators.getOnlyElement(invokerReg) : null;
   }
 
-  /*
-   * Perform some common pipeline option validation. Bundling related logic for now
-   */
-  private static void validatePipelineOption(
-      SamzaPipelineOptions pipelineOptions, boolean isPortable) {
-    // validate bundling related logic
-    if (pipelineOptions.getMaxBundleSize() > 1) {
-      // TODO: remove this check and implement bundling for side input, timer, etc in DoFnOp.java
-      checkState(
-          isPortable,
-          "Bundling is not supported in non portable mode. Please disable by setting maxBundleSize to 1.");
-
-      String taskConcurrencyConfig = TaskConfig.MAX_CONCURRENCY();
-      long taskConcurrency =
-          Long.parseLong(
-              pipelineOptions.getConfigOverride().getOrDefault(taskConcurrencyConfig, "1"));
-      checkState(
-          taskConcurrency == 1,
-          "Bundling is not supported if "
-              + taskConcurrencyConfig
-              + " is greater than 1. Please disable bundling by setting maxBundleSize to 1. Or disable task concurrency.");
-    }
-  }
-
   @Override
   public void translate(
       ParDo.MultiOutput<InT, OutT> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
-    validatePipelineOption(ctx.getPipelineOptions(), false);
     doTranslate(transform, node, ctx);
   }
 
@@ -222,7 +194,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
-    validatePipelineOption(ctx.getSamzaPipelineOptions(), true);
     doTranslatePortable(transform, pipeline, ctx);
   }
 

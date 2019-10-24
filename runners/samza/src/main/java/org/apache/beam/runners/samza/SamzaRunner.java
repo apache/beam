@@ -36,6 +36,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.samza.application.StreamApplication;
@@ -56,7 +57,8 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
 
   public static SamzaRunner fromOptions(PipelineOptions opts) {
-    final SamzaPipelineOptions samzaOptions = SamzaPipelineOptionsValidator.validate(opts);
+    final SamzaPipelineOptions samzaOptions =
+        PipelineOptionsValidator.validate(SamzaPipelineOptions.class, opts);
     return new SamzaRunner(samzaOptions);
   }
 
@@ -133,6 +135,9 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
               pipeline, new TranslationContext(appDescriptor, idMap, options));
         };
 
+    // perform a final round of validation for the pipeline options now that all configs are
+    // generated
+    SamzaPipelineOptionsValidator.validate(options);
     ApplicationRunner runner = runSamzaApp(app, config);
     return new SamzaPipelineResult(app, runner, executionContext, listener, config);
   }
