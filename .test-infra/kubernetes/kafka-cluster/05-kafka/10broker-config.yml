@@ -15,7 +15,6 @@
 kind: ConfigMap
 metadata:
   name: broker-config
-  namespace: kafka
 apiVersion: v1
 data:
   init.sh: |-
