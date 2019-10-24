@@ -40,7 +40,11 @@ ReadFromPubsubSchema = typing.NamedTuple(
 
 
 class ReadFromPubSub(beam.PTransform):
-  """An external ``PTransform`` for reading from Cloud Pub/Sub."""
+  """An external ``PTransform`` for reading from Cloud Pub/Sub.
+
+  Experimental; no backwards compatibility guarantees.  It requires special
+  preparation of the Java SDK.  See BEAM-7870.
+  """
 
   URN = 'beam:external:java:pubsub:read:v1'
 
@@ -115,7 +119,11 @@ WriteToPubsubSchema = typing.NamedTuple(
 
 
 class WriteToPubSub(beam.PTransform):
-  """An external ``PTransform`` for writing messages to Cloud Pub/Sub."""
+  """An external ``PTransform`` for writing messages to Cloud Pub/Sub.
+
+  Experimental; no backwards compatibility guarantees.  It requires special
+  preparation of the Java SDK.  See BEAM-7870.
+  """
 
   URN = 'beam:external:java:pubsub:write:v1'
 
