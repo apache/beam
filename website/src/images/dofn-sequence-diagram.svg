@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="863px" preserveAspectRatio="none" style="width:740px;height:863px;" version="1.1" viewBox="0 0 740 863" width="740px" zoomAndPan="magnify"><defs/><g><rect fill="#6B9FE6" height="781.5625" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="49" y="60.8125"/><rect fill="#6B9FE6" height="425.2813" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="273" y="417.0938"/><rect fill="#6B9FE6" height="425.2813" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="547" y="417.0938"/><line style="stroke: #6B9FE6; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="54" x2="54" y1="50.8125" y2="851.375"/><line style="stroke: #6B9FE6; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="278" x2="278" y1="50.8125" y2="851.375"/><line style="stroke: #6B9FE6; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="551.5" x2="551.5" y1="50.8125" y2="851.375"/><rect fill="#8AC483" height="30.4063" style="stroke: #8AC483; stroke-width: 1.5;" width="92" x="8" y="19.4063"/><text fill="#000000" font-family="Roboto" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="78" x="15" y="39.3945">User pipeline</text><rect fill="#8AC483" height="46.8125" style="stroke: #8AC483; stroke-width: 1.5;" width="94" x="231" y="3"/><text fill="#000000" font-family="Roboto" font-size="14" font-style="italic" lengthAdjust="spacingAndGlyphs" textLength="80" x="238" y="24">«Serializable»</text><text fill="#000000" font-family="Roboto" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="33" x="261.5" y="40.4063">DoFn</text><rect fill="#8AC483" height="30.4063" style="stroke: #8AC483; stroke-width: 1.5;" width="59" x="522.5" y="19.4063"/><text fill="#000000" font-family="Roboto" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="45" x="529.5" y="39.3945">Runner</text><rect fill="#6B9FE6" height="781.5625" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="49" y="60.8125"/><rect fill="#6B9FE6" height="425.2813" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="273" y="417.0938"/><rect fill="#6B9FE6" height="425.2813" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="547" y="417.0938"/><path d="M283,65.8125 L283,105.8125 L515,105.8125 L515,75.8125 L505,65.8125 L283,65.8125 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M505,65.8125 L505,75.8125 L515,75.8125 L505,65.8125 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="181" x="289" y="82.873">can have non-transient instance</text><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="211" x="289" y="98.1074">variable state that will be deserialized</text><path d="M283,116.2813 L283,156.2813 L643,156.2813 L643,126.2813 L633,116.2813 L283,116.2813 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M633,116.2813 L633,126.2813 L643,126.2813 L633,116.2813 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="332" x="289" y="133.3418">do not include enclosing class serializable state; use static</text><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="339" x="289" y="148.5762">nested DoFn or define as anonymous class in static method</text><path d="M283,166.75 L283,206.75 L725,206.75 L725,176.75 L715,166.75 L283,166.75 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M715,166.75 L715,176.75 L725,176.75 L715,166.75 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="421" x="289" y="183.8105">no shared (global) static variable access (no sync mechanism) but a beam</text><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="409" x="289" y="199.0449">state (based on engine mechanisms) can be injected to processElement</text><path d="M283,217.2188 L283,257.2188 L648,257.2188 L648,227.2188 L638,217.2188 L283,217.2188 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M638,217.2188 L638,227.2188 L648,227.2188 L638,217.2188 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="344" x="289" y="234.2793">keep as pure function as possible or idempotent side effects</text><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="269" x="289" y="249.5137">because DoFns can be retried on failed bundles</text><polygon fill="#67666A" points="266,279.9219,276,283.9219,266,287.9219,270,283.9219" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="59" x2="272" y1="283.9219" y2="283.9219"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="69" x="66" y="278.748">create DoFn</text><polygon fill="#67666A" points="540,309.1563,550,313.1563,540,317.1563,544,313.1563" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="278" x2="546" y1="313.1563" y2="313.1563"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="250" x="285" y="307.9824">passed instance or deserialized on workers</text><path d="M64,326.1563 L64,366.1563 L405,366.1563 L405,336.1563 L395,326.1563 L64,326.1563 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M395,326.1563 L395,336.1563 L405,336.1563 L395,326.1563 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="320" x="70" y="343.2168">If state variables are known at pipeline construction step</text><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="216" x="70" y="358.4512">initialize state variables by constructor</text><path d="M201,378.625 L331,378.625 L331,385.625 L321,395.625 L201,395.625 L201,378.625 " fill="#8AC483" style="stroke: #8AC483; stroke-width: 1.0;"/><rect fill="none" height="455.75" style="stroke: #8AC483; stroke-width: 2.0;" width="528" x="201" y="378.625"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="85" x="216" y="391.6855">DoFn Lifecycle</text><polygon fill="#67666A" points="294,413.0938,284,417.0938,294,421.0938,290,417.0938" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="288" x2="546" y1="417.0938" y2="417.0938"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="55" x="300" y="411.9199">call setup</text><path d="M288,430.0938 L288,455.0938 L658,455.0938 L658,440.0938 L648,430.0938 L288,430.0938 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M648,430.0938 L648,440.0938 L658,440.0938 L648,430.0938 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="349" x="294" y="447.1543">reused instance to process other bundles on the same worker</text><path d="M288,465.3281 L288,505.3281 L719,505.3281 L719,475.3281 L709,465.3281 L288,465.3281 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M709,465.3281 L709,475.3281 L719,475.3281 L709,465.3281 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="410" x="294" y="482.3887">If state variables do not depend on the main pipeline program and are the</text><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="288" x="294" y="497.623">same for all DoFn instances initialize them in setup</text><path d="M211,517.7969 L347,517.7969 L347,524.7969 L337,534.7969 L211,534.7969 L211,517.7969 " fill="#8AC483" style="stroke: #8AC483; stroke-width: 1.0;"/><rect fill="none" height="245.1094" style="stroke: #8AC483; stroke-width: 2.0;" width="390.5" x="211" y="517.7969"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="91" x="226" y="530.8574">For each bundle</text><polygon fill="#67666A" points="294,552.2656,284,556.2656,294,560.2656,290,556.2656" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="288" x2="546" y1="556.2656" y2="556.2656"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="89" x="300" y="551.0918">call startBundle</text><path d="M221,571.2656 L365,571.2656 L365,578.2656 L355,588.2656 L221,588.2656 L221,571.2656 " fill="#8AC483" style="stroke: #8AC483; stroke-width: 1.0;"/><rect fill="none" height="126.1719" style="stroke: #8AC483; stroke-width: 2.0;" width="370.5" x="221" y="571.2656"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="99" x="236" y="584.3262">For each element</text><polygon fill="#67666A" points="294,605.7344,284,609.7344,294,613.7344,290,609.7344" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="288" x2="546" y1="609.7344" y2="609.7344"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="116" x="300" y="604.5605">call processElement</text><path d="M288,622.7344 L288,662.7344 L569,662.7344 L569,632.7344 L559,622.7344 L288,622.7344 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M559,622.7344 L559,632.7344 L569,632.7344 L559,622.7344 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="260" x="294" y="639.7949">If state variables are computed by the pipeline</text><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="240" x="294" y="655.0293">pass it in a PcollectionView as a side input</text><polygon fill="#67666A" points="535,685.4375,545,689.4375,535,693.4375,539,689.4375" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0; stroke-dasharray: 2.0,2.0;" x1="283" x2="541" y1="689.4375" y2="689.4375"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="36" x="290" y="684.2637">output</text><polygon fill="#67666A" points="294,721.6719,284,725.6719,294,729.6719,290,725.6719" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="288" x2="546" y1="725.6719" y2="725.6719"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="70" x="300" y="720.498">call onTimer</text><polygon fill="#67666A" points="294,750.9063,284,754.9063,294,758.9063,290,754.9063" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="288" x2="546" y1="754.9063" y2="754.9063"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="94" x="300" y="749.7324">call finishBundle</text><polygon fill="#67666A" points="535,787.1406,545,791.1406,535,795.1406,539,791.1406" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="283" x2="541" y1="791.1406" y2="791.1406"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="234" x="290" y="785.9668">If DoFn is no more needed: call tearDown</text><path d="M288,804.1406 L288,829.1406 L633,829.1406 L633,814.1406 L623,804.1406 L288,804.1406 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M623,804.1406 L623,814.1406 L633,814.1406 L623,804.1406 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="324" x="294" y="821.2012">Call of teardown is best effort; do not use for side effects</text><!--MD5=[4b9cd25bbc466f533d08153696c40e3e]
+@startuml
+
+hide footbox
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName "Roboto"
+
+skinparam sequenceArrowThickness 2
+
+skinparam note {
+  BackgroundColor #cee2f2
+  BorderColor #cee2f2
+}
+
+skinparam sequence {
+  ArrowColor #67666a
+
+  LifeLineBorderColor #6b9fe6
+  LifeLineBackgroundColor #6b9fe6
+
+  GroupBackgroundColor #8ac483
+  GroupBorderColor #8ac483
+
+  ParticipantBackgroundColor #8ac483
+  ParticipantBorderColor #8ac483
+}
+
+participant "User pipeline" as Pipeline
+participant DoFn << Serializable >>
+note right of DoFn: can have non-transient instance\nvariable state that will be deserialized
+note right of DoFn: do not include enclosing class serializable state; use static\nnested DoFn or define as anonymous class in static method
+note right of DoFn: no shared (global) static variable access (no sync mechanism) but a beam\nstate (based on engine mechanisms) can be injected to processElement
+note right of DoFn: keep as pure function as possible or idempotent side effects\nbecause DoFns can be retried on failed bundles
+
+participant Runner
+
+activate Pipeline
+Pipeline -> DoFn: **create DoFn                                          **
+DoFn -> Runner: **passed instance or deserialized on workers**
+
+note right Pipeline: If state variables are known at pipeline construction step\ninitialize state variables by constructor
+
+group DoFn Lifecycle
+  Runner -> DoFn: **call setup**
+  activate Runner
+  activate DoFn
+  note right DoFn: reused instance to process other bundles on the same worker
+  note right DoFn: If state variables do not depend on the main pipeline program and are the\nsame for all DoFn instances initialize them in setup
+  group For each bundle
+    Runner -> DoFn: **call startBundle**
+    group For each element
+      Runner -> DoFn: **call processElement**
+      note right DoFn: If state variables are computed by the pipeline\npass it in a PcollectionView as a side input
+      DoFn - -> Runner: output
+    end
+    DoFn <- Runner: call onTimer
+    DoFn <- Runner: **call finishBundle**
+  end
+  DoFn -> Runner: **If DoFn is no more needed: call tearDown**
+  note right DoFn: Call of teardown is best effort; do not use for side effects
+end
+
+@enduml
+
+PlantUML version 1.2019.11(Sun Sep 22 12:02:15 CEST 2019)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Java Version: 1.8.0_222-b10
+Operating System: Linux
+Default Encoding: UTF-8
+Language: en
+Country: CA
+--></g></svg>
