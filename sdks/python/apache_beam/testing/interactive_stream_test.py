@@ -24,7 +24,6 @@ import grpc
 from apache_beam import coders
 from apache_beam.portability.api import beam_interactive_api_pb2 as interactive_api
 from apache_beam.portability.api import beam_interactive_api_pb2_grpc as interactive_api_grpc
-from apache_beam.portability.api.beam_interactive_api_pb2 import State as ServiceState
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
@@ -61,43 +60,24 @@ class InteractiveStreamTest(unittest.TestCase):
   def tearDown(self):
     self.controller.stop()
 
-  def test_server_connectivity(self):
-    self.stub.Status(interactive_api.StatusRequest())
-
-  def test_start_call(self):
-    self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
-
-    status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, ServiceState.RUNNING)
-
-  def test_stop_call(self):
-    self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
-    self.stub.Stop(interactive_api.StopRequest())
-
-    status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, ServiceState.STOPPED)
-
   def test_normal_run(self):
-    """Tests state transitions from STOPPED, RUNNING, to STOPPED.
-    """
-    status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, ServiceState.STOPPED)
-
-    self.stub.Start(interactive_api.StartRequest(playback_speed=1000000))
-
-    events = [e for e in self.stub.Events(interactive_api.EventsRequest())]
-    self.assertTrue(events)
-
-    status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, ServiceState.RUNNING)
-
+    events = []
     while True:
-      events = [e for e in self.stub.Events(interactive_api.EventsRequest())]
-      if events[0].end_of_stream:
+      e = [e for e in self.stub.Events(interactive_api.EventsRequest())]
+      if e[0].end_of_stream:
+        break
+      events = events + [j for i in e for j in i.events]
+
+    streaming_cache_reader = StreamingCache(readers=[InMemoryReader()]).reader()
+    expected_events = []
+    while True:
+      e = streaming_cache_reader.read()
+      if e:
+        expected_events += e
+      else:
         break
 
-    status = self.stub.Status(interactive_api.StatusRequest())
-    self.assertEqual(status.state, ServiceState.STOPPED)
+    self.assertEqual(events, expected_events)
 
 
 if __name__ == '__main__':
