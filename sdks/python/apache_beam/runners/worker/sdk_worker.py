@@ -567,9 +567,9 @@ class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   @abc.abstractmethod
   def get_raw(self,
               state_key,  # type: beam_fn_api_pb2.StateKey
-              continuation_token=None  # type: Optional[bytes]
+              continuation_token=None  # type: Optional[str]
              ):
-    # type: (...) -> Tuple[bytes, Optional[bytes]]
+    # type: (...) -> Tuple[bytes, Optional[str]]
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
@@ -734,15 +734,17 @@ class GrpcStateHandler(StateHandler):
 
   def get_raw(self,
               state_key,  # type: beam_fn_api_pb2.StateKey
-              continuation_token=None  # type: Optional[bytes]
+              continuation_token=None  # type: Optional[str]
              ):
-    # type: (...) -> Tuple[bytes, Optional[bytes]]
+    # type: (...) -> Tuple[bytes, Optional[str]]
     response = self._blocking_request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             get=beam_fn_api_pb2.StateGetRequest(
-                continuation_token=continuation_token)))
-    return response.get.data, response.get.continuation_token
+                continuation_token=(continuation_token.encode('utf-8')
+                                    if continuation_token else None))))
+    return response.get.data, (response.get.continuation_token.decode('utf-8')
+                               if response.get.continuation_token else None)
 
   def append_raw(self,
                  state_key,  # type: Optional[beam_fn_api_pb2.StateKey]

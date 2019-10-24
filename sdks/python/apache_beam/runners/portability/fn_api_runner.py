@@ -1106,9 +1106,9 @@ class FnApiRunner(runner.PipelineRunner):
 
     def get_raw(self,
                 state_key,  # type: beam_fn_api_pb2.StateKey
-                continuation_token=None  # type: Optional[bytes]
+                continuation_token=None  # type: Optional[str]
                ):
-      # type: (...) -> Tuple[bytes, Optional[bytes]]
+      # type: (...) -> Tuple[bytes, Optional[str]]
       with self._lock:
         full_state = self._state[self._to_key(state_key)]
         if self._use_continuation_tokens:
@@ -1172,11 +1172,13 @@ class FnApiRunner(runner.PipelineRunner):
         request_type = request.WhichOneof('request')
         if request_type == 'get':
           data, continuation_token = self._state.get_raw(
-              request.state_key, request.get.continuation_token)
+              request.state_key, request.get.continuation_token.decode('utf-8'))
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               get=beam_fn_api_pb2.StateGetResponse(
-                  data=data, continuation_token=continuation_token))
+                  data=data,
+                  continuation_token=(continuation_token.encode('utf-8')
+                                      if continuation_token else None)))
         elif request_type == 'append':
           self._state.append_raw(request.state_key, request.append.data)
           yield beam_fn_api_pb2.StateResponse(
