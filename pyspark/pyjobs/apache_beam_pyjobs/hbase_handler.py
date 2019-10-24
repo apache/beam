@@ -43,3 +43,8 @@ class HbaseFilter(object):
         self.filter_args = other.filter_args
         self.handler = other.handler
 
+class HbaseHandler:
+
+    # Класс API для HBase
+    def __init__(self, config, executor_config = None):
+        pass
