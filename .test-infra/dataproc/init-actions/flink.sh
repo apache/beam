@@ -56,6 +56,9 @@ readonly START_FLINK_YARN_SESSION_DEFAULT=true
 # Set this to install flink from a snapshot URL instead of apt
 readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
 
+# Set this to install pre-packaged Hadoop jar
+readonly HADOOP_JAR_URL_METADATA_KEY='hadoop-jar-url'
+
 # Set this to define how many task slots are there per flink task manager
 readonly FLINK_TASKMANAGER_SLOTS_METADATA_KEY='flink-taskmanager-slots'
 
@@ -88,6 +91,7 @@ function install_apt_get() {
 function install_flink_snapshot() {
   local work_dir="$(mktemp -d)"
   local flink_url="$(/usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}")"
+  local hadoop_url="$(/usr/share/google/get_metadata_value "attributes/${HADOOP_JAR_URL_METADATA_KEY}")"
   local flink_local="${work_dir}/flink.tgz"
   local flink_toplevel_pattern="${work_dir}/flink-*"
 
@@ -103,6 +107,9 @@ function install_flink_snapshot() {
 
   popd # work_dir
 
+  if [[ ! -z "${hadoop_url}" ]]; then
+    cd "${FLINK_INSTALL_DIR}/lib"; curl -O "${hadoop_url}"
+  fi
 }
 
 function configure_flink() {

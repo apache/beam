@@ -24,6 +24,7 @@
 #    JOB_SERVER_IMAGE: Url to job server docker image to pull on dataproc master (optional)
 #    ARTIFACTS_DIR: Url to bucket where artifacts will be stored for staging (optional)
 #    FLINK_DOWNLOAD_URL: Url to Flink .tar archive to be installed on the cluster
+#    HADOOP_DOWNLOAD_URL: Url to a pre-packaged Hadoop jar
 #    FLINK_NUM_WORKERS: Number of Flink workers
 #    FLINK_TASKMANAGER_SLOTS: Number of slots per Flink task manager
 #    DETACHED_MODE: Detached mode: should the SSH tunnel run in detached mode?
@@ -35,6 +36,7 @@
 #    JOB_SERVER_IMAGE=gcr.io/<IMAGE_REPOSITORY>/job-server-flink:latest \
 #    ARTIFACTS_DIR=gs://<bucket-for-artifacts> \
 #    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-1.9.1/flink-1.9.1-bin-scala_2.11.tgz \
+#    HADOOP_DOWNLOAD_URL=https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-7.0/flink-shaded-hadoop-2-uber-2.8.3-7.0.jar \
 #    FLINK_NUM_WORKERS=2 \
 #    FLINK_TASKMANAGER_SLOTS=1 \
 #    DETACHED_MODE=false \
@@ -118,7 +120,8 @@ function start_tunnel() {
 function create_cluster() {
   local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true,"
-  metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS}"
+  metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS},"
+  metadata+="hadoop-jar-url=${HADOOP_DOWNLOAD_URL}"
 
   [[ -n "${HARNESS_IMAGES_TO_PULL:=}" ]] && metadata+=",beam-sdk-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
   [[ -n "${JOB_SERVER_IMAGE:=}" ]] && metadata+=",beam-job-server-image=${JOB_SERVER_IMAGE}"
