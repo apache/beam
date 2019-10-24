@@ -940,12 +940,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public void setRelative() {
       Instant now = getCurrentTime();
+
       if (period.equals(Duration.ZERO)) {
         target = now.plus(offset);
       } else {
         long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
         target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
       }
+
+      target = minTargetAndGcTime(target);
+
       setAndVerifyOutputTimestamp();
       setUnderlyingTimer();
     }
@@ -960,6 +964,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Timer align(Duration period) {
       this.period = period;
       return this;
+    }
+
+    /**
+     * For event time timers the target time should be prior to window GC time. So it return
+     * min(time to set, GC Time of window).
+     */
+    private Instant minTargetAndGcTime(Instant target) {
+      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        Instant windowExpiry = LateDataUtils.garbageCollectionTime(window, allowedLateness);
+        if (target.isAfter(windowExpiry)) {
+          return windowExpiry;
+        }
+      }
+      return target;
     }
 
     @Override
