@@ -842,7 +842,7 @@ class CachingStateHandler(object):
     """Materializes the state lazily, one element at a time.
        :return A generator which returns the next element if advanced.
     """
-    continuation_token = None
+    continuation_token = None  # type: Optional[bytes]
     while True:
       data, continuation_token = \
           self._underlying.get_raw(state_key, continuation_token)

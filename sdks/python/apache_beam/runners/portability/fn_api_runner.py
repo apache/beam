@@ -1106,7 +1106,7 @@ class FnApiRunner(runner.PipelineRunner):
       self._state = collections.defaultdict(list)  # type: FnApiRunner.StateServicer.StateType
       self._checkpoint = None  # type: Optional[FnApiRunner.StateServicer.StateType]
       self._use_continuation_tokens = False
-      self._continuations = {}  # type: Dict[str, Tuple[bytes, ...]]
+      self._continuations = {}  # type: Dict[bytes, Tuple[bytes, ...]]
 
     def checkpoint(self):
       # type: () -> None
@@ -1145,17 +1145,17 @@ class FnApiRunner(runner.PipelineRunner):
         if self._use_continuation_tokens:
           # The token is "nonce:index".
           if not continuation_token:
-            token_base = 'token_%x' % len(self._continuations)
+            token_base = b'token_%x' % len(self._continuations)
             self._continuations[token_base] = tuple(full_state)
-            return b'', '%s:0' % token_base
+            return b'', b'%s:0' % token_base
           else:
-            token_base, index = continuation_token.split(':')
+            token_base, index = continuation_token.split(b':')
             ix = int(index)
             full_state_cont = self._continuations[token_base]
             if ix == len(full_state_cont):
               return b'', None
             else:
-              return full_state_cont[ix], '%s:%d' % (token_base, ix + 1)
+              return full_state_cont[ix], b'%s:%d' % (token_base, ix + 1)
         else:
           assert not continuation_token
           return b''.join(full_state), None
