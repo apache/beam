@@ -426,7 +426,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
   @mock.patch('time.sleep')
   def test_wait_for_job_completion(self, sleep_mock):
-    logging.getLogger().setLevel(logging.INFO)
     job_references = [bigquery_api.JobReference(),
                       bigquery_api.JobReference()]
     job_references[0].projectId = 'project1'
