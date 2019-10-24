@@ -34,6 +34,9 @@
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css">
   <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+  <style>
+    .body__contained img { max-width: 100% }
+  </style>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
   <script src="/js/fix-menu.js"></script>
@@ -1363,6 +1366,15 @@ Java 8 lambda function for additional brevity.</span></p>
   <p><strong>Note:</strong> You can use Java 8 lambda functions with several other Beam
 transforms, including <code class="highlighter-rouge">Filter</code>, <code class="highlighter-rouge">FlatMapElements</code>, and <code class="highlighter-rouge">Partition</code>.</p>
 </blockquote>
+
+<h5 id="dofn">4.2.1.4. DoFn lifecycle</h5>
+<p>Here is a sequence diagram that shows the lifecycle of the DoFn during
+ the execution of the ParDo transform. The comments give useful 
+ information to pipeline developers such as the constraints that 
+ apply to the objects or particular cases such as failover or 
+ instance reuse. They also give instanciation use cases.</p>
+
+<p><img src="/images/dofn-sequence-diagram.png" alt="This is a sequence diagram that shows the lifecycle of the DoFn" /></p>
 
 <h4 id="groupbykey">4.2.2. GroupByKey</h4>
 

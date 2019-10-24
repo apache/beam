@@ -34,6 +34,9 @@
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css">
   <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+  <style>
+    .body__contained img { max-width: 100% }
+  </style>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
   <script src="/js/fix-menu.js"></script>
@@ -459,6 +462,7 @@
   <li><a href="#sources">Sources</a>
     <ul>
       <li><a href="#when-to-use-source">When to use the Source interface</a></li>
+      <li><a href="#source">Source lifecycle</a></li>
       <li><a href="#using-pardo-and-groupbykey">Using ParDo and GroupByKey</a></li>
     </ul>
   </li>
@@ -579,6 +583,14 @@ initial splitting.</p>
 <p>For example, if you’d like to read from a new file format that contains many
 records per file, or if you’d like to read from a key-value store that supports
 read operations in sorted key order.</p>
+
+<h3 id="source">Source lifecycle</h3>
+<p>Here is a sequence diagram that shows the lifecycle of the Source during
+ the execution of the Read transform of an IO. The comments give useful 
+ information to IO developers such as the constraints that 
+ apply to the objects or particular cases such as streaming mode.</p>
+
+<p><img src="/images/source-sequence-diagram.png" alt="This is a sequence diagram that shows the lifecycle of the Source" /></p>
 
 <h3 id="using-pardo-and-groupbykey">Using ParDo and GroupByKey</h3>
 
