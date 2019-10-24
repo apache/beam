@@ -142,14 +142,15 @@ public class PortableExecutionTest implements Serializable {
 
     // execute the pipeline
     JobInvocation jobInvocation =
-        FlinkJobInvoker.createJobInvocation(
-            "fakeId",
-            "fakeRetrievalToken",
-            flinkJobExecutor,
-            pipelineProto,
-            options.as(FlinkPipelineOptions.class),
-            new FlinkPipelineRunner(
-                options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
+        FlinkJobInvoker.create(null)
+            .createJobInvocation(
+                "fakeId",
+                "fakeRetrievalToken",
+                flinkJobExecutor,
+                pipelineProto,
+                options.as(FlinkPipelineOptions.class),
+                new FlinkPipelineRunner(
+                    options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
     jobInvocation.start();
     while (jobInvocation.getState() != Enum.DONE) {
       Thread.sleep(1000);
