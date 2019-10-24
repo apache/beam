@@ -30,6 +30,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -41,9 +42,10 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
- * Test rule which creates a new topic with randomized name and exposes the APIs to work with it.
+ * Test rule which creates a new topic and subscription with randomized names and exposes the APIs
+ * to work with them.
  *
- * <p>Deletes topic on shutdown.
+ * <p>Deletes topic and subscription on shutdown.
  */
 public class TestPubsub implements TestRule {
   private static final DateTimeFormatter DATETIME_FORMAT =
@@ -57,6 +59,7 @@ public class TestPubsub implements TestRule {
 
   private @Nullable PubsubClient pubsub = null;
   private @Nullable TopicPath eventsTopicPath = null;
+  private @Nullable SubscriptionPath subscriptionPath = null;
 
   /**
    * Creates an instance of this rule.
@@ -108,6 +111,11 @@ public class TestPubsub implements TestRule {
     pubsub.createTopic(eventsTopicPathTmp);
 
     eventsTopicPath = eventsTopicPathTmp;
+    subscriptionPath =
+        pubsub.createRandomSubscription(
+            projectPathFromPath(String.format("projects/%s", pipelineOptions.getProject())),
+            topicPath(),
+            10);
   }
 
   private void tearDown() throws IOException {
@@ -116,6 +124,9 @@ public class TestPubsub implements TestRule {
     }
 
     try {
+      if (subscriptionPath != null) {
+        pubsub.deleteSubscription(subscriptionPath);
+      }
       if (eventsTopicPath != null) {
         pubsub.deleteTopic(eventsTopicPath);
       }
@@ -123,6 +134,7 @@ public class TestPubsub implements TestRule {
       pubsub.close();
       pubsub = null;
       eventsTopicPath = null;
+      subscriptionPath = null;
     }
   }
 
@@ -160,6 +172,11 @@ public class TestPubsub implements TestRule {
     return eventsTopicPath;
   }
 
+  /** Subscription path used to listen for messages on {@link #topicPath()}. */
+  public SubscriptionPath subscriptionPath() {
+    return subscriptionPath;
+  }
+
   private List<SubscriptionPath> listSubscriptions(ProjectPath projectPath, TopicPath topicPath)
       throws IOException {
     return pubsub.listSubscriptions(projectPath, topicPath);
@@ -170,6 +187,24 @@ public class TestPubsub implements TestRule {
     List<PubsubClient.OutgoingMessage> outgoingMessages =
         messages.stream().map(this::toOutgoingMessage).collect(toList());
     pubsub.publish(eventsTopicPath, outgoingMessages);
+  }
+
+  /** Pull up to 100 messages from {@link #subscriptionPath()}. */
+  public List<PubsubMessage> pull() throws IOException {
+    return pull(100);
+  }
+
+  /** Pull up to {@code maxBatchSize} messages from {@link #subscriptionPath()}. */
+  public List<PubsubMessage> pull(int maxBatchSize) throws IOException {
+    List<PubsubClient.IncomingMessage> messages =
+        pubsub.pull(0, subscriptionPath, maxBatchSize, true);
+    pubsub.acknowledge(
+        subscriptionPath,
+        messages.stream().map(msg -> msg.ackId).collect(ImmutableList.toImmutableList()));
+
+    return messages.stream()
+        .map(msg -> new PubsubMessage(msg.elementBytes, msg.attributes, msg.recordId))
+        .collect(ImmutableList.toImmutableList());
   }
 
   /**
