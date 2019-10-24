@@ -45,7 +45,7 @@ public class FlinkJobInvoker extends JobInvoker {
 
   private final FlinkJobServerDriver.FlinkServerConfiguration serverConfig;
 
-  private FlinkJobInvoker(FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
+  protected FlinkJobInvoker(FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
     super("flink-runner-job-invoker");
     this.serverConfig = serverConfig;
   }
@@ -90,7 +90,7 @@ public class FlinkJobInvoker extends JobInvoker {
         invocationId, retrievalToken, executorService, pipeline, flinkOptions, pipelineRunner);
   }
 
-  static JobInvocation createJobInvocation(
+  protected JobInvocation createJobInvocation(
       String invocationId,
       String retrievalToken,
       ListeningExecutorService executorService,
