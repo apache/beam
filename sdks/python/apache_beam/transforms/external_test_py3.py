@@ -43,6 +43,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
 
       def __init__(self,
                    integer_example: int,
+                   boolean: bool,
                    string_example: str,
                    list_of_strings: typing.List[str],
                    optional_kv: typing.Optional[
@@ -54,6 +55,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
             AnnotationBasedPayloadBuilder(
                 self,
                 integer_example=integer_example,
+                boolean=boolean,
                 string_example=string_example,
                 list_of_strings=list_of_strings,
                 optional_kv=optional_kv,
@@ -70,6 +72,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
 
       def __init__(self,
                    integer_example: int,
+                   boolean: bool,
                    string_example: str,
                    list_of_strings: typehints.List[str],
                    optional_kv: typehints.Optional[
@@ -81,6 +84,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
             AnnotationBasedPayloadBuilder(
                 self,
                 integer_example=integer_example,
+                boolean=boolean,
                 string_example=string_example,
                 list_of_strings=list_of_strings,
                 optional_kv=optional_kv,
