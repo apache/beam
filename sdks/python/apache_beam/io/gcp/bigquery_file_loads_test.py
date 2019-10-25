@@ -480,15 +480,15 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_2_done.status.state = 'DONE'
     job_2_done.status.errorResult = None
 
-    job_1_done = mock.Mock()
-    job_1_done.status.state = 'DONE'
-    job_1_done.status.errorResult = 'Some problems happened'
+    job_1_error = mock.Mock()
+    job_1_error.status.state = 'DONE'
+    job_1_error.status.errorResult = 'Some problems happened'
 
     bq_client = mock.Mock()
     bq_client.jobs.Get.side_effect = [
         job_1_waiting,
         job_2_done,
-        job_1_done,
+        job_1_error,
         job_2_done]
 
     waiting_dofn = bqfl.WaitForBQJobs(bq_client)
