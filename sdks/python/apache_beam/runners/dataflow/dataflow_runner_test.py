@@ -61,6 +61,29 @@ except ImportError:
   apiclient = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+# SpecialParDo and SpecialDoFn are used in test_remote_runner_display_data.
+# Due to BEAM-8482, these need to be declared outside of the test method.
+# TODO: Should not subclass ParDo. Switch to PTransform as soon as
+# composite transforms support display data.
+class SpecialParDo(beam.ParDo):
+  def __init__(self, fn, now):
+    super(SpecialParDo, self).__init__(fn)
+    self.fn = fn
+    self.now = now
+
+  # Make this a list to be accessible within closure
+  def display_data(self):
+    return {'asubcomponent': self.fn,
+            'a_class': SpecialParDo,
+            'a_time': self.now}
+
+class SpecialDoFn(beam.DoFn):
+  def display_data(self):
+    return {'dofn_value': 42}
+
+  def process(self):
+    pass
+
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class DataflowRunnerTest(unittest.TestCase):
@@ -234,27 +257,6 @@ class DataflowRunnerTest(unittest.TestCase):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
                  options=PipelineOptions(self.default_properties))
-
-    # TODO: Should not subclass ParDo. Switch to PTransform as soon as
-    # composite transforms support display data.
-    class SpecialParDo(beam.ParDo):
-      def __init__(self, fn, now):
-        super(SpecialParDo, self).__init__(fn)
-        self.fn = fn
-        self.now = now
-
-      # Make this a list to be accessible within closure
-      def display_data(self):
-        return {'asubcomponent': self.fn,
-                'a_class': SpecialParDo,
-                'a_time': self.now}
-
-    class SpecialDoFn(beam.DoFn):
-      def display_data(self):
-        return {'dofn_value': 42}
-
-      def process(self):
-        pass
 
     now = datetime.now()
     # pylint: disable=expression-not-assigned
