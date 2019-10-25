@@ -940,14 +940,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public void setRelative() {
       Instant now = getCurrentTime();
-
       if (period.equals(Duration.ZERO)) {
         target = now.plus(offset);
       } else {
         long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
         target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
       }
-
       target = minTargetAndGcTime(target);
 
       setAndVerifyOutputTimestamp();
