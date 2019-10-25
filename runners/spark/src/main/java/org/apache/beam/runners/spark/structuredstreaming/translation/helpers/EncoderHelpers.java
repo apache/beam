@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.Objects;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.catalyst.analysis.GetColumnByOrdinal;
@@ -51,7 +49,7 @@ import scala.reflect.ClassTag$;
 /** {@link Encoders} utility class. */
 public class EncoderHelpers {
 
-    /*
+  /*
    --------- Bridges from Beam Coders to Spark Encoders
   */
 
