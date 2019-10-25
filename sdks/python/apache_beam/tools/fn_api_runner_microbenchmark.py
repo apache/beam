@@ -14,16 +14,17 @@
 # limitations under the License.
 #
 
-"""A microbenchmark for measuring changes in overhead for critical code paths.
+"""A microbenchmark for measuring changes in the critical path of FnApiRunner.
 
-This runs a sequence of trivial Maps over a variable number of inputs to
-estimate the per-element processing time.  It can be useful to run this
-benchmark before and after a proposed set of changes.  A typical per-element
-cost should be 1-2 microseconds.
+This runs a series of N parallel pipelines with M parallel stages each. Each
+stage does the following:
+
+1) Put all the PCollection elements in state
+2) Set a timer for the future
+3) When the timer fires, change the key and output all the elements downstream
 
 This executes the same codepaths that are run on the Fn API (and Dataflow)
-workers, but is generally easier to run (locally) and more stable.  It does
-not, on the other hand, excercise any non-trivial amount of IO (e.g. shuffle).
+workers, but is generally easier to run (locally) and more stable..
 
 Run as
 
