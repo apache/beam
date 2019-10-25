@@ -46,7 +46,7 @@ func tryGetInstID(ctx context.Context) (string, bool) {
 	if id == nil {
 		return "", false
 	}
-	return id.(string), true
+	return string(id.(instructionID)), true
 }
 
 type logger struct {
