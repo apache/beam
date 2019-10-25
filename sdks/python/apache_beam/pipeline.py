@@ -575,8 +575,11 @@ class Pipeline(object):
             input_element_type)
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
       # Single-input, multi-output inference.
+      # TODO(BEAM-4132): Add support for tagged type hints.
+      #   https://github.com/apache/beam/pull/9810#discussion_r338765251
       for pcoll in result_pcollection:
-        self._infer_result_type(transform, inputs, pcoll)
+        if pcoll.element_type is None:
+          pcoll.element_type = typehints.Any
 
   def __reduce__(self):
     # Some transforms contain a reference to their enclosing pipeline,
