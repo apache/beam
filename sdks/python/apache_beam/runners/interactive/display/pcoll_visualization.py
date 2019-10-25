@@ -259,7 +259,7 @@ class PCollectionVisualization(object):
         # Makes such data structured.
         normalized_list.append({normalized_column: el})
       else:
-        normalized_list.append(_pv_jsons_load(_pv_jsons_dump(el)))
+        normalized_list.append(jsons.load(jsons.dump(el)))
     # Creates a dataframe that str() 1-d iterable elements after
     # normalization so that facets_overview can treat such data as categorical.
     return json_normalize(normalized_list).applymap(
