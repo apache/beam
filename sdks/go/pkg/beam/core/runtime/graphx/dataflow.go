@@ -42,6 +42,7 @@ const (
 	bytesType         = "kind:bytes"
 	boolType          = "kind:bool"
 	varIntType        = "kind:varint"
+	doubleType        = "kind:double"
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
 	lengthPrefixType  = "kind:length_prefix"
@@ -154,6 +155,9 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 	case coder.VarInt:
 		return &CoderRef{Type: varIntType}, nil
 
+	case coder.Double:
+		return &CoderRef{Type: doubleType}, nil
+
 	default:
 		return nil, errors.Errorf("bad coder kind: %v", c.Kind)
 	}
@@ -183,6 +187,9 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 	case varIntType:
 		return coder.NewVarInt(), nil
+
+	case doubleType:
+		return coder.NewDouble(), nil
 
 	case pairType:
 		if len(c.Components) != 2 {
