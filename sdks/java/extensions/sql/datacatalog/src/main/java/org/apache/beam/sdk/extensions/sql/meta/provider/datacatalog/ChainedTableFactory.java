@@ -17,37 +17,34 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
-import com.alibaba.fastjson.JSONObject;
 import com.google.cloud.datacatalog.Entry;
-import java.net.URI;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
-/** Utils to extract Pubsub-specific entry information. */
-class PubsubUtils {
+/** {@link TableFactory} that uses the first applicable sub-{@link TableFactory}. */
+class ChainedTableFactory implements TableFactory {
 
-  private static final Pattern PS_PATH_PATTERN =
-      Pattern.compile("/projects/(?<PROJECT>[^/]+)/topics/(?<TOPIC>[^/]+)");
+  private final List<TableFactory> subTableFactories;
 
-  static Table.Builder tableBuilder(Entry entry) {
-    return Table.builder()
-        .location(getLocation(entry))
-        .properties(new JSONObject())
-        .type("pubsub")
-        .comment("");
+  public static ChainedTableFactory of(TableFactory... subTableFactories) {
+    return new ChainedTableFactory(Arrays.asList(subTableFactories));
   }
 
-  private static String getLocation(Entry entry) {
-    URI entryName = URI.create(entry.getLinkedResource());
-    String psPath = entryName.getPath();
+  private ChainedTableFactory(List<TableFactory> subTableFactories) {
+    this.subTableFactories = subTableFactories;
+  }
 
-    Matcher bqPathMatcher = PS_PATH_PATTERN.matcher(psPath);
-    if (!bqPathMatcher.matches()) {
-      throw new IllegalArgumentException(
-          "Unsupported format for Pubsub topic: '" + entry.getLinkedResource() + "'");
+  /** Creates a Beam SQL table description from a GCS fileset entry. */
+  @Override
+  public Optional<Table.Builder> tableBuilder(Entry entry) {
+    for (TableFactory tableFactory : subTableFactories) {
+      Optional<Table.Builder> tableBuilder = tableFactory.tableBuilder(entry);
+      if (tableBuilder.isPresent()) {
+        return tableBuilder;
+      }
     }
-
-    return psPath.substring(1);
+    return Optional.empty();
   }
 }
