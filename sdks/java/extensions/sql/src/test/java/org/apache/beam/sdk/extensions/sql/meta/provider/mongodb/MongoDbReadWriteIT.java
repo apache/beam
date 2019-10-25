@@ -94,7 +94,6 @@ public class MongoDbReadWriteIT {
   public static void setUp() throws Exception {
     PipelineOptionsFactory.register(MongoDBPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(MongoDBPipelineOptions.class);
-    options.setMongoDBHostName("localhost");
   }
 
   @AfterClass
