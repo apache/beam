@@ -41,15 +41,19 @@ from builtins import range
 from builtins import zip
 
 import apache_beam as beam
+import apache_beam.typehints.typehints as typehints
 from apache_beam.coders import VarIntCoder
 from apache_beam.runners.portability.fn_api_runner import FnApiRunner
 from apache_beam.tools import utils
 from apache_beam.transforms.timeutil import TimeDomain
-import apache_beam.typehints.typehints as typehints
-from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.userstate import on_timer
 from scipy import stats
+
+NUM_PARALLEL_STAGES = 7
+
+NUM_SERIAL_STAGES = 5
 
 
 class BagInStateOutputAfterTimer(beam.DoFn):
@@ -91,17 +95,15 @@ def _build_serial_stages(pipeline,
   return pc
 
 
-def run_benchmark(num_parallel_stages=7,
-                  num_serial_stages=5,
-                  num_runs=10,
+def run_benchmark(num_runs=10,
                   num_elements_step=100):
   timings = {}
   for run in range(num_runs):
     num_elements = num_elements_step * run + 1
     start = time.time()
     with beam.Pipeline(runner=FnApiRunner()) as p:
-      for i in range(num_parallel_stages):
-        _build_serial_stages(p, num_serial_stages, num_elements, i)
+      for i in range(NUM_PARALLEL_STAGES):
+        _build_serial_stages(p, NUM_SERIAL_STAGES, num_elements, i)
     timings[num_elements] = time.time() - start
     print("%6d element%s %g sec" % (
         num_elements, " " if num_elements == 1 else "s", timings[num_elements]))
@@ -113,7 +115,7 @@ def run_benchmark(num_parallel_stages=7,
   # Fixed cost is the most important variable, as it represents the fixed cost
   #   of running all the bundles through all the stages.
   print("Fixed cost  ", intercept)
-  print("Per-element ", gradient / (num_serial_stages * num_parallel_stages))
+  print("Per-element ", gradient / (NUM_SERIAL_STAGES * NUM_PARALLEL_STAGES))
   print("R^2         ", r_value**2)
 
 
