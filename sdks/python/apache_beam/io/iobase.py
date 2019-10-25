@@ -39,6 +39,12 @@ import uuid
 from builtins import object
 from builtins import range
 from collections import namedtuple
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Iterable
+from typing import Iterator
+from typing import Optional
+from typing import Tuple
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -55,6 +61,11 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
+
+if TYPE_CHECKING:
+  from apache_beam.io import restriction_trackers
+  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.utils.timestamp import Timestamp
 
 __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
@@ -85,6 +96,10 @@ class SourceBase(HasDisplayData, urns.RunnerApiFn):
   """Base class for all sources that can be passed to beam.io.Read(...).
   """
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
+
+  def is_bounded(self):
+    # type: () -> bool
+    raise NotImplementedError
 
 
 class BoundedSource(SourceBase):
@@ -124,6 +139,7 @@ class BoundedSource(SourceBase):
   """
 
   def estimate_size(self):
+    # type: () -> Optional[int]
     """Estimates the size of source in bytes.
 
     An estimate of the total size (in bytes) of the data that would be read
@@ -136,7 +152,12 @@ class BoundedSource(SourceBase):
     """
     raise NotImplementedError
 
-  def split(self, desired_bundle_size, start_position=None, stop_position=None):
+  def split(self,
+            desired_bundle_size,  # type: int
+            start_position=None,  # type: Optional[int]
+            stop_position=None,  # type: Optional[int]
+           ):
+    # type: (...) -> Iterator[SourceBundle]
     """Splits the source into a set of bundles.
 
     Bundles should be approximately of size ``desired_bundle_size`` bytes.
@@ -153,7 +174,11 @@ class BoundedSource(SourceBase):
     """
     raise NotImplementedError
 
-  def get_range_tracker(self, start_position, stop_position):
+  def get_range_tracker(self,
+                        start_position,  # type: Optional[int]
+                        stop_position,  # type: Optional[int]
+                       ):
+    # type: (...) -> RangeTracker
     """Returns a RangeTracker for a given position range.
 
     Framework may invoke ``read()`` method with the RangeTracker object returned
@@ -837,6 +862,7 @@ class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
 
   def __init__(self, source):
+    # type: (SourceBase) -> None
     """Initializes a Read transform.
 
     Args:
@@ -884,9 +910,11 @@ class Read(ptransform.PTransform):
                                 is_bounded=self.source.is_bounded())
 
   def get_windowing(self, unused_inputs):
+    # type: (...) -> core.Windowing
     return core.Windowing(window.GlobalWindows())
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
+    # type: (...) -> Optional[coders.Coder]
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
     else:
@@ -898,6 +926,7 @@ class Read(ptransform.PTransform):
             'source_dd': self.source}
 
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]
     return (common_urns.deprecated_primitives.READ.urn,
             beam_runner_api_pb2.ReadPayload(
                 source=self.source.to_runner_api(context),
@@ -907,6 +936,7 @@ class Read(ptransform.PTransform):
 
   @staticmethod
   def from_runner_api_parameter(parameter, context):
+    # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
 
@@ -977,6 +1007,7 @@ class WriteImpl(ptransform.PTransform):
   """Implements the writing of custom sinks."""
 
   def __init__(self, sink):
+    # type: (Sink) -> None
     super(WriteImpl, self).__init__()
     self.sink = sink
 
@@ -1089,6 +1120,7 @@ def _finalize_write(unused_element, sink, init_result, write_results,
 class _RoundRobinKeyFn(core.DoFn):
 
   def __init__(self, count):
+    # type: (int) -> None
     self.count = count
 
   def start_bundle(self):
@@ -1134,6 +1166,7 @@ class RestrictionTracker(object):
     raise NotImplementedError
 
   def current_progress(self):
+    # type: () -> RestrictionProgress
     """Returns a RestrictionProgress object representing the current progress.
     """
     raise NotImplementedError
@@ -1275,6 +1308,7 @@ class RestrictionTracker(object):
     raise NotImplementedError
 
   def deferred_status(self):
+    # type: () -> Optional[Tuple[restriction_trackers.OffsetRange, Timestamp]]
     """ Returns deferred_residual with deferred_watermark.
 
     TODO(BEAM-7472): Remove defer_status() once SDF.process() uses
@@ -1357,6 +1391,7 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       self._weight = restriction.weight
 
     def current_progress(self):
+      # type: () -> RestrictionProgress
       return RestrictionProgress(
           fraction=self._delegate_range_tracker.fraction_consumed())
 

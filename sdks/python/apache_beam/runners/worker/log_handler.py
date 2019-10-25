@@ -62,7 +62,7 @@ class FnApiLogRecordHandler(logging.Handler):
 
     self._alive = True
     self._dropped_logs = 0
-    self._log_entry_queue = queue.Queue(maxsize=self._QUEUE_SIZE)
+    self._log_entry_queue = queue.Queue(maxsize=self._QUEUE_SIZE)  # type: queue.Queue[beam_fn_api_pb2.LogEntry]
 
     ch = GRPCChannelFactory.insecure_channel(log_service_descriptor.url)
     # Make sure the channel is ready to avoid [BEAM-4649]
@@ -82,6 +82,7 @@ class FnApiLogRecordHandler(logging.Handler):
     return self._logging_stub.Logging(self._write_log_entries())
 
   def emit(self, record):
+    # type: (logging.LogRecord) -> None
     log_entry = beam_fn_api_pb2.LogEntry()
     log_entry.severity = self.LOG_LEVEL_MAP[record.levelno]
     log_entry.message = self.format(record)

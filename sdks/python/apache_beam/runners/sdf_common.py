@@ -21,6 +21,8 @@ from __future__ import absolute_import
 
 import uuid
 from builtins import object
+from typing import Any
+from typing import Iterator
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -61,6 +63,7 @@ class SplittableParDo(PTransform):
   """A transform that processes a PCollection using a Splittable DoFn."""
 
   def __init__(self, ptransform):
+    # type: (ParDo) -> None
     assert isinstance(ptransform, ParDo)
     self._ptransform = ptransform
 
@@ -96,6 +99,7 @@ class PairWithRestrictionFn(beam.DoFn):
   """A transform that pairs each element with a restriction."""
 
   def __init__(self, do_fn):
+    # type: (beam.DoFn) -> None
     self._do_fn = do_fn
 
   def start_bundle(self):
@@ -104,6 +108,7 @@ class PairWithRestrictionFn(beam.DoFn):
         signature, process_invocation=False)
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
+    # type: (...) -> Iterator[ElementAndRestriction]
     initial_restriction = self._invoker.invoke_initial_restriction(element)
     yield ElementAndRestriction(element, initial_restriction)
 
@@ -112,6 +117,7 @@ class SplitRestrictionFn(beam.DoFn):
   """A transform that perform initial splitting of Splittable DoFn inputs."""
 
   def __init__(self, do_fn):
+    # type: (beam.DoFn) -> None
     self._do_fn = do_fn
 
   def start_bundle(self):
@@ -120,6 +126,7 @@ class SplitRestrictionFn(beam.DoFn):
         signature, process_invocation=False)
 
   def process(self, element_and_restriction, *args, **kwargs):
+    # type: (ElementAndRestriction, Any, Any) -> Iterator[ElementAndRestriction]
     element = element_and_restriction.element
     restriction = element_and_restriction.restriction
     restriction_parts = self._invoker.invoke_split(

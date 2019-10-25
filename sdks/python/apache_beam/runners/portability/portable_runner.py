@@ -24,6 +24,8 @@ import logging
 import sys
 import threading
 import time
+from typing import TYPE_CHECKING
+from typing import Optional
 
 import grpc
 
@@ -44,6 +46,10 @@ from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
+
+if TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.pipeline import Pipeline
 
 __all__ = ['PortableRunner']
 
@@ -74,7 +80,7 @@ class PortableRunner(runner.PipelineRunner):
     running and managing the job lies with the job service used.
   """
   def __init__(self):
-    self._dockerized_job_server = None
+    self._dockerized_job_server = None  # type: Optional[job_server.JobServer]
 
   @staticmethod
   def default_docker_image():
@@ -94,6 +100,7 @@ class PortableRunner(runner.PipelineRunner):
 
   @staticmethod
   def _create_environment(options):
+    # type: (PipelineOptions) -> beam_runner_api_pb2.Environment
     portable_options = options.view_as(PortableOptions)
     environment_urn = common_urns.environments.DOCKER.urn
     if portable_options.environment_type == 'DOCKER':
@@ -156,6 +163,7 @@ class PortableRunner(runner.PipelineRunner):
                    if portable_options.environment_config else None))
 
   def default_job_server(self, portable_options):
+    # type: (...) -> job_server.JobServer
     # TODO Provide a way to specify a container Docker URL
     # https://issues.apache.org/jira/browse/BEAM-6328
     if not self._dockerized_job_server:
@@ -176,6 +184,7 @@ class PortableRunner(runner.PipelineRunner):
     return server.start()
 
   def run_pipeline(self, pipeline, options):
+    # type: (Pipeline, PipelineOptions) -> PipelineResult
     portable_options = options.view_as(PortableOptions)
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525
@@ -261,6 +270,7 @@ class PortableRunner(runner.PipelineRunner):
     # fetch runner options from job service
     # retries in case the channel is not ready
     def send_options_request(max_retries=5):
+      # type: (int) -> beam_job_api_pb2.DescribePipelineOptionsResponse
       num_retries = 0
       while True:
         try:

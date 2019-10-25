@@ -21,10 +21,16 @@ from __future__ import division
 
 import threading
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Optional
+from typing import Tuple
 
 from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker
+
+if TYPE_CHECKING:
+  from apache_beam.utils.timestamp import Timestamp
 
 
 class OffsetRange(object):
@@ -67,6 +73,7 @@ class OffsetRange(object):
       current_split_start = current_split_stop
 
   def split_at(self, split_pos):
+    # type: (...) -> Tuple[OffsetRange, OffsetRange]
     return OffsetRange(self.start, split_pos), OffsetRange(split_pos, self.stop)
 
   def new_tracker(self):
@@ -83,12 +90,13 @@ class OffsetRestrictionTracker(RestrictionTracker):
   """
 
   def __init__(self, offset_range):
+    # type: (OffsetRange) -> None
     assert isinstance(offset_range, OffsetRange)
     self._range = offset_range
     self._current_position = None
     self._current_watermark = None
     self._last_claim_attempt = None
-    self._deferred_residual = None
+    self._deferred_residual = None  # type: Optional[OffsetRange]
     self._checkpointed = False
     self._lock = threading.RLock()
 
@@ -110,6 +118,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
     return self._current_watermark
 
   def current_progress(self):
+    # type: () -> RestrictionProgress
     with self._lock:
       if self._current_position is None:
         fraction = 0.0
@@ -185,5 +194,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
       self._deferred_residual = self.checkpoint()
 
   def deferred_status(self):
+    # type: () -> Optional[Tuple[OffsetRange, Timestamp]]
     if self._deferred_residual:
       return (self._deferred_residual, self._deferred_watermark)
+    else:
+      return None

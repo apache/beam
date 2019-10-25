@@ -24,6 +24,13 @@ import json
 import logging
 from builtins import list
 from builtins import object
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Type
+from typing import TypeVar
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -43,6 +50,8 @@ __all__ = [
     'SetupOptions',
     'TestOptions',
     ]
+
+PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 
 def _static_value_provider_of(value_type):
@@ -154,7 +163,9 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  def __init__(self, flags=None, **kwargs):
+  def __init__(self,
+               flags=None,  # type: Optional[List[str]]
+               **kwargs):
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -205,6 +216,7 @@ class PipelineOptions(HasDisplayData):
 
   @classmethod
   def _add_argparse_args(cls, parser):
+    # type: (_BeamArgumentParser) -> None
     # Override this in subclasses to provide options.
     pass
 
@@ -231,7 +243,11 @@ class PipelineOptions(HasDisplayData):
 
     return cls(flags)
 
-  def get_all_options(self, drop_default=False, add_extra_args_fn=None):
+  def get_all_options(self,
+                      drop_default=False,
+                      add_extra_args_fn=None  # type: Optional[Callable[[_BeamArgumentParser], None]]
+                     ):
+    # type: (...) -> Dict[str, Any]
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -277,6 +293,7 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls):
+    # type: (Type[PipelineOptionsT]) -> PipelineOptionsT
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::
@@ -315,10 +332,12 @@ class PipelineOptions(HasDisplayData):
     return view
 
   def _visible_option_list(self):
+    # type: () -> List[str]
     return sorted(option
                   for option in dir(self._visible_options) if option[0] != '_')
 
   def __dir__(self):
+    # type: () -> List[str]
     return sorted(dir(type(self)) + list(self.__dict__) +
                   self._visible_option_list())
 
@@ -918,7 +937,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides = []
+  overrides = []  # type: List[Dict[str, Any]]
 
   def __init__(self, **options):
     self.options = options

@@ -27,6 +27,9 @@ import time
 import traceback
 from builtins import object
 from concurrent import futures
+from typing import TYPE_CHECKING
+from typing import List
+from typing import Optional
 
 import grpc
 from google.protobuf import text_format  # type: ignore # not in typeshed
@@ -41,6 +44,10 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner
+
+if TYPE_CHECKING:
+  from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
+  from apache_beam.portability.api import beam_runner_api_pb2
 
 
 class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
@@ -63,9 +70,15 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     self._staging_dir = staging_dir or tempfile.mkdtemp()
     self._artifact_service = artifact_service.BeamFilesystemArtifactService(
         self._staging_dir)
-    self._artifact_staging_endpoint = None
+    self._artifact_staging_endpoint = None  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
 
-  def create_beam_job(self, preparation_id, job_name, pipeline, options):
+  def create_beam_job(self,
+                      preparation_id,  # stype: str
+                      job_name,  # type: str
+                      pipeline,  # type: beam_runner_api_pb2.Pipeline
+                      options  # type: struct_pb2.Struct
+                     ):
+    # type: (...) -> BeamJob
     # TODO(angoenka): Pass an appropriate staging_session_token. The token can
     # be obtained in PutArtifactResponse from JobService
     if not self._artifact_staging_endpoint:
@@ -112,7 +125,11 @@ class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
     """
 
-  def __init__(self, worker_command_line, control_address, worker_id=None):
+  def __init__(self,
+               worker_command_line,  # type: bytes
+               control_address,
+               worker_id=None
+              ):
     self._worker_command_line = worker_command_line
     self._control_address = control_address
     self._worker_id = worker_id
@@ -162,18 +179,19 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     """
 
   def __init__(self,
-               job_id,
+               job_id,  # type: str
                pipeline,
                options,
-               provision_info,
-               artifact_staging_endpoint):
+               provision_info,  # type: fn_api_runner.ExtendedProvisionInfo
+               artifact_staging_endpoint  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
+              ):
     super(BeamJob, self).__init__(
         job_id, provision_info.provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._state = None
-    self._state_queues = []
-    self._log_queues = []
+    self._state_queues = []  # type: List[queue.Queue]
+    self._log_queues = []  # type: List[queue.Queue]
     self.state = beam_job_api_pb2.JobState.STARTING
     self.daemon = True
 

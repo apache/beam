@@ -22,6 +22,7 @@ from __future__ import print_function
 import collections
 import datetime
 import os
+import sys
 import tempfile
 import urllib
 
@@ -32,10 +33,10 @@ from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.transforms import combiners
 
-try:                    # Python 3
+if sys.version_info[0] > 2:
   unquote_to_bytes = urllib.parse.unquote_to_bytes
   quote = urllib.parse.quote
-except AttributeError:  # Python 2
+else:
   # pylint: disable=deprecated-urllib-function
   unquote_to_bytes = urllib.unquote
   quote = urllib.quote

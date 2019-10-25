@@ -26,12 +26,18 @@ import contextlib
 import random
 import re
 import time
-import typing
 import warnings
 from builtins import filter
 from builtins import object
 from builtins import range
 from builtins import zip
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Iterable
+from typing import List
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 from future.utils import itervalues
 
@@ -65,6 +71,10 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
 
+if TYPE_CHECKING:
+  from apache_beam import pvalue
+  from apache_beam.runners.pipeline_context import PipelineContext
+
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
@@ -81,9 +91,9 @@ __all__ = [
     'GroupIntoBatches'
     ]
 
-K = typing.TypeVar('K')
-V = typing.TypeVar('V')
-T = typing.TypeVar('T')
+K = TypeVar('K')
+V = TypeVar('V')
+T = TypeVar('T')
 
 
 class CoGroupByKey(PTransform):
@@ -484,7 +494,7 @@ class _WindowAwareBatchingDoFn(DoFn):
 
 
 @typehints.with_input_types(T)
-@typehints.with_output_types(typing.List[T])
+@typehints.with_output_types(List[T])
 class BatchElements(PTransform):
   """A Transform that batches elements for amortized processing.
 
@@ -577,8 +587,8 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, V])
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[K, V])
 class ReshufflePerKey(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
@@ -654,12 +664,15 @@ class Reshuffle(PTransform):
   """
 
   def expand(self, pcoll):
+    # type: (pvalue.PValue) -> pvalue.PCollection
+    # FIXME: mypy plugin causing mypy to crash here:
     return (pcoll
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
             | ReshufflePerKey()
             | 'RemoveRandomKeys' >> Map(lambda t: t[1]))
 
   def to_runner_api_parameter(self, unused_context):
+    # type: (PipelineContext) -> Tuple[str, None]
     return common_urns.composites.RESHUFFLE.urn, None
 
   @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
@@ -680,7 +693,7 @@ def WithKeys(pcoll, k):
 
 
 @experimental()
-@typehints.with_input_types(typing.Tuple[K, V])
+@typehints.with_input_types(Tuple[K, V])
 class GroupIntoBatches(PTransform):
   """PTransform that batches the input into desired batch size. Elements are
   buffered until they are equal to batch size provided in the argument at which
@@ -760,7 +773,7 @@ class ToString(object):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
-      input_type = typing.Tuple[typing.Any, typing.Any]
+      input_type = Tuple[Any, Any]
       output_type = str
       return (pcoll | ('%s:KeyVaueToString' % self.label >> (Map(
           lambda x: "{}{}{}".format(x[0], self.delimiter, x[1])))
@@ -790,7 +803,7 @@ class ToString(object):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
-      input_type = typing.Iterable[typing.Any]
+      input_type = Iterable[Any]
       output_type = str
       return (pcoll | ('%s:IterablesToString' % self.label >> (
           Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
@@ -830,8 +843,8 @@ class Reify(object):
     def expand(self, pcoll):
       return pcoll | ParDo(self.add_window_info)
 
-  @typehints.with_input_types(typing.Tuple[K, V])
-  @typehints.with_output_types(typing.Tuple[K, V])
+  @typehints.with_input_types(Tuple[K, V])
+  @typehints.with_output_types(Tuple[K, V])
   class TimestampInValue(PTransform):
     """PTransform to wrap the Value in a KV pair in a TimestampedValue with
     the element's associated timestamp."""
@@ -844,8 +857,8 @@ class Reify(object):
     def expand(self, pcoll):
       return pcoll | ParDo(self.add_timestamp_info)
 
-  @typehints.with_input_types(typing.Tuple[K, V])
-  @typehints.with_output_types(typing.Tuple[K, V])
+  @typehints.with_input_types(Tuple[K, V])
+  @typehints.with_output_types(Tuple[K, V])
   class WindowInValue(PTransform):
     """PTransform to convert the Value in a KV pair into a tuple of
     (value, timestamp, window), with the whole element being wrapped inside a
@@ -904,7 +917,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(typing.List[str])
+  @typehints.with_output_types(List[str])
   @ptransform_fn
   def all_matches(pcoll, regex):
     """
@@ -925,7 +938,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(typing.Tuple[str, str])
+  @typehints.with_output_types(Tuple[str, str])
   @ptransform_fn
   def matches_kv(pcoll, regex, keyGroup, valueGroup=0):
     """
@@ -970,8 +983,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(typing.Union[typing.List[str],
-                                            typing.Tuple[str, str]])
+  @typehints.with_output_types(Union[List[str], Tuple[str, str]])
   @ptransform_fn
   def find_all(pcoll, regex, group=0, outputEmpty=True):
     """
@@ -999,7 +1011,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(typing.Tuple[str, str])
+  @typehints.with_output_types(Tuple[str, str])
   @ptransform_fn
   def find_kv(pcoll, regex, keyGroup, valueGroup=0):
     """
@@ -1056,7 +1068,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(typing.List[str])
+  @typehints.with_output_types(List[str])
   @ptransform_fn
   def split(pcoll, regex, outputEmpty=False):
     """

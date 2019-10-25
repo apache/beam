@@ -22,6 +22,8 @@ from __future__ import print_function
 
 import hashlib
 import os
+from typing import Iterator
+from typing import List
 
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
@@ -54,9 +56,10 @@ class PortableStager(Stager):
     self._artifact_staging_stub = beam_artifact_api_pb2_grpc.\
         ArtifactStagingServiceStub(channel=artifact_service_channel)
     self._staging_session_token = staging_session_token
-    self._artifacts = []
+    self._artifacts = []  # type: List[beam_artifact_api_pb2.ArtifactMetadata]
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
+    # type: (str, str) -> None
     """Stage a file to ArtifactStagingService.
 
     Args:
@@ -69,6 +72,7 @@ class PortableStager(Stager):
           .format(local_path_to_artifact))
 
     def artifact_request_generator():
+      # type: () -> Iterator[beam_artifact_api_pb2.PutArtifactRequest]
       artifact_metadata = beam_artifact_api_pb2.ArtifactMetadata(
           name=artifact_name,
           sha256=_get_file_hash(local_path_to_artifact),

@@ -38,7 +38,7 @@ T = TypeVariable('T')
 class IOTypeHintsTest(unittest.TestCase):
 
   def test_from_callable(self):
-    def fn(a: int, b: str = None, *args: Tuple[T], foo: List[int],
+    def fn(a: int, b: str = '', *args: Tuple[T], foo: List[int],
            **kwargs: Dict[str, str]) -> Tuple:
       return a, b, args, foo, kwargs
     th = decorators.IOTypeHints.from_callable(fn)
@@ -78,7 +78,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((None,), {}))
 
   def test_getcallargs_forhints(self):
-    def fn(a: int, b: str = None, *args: Tuple[T], foo: List[int],
+    def fn(a: int, b: str = '', *args: Tuple[T], foo: List[int],
            **kwargs: Dict[str, str]) -> Tuple:
       return a, b, args, foo, kwargs
     callargs = decorators.getcallargs_forhints(fn, float, foo=List[str])

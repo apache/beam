@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import sys
 import unittest
+from typing import Type
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
@@ -65,7 +66,7 @@ class QuerySplitterTest(unittest.TestCase):
       test_filter.property_filter.op = PropertyFilter.GREATER_THAN
     return query
 
-  split_error = ValueError
+  split_error = ValueError  # type: Type[Exception]
   query_splitter = query_splitter
 
   def test_get_splits_query_with_multiple_kinds(self):

@@ -391,6 +391,7 @@ class GaugeData(object):
     return GaugeData(value, timestamp=timestamp)
 
   def to_runner_api(self):
+    # type: () -> beam_fn_api_pb2.Metrics.User.GaugeData
     seconds = int(self.timestamp)
     nanos = int((self.timestamp - seconds) * 10**9)
     gauge_timestamp = timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
@@ -399,6 +400,7 @@ class GaugeData(object):
 
   @staticmethod
   def from_runner_api(proto):
+    # type: (beam_fn_api_pb2.Metrics.User.GaugeData) -> GaugeData
     gauge_timestamp = (proto.timestamp.seconds +
                        float(proto.timestamp.nanos) / 10**9)
     return GaugeData(proto.value, timestamp=gauge_timestamp)
@@ -470,11 +472,13 @@ class DistributionData(object):
     return DistributionData(value, 1, value, value)
 
   def to_runner_api(self):
+    # type: () -> beam_fn_api_pb2.Metrics.User.DistributionData
     return beam_fn_api_pb2.Metrics.User.DistributionData(
         count=self.count, sum=self.sum, min=self.min, max=self.max)
 
   @staticmethod
   def from_runner_api(proto):
+    # type: (beam_fn_api_pb2.Metrics.User.DistributionData) -> DistributionData
     return DistributionData(proto.sum, proto.count, proto.min, proto.max)
 
   def to_runner_api_monitoring_info(self):

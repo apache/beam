@@ -23,6 +23,8 @@ from __future__ import absolute_import
 from builtins import object
 from threading import Lock
 from threading import Timer
+from typing import Any
+from typing import Iterable
 
 import apache_beam as beam
 from apache_beam import TimeDomain
@@ -360,4 +362,5 @@ class _OutputProcessor(OutputProcessor):
     self.output_iter = None
 
   def process_outputs(self, windowed_input_element, output_iter):
+    # type: (WindowedValue, Iterable[Any]) -> None
     self.output_iter = output_iter
