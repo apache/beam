@@ -899,10 +899,13 @@ class Read(ptransform.PTransform):
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     # type: (...) -> Optional[coders.Coder]
+    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
-    else:
+    elif isinstance(self.source, dataflow_io.NativeSource):
       return self.source.coder
+    else:
+      return None
 
   def display_data(self):
     return {'source': DisplayDataItem(self.source.__class__,
