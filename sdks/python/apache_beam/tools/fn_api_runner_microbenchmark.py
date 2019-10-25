@@ -58,10 +58,10 @@ class BagInStateOutputAfterTimer(beam.DoFn):
   EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
 
   def process(self,
-      element,
-      set_state=beam.DoFn.StateParam(SET_STATE),
-      emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
-    key, values = element
+              element,
+              set_state=beam.DoFn.StateParam(SET_STATE),
+              emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+    _, values = element
     for v in values:
       set_state.add(v)
     emit_timer.set(1)
