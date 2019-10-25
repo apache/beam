@@ -261,7 +261,8 @@ class DataflowRunnerTest(unittest.TestCase):
     (p | ptransform.Create([1, 2, 3, 4, 5])
      | 'Do' >> SpecialParDo(SpecialDoFn(), now))
 
-    p.run()
+    # TODO(BEAM-366) Enable runner API on this test.
+    p.run(test_runner_api=False)
     job_dict = json.loads(str(remote_runner.job))
     steps = [step
              for step in job_dict['steps']
