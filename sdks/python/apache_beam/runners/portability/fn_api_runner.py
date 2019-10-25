@@ -945,7 +945,8 @@ class FnApiRunner(runner.PipelineRunner):
         # merged results. Without residual_roots, pipeline stops earlier and we
         # may miss some data.
         bundle_manager._num_workers = 1
-        bundle_manager._skip_registration = True
+        # TODO(BEAM-8486): this should be changed to _registered
+        bundle_manager._skip_registration = True  # type: ignore[attr-defined]
         last_result, splits = bundle_manager.process_bundle(
             deferred_inputs, data_output)
         last_sent = deferred_inputs
