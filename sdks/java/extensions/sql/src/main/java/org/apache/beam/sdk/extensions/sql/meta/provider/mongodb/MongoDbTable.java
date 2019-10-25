@@ -33,6 +33,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -83,7 +86,14 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
-    throw new UnsupportedOperationException("Writing to a MongoDB is not supported");
+    return input
+        .apply("Transform Rows to JSON", ToJson.<Row>of().withSchema(getSchema()))
+        .apply("Produce documents from JSON", MapElements.via(new ObjectToDocumentFn()))
+        .apply(
+        MongoDbIO.write()
+            .withUri(dbUri)
+            .withDatabase(dbName)
+            .withCollection(dbCollection));
   }
 
   @Override
@@ -138,6 +148,14 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
                 .element()
                 .toJson(JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build()));
       }
+    }
+  }
+
+  @VisibleForTesting
+  static class ObjectToDocumentFn extends SimpleFunction<String, Document> {
+    @Override
+    public Document apply(String input) {
+      return Document.parse(input);
     }
   }
 }

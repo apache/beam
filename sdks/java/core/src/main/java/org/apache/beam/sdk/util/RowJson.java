@@ -321,16 +321,26 @@ public class RowJson {
           gen.writeString((String) value);
           break;
         case BYTE:
-          gen.writeNumber((byte) value);
+          gen.writeNumber((byte) (int) value);
           break;
         case DOUBLE:
-          gen.writeNumber((double) value);
+          // BigDecimal cannot be cast to double directly
+          if (value instanceof BigDecimal) {
+            gen.writeNumber(((BigDecimal) value).doubleValue());
+          } else {
+            gen.writeNumber((double) value);
+          }
           break;
         case FLOAT:
-          gen.writeNumber((float) value);
+          // BigDecimal cannot be cast to float directly
+          if (value instanceof BigDecimal) {
+            gen.writeNumber(((BigDecimal) value).floatValue());
+          } else {
+            gen.writeNumber((float) value);
+          }
           break;
         case INT16:
-          gen.writeNumber((short) value);
+          gen.writeNumber((short) (int) value);
           break;
         case INT32:
           gen.writeNumber((int) value);
