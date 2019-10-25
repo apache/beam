@@ -132,8 +132,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
             broadcastStateData,
             doFnSchemaInformation);
 
-    MultiOuputCoder multipleOutputCoder = MultiOuputCoder
-        .of(SerializableCoder.of(TupleTag.class), outputCoderMap, windowCoder);
+    MultiOuputCoder multipleOutputCoder =
+        MultiOuputCoder.of(SerializableCoder.of(TupleTag.class), outputCoderMap, windowCoder);
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs =
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.fromBeamCoder(multipleOutputCoder));
     if (outputs.entrySet().size() > 1) {
@@ -144,8 +144,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     } else {
       Coder<OutputT> outputCoder = ((PCollection<OutputT>) outputs.get(mainOutputTag)).getCoder();
       Coder<WindowedValue<?>> windowedValueCoder =
-          (Coder<WindowedValue<?>>)
-              (Coder<?>) WindowedValue.getFullCoder(outputCoder, windowCoder);
+          (Coder<WindowedValue<?>>) (Coder<?>) WindowedValue.getFullCoder(outputCoder, windowCoder);
       Dataset<WindowedValue<?>> outputDataset =
           allOutputs.map(
               (MapFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, WindowedValue<?>>)
@@ -167,7 +166,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
       Coder<WindowedValue<?>> windowedValueCoder =
           (Coder<WindowedValue<?>>)
-              (Coder<?>) WindowedValue.getFullCoder(sideInput.getPCollection().getCoder(), windowCoder);
+              (Coder<?>)
+                  WindowedValue.getFullCoder(sideInput.getPCollection().getCoder(), windowCoder);
       Dataset<WindowedValue<?>> broadcastSet = context.getSideInputDataSet(sideInput);
       List<WindowedValue<?>> valuesList = broadcastSet.collectAsList();
       List<byte[]> codedValues = new ArrayList<>();
@@ -215,12 +215,15 @@ class ParDoTranslatorBatch<InputT, OutputT>
   private void pruneOutputFilteredByTag(
       TranslationContext context,
       Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs,
-      Map.Entry<TupleTag<?>, PValue> output, Coder<? extends BoundedWindow> windowCoder) {
+      Map.Entry<TupleTag<?>, PValue> output,
+      Coder<? extends BoundedWindow> windowCoder) {
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> filteredDataset =
         allOutputs.filter(new DoFnFilterFunction(output.getKey()));
     Coder<WindowedValue<?>> windowedValueCoder =
         (Coder<WindowedValue<?>>)
-            (Coder<?>) WindowedValue.getFullCoder(((PCollection<OutputT>)output.getValue()).getCoder(), windowCoder);
+            (Coder<?>)
+                WindowedValue.getFullCoder(
+                    ((PCollection<OutputT>) output.getValue()).getCoder(), windowCoder);
     Dataset<WindowedValue<?>> outputDataset =
         filteredDataset.map(
             (MapFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, WindowedValue<?>>)

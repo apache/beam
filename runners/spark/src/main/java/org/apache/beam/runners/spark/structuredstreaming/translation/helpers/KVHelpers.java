@@ -25,7 +25,7 @@ import org.apache.spark.api.java.function.MapFunction;
 public final class KVHelpers {
 
   /** A Spark {@link MapFunction} for extracting the key out of a {@link KV} for GBK for example. */
-  public static <K, V>  MapFunction<WindowedValue<KV<K, V>>, K> extractKey() {
+  public static <K, V> MapFunction<WindowedValue<KV<K, V>>, K> extractKey() {
     return wv -> wv.getValue().getKey();
   }
 }
