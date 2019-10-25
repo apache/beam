@@ -276,6 +276,9 @@ class Stage(object):
           stage_components.transforms[side.transform_id].inputs[side.local_name]
           for side in side_inputs
       }, main_input=main_input_id)
+      if self.environment is None:
+        raise RuntimeError("Something is wrong: the stage should have resolved"
+                           " an environment by now.")
       exec_payload = beam_runner_api_pb2.ExecutableStagePayload(
           environment=components.environments[self.environment],
           input=main_input_id,
