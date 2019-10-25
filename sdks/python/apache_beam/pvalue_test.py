@@ -71,9 +71,6 @@ class PTupleTest(unittest.TestCase):
     self.assertEqual(first, ptuple['first'])
     self.assertEqual(second, ptuple['second'])
 
-  def test_immutability(self):
-    pass
-
 
 if __name__ == '__main__':
   unittest.main()
