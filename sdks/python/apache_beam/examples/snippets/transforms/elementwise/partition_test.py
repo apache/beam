@@ -54,9 +54,9 @@ perennial: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
       if line.split(':', 1)[0] == 'perennial'
   ]
 
-  assert_matches_stdout(actual1, annuals, 'annuals')
-  assert_matches_stdout(actual2, biennials, 'biennials')
-  assert_matches_stdout(actual3, perennials, 'perennials')
+  assert_matches_stdout(actual1, annuals, label='annuals')
+  assert_matches_stdout(actual2, biennials, label='biennials')
+  assert_matches_stdout(actual3, perennials, label='perennials')
 
 
 def check_split_datasets(actual1, actual2):
@@ -79,8 +79,8 @@ train: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
       if line.split(':', 1)[0] == 'test'
   ]
 
-  assert_matches_stdout(actual1, train_dataset, 'train_dataset')
-  assert_matches_stdout(actual2, test_dataset, 'test_dataset')
+  assert_matches_stdout(actual1, train_dataset, label='train_dataset')
+  assert_matches_stdout(actual2, test_dataset, label='test_dataset')
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
