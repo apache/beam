@@ -187,11 +187,9 @@ class FnApiRunnerTest(unittest.TestCase):
       main = p | 'main' >> beam.Create(['a', 'b', 'c'])
       side = p | 'side' >> beam.Create(['x', 'y'])
       res = main | beam.FlatMap(cross_product, beam.pvalue.AsList(side))
-      res | beam.Map(print)
-      # TODO(pabloem, MUST): Uncomment the assertion.
-      #assert_that(res,
-      #            equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'),
-      #                      ('a', 'y'), ('b', 'y'), ('c', 'y')]))
+      assert_that(res,
+                  equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'),
+                            ('a', 'y'), ('b', 'y'), ('c', 'y')]))
 
   def test_pardo_windowed_side_inputs(self):
     with self.create_pipeline() as p:

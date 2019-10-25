@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import collections
 import functools
+import itertools
 import logging
 from builtins import object
 
@@ -33,6 +34,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.utils import proto_utils
+from apache_beam.utils import timestamp
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -76,6 +78,9 @@ class Stage(object):
           (self._extract_environment(t) for t in transforms))
     self.environment = environment
     self.forced_root = forced_root
+
+  def update_watermark(self):
+    pass
 
   def __repr__(self):
     must_follow = ', '.join(prev.name for prev in self.must_follow)
@@ -281,6 +286,189 @@ def memoize_on_instance(f):
     return result
 
   return wrapper
+
+
+SideInputInfo = collections.namedtuple(
+    'SideInputInfo', ['consumer', 'tag', 'buffer_id', 'access_pattern'])
+
+
+StageInfo = collections.namedtuple(
+    'StageInfo', ['stage', 'inputs', 'outputs'])
+
+
+class PipelineExecutionContext(object):
+  """A set of utilities for the FnApiRunner."""
+
+  def __init__(self, pipeline_components, stages):
+    self.pipeline_components = pipeline_components
+    self._stages = stages
+    self.endpoints_per_stage = {
+        s.name: self._extract_stage_endpoints(s) for s in stages}
+
+    self._consuming_stage_per_input_buffer_id = {
+        k: v[0]
+        for k, v in self._compute_pcoll_consumer_per_buffer_id(stages).items()}
+
+    self._consuming_transform_per_input_buffer_id = {
+        k: v[1]
+        for k, v in self._compute_pcoll_consumer_per_buffer_id(stages).items()}
+
+    self.pcoll_to_side_input_info = self._compute_side_input_to_consumer_map(
+        stages)
+
+    self.stages_per_name = {s.name: self._compute_stage_info(s) for s in stages}
+    self._watermarks_per_pcoll = self._build_watermark_dict(
+        self.stages_per_name.values())
+
+  def get_side_input_infos(self, pcoll_name):
+    # type: (str) -> List[SideInputInfo]
+    return self.pcoll_to_side_input_info.get(pcoll_name, [])
+
+  def get_consuming_stage(self, buffer_id):
+    # type: (str) -> Stage
+    return self._consuming_stage_per_input_buffer_id.get(buffer_id, None)
+
+  def get_consuming_transform(self, buffer_id):
+    # type: (str) -> beam_runner_api_pb2.PTransform
+    return self._consuming_transform_per_input_buffer_id.get(
+        buffer_id, None)
+
+  def update_pcoll_watermark(self, pcoll_name, watermark):
+    # type: (str, timestamp.Timestamp) -> None
+    # TODO(pabloem, MUST): Document expectations (and make sure they're appropriate).
+    self._watermarks_per_pcoll[pcoll_name] = max(
+        watermark, self._watermarks_per_pcoll[pcoll_name])
+
+  def get_input_watermark(self, stage_name):
+    stage_info = self.stages_per_name[stage_name]
+    return min(self._watermarks_per_pcoll[pcoll] for pcoll in stage_info.inputs)
+
+  @staticmethod
+  def _compute_pcoll_consumer_per_buffer_id(stages):
+    impulse_consumers = {
+        t.spec.payload: (s, t)
+        for s in stages
+        for t in s.transforms
+        if t.spec.urn == bundle_processor.DATA_INPUT_URN}
+
+    timer_pcoll_consumers = {}
+    for s in stages:
+      transforms_per_unique_name = {t.unique_name:t for t in s.transforms}
+      for input_id, timer_pcoll in s.timer_pcollections:
+        buffer_id = create_buffer_id(timer_pcoll, 'timers')
+        timer_pcoll_consumers[buffer_id] = (
+            s, transforms_per_unique_name[input_id])
+
+    result = {}
+    result.update(timer_pcoll_consumers)
+    result.update(impulse_consumers)
+    return result
+
+  @staticmethod
+  def _compute_side_input_to_consumer_map(stages):
+    pcoll_side_input_info_pairs = itertools.chain(*[
+        PipelineExecutionContext._get_data_side_input_per_pcoll_id(s)
+        for s in stages])
+    result = {}
+    for pcoll_name, side_input_info in pcoll_side_input_info_pairs:
+      if pcoll_name not in result:
+        result[pcoll_name] = []
+      result[pcoll_name].append(side_input_info)
+    return result
+
+  @staticmethod
+  def _build_watermark_dict(stage_infos):
+    stage_crossing_pcolls = set()
+    for stage_info in stage_infos:
+      stage_crossing_pcolls = stage_crossing_pcolls.union(stage_info.inputs)
+      stage_crossing_pcolls = stage_crossing_pcolls.union(stage_info.outputs)
+
+    return {pcoll: timestamp.MIN_TIMESTAMP for pcoll in stage_crossing_pcolls}
+
+  @staticmethod
+  def _compute_stage_info(stage):
+    # type: (Stage) -> StageInfo
+    result_inputs = set()
+    result_outputs = set()
+    side_input_infos = PipelineExecutionContext._get_data_side_input_per_pcoll_id(stage)
+    main_inputs, outputs = PipelineExecutionContext._extract_stage_endpoints(stage)
+
+    for pcoll_id, unused_si_info in side_input_infos:
+      result_inputs.add(pcoll_id)
+
+    for transform_name, buffer_id in main_inputs.items():
+      if buffer_id == IMPULSE_BUFFER:
+        pcoll_id = '%s%s' % (stage.name, IMPULSE_BUFFER)
+      else:
+        _, pcoll_id = split_buffer_id(buffer_id)
+      result_outputs.add(pcoll_id)
+
+    for transform_name, buffer_id in outputs.items():
+      _, pcoll_id = split_buffer_id(buffer_id)
+      result_outputs.add(pcoll_id)
+
+    # TODO(pabloem, MUST): What about timer PCollections?
+    return StageInfo(stage, result_inputs, result_outputs)
+
+  @staticmethod
+  def _get_data_side_input_per_pcoll_id(stage):
+    """
+    Args:
+      stage (fn_api_runner_transforms.Stage): The stage that consumes side
+        inputs that we will extract.
+    """
+    consumer_side_input_pairs = []
+    for transform in stage.transforms:
+      if transform.spec.urn in PAR_DO_URNS:
+        # If a transform is a PARDO, then it may receive side inputs.
+        # For each side input in a PARDO we map the side input PCollection name
+        # to a SideInputInfo tuple.
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for tag, si in payload.side_inputs.items():
+          pcoll_id = transform.inputs[tag]
+          sinfo = SideInputInfo(
+              transform.unique_name,
+              tag,
+              create_buffer_id(pcoll_id),
+              si.access_pattern)
+          consumer_side_input_pairs.append((pcoll_id, sinfo))
+    return consumer_side_input_pairs
+
+  @staticmethod
+  def _extract_stage_endpoints(stage):
+    """Returns maps of transform names to PCollection identifiers.
+
+    Also mutates IO stages to point to the data ApiServiceDescriptor.
+
+    Args:
+      stage (fn_api_runner_transforms.Stage): The stage to extract endpoints
+        for.
+    Returns:
+      A tuple of (data_input, data_output) dictionaries.
+        `data_input` is a tuple of transforms that receive inputs for the stage.
+        `data_output` is a dictionary mapping
+        (transform_name) to a PCollection ID.
+    """
+    data_input = {}
+    data_output = {}
+    for transform in stage.transforms:
+      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
+                                bundle_processor.DATA_OUTPUT_URN):
+        # If a transform is a DATA_INPUT or DATA_OUTPUT transform, it will
+        # receive data from / deliver data to the runner.
+        pcoll_id = transform.spec.payload
+        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
+          # For data input transforms, they only have one input.
+          if pcoll_id == IMPULSE_BUFFER:
+            pass
+          data_input[transform.unique_name] = pcoll_id
+        else:
+          assert transform.spec.urn == bundle_processor.DATA_OUTPUT_URN
+          # For data output transforms, we map the transform name to the
+          # output PCollection name
+          data_output[transform.unique_name] = pcoll_id
+    return data_input, data_output
 
 
 class TransformContext(object):
