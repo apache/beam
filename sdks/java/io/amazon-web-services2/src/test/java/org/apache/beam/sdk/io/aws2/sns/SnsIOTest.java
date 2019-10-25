@@ -32,12 +32,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+import software.amazon.awssdk.services.sns.model.GetTopicAttributesResponse;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 /** Tests to verify writes to Sns. */
-@RunWith(JUnit4.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({PublishResponse.class, GetTopicAttributesResponse.class})
 public class SnsIOTest implements Serializable {
 
   private static final String topicArn = "arn:aws:sns:us-west-2:5880:topic-FMFEHJ47NRFO";
