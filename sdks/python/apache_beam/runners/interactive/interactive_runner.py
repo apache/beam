@@ -146,7 +146,7 @@ class InteractiveRunner(runners.PipelineRunner):
         cache_manager=self._cache_manager,
         pipeline_graph_renderer=self._renderer)
     display.start_periodic_update()
-    result = pipeline_to_execute.run(interactive=True)
+    result = pipeline_to_execute.run()
     result.wait_until_finish()
     display.stop_periodic_update()
 
