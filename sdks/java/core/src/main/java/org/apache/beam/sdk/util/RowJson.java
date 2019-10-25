@@ -321,7 +321,7 @@ public class RowJson {
           gen.writeString((String) value);
           break;
         case BYTE:
-          gen.writeNumber((byte) (int) value);
+          gen.writeNumber((byte) value);
           break;
         case DOUBLE:
           // BigDecimal cannot be cast to double directly
@@ -340,7 +340,7 @@ public class RowJson {
           }
           break;
         case INT16:
-          gen.writeNumber((short) (int) value);
+          gen.writeNumber((short) value);
           break;
         case INT32:
           gen.writeNumber((int) value);
