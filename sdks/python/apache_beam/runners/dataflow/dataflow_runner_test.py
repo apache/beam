@@ -46,6 +46,7 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.runner import PipelineState
+from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Windowing
@@ -86,7 +87,7 @@ class SpecialDoFn(beam.DoFn):
 
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
-class DataflowRunnerTest(unittest.TestCase):
+class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def setUp(self):
     self.default_properties = [
         '--dataflow_endpoint=ignored',
@@ -271,7 +272,6 @@ class DataflowRunnerTest(unittest.TestCase):
              if len(step['properties'].get('display_data', [])) > 0]
     step = steps[1]
     disp_data = step['properties']['display_data']
-    disp_data = sorted(disp_data, key=lambda x: x['namespace']+x['key'])
     nspace = SpecialParDo.__module__+ '.'
     expected_data = [{'type': 'TIMESTAMP', 'namespace': nspace+'SpecialParDo',
                       'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
@@ -282,8 +282,7 @@ class DataflowRunnerTest(unittest.TestCase):
                      {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
                       'value': 42, 'key': 'dofn_value'}]
     expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])
-    self.assertEqual(len(disp_data), 3)
-    self.assertEqual(disp_data, expected_data)
+    self.assertUnhashableCountEqual(disp_data, expected_data)
 
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowRunner()
