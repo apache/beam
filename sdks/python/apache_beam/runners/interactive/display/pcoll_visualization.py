@@ -32,38 +32,23 @@ from apache_beam import pvalue
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 
-# jsons doesn't support < Python 3.5. Work around with json for legacy tests.
-# TODO(BEAM-8288): clean up once Py2 is deprecated from Beam.
 try:
-  import jsons
-  _pv_jsons_load = jsons.load
-  _pv_jsons_dump = jsons.dump
-except ImportError:
-  import json
-  _pv_jsons_load = json.load
-  _pv_jsons_dump = json.dump
+  import jsons  # pylint: disable=import-error
+  from IPython import get_ipython  # pylint: disable=import-error
+  from IPython.core.display import HTML  # pylint: disable=import-error
+  from IPython.core.display import Javascript  # pylint: disable=import-error
+  from IPython.core.display import display  # pylint: disable=import-error
+  from IPython.core.display import display_javascript  # pylint: disable=import-error
+  from IPython.core.display import update_display  # pylint: disable=import-error
+  from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=import-error
+  from timeloop import Timeloop  # pylint: disable=import-error
 
-try:
-  from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator
-  _facets_gfsg_ready = True
+  if get_ipython():
+    _pcoll_visualization_ready = True
+  else:
+    _pcoll_visualization_ready = False
 except ImportError:
-  _facets_gfsg_ready = False
-
-try:
-  from IPython.core.display import HTML
-  from IPython.core.display import Javascript
-  from IPython.core.display import display
-  from IPython.core.display import display_javascript
-  from IPython.core.display import update_display
-  _ipython_ready = True
-except ImportError:
-  _ipython_ready = False
-
-try:
-  from timeloop import Timeloop
-  _tl_ready = True
-except ImportError:
-  _tl_ready = False
+  _pcoll_visualization_ready = False
 
 # 1-d types that need additional normalization to be compatible with DataFrame.
 _one_dimension_types = (int, float, str, bool, list, tuple)
@@ -119,12 +104,12 @@ def visualize(pcoll, dynamic_plotting_interval=None):
 
   If dynamic_plotting is not enabled (by default), None is returned.
   """
-  if not _ipython_ready:
+  if not _pcoll_visualization_ready:
     return None
   pv = PCollectionVisualization(pcoll)
   pv.display_facets()
 
-  if dynamic_plotting_interval and _tl_ready:
+  if dynamic_plotting_interval:
     # Disables the verbose logging from timeloop.
     logging.getLogger('timeloop').disabled = True
     tl = Timeloop()
@@ -160,6 +145,11 @@ class PCollectionVisualization(object):
   """
 
   def __init__(self, pcoll):
+    assert _pcoll_visualization_ready, (
+        'Dependencies for PCollection visualization are not available. Please '
+        'use `pip install apache-beam[interactive]` to install necessary '
+        'dependencies and make sure that you are executing code in an '
+        'interactive environment such as a Jupyter notebook.')
     assert isinstance(pcoll, pvalue.PCollection), (
         'pcoll should be apache_beam.pvalue.PCollection')
     self._pcoll = pcoll
@@ -219,13 +209,10 @@ class PCollectionVisualization(object):
       display(HTML(html))
 
   def _display_overview(self, data, update=None):
-    if _facets_gfsg_ready:
-      gfsg = GenericFeatureStatisticsGenerator()
-      proto = gfsg.ProtoFromDataFrames(
-          [{'name': 'data', 'table': data}])
-      protostr = base64.b64encode(proto.SerializeToString()).decode('utf-8')
-    else:  # GenericFeatureStatisticsGenerator is not supported.
-      protostr = ''
+    gfsg = GenericFeatureStatisticsGenerator()
+    proto = gfsg.ProtoFromDataFrames(
+        [{'name': 'data', 'table': data}])
+    protostr = base64.b64encode(proto.SerializeToString()).decode('utf-8')
     if update:
       script = _OVERVIEW_SCRIPT_TEMPLATE.format(
           display_id=update,

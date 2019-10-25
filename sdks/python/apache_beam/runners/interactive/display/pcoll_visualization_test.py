@@ -38,6 +38,7 @@ try:
   import jsons  # pylint: disable=unused-import
   import timeloop
   from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
+
   _interactive_installed = True
 except ImportError:
   _interactive_installed = False
@@ -48,6 +49,10 @@ except ImportError:
 class PCollectionVisualizationTest(unittest.TestCase):
 
   def setUp(self):
+    # Allow unit test to run outside of ipython kernel since we don't test the
+    # frontend rendering in unit tests.
+    pv._pcoll_visualization_ready = True
+
     self._p = beam.Pipeline()
     # pylint: disable=range-builtin-not-iterating
     self._pcoll = self._p | 'Create' >> beam.Create(range(1000))
@@ -108,11 +113,8 @@ class PCollectionVisualizationTest(unittest.TestCase):
     ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
     # Starts async dynamic plotting that never ends in this test.
     h = pv.visualize(self._pcoll, dynamic_plotting_interval=0.001)
-    # Blocking so the above async task can execute at least 3 iterations.
-    timeout = time.time() + 1
-    while len(mocked_display_facets.call_args_list) < 3:
-      if time.time() > timeout:
-        break
+    # Blocking so the above async task can execute some iterations.
+    time.sleep(1)
     # The first iteration doesn't provide updating_pv to display_facets.
     _, first_kwargs = mocked_display_facets.call_args_list[0]
     self.assertEqual(first_kwargs, {})
@@ -131,31 +133,21 @@ class PCollectionVisualizationTest(unittest.TestCase):
                    'The test requires Python 3.6+.')
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
          '.PCollectionVisualization._to_element_list', _mock_to_element_list)
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization.display_facets')
   @patch('timeloop.Timeloop.stop')
   def test_auto_stop_dynamic_plotting_when_job_is_terminated(
       self,
-      mocked_timeloop,
-      mocked_display_facets):
+      mocked_timeloop):
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.RUNNING)
     ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
     # Starts non-stopping async dynamic plotting until the job is terminated.
     pv.visualize(self._pcoll, dynamic_plotting_interval=0.001)
-    # Blocking so the above async task can execute at least 3 iterations.
-    timeout = time.time() + 1
-    while len(mocked_display_facets.call_args_list) < 3:
-      if time.time() > timeout:
-        break
+    # Blocking so the above async task can execute some iterations.
+    time.sleep(1)
     mocked_timeloop.assert_not_called()
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.DONE)
     ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
-    # Blocking so the above async task can execute at least another 3
-    # iterations.
-    timeout = time.time() + 1
-    while len(mocked_display_facets.call_args_list) < 6:
-      if time.time() > timeout:
-        break
+    # Blocking so the above async task can execute some iterations.
+    time.sleep(1)
     # "assert_called" is new in Python 3.6.
     mocked_timeloop.assert_called()
 
