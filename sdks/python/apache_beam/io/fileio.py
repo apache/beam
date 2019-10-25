@@ -96,7 +96,7 @@ import random
 import uuid
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import BinaryIO
+from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
