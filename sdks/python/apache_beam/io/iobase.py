@@ -1440,6 +1440,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     def restriction_size(self, element, restriction):
       return restriction.weight
 
+    def restriction_coder(self):
+      return coders.DillCoder()
+
   def __init__(self, source):
     if not isinstance(source, BoundedSource):
       raise RuntimeError('SDFBoundedSourceWrapper can only wrap BoundedSource')
