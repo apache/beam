@@ -425,7 +425,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       assert_that(jobs,
                   equal_to([job_reference]), label='CheckJobs')
 
-  @unittest.skipIf(sys.version_info[0] == 2, 
+  @unittest.skipIf(sys.version_info[0] == 2,
                    'Mock pickling problems in Py 2')
   @mock.patch('time.sleep')
   def test_wait_for_job_completion(self, sleep_mock):
@@ -468,7 +468,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     sleep_mock.assert_called_once()
 
-  @unittest.skipIf(sys.version_info[0] == 2, 
+  @unittest.skipIf(sys.version_info[0] == 2,
                    'Mock pickling problems in Py 2')
   @mock.patch('time.sleep')
   def test_one_job_failed_after_waiting(self, sleep_mock):
