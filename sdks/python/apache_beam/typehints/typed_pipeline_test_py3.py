@@ -126,6 +126,31 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, r'str.*is not iterable'):
       _ = [1, 2, 3] | beam.ParDo(MyDoFn())
 
+  def test_typed_dofn_method_return_none(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, unused_element: int) -> None:
+        pass
+
+    result = [1, 2, 3] | beam.ParDo(MyDoFn())
+    self.assertListEqual([], result)
+
+  def test_typed_dofn_method_return_optional(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, unused_element: int) -> typehints.Optional[
+          typehints.Iterable[int]]:
+        pass
+
+    result = [1, 2, 3] | beam.ParDo(MyDoFn())
+    self.assertListEqual([], result)
+
+  def test_typed_dofn_method_return_optional_not_iterable(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, unused_element: int) -> typehints.Optional[int]:
+        pass
+
+    with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
+      _ = [1, 2, 3] | beam.ParDo(MyDoFn())
+
   def test_typed_callable_not_iterable(self):
     def do_fn(element: int) -> int:
       return [element]  # Return a list to not fail the pipeline.
