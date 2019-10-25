@@ -76,16 +76,20 @@ func (f *fakeClient) Send(*pb.Elements) error {
 	return nil
 }
 
-func TestDataChannelTerminateOnClose(t *testing.T) {
+func TestDataChannelTerminate(t *testing.T) {
 	// The logging of channels closed is quite noisy for this test
 	log.SetOutput(ioutil.Discard)
 
+	expectedError := fmt.Errorf("EXPECTED ERROR")
+
 	tests := []struct {
-		name   string
-		caseFn func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel)
+		name          string
+		expectedError error
+		caseFn        func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel)
 	}{
 		{
-			name: "onClose",
+			name:          "onClose",
+			expectedError: io.EOF,
 			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel) {
 				// We don't read up all the buffered data, but immediately close the reader.
 				// Previously, since nothing was consuming the incoming gRPC data, the whole
@@ -96,68 +100,20 @@ func TestDataChannelTerminateOnClose(t *testing.T) {
 				// If done is signaled, that means client.Recv() has been called to flush the
 				// channel, meaning consumer code isn't stuck.
 				<-client.done
-				i := 1 // For the earlier Read.
-				for {
-					read := make([]byte, 4)
-					if n, err := r.Read(read); err != io.EOF {
-						i++
-						// There are bufElements+extraData available from the fakeClient, so drain the channel
-						// before marking a test failure.
-						if i > bufElements+extraData {
-							t.Errorf("Unexpected error from read: %v, read %d bytes, %v", err, n, read)
-						}
-						continue
-					}
-					break
-				}
-				// This Test can hang on failure.
 			},
 		}, {
-			name: "onRecvError",
+			name:          "onSentinel",
+			expectedError: io.EOF,
 			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel) {
-				// Set the 3rd Recv call to have an error.
+				// fakeClient eventually returns a sentinel element.
+			},
+		}, {
+			name:          "onRecvError",
+			expectedError: expectedError,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel) {
 				// The SDK starts reading in a goroutine immeadiately after open.
-				expectedError := fmt.Errorf("EXPECTED ERROR")
+				// Set the 2nd Recv call to have an error.
 				client.err = expectedError
-				t.Log("ERROR SET")
-
-				i := 1 // For the earlier Read.
-				for {
-					read := make([]byte, 4)
-					i++
-					if n, err := r.Read(read); err != expectedError {
-						// There are bufElements+extraData available from the fakeClient, so drain the channel
-						// before marking a test failure.
-						if i > bufElements+extraData {
-							t.Errorf("Unexpected error from read %d: %v, read %d bytes, %v", i, err, n, read)
-						}
-						continue
-					}
-					break
-				}
-				t.Logf("exited after %d Read calls", i)
-
-				// Verify that new readers return errors on their reads after a client.Recv error.
-				if n, err := c.OpenRead(context.Background(), "ptr", "inst_ref").Read(make([]byte, 4)); err != expectedError {
-					t.Errorf("Unexpected error from read: got %v, want, %v read %d bytes.", err, expectedError, n)
-				}
-			},
-		}, {
-			name: "onSentinel",
-			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel) {
-				i := 1 // For the earlier Read.
-				for {
-					read := make([]byte, 4)
-					i++
-					if n, err := r.Read(read); err == io.EOF {
-						break
-					} else if err != nil {
-						t.Errorf("Unexpected error from read %d: %v, read %d bytes, %v", i, err, n, read)
-					}
-					continue
-				}
-				t.Logf("exited after %d Read calls", i)
-				// This Test can hang on failure.
 			},
 		},
 	}
@@ -174,6 +130,21 @@ func TestDataChannelTerminateOnClose(t *testing.T) {
 				t.Errorf("Unexpected error from read: %v, read %d bytes.", err, n)
 			}
 			test.caseFn(t, r, client, c)
+			// Drain the reader.
+			i := 1 // For the earlier Read.
+			for err == nil {
+				read := make([]byte, 4)
+				_, err = r.Read(read)
+				i++
+			}
+
+			if got, want := err, test.expectedError; got != want {
+				t.Errorf("Unexpected error from read %d: got %v, want %v", i, got, want)
+			}
+			// Verify that new readers return the same their reads after client.Recv is done.
+			if n, err := c.OpenRead(context.Background(), "ptr", "inst_ref").Read(make([]byte, 4)); err != test.expectedError {
+				t.Errorf("Unexpected error from read: got %v, want, %v read %d bytes.", err, test.expectedError, n)
+			}
 		})
 	}
 
