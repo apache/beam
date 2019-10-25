@@ -35,7 +35,8 @@ func TestCreate(t *testing.T) {
 	}{
 		{[]interface{}{1, 2, 3}},
 		{[]interface{}{"1", "2", "3"}},
-		{[]interface{}{0.1, 0.2, 0.3}},
+		{[]interface{}{float32(0.1), float32(0.2), float32(0.3)}},
+		{[]interface{}{float64(0.1), float64(0.2), float64(0.3)}},
 		{[]interface{}{uint(1), uint(2), uint(3)}},
 		{[]interface{}{false, true, true, false, true}},
 		{[]interface{}{wc{"a", 23}, wc{"b", 42}, wc{"c", 5}}},

@@ -72,6 +72,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	case coder.VarInt:
 		return &varIntEncoder{}
 
+	case coder.Double:
+		return &doubleEncoder{}
+
 	case coder.Custom:
 		return &customEncoder{
 			t:   c.Custom.Type,
@@ -101,6 +104,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 
 	case coder.VarInt:
 		return &varIntDecoder{}
+
+	case coder.Double:
+		return &doubleDecoder{}
 
 	case coder.Custom:
 		return &customDecoder{
@@ -202,6 +208,24 @@ func (*varIntDecoder) Decode(r io.Reader) (*FullValue, error) {
 		return nil, err
 	}
 	return &FullValue{Elm: n}, nil
+}
+
+type doubleEncoder struct{}
+
+func (*doubleEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: beam double (big-endian 64-bit IEEE 754 double)
+	return coder.EncodeDouble(val.Elm.(float64), w)
+}
+
+type doubleDecoder struct{}
+
+func (*doubleDecoder) Decode(r io.Reader) (*FullValue, error) {
+	// Encoding: beam double (big-endian 64-bit IEEE 754 double)
+	f, err := coder.DecodeDouble(r)
+	if err != nil {
+		return nil, err
+	}
+	return &FullValue{Elm: f}, nil
 }
 
 type customEncoder struct {

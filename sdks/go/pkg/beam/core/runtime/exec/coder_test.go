@@ -42,6 +42,9 @@ func TestCoders(t *testing.T) {
 			coder: coder.NewVarInt(),
 			val:   &FullValue{Elm: int64(65)},
 		}, {
+			coder: coder.NewDouble(),
+			val:   &FullValue{Elm: float64(12.9)},
+		}, {
 			coder: func() *coder.Coder {
 				c, _ := coderx.NewString()
 				return &coder.Coder{Kind: coder.Custom, Custom: c, T: typex.New(reflectx.String)}
