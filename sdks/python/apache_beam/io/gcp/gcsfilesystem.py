@@ -19,7 +19,7 @@
 from __future__ import absolute_import
 
 from builtins import zip
-from typing import BinaryIO
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from future.utils import iteritems
 

@@ -35,7 +35,7 @@ import time
 import zlib
 from builtins import object
 from builtins import zip
-from typing import BinaryIO
+from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Tuple
 
 from future.utils import with_metaclass

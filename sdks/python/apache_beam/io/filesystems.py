@@ -21,7 +21,7 @@ from __future__ import absolute_import
 
 import re
 from builtins import object
-from typing import BinaryIO
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from past.builtins import unicode
 

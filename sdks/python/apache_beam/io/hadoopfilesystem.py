@@ -25,7 +25,7 @@ import logging
 import posixpath
 import re
 from builtins import zip
-from typing import BinaryIO
+from typing import BinaryIO  # pylint: disable=unused-import
 
 import hdfs
 
