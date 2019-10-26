@@ -281,7 +281,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                       'shortValue': 'SpecialParDo'},
                      {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
                       'value': 42, 'key': 'dofn_value'}]
-    expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])
     self.assertUnhashableCountEqual(disp_data, expected_data)
 
   def test_no_group_by_key_directly_after_bigquery(self):
