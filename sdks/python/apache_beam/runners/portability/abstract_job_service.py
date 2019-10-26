@@ -75,7 +75,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
 
   def GetJobs(self, request, context=None, timeout=None):
     return beam_job_api_pb2.GetJobsResponse(
-        [job.to_runner_api() for job in self._jobs.values()])
+        job_info=[job.to_runner_api() for job in self._jobs.values()])
 
   def GetState(self, request, context=None):
     return beam_job_api_pb2.JobStateEvent(
@@ -87,7 +87,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
 
   def Cancel(self, request, context=None, timeout=None):
     self._jobs[request.job_id].cancel()
-    return beam_job_api_pb2.CancelJobRequest(
+    return beam_job_api_pb2.CancelJobResponse(
         state=self._jobs[request.job_id].get_state())
 
   def GetStateStream(self, request, context=None, timeout=None):
