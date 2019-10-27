@@ -21,18 +21,20 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.cloud.datacatalog.Entry;
 import com.google.cloud.datacatalog.GcsFilesetSpec;
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.Table.Builder;
 
-/** Utils to handle GCS entries from Cloud Data Catalog. */
-class GcsUtils {
-
-  /** Check if the entry represents a GCS fileset in Data Catalog. */
-  static boolean isGcs(Entry entry) {
-    return entry.hasGcsFilesetSpec();
-  }
+/** {@link TableFactory} that understands Data Catalog GCS entries. */
+class GcsTableFactory implements TableFactory {
 
   /** Creates a Beam SQL table description from a GCS fileset entry. */
-  static Table.Builder tableBuilder(Entry entry) {
+  @Override
+  public Optional<Builder> tableBuilder(Entry entry) {
+    if (!entry.hasGcsFilesetSpec()) {
+      return Optional.empty();
+    }
+
     GcsFilesetSpec gcsFilesetSpec = entry.getGcsFilesetSpec();
     List<String> filePatterns = gcsFilesetSpec.getFilePatternsList();
 
@@ -50,10 +52,11 @@ class GcsUtils {
               + "Only file patterns with 'gs://' schema are supported at the moment.");
     }
 
-    return Table.builder()
-        .type("text")
-        .location(filePattern)
-        .properties(new JSONObject())
-        .comment("");
+    return Optional.of(
+        Table.builder()
+            .type("text")
+            .location(filePattern)
+            .properties(new JSONObject())
+            .comment(""));
   }
 }

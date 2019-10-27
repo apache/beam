@@ -42,6 +42,7 @@ import org.apache.beam.runners.spark.translation.ReifyTimestampsAndWindowsFuncti
 import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
+import org.apache.beam.runners.spark.util.TimerUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -338,6 +339,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
               outputHolder.getWindowedValues();
 
           if (!outputs.isEmpty() || !stateInternals.getState().isEmpty()) {
+
+            TimerUtils.dropExpiredTimers(timerInternals, windowingStrategy);
+
             // empty outputs are filtered later using DStream filtering
             final StateAndTimers updated =
                 new StateAndTimers(

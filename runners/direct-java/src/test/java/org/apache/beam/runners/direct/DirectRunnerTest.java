@@ -34,14 +34,18 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -51,12 +55,14 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -67,19 +73,30 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -93,9 +110,13 @@ public class DirectRunnerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private Pipeline getPipeline() {
+    return getPipeline(true);
+  }
+
+  private Pipeline getPipeline(boolean blockOnRun) {
     PipelineOptions opts = PipelineOptionsFactory.create();
     opts.setRunner(DirectRunner.class);
-
+    opts.as(DirectOptions.class).setBlockOnRun(blockOnRun);
     return Pipeline.create(opts);
   }
 
@@ -617,6 +638,60 @@ public class DirectRunnerTest implements Serializable {
   }
 
   /**
+   * Test running of {@link Pipeline} which has two {@link POutput POutputs} and finishing the first
+   * one triggers data being fed into the second one.
+   */
+  @Test(timeout = 10000)
+  public void testTwoPOutputsInPipelineWithCascade() throws InterruptedException {
+
+    StaticQueue<Integer> start = StaticQueue.of("start", VarIntCoder.of());
+    StaticQueue<Integer> messages = StaticQueue.of("messages", VarIntCoder.of());
+
+    Pipeline pipeline = getPipeline(false);
+    pipeline.begin().apply("outputStartSignal", outputStartTo(start));
+    PCollection<Integer> result =
+        pipeline
+            .apply("processMessages", messages.read())
+            .apply(
+                Window.<Integer>into(new GlobalWindows())
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(Sum.integersGlobally());
+
+    // the result should be 6, after the data will have been written
+    PAssert.that(result).containsInAnyOrder(6);
+
+    PipelineResult run = pipeline.run();
+
+    // wait until a message has been written to the start queue
+    while (start.take() == null) {}
+
+    // and publish messages
+    messages.add(1).add(2).add(3).terminate();
+
+    run.waitUntilFinish();
+  }
+
+  private PTransform<PBegin, PDone> outputStartTo(StaticQueue<Integer> queue) {
+    return new PTransform<PBegin, PDone>() {
+      @Override
+      public PDone expand(PBegin input) {
+        input
+            .apply(Create.of(1))
+            .apply(
+                MapElements.into(TypeDescriptors.voids())
+                    .via(
+                        in -> {
+                          queue.add(in);
+                          return null;
+                        }));
+        return PDone.in(input.getPipeline());
+      }
+    };
+  }
+
+  /**
    * Options for testing if {@link DirectRunner} drops {@link PipelineOptions} marked with {@link
    * JsonIgnore} fields.
    */
@@ -682,6 +757,159 @@ public class DirectRunnerTest implements Serializable {
     @Override
     public Coder<T> getOutputCoder() {
       return underlying.getOutputCoder();
+    }
+  }
+
+  private static class StaticQueue<T> implements Serializable {
+
+    static class StaticQueueSource<T> extends UnboundedSource<T, StaticQueueSource.Checkpoint<T>> {
+
+      static class Checkpoint<T> implements CheckpointMark, Serializable {
+
+        final T read;
+
+        Checkpoint(T read) {
+          this.read = read;
+        }
+
+        @Override
+        public void finalizeCheckpoint() throws IOException {
+          // nop
+        }
+      }
+
+      final StaticQueue<T> queue;
+
+      StaticQueueSource(StaticQueue<T> queue) {
+        this.queue = queue;
+      }
+
+      @Override
+      public List<? extends UnboundedSource<T, Checkpoint<T>>> split(
+          int desiredNumSplits, PipelineOptions options) throws Exception {
+        return Arrays.asList(this);
+      }
+
+      @Override
+      public UnboundedReader<T> createReader(PipelineOptions po, Checkpoint<T> cmt) {
+        return new UnboundedReader<T>() {
+
+          T read = cmt == null ? null : cmt.read;
+          boolean finished = false;
+
+          @Override
+          public boolean start() throws IOException {
+            return advance();
+          }
+
+          @Override
+          public boolean advance() throws IOException {
+            try {
+              Optional<T> taken = queue.take();
+              if (taken.isPresent()) {
+                read = taken.get();
+                return true;
+              }
+              finished = true;
+              return false;
+            } catch (InterruptedException ex) {
+              throw new IOException(ex);
+            }
+          }
+
+          @Override
+          public Instant getWatermark() {
+            if (finished) {
+              return BoundedWindow.TIMESTAMP_MAX_VALUE;
+            }
+            return BoundedWindow.TIMESTAMP_MIN_VALUE;
+          }
+
+          @Override
+          public CheckpointMark getCheckpointMark() {
+            return new Checkpoint(read);
+          }
+
+          @Override
+          public UnboundedSource<T, ?> getCurrentSource() {
+            return StaticQueueSource.this;
+          }
+
+          @Override
+          public T getCurrent() throws NoSuchElementException {
+            return read;
+          }
+
+          @Override
+          public Instant getCurrentTimestamp() {
+            return getWatermark();
+          }
+
+          @Override
+          public void close() throws IOException {
+            // nop
+          }
+        };
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
+        return (Coder) SerializableCoder.of(Checkpoint.class);
+      }
+
+      @Override
+      public Coder<T> getOutputCoder() {
+        return queue.coder;
+      }
+    }
+
+    static final Map<String, StaticQueue<?>> QUEUES = new ConcurrentHashMap<>();
+
+    static <T> StaticQueue<T> of(String name, Coder<T> coder) {
+      return new StaticQueue<>(name, coder);
+    }
+
+    private final String name;
+    private final Coder<T> coder;
+    private final transient BlockingQueue<Optional<T>> queue = new ArrayBlockingQueue<>(10);
+
+    StaticQueue(String name, Coder<T> coder) {
+      this.name = name;
+      this.coder = coder;
+      Preconditions.checkState(
+          QUEUES.put(name, this) == null, "Queue " + name + " already exists.");
+    }
+
+    StaticQueue<T> add(T elem) {
+      queue.add(Optional.of(elem));
+      return this;
+    }
+
+    @Nullable
+    Optional<T> take() throws InterruptedException {
+      return queue.take();
+    }
+
+    PTransform<PBegin, PCollection<T>> read() {
+      return new PTransform<PBegin, PCollection<T>>() {
+        @Override
+        public PCollection<T> expand(PBegin input) {
+          return input.apply("readFrom:" + name, Read.from(asSource()));
+        }
+      };
+    }
+
+    UnboundedSource<T, ?> asSource() {
+      return new StaticQueueSource<>(this);
+    }
+
+    void terminate() {
+      queue.add(Optional.empty());
+    }
+
+    private Object readResolve() {
+      return QUEUES.get(name);
     }
   }
 }

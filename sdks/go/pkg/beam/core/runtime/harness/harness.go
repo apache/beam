@@ -82,8 +82,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}()
 
 	ctrl := &control{
-		plans:  make(map[string]*exec.Plan),
-		active: make(map[string]*exec.Plan),
+		plans:  make(map[bundleDescriptorID]*exec.Plan),
+		active: make(map[instructionID]*exec.Plan),
+		failed: make(map[instructionID]error),
 		data:   &DataChannelManager{},
 		state:  &StateChannelManager{},
 	}
@@ -132,12 +133,17 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}
 }
 
+type bundleDescriptorID string
+type instructionID string
+
 type control struct {
 	// plans that are candidates for execution.
-	plans map[string]*exec.Plan // protected by mu
+	plans map[bundleDescriptorID]*exec.Plan // protected by mu
 	// plans that are actively being executed.
 	// a plan can only be in one of these maps at any time.
-	active map[string]*exec.Plan // protected by mu
+	active map[instructionID]*exec.Plan // protected by mu
+	// plans that have failed during execution
+	failed map[instructionID]error // protected by mu
 	mu     sync.Mutex
 
 	data  *DataChannelManager
@@ -145,8 +151,8 @@ type control struct {
 }
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
-	id := req.GetInstructionId()
-	ctx = setInstID(ctx, id)
+	instID := instructionID(req.GetInstructionId())
+	ctx = setInstID(ctx, instID)
 
 	switch {
 	case req.GetRegister() != nil:
@@ -155,19 +161,19 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		for _, desc := range msg.GetProcessBundleDescriptor() {
 			p, err := exec.UnmarshalPlan(desc)
 			if err != nil {
-				return fail(id, "Invalid bundle desc: %v", err)
+				return fail(ctx, instID, "Invalid bundle desc: %v", err)
 			}
 
-			pid := desc.GetId()
-			log.Debugf(ctx, "Plan %v: %v", pid, p)
+			bdID := bundleDescriptorID(desc.GetId())
+			log.Debugf(ctx, "Plan %v: %v", bdID, p)
 
 			c.mu.Lock()
-			c.plans[pid] = p
+			c.plans[bdID] = p
 			c.mu.Unlock()
 		}
 
 		return &fnpb.InstructionResponse{
-			InstructionId: id,
+			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_Register{
 				Register: &fnpb.RegisterResponse{},
 			},
@@ -178,40 +184,43 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		// NOTE: the harness sends a 0-length process bundle request to sources (changed?)
 
-		log.Debugf(ctx, "PB: %v", msg)
-
-		ref := msg.GetProcessBundleDescriptorId()
+		bdID := bundleDescriptorID(msg.GetProcessBundleDescriptorId())
+		log.Debugf(ctx, "PB [%v]: %v", instID, msg)
 		c.mu.Lock()
-		plan, ok := c.plans[ref]
+		plan, ok := c.plans[bdID]
 		// Make the plan active, and remove it from candidates
 		// since a plan can't be run concurrently.
-		c.active[id] = plan
-		delete(c.plans, ref)
+		c.active[instID] = plan
+		delete(c.plans, bdID)
 		c.mu.Unlock()
 
 		if !ok {
-			return fail(id, "execution plan for %v not found", ref)
+			return fail(ctx, instID, "execution plan for %v not found", bdID)
 		}
 
-		data := NewScopedDataManager(c.data, id)
-		state := NewScopedStateReader(c.state, id)
-		err := plan.Execute(ctx, id, exec.DataContext{Data: data, State: state})
+		data := NewScopedDataManager(c.data, instID)
+		state := NewScopedStateReader(c.state, instID)
+		err := plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
 		data.Close()
 		state.Close()
 
 		m := plan.Metrics()
 		// Move the plan back to the candidate state
 		c.mu.Lock()
-		c.plans[plan.ID()] = plan
-		delete(c.active, id)
+		// Mark the instruction as failed.
+		if err != nil {
+			c.failed[instID] = err
+		}
+		c.plans[bdID] = plan
+		delete(c.active, instID)
 		c.mu.Unlock()
 
 		if err != nil {
-			return fail(id, "execute failed: %v", err)
+			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
 		}
 
 		return &fnpb.InstructionResponse{
-			InstructionId: id,
+			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundle{
 				ProcessBundle: &fnpb.ProcessBundleResponse{
 					Metrics: m,
@@ -222,20 +231,22 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 	case req.GetProcessBundleProgress() != nil:
 		msg := req.GetProcessBundleProgress()
 
-		// log.Debugf(ctx, "PB Progress: %v", msg)
-
-		ref := msg.GetInstructionId()
+		ref := instructionID(msg.GetInstructionId())
 		c.mu.Lock()
 		plan, ok := c.active[ref]
+		err := c.failed[ref]
 		c.mu.Unlock()
+		if err != nil {
+			return fail(ctx, instID, "failed to return progress: instruction %v failed: %v", ref, err)
+		}
 		if !ok {
-			return fail(id, "execution plan for %v not found", ref)
+			return fail(ctx, instID, "failed to return progress: instruction %v not active", ref)
 		}
 
 		m := plan.Metrics()
 
 		return &fnpb.InstructionResponse{
-			InstructionId: id,
+			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
 					Metrics: m,
@@ -247,27 +258,31 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetProcessBundleSplit()
 
 		log.Debugf(ctx, "PB Split: %v", msg)
-		ref := msg.GetInstructionId()
+		ref := instructionID(msg.GetInstructionId())
 		c.mu.Lock()
 		plan, ok := c.active[ref]
+		err := c.failed[ref]
 		c.mu.Unlock()
+		if err != nil {
+			return fail(ctx, instID, "failed to split: instruction %v failed: %v", ref, err)
+		}
 		if !ok {
-			return fail(id, "execution plan for %v not found", ref)
+			return fail(ctx, instID, "failed to split: execution plan for %v not active", ref)
 		}
 
 		// Get the desired splits for the root FnAPI read operation.
 		ds := msg.GetDesiredSplits()[plan.SourcePTransformID()]
 		if ds == nil {
-			return fail(id, "failed to split: desired splits for root was empty.")
+			return fail(ctx, instID, "failed to split: desired splits for root of %v was empty.", ref)
 		}
-		split, err := plan.Split(exec.SplitPoints{ds.GetAllowedSplitPoints(), ds.GetFractionOfRemainder()})
+		split, err := plan.Split(exec.SplitPoints{Splits: ds.GetAllowedSplitPoints(), Frac: ds.GetFractionOfRemainder()})
 
 		if err != nil {
-			return fail(id, "unable to split: %v", err)
+			return fail(ctx, instID, "unable to split %v: %v", ref, err)
 		}
 
 		return &fnpb.InstructionResponse{
-			InstructionId: id,
+			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
 				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
 					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{
@@ -281,15 +296,16 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 	default:
-		return fail(id, "Unexpected request: %v", req)
+		return fail(ctx, instID, "Unexpected request: %v", req)
 	}
 }
 
-func fail(id, format string, args ...interface{}) *fnpb.InstructionResponse {
+func fail(ctx context.Context, id instructionID, format string, args ...interface{}) *fnpb.InstructionResponse {
+	log.Output(ctx, log.SevError, 1, fmt.Sprintf(format, args...))
 	dummy := &fnpb.InstructionResponse_Register{Register: &fnpb.RegisterResponse{}}
 
 	return &fnpb.InstructionResponse{
-		InstructionId: id,
+		InstructionId: string(id),
 		Error:         fmt.Sprintf(format, args...),
 		Response:      dummy,
 	}

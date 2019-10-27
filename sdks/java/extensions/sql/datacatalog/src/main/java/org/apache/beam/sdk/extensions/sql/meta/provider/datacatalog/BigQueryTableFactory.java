@@ -20,23 +20,39 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 import com.alibaba.fastjson.JSONObject;
 import com.google.cloud.datacatalog.Entry;
 import java.net.URI;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.Table.Builder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** Utils to extract BQ-specific entry information. */
-class BigQueryUtils {
+/** {@link TableFactory} that understands Data Catalog BigQuery entries. */
+class BigQueryTableFactory implements TableFactory {
+  private static final String BIGQUERY_API = "bigquery.googleapis.com";
 
   private static final Pattern BQ_PATH_PATTERN =
       Pattern.compile(
           "/projects/(?<PROJECT>[^/]+)/datasets/(?<DATASET>[^/]+)/tables/(?<TABLE>[^/]+)");
 
-  static Table.Builder tableBuilder(Entry entry) {
-    return Table.builder()
-        .location(getLocation(entry))
-        .properties(new JSONObject())
-        .type("bigquery")
-        .comment("");
+  private final boolean truncateTimestamps;
+
+  public BigQueryTableFactory(boolean truncateTimestamps) {
+    this.truncateTimestamps = truncateTimestamps;
+  }
+
+  @Override
+  public Optional<Builder> tableBuilder(Entry entry) {
+    if (!URI.create(entry.getLinkedResource()).getAuthority().toLowerCase().equals(BIGQUERY_API)) {
+      return Optional.empty();
+    }
+
+    return Optional.of(
+        Table.builder()
+            .location(getLocation(entry))
+            .properties(new JSONObject(ImmutableMap.of("truncateTimestamps", truncateTimestamps)))
+            .type("bigquery")
+            .comment(""));
   }
 
   private static String getLocation(Entry entry) {

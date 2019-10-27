@@ -89,6 +89,7 @@ dependencies {
   // For resolving external transform requests
   runtime project(":sdks:java:io:kafka")
   runtime library.java.kafka_clients
+  runtime project(":sdks:java:io:google-cloud-platform")
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
@@ -147,6 +148,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       if (streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {

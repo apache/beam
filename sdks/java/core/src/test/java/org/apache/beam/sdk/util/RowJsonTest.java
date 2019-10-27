@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.util.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matcher;
@@ -45,7 +45,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/** Unit tests for {@link RowJsonDeserializer} and {@link RowJsonSerializer}. */
+/** Unit tests for {@link RowJson.RowJsonDeserializer} and {@link RowJson.RowJsonSerializer}. */
 @RunWith(Enclosed.class)
 public class RowJsonTest {
   @RunWith(Parameterized.class)
@@ -313,7 +313,7 @@ public class RowJsonTest {
       thrown.expect(UnsupportedRowJsonException.class);
       thrown.expectMessage("DATETIME is not supported");
 
-      RowJsonDeserializer.forSchema(schema);
+      RowJson.RowJsonDeserializer.forSchema(schema);
     }
 
     @Test
@@ -323,7 +323,7 @@ public class RowJsonTest {
       thrown.expect(UnsupportedRowJsonException.class);
       thrown.expectMessage("DATETIME is not supported");
 
-      RowJsonDeserializer.forSchema(schema);
+      RowJson.RowJsonDeserializer.forSchema(schema);
     }
 
     @Test
@@ -336,7 +336,7 @@ public class RowJsonTest {
       thrown.expect(UnsupportedRowJsonException.class);
       thrown.expectMessage("DATETIME is not supported");
 
-      RowJsonDeserializer.forSchema(schema);
+      RowJson.RowJsonDeserializer.forSchema(schema);
     }
 
     @Test
@@ -511,8 +511,8 @@ public class RowJsonTest {
 
   private static ObjectMapper newObjectMapperFor(Schema schema) {
     SimpleModule simpleModule = new SimpleModule("rowSerializationTesModule");
-    simpleModule.addSerializer(Row.class, RowJsonSerializer.forSchema(schema));
-    simpleModule.addDeserializer(Row.class, RowJsonDeserializer.forSchema(schema));
+    simpleModule.addSerializer(Row.class, RowJson.RowJsonSerializer.forSchema(schema));
+    simpleModule.addDeserializer(Row.class, RowJson.RowJsonDeserializer.forSchema(schema));
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.registerModule(simpleModule);
     return objectMapper;

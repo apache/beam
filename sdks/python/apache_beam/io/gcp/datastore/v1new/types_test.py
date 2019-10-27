@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import datetime
 import logging
 import unittest
 
@@ -29,6 +30,7 @@ import mock
 # Protect against environments where datastore library is not available.
 try:
   from google.cloud.datastore import client
+  from google.cloud.datastore.helpers import GeoPoint
   from apache_beam.io.gcp.datastore.v1new.types import Entity
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query
@@ -49,30 +51,52 @@ class TypesTest(unittest.TestCase):
         # Don't do any network requests.
         _http=mock.MagicMock())
 
+  def _assert_keys_equal(self, beam_type, client_type, expected_project):
+    self.assertEqual(beam_type.path_elements[0], client_type.kind)
+    self.assertEqual(beam_type.path_elements[1], client_type.id)
+    self.assertEqual(expected_project, client_type.project)
+
   def testEntityToClientEntity(self):
+    # Test conversion from Beam type to client type.
     k = Key(['kind', 1234], project=self._PROJECT)
     kc = k.to_client_key()
-    exclude_from_indexes = ('efi1', 'efi2')
+    exclude_from_indexes = ('datetime', 'key')
     e = Entity(k, exclude_from_indexes=exclude_from_indexes)
-    ref = Key(['kind2', 1235])
-    e.set_properties({'efi1': 'value', 'property': 'value', 'ref': ref})
+    properties = {
+        'datetime': datetime.datetime.utcnow(),
+        'key_ref': Key(['kind2', 1235]),
+        'bool': True,
+        'float': 1.21,
+        'int': 1337,
+        'unicode': 'text',
+        'bytes': b'bytes',
+        'geopoint': GeoPoint(0.123, 0.456),
+        'none': None,
+        'list': [1, 2, 3],
+        'entity': Entity(Key(['kind', 111])),
+        'dict': {'property': 5},
+    }
+    e.set_properties(properties)
     ec = e.to_client_entity()
     self.assertEqual(kc, ec.key)
     self.assertSetEqual(set(exclude_from_indexes), ec.exclude_from_indexes)
     self.assertEqual('kind', ec.kind)
     self.assertEqual(1234, ec.id)
-    self.assertEqual('kind2', ec['ref'].kind)
-    self.assertEqual(1235, ec['ref'].id)
-    self.assertEqual(self._PROJECT, ec['ref'].project)
+    for name, unconverted in properties.items():
+      converted = ec[name]
+      if name == 'key_ref':
+        self.assertNotIsInstance(converted, Key)
+        self._assert_keys_equal(unconverted, converted, self._PROJECT)
+      elif name == 'entity':
+        self.assertNotIsInstance(converted, Entity)
+        self.assertNotIsInstance(converted.key, Key)
+        self._assert_keys_equal(unconverted.key, converted.key, self._PROJECT)
+      else:
+        self.assertEqual(unconverted, converted)
 
-  def testEntityFromClientEntity(self):
-    k = Key(['kind', 1234], project=self._PROJECT)
-    exclude_from_indexes = ('efi1', 'efi2')
-    e = Entity(k, exclude_from_indexes=exclude_from_indexes)
-    ref = Key(['kind2', 1235])
-    e.set_properties({'efi1': 'value', 'property': 'value', 'ref': ref})
-    efc = Entity.from_client_entity(e.to_client_entity())
-    self.assertEqual(e, efc)
+    # Test reverse conversion.
+    entity_from_client_entity = Entity.from_client_entity(ec)
+    self.assertEqual(e, entity_from_client_entity)
 
   def testKeyToClientKey(self):
     k = Key(['kind1', 'parent'],

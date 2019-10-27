@@ -28,7 +28,7 @@ def pythonRootDir = "${rootDir}/sdks/python"
 addPortableWordCountTasks()
 
 task preCommitPy2() {
-  dependsOn ':runners:flink:1.8:job-server-container:docker'
+  dependsOn ':runners:flink:1.9:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn portableWordCountBatch
   dependsOn portableWordCountStreaming
@@ -45,12 +45,12 @@ task preCommitPy2() {
 // 2. Either a) or b)
 //  a) If you want the Job Server to run in a Docker container:
 //
-//    ./gradlew :runners:flink:1.8:job-server-container:docker
+//    ./gradlew :runners:flink:1.9:job-server-container:docker
 //
 //  b) Otherwise, start a local JobService, for example, the Portable Flink runner
 //    (in a separate shell since it continues to run):
 //
-//    ./gradlew :runners:flink:1.8:job-server:runShadow
+//    ./gradlew :runners:flink:1.9:job-server:runShadow
 //
 // Then you can run this example:
 //
@@ -87,7 +87,7 @@ task crossLanguagePythonJavaDirect {
 
 task crossLanguagePythonJavaFlink {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.8:job-server-container:docker'
+  dependsOn ':runners:flink:1.9:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -112,7 +112,7 @@ task crossLanguagePythonJavaFlink {
 
 task crossLanguagePortableWordCount {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.8:job-server-container:docker'
+  dependsOn ':runners:flink:1.9:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'

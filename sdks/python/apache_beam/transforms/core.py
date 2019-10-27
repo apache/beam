@@ -583,10 +583,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
     if fn_type_hints is not None:
       try:
-        fn_type_hints.strip_iterable()
+        return fn_type_hints.strip_iterable()
       except ValueError as e:
         raise ValueError('Return value not iterable: %s: %s' % (self, e))
-    return fn_type_hints
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
@@ -676,22 +675,14 @@ class CallableWrapperDoFn(DoFn):
 
   def default_type_hints(self):
     fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self._fn)
-    if fn_type_hints is not None:
-      try:
-        fn_type_hints.strip_iterable()
-      except ValueError as e:
-        raise ValueError('Return value not iterable: %s: %s' % (self._fn, e))
     type_hints = get_type_hints(self._fn).with_defaults(fn_type_hints)
-    # If the fn was a DoFn annotated with a type-hint that hinted a return
-    # type compatible with Iterable[Any], then we strip off the outer
-    # container type due to the 'flatten' portion of FlatMap.
-    # TODO(robertwb): Should we require an iterable specification for FlatMap?
-    if type_hints.output_types:
-      args, kwargs = type_hints.output_types
-      if len(args) == 1 and is_consistent_with(
-          args[0], typehints.Iterable[typehints.Any]):
-        type_hints = type_hints.copy()
-        type_hints.set_output_types(element_type(args[0]), **kwargs)
+    # The fn's output type should be iterable. Strip off the outer
+    # container type due to the 'flatten' portion of FlatMap/ParDo.
+    try:
+      type_hints = type_hints.strip_iterable()
+    except ValueError as e:
+      # TODO(BEAM-8466): Raise exception here if using stricter type checking.
+      logging.warning('%s: %s', self.display_data()['fn'].value, e)
     return type_hints
 
   def infer_output_type(self, input_type):
@@ -1099,8 +1090,8 @@ class ParDo(PTransformWithSideInputs):
   Args:
     pcoll (~apache_beam.pvalue.PCollection):
       a :class:`~apache_beam.pvalue.PCollection` to be processed.
-    fn (DoFn): a :class:`DoFn` object to be applied to each element
-      of **pcoll** argument.
+    fn (`typing.Union[DoFn, typing.Callable]`): a :class:`DoFn` object to be
+      applied to each element of **pcoll** argument, or a Callable.
     *args: positional arguments passed to the :class:`DoFn` object.
     **kwargs:  keyword arguments passed to the :class:`DoFn` object.
 

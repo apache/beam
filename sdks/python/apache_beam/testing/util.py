@@ -209,7 +209,10 @@ def assert_that(actual, matcher, label='assert_that',
   Returns:
     Ignored.
   """
-  assert isinstance(actual, pvalue.PCollection)
+  assert isinstance(
+      actual,
+      pvalue.PCollection), ('%s is not a supported type for Beam assert'
+                            % type(actual))
 
   class ReifyTimestampWindow(DoFn):
     def process(self, element, timestamp=DoFn.TimestampParam,
