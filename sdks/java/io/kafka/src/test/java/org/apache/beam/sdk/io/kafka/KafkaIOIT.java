@@ -161,7 +161,7 @@ public class KafkaIOIT {
 
   private KafkaIO.Write<byte[], byte[]> writeToKafka() {
     return KafkaIO.<byte[], byte[]>write()
-        .withBootstrapServers(options.getKafkaBootstrapServerAddress())
+        .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withTopic(options.getKafkaTopic())
         .withKeySerializer(ByteArraySerializer.class)
         .withValueSerializer(ByteArraySerializer.class);
@@ -169,7 +169,7 @@ public class KafkaIOIT {
 
   private KafkaIO.Read<byte[], byte[]> readFromKafka() {
     return KafkaIO.readBytes()
-        .withBootstrapServers(options.getKafkaBootstrapServerAddress())
+        .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
         .withTopic(options.getKafkaTopic())
         .withMaxNumRecords(sourceOptions.numRecords);
@@ -184,11 +184,11 @@ public class KafkaIOIT {
 
     void setSourceOptions(String sourceOptions);
 
-    @Description("Kafka server address")
+    @Description("Kafka bootstrap server addresses")
     @Validation.Required
-    String getKafkaBootstrapServerAddress();
+    String getKafkaBootstrapServerAddresses();
 
-    void setKafkaBootstrapServerAddress(String address);
+    void setKafkaBootstrapServerAddresses(String address);
 
     @Description("Kafka topic")
     @Validation.Required
