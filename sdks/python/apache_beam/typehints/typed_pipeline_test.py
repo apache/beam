@@ -206,6 +206,31 @@ class MainInputTest(unittest.TestCase):
       assert_that(res_even, equal_to([2]), label='even_check')
       assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 
+  def test_typed_ptransform_fn_pre_hints(self):
+    # Test that type hints are propagated to the created PTransform.
+    # Decorator appears before type hints. This is the more common style.
+    @beam.ptransform_fn
+    @typehints.with_input_types(int)
+    def MyMap(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x])
+
+    self.assertListEqual([1, 2, 3], [1, 2, 3] | MyMap())
+    with self.assertRaises(typehints.TypeCheckError):
+      _ = ['a'] | MyMap()
+
+  def test_typed_ptransform_fn_post_hints(self):
+    # Test that type hints are propagated to the created PTransform.
+    # Decorator appears after type hints. This style is required for Cython
+    # functions, since they don't accept assigning attributes to them.
+    @typehints.with_input_types(int)
+    @beam.ptransform_fn
+    def MyMap(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x])
+
+    self.assertListEqual([1, 2, 3], [1, 2, 3] | MyMap())
+    with self.assertRaises(typehints.TypeCheckError):
+      _ = ['a'] | MyMap()
+
 
 class NativeTypesTest(unittest.TestCase):
   def test_good_main_input(self):

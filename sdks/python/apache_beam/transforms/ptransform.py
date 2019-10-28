@@ -939,8 +939,6 @@ class _PTransformFnPTransform(PTransform):
 def ptransform_fn(fn):
   """A decorator for a function-based PTransform.
 
-  Experimental; no backwards-compatibility guarantees.
-
   Args:
     fn: A function implementing a custom PTransform.
 
@@ -954,11 +952,15 @@ def ptransform_fn(fn):
   resulting PCollection. For example::
 
     @ptransform_fn
+    @beam.typehints.with_input_types(..)
+    @beam.typehints.with_output_types(..)
     def CustomMapper(pcoll, mapfn):
       return pcoll | ParDo(mapfn)
 
   The equivalent approach using PTransform subclassing::
 
+    @beam.typehints.with_input_types(..)
+    @beam.typehints.with_output_types(..)
     class CustomMapper(PTransform):
 
       def __init__(self, mapfn):
@@ -976,11 +978,23 @@ def ptransform_fn(fn):
   Note that for both solutions the underlying implementation of the pipe
   operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
+
+  If CustomMapper is a Cython function, you can still specify input and output
+  types provided the decorators appear before @ptransform_fn.
   """
   # TODO(robertwb): Consider removing staticmethod to allow for self parameter.
   @wraps(fn)
   def callable_ptransform_factory(*args, **kwargs):
-    return _PTransformFnPTransform(fn, *args, **kwargs)
+    res = _PTransformFnPTransform(fn, *args, **kwargs)
+    # Apply type hints applied before or after the ptransform_fn decorator,
+    # or uses PTransform defaults.
+    # If the @with_{input,output}_types decorator comes before ptransform_fn,
+    # the type hint gets applied to this function. If it comes after it gets
+    # applied to fn, and @wraps copies the _type_hints attribute to this
+    # function.
+    type_hints = get_type_hints(callable_ptransform_factory)
+    res._set_type_hints(type_hints.with_defaults(res.get_type_hints()))
+    return res
 
   return callable_ptransform_factory
 
