@@ -1169,15 +1169,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       raise
 
 
-class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
-
-  def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
-
-
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
 
   def create_pipeline(self):
@@ -1197,24 +1188,6 @@ class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
                 urn=python_urns.EMBEDDED_PYTHON_GRPC,
                 # number of workers, state cache size
                 payload=b'2,0')))
-
-
-class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
-
-  def create_pipeline(self):
-    pipeline_options = PipelineOptions(direct_num_workers=2)
-    p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(),
-        options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests..
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
-    return p
-
-  def test_metrics(self):
-    raise unittest.SkipTest("This test is for a single worker only.")
-
-  def test_sdf_with_sdf_initiated_checkpointing(self):
-    raise unittest.SkipTest("This test is for a single worker only.")
 
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
@@ -1245,26 +1218,6 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
-
-
-class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
-
-  def create_pipeline(self):
-    pipeline_options = PipelineOptions(direct_num_workers=2)
-    p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(bundle_repeat=3),
-        options=pipeline_options)
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
-    return p
-
-  def test_register_finalizations(self):
-    raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
-
-  def test_metrics(self):
-    raise unittest.SkipTest("This test is for a single worker only.")
-
-  def test_sdf_with_sdf_initiated_checkpointing(self):
-    raise unittest.SkipTest("This test is for a single worker only.")
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
