@@ -78,6 +78,7 @@ class RowCoder(FastCoder):
   def to_runner_api_parameter(self, unused_context):
     return (common_urns.coders.ROW.urn, self.schema, [])
 
+  @staticmethod
   @Coder.register_urn(common_urns.coders.ROW.urn, schema_pb2.Schema)
   def from_runner_api_parameter(payload, components, unused_context):
     return RowCoder(payload)
