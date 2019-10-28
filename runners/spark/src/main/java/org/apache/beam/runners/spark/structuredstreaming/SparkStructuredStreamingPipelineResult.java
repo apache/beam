@@ -42,8 +42,7 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
   final SparkSession sparkSession;
   PipelineResult.State state;
 
-  // TODO: Implement results on a streaming pipeline. Currently does not stream.
-  final boolean isStreaming = false;
+  boolean isStreaming;
 
   SparkStructuredStreamingPipelineResult(
       final Future<?> pipelineExecution, final SparkSession sparkSession) {
@@ -51,6 +50,8 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
     this.sparkSession = sparkSession;
     // pipelineExecution is expected to have started executing eagerly.
     this.state = State.RUNNING;
+    // TODO: Implement results on a streaming pipeline. Currently does not stream.
+    this.isStreaming = false;
   }
 
   private static RuntimeException runtimeExceptionFrom(final Throwable e) {
