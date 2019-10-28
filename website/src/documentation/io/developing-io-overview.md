@@ -107,9 +107,9 @@ Here is a sequence diagram that shows the lifecycle of the Source during
  information to IO developers such as the constraints that 
  apply to the objects or particular cases such as streaming mode.
  
- 
-  ![This is a sequence diagram that shows the lifecycle of the Source](
-    {{ "/images/source-sequence-diagram.png" | prepend: site.baseurl }})
+ <!-- The source for the sequence diagram can be found in the the SVG resource. -->
+![This is a sequence diagram that shows the lifecycle of the Source](
+    {{ "/images/source-sequence-diagram.svg" | prepend: site.baseurl }})
 
 ### Using ParDo and GroupByKey
 
