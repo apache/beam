@@ -38,6 +38,9 @@ import org.slf4j.LoggerFactory;
 public class ProcessManager {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessManager.class);
 
+  /** A symbolic file to indicate that we want to inherit I/O of parent process. */
+  public static final File INHERIT_IO_FILE = new File("_inherit_io_unused_filename_");
+
   /** For debugging purposes, we inherit I/O of processes. */
   private static final boolean INHERIT_IO = LOG.isDebugEnabled();
 
@@ -63,7 +66,7 @@ public class ProcessManager {
     this.processes = Collections.synchronizedMap(new HashMap<>());
   }
 
-  static class RunningProcess {
+  public static class RunningProcess {
     private Process process;
 
     RunningProcess(Process process) {
@@ -71,7 +74,7 @@ public class ProcessManager {
     }
 
     /** Checks if the underlying process is still running. */
-    void isAliveOrThrow() throws IllegalStateException {
+    public void isAliveOrThrow() throws IllegalStateException {
       if (!process.isAlive()) {
         throw new IllegalStateException("Process died with exit code " + process.exitValue());
       }
@@ -106,27 +109,41 @@ public class ProcessManager {
    */
   public RunningProcess startProcess(
       String id, String command, List<String> args, Map<String, String> env) throws IOException {
+    final File outputFile;
+    if (INHERIT_IO) {
+      LOG.debug(
+          "==> DEBUG enabled: Inheriting stdout/stderr of process (adjustable in ProcessManager)");
+      outputFile = INHERIT_IO_FILE;
+    } else {
+      // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE
+      // buffer
+      if (System.getProperty("os.name", "").startsWith("Windows")) {
+        outputFile = new File("nul");
+      } else {
+        outputFile = new File("/dev/null");
+      }
+    }
+    return startProcess(id, command, args, env, outputFile);
+  }
+
+  public RunningProcess startProcess(
+      String id, String command, List<String> args, Map<String, String> env, File outputFile)
+      throws IOException {
     checkNotNull(id, "Process id must not be null");
     checkNotNull(command, "Command must not be null");
     checkNotNull(args, "Process args must not be null");
     checkNotNull(env, "Environment map must not be null");
+    checkNotNull(outputFile, "Output redirect file must not be null");
 
     ProcessBuilder pb =
         new ProcessBuilder(ImmutableList.<String>builder().add(command).addAll(args).build());
     pb.environment().putAll(env);
 
-    if (INHERIT_IO) {
-      LOG.debug(
-          "==> DEBUG enabled: Inheriting stdout/stderr of process (adjustable in ProcessManager)");
+    if (INHERIT_IO_FILE.equals(outputFile)) {
       pb.inheritIO();
     } else {
       pb.redirectErrorStream(true);
-      // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE buffer
-      if (System.getProperty("os.name", "").startsWith("Windows")) {
-        pb.redirectOutput(new File("nul"));
-      } else {
-        pb.redirectOutput(new File("/dev/null"));
-      }
+      pb.redirectOutput(outputFile);
     }
 
     LOG.debug("Attempting to start process with command: {}", pb.command());
