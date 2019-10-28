@@ -20,11 +20,7 @@ package org.apache.beam.sdk.io.rabbitmq;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.MessageProperties;
-import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.*;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
@@ -367,7 +363,7 @@ public class RabbitMqIO {
     private RabbitMqMessage current;
     private byte[] currentRecordId;
     private ConnectionHandler connectionHandler;
-    private QueueingConsumer consumer;
+    private String queueName;
     private Instant currentTimestamp;
     private final RabbitMQCheckpointMark checkpointMark;
 
@@ -376,11 +372,6 @@ public class RabbitMqIO {
       this.source = source;
       this.current = null;
       this.checkpointMark = checkpointMark != null ? checkpointMark : new RabbitMQCheckpointMark();
-      try {
-        connectionHandler = new ConnectionHandler(source.spec.uri());
-      } catch (Exception e) {
-        throw new IOException(e);
-      }
     }
 
     @Override
@@ -429,12 +420,12 @@ public class RabbitMqIO {
     @Override
     public boolean start() throws IOException {
       try {
-        ConnectionHandler connectionHandler = new ConnectionHandler(source.spec.uri());
+        connectionHandler = new ConnectionHandler(source.spec.uri());
         connectionHandler.start();
 
         Channel channel = connectionHandler.getChannel();
 
-        String queueName = source.spec.queue();
+        queueName = source.spec.queue();
         if (source.spec.queueDeclare()) {
           // declare the queue (if not done by another application)
           // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
@@ -448,11 +439,7 @@ public class RabbitMqIO {
           channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
         }
         checkpointMark.channel = channel;
-        consumer = new QueueingConsumer(channel);
         channel.txSelect();
-        // we consume message without autoAck (we want to do the ack ourselves)
-        channel.setDefaultConsumer(consumer);
-        channel.basicConsume(queueName, false, consumer);
       } catch (Exception e) {
         throw new IOException(e);
       }
@@ -462,12 +449,14 @@ public class RabbitMqIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        QueueingConsumer.Delivery delivery = consumer.nextDelivery(1000);
+        Channel channel = connectionHandler.getChannel();
+        // we consume message without autoAck (we want to do the ack ourselves)
+        GetResponse delivery = channel.basicGet(queueName, false);
         if (delivery == null) {
           return false;
         }
         if (source.spec.useCorrelationId()) {
-          String correlationId = delivery.getProperties().getCorrelationId();
+          String correlationId = delivery.getProps().getCorrelationId();
           if (correlationId == null) {
             throw new IOException(
                 "RabbitMqIO.Read uses message correlation ID, but received "
@@ -479,7 +468,7 @@ public class RabbitMqIO {
         checkpointMark.sessionIds.add(deliveryTag);
 
         current = new RabbitMqMessage(source.spec.routingKey(), delivery);
-        currentTimestamp = new Instant(delivery.getProperties().getTimestamp());
+        currentTimestamp = new Instant(delivery.getProps().getTimestamp());
         if (currentTimestamp.isBefore(checkpointMark.oldestTimestamp)) {
           checkpointMark.oldestTimestamp = currentTimestamp;
         }
