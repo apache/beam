@@ -27,7 +27,8 @@ from apache_beam.runners import runner
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.display import pcoll_visualization as pv
 
-# Work around nose tests using Python2 without unittest.mock module.
+# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
+# unittest.mock module.
 try:
   from unittest.mock import patch
 except ImportError:

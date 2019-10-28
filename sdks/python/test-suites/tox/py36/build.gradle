@@ -35,9 +35,6 @@ test.dependsOn testPy36Gcp
 toxTask "testPy36Cython", "py36-cython"
 test.dependsOn testPy36Cython
 
-toxTask "testPy36Interactive", "py36-interactive"
-test.dependsOn testPy36Interactive
-
 // Ensure that testPy36Cython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
@@ -47,5 +44,4 @@ task preCommitPy36() {
     dependsOn "testPython36"
     dependsOn "testPy36Gcp"
     dependsOn "testPy36Cython"
-    dependsOn "testPy36Interactive"
 }
