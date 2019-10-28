@@ -66,7 +66,7 @@ public class FlinkJobInvoker extends JobInvoker {
         String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
 
     if (FlinkPipelineOptions.AUTO.equals(flinkOptions.getFlinkMaster())) {
-      flinkOptions.setFlinkMaster(serverConfig.getFlinkMasterUrl());
+      flinkOptions.setFlinkMaster(serverConfig.getFlinkMaster());
     }
 
     PortablePipelineOptions portableOptions = flinkOptions.as(PortablePipelineOptions.class);
