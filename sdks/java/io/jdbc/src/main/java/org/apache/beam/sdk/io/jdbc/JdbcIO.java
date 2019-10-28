@@ -1395,7 +1395,7 @@ public class JdbcIO {
 
     static synchronized DataSource buildDataSource(Void input) {
       if (source == null) {
-        DataSource basicSource = dataSourceProviderFn.apply(input);
+        DataSource basicSource = dataSourceProviderFn.apply(null);
         DataSourceConnectionFactory connectionFactory =
             new DataSourceConnectionFactory(basicSource);
         PoolableConnectionFactory poolableConnectionFactory =
