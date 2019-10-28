@@ -23,11 +23,9 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetri
 import org.apache.beam.runners.spark.structuredstreaming.metrics.WithMetricsSupport;
 import org.apache.spark.metrics.sink.Sink;
 
-/**
- * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics to a CSV file.
- */
-public class CsvSink extends org.apache.spark.metrics.sink.CsvSink {
-  public CsvSink(
+/** A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics to Graphite. */
+public class CodahaleGraphiteSink extends org.apache.spark.metrics.sink.GraphiteSink {
+  public CodahaleGraphiteSink(
       final Properties properties,
       final MetricRegistry metricRegistry,
       final org.apache.spark.SecurityManager securityMgr) {
