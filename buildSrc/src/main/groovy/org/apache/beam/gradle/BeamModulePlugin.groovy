@@ -297,7 +297,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.17.0'
+    project.version = '2.18.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -1300,7 +1300,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntime it.project(path: ":runners:flink:1.8", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:flink:1.9", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
@@ -1721,7 +1721,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn setupTask
           // We need flink-job-server-container dependency since Python PortableRunner automatically
           // brings the flink-job-server-container up when --job_endpoint is not specified.
-          dependsOn ':runners:flink:1.8:job-server-container:docker'
+          dependsOn ':runners:flink:1.9:job-server-container:docker'
         }
         mainTask.dependsOn pythonTask
         cleanupTask.mustRunAfter pythonTask
@@ -1903,7 +1903,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.task('portableWordCount' + (isStreaming ? 'Streaming' : 'Batch')) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
-            ':runners:flink:1.8:job-server-container:docker',
+            ':runners:flink:1.9:job-server-container:docker',
             ':sdks:python:container:py2:docker',
             ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',

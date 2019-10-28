@@ -802,6 +802,17 @@ words = ...
 > **Note:** You can use Java 8 lambda functions with several other Beam
 > transforms, including `Filter`, `FlatMapElements`, and `Partition`.
 
+##### 4.2.1.4. DoFn lifecycle {#dofn}
+Here is a sequence diagram that shows the lifecycle of the DoFn during
+ the execution of the ParDo transform. The comments give useful 
+ information to pipeline developers such as the constraints that 
+ apply to the objects or particular cases such as failover or 
+ instance reuse. They also give instanciation use cases.
+ 
+<!-- The source for the sequence diagram can be found in the the SVG resource. -->
+![This is a sequence diagram that shows the lifecycle of the DoFn](
+  {{ "/images/dofn-sequence-diagram.svg" | prepend: site.baseurl }})
+
 #### 4.2.2. GroupByKey {#groupbykey}
 
 `GroupByKey` is a Beam transform for processing collections of key/value pairs.
@@ -3098,4 +3109,4 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
     context.output(context.element());
   }
 }
-```
+```  

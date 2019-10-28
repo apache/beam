@@ -225,7 +225,7 @@ You can choose to run Interactive Beam on Flink with the following settings.
 
     ```bash
     $ ./gradlew -p sdks/python/container/py35 docker  # Optionally replace py35 with the Python version of your choice
-    $ ./gradlew :runners:flink:1.8:job-server:runShadow  # Blocking
+    $ ./gradlew :runners:flink:1.9:job-server:runShadow  # Blocking
     ```
 
 *   Run `$ jupyter notebook` in another terminal.

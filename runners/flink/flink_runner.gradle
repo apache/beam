@@ -42,24 +42,58 @@ evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
 
 /*
+ * Copy & merge source overrides into build directory.
+ */
+def sourceOverridesBase = "${project.buildDir}/source-overrides/src"
+
+def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
+  it.from main_source_overrides
+  it.into "${sourceOverridesBase}/main/java"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copySourceOverrides
+
+def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
+  it.from main_resources_overrides
+  it.into "${sourceOverridesBase}/main/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copyResourcesOverrides
+
+def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
+  it.from test_source_overrides
+  it.into "${sourceOverridesBase}/test/java"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileTestJava.dependsOn copyTestSourceOverrides
+
+def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
+  it.from test_resources_overrides
+  it.into "${sourceOverridesBase}/test/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copyTestResourcesOverrides
+
+/*
  * We have to explicitly set all directories here to make sure each
  * version of Flink has the correct overrides set.
  */
+def sourceBase = "${project.projectDir}/../src"
 sourceSets {
   main {
     java {
-      srcDirs = main_source_dirs
+      srcDirs = ["${sourceBase}/main/java", "${sourceOverridesBase}/main/java"]
     }
     resources {
-      srcDirs = main_resources_dirs
+      srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
     }
   }
   test {
     java {
-      srcDirs = test_source_dirs
+      srcDirs = ["${sourceBase}/test/java", "${sourceOverridesBase}/test/java"]
     }
     resources {
-      srcDirs = test_resources_dirs
+      srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
     }
   }
 }
@@ -71,7 +105,7 @@ sourceSets {
  */
 spotless {
   java {
-    target project.sourceSets.main.allJava + project.sourceSets.test.allJava
+    target target + project.fileTree(project.projectDir.parentFile) { include 'src/*/java/**/*.java' }
   }
 }
 
@@ -86,6 +120,9 @@ test {
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
   if (project.path == ":runners:flink:1.8") {
     mustRunAfter(":runners:flink:1.7:test")
+  } else if (project.path == ":runners:flink:1.9") {
+    mustRunAfter(":runners:flink:1.7:test")
+    mustRunAfter(":runners:flink:1.8:test")
   }
 }
 
@@ -142,7 +179,7 @@ class ValidatesRunnerConfig {
 
 def createValidatesRunnerTask(Map m) {
   def config = m as ValidatesRunnerConfig
-  tasks.create(name: config.name, type: Test) {
+  tasks.register(config.name, Test) {
     group = "Verification"
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
@@ -178,12 +215,12 @@ def createValidatesRunnerTask(Map m) {
 createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false)
 createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true)
 
-task validatesRunner {
-  group = "Verification"
+tasks.register('validatesRunner') {
+  group = 'Verification'
   description "Validates Flink runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:flink:1.8:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.9:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')

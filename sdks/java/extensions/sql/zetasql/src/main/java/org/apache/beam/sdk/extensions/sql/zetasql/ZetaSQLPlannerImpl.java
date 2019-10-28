@@ -98,27 +98,35 @@ public class ZetaSQLPlannerImpl implements Planner {
 
   @Override
   public SqlNode parse(String s) throws SqlParseException {
-    return null;
+    throw new UnsupportedOperationException(
+        String.format("%s.parse(String) is not implemented", this.getClass().getCanonicalName()));
   }
 
   @Override
   public SqlNode parse(Reader reader) throws SqlParseException {
-    return null;
+    throw new UnsupportedOperationException(
+        String.format("%s.parse(Reader) is not implemented", this.getClass().getCanonicalName()));
   }
 
   @Override
   public SqlNode validate(SqlNode sqlNode) throws ValidationException {
-    return null;
+    throw new UnsupportedOperationException(
+        String.format(
+            "%s.validate(SqlNode) is not implemented", this.getClass().getCanonicalName()));
   }
 
   @Override
   public Pair<SqlNode, RelDataType> validateAndGetType(SqlNode sqlNode) throws ValidationException {
-    throw new RuntimeException("validateAndGetType(SqlNode) is not implemented.");
+    throw new UnsupportedOperationException(
+        String.format(
+            "%s.validateAndGetType(SqlNode) is not implemented",
+            this.getClass().getCanonicalName()));
   }
 
   @Override
   public RelRoot rel(SqlNode sqlNode) throws RelConversionException {
-    return null;
+    throw new UnsupportedOperationException(
+        String.format("%s.rel(SqlNode) is not implemented", this.getClass().getCanonicalName()));
   }
 
   public RelRoot rel(String sql, Map<String, Value> params) {
@@ -149,12 +157,14 @@ public class ZetaSQLPlannerImpl implements Planner {
 
   @Override
   public RelNode convert(SqlNode sqlNode) {
-    throw new RuntimeException("convert(SqlNode) is not implemented.");
+    throw new UnsupportedOperationException(
+        String.format("%s.convert(SqlNode) is not implemented.", getClass().getCanonicalName()));
   }
 
   @Override
   public RelDataTypeFactory getTypeFactory() {
-    throw new RuntimeException("getTypeFactory() is not implemented.");
+    throw new UnsupportedOperationException(
+        String.format("%s.getTypeFactor() is not implemented.", getClass().getCanonicalName()));
   }
 
   @Override
@@ -171,7 +181,8 @@ public class ZetaSQLPlannerImpl implements Planner {
 
   @Override
   public void reset() {
-    throw new RuntimeException("reset() is not implemented.");
+    throw new UnsupportedOperationException(
+        String.format("%s.reset() is not implemented", this.getClass().getCanonicalName()));
   }
 
   @Override
@@ -181,7 +192,9 @@ public class ZetaSQLPlannerImpl implements Planner {
 
   @Override
   public RelTraitSet getEmptyTraitSet() {
-    throw new RuntimeException("getEmptyTraitSet() is not implemented.");
+    throw new UnsupportedOperationException(
+        String.format(
+            "%s.getEmptyTraitSet() is not implemented", this.getClass().getCanonicalName()));
   }
 
   public static LanguageOptions getLanguageOptions() {

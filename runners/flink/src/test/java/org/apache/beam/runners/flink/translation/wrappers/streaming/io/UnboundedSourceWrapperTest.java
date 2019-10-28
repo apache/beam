@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.LongStream;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -183,7 +184,8 @@ public class UnboundedSourceWrapperTest {
 
         try {
           testHarness.open();
-          sourceOperator.run(
+          StreamSources.run(
+              sourceOperator,
               testHarness.getCheckpointLock(),
               new TestStreamStatusMaintainer(),
               new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
@@ -285,7 +287,8 @@ public class UnboundedSourceWrapperTest {
           new Thread(
               () -> {
                 try {
-                  sourceOperator.run(
+                  StreamSources.run(
+                      sourceOperator,
                       testHarness.getCheckpointLock(),
                       new TestStreamStatusMaintainer(),
                       new Output<
@@ -397,7 +400,8 @@ public class UnboundedSourceWrapperTest {
 
       try {
         testHarness.open();
-        sourceOperator.run(
+        StreamSources.run(
+            sourceOperator,
             checkpointLock,
             new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
@@ -477,7 +481,8 @@ public class UnboundedSourceWrapperTest {
       // run again and verify that we see the other elements
       try {
         restoredTestHarness.open();
-        restoredSourceOperator.run(
+        StreamSources.run(
+            restoredSourceOperator,
             checkpointLock,
             new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {

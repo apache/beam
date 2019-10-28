@@ -23,52 +23,70 @@ import unittest
 
 import mock
 
+from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 from . import partition
 
 
 def check_partitions(actual1, actual2, actual3):
-  # [START partitions]
+  expected = '''[START partitions]
+perennial: {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+biennial: {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+perennial: {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+annual: {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+perennial: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+[END partitions]'''.splitlines()[1:-1]
+
   annuals = [
-      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+      line.split(':', 1)[1].strip()
+      for line in expected
+      if line.split(':', 1)[0] == 'annual'
   ]
   biennials = [
-      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
+      line.split(':', 1)[1].strip()
+      for line in expected
+      if line.split(':', 1)[0] == 'biennial'
   ]
   perennials = [
-      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-      {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+      line.split(':', 1)[1].strip()
+      for line in expected
+      if line.split(':', 1)[0] == 'perennial'
   ]
-  # [END partitions]
-  assert_that(actual1, equal_to(annuals), label='assert annuals')
-  assert_that(actual2, equal_to(biennials), label='assert biennials')
-  assert_that(actual3, equal_to(perennials), label='assert perennials')
+
+  assert_matches_stdout(actual1, annuals, label='annuals')
+  assert_matches_stdout(actual2, biennials, label='biennials')
+  assert_matches_stdout(actual3, perennials, label='perennials')
 
 
 def check_split_datasets(actual1, actual2):
-  # [START train_test]
+  expected = '''[START train_test]
+train: {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+train: {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+test: {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+test: {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+train: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+[END train_test]'''.splitlines()[1:-1]
+
   train_dataset = [
-      {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-      {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-      {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+      line.split(':', 1)[1].strip()
+      for line in expected
+      if line.split(':', 1)[0] == 'train'
   ]
   test_dataset = [
-      {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-      {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
+      line.split(':', 1)[1].strip()
+      for line in expected
+      if line.split(':', 1)[0] == 'test'
   ]
-  # [END train_test]
-  assert_that(actual1, equal_to(train_dataset), label='assert train')
-  assert_that(actual2, equal_to(test_dataset), label='assert test')
+
+  assert_matches_stdout(actual1, train_dataset, label='train_dataset')
+  assert_matches_stdout(actual2, test_dataset, label='test_dataset')
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
-# pylint: disable=line-too-long
-@mock.patch('apache_beam.examples.snippets.transforms.elementwise.partition.print', lambda elem: elem)
-# pylint: enable=line-too-long
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.partition.print',
+    lambda elem: elem)
 class PartitionTest(unittest.TestCase):
   def test_partition_function(self):
     partition.partition_function(check_partitions)

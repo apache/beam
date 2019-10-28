@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import random
+import sys
 import time
 import unittest
 
@@ -423,6 +424,90 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       assert_that(jobs,
                   equal_to([job_reference]), label='CheckJobs')
+
+  @unittest.skipIf(sys.version_info[0] == 2,
+                   'Mock pickling problems in Py 2')
+  @mock.patch('time.sleep')
+  def test_wait_for_job_completion(self, sleep_mock):
+    job_references = [bigquery_api.JobReference(),
+                      bigquery_api.JobReference()]
+    job_references[0].projectId = 'project1'
+    job_references[0].jobId = 'jobId1'
+    job_references[1].projectId = 'project1'
+    job_references[1].jobId = 'jobId2'
+
+    job_1_waiting = mock.Mock()
+    job_1_waiting.status.state = 'RUNNING'
+    job_2_done = mock.Mock()
+    job_2_done.status.state = 'DONE'
+    job_2_done.status.errorResult = None
+
+    job_1_done = mock.Mock()
+    job_1_done.status.state = 'DONE'
+    job_1_done.status.errorResult = None
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.side_effect = [
+        job_1_waiting,
+        job_2_done,
+        job_1_done,
+        job_2_done]
+
+    waiting_dofn = bqfl.WaitForBQJobs(bq_client)
+
+    dest_list = [(i, job) for i, job in enumerate(job_references)]
+
+    with TestPipeline('DirectRunner') as p:
+      references = beam.pvalue.AsList(p | 'job_ref' >> beam.Create(dest_list))
+      outputs = (p
+                 | beam.Create([''])
+                 | beam.ParDo(waiting_dofn, references))
+
+      assert_that(outputs,
+                  equal_to(dest_list))
+
+    sleep_mock.assert_called_once()
+
+  @unittest.skipIf(sys.version_info[0] == 2,
+                   'Mock pickling problems in Py 2')
+  @mock.patch('time.sleep')
+  def test_one_job_failed_after_waiting(self, sleep_mock):
+    job_references = [bigquery_api.JobReference(),
+                      bigquery_api.JobReference()]
+    job_references[0].projectId = 'project1'
+    job_references[0].jobId = 'jobId1'
+    job_references[1].projectId = 'project1'
+    job_references[1].jobId = 'jobId2'
+
+    job_1_waiting = mock.Mock()
+    job_1_waiting.status.state = 'RUNNING'
+    job_2_done = mock.Mock()
+    job_2_done.status.state = 'DONE'
+    job_2_done.status.errorResult = None
+
+    job_1_error = mock.Mock()
+    job_1_error.status.state = 'DONE'
+    job_1_error.status.errorResult = 'Some problems happened'
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.side_effect = [
+        job_1_waiting,
+        job_2_done,
+        job_1_error,
+        job_2_done]
+
+    waiting_dofn = bqfl.WaitForBQJobs(bq_client)
+
+    dest_list = [(i, job) for i, job in enumerate(job_references)]
+
+    with self.assertRaises(Exception):
+      with TestPipeline('DirectRunner') as p:
+        references = beam.pvalue.AsList(p | 'job_ref' >> beam.Create(dest_list))
+        _ = (p
+             | beam.Create([''])
+             | beam.ParDo(waiting_dofn, references))
+
+    sleep_mock.assert_called_once()
 
   def test_multiple_partition_files(self):
     destination = 'project1:dataset1.table1'

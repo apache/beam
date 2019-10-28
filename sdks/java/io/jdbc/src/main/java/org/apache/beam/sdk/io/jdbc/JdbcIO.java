@@ -28,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -287,6 +288,9 @@ public class JdbcIO {
     abstract ValueProvider<String> getConnectionProperties();
 
     @Nullable
+    abstract ValueProvider<Collection<String>> getConnectionInitSqls();
+
+    @Nullable
     abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -302,6 +306,8 @@ public class JdbcIO {
       abstract Builder setPassword(ValueProvider<String> password);
 
       abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
+
+      abstract Builder setConnectionInitSqls(ValueProvider<Collection<String>> connectionInitSqls);
 
       abstract Builder setDataSource(DataSource dataSource);
 
@@ -369,6 +375,25 @@ public class JdbcIO {
       return builder().setConnectionProperties(connectionProperties).build();
     }
 
+    /**
+     * Sets the connection init sql statements to driver.connect(...).
+     *
+     * <p>NOTE - This property is not applicable across databases. Only MySQL and MariaDB support
+     * this. A Sql exception is thrown if your database does not support it.
+     */
+    public DataSourceConfiguration withConnectionInitSqls(Collection<String> connectionInitSqls) {
+      checkArgument(connectionInitSqls != null, "connectionInitSqls can not be null");
+      return withConnectionInitSqls(ValueProvider.StaticValueProvider.of(connectionInitSqls));
+    }
+
+    /** Same as {@link #withConnectionInitSqls(Collection)} but accepting a ValueProvider. */
+    public DataSourceConfiguration withConnectionInitSqls(
+        ValueProvider<Collection<String>> connectionInitSqls) {
+      checkArgument(connectionInitSqls != null, "connectionInitSqls can not be null");
+      checkArgument(!connectionInitSqls.get().isEmpty(), "connectionInitSqls can not be empty");
+      return builder().setConnectionInitSqls(connectionInitSqls).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -397,6 +422,12 @@ public class JdbcIO {
         if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
           basicDataSource.setConnectionProperties(getConnectionProperties().get());
         }
+        if (getConnectionInitSqls() != null
+            && getConnectionInitSqls().get() != null
+            && !getConnectionInitSqls().get().isEmpty()) {
+          basicDataSource.setConnectionInitSqls(getConnectionInitSqls().get());
+        }
+
         return basicDataSource;
       }
       return getDataSource();

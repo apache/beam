@@ -20,10 +20,14 @@ package org.apache.beam.runners.direct;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.PriorityQueue;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.StateNamespace;
@@ -34,6 +38,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -56,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.Instant;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
 final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements TransformEvaluatorFactory {
@@ -232,10 +238,13 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       implements TransformEvaluator<KeyedWorkItem<K, KV<K, InputT>>> {
 
     private final DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator;
+    private final List<TimerData> pushedBackTimers = new ArrayList<>();
+    private final DirectTimerInternals timerInternals;
 
     public StatefulParDoEvaluator(
         DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator) {
       this.delegateEvaluator = delegateEvaluator;
+      this.timerInternals = delegateEvaluator.getParDoEvaluator().getStepContext().timerInternals();
     }
 
     @Override
@@ -245,7 +254,12 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         delegateEvaluator.processElement(windowedValue);
       }
 
-      for (TimerData timer : gbkResult.getValue().timersIterable()) {
+      Instant currentInputWatermark = timerInternals.currentInputWatermarkTime();
+      PriorityQueue<TimerData> toBeFiredTimers =
+          new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
+      gbkResult.getValue().timersIterable().forEach(toBeFiredTimers::add);
+      while (!toBeFiredTimers.isEmpty()) {
+        TimerData timer = toBeFiredTimers.poll();
         checkState(
             timer.getNamespace() instanceof WindowNamespace,
             "Expected Timer %s to be in a %s, but got %s",
@@ -255,17 +269,23 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
         BoundedWindow timerWindow = windowNamespace.getWindow();
         delegateEvaluator.onTimer(timer, timerWindow);
+        if (timerInternals.containsUpdateForTimeBefore(currentInputWatermark)) {
+          break;
+        }
       }
+      pushedBackTimers.addAll(toBeFiredTimers);
     }
 
     @Override
     public TransformResult<KeyedWorkItem<K, KV<K, InputT>>> finishBundle() throws Exception {
       TransformResult<KV<K, InputT>> delegateResult = delegateEvaluator.finishBundle();
-
+      TimerUpdate timerUpdate =
+          delegateResult.getTimerUpdate().withPushedBackTimers(pushedBackTimers);
+      pushedBackTimers.clear();
       StepTransformResult.Builder<KeyedWorkItem<K, KV<K, InputT>>> regroupedResult =
           StepTransformResult.<KeyedWorkItem<K, KV<K, InputT>>>withHold(
                   delegateResult.getTransform(), delegateResult.getWatermarkHold())
-              .withTimerUpdate(delegateResult.getTimerUpdate())
+              .withTimerUpdate(timerUpdate)
               .withState(delegateResult.getState())
               .withMetricUpdates(delegateResult.getLogicalMetricUpdates())
               .addOutput(Lists.newArrayList(delegateResult.getOutputBundles()));

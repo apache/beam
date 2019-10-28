@@ -34,7 +34,7 @@ import (
 // for side input use. The indirection makes it easier to control access.
 type ScopedStateReader struct {
 	mgr    *StateChannelManager
-	instID string
+	instID instructionID
 
 	opened []io.Closer // track open readers to force close all
 	closed bool
@@ -42,7 +42,7 @@ type ScopedStateReader struct {
 }
 
 // NewScopedStateReader returns a ScopedStateReader for the given instruction.
-func NewScopedStateReader(mgr *StateChannelManager, instID string) *ScopedStateReader {
+func NewScopedStateReader(mgr *StateChannelManager, instID instructionID) *ScopedStateReader {
 	return &ScopedStateReader{mgr: mgr, instID: instID}
 }
 
@@ -103,7 +103,7 @@ func (s *ScopedStateReader) Close() error {
 }
 
 type stateKeyReader struct {
-	instID string
+	instID instructionID
 	key    *pb.StateKey
 
 	token []byte
@@ -115,7 +115,7 @@ type stateKeyReader struct {
 	mu     sync.Mutex
 }
 
-func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID string, k, w []byte) *stateKeyReader {
+func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, k, w []byte) *stateKeyReader {
 	key := &pb.StateKey{
 		Type: &pb.StateKey_MultimapSideInput_{
 			MultimapSideInput: &pb.StateKey_MultimapSideInput{
@@ -133,7 +133,7 @@ func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, 
 	}
 }
 
-func newRunnerReader(ch *StateChannel, instID string, k []byte) *stateKeyReader {
+func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKeyReader {
 	key := &pb.StateKey{
 		Type: &pb.StateKey_Runner_{
 			Runner: &pb.StateKey_Runner{
@@ -166,7 +166,7 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 
 		req := &pb.StateRequest{
 			// Id: set by channel
-			InstructionId: r.instID,
+			InstructionId: string(r.instID),
 			StateKey:      r.key,
 			Request: &pb.StateRequest_Get{
 				Get: &pb.StateGetRequest{

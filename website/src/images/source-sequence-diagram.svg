@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="538px" preserveAspectRatio="none" style="width:574px;height:538px;" version="1.1" viewBox="0 0 574 538" width="574px" zoomAndPan="magnify"><defs/><g><rect fill="#6B9FE6" height="435.2813" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="250.5" y="82.0469"/><rect fill="#6B9FE6" height="152.1719" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="367.5" y="356.1563"/><rect fill="#6B9FE6" height="338.5781" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="468.5" y="140.5156"/><line style="stroke: #6B9FE6; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="37" x2="37" y1="50.8125" y2="526.3281"/><line style="stroke: #6B9FE6; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="255.5" x2="255.5" y1="50.8125" y2="526.3281"/><line style="stroke: #6B9FE6; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="372.5" x2="372.5" y1="50.8125" y2="526.3281"/><line style="stroke: #6B9FE6; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="473.5" x2="473.5" y1="50.8125" y2="526.3281"/><rect fill="#8AC483" height="30.4063" style="stroke: #8AC483; stroke-width: 1.5;" width="59" x="8" y="19.4063"/><text fill="#000000" font-family="Roboto" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="45" x="15" y="39.3945">Runner</text><rect fill="#8AC483" height="46.8125" style="stroke: #8AC483; stroke-width: 1.5;" width="94" x="208.5" y="3"/><text fill="#000000" font-family="Roboto" font-size="14" font-style="italic" lengthAdjust="spacingAndGlyphs" textLength="80" x="215.5" y="24">«Serializable»</text><text fill="#000000" font-family="Roboto" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="43" x="234" y="40.4063">Source</text><rect fill="#8AC483" height="30.4063" style="stroke: #8AC483; stroke-width: 1.5;" width="58" x="343.5" y="19.4063"/><text fill="#000000" font-family="Roboto" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="44" x="350.5" y="39.3945">Reader</text><rect fill="#8AC483" height="30.4063" style="stroke: #8AC483; stroke-width: 1.5;" width="86" x="430.5" y="19.4063"/><text fill="#000000" font-family="Roboto" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="72" x="437.5" y="39.3945">Middleware</text><rect fill="#6B9FE6" height="435.2813" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="250.5" y="82.0469"/><rect fill="#6B9FE6" height="152.1719" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="367.5" y="356.1563"/><rect fill="#6B9FE6" height="338.5781" style="stroke: #6B9FE6; stroke-width: 1.0;" width="10" x="468.5" y="140.5156"/><polygon fill="#67666A" points="238.5,78.0469,248.5,82.0469,238.5,86.0469,242.5,82.0469" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="37.5" x2="244.5" y1="82.0469" y2="82.0469"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="80" x="44.5" y="76.873">create source</text><polygon fill="#67666A" points="238.5,107.2813,248.5,111.2813,238.5,115.2813,242.5,111.2813" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="37.5" x2="244.5" y1="111.2813" y2="111.2813"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="104" x="44.5" y="106.1074">get estimated size</text><polygon fill="#67666A" points="456.5,136.5156,466.5,140.5156,456.5,144.5156,460.5,140.5156" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="260.5" x2="462.5" y1="140.5156" y2="140.5156"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="77" x="267.5" y="135.3418">estimate size</text><polygon fill="#67666A" points="48.5,165.75,38.5,169.75,48.5,173.75,44.5,169.75" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0; stroke-dasharray: 2.0,2.0;" x1="42.5" x2="249.5" y1="169.75" y2="169.75"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="66" x="54.5" y="164.5762">size of data</text><line style="stroke: #67666A; stroke-width: 2.0;" x1="37.5" x2="79.5" y1="214.2188" y2="214.2188"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="79.5" x2="79.5" y1="214.2188" y2="227.2188"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="38.5" x2="79.5" y1="227.2188" y2="227.2188"/><polygon fill="#67666A" points="48.5,223.2188,38.5,227.2188,48.5,231.2188,44.5,227.2188" style="stroke: #67666A; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="204" x="44.5" y="193.8105">compute size / number of executors</text><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="119" x="47.5" y="209.0449">= desired bundle size</text><polygon fill="#67666A" points="238.5,255.4531,248.5,259.4531,238.5,263.4531,242.5,259.4531" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="37.5" x2="244.5" y1="259.4531" y2="259.4531"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="187" x="44.5" y="254.2793">split source (desired bundle size)</text><path d="M265,240.2188 L265,265.2188 L548,265.2188 L548,250.2188 L538,240.2188 L265,240.2188 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M538,240.2188 L538,250.2188 L548,250.2188 L538,240.2188 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="262" x="271" y="257.2793">streaming: split based on number of executors</text><polygon fill="#67666A" points="48.5,290.6875,38.5,294.6875,48.5,298.6875,44.5,294.6875" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0; stroke-dasharray: 2.0,2.0;" x1="42.5" x2="249.5" y1="294.6875" y2="294.6875"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="70" x="54.5" y="289.5137">list&lt;source&gt;</text><path d="M265,275.4531 L265,300.4531 L562,300.4531 L562,285.4531 L552,275.4531 L265,275.4531 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M552,275.4531 L552,285.4531 L562,285.4531 L552,275.4531 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="276" x="271" y="292.5137">streaming: runner asks the source for watermark</text><polygon fill="#67666A" points="238.5,322.9219,248.5,326.9219,238.5,330.9219,242.5,326.9219" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="37.5" x2="244.5" y1="326.9219" y2="326.9219"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="182" x="44.5" y="321.748">for each source create a reader</text><polygon fill="#67666A" points="355.5,352.1563,365.5,356.1563,355.5,360.1563,359.5,356.1563" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="260.5" x2="361.5" y1="356.1563" y2="356.1563"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="88" x="267.5" y="350.9824">create a reader</text><polygon fill="#67666A" points="48.5,384.3906,38.5,388.3906,48.5,392.3906,44.5,388.3906" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0; stroke-dasharray: 2.0,2.0;" x1="42.5" x2="366.5" y1="388.3906" y2="388.3906"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="45" x="54.5" y="383.2168">readers</text><path d="M382,369.1563 L382,394.1563 L539,394.1563 L539,379.1563 L529,369.1563 L382,369.1563 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><path d="M529,369.1563 L529,379.1563 L539,379.1563 L529,369.1563 " fill="#CEE2F2" style="stroke: #CEE2F2; stroke-width: 1.0;"/><text fill="#000000" font-family="Roboto" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="136" x="388" y="386.2168">streaming: + checkpoint</text><polygon fill="#67666A" points="355.5,416.625,365.5,420.625,355.5,424.625,359.5,420.625" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="37.5" x2="361.5" y1="420.625" y2="420.625"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="167" x="44.5" y="415.4512">for each reader : start reader</text><polygon fill="#67666A" points="355.5,445.8594,365.5,449.8594,355.5,453.8594,359.5,449.8594" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="37.5" x2="361.5" y1="449.8594" y2="449.8594"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="183" x="44.5" y="444.6855">read elements until none to read</text><polygon fill="#67666A" points="461.5,475.0938,471.5,479.0938,461.5,483.0938,465.5,479.0938" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="377.5" x2="467.5" y1="479.0938" y2="479.0938"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="67" x="384.5" y="473.9199">get element</text><polygon fill="#67666A" points="360.5,504.3281,370.5,508.3281,360.5,512.3281,364.5,508.3281" style="stroke: #67666A; stroke-width: 1.0;"/><line style="stroke: #67666A; stroke-width: 2.0;" x1="37.5" x2="366.5" y1="508.3281" y2="508.3281"/><text fill="#000000" font-family="Roboto" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="72" x="44.5" y="503.1543">close reader</text><!--MD5=[6e6ef42902efdf0e23898c2d72194b90]
+@startuml
+
+hide footbox
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName "Roboto"
+
+skinparam sequenceArrowThickness 2
+
+skinparam note {
+  BackgroundColor #cee2f2
+  BorderColor #cee2f2
+}
+
+skinparam sequence {
+  ArrowColor #67666a
+
+  LifeLineBorderColor #6b9fe6
+  LifeLineBackgroundColor #6b9fe6
+
+  GroupBackgroundColor #8ac483
+  GroupBorderColor #8ac483
+
+  ParticipantBackgroundColor #8ac483
+  ParticipantBorderColor #8ac483
+}
+
+participant Runner
+participant "Source" << Serializable >>
+participant "Reader"
+participant Middleware
+
+Runner -> Source: **create source**
+activate Source
+
+Runner -> Source: get estimated size
+
+Source -> Middleware: **estimate size**
+activate Middleware
+
+Source - -> Runner: size of data
+
+Runner -> Runner: compute size / number of executors\n = desired bundle size
+
+Runner -> Source: split source (desired bundle size)
+note right
+  streaming: split based on number of executors
+end note
+
+Source - -> Runner: list<source>
+note right
+  streaming: runner asks the source for watermark
+end note
+
+Runner -> Source: **for each source create a reader**
+
+Source -> Reader: **create a reader**
+activate Reader
+
+Reader - -> Runner: **readers**
+note right
+  streaming: + checkpoint
+end note
+
+Runner -> Reader: **for each reader : start reader**
+
+Runner -> Reader: **read elements until none to read**
+
+Reader -> Middleware: **get element**
+
+deactivate Middleware
+
+Runner -> Reader: **close reader**
+deactivate Reader
+@enduml
+
+PlantUML version 1.2019.11(Sun Sep 22 12:02:15 CEST 2019)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Java Version: 1.8.0_222-b10
+Operating System: Linux
+Default Encoding: UTF-8
+Language: en
+Country: CA
+--></g></svg>

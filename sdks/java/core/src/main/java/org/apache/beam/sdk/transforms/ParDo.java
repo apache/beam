@@ -323,10 +323,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *       {@link DoFn}. This is good if the state needs to be computed by the pipeline, or if the
  *       state is very large and so is best read from file(s) rather than sent as part of the {@link
  *       DoFn DoFn's} serialized state.
- *   <li>Initialize the state in each {@link DoFn} instance, in a {@link DoFn.StartBundle} method.
- *       This is good if the initialization doesn't depend on any information known only by the main
- *       program or computed by earlier pipeline operations, but is the same for all instances of
- *       this {@link DoFn} for all program executions, say setting up empty caches or initializing
+ *   <li>Initialize the state in each {@link DoFn} instance, in a {@link DoFn.Setup} method. This is
+ *       good if the initialization doesn't depend on any information known only by the main program
+ *       or computed by earlier pipeline operations, but is the same for all instances of this
+ *       {@link DoFn} for all program executions, say setting up empty caches or initializing
  *       constant data.
  * </ul>
  *
