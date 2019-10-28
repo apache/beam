@@ -35,10 +35,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import argparse
 import random
 import time
 from builtins import range
-from builtins import zip
 
 import apache_beam as beam
 import apache_beam.typehints.typehints as typehints
@@ -49,7 +49,6 @@ from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
-from scipy import stats
 
 NUM_PARALLEL_STAGES = 7
 
@@ -95,30 +94,33 @@ def _build_serial_stages(pipeline,
   return pc
 
 
-def run_benchmark(num_runs=10,
-                  num_elements_step=100):
-  timings = {}
-  for run in range(num_runs):
-    num_elements = num_elements_step * run + 1
-    start = time.time()
+def run_single_pipeline(size):
+  def _pipeline_runner():
     with beam.Pipeline(runner=FnApiRunner()) as p:
       for i in range(NUM_PARALLEL_STAGES):
-        _build_serial_stages(p, NUM_SERIAL_STAGES, num_elements, i)
-    timings[num_elements] = time.time() - start
-    print("%6d element%s %g sec" % (
-        num_elements, " " if num_elements == 1 else "s", timings[num_elements]))
+        _build_serial_stages(p, NUM_SERIAL_STAGES, size, i)
 
-  print()
-  # pylint: disable=unused-variable
-  gradient, intercept, r_value, p_value, std_err = stats.linregress(
-      *list(zip(*list(timings.items()))))
-  # Fixed cost is the most important variable, as it represents the fixed cost
-  #   of running all the bundles through all the stages.
-  print("Fixed cost  ", intercept)
-  print("Per-element ", gradient / (NUM_SERIAL_STAGES * NUM_PARALLEL_STAGES))
-  print("R^2         ", r_value**2)
+  return _pipeline_runner
+
+
+def run_benchmark(starting_point, num_runs, num_elements_step, verbose):
+  suite = [
+      utils.LinearRegressionBenchmarkConfig(
+          run_single_pipeline, starting_point, num_elements_step, num_runs)]
+  utils.run_benchmarks(suite, verbose=verbose)
 
 
 if __name__ == '__main__':
   utils.check_compiled('apache_beam.runners.common')
-  run_benchmark()
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--num_runs', default=10, type=int)
+  parser.add_argument('--starting_point', default=1, type=int)
+  parser.add_argument('--increment', default=100, type=int)
+  parser.add_argument('--verbose', default=True, type=bool)
+  options = parser.parse_args()
+
+  run_benchmark(options.starting_point,
+                options.num_runs,
+                options.increment,
+                options.verbose)
