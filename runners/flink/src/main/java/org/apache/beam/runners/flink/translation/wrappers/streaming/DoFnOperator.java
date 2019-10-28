@@ -56,6 +56,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.runners.flink.translation.utils.NoopLock;
@@ -179,6 +180,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final DoFnSchemaInformation doFnSchemaInformation;
 
+  private final Map<String, PCollectionView<?>> sideInputMapping;
+
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
 
@@ -189,6 +192,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private transient long pushedBackWatermark;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
+
+  /** Metrics container for reporting Beam metrics to Flink (null if metrics are disabled). */
+  @Nullable transient FlinkMetricContainer flinkMetricContainer;
 
   /** Use an AtomicBoolean because we start/stop bundles by a timer thread (see below). */
   private transient AtomicBoolean bundleStarted;
@@ -217,7 +223,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       PipelineOptions options,
       Coder<?> keyCoder,
       KeySelector<WindowedValue<InputT>, ?> keySelector,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.stepName = stepName;
     this.windowedInputCoder = inputWindowedCoder;
@@ -246,6 +253,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.maxBundleTimeMills = flinkOptions.getMaxBundleTimeMills();
     Preconditions.checkArgument(maxBundleTimeMills > 0, "Bundle time must be at least 1");
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
 
     this.requiresStableInput =
         // WindowDoFnOperator does not use a DoFn
@@ -254,7 +262,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     if (requiresStableInput) {
       Preconditions.checkState(
-          flinkOptions.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE,
+          CheckpointingMode.valueOf(flinkOptions.getCheckpointingMode())
+              == CheckpointingMode.EXACTLY_ONCE,
           "Checkpointing mode is not set to exactly once but @RequiresStableInput is used.");
       Preconditions.checkState(
           flinkOptions.getCheckpointingInterval() > 0,
@@ -307,8 +316,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       Output<StreamRecord<WindowedValue<OutputT>>> output) {
 
     // make sure that FileSystems is initialized correctly
-    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
-    FileSystems.setDefaultPipelineOptions(options);
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
 
     super.setup(containingTask, config, output);
   }
@@ -417,7 +425,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     if (requiresStableInput) {
       // put this in front of the root FnRunner before any additional wrappers
@@ -434,7 +443,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
-      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+      flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
     }
 
     bundleStarted = new AtomicBoolean(false);
@@ -620,7 +630,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void processWatermark1(Watermark mark) throws Exception {
-    checkInvokeStartBundle();
     // We do the check here because we are guaranteed to at least get the +Inf watermark on the
     // main input when the job finishes.
     if (currentSideInputWatermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
@@ -667,7 +676,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void processWatermark2(Watermark mark) throws Exception {
-    checkInvokeStartBundle();
 
     setCurrentSideInputWatermark(mark.getTimestamp());
     if (mark.getTimestamp() >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
@@ -688,6 +696,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     Iterator<WindowedValue<InputT>> it = pushedBackElementsHandler.getElements().iterator();
 
     while (it.hasNext()) {
+      checkInvokeStartBundle();
       WindowedValue<InputT> element = it.next();
       // we need to set the correct key in case the operator is
       // a (keyed) window operator
@@ -780,8 +789,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void onEventTime(InternalTimer<ByteBuffer, TimerData> timer) throws Exception {
-    // We don't have to cal checkInvokeStartBundle() because it's already called in
-    // processWatermark*().
+    checkInvokeStartBundle();
     fireTimer(timer);
   }
 

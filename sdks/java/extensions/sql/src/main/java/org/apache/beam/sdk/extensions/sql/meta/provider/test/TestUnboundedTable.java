@@ -25,12 +25,11 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -108,9 +107,7 @@ public class TestUnboundedTable extends TestTable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    TestStream.Builder<Row> values =
-        TestStream.create(
-            schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+    TestStream.Builder<Row> values = TestStream.create(schema);
 
     for (Pair<Duration, List<Row>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));

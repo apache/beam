@@ -25,7 +25,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Porta
 
   description('Runs the ValidatesRunner suite on the Java 11 enabled Dataflow PortabilityApi runner.')
 
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
 
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')

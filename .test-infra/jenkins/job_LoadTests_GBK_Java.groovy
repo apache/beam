@@ -25,10 +25,10 @@ import CronJobBuilder
 def loadTestConfigurations = { mode, isStreaming, datasetName ->
     [
             [
-                    title        : 'Load test: 2GB of 10B records',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: 2GB of 10B records',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_1",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -44,17 +44,16 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 1,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: 2GB of 100B records',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: 2GB of 100B records',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_2",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -70,7 +69,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 1,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -78,10 +76,10 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
             ],
             [
 
-                    title        : 'Load test: 2GB of 100kB records',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: 2GB of 100kB records',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_3",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -97,7 +95,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 1,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -105,10 +102,10 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
 
             ],
             [
-                    title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : 'load_tests_Java_Dataflow_${mode}_GBK_4',
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -124,17 +121,16 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 4,
                             iterations            : 1,
-                            maxNumWorkers         : 16,
                             numWorkers            : 16,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: fanout 8 times with 2GB 10-byte records total',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_5",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -150,17 +146,16 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 8,
                             iterations            : 1,
-                            maxNumWorkers         : 16,
                             numWorkers            : 16,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: reiterate 4 times 10kB values',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: reiterate 4 times 10kB values',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_6",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -178,17 +173,16 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 4,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: reiterate 4 times 2MB values',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: reiterate 4 times 2MB values',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_7",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -206,7 +200,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 4,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -221,8 +214,8 @@ def streamingLoadTestJob = { scope, triggeringContext ->
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   for (testConfiguration in loadTestConfigurations('streaming', true, datasetName)) {
-    testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass)
+    testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.pipelineOptions, testConfiguration.test)
   }
 }
 

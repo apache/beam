@@ -880,7 +880,8 @@ class Read(ptransform.PTransform):
                   split.start_position, split.stop_position))))
     else:
       # Treat Read itself as a primitive.
-      return pvalue.PCollection(self.pipeline)
+      return pvalue.PCollection(self.pipeline,
+                                is_bounded=self.source.is_bounded())
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -1438,6 +1439,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
     def restriction_size(self, element, restriction):
       return restriction.weight
+
+    def restriction_coder(self):
+      return coders.DillCoder()
 
   def __init__(self, source):
     if not isinstance(source, BoundedSource):

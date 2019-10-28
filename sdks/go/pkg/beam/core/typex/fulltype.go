@@ -180,6 +180,14 @@ func SkipW(t FullType) FullType {
 	return t
 }
 
+// SkipK skips the key in a KV layer, if present. If no, returns the input.
+func SkipK(t FullType) FullType {
+	if t.Type() == KVType {
+		return t.Components()[1]
+	}
+	return t
+}
+
 // IsKV returns true iff the type is a KV.
 func IsKV(t FullType) bool {
 	return t.Type() == KVType

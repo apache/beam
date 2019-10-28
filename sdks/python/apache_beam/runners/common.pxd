@@ -40,6 +40,8 @@ cdef class MethodWrapper(object):
   cdef object timestamp_arg_name
   cdef object window_arg_name
   cdef object key_arg_name
+  cdef object restriction_provider
+  cdef object restriction_provider_arg_name
 
 
 cdef class DoFnSignature(object):

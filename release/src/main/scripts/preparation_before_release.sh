@@ -36,6 +36,7 @@ if [[ $confirmation = "y" ]]; then
   echo "===============Generating new GPG key================"
   sudo apt-get install rng-tools
   sudo rngd -r /dev/urandom
+  echo "NOTE: When creating the key, please select the type to be RSA and RSA (default), and the size to be 4096 bit long."
   gpg --full-generate-key
 fi
 

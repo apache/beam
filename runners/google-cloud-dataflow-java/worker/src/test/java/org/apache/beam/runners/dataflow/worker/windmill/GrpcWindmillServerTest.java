@@ -87,7 +87,7 @@ public class GrpcWindmillServerTest {
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
   private GrpcWindmillServer client;
-  private static final int STREAM_CHUNK_SIZE = 63 * 1024;
+  private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private int remainingErrors = 20;
 
   @Before

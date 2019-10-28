@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -249,6 +249,7 @@ class QuiescenceDriver implements ExecutionDriver {
    * Exception)}.
    */
   private class TimerIterableCompletionCallback implements CompletionCallback {
+
     private final Iterable<TimerData> timers;
 
     TimerIterableCompletionCallback(Iterable<TimerData> timers) {
@@ -258,8 +259,9 @@ class QuiescenceDriver implements ExecutionDriver {
     @Override
     public final CommittedResult handleResult(
         CommittedBundle<?> inputBundle, TransformResult<?> result) {
-      CommittedResult<AppliedPTransform<?, ?, ?>> committedResult =
-          evaluationContext.handleResult(inputBundle, timers, result);
+
+      final CommittedResult<AppliedPTransform<?, ?, ?>> committedResult;
+      committedResult = evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         pendingWork.offer(
             WorkUpdate.fromBundle(
@@ -311,12 +313,12 @@ class QuiescenceDriver implements ExecutionDriver {
     private static WorkUpdate fromBundle(
         CommittedBundle<?> bundle, Collection<AppliedPTransform<?, ?, ?>> consumers) {
       return new AutoValue_QuiescenceDriver_WorkUpdate(
-          Optional.of(bundle), consumers, Optional.absent());
+          Optional.of(bundle), consumers, Optional.empty());
     }
 
     private static WorkUpdate fromException(Exception e) {
       return new AutoValue_QuiescenceDriver_WorkUpdate(
-          Optional.absent(), Collections.emptyList(), Optional.of(e));
+          Optional.empty(), Collections.emptyList(), Optional.of(e));
     }
 
     /** Returns the bundle that produced this update. */

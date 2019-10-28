@@ -142,8 +142,8 @@ class FnApiLogRecordHandler(logging.Handler):
       # Loop for reconnection.
       log_control_iterator = self.connect()
       if self._dropped_logs > 0:
-        logging.warn("Dropped %d logs while logging client disconnected",
-                     self._dropped_logs)
+        logging.warning("Dropped %d logs while logging client disconnected",
+                        self._dropped_logs)
         self._dropped_logs = 0
       try:
         for _ in log_control_iterator:

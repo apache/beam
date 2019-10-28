@@ -92,6 +92,10 @@ cdef class BytesCoderImpl(CoderImpl):
   pass
 
 
+cdef class BooleanCoderImpl(CoderImpl):
+  pass
+
+
 cdef class FloatCoderImpl(StreamCoderImpl):
   pass
 

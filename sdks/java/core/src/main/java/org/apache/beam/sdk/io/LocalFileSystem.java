@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.fs.CreateOptions;
@@ -81,6 +82,9 @@ import org.slf4j.LoggerFactory;
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
+
+  /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
+  private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
   LocalFileSystem() {}
 
@@ -224,7 +228,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
 
-    File parent = file.getAbsoluteFile().getParentFile();
+    File parent = getSpecNonGlobPrefixParentFile(spec);
     if (!parent.exists()) {
       return MatchResult.create(Status.NOT_FOUND, Collections.emptyList());
     }
@@ -268,6 +272,14 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     }
   }
 
+  private File getSpecNonGlobPrefixParentFile(String spec) {
+    String specNonWildcardPrefix = getNonWildcardPrefix(spec);
+    File file = new File(specNonWildcardPrefix);
+    return specNonWildcardPrefix.endsWith(File.separator)
+        ? file
+        : file.getAbsoluteFile().getParentFile();
+  }
+
   private Metadata toMetadata(File file) {
     return Metadata.builder()
         .setResourceId(LocalResourceId.fromPath(file.toPath(), file.isDirectory()))
@@ -275,5 +287,10 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         .setSizeBytes(file.length())
         .setLastModifiedMillis(file.lastModified())
         .build();
+  }
+
+  private static String getNonWildcardPrefix(String globExp) {
+    Matcher m = GLOB_PREFIX.matcher(globExp);
+    return !m.matches() ? globExp : m.group("PREFIX");
   }
 }

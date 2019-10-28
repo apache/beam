@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.example;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.example.model.Customer;
@@ -54,7 +53,8 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class BeamSqlPojoExample {
   public static void main(String[] args) {
-    Pipeline pipeline = createPipeline(args);
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+    Pipeline pipeline = Pipeline.create(options);
 
     // First step is to get PCollections of source objects.
     // In this example we create them directly in memory using Create.of().
@@ -101,20 +101,15 @@ class BeamSqlPojoExample {
     pipeline.run().waitUntilFinish();
   }
 
-  private static MapElements<Row, Void> logRecords(String suffix) {
+  private static MapElements<Row, Row> logRecords(String suffix) {
     return MapElements.via(
-        new SimpleFunction<Row, Void>() {
+        new SimpleFunction<Row, Row>() {
           @Override
-          public @Nullable Void apply(Row input) {
+          public Row apply(Row input) {
             System.out.println(input.getValues() + suffix);
-            return null;
+            return input;
           }
         });
-  }
-
-  private static Pipeline createPipeline(String[] args) {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-    return Pipeline.create(options);
   }
 
   private static PCollection<Customer> loadCustomers(Pipeline pipeline) {

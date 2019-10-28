@@ -135,7 +135,7 @@ class TestStream(PTransform):
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
-    return pvalue.PCollection(self.pipeline)
+    return pvalue.PCollection(self.pipeline, is_bounded=False)
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     return self.coder

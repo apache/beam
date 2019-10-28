@@ -25,15 +25,16 @@ import random
 import time
 
 from apache_beam.io import filesystems
+from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
 try:
+  from google.api_core import exceptions as gexc
   from google.cloud import bigquery
-  from google.cloud.exceptions import NotFound
 except ImportError:
+  gexc = None
   bigquery = None
-  NotFound = None
 
 
 class GcpTestIOError(retry.PermanentException):
@@ -98,7 +99,7 @@ def delete_bq_table(project, dataset_id, table_id):
   table_ref = client.dataset(dataset_id).table(table_id)
   try:
     client.delete_table(table_ref)
-  except NotFound:
+  except gexc.NotFound:
     raise GcpTestIOError('BigQuery table does not exist: %s' % table_ref)
 
 
@@ -113,3 +114,53 @@ def delete_directory(directory):
       "gs://mybucket/mydir/", "s3://...", ...)
   """
   filesystems.FileSystems.delete([directory])
+
+
+def write_to_pubsub(pub_client,
+                    topic_path,
+                    messages,
+                    with_attributes=False,
+                    chunk_size=100,
+                    delay_between_chunks=0.1):
+  for start in range(0, len(messages), chunk_size):
+    message_chunk = messages[start:start + chunk_size]
+    if with_attributes:
+      futures = [
+          pub_client.publish(topic_path, message.data, **message.attributes)
+          for message in message_chunk
+      ]
+    else:
+      futures = [
+          pub_client.publish(topic_path, message) for message in message_chunk
+      ]
+    for future in futures:
+      future.result()
+    time.sleep(delay_between_chunks)
+
+
+def read_from_pubsub(sub_client,
+                     subscription_path,
+                     with_attributes=False,
+                     number_of_elements=None,
+                     timeout=None):
+  if number_of_elements is None and timeout is None:
+    raise ValueError("Either number_of_elements or timeout must be specified.")
+  messages = []
+  start_time = time.time()
+
+  while ((number_of_elements is None or len(messages) < number_of_elements) and
+         (timeout is None or (time.time() - start_time) < timeout)):
+    try:
+      response = sub_client.pull(
+          subscription_path, max_messages=1000, retry=None, timeout=10)
+    except (gexc.RetryError, gexc.DeadlineExceeded):
+      continue
+    ack_ids = [msg.ack_id for msg in response.received_messages]
+    sub_client.acknowledge(subscription_path, ack_ids)
+    for msg in response.received_messages:
+      message = PubsubMessage._from_message(msg.message)
+      if with_attributes:
+        messages.append(message)
+      else:
+        messages.append(message.data)
+  return messages

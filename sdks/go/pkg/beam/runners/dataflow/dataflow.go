@@ -54,13 +54,16 @@ var (
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
-	region               = flag.String("region", "us-central1", "GCP Region (optional)")
+	region               = flag.String("region", "", "GCP Region (optional but encouraged)")
 	network              = flag.String("network", "", "GCP network (optional)")
+	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
+	noUsePublicIPs       = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
 	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
 	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
 	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
 
+	executeAsync   = flag.Bool("execute_async", false, "Asynchronous execution. Submit the job and return immediately.")
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
@@ -89,6 +92,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *stagingLocation == "" {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
+	}
+	if *region == "" {
+		*region = "us-central1"
+		log.Warn(ctx, "--region not set; will default to us-central1. Future releases of Beam will "+
+			"require the user to set the region explicitly. "+
+			"https://cloud.google.com/compute/docs/regions-zones/regions-zones")
 	}
 	if *image == "" {
 		*image = getContainerImage(ctx)
@@ -134,6 +143,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Region:              *region,
 		Zone:                *zone,
 		Network:             *network,
+		Subnetwork:          *subnetwork,
+		NoUsePublicIPs:      *noUsePublicIPs,
 		NumWorkers:          *numWorkers,
 		MaxNumWorkers:       *maxNumWorkers,
 		Algorithm:           *autoscalingAlgorithm,
@@ -179,7 +190,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, false)
+	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
 	return err
 }
 func gcsRecorderHook(opts []string) perf.CaptureHook {

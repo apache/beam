@@ -25,13 +25,12 @@ import tensorflow_data_validation as tfdv
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 import apache_beam as beam
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 
 from google.protobuf import text_format
 from trainer import taxi
-
-namespace = 'NAMESPACE_TFDV_ANALYZE_AND_VALIDATE'
 
 
 def infer_schema(stats_path, schema_path):
@@ -91,7 +90,7 @@ def compute_stats(input_handle,
     pipeline_args: additional DataflowRunner or DirectRunner args passed to the
       beam pipeline.
   """
-
+  namespace = metrics_table
   pipeline = beam.Pipeline(argv=pipeline_args)
   metrics_monitor = None
   if publish_to_bq:
@@ -99,6 +98,7 @@ def compute_stats(input_handle,
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
+        filters=MetricsFilter().with_namespace(namespace),
     )
 
   query = taxi.make_sql(

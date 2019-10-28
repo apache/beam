@@ -153,18 +153,11 @@ class MethodWrapper(object):
                        'a \'RestrictionProvider\'. Received %r instead.'
                        % obj_to_invoke)
 
-    fullargspec = core.get_function_arguments(
-        obj_to_invoke, method_name)
+    self.args, self.defaults = core.get_function_arguments(obj_to_invoke,
+                                                           method_name)
 
     # TODO(BEAM-5878) support kwonlyargs on Python 3.
-    args = fullargspec[0]
-    defaults = fullargspec[3]
-
-    defaults = defaults if defaults else []
-    method_value = getattr(obj_to_invoke, method_name)
-    self.method_value = method_value
-    self.args = args
-    self.defaults = defaults
+    self.method_value = getattr(obj_to_invoke, method_name)
 
     self.has_userstate_arguments = False
     self.state_args_to_replace = {}
@@ -172,20 +165,25 @@ class MethodWrapper(object):
     self.timestamp_arg_name = None
     self.window_arg_name = None
     self.key_arg_name = None
+    self.restriction_provider = None
+    self.restriction_provider_arg_name = None
 
-    for kw, v in zip(args[-len(defaults):], defaults):
+    for kw, v in zip(self.args[-len(self.defaults):], self.defaults):
       if isinstance(v, core.DoFn.StateParam):
         self.state_args_to_replace[kw] = v.state_spec
         self.has_userstate_arguments = True
       elif isinstance(v, core.DoFn.TimerParam):
         self.timer_args_to_replace[kw] = v.timer_spec
         self.has_userstate_arguments = True
-      elif v == core.DoFn.TimestampParam:
+      elif core.DoFn.TimestampParam == v:
         self.timestamp_arg_name = kw
-      elif v == core.DoFn.WindowParam:
+      elif core.DoFn.WindowParam == v:
         self.window_arg_name = kw
-      elif v == core.DoFn.KeyParam:
+      elif core.DoFn.KeyParam == v:
         self.key_arg_name = kw
+      elif isinstance(v, core.DoFn.RestrictionParam):
+        self.restriction_provider = v.restriction_provider
+        self.restriction_provider_arg_name = kw
 
   def invoke_timer_callback(self,
                             user_state_context,
@@ -264,9 +262,7 @@ class DoFnSignature(object):
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
 
   def get_restriction_provider(self):
-    result = _find_param_with_default(self.process_method,
-                                      default_as_type=DoFn.RestrictionParam)
-    return result[1].restriction_provider if result else None
+    return self.process_method.restriction_provider
 
   def _validate(self):
     self._validate_process()
@@ -297,8 +293,7 @@ class DoFnSignature(object):
     userstate.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
-    return any([isinstance(default, DoFn.RestrictionParam) for default in
-                self.process_method.defaults])
+    return self.get_restriction_provider() is not None
 
   def is_stateful_dofn(self):
     return self._is_stateful_dofn
@@ -430,26 +425,6 @@ class DoFnInvoker(object):
     return self.signature.create_tracker_method.method_value(restriction)
 
 
-def _find_param_with_default(
-    method, default_as_value=None, default_as_type=None):
-  if ((default_as_value and default_as_type) or
-      not (default_as_value or default_as_type)):
-    raise ValueError(
-        'Exactly one of \'default_as_value\' and \'default_as_type\' should be '
-        'provided. Received %r and %r.' % (default_as_value, default_as_type))
-
-  defaults = method.defaults
-  ret = None
-  for i, value in enumerate(defaults):
-    if default_as_value and value == default_as_value:
-      ret = (method.args[len(method.args) - len(defaults) + i], value)
-    elif default_as_type and isinstance(value, default_as_type):
-      index = len(method.args) - len(defaults) + i
-      ret = (method.args[index], value)
-
-  return ret
-
-
 class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
 
@@ -499,37 +474,40 @@ class PerWindowInvoker(DoFnInvoker):
     input_args = input_args if input_args else []
     input_kwargs = input_kwargs if input_kwargs else {}
 
-    arguments = signature.process_method.args
-    defaults = signature.process_method.defaults
+    arg_names = signature.process_method.args
 
     # Create placeholder for element parameter of DoFn.process() method.
-    self_in_args = int(signature.do_fn.is_process_bounded())
-
+    # Not to be confused with ArgumentPlaceHolder, which may be passed in
+    # input_args and is a placeholder for side-inputs.
     class ArgPlaceholder(object):
       def __init__(self, placeholder):
         self.placeholder = placeholder
 
     if core.DoFn.ElementParam not in default_arg_values:
-      args_to_pick = len(arguments) - len(default_arg_values) - 1 - self_in_args
+      # TODO(BEAM-7867): Handle cases in which len(arg_names) ==
+      #   len(default_arg_values).
+      args_to_pick = len(arg_names) - len(default_arg_values) - 1
+      # Positional argument values for process(), with placeholders for special
+      # values such as the element, timestamp, etc.
       args_with_placeholders = (
           [ArgPlaceholder(core.DoFn.ElementParam)] + input_args[:args_to_pick])
     else:
-      args_to_pick = len(arguments) - len(defaults) - self_in_args
+      args_to_pick = len(arg_names) - len(default_arg_values)
       args_with_placeholders = input_args[:args_to_pick]
 
     # Fill the OtherPlaceholders for context, key, window or timestamp
     remaining_args_iter = iter(input_args[args_to_pick:])
-    for a, d in zip(arguments[-len(defaults):], defaults):
-      if d == core.DoFn.ElementParam:
+    for a, d in zip(arg_names[-len(default_arg_values):], default_arg_values):
+      if core.DoFn.ElementParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.KeyParam:
+      elif core.DoFn.KeyParam == d:
         self.is_key_param_required = True
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.WindowParam:
+      elif core.DoFn.WindowParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.TimestampParam:
+      elif core.DoFn.TimestampParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.SideInputParam:
+      elif core.DoFn.SideInputParam == d:
         # If no more args are present then the value must be passed via kwarg
         try:
           args_with_placeholders.append(next(remaining_args_iter))
@@ -540,7 +518,7 @@ class PerWindowInvoker(DoFnInvoker):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, core.DoFn.TimerParam):
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.BundleFinalizerParam:
+      elif isinstance(d, type) and core.DoFn.BundleFinalizerParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
       else:
         # If no more args are present then the value must be passed via kwarg
@@ -583,9 +561,8 @@ class PerWindowInvoker(DoFnInvoker):
         # the upstream pair-with-restriction.
         raise NotImplementedError(
             'SDFs in multiply-windowed values with windowed arguments.')
-      restriction_tracker_param = _find_param_with_default(
-          self.signature.process_method,
-          default_as_type=DoFn.RestrictionParam)[0]
+      restriction_tracker_param = (
+          self.signature.process_method.restriction_provider_arg_name)
       if not restriction_tracker_param:
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
@@ -650,13 +627,13 @@ class PerWindowInvoker(DoFnInvoker):
              'instead, got \'%s\'.') % (windowed_value.value,))
 
     for i, p in self.placeholders:
-      if p == core.DoFn.ElementParam:
+      if core.DoFn.ElementParam == p:
         args_for_process[i] = windowed_value.value
-      elif p == core.DoFn.KeyParam:
+      elif core.DoFn.KeyParam == p:
         args_for_process[i] = key
-      elif p == core.DoFn.WindowParam:
+      elif core.DoFn.WindowParam == p:
         args_for_process[i] = window
-      elif p == core.DoFn.TimestampParam:
+      elif core.DoFn.TimestampParam == p:
         args_for_process[i] = windowed_value.timestamp
       elif isinstance(p, core.DoFn.StateParam):
         args_for_process[i] = (
@@ -664,7 +641,7 @@ class PerWindowInvoker(DoFnInvoker):
       elif isinstance(p, core.DoFn.TimerParam):
         args_for_process[i] = (
             self.user_state_context.get_timer(p.timer_spec, key, window))
-      elif p == core.DoFn.BundleFinalizerParam:
+      elif core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
 
     if additional_kwargs:

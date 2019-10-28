@@ -23,16 +23,44 @@ applyPythonNature()
 /*************************************************************************************************/
 // Basic build and Python environment setup/cleanup
 
-task buildPython(dependsOn: 'setupVirtualenv') {
+task buildPython {
+  dependsOn 'setupVirtualenv'
+
   doLast {
-    println 'Building Python Dependencies'
+    logger.info('Building Python Dependencies')
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
+      args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${buildDir}"
     }
   }
 }
 build.dependsOn buildPython
+
+// Create a Python source distribution tarball.
+def tarball = "apache-beam.tar.gz"
+task sdist {
+  dependsOn setupVirtualenv
+
+  doLast {
+    // Build artifact
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${buildDir}"
+    }
+
+    def collection = fileTree(buildDir){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz', 'srcs/**'}
+
+    // we need a fixed name for the artifact
+    copy { from collection.singleFile; into buildDir; rename { tarball } }
+    logger.info('Create distribution tar file {} in {}', tarball, buildDir)
+  }
+  inputs.files pythonSdkDeps
+  outputs.file "${buildDir}/${tarball}"
+}
+
+artifacts {
+  distTarBall file: file("${buildDir}/${tarball}"), builtBy: sdist
+}
 
 
 /*************************************************************************************************/
@@ -40,18 +68,28 @@ build.dependsOn buildPython
 
 // Snapshot of dependency requirements defined in setup.py.
 // Results will be stored in files under Gradle build directory.
-task depSnapshot(dependsOn: 'installGcpTest') {
+task depSnapshot {
+  dependsOn 'installGcpTest'
+
   doLast {
-    println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
+    def outputDir = file(buildDir)
+    if (!outputDir.exists()) {
+      outputDir.mkdirs()
+    }
+    def requirementsFile = "${outputDir}/requirements.txt"
+
+    logger.info('Snapshoting full dependencies requirements with versions info to build/requirements.txt.')
     exec {
       // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
+      args '-c', ". ${envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${requirementsFile}"
     }
   }
 }
 
-task dependencyUpdates(dependsOn: ':dependencyUpdates') {
+task dependencyUpdates {
+  dependsOn ':dependencyUpdates'
+
   doLast {
     exec {
       executable 'sh'

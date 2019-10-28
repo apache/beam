@@ -66,19 +66,25 @@ class OffsetRange(object):
       yield OffsetRange(current_split_start, current_split_stop)
       current_split_start = current_split_stop
 
+  def split_at(self, split_pos):
+    return OffsetRange(self.start, split_pos), OffsetRange(split_pos, self.stop)
+
   def new_tracker(self):
     return OffsetRangeTracker(self.start, self.stop)
+
+  def size(self):
+    return self.stop - self.start
 
 
 class OffsetRestrictionTracker(RestrictionTracker):
   """An `iobase.RestrictionTracker` implementations for an offset range.
 
-  Offset range is represented as a pair of integers
-  [start_position, stop_position}.
+  Offset range is represented as OffsetRange.
   """
 
-  def __init__(self, start_position, stop_position):
-    self._range = OffsetRange(start_position, stop_position)
+  def __init__(self, offset_range):
+    assert isinstance(offset_range, OffsetRange)
+    self._range = offset_range
     self._current_position = None
     self._current_watermark = None
     self._last_claim_attempt = None
@@ -98,7 +104,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def current_restriction(self):
     with self._lock:
-      return (self._range.start, self._range.stop)
+      return self._range
 
   def current_watermark(self):
     return self._current_watermark
@@ -125,7 +131,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
       return self._range.stop
 
   def default_size(self):
-    return self._range.stop - self._range.start
+    return self._range.size()
 
   def try_claim(self, position):
     with self._lock:
@@ -158,8 +164,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
         split_point = (
             cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
         if split_point < self._range.stop:
-          prev_stop, self._range.stop = self._range.stop, split_point
-          return (self._range.start, split_point), (split_point, prev_stop)
+          self._range, residual_range = self._range.split_at(split_point)
+          return self._range, residual_range
 
   # TODO(SDF): Replace all calls with try_claim(0).
   def checkpoint(self):
@@ -170,10 +176,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
         end_position = self._range.start
       else:
         end_position = self._current_position + 1
-
-      residual_range = (end_position, self._range.stop)
-
-      self._range = OffsetRange(self._range.start, end_position)
+      self._range, residual_range = self._range.split_at(end_position)
       return residual_range
 
   def defer_remainder(self, watermark=None):

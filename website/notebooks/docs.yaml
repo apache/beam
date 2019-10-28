@@ -1,0 +1,95 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements. See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Python transform catalog
+documentation/transforms/python/elementwise/filter:
+  title: Filter - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+documentation/transforms/python/elementwise/flatmap:
+  title: FlatMap - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+documentation/transforms/python/elementwise/keys:
+  title: Keys - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+documentation/transforms/python/elementwise/kvswap:
+  title: KvSwap - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+documentation/transforms/python/elementwise/map:
+  title: Map - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+documentation/transforms/python/elementwise/pardo:
+  title: ParDo - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+documentation/transforms/python/elementwise/partition:
+  title: Partition - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+documentation/transforms/python/elementwise/regex:
+  title: Regex - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+# documentation/transforms/python/elementwise/reify:
+#   title: Reify - element-wise transform
+#   languages: py
+#   imports:
+#     1: [setup.md]
+
+documentation/transforms/python/elementwise/tostring:
+  title: ToString - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+documentation/transforms/python/elementwise/values:
+  title: Values - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]
+
+# documentation/transforms/python/elementwise/withkeys:
+#   title: WithKeys - element-wise transform
+#   languages: py
+#   imports:
+#     1: [setup.md]
+
+documentation/transforms/python/elementwise/withtimestamps:
+  title: WithTimestamps - element-wise transform
+  languages: py
+  imports:
+    1: [setup.md]

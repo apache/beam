@@ -32,6 +32,7 @@ public class ModelCoders {
   private ModelCoders() {}
 
   public static final String BYTES_CODER_URN = getUrn(StandardCoders.Enum.BYTES);
+  public static final String BOOL_CODER_URN = getUrn(StandardCoders.Enum.BOOL);
   // Where is this required explicitly, instead of implicit within WindowedValue and LengthPrefix
   // coders?
   public static final String INT64_CODER_URN = getUrn(StandardCoders.Enum.VARINT);
@@ -56,6 +57,7 @@ public class ModelCoders {
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(
           BYTES_CODER_URN,
+          BOOL_CODER_URN,
           INT64_CODER_URN,
           STRING_UTF8_CODER_URN,
           ITERABLE_CODER_URN,

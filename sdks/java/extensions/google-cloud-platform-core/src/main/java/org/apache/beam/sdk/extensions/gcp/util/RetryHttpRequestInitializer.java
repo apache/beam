@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
-import static com.google.api.client.util.BackOffUtils.next;
-
 import com.google.api.client.http.HttpIOExceptionHandler;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -36,6 +34,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +68,9 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     private final BackOff ioExceptionBackOff;
     private final BackOff unsuccessfulResponseBackOff;
     private final Set<Integer> ignoredResponseCodes;
+    // aggregate the total time spent in exponential backoff
+    private final Counter throttlingSeconds =
+        Metrics.counter(LoggingHttpBackOffHandler.class, "cumulativeThrottlingSeconds");
     private int ioExceptionRetries;
     private int unsuccessfulResponseRetries;
     @Nullable private CustomHttpErrors customHttpErrors;
@@ -172,7 +175,13 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     /** Returns true iff performing the backoff was successful. */
     private boolean backOffWasSuccessful(BackOff backOff) {
       try {
-        return next(sleeper, backOff);
+        long backOffTime = backOff.nextBackOffMillis();
+        if (backOffTime == BackOff.STOP) {
+          return false;
+        }
+        throttlingSeconds.inc(backOffTime / 1000);
+        sleeper.sleep(backOffTime);
+        return true;
       } catch (InterruptedException | IOException e) {
         return false;
       }

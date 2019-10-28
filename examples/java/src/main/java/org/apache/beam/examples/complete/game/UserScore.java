@@ -205,8 +205,11 @@ public class UserScore {
   public interface Options extends PipelineOptions {
 
     @Description("Path to the data file(s) containing game data.")
-    // The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
-    // day's worth (roughly) of data.
+    /* The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
+    day's worth (roughly) of data.
+
+    Note: You may want to use a small sample dataset to test it locally/quickly : gs://apache-beam-samples/game/small/gaming_data.csv
+    You can also download it via the command line gsutil cp gs://apache-beam-samples/game/small/gaming_data.csv ./destination_folder/gaming_data.csv */
     @Default.String("gs://apache-beam-samples/game/gaming_data*.csv")
     String getInput();
 

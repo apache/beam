@@ -25,10 +25,10 @@ import CronJobBuilder
 def loadTestConfigurations = { mode, isStreaming, datasetName ->
     [
             [
-                    title        : 'Load test: CoGBK 2GB 100  byte records - single key',
-                    itClass      : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: CoGBK 2GB 100  byte records - single key',
+                    test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_CoGBK_1",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -52,17 +52,16 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                             }
                                         """.trim().replaceAll("\\s", ""),
                             iterations            : 1,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: CoGBK 2GB 100 byte records - multiple keys',
-                    itClass      : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: CoGBK 2GB 100 byte records - multiple keys',
+                    test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_CoGBK_2",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -86,7 +85,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                             }
                                         """.trim().replaceAll("\\s", ""),
                             iterations            : 1,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -94,10 +92,10 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
             ],
             [
 
-                    title        : 'Load test: CoGBK 2GB reiteration 10kB value',
-                    itClass      : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: CoGBK 2GB reiteration 10kB value',
+                    test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_CoGBK_3",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -121,7 +119,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                             }
                                         """.trim().replaceAll("\\s", ""),
                             iterations            : 4,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -129,10 +126,10 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
 
             ],
             [
-                    title        : 'Load test: CoGBK 2GB reiteration 2MB value',
-                    itClass      : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: CoGBK 2GB reiteration 2MB value',
+                    test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_CoGBK_4",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -156,7 +153,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                                             }
                                         """.trim().replaceAll("\\s", ""),
                             iterations            : 4,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -171,8 +167,8 @@ def streamingLoadTestJob = { scope, triggeringContext ->
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   for (testConfiguration in loadTestConfigurations('streaming', true, datasetName)) {
-    testConfiguration.jobProperties << [inputWindowDurationSec: 1200, coInputWindowDurationSec: 1200]
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass)
+    testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200, coInputWindowDurationSec: 1200]
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.pipelineOptions, testConfiguration.test)
   }
 }
 

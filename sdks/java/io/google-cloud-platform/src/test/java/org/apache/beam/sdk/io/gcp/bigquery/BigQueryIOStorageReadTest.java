@@ -77,9 +77,12 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
-import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices.FakeBigQueryServerStream;
+import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
+import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServerStream;
+import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -251,6 +254,34 @@ public class BigQueryIOStorageReadTest {
   }
 
   @Test
+  public void testBuildSourceWithReadOptionsAndSelectedFields() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("withReadOptions() already called");
+    p.apply(
+        "ReadMyTable",
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from("foo.com:project:dataset.table")
+            .withReadOptions(TableReadOptions.newBuilder().build())
+            .withSelectedFields(Lists.newArrayList("field1")));
+  }
+
+  @Test
+  public void testBuildSourceWithReadOptionsAndRowRestriction() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("withReadOptions() already called");
+    p.apply(
+        "ReadMyTable",
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from("foo.com:project:dataset.table")
+            .withReadOptions(TableReadOptions.newBuilder().build())
+            .withRowRestriction("field > 1"));
+  }
+
+  @Test
   public void testDisplayData() {
     String tableSpec = "foo.com:project:dataset.table";
     BigQueryIO.TypedRead<TableRow> typedRead =
@@ -325,6 +356,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
+            null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
@@ -342,6 +375,8 @@ public class BigQueryIOStorageReadTest {
     BigQueryStorageTableSource<TableRow> tableSource =
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
+            null,
+            null,
             null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -401,6 +436,8 @@ public class BigQueryIOStorageReadTest {
     BigQueryStorageTableSource<TableRow> tableSource =
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            null,
             null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -463,6 +500,71 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
             readOptions,
+            null,
+            null,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices()
+                .withDatasetService(fakeDatasetService)
+                .withStorageClient(fakeStorageClient));
+
+    List<? extends BoundedSource<TableRow>> sources = tableSource.split(10L, options);
+    assertEquals(10L, sources.size());
+  }
+
+  @Test
+  public void testTableSourceInitialSplit_WithSelectedFieldsAndRowRestriction() throws Exception {
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+
+    Table table =
+        new Table()
+            .setTableReference(tableRef)
+            .setNumBytes(100L)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))));
+
+    fakeDatasetService.createTable(table);
+
+    TableReadOptions readOptions =
+        TableReadOptions.newBuilder()
+            .addSelectedFields("name")
+            .addSelectedFields("number")
+            .setRowRestriction("number > 5")
+            .build();
+
+    CreateReadSessionRequest expectedRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/project-id")
+            .setTableReference(BigQueryHelpers.toTableRefProto(tableRef))
+            .setRequestedStreams(10)
+            .setReadOptions(readOptions)
+            // TODO(aryann): Once we rebuild the generated client code, we should change this to
+            // use setShardingStrategy().
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
+                    .build())
+            .build();
+
+    ReadSession.Builder builder = ReadSession.newBuilder();
+    for (int i = 0; i < 10; i++) {
+      builder.addStreams(Stream.newBuilder().setName("stream-" + i));
+    }
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.createReadSession(expectedRequest)).thenReturn(builder.build());
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            StaticValueProvider.of(Lists.newArrayList("name", "number")),
+            StaticValueProvider.of("number > 5"),
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -511,6 +613,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
+            null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -555,6 +659,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
+            null,
+            null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
@@ -571,6 +677,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(
                 BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table")),
+            null,
+            null,
             null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -642,11 +750,6 @@ public class BigQueryIOStorageReadTest {
         .build();
   }
 
-  private static ReadRowsResponse createResponse(
-      Schema schema, Collection<GenericRecord> genericRecords) throws Exception {
-    return createResponse(schema, genericRecords, 0.0);
-  }
-
   @Test
   public void testStreamSourceEstimatedSizeBytes() throws Exception {
 
@@ -701,8 +804,8 @@ public class BigQueryIOStorageReadTest {
 
     List<ReadRowsResponse> responses =
         Lists.newArrayList(
-            createResponse(AVRO_SCHEMA, records.subList(0, 2)),
-            createResponse(AVRO_SCHEMA, records.subList(2, 3)));
+            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.50),
+            createResponse(AVRO_SCHEMA, records.subList(2, 3), 0.75));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(expectedRequest))
@@ -757,9 +860,9 @@ public class BigQueryIOStorageReadTest {
         Lists.newArrayList(
             // N.B.: All floating point numbers used in this test can be represented without
             // a loss of precision.
-            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.25),
-            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.50),
-            createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.9375));
+            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.250),
+            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.500),
+            createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.875));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(expectedRequest))
@@ -778,31 +881,142 @@ public class BigQueryIOStorageReadTest {
     BoundedReader<TableRow> reader = streamSource.createReader(options);
 
     // Before call to BoundedReader#start, fraction consumed must be zero.
-    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
+    assertEquals(Double.valueOf(0.000), reader.getFractionConsumed());
 
-    // Read A and B.
-    assertTrue(reader.start());
-    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.00), reader.getFractionConsumed());
+    assertTrue(reader.start()); // Reads A.
+    assertEquals(Double.valueOf(0.125), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads B.
+    assertEquals(Double.valueOf(0.250), reader.getFractionConsumed());
 
-    // Read C and D.
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.25), reader.getFractionConsumed());
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.25), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads C.
+    assertEquals(Double.valueOf(0.375), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads D.
+    assertEquals(Double.valueOf(0.500), reader.getFractionConsumed());
 
-    // Read E, F, and G.
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
-    assertTrue(reader.advance());
-    assertEquals(Double.valueOf(0.50), reader.getFractionConsumed());
-    assertFalse(reader.advance());
+    assertTrue(reader.advance()); // Reads E.
+    assertEquals(Double.valueOf(0.625), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads F.
+    assertEquals(Double.valueOf(0.750), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads G.
+    assertEquals(Double.valueOf(0.875), reader.getFractionConsumed());
+
+    assertFalse(reader.advance()); // Reaches the end.
 
     // We are done with the stream, so we should report 100% consumption.
     assertEquals(Double.valueOf(1.00), reader.getFractionConsumed());
+  }
+
+  @Test
+  public void testFractionConsumedWithSplit() throws Exception {
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSession")
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .build();
+
+    Stream parentStream = Stream.newBuilder().setName("stream").build();
+
+    ReadRowsRequest expectedRequest =
+        ReadRowsRequest.newBuilder()
+            .setReadPosition(StreamPosition.newBuilder().setStream(parentStream))
+            .build();
+
+    List<GenericRecord> records =
+        Lists.newArrayList(
+            createRecord("A", 1, AVRO_SCHEMA),
+            createRecord("B", 2, AVRO_SCHEMA),
+            createRecord("C", 3, AVRO_SCHEMA),
+            createRecord("D", 4, AVRO_SCHEMA),
+            createRecord("E", 5, AVRO_SCHEMA),
+            createRecord("F", 6, AVRO_SCHEMA),
+            createRecord("G", 7, AVRO_SCHEMA));
+
+    List<ReadRowsResponse> parentResponses =
+        Lists.newArrayList(
+            // N.B.: All floating point numbers used in this test can be represented without
+            // a loss of precision.
+            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.250),
+            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.500),
+            createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.875));
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.readRows(expectedRequest))
+        .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
+
+    when(fakeStorageClient.splitReadStream(
+            SplitReadStreamRequest.newBuilder()
+                .setOriginalStream(parentStream)
+                // TODO(aryann): Once we rebuild the generated client code, we should change this to
+                // use setFraction().
+                .setUnknownFields(
+                    UnknownFieldSet.newBuilder()
+                        .addField(
+                            2,
+                            UnknownFieldSet.Field.newBuilder()
+                                .addFixed32(java.lang.Float.floatToIntBits(0.5f))
+                                .build())
+                        .build())
+                .build()))
+        .thenReturn(
+            SplitReadStreamResponse.newBuilder()
+                .setPrimaryStream(Stream.newBuilder().setName("primary"))
+                .setRemainderStream(Stream.newBuilder().setName("residual"))
+                .build());
+
+    List<ReadRowsResponse> primaryResponses =
+        Lists.newArrayList(
+            createResponse(AVRO_SCHEMA, records.subList(1, 3), 0.500),
+            createResponse(AVRO_SCHEMA, records.subList(3, 4), 0.875));
+
+    when(fakeStorageClient.readRows(
+            ReadRowsRequest.newBuilder()
+                .setReadPosition(
+                    StreamPosition.newBuilder()
+                        .setStream(Stream.newBuilder().setName("primary"))
+                        .setOffset(1))
+                .build()))
+        .thenReturn(new FakeBigQueryServerStream<>(primaryResponses));
+
+    BigQueryStorageStreamSource<TableRow> streamSource =
+        BigQueryStorageStreamSource.create(
+            readSession,
+            parentStream,
+            TABLE_SCHEMA,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+
+    List<TableRow> rows = new ArrayList<>();
+    BoundedReader<TableRow> reader = streamSource.createReader(options);
+
+    // Before call to BoundedReader#start, fraction consumed must be zero.
+    assertEquals(Double.valueOf(0.0000), reader.getFractionConsumed());
+
+    assertTrue(reader.start()); // Reads A.
+    assertEquals(Double.valueOf(0.1250), reader.getFractionConsumed());
+
+    reader.splitAtFraction(0.5f);
+    assertEquals(Double.valueOf(0.1250), reader.getFractionConsumed());
+
+    assertTrue(reader.advance()); // Reads B.
+
+    // Once the split has completed but no new rows have been read, the consumed value is at the
+    // last calculated value of 0.125. For the first response of the primary stream, the progress
+    // report interpolation is done between the progress before split and the progress from the
+    // first response of the primary stream. In this case, the value is:
+    //
+    //   0.125 + (0.5 - 0.125) * 1.0 / 2
+    //
+    assertEquals(Double.valueOf(0.3125), reader.getFractionConsumed());
+
+    assertTrue(reader.advance()); // Reads C.
+    assertEquals(Double.valueOf(0.5000), reader.getFractionConsumed());
+
+    assertTrue(reader.advance()); // Reads D.
+    assertEquals(Double.valueOf(0.8750), reader.getFractionConsumed());
+
+    assertFalse(reader.advance());
+    assertEquals(Double.valueOf(1.0000), reader.getFractionConsumed());
   }
 
   @Test
@@ -814,12 +1028,15 @@ public class BigQueryIOStorageReadTest {
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
-                    createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA))),
-            createResponse(AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA))),
+                    createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA)),
+                0.25),
+            createResponse(
+                AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA)), 0.50),
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
-                    createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA))));
+                    createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA)),
+                0.75));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
@@ -929,16 +1146,18 @@ public class BigQueryIOStorageReadTest {
                     createResponse(
                         AVRO_SCHEMA,
                         Lists.newArrayList(
-                            createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA))),
+                            createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA)),
+                        0.25),
                     createResponse(
                         AVRO_SCHEMA,
                         Lists.newArrayList(
-                            createRecord("C", 3, AVRO_SCHEMA), createRecord("D", 4, AVRO_SCHEMA))),
+                            createRecord("C", 3, AVRO_SCHEMA), createRecord("D", 4, AVRO_SCHEMA)),
+                        0.50),
                     createResponse(
                         AVRO_SCHEMA,
                         Lists.newArrayList(
-                            createRecord("E", 5, AVRO_SCHEMA),
-                            createRecord("F", 6, AVRO_SCHEMA))))));
+                            createRecord("E", 5, AVRO_SCHEMA), createRecord("F", 6, AVRO_SCHEMA)),
+                        0.75))));
 
     // Mock the first SplitReadStream call.
     when(fakeStorageClient.splitReadStream(
@@ -972,12 +1191,13 @@ public class BigQueryIOStorageReadTest {
                     createResponse(
                         AVRO_SCHEMA,
                         Lists.newArrayList(
-                            createRecord("B", 2, AVRO_SCHEMA), createRecord("C", 3, AVRO_SCHEMA))),
+                            createRecord("B", 2, AVRO_SCHEMA), createRecord("C", 3, AVRO_SCHEMA)),
+                        0.50),
                     createResponse(
                         AVRO_SCHEMA,
                         Lists.newArrayList(
-                            createRecord("D", 4, AVRO_SCHEMA),
-                            createRecord("E", 5, AVRO_SCHEMA))))));
+                            createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA)),
+                        0.75))));
 
     // Mock the second SplitReadStream call.
     when(fakeStorageClient.splitReadStream(
@@ -1011,8 +1231,8 @@ public class BigQueryIOStorageReadTest {
                     createResponse(
                         AVRO_SCHEMA,
                         Lists.newArrayList(
-                            createRecord("C", 3, AVRO_SCHEMA),
-                            createRecord("D", 4, AVRO_SCHEMA))))));
+                            createRecord("C", 3, AVRO_SCHEMA), createRecord("D", 4, AVRO_SCHEMA)),
+                        0.90))));
 
     BoundedSource<TableRow> source =
         BigQueryStorageStreamSource.create(
@@ -1057,12 +1277,15 @@ public class BigQueryIOStorageReadTest {
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
-                    createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA))),
-            createResponse(AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA))),
+                    createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA)),
+                0.25),
+            createResponse(
+                AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA)), 0.50),
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
-                    createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA))));
+                    createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA)),
+                0.75));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
@@ -1130,12 +1353,15 @@ public class BigQueryIOStorageReadTest {
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
-                    createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA))),
-            createResponse(AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA))),
+                    createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA)),
+                0.25),
+            createResponse(
+                AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA)), 0.50),
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
-                    createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA))));
+                    createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA)),
+                0.75));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
@@ -1241,6 +1467,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setTableReference(BigQueryHelpers.toTableRefProto(tableRef))
             .setRequestedStreams(10)
+            .setReadOptions(
+                TableReadOptions.newBuilder().addSelectedFields("name").addSelectedFields("number"))
             // TODO(aryann): Once we rebuild the generated client code, we should change this to
             // use setShardingStrategy().
             .setUnknownFields(
@@ -1271,8 +1499,8 @@ public class BigQueryIOStorageReadTest {
 
     List<ReadRowsResponse> readRowsResponses =
         Lists.newArrayList(
-            createResponse(AVRO_SCHEMA, records.subList(0, 2)),
-            createResponse(AVRO_SCHEMA, records.subList(2, 4)));
+            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.50),
+            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.75));
 
     StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
     when(fakeStorageClient.createReadSession(expectedCreateReadSessionRequest))
@@ -1285,6 +1513,7 @@ public class BigQueryIOStorageReadTest {
             BigQueryIO.read(new ParseKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
+                .withSelectedFields(p.newProvider(Lists.newArrayList("name", "number")))
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)

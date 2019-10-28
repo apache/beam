@@ -34,7 +34,6 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
@@ -153,7 +152,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler) {
       Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+      for (Map.Entry<String, Coder> remoteOutputCoder :
           descriptor.getRemoteOutputCoders().entrySet()) {
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
@@ -162,11 +161,10 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
                     .getTransformsOrThrow(remoteOutputCoder.getKey())
                     .getInputsMap()
                     .values());
-        FnDataReceiver<WindowedValue<?>> outputReceiver =
-            outputReceiverFactory.create(bundleOutputPCollection);
+        FnDataReceiver<?> outputReceiver = outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(
             remoteOutputCoder.getKey(),
-            RemoteOutputReceiver.of(remoteOutputCoder.getValue(), outputReceiver));
+            RemoteOutputReceiver.of((Coder) remoteOutputCoder.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers, stateRequestHandler, progressHandler);
     }

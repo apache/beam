@@ -22,7 +22,6 @@ Experimental; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
-import itertools
 import types
 from builtins import object
 
@@ -57,6 +56,23 @@ class BagStateSpec(StateSpec):
   def to_runner_api(self, context):
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
+            element_coder_id=context.coders.get_id(self.coder)))
+
+
+class SetStateSpec(StateSpec):
+  """Specification for a user DoFn Set State cell"""
+
+  def __init__(self, name, coder):
+    if not isinstance(name, str):
+      raise TypeError("SetState name is not a string")
+    if not isinstance(coder, Coder):
+      raise TypeError("SetState coder is not of type Coder")
+    self.name = name
+    self.coder = coder
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.StateSpec(
+        set_spec=beam_runner_api_pb2.SetStateSpec(
             element_coder_id=context.coders.get_id(self.coder)))
 
 
@@ -251,108 +267,42 @@ class RuntimeTimer(object):
 
 class RuntimeState(object):
   """State interface object passed to user code."""
-
-  def __init__(self, state_spec, state_tag, current_value_accessor):
-    self._state_spec = state_spec
-    self._state_tag = state_tag
-    self._current_value_accessor = current_value_accessor
-
-  @staticmethod
-  def for_spec(state_spec, state_tag, current_value_accessor):
-    if isinstance(state_spec, BagStateSpec):
-      return BagRuntimeState(state_spec, state_tag, current_value_accessor)
-    elif isinstance(state_spec, CombiningValueStateSpec):
-      return CombiningValueRuntimeState(state_spec, state_tag,
-                                        current_value_accessor)
-    else:
-      raise ValueError('Invalid state spec: %s' % state_spec)
-
-  def _encode(self, value):
-    return self._state_spec.coder.encode(value)
-
-  def _decode(self, value):
-    return self._state_spec.coder.decode(value)
-
   def prefetch(self):
     # The default implementation here does nothing.
     pass
 
 
-# Sentinel designating an unread value.
-UNREAD_VALUE = object()
+class AccumulatingRuntimeState(RuntimeState):
+  def read(self):
+    raise NotImplementedError(type(self))
+
+  def add(self, value):
+    raise NotImplementedError(type(self))
+
+  def clear(self):
+    raise NotImplementedError(type(self))
 
 
-class BagRuntimeState(RuntimeState):
+class BagRuntimeState(AccumulatingRuntimeState):
   """Bag state interface object passed to user code."""
 
-  def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(BagRuntimeState, self).__init__(
-        state_spec, state_tag, current_value_accessor)
-    self._cached_value = UNREAD_VALUE
-    self._cleared = False
-    self._new_values = []
 
-  def read(self):
-    if self._cached_value is UNREAD_VALUE:
-      self._cached_value = self._current_value_accessor()
-    if not self._cleared:
-      encoded_values = itertools.chain(self._cached_value, self._new_values)
-    else:
-      encoded_values = self._new_values
-    return (self._decode(v) for v in encoded_values)
-
-  def add(self, value):
-    self._new_values.append(self._encode(value))
-
-  def clear(self):
-    self._cleared = True
-    self._cached_value = []
-    self._new_values = []
+class SetRuntimeState(AccumulatingRuntimeState):
+  """Set state interface object passed to user code."""
 
 
-class CombiningValueRuntimeState(RuntimeState):
+class CombiningValueRuntimeState(AccumulatingRuntimeState):
   """Combining value state interface object passed to user code."""
-
-  def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(CombiningValueRuntimeState, self).__init__(
-        state_spec, state_tag, current_value_accessor)
-    self._current_accumulator = UNREAD_VALUE
-    self._modified = False
-    self._combine_fn = state_spec.combine_fn
-
-  def _read_initial_value(self):
-    if self._current_accumulator is UNREAD_VALUE:
-      existing_accumulators = list(
-          self._decode(a) for a in self._current_value_accessor())
-      if existing_accumulators:
-        self._current_accumulator = self._combine_fn.merge_accumulators(
-            existing_accumulators)
-      else:
-        self._current_accumulator = self._combine_fn.create_accumulator()
-
-  def read(self):
-    self._read_initial_value()
-    return self._combine_fn.extract_output(self._current_accumulator)
-
-  def add(self, value):
-    self._read_initial_value()
-    self._modified = True
-    self._current_accumulator = self._combine_fn.add_input(
-        self._current_accumulator, value)
-
-  def clear(self):
-    self._modified = True
-    self._current_accumulator = self._combine_fn.create_accumulator()
 
 
 class UserStateContext(object):
   """Wrapper allowing user state and timers to be accessed by a DoFnInvoker."""
 
   def get_timer(self, timer_spec, key, window):
-    raise NotImplementedError()
+    raise NotImplementedError(type(self))
 
   def get_state(self, state_spec, key, window):
-    raise NotImplementedError()
+    raise NotImplementedError(type(self))
 
   def commit(self):
-    raise NotImplementedError()
+    raise NotImplementedError(type(self))

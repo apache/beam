@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"testing"
 
@@ -64,13 +65,7 @@ func TestDataSource_PerElement(t *testing.T) {
 				Data: &TestDataManager{R: pr},
 			})
 
-			expected := makeValues(test.expected...)
-			if got, want := len(out.Elements), len(expected); got != want {
-				t.Fatalf("lengths don't match: got %v, want %v", got, want)
-			}
-			if !equalList(out.Elements, expected) {
-				t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))
-			}
+			validateSource(t, out, source, makeValues(test.expected...))
 		})
 	}
 }
@@ -158,7 +153,6 @@ func TestDataSource_Iterators(t *testing.T) {
 				dmw.Close()
 			},
 		},
-		// TODO: Test splitting.
 		// TODO: Test progress.
 	}
 	for _, test := range tests {
@@ -211,6 +205,229 @@ func TestDataSource_Iterators(t *testing.T) {
 	}
 }
 
+func TestDataSource_Split(t *testing.T) {
+	elements := []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)}
+	initSourceTest := func(name string) (*DataSource, *CaptureNode, io.ReadCloser) {
+		out := &CaptureNode{UID: 1}
+		c := coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow())
+		source := &DataSource{
+			UID:   2,
+			SID:   StreamID{PtransformID: "myPTransform"},
+			Name:  name,
+			Coder: c,
+			Out:   out,
+		}
+		pr, pw := io.Pipe()
+
+		go func(c *coder.Coder, pw io.WriteCloser, elements []interface{}) {
+			wc := MakeWindowEncoder(c.Window)
+			ec := MakeElementEncoder(coder.SkipW(c))
+			for _, v := range elements {
+				EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, pw)
+				ec.Encode(&FullValue{Elm: v}, pw)
+			}
+			pw.Close()
+		}(c, pw, elements)
+		return source, out, pr
+	}
+
+	tests := []struct {
+		name     string
+		expected []interface{}
+		splitIdx int64
+	}{
+		{splitIdx: 1},
+		{splitIdx: 2},
+		{splitIdx: 3},
+		{splitIdx: 4},
+		{splitIdx: 5},
+		{
+			name:     "wellBeyondRange",
+			expected: elements,
+			splitIdx: 1000,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		if len(test.name) == 0 {
+			test.name = fmt.Sprintf("atIndex%d", test.splitIdx)
+		}
+		if test.expected == nil {
+			test.expected = elements[:test.splitIdx]
+		}
+		t.Run(test.name, func(t *testing.T) {
+			source, out, pr := initSourceTest(test.name)
+			p, err := NewPlan("a", []Unit{out, source})
+			if err != nil {
+				t.Fatalf("failed to construct plan: %v", err)
+			}
+			dc := DataContext{Data: &TestDataManager{R: pr}}
+			ctx := context.Background()
+
+			// StartBundle resets the source, so no splits can be actuated before then,
+			// which means we need to actuate the plan manually, and insert the split request
+			// after StartBundle.
+			for i, root := range p.units {
+				if err := root.Up(ctx); err != nil {
+					t.Fatalf("error in root[%d].Up: %v", i, err)
+				}
+			}
+			p.status = Active
+
+			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
+
+			// SDK never splits on 0, so check that every test.
+			if splitIdx, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}}); err != nil {
+				t.Fatalf("error in Split: %v", err)
+			} else if got, want := splitIdx, test.splitIdx; got != want {
+				t.Fatalf("error in Split: got splitIdx = %v, want %v ", got, want)
+			}
+			runOnRoots(ctx, t, p, "Process", Root.Process)
+			runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
+
+			validateSource(t, out, source, makeValues(test.expected...))
+		})
+	}
+
+	t.Run("whileProcessing", func(t *testing.T) {
+		// Check splitting *while* elements are in process.
+		tests := []struct {
+			name     string
+			expected []interface{}
+			splitIdx int64
+		}{
+			{splitIdx: 1},
+			{splitIdx: 2},
+			{splitIdx: 3},
+			{splitIdx: 4},
+			{splitIdx: 5},
+			{
+				name:     "wellBeyondRange",
+				expected: elements,
+				splitIdx: 1000,
+			},
+		}
+		for _, test := range tests {
+			test := test
+			if len(test.name) == 0 {
+				test.name = fmt.Sprintf("atIndex%d", test.splitIdx)
+			}
+			if test.expected == nil {
+				test.expected = elements[:test.splitIdx]
+			}
+			t.Run(test.name, func(t *testing.T) {
+				source, out, pr := initSourceTest(test.name)
+				unblockCh, blockedCh := make(chan struct{}), make(chan struct{}, 1)
+				// Block on the one less than the desired split,
+				// so the desired split is the first valid split.
+				blockOn := test.splitIdx - 1
+				blocker := &BlockingNode{
+					UID: 3,
+					Block: func(elm *FullValue) bool {
+						if source.index == blockOn {
+							// Signal to call Split
+							blockedCh <- struct{}{}
+							return true
+						}
+						return false
+					},
+					Unblock: unblockCh,
+					Out:     out,
+				}
+				source.Out = blocker
+
+				go func() {
+					// Wait to call Split until the DoFn is blocked at the desired element.
+					<-blockedCh
+					// Validate that we do not split on the element we're blocking on index.
+					// The first valid split is at test.splitIdx.
+					if splitIdx, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, -1); err != nil {
+						t.Errorf("error in Split: %v", err)
+					} else if got, want := splitIdx, test.splitIdx; got != want {
+						t.Errorf("error in Split: got splitIdx = %v, want %v ", got, want)
+					}
+					// Validate that our progress is where we expect it to be. (test.splitIdx - 1)
+					if got, want := source.Progress().Count, test.splitIdx-1; got != want {
+						t.Errorf("error in Progress: got finished processing Count = %v, want %v ", got, want)
+					}
+					unblockCh <- struct{}{}
+				}()
+
+				constructAndExecutePlanWithContext(t, []Unit{out, blocker, source}, DataContext{
+					Data: &TestDataManager{R: pr},
+				})
+
+				validateSource(t, out, source, makeValues(test.expected...))
+
+				// Adjust expectations to maximum number of elements.
+				adjustedExpectation := test.splitIdx
+				if adjustedExpectation > int64(len(elements)) {
+					adjustedExpectation = int64(len(elements))
+				}
+				if got, want := source.Progress().Count, adjustedExpectation; got != want {
+					t.Fatalf("progress didn't match split: got %v, want %v", got, want)
+				}
+			})
+		}
+	})
+
+	// Test expects splitting errors, but for processing to be successful.
+	t.Run("errors", func(t *testing.T) {
+		source, out, pr := initSourceTest("noSplitsUntilStarted")
+		p, err := NewPlan("a", []Unit{out, source})
+		if err != nil {
+			t.Fatalf("failed to construct plan: %v", err)
+		}
+		dc := DataContext{Data: &TestDataManager{R: pr}}
+		ctx := context.Background()
+
+		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
+			t.Fatal("plan uninitialized, expected error when splitting, got nil")
+		}
+		for i, root := range p.units {
+			if err := root.Up(ctx); err != nil {
+				t.Fatalf("error in root[%d].Up: %v", i, err)
+			}
+		}
+		p.status = Active
+		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
+			t.Fatal("plan not started, expected error when splitting, got nil")
+		}
+		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
+		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
+			t.Fatal("plan started, expected error when splitting, got nil")
+		}
+		runOnRoots(ctx, t, p, "Process", Root.Process)
+		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
+			t.Fatal("plan in progress, expected error when unable to get a desired split, got nil")
+		}
+		runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
+		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
+			t.Fatal("plan finished, expected error when splitting, got nil")
+		}
+		validateSource(t, out, source, makeValues(elements...))
+	})
+
+	t.Run("sanity_errors", func(t *testing.T) {
+		var source *DataSource
+		if _, err := source.Split([]int64{0}, -1); err == nil {
+			t.Fatal("expected error splitting nil *DataSource")
+		}
+		if _, err := source.Split(nil, -1); err == nil {
+			t.Fatal("expected error splitting nil desired splits")
+		}
+	})
+}
+
+func runOnRoots(ctx context.Context, t *testing.T, p *Plan, name string, mthd func(Root, context.Context) error) {
+	t.Helper()
+	for i, root := range p.roots {
+		if err := mthd(root, ctx); err != nil {
+			t.Fatalf("error in root[%d].%s: %v", i, name, err)
+		}
+	}
+}
+
 type TestDataManager struct {
 	R io.ReadCloser
 }
@@ -244,5 +461,18 @@ func constructAndExecutePlanWithContext(t *testing.T, us []Unit, dc DataContext)
 	}
 	if err := p.Down(context.Background()); err != nil {
 		t.Fatalf("down failed: %v", err)
+	}
+}
+
+func validateSource(t *testing.T, out *CaptureNode, source *DataSource, expected []FullValue) {
+	t.Helper()
+	if got, want := len(out.Elements), len(expected); got != want {
+		t.Fatalf("lengths don't match: got %v, want %v", got, want)
+	}
+	if got, want := source.Progress().Count, int64(len(expected)); got != want {
+		t.Fatalf("progress count didn't match: got %v, want %v", got, want)
+	}
+	if !equalList(out.Elements, expected) {
+		t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))
 	}
 }

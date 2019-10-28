@@ -23,8 +23,6 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
@@ -57,12 +55,9 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link DataflowWorkProgressUpdater}. */
 @RunWith(JUnit4.class)
-@PrepareForTest({DataflowWorkProgressUpdater.class, LoggerFactory.class})
 public class DataflowWorkProgressUpdaterTest {
 
   private static final long LEASE_MS = 2000;
@@ -71,7 +66,7 @@ public class DataflowWorkProgressUpdaterTest {
   private static final String JOB_ID = "TEST_JOB_ID";
   private static final Long WORK_ID = 1234567890L;
   private static final String STEP_ID = "TEST_STEP_ID";
-  private static final String HOT_KEY_AGE = "1s";
+  private static final Duration HOT_KEY_AGE = Duration.standardSeconds(1);
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -82,6 +77,7 @@ public class DataflowWorkProgressUpdaterTest {
   private FixedClock clock;
   @Mock private WorkItemStatusClient workItemStatusClient;
   @Mock private DataflowWorkExecutor worker;
+  @Mock private HotKeyLogger hotKeyLogger;
   @Captor private ArgumentCaptor<DynamicSplitResult> splitResultCaptor;
 
   @Before
@@ -101,7 +97,7 @@ public class DataflowWorkProgressUpdaterTest {
 
     progressUpdater =
         new DataflowWorkProgressUpdater(
-            workItemStatusClient, workItem, worker, executor.getExecutor(), clock) {
+            workItemStatusClient, workItem, worker, executor.getExecutor(), clock, hotKeyLogger) {
 
           // Shorten reporting interval boundaries for faster testing.
           @Override
@@ -128,6 +124,18 @@ public class DataflowWorkProgressUpdaterTest {
 
     verify(workItemStatusClient, atLeastOnce())
         .reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class));
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressLogsHotKeyDetection() throws Exception {
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE);
 
     progressUpdater.stopReportingProgress();
   }
@@ -243,53 +251,6 @@ public class DataflowWorkProgressUpdaterTest {
     verifyNoMoreInteractions(workItemStatusClient);
   }
 
-  @Test
-  public void correctHotKeyMessage() {
-    WorkItemServiceState s = new WorkItemServiceState();
-
-    String m = progressUpdater.getHotKeyMessage(s);
-    assertTrue(m.isEmpty());
-
-    HotKeyDetection hotKeyDetection = new HotKeyDetection();
-    hotKeyDetection.setUserStepName(STEP_ID);
-    hotKeyDetection.setHotKeyAge(HOT_KEY_AGE);
-    s.setHotKeyDetection(hotKeyDetection);
-
-    m = progressUpdater.getHotKeyMessage(s);
-    assertEquals(
-        "A hot key was detected in step 'TEST_STEP_ID' with age of '1s'. This is a "
-            + "symptom of key distribution being skewed. To fix, please inspect your data and "
-            + "pipeline to ensure that elements are evenly distributed across your key space.",
-        m);
-  }
-
-  @Test
-  public void canLogHotKeyMessage() {
-    WorkItemServiceState s = new WorkItemServiceState();
-
-    String m = progressUpdater.getHotKeyMessage(s);
-    assertTrue(m.isEmpty());
-
-    HotKeyDetection hotKeyDetection = new HotKeyDetection();
-    hotKeyDetection.setUserStepName("step");
-    hotKeyDetection.setHotKeyAge(toCloudDuration(Duration.millis(1000)));
-    s.setHotKeyDetection(hotKeyDetection);
-
-    clock.setTime(0L);
-    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
-
-    // The class throttles every 5 minutes, so the first time it is called is true. The second time
-    // is throttled and returns false.
-    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
-    assertTrue(progressUpdater.shouldLogHotKeyMessage(s));
-    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
-
-    // Test that the state variable is set and can log again in 5 minutes.
-    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
-    assertTrue(progressUpdater.shouldLogHotKeyMessage(s));
-    assertFalse(progressUpdater.shouldLogHotKeyMessage(s));
-  }
-
   private WorkItemServiceState generateServiceState(
       @Nullable Position suggestedStopPosition, long millisToNextUpdate) {
     WorkItemServiceState responseState = new WorkItemServiceState();
@@ -305,7 +266,7 @@ public class DataflowWorkProgressUpdaterTest {
 
     HotKeyDetection hotKeyDetection = new HotKeyDetection();
     hotKeyDetection.setUserStepName(STEP_ID);
-    hotKeyDetection.setHotKeyAge(HOT_KEY_AGE);
+    hotKeyDetection.setHotKeyAge(toCloudDuration(HOT_KEY_AGE));
     responseState.setHotKeyDetection(hotKeyDetection);
 
     return responseState;

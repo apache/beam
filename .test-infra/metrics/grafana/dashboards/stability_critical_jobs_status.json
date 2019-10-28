@@ -29,6 +29,7 @@
       "id": 8,
       "links": [],
       "mode": "markdown",
+      "options": {},
       "title": "Dashboard guidelines",
       "type": "text"
     },
@@ -45,6 +46,7 @@
       "hideTimeOverride": false,
       "id": 4,
       "links": [],
+      "options": {},
       "pageSize": null,
       "scroll": true,
       "showHeader": true,
@@ -126,6 +128,7 @@
       "id": 6,
       "links": [],
       "mode": "markdown",
+      "options": {},
       "title": "Useful links",
       "type": "text"
     },
@@ -158,6 +161,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -173,7 +177,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PostCommit_Java') \n       OR (job_name LIKE 'beam_PostCommit_Go') \n       OR (job_name LIKE 'beam_PostCommit_Python_Verify')\n       OR (job_name LIKE 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  /*\n    We perform a union here to create a fake \"Python_All\" job_name in\n    order to graph a new line for all the python results combined.\n  */\n  ( SELECT build_timestamp, build_result, job_name\n    FROM jenkins_builds\n  UNION\n    SELECT build_timestamp, build_result, 'beam_PostCommit_Python_All' as job_name\n    FROM jenkins_builds\n    WHERE \n      ((job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+'))\n      AND NOT (job_name like '%_PR')\n  ) AS critical_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name = 'beam_PostCommit_Java') \n       OR (job_name = 'beam_PostCommit_Go') \n       OR (job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+')\n       OR (job_name = 'beam_PostCommit_Python_Verify')\n       OR (job_name = 'beam_PostCommit_Python_All')\n       OR (job_name = 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time",
           "refId": "A",
           "select": [
             [
@@ -277,6 +281,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -292,7 +297,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('month', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PostCommit_Java') \n       OR (job_name LIKE 'beam_PostCommit_Go') \n       OR (job_name LIKE 'beam_PostCommit_Python_Verify')\n       OR (job_name LIKE 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('month', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  /*\n  We perform a union here to create a fake \"Python_All\" job_name in\n  order to graph a new line for all the python results combined.\n  */\n  ( SELECT build_timestamp, build_result, job_name\n    FROM jenkins_builds\n  UNION\n    SELECT build_timestamp, build_result, 'beam_PostCommit_Python_All' as job_name\n    FROM jenkins_builds\n    WHERE \n      ((job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+'))\n      AND NOT (job_name like '%_PR')\n  ) AS critical_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name = 'beam_PostCommit_Java') \n       OR (job_name = 'beam_PostCommit_Go') \n       OR (job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+')\n       OR (job_name = 'beam_PostCommit_Python_Verify')\n       OR (job_name = 'beam_PostCommit_Python_All')\n       OR (job_name = 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time",
           "refId": "A",
           "select": [
             [
@@ -406,5 +411,5 @@
   "timezone": "utc",
   "title": "Stability critical jobs status",
   "uid": "McTAiu0ik",
-  "version": 16
+  "version": 1
 }

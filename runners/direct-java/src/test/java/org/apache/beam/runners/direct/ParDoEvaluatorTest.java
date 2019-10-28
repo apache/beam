@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
@@ -161,6 +162,7 @@ public class ParDoEvaluatorTest {
         additionalOutputTags,
         ImmutableMap.of(mainOutputTag, output),
         DoFnSchemaInformation.create(),
+        Collections.emptyMap(),
         ParDoEvaluator.defaultRunnerFactory());
   }
 

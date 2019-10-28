@@ -22,13 +22,15 @@ import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 
 class LoadTestsBuilder {
+  final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam_portability'
+
   static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode){
     scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     for (testConfiguration in testConfigurations) {
-        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass)
+        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.pipelineOptions, testConfiguration.test)
     }
   }
 

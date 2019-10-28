@@ -81,7 +81,8 @@ class UserScoreIT(unittest.TestCase):
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
     user_score.run(
-        self.test_pipeline.get_full_options_as_args(**extra_opts))
+        self.test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
 
 
 if __name__ == '__main__':

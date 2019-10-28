@@ -29,6 +29,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
   private final Map<String, NameContext> pcollectionIdToNameContext;
 
   // TODO(BEAM-6945): utilize value from metrics.proto once it gets in.
-  private static final String SUPPORTED_URN = "beam:metric:sampled_byte_size:v1";
+  private static final String SUPPORTED_URN = MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE;
 
   /**
    * @param specValidator SpecMonitoringInfoValidator to utilize for default validation.
@@ -74,7 +75,6 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    // TODO(migryz): extract and utilize pcollection label from beam_fn_api.proto
     if (!pcollectionIdToNameContext.containsKey(
         monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PCOLLECTION))) {
       return Optional.of(
@@ -109,7 +109,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
 
     String counterName = pcollectionName + "-MeanByteCount";
     NameAndKind name = new NameAndKind();
-    name.setName(counterName).setKind("MEAN");
+    name.setName(counterName).setKind(Kind.MEAN.toString());
 
     return new CounterUpdate()
         .setNameAndKind(name)

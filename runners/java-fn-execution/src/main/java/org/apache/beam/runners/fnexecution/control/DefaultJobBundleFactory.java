@@ -36,6 +36,7 @@ import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ClassLoaderArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
@@ -59,7 +60,7 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -81,7 +82,9 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
+  private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
 
+  private final String factoryId = factoryIdGenerator.getId();
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
   private final Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap;
   private final ExecutorService executor;
@@ -90,18 +93,18 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final int environmentExpirationMillis;
 
   public static DefaultJobBundleFactory create(JobInfo jobInfo) {
+    PipelineOptions pipelineOptions =
+        PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
     Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
         ImmutableMap.of(
             BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
-            new DockerEnvironmentFactory.Provider(
-                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
+            new DockerEnvironmentFactory.Provider(pipelineOptions),
             BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
-            new ProcessEnvironmentFactory.Provider(),
+            new ProcessEnvironmentFactory.Provider(pipelineOptions),
             BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL),
             new ExternalEnvironmentFactory.Provider(),
             Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
-            new EmbeddedEnvironmentFactory.Provider(
-                PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())));
+            new EmbeddedEnvironmentFactory.Provider(pipelineOptions));
     return new DefaultJobBundleFactory(jobInfo, environmentFactoryProviderMap);
   }
 
@@ -112,11 +115,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   DefaultJobBundleFactory(
       JobInfo jobInfo, Map<String, EnvironmentFactory.Provider> environmentFactoryMap) {
-    IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
+    IdGenerator stageIdSuffixGenerator = IdGenerators.incrementingLongs();
     this.environmentFactoryProviderMap = environmentFactoryMap;
     this.executor = Executors.newCachedThreadPool();
     this.clientPool = MapControlClientPool.create();
-    this.stageIdGenerator = stageIdGenerator;
+    this.stageIdGenerator = () -> factoryId + "-" + stageIdSuffixGenerator.getId();
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.environmentCache =
         createEnvironmentCache(serverFactory -> createServerInfo(jobInfo, serverFactory));
@@ -243,10 +246,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       // than constructing the receiver map here. Every bundle factory will need this.
       ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers =
           ImmutableMap.builder();
-      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+      for (Map.Entry<String, Coder> remoteOutputCoder :
           processBundleDescriptor.getRemoteOutputCoders().entrySet()) {
         String outputTransform = remoteOutputCoder.getKey();
-        Coder<WindowedValue<?>> coder = remoteOutputCoder.getValue();
+        Coder coder = remoteOutputCoder.getValue();
         String bundleOutputPCollection =
             Iterables.getOnlyElement(
                 processBundleDescriptor
@@ -254,8 +257,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                     .getTransformsOrThrow(outputTransform)
                     .getInputsMap()
                     .values());
-        FnDataReceiver<WindowedValue<?>> outputReceiver =
-            outputReceiverFactory.create(bundleOutputPCollection);
+        FnDataReceiver outputReceiver = outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(outputTransform, RemoteOutputReceiver.of(coder, outputReceiver));
       }
 
@@ -281,7 +283,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         }
 
         @Override
-        public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+        public Map<String, FnDataReceiver> getInputReceivers() {
           return bundle.getInputReceivers();
         }
 
@@ -377,6 +379,17 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       throws IOException {
     Preconditions.checkNotNull(serverFactory, "serverFactory can not be null");
 
+    PortablePipelineOptions portableOptions =
+        PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
+            .as(PortablePipelineOptions.class);
+    ArtifactRetrievalService artifactRetrievalService;
+
+    if (portableOptions.getRetrievalServiceType() == RetrievalServiceType.CLASSLOADER) {
+      artifactRetrievalService = new ClassLoaderArtifactRetrievalService();
+    } else {
+      artifactRetrievalService = BeamFileSystemArtifactRetrievalService.create();
+    }
+
     GrpcFnServer<FnApiControlClientPoolService> controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
@@ -386,8 +399,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     GrpcFnServer<ArtifactRetrievalService> retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            BeamFileSystemArtifactRetrievalService.create(), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(artifactRetrievalService, serverFactory);
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);

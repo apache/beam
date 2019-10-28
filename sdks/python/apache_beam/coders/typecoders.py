@@ -88,6 +88,7 @@ class CoderRegistry(object):
     self._register_coder_internal(int, coders.VarIntCoder)
     self._register_coder_internal(float, coders.FloatCoder)
     self._register_coder_internal(bytes, coders.BytesCoder)
+    self._register_coder_internal(bool, coders.BooleanCoder)
     self._register_coder_internal(unicode, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
     # Default fallback coders applied in that order until the first matching
@@ -119,7 +120,8 @@ class CoderRegistry(object):
         raise RuntimeError(
             'Coder registry has no fallback coder. This can happen if the '
             'fast_coders module could not be imported.')
-      if isinstance(typehint, typehints.IterableTypeConstraint):
+      if isinstance(typehint, (typehints.IterableTypeConstraint,
+                               typehints.ListConstraint)):
         return coders.IterableCoder.from_type_hint(typehint, self)
       elif typehint is None:
         # In some old code, None is used for Any.

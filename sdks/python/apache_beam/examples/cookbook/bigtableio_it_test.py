@@ -64,7 +64,9 @@ class GenerateTestRows(beam.PTransform):
   """
   def __init__(self, number, project_id=None, instance_id=None,
                table_id=None):
-    super(WriteToBigTable, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super(WriteToBigTable, self).__init__()
+    beam.PTransform.__init__(self)
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'

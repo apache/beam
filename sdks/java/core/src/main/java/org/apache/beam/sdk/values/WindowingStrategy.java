@@ -44,10 +44,18 @@ import org.joda.time.Duration;
  */
 public class WindowingStrategy<T, W extends BoundedWindow> implements Serializable {
 
-  /** The accumulation modes that can be used with windowing. */
+  /**
+   * The accumulation modes that can be used with windowing.
+   *
+   * <p>Experimental {@link AccumulationMode.RETRACTING_FIRED_PANES} for enabling retractions in
+   * pipelines. There is no backwards-compatibility guarantees.
+   */
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
-    ACCUMULATING_FIRED_PANES
+    ACCUMULATING_FIRED_PANES,
+    // RETRACTING_FIRED_PANES is experimental. There is no backwards-compatibility guarantees.
+    @Experimental
+    RETRACTING_FIRED_PANES,
   }
 
   private static final Duration DEFAULT_ALLOWED_LATENESS = Duration.ZERO;

@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsRequest;
@@ -30,6 +33,9 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobPipelineRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobPipelineResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobsRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobsResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobInfo;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesResponse;
@@ -219,6 +225,24 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   }
 
   @Override
+  public void getJobs(GetJobsRequest request, StreamObserver<GetJobsResponse> responseObserver) {
+    LOG.trace("{} {}", GetJobsRequest.class.getSimpleName(), request);
+
+    try {
+      List<JobInfo> result = new ArrayList<>();
+      for (JobInvocation invocation : invocations.values()) {
+        result.add(invocation.toProto());
+      }
+      GetJobsResponse response = GetJobsResponse.newBuilder().addAllJobInfo(result).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      LOG.error("Encountered Unexpected Exception", e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+  }
+
+  @Override
   public void getState(
       GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
     LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
@@ -229,6 +253,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       GetJobStateResponse response = GetJobStateResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
@@ -249,6 +275,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
           GetJobPipelineResponse.newBuilder().setPipeline(pipeline).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
@@ -268,6 +296,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       CancelJobResponse response = CancelJobResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
@@ -291,6 +321,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
             }
           };
       invocation.addStateListener(stateListener);
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
@@ -326,12 +358,39 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
       invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
       LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
+  }
+
+  @Override
+  public void getJobMetrics(
+      JobApi.GetJobMetricsRequest request,
+      StreamObserver<JobApi.GetJobMetricsResponse> responseObserver) {
+
+    String invocationId = request.getJobId();
+    LOG.info("Getting job metrics for {}", invocationId);
+
+    try {
+      JobInvocation invocation = getInvocation(invocationId);
+      JobApi.MetricResults metrics = invocation.getMetrics();
+      JobApi.GetJobMetricsResponse response =
+          JobApi.GetJobMetricsResponse.newBuilder().setMetrics(metrics).build();
+
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      LOG.error(String.format("Encountered exception for job invocation %s", invocationId), e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+    LOG.info("Finished getting job metrics for {}", invocationId);
   }
 
   @Override

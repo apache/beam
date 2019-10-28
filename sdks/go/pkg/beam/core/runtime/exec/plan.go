@@ -199,12 +199,14 @@ func (p *Plan) Metrics() *fnpb.Metrics {
 
 // SplitPoints captures the split requested by the Runner.
 type SplitPoints struct {
+	// Splits is a list of desired split indices.
 	Splits []int64
 	Frac   float32
 }
 
-// Split takes a set of potential split points, selects and actuates split on an
-// appropriate split point, and returns the selected split point if successful.
+// Split takes a set of potential split indexes, and if successful returns
+// the split index of the first element of the residual, on which processing
+// will be halted.
 // Returns an error when unable to split.
 func (p *Plan) Split(s SplitPoints) (int64, error) {
 	if p.source != nil {

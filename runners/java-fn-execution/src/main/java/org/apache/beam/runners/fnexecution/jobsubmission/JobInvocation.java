@@ -27,6 +27,7 @@ import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
@@ -53,7 +54,9 @@ public class JobInvocation {
   private List<Consumer<Enum>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
   private JobState.Enum jobState;
-  @Nullable private ListenableFuture<PipelineResult> invocationFuture;
+  private JobApi.MetricResults metrics;
+  private PortablePipelineResult resultHandle;
+  @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
 
   public JobInvocation(
       JobInfo jobInfo,
@@ -68,9 +71,10 @@ public class JobInvocation {
     this.messageObservers = new ArrayList<>();
     this.invocationFuture = null;
     this.jobState = JobState.Enum.STOPPED;
+    this.metrics = JobApi.MetricResults.newBuilder().build();
   }
 
-  private PipelineResult runPipeline() throws Exception {
+  private PortablePipelineResult runPipeline() throws Exception {
     return pipelineRunner.run(pipeline, jobInfo);
   }
 
@@ -86,11 +90,19 @@ public class JobInvocation {
     setState(JobState.Enum.RUNNING);
     Futures.addCallback(
         invocationFuture,
-        new FutureCallback<PipelineResult>() {
+        new FutureCallback<PortablePipelineResult>() {
           @Override
-          public void onSuccess(PipelineResult pipelineResult) {
+          public void onSuccess(PortablePipelineResult pipelineResult) {
             if (pipelineResult != null) {
-              switch (pipelineResult.getState()) {
+              PipelineResult.State state = pipelineResult.getState();
+
+              if (state.isTerminal()) {
+                metrics = pipelineResult.portableMetrics();
+              } else {
+                resultHandle = pipelineResult;
+              }
+
+              switch (state) {
                 case DONE:
                   setState(Enum.DONE);
                   break;
@@ -148,9 +160,9 @@ public class JobInvocation {
       this.invocationFuture.cancel(true /* mayInterruptIfRunning */);
       Futures.addCallback(
           invocationFuture,
-          new FutureCallback<PipelineResult>() {
+          new FutureCallback<PortablePipelineResult>() {
             @Override
-            public void onSuccess(PipelineResult pipelineResult) {
+            public void onSuccess(PortablePipelineResult pipelineResult) {
               // Do not cancel when we are already done.
               if (pipelineResult != null
                   && pipelineResult.getState() != PipelineResult.State.DONE) {
@@ -168,6 +180,13 @@ public class JobInvocation {
           },
           executorService);
     }
+  }
+
+  public JobApi.MetricResults getMetrics() {
+    if (resultHandle != null) {
+      metrics = resultHandle.portableMetrics();
+    }
+    return metrics;
   }
 
   /** Retrieve the job's current state. */
@@ -189,6 +208,16 @@ public class JobInvocation {
   /** Listen for job messages with a {@link Consumer}. */
   public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
     messageObservers.add(messageStreamObserver);
+  }
+
+  /** Convert to {@link JobApi.JobInfo}. */
+  public JobApi.JobInfo toProto() {
+    return JobApi.JobInfo.newBuilder()
+        .setJobId(jobInfo.jobId())
+        .setJobName(jobInfo.jobName())
+        .setPipelineOptions(jobInfo.pipelineOptions())
+        .setState(getState())
+        .build();
   }
 
   private synchronized void setState(JobState.Enum state) {

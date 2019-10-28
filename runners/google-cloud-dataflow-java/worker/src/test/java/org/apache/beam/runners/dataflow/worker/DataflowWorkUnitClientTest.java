@@ -86,6 +86,7 @@ public class DataflowWorkUnitClientTest {
     pipelineOptions.setWorkerId(WORKER_ID);
     pipelineOptions.setGcpCredential(new TestCredential());
     pipelineOptions.setDataflowClient(service);
+    pipelineOptions.setRegion("us-central1");
   }
 
   @Test

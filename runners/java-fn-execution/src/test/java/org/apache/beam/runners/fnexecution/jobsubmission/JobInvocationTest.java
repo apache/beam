@@ -18,7 +18,10 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsSame.sameInstance;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -34,9 +37,8 @@ import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Tests for {@link JobInvocation}. */
@@ -47,19 +49,9 @@ public class JobInvocationTest {
   private JobInvocation jobInvocation;
   private ControllablePipelineRunner runner;
 
-  @BeforeClass
-  public static void init() {
-    executorService = Executors.newFixedThreadPool(1);
-  }
-
-  @AfterClass
-  public static void shutdown() {
-    executorService.shutdownNow();
-    executorService = null;
-  }
-
   @Before
   public void setup() {
+    executorService = Executors.newFixedThreadPool(1);
     JobInfo jobInfo =
         JobInfo.create("jobid", "jobName", "retrievalToken", Struct.getDefaultInstance());
     ListeningExecutorService listeningExecutorService =
@@ -69,6 +61,12 @@ public class JobInvocationTest {
     jobInvocation =
         new JobInvocation(
             jobInfo, listeningExecutorService, PipelineTranslation.toProto(pipeline), runner);
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    executorService.shutdownNow();
+    executorService = null;
   }
 
   @Test(timeout = 10_000)
@@ -130,6 +128,22 @@ public class JobInvocationTest {
     assertThat(pipelineResult.cancelLatch.getCount(), is(1L));
   }
 
+  @Test(timeout = 10_000)
+  public void testReturnsMetricsFromJobInvocationAfterSuccess() throws Exception {
+    JobApi.MetricResults expectedMonitoringInfos = JobApi.MetricResults.newBuilder().build();
+    TestPipelineResult result =
+        new TestPipelineResult(PipelineResult.State.DONE, expectedMonitoringInfos);
+
+    jobInvocation.start();
+    runner.setResult(result);
+
+    awaitJobState(jobInvocation, JobApi.JobState.Enum.DONE);
+
+    assertThat(
+        jobInvocation.getMetrics(),
+        allOf(is(notNullValue()), is(sameInstance(result.portableMetrics()))));
+  }
+
   private static void awaitJobState(JobInvocation jobInvocation, JobApi.JobState.Enum jobState)
       throws Exception {
     while (jobInvocation.getState() != jobState) {
@@ -140,27 +154,34 @@ public class JobInvocationTest {
   private static class ControllablePipelineRunner implements PortablePipelineRunner {
 
     private final CountDownLatch latch = new CountDownLatch(1);
-    private volatile PipelineResult result;
+    private volatile PortablePipelineResult result;
 
     @Override
-    public PipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) throws Exception {
+    public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo)
+        throws Exception {
       latch.await();
       return result;
     }
 
-    void setResult(PipelineResult pipelineResult) {
+    void setResult(PortablePipelineResult pipelineResult) {
       result = pipelineResult;
       latch.countDown();
     }
   }
 
-  private static class TestPipelineResult implements PipelineResult {
+  private static class TestPipelineResult implements PortablePipelineResult {
 
     private final State state;
     private final CountDownLatch cancelLatch = new CountDownLatch(1);
+    private JobApi.MetricResults monitoringInfos;
+
+    private TestPipelineResult(State state, JobApi.MetricResults monitoringInfos) {
+      this.state = state;
+      this.monitoringInfos = monitoringInfos;
+    }
 
     private TestPipelineResult(State state) {
-      this.state = state;
+      this(state, JobApi.MetricResults.newBuilder().build());
     }
 
     @Override
@@ -187,6 +208,11 @@ public class JobInvocationTest {
     @Override
     public MetricResults metrics() {
       return null;
+    }
+
+    @Override
+    public JobApi.MetricResults portableMetrics() {
+      return monitoringInfos;
     }
   }
 }

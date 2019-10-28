@@ -77,9 +77,10 @@ class TfIdfTest(unittest.TestCase):
     self.create_file(os.path.join(temp_folder, '1.txt'), 'abc def ghi')
     self.create_file(os.path.join(temp_folder, '2.txt'), 'abc def')
     self.create_file(os.path.join(temp_folder, '3.txt'), 'abc')
-    tfidf.run([
-        '--uris=%s/*' % temp_folder,
-        '--output', os.path.join(temp_folder, 'result')])
+    tfidf.run(
+        ['--uris=%s/*' % temp_folder,
+         '--output', os.path.join(temp_folder, 'result')],
+        save_main_session=False)
     # Parse result file and compare.
     results = []
     with open_shards(os.path.join(

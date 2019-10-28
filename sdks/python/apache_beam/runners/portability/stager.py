@@ -404,7 +404,7 @@ class Stager(object):
             'This functionality is not officially supported. Since wheel '
             'packages are binary distributions, this package must be '
             'binary-compatible with the worker environment (e.g. Python 2.7 '
-            'running on an x64 Linux host).')
+            'running on an x64 Linux host).' % package)
 
       if not os.path.isfile(package):
         if Stager._is_remote_path(package):
@@ -564,7 +564,7 @@ class Stager(object):
         self.stage_artifact(sdk_local_file, staged_path)
         staged_sdk_files.append(sdk_binary_staged_name)
       except RuntimeError as e:
-        logging.warn(
+        logging.warning(
             'Failed to download requested binary distribution '
             'of the SDK: %s', repr(e))
 
@@ -606,7 +606,7 @@ class Stager(object):
     ]
 
     if fetch_binary:
-      logging.info('Downloading binary distribtution of the SDK from PyPi')
+      logging.info('Downloading binary distribution of the SDK from PyPi')
       # Get a wheel distribution for the SDK from PyPI.
       cmd_args.extend([
           '--only-binary', ':all:', '--python-version', language_version_tag,
@@ -622,7 +622,7 @@ class Stager(object):
                                                   platform_tag))
       ]
     else:
-      logging.info('Downloading source distribtution of the SDK from PyPi')
+      logging.info('Downloading source distribution of the SDK from PyPi')
       cmd_args.extend(['--no-binary', ':all:'])
       expected_files = [
           os.path.join(temp_dir, '%s-%s.zip' % (package_name, version)),

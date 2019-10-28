@@ -31,6 +31,7 @@ import mock
 
 import apache_beam as beam
 from apache_beam import typehints
+from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
@@ -53,6 +54,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -86,6 +88,16 @@ class FakeSource(NativeSource):
 
   def reader(self):
     return FakeSource._Reader(self._vals)
+
+
+class FakeUnboundedSource(NativeSource):
+  """Fake unbounded source. Does not work at runtime"""
+
+  def reader(self):
+    return None
+
+  def is_bounded(self):
+    return False
 
 
 class DoubleParDo(beam.PTransform):
@@ -278,9 +290,8 @@ class PipelineTest(unittest.TestCase):
       pipeline.apply(transform, pcoll2)
     self.assertEqual(
         cm.exception.args[0],
-        'Transform "CustomTransform" does not have a stable unique label. '
-        'This will prevent updating of pipelines. '
-        'To apply a transform with a specified label write '
+        'A transform with label "CustomTransform" already exists in the '
+        'pipeline. To apply a transform with a specified label write '
         'pvalue | "label" >> transform')
 
   def test_reuse_cloned_custom_transform_instance(self):
@@ -427,6 +438,88 @@ class PipelineTest(unittest.TestCase):
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
 
+  def test_kv_ptransform_honor_type_hints(self):
+
+    # The return type of this DoFn cannot be inferred by the default
+    # Beam type inference
+    class StatefulDoFn(DoFn):
+      BYTES_STATE = BagStateSpec('bytes', BytesCoder())
+
+      def return_recursive(self, count):
+        if count == 0:
+          return ["some string"]
+        else:
+          self.return_recursive(count-1)
+
+      def process(self, element, counter=DoFn.StateParam(BYTES_STATE)):
+        return self.return_recursive(1)
+
+    p = TestPipeline()
+    pcoll = (p
+             | beam.Create([(1, 1), (2, 2), (3, 3)])
+             | beam.GroupByKey()
+             | beam.ParDo(StatefulDoFn()))
+    p.run()
+    self.assertEqual(pcoll.element_type, typehints.Any)
+
+    p = TestPipeline()
+    pcoll = (p
+             | beam.Create([(1, 1), (2, 2), (3, 3)])
+             | beam.GroupByKey()
+             | beam.ParDo(StatefulDoFn()).with_output_types(str))
+    p.run()
+    self.assertEqual(pcoll.element_type, str)
+
+  def test_track_pcoll_unbounded(self):
+    pipeline = TestPipeline()
+    pcoll1 = pipeline | 'read' >> Read(FakeUnboundedSource())
+    pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
+    pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
+    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll3.is_bounded, False)
+
+  def test_track_pcoll_bounded(self):
+    pipeline = TestPipeline()
+    pcoll1 = pipeline | 'label1' >> Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
+    pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
+    self.assertIs(pcoll1.is_bounded, True)
+    self.assertIs(pcoll2.is_bounded, True)
+    self.assertIs(pcoll3.is_bounded, True)
+
+  def test_track_pcoll_bounded_flatten(self):
+    pipeline = TestPipeline()
+    pcoll1_a = pipeline | 'label_a' >> Create([1, 2, 3])
+    pcoll2_a = pcoll1_a | 'do_a' >> FlatMap(lambda x: [x + 1])
+
+    pcoll1_b = pipeline | 'label_b' >> Create([1, 2, 3])
+    pcoll2_b = pcoll1_b | 'do_b' >> FlatMap(lambda x: [x + 1])
+
+    merged = (pcoll2_a, pcoll2_b) | beam.Flatten()
+
+    self.assertIs(pcoll1_a.is_bounded, True)
+    self.assertIs(pcoll2_a.is_bounded, True)
+    self.assertIs(pcoll1_b.is_bounded, True)
+    self.assertIs(pcoll2_b.is_bounded, True)
+    self.assertIs(merged.is_bounded, True)
+
+  def test_track_pcoll_unbounded_flatten(self):
+    pipeline = TestPipeline()
+    pcoll1_bounded = pipeline | 'label1' >> Create([1, 2, 3])
+    pcoll2_bounded = pcoll1_bounded | 'do1' >> FlatMap(lambda x: [x + 1])
+
+    pcoll1_unbounded = pipeline | 'read' >> Read(FakeUnboundedSource())
+    pcoll2_unbounded = pcoll1_unbounded | 'do2' >> FlatMap(lambda x: [x + 1])
+
+    merged = (pcoll2_bounded, pcoll2_unbounded) | beam.Flatten()
+
+    self.assertIs(pcoll1_bounded.is_bounded, True)
+    self.assertIs(pcoll2_bounded.is_bounded, True)
+    self.assertIs(pcoll1_unbounded.is_bounded, False)
+    self.assertIs(pcoll2_unbounded.is_bounded, False)
+    self.assertIs(merged.is_bounded, False)
+
 
 class DoFnTest(unittest.TestCase):
 
@@ -507,6 +600,28 @@ class DoFnTest(unittest.TestCase):
       assert_that(
           p | Create([1, 2]) | beam.Map(lambda _, t=DoFn.TimestampParam: t),
           equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
+
+  def test_incomparable_default(self):
+
+    class IncomparableType(object):
+
+      def __eq__(self, other):
+        raise RuntimeError()
+
+      def __ne__(self, other):
+        raise RuntimeError()
+
+      def __hash__(self):
+        raise RuntimeError()
+
+    # Ensure that we don't use default values in a context where they must be
+    # comparable (see BEAM-8301).
+    pipeline = TestPipeline()
+    pcoll = (pipeline
+             | beam.Create([None])
+             | Map(lambda e, x=IncomparableType(): (e, type(x).__name__)))
+    assert_that(pcoll, equal_to([(None, 'IncomparableType')]))
+    pipeline.run()
 
 
 class Bacon(PipelineOptions):

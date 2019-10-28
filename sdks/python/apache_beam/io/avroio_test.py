@@ -25,6 +25,9 @@ import tempfile
 import unittest
 from builtins import range
 import sys
+
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 
 import avro
@@ -365,9 +368,9 @@ class AvroBase(object):
 
     # Corrupt the last character of the file which is also the last character of
     # the last sync_marker.
-    last_char_index = len(data) - 1
-    corrupted_data = data[:last_char_index]
-    corrupted_data += b'A' if data[last_char_index] == b'B' else b'B'
+    # https://avro.apache.org/docs/current/spec.html#Object+Container+Files
+    corrupted_data = bytearray(data)
+    corrupted_data[-1] = (corrupted_data[-1] + 1) % 256
     with tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template) as f:
       f.write(corrupted_data)
@@ -375,9 +378,8 @@ class AvroBase(object):
 
     source = _create_avro_source(
         corrupted_file_name, use_fastavro=self.use_fastavro)
-    with self.assertRaises(ValueError) as exn:
+    with self.assertRaisesRegex(ValueError, r'expected sync marker'):
       source_test_utils.read_from_source(source, None, None)
-      self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
 
   def test_read_from_avro(self):
     path = self._write_data()

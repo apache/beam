@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import sys
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 from mock import MagicMock
 from mock import call
 
@@ -68,27 +70,27 @@ class QuerySplitterTest(unittest.TestCase):
 
   def test_get_splits_query_with_multiple_kinds(self):
     query = self.create_query(kinds=['a', 'b'])
-    with self.assertRaisesRegexp(self.split_error, r'one kind'):
+    with self.assertRaisesRegex(self.split_error, r'one kind'):
       self.query_splitter.get_splits(None, query, 4)
 
   def test_get_splits_query_with_order(self):
     query = self.create_query(kinds=['a'], order=True)
-    with self.assertRaisesRegexp(self.split_error, r'sort orders'):
+    with self.assertRaisesRegex(self.split_error, r'sort orders'):
       self.query_splitter.get_splits(None, query, 3)
 
   def test_get_splits_query_with_unsupported_filter(self):
     query = self.create_query(kinds=['a'], inequality_filter=True)
-    with self.assertRaisesRegexp(self.split_error, r'inequality filters'):
+    with self.assertRaisesRegex(self.split_error, r'inequality filters'):
       self.query_splitter.get_splits(None, query, 2)
 
   def test_get_splits_query_with_limit(self):
     query = self.create_query(kinds=['a'], limit=10)
-    with self.assertRaisesRegexp(self.split_error, r'limit set'):
+    with self.assertRaisesRegex(self.split_error, r'limit set'):
       self.query_splitter.get_splits(None, query, 2)
 
   def test_get_splits_query_with_offset(self):
     query = self.create_query(kinds=['a'], offset=10)
-    with self.assertRaisesRegexp(self.split_error, r'offset set'):
+    with self.assertRaisesRegex(self.split_error, r'offset set'):
       self.query_splitter.get_splits(None, query, 2)
 
   def test_create_scatter_query(self):
@@ -171,11 +173,16 @@ class QuerySplitterTest(unittest.TestCase):
       batch_size: the number of entities returned by fake datastore in one req.
     """
 
-    # Test for both random long ids and string ids.
-    id_or_name = [True, False]
+    # Test for random long ids, string ids, and a mix of both.
+    id_or_name = [True, False, None]
 
     for id_type in id_or_name:
-      entities = fake_datastore.create_entities(num_entities, id_type)
+      if id_type is None:
+        entities = fake_datastore.create_entities(num_entities, False)
+        entities.extend(fake_datastore.create_entities(num_entities, True))
+        num_entities *= 2
+      else:
+        entities = fake_datastore.create_entities(num_entities, id_type)
       mock_datastore = MagicMock()
       # Assign a fake run_query method as a side_effect to the mock.
       mock_datastore.run_query.side_effect = \

@@ -23,7 +23,7 @@ limitations under the License.
 
 When you run your pipeline locally, the packages that your pipeline depends on are available because they are installed on your local machine. However, when you want to run your pipeline remotely, you must make sure these dependencies are available on the remote machines. This tutorial shows you how to make your dependencies available to the remote workers. Each section below refers to a different source that your package may have been installed from.
 
-**Note:** Remote workers used for pipeline execution typically have a standard Python 2.7 distribution installation. If your code relies only on standard Python packages, then you probably don't need to do anything on this page.
+**Note:** Remote workers used for pipeline execution typically have a standard Python distribution installation in a Debian-based container image. If your code relies only on standard Python packages, then you probably don't need to do anything on this page.
 
 
 ## PyPI Dependencies {#pypi-dependencies}

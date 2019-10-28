@@ -19,11 +19,12 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -49,15 +50,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelWriter;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Aggregate;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.Aggregate;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.joda.time.Duration;
 
 /** {@link BeamRelNode} to replace a {@link Aggregate} node. */
@@ -69,17 +71,36 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode child,
-      boolean indicator,
       ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls,
       @Nullable WindowFn<Row, IntervalWindow> windowFn,
       int windowFieldIndex) {
 
-    super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
+    super(cluster, traits, child, groupSet, groupSets, aggCalls);
 
     this.windowFn = windowFn;
     this.windowFieldIndex = windowFieldIndex;
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+
+    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
+    inputStat = computeWindowingCostEffect(inputStat);
+
+    // Aggregates with more aggregate functions cost a bit more
+    float multiplier = 1f + (float) aggCalls.size() * 0.125f;
+    for (AggregateCall aggCall : aggCalls) {
+      if (aggCall.getAggregation().getName().equals("SUM")) {
+        // Pretend that SUM costs a little bit more than $SUM0,
+        // to make things deterministic.
+        multiplier += 0.0125f;
+      }
+    }
+
+    return BeamCostModel.FACTORY.makeCost(
+        inputStat.getRowCount() * multiplier, inputStat.getRate() * multiplier);
   }
 
   @Override
@@ -318,19 +339,10 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   public Aggregate copy(
       RelTraitSet traitSet,
       RelNode input,
-      boolean indicator,
       ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls) {
     return new BeamAggregationRel(
-        getCluster(),
-        traitSet,
-        input,
-        indicator,
-        groupSet,
-        groupSets,
-        aggCalls,
-        windowFn,
-        windowFieldIndex);
+        getCluster(), traitSet, input, groupSet, groupSets, aggCalls, windowFn, windowFieldIndex);
   }
 }

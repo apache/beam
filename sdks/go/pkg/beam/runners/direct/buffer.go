@@ -86,9 +86,14 @@ type wait struct {
 	instID string
 	mgr    exec.DataContext
 
-	buf   []exec.FullValue
+	buf   []bufElement
 	ready int  // guards ready
 	done  bool // FinishBundle called for main input?
+}
+
+type bufElement struct {
+	elm    exec.FullValue
+	values []exec.ReStream
 }
 
 func (w *wait) ID() exec.UnitID {
@@ -112,8 +117,8 @@ func (w *wait) notify(ctx context.Context) error {
 	if err := w.next.StartBundle(ctx, w.instID, w.mgr); err != nil {
 		return err
 	}
-	for _, elm := range w.buf {
-		if err := w.next.ProcessElement(ctx, &elm); err != nil {
+	for _, element := range w.buf {
+		if err := w.next.ProcessElement(ctx, &element.elm, element.values...); err != nil {
 			return err
 		}
 	}
@@ -139,12 +144,12 @@ func (w *wait) StartBundle(ctx context.Context, id string, data exec.DataContext
 func (w *wait) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
 	if w.ready < w.need {
 		// log.Printf("buffer[%v]: %v", w.UID, elm)
-		w.buf = append(w.buf, *elm)
+		w.buf = append(w.buf, bufElement{elm: *elm, values: values})
 		return nil
 	}
 
 	// log.Printf("NOT buffer[%v]: %v", w.UID, elm)
-	return w.next.ProcessElement(ctx, elm)
+	return w.next.ProcessElement(ctx, elm, values...)
 }
 
 func (w *wait) FinishBundle(ctx context.Context) error {

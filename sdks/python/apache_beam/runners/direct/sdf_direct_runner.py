@@ -85,7 +85,7 @@ class ProcessElements(PTransform):
     self.sdf = self._process_keyed_elements_transform.sdf
 
   def expand(self, pcoll):
-    return pvalue.PCollection(pcoll.pipeline)
+    return pvalue.PCollection.from_(pcoll)
 
   def new_process_fn(self, sdf):
     return ProcessFn(

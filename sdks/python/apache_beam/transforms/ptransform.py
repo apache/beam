@@ -62,8 +62,8 @@ from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import getcallargs_forhints
-from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
@@ -387,7 +387,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def type_check_inputs_or_outputs(self, pvalueish, input_or_output):
     hints = getattr(self.get_type_hints(), input_or_output + '_types')
-    if not hints:
+    if hints is None or not any(hints):
       return
     arg_hints, kwarg_hints = hints
     if arg_hints and kwarg_hints:
@@ -821,7 +821,7 @@ class _PTransformFnPTransform(PTransform):
 
     # TODO(BEAM-5878) Support keyword-only arguments.
     try:
-      if 'type_hints' in getfullargspec(self._fn).args:
+      if 'type_hints' in get_signature(self._fn).parameters:
         args = (self.get_type_hints(),) + args
     except TypeError:
       # Might not be a function.
@@ -849,7 +849,7 @@ def ptransform_fn(fn):
   This wrapper provides an alternative, simpler way to define a PTransform.
   The standard method is to subclass from PTransform and override the expand()
   method. An equivalent effect can be obtained by defining a function that
-  an input PCollection and additional optional arguments and returns a
+  accepts an input PCollection and additional optional arguments and returns a
   resulting PCollection. For example::
 
     @ptransform_fn

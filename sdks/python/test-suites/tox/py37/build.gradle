@@ -26,6 +26,12 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.7'
 
+task lint {}
+check.dependsOn lint
+
+toxTask "lintPy37", "py37-lint"
+lint.dependsOn lintPy37
+
 toxTask "testPython37", "py37"
 test.dependsOn testPython37
 

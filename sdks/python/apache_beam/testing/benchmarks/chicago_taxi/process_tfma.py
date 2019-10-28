@@ -22,8 +22,9 @@ import tensorflow_model_analysis as tfma
 from tensorflow_model_analysis.evaluators import evaluator
 
 import apache_beam as beam
-from apache_beam.testing.load_tests.load_test_metrics_utils import (
-    MeasureTime, MetricsReader)
+from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from trainer import taxi
 
 
@@ -65,7 +66,7 @@ def process_tfma(schema_file,
       tfma.slicer.SingleSliceSpec(),
       tfma.slicer.SingleSliceSpec(columns=['trip_start_hour'])
   ]
-  metrics_namespace = 'NAMESPACE_PROCESS_TFMA'
+  metrics_namespace = metrics_table
 
   schema = taxi.read_schema(schema_file)
 
@@ -82,6 +83,7 @@ def process_tfma(schema_file,
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
+        filters=MetricsFilter().with_namespace(metrics_namespace)
     )
 
   pipeline = beam.Pipeline(argv=pipeline_args)

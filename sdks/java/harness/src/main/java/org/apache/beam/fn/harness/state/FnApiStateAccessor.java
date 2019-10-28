@@ -104,7 +104,11 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
 
               ByteString.Output encodedKeyOut = ByteString.newOutput();
               try {
-                ((Coder) keyCoder).encode(((KV<?, ?>) element.getValue()).getKey(), encodedKeyOut);
+                ((Coder) keyCoder)
+                    .encode(
+                        ((KV<?, ?>) element.getValue()).getKey(),
+                        encodedKeyOut,
+                        Coder.Context.NESTED);
               } catch (IOException e) {
                 throw new IllegalStateException(e);
               }
@@ -164,7 +168,7 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
     StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
     cacheKeyBuilder
         .getMultimapSideInputBuilder()
-        .setPtransformId(ptransformId)
+        .setTransformId(ptransformId)
         .setSideInputId(tag.getId())
         .setWindow(encodedWindow);
     return (T)
@@ -448,7 +452,7 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
         .getBagUserStateBuilder()
         .setWindow(encodedCurrentWindowSupplier.get())
         .setKey(encodedCurrentKeySupplier.get())
-        .setPtransformId(ptransformId)
+        .setTransformId(ptransformId)
         .setUserStateId(stateId);
     return builder.build();
   }

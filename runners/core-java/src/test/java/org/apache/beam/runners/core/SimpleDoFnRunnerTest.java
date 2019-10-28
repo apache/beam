@@ -88,7 +88,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
@@ -111,7 +112,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
@@ -141,7 +143,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     // Setting the timer needs the current time, as it is set relative
     Instant currentTime = new Instant(42);
@@ -172,7 +175,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
@@ -195,7 +199,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
@@ -222,7 +227,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(windowFn),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     Instant currentTime = new Instant(42);
     Duration offset = Duration.millis(37);
@@ -264,7 +270,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     runner.startBundle();
     // An element output at the current timestamp is fine.
@@ -303,7 +310,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     runner.startBundle();
     // Outputting between "now" and "now - allowed skew" succeeds.
@@ -343,7 +351,8 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.emptyMap(),
             WindowingStrategy.of(new GlobalWindows()),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     runner.startBundle();
     runner.processElement(

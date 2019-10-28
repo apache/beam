@@ -63,9 +63,11 @@ public class BatchModeExecutionContext
 
   private final MetricsContainerRegistry<MetricsContainerImpl> containerRegistry;
 
-  // TODO: Move throttle time Metric to a dedicated namespace.
+  // TODO(BEAM-7863): Move throttle time Metric to a dedicated namespace.
   protected static final String DATASTORE_THROTTLE_TIME_NAMESPACE =
       "org.apache.beam.sdk.io.gcp.datastore.DatastoreV1$DatastoreWriterFn";
+  protected static final String HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE =
+      "org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer$LoggingHttpBackOffHandler";
 
   private BatchModeExecutionContext(
       CounterFactory counterFactory,
@@ -498,15 +500,25 @@ public class BatchModeExecutionContext
   public Long extractThrottleTime() {
     Long totalThrottleTime = 0L;
     for (MetricsContainerImpl container : containerRegistry.getContainers()) {
-      // TODO: Update Datastore to use generic throttling-msecs metric.
-      CounterCell throttleTime =
+      // TODO(BEAM-7863): Update throttling counters to use generic throttling-msecs metric.
+      CounterCell dataStoreThrottlingTime =
           container.tryGetCounter(
               MetricName.named(
                   BatchModeExecutionContext.DATASTORE_THROTTLE_TIME_NAMESPACE,
                   "cumulativeThrottlingSeconds"));
-      if (throttleTime != null) {
-        totalThrottleTime += throttleTime.getCumulative();
+      if (dataStoreThrottlingTime != null) {
+        totalThrottleTime += dataStoreThrottlingTime.getCumulative();
       }
+
+      CounterCell httpClientApiThrottlingTime =
+          container.tryGetCounter(
+              MetricName.named(
+                  BatchModeExecutionContext.HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE,
+                  "cumulativeThrottlingSeconds"));
+      if (httpClientApiThrottlingTime != null) {
+        totalThrottleTime += httpClientApiThrottlingTime.getCumulative();
+      }
+
       CounterCell throttlingMsecs =
           container.tryGetCounter(DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME);
       if (throttlingMsecs != null) {

@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.kafka')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -44,6 +44,7 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(":runners:direct-java")
 }

@@ -31,9 +31,9 @@ from builtins import object
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
-from apache_beam.options import pipeline_options
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
@@ -74,7 +74,7 @@ class StatusServer(object):
         self.end_headers()
 
         for line in StatusServer.get_thread_dump():
-          self.wfile.write(line)
+          self.wfile.write(line.encode('utf-8'))
 
       def log_message(self, f, *args):
         """Do not log any messages."""
@@ -149,8 +149,9 @@ def main(unused_argv):
         control_address=service_descriptor.url,
         worker_count=_get_worker_count(sdk_pipeline_options),
         worker_id=_worker_id,
+        state_cache_size=_get_state_cache_size(sdk_pipeline_options),
         profiler_factory=profiler.Profile.factory_from_options(
-            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
+            sdk_pipeline_options.view_as(ProfilingOptions))
     ).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
@@ -203,6 +204,28 @@ def _get_worker_count(pipeline_options):
                    experiment).group('worker_threads'))
 
   return 12
+
+
+def _get_state_cache_size(pipeline_options):
+  """Defines the upper number of state items to cache.
+
+  Note: state_cache_size is an experimental flag and might not be available in
+  future releases.
+
+  Returns:
+    an int indicating the maximum number of items to cache.
+      Default is 0 (disabled)
+  """
+  experiments = pipeline_options.view_as(DebugOptions).experiments
+  experiments = experiments if experiments else []
+
+  for experiment in experiments:
+    # There should only be 1 match so returning from the loop
+    if re.match(r'state_cache_size=', experiment):
+      return int(
+          re.match(r'state_cache_size=(?P<state_cache_size>.*)',
+                   experiment).group('state_cache_size'))
+  return 0
 
 
 def _load_main_session(semi_persistent_directory):

@@ -40,6 +40,8 @@ func FunctionName(fn interface{}) string {
 // points to a valid function implementation.
 func LoadFunction(ptr uintptr, t reflect.Type) interface{} {
 	v := reflect.New(t).Elem()
-	*(*uintptr)(unsafe.Pointer(v.Addr().Pointer())) = (uintptr)(unsafe.Pointer(&ptr))
+	p := new(uintptr)
+	*p = ptr
+	*(*unsafe.Pointer)(unsafe.Pointer(v.Addr().Pointer())) = unsafe.Pointer(p)
 	return v.Interface()
 }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Static.RESOURCE;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -27,28 +27,29 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
-import org.apache.calcite.adapter.enumerable.CallImplementor;
-import org.apache.calcite.adapter.enumerable.NullPolicy;
-import org.apache.calcite.adapter.enumerable.ReflectiveCallNotNullImplementor;
-import org.apache.calcite.adapter.enumerable.RexImpTable;
-import org.apache.calcite.adapter.enumerable.RexToLixTranslator;
-import org.apache.calcite.avatica.util.ByteString;
-import org.apache.calcite.linq4j.function.SemiStrict;
-import org.apache.calcite.linq4j.function.Strict;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.schema.Function;
-import org.apache.calcite.schema.ImplementableFunction;
-import org.apache.calcite.schema.ScalarFunction;
-import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMultimap;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.CallImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.NullPolicy;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.ReflectiveCallNotNullImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexToLixTranslator;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function.SemiStrict;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function.Strict;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ImplementableFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorBinding;
 
 /**
- * Beam-customized version from {@link org.apache.calcite.schema.impl.ScalarFunctionImpl}, to
+ * Beam-customized version from {@link
+ * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.impl.ScalarFunctionImpl} , to
  * address BEAM-5921.
  */
 public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
@@ -62,7 +63,10 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     this.implementor = implementor;
   }
 
-  /** Creates {@link org.apache.calcite.schema.Function} for each method in a given class. */
+  /**
+   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} for
+   * each method in a given class.
+   */
   public static ImmutableMultimap<String, Function> createAll(Class<?> clazz) {
     final ImmutableMultimap.Builder<String, Function> builder = ImmutableMultimap.builder();
     for (Method method : clazz.getMethods()) {
@@ -79,7 +83,8 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
   }
 
   /**
-   * Creates {@link org.apache.calcite.schema.Function} from given class.
+   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
+   * given class.
    *
    * <p>If a method of the given name is not found or it does not suit, returns {@code null}.
    *
@@ -96,8 +101,8 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
   }
 
   /**
-   * Creates {@link org.apache.calcite.schema.Function} from given method. When {@code eval} method
-   * does not suit, {@code null} is returned.
+   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
+   * given method. When {@code eval} method does not suit, {@code null} is returned.
    *
    * @param method method that is used to implement the function
    * @return created {@link Function} or null
@@ -138,11 +143,15 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     }
 
     private static List<Expression> translate(List<Type> types, List<Expression> expressions) {
+      // https://issues.apache.org/jira/browse/BEAM-8241
+      // In user defined functions Calcite allows variants with fewer arguments than Beam defined.
       Preconditions.checkArgument(
-          types.size() == expressions.size(), "types.size() != expressions.size()");
+          types.size() >= expressions.size(), "types.size() < expressions.size()");
 
       final List<Expression> translated = new ArrayList<>();
       for (int i = 0; i < expressions.size(); i++) {
+        // TODO: [BEAM-8255] Add support for user defined function with var-arg
+        // Ex: types: [String[].class], expression: [param1, param2, ...]
         translated.add(translate(types.get(i), expressions.get(i)));
       }
 

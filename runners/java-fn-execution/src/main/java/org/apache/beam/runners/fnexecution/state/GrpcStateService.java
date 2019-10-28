@@ -125,7 +125,7 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     @Override
     public void onNext(StateRequest request) {
       StateRequestHandler handler =
-          requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
+          requestHandlers.getOrDefault(request.getInstructionId(), this::handlerNotFound);
       try {
         CompletionStage<StateResponse.Builder> result = handler.handle(request);
         result.whenComplete(
@@ -156,8 +156,7 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
           StateResponse.newBuilder()
               .setError(
                   String.format(
-                      "Unknown process bundle instruction id '%s'",
-                      request.getInstructionReference())));
+                      "Unknown process bundle instruction id '%s'", request.getInstructionId())));
       return result;
     }
 

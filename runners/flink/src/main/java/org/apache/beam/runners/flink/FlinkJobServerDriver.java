@@ -21,7 +21,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobServerDriver;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -36,11 +38,17 @@ public class FlinkJobServerDriver extends JobServerDriver {
 
   /** Flink runner-specific Configuration for the jobServer. */
   public static class FlinkServerConfiguration extends ServerConfiguration {
-    @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
-    private String flinkMasterUrl = "[auto]";
+    @Option(
+        name = "--flink-master",
+        aliases = {"--flink-master-url"},
+        usage =
+            "Flink master address (host:port) to submit the job against. Use Use \"[local]\" to start a local "
+                + "cluster for the execution. Use \"[auto]\" if you plan to either execute locally or submit through "
+                + "Flink\'s CLI.")
+    private String flinkMaster = FlinkPipelineOptions.AUTO;
 
-    String getFlinkMasterUrl() {
-      return this.flinkMasterUrl;
+    String getFlinkMaster() {
+      return this.flinkMaster;
     }
 
     @Option(
@@ -59,8 +67,11 @@ public class FlinkJobServerDriver extends JobServerDriver {
 
   public static void main(String[] args) throws Exception {
     // TODO: Expose the fileSystem related options.
+    PipelineOptions options = PipelineOptionsFactory.create();
+    // Limiting gcs upload buffer to reduce memory usage while doing parallel artifact uploads.
+    options.as(GcsOptions.class).setGcsUploadBufferSizeBytes(1024 * 1024);
     // Register standard file systems.
-    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
+    FileSystems.setDefaultPipelineOptions(options);
     fromParams(args).run();
   }
 
