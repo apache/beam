@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
@@ -237,9 +236,9 @@ public class PubsubJsonIT implements Serializable {
 
     // Poll the signaling topic for success message
     resultSignal.waitForSuccess(Duration.standardMinutes(2));
-    assertThat(
-        dlqTopic.pull(),
-        containsInAnyOrder(messageLike(ts(4), "{ - }"), messageLike(ts(5), "{ + }")));
+    dlqTopic
+        .assertThatTopicEventuallyReceives(messageLike(ts(4), "{ - }"), messageLike(ts(5), "{ + }"))
+        .waitForUpTo(Duration.standardSeconds(20));
   }
 
   @Test
@@ -335,12 +334,12 @@ public class PubsubJsonIT implements Serializable {
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
-    assertThat(
-        eventsTopic.pull(),
-        containsInAnyOrder(
+    eventsTopic
+        .assertThatTopicEventuallyReceives(
             messageLike("{\"name\":\"person1\"}"),
             messageLike("{\"name\":\"person3\"}"),
-            messageLike("{\"name\":\"person5\"}")));
+            messageLike("{\"name\":\"person5\"}"))
+        .waitForUpTo(Duration.standardSeconds(20));
   }
 
   private static String toArg(Object o) {
