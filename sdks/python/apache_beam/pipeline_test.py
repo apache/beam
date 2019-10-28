@@ -39,6 +39,8 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pvalue import AsSingleton
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.direct.evaluation_context import _ExecutionContext
 from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
@@ -120,6 +122,36 @@ class ToStringParDo(beam.PTransform):
     # We use copy.copy() here to make sure the typehint mechanism doesn't
     # automatically infer that the output type is str.
     return input | 'Inner' >> beam.Map(lambda a: copy.copy(str(a)))
+
+
+class MultiOutputComposite(PTransform):
+  def __init__(self):
+    self.output_tags = set()
+
+  def expand(self, pcoll):
+    def mux_input(x):
+      print('MyReplacement', x)
+      if isinstance(x, int):
+        yield TaggedOutput('numbers', x)
+      else:
+        yield TaggedOutput('letters', x)
+
+    def printer(label, x):
+      print(label, x)
+      return x
+
+    from functools import partial
+
+    multi = pcoll | 'MyReplacement' >> beam.ParDo(mux_input).with_outputs()
+    letters = (multi.letters
+                          | 'LettersComposite' >> beam.Map(partial(printer, 'LettersComposite')))
+    numbers = (multi.numbers
+                          | 'NumbersComposite' >> beam.Map(partial(printer, 'NumbersComposite')))
+
+    return {
+      'letters': letters,
+      'numbers': numbers,
+    }
 
 
 class PipelineTest(unittest.TestCase):
@@ -437,6 +469,40 @@ class PipelineTest(unittest.TestCase):
 
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
+
+
+  def test_ptransform_override_multiple_outputs(self):
+      class MultiOutputOverride(PTransformOverride):
+        def matches(self, applied_ptransform):
+          return applied_ptransform.full_label == 'MyMultiOutput'
+
+        def get_replacement_transform(self, ptransform):
+          return MultiOutputComposite()
+
+      def mux_input(x):
+        print('MyMultiOutput', x)
+        if isinstance(x, int):
+          yield TaggedOutput('numbers', x)
+        else:
+          yield TaggedOutput('letters', x)
+
+      def printer(label, x):
+        print(label, x)
+        return x
+      from functools import partial
+
+      p = TestPipeline()
+      multi = (p | beam.Create([1, 2, 3, 'a', 'b', 'c'])
+                 | 'MyMultiOutput' >> beam.ParDo(mux_input).with_outputs())
+      letters = multi.letters | 'MyLetters' >> beam.Map(partial(printer, 'MyLetters'))
+      numbers = multi.numbers | 'MyNumbers' >> beam.Map(partial(printer, 'MyNumbers'))
+      # assert_that(letters, equal_to(['a', 'b', 'c']), label='assert letters')
+      # assert_that(numbers, equal_to([1, 2, 3]), label='assert numbers')
+
+      p.replace_all([MultiOutputOverride()])
+
+      p.run()
+
 
   def test_kv_ptransform_honor_type_hints(self):
 

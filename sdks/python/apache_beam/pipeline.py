@@ -197,6 +197,7 @@ class Pipeline(object):
 
     assert isinstance(override, PTransformOverride)
 
+    # From original transform output --> replacement transform output
     output_map = {}
     output_replacements = {}
     input_replacements = {}
@@ -263,31 +264,29 @@ class Pipeline(object):
 
           new_output = replacement_transform.expand(input_node)
 
-          new_output.element_type = None
-          self.pipeline._infer_result_type(replacement_transform, inputs,
-                                           new_output)
-
+          if isinstance(new_output, pvalue.PValue):
+            new_output.element_type = None
+            self.pipeline._infer_result_type(replacement_transform, inputs,
+                                             new_output)
           replacement_transform_node.add_output(new_output)
-          if not new_output.producer:
-            new_output.producer = replacement_transform_node
-
-          # We only support replacing transforms with a single output with
-          # another transform that produces a single output.
-          # TODO: Support replacing PTransforms with multiple outputs.
-          if (len(original_transform_node.outputs) > 1 or
-              not isinstance(original_transform_node.outputs[None],
-                             (PCollection, PDone)) or
-              not isinstance(new_output, (PCollection, PDone))):
-            raise NotImplementedError(
-                'PTransform overriding is only supported for PTransforms that '
-                'have a single output. Tried to replace output of '
-                'AppliedPTransform %r with %r.'
-                % (original_transform_node, new_output))
 
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
           # errors when visiting child nodes.
-          output_map[original_transform_node.outputs[None]] = new_output
+          if isinstance(new_output, pvalue.PValue):
+            if not new_output.producer:
+              new_output.producer = replacement_transform_node
+            output_map[original_transform_node.outputs[None]] = new_output
+          elif isinstance(new_output, (pvalue.DoOutputsTuple, tuple)):
+            for pcoll in new_output:
+              if not pcoll.producer:
+                pcoll.producer = replacement_transform_node
+              output_map[original_transform_node.outputs[pcoll.tag]] = pcoll
+          elif isinstance(new_output, dict):
+            for tag, pcoll in new_output.items():
+              if not pcoll.producer:
+                pcoll.producer = replacement_transform_node
+              output_map[original_transform_node.outputs[tag]] = pcoll
 
           self.pipeline.transforms_stack.pop()
 
@@ -317,10 +316,11 @@ class Pipeline(object):
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
-        if (None in transform_node.outputs and
-            transform_node.outputs[None] in output_map):
-          output_replacements[transform_node] = (
-              output_map[transform_node.outputs[None]])
+        replace_output = False
+        for tag in transform_node.outputs:
+          if transform_node.outputs[tag] in output_map:
+            replace_output = True
+            break
 
         replace_input = False
         for input in transform_node.inputs:
@@ -333,6 +333,16 @@ class Pipeline(object):
           if side_input.pvalue in output_map:
             replace_side_inputs = True
             break
+
+        if replace_output:
+          output_replacements[transform_node] = []
+          for original, replacement in output_map.items():
+            if (original.tag in transform_node.outputs and
+                transform_node.outputs[original.tag] in output_map):
+              output_replacements[transform_node].append((original.tag, replacement))
+          print('output_map .....',output_map)
+          print('transform_node.outputs .....', transform_node.outputs)
+          print('output_replacements .....', output_replacements)
 
         if replace_input:
           new_input = [
@@ -353,7 +363,11 @@ class Pipeline(object):
     self.visit(InputOutputUpdater(self))
 
     for transform in output_replacements:
-      transform.replace_output(output_replacements[transform])
+      print('before {} --> {}'.format(transform, transform.outputs))
+      for output in output_replacements[transform]:
+        print('replacing with', output)
+        transform.replace_output(output[1], tag=output[0])
+      print('after {} --> {}'.format(transform, transform.outputs))
 
     for transform in input_replacements:
       transform.inputs = input_replacements[transform]
@@ -766,6 +780,9 @@ class AppliedPTransform(object):
       self.replace_output(output[output._main_tag])
     elif isinstance(output, pvalue.PValue):
       self.outputs[tag] = output
+    elif isinstance(output, dict):
+      for tag, pcoll in output.items():
+        self.outputs[tag] = pcoll
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
@@ -778,6 +795,9 @@ class AppliedPTransform(object):
         tag = len(self.outputs)
       assert tag not in self.outputs
       self.outputs[tag] = output
+    elif isinstance(output, dict):
+      for tag, pcoll in output.items():
+        self.add_output(pcoll, tag=tag)
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
