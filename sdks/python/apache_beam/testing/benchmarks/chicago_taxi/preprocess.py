@@ -24,11 +24,10 @@ from tensorflow_transform.coders import example_proto_coder
 from tensorflow_transform.tf_metadata import dataset_metadata, dataset_schema
 
 import apache_beam as beam
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import (
     MeasureTime, MetricsReader)
 from trainer import taxi
-
-namespace = 'NAMESPACE_PREPROCESS'
 
 
 def _fill_in_missing(x):
@@ -122,13 +121,14 @@ def transform_data(input_handle,
             tf.int64))
 
     return outputs
-
+  namespace = metrics_table
   metrics_monitor = None
   if publish_to_bq:
     metrics_monitor = MetricsReader(
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
+        filters=MetricsFilter().with_namespace(namespace)
     )
   schema = taxi.read_schema(schema_file)
   raw_feature_spec = taxi.get_raw_feature_spec(schema)

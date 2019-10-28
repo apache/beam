@@ -69,6 +69,9 @@ class SwitchingDirectRunner(PipelineRunner):
   implemented in the FnApiRunner.
   """
 
+  def is_fnapi_compatible(self):
+    return BundleBasedDirectRunner.is_fnapi_compatible()
+
   def run_pipeline(self, pipeline, options):
 
     from apache_beam.pipeline import PipelineVisitor
@@ -115,7 +118,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     # Also ensure grpc is available.
     try:
-      # pylint: disable=unused-variable
+      # pylint: disable=unused-import
       import grpc
     except ImportError:
       use_fnapi_runner = False
@@ -251,7 +254,7 @@ class _DirectReadFromPubSub(PTransform):
 
   def expand(self, pvalue):
     # This is handled as a native transform.
-    return PCollection(self.pipeline)
+    return PCollection(self.pipeline, is_bounded=self._source.is_bounded())
 
 
 class _DirectWriteToPubSubFn(DoFn):
@@ -335,6 +338,10 @@ def _get_pubsub_transform_overrides(pipeline_options):
 
 class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
+
+  @staticmethod
+  def is_fnapi_compatible():
+    return False
 
   def run_pipeline(self, pipeline, options):
     """Execute the entire pipeline and returns an DirectPipelineResult."""

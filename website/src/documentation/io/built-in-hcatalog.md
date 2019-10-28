@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Apache HCatalog InputFormat IO"
+title: "Apache HCatalog I/O connector"
 section_menu: section-menu/documentation.html
 permalink: /documentation/io/built-in/hcatalog/
 ---
@@ -67,7 +67,7 @@ pipeline
 
 ### Using older versions of HCatalog (1.x)
 
-`HCatalogIO` is build for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog. 
+`HCatalogIO` is built for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog. 
 The following illustrates a workaround to work with Hive 1.1.
 
 Include the following Hive 1.2 jars in the über jar you build. 

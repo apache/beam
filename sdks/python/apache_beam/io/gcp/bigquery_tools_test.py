@@ -25,6 +25,8 @@ import re
 import time
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import,ungrouped-imports
 import mock
 from future.utils import iteritems
 
@@ -153,6 +155,46 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
     self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
+
+  def test_get_or_create_table(self):
+    client = mock.Mock()
+    client.tables.Insert.return_value = 'table_id'
+    client.tables.Get.side_effect = [None, 'table_id']
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    new_table = wrapper.get_or_create_table(
+        'project_id', 'dataset_id', 'table_id',
+        bigquery.TableSchema(fields=[
+            bigquery.TableFieldSchema(name='b', type='BOOLEAN',
+                                      mode='REQUIRED')]), False, False)
+    self.assertEqual(new_table, 'table_id')
+
+  def test_get_or_create_table_race_condition(self):
+    client = mock.Mock()
+    client.tables.Insert.side_effect = HttpError(
+        response={'status': '409'}, url='', content='')
+    client.tables.Get.side_effect = [None, 'table_id']
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    new_table = wrapper.get_or_create_table(
+        'project_id', 'dataset_id', 'table_id',
+        bigquery.TableSchema(fields=[
+            bigquery.TableFieldSchema(name='b', type='BOOLEAN',
+                                      mode='REQUIRED')]), False, False)
+    self.assertEqual(new_table, 'table_id')
+
+  def test_get_or_create_table_intermittent_exception(self):
+    client = mock.Mock()
+    client.tables.Insert.side_effect = [
+        HttpError(response={'status': '408'}, url='', content=''), 'table_id'
+    ]
+    client.tables.Get.side_effect = [None, 'table_id']
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    new_table = wrapper.get_or_create_table(
+        'project_id', 'dataset_id', 'table_id',
+        bigquery.TableSchema(fields=[
+            bigquery.TableFieldSchema(
+                name='b', type='BOOLEAN', mode='REQUIRED')
+        ]), False, False)
+    self.assertEqual(new_table, 'table_id')
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -329,14 +371,14 @@ class TestBigQueryReader(unittest.TestCase):
     self.assertFalse(reader.flatten_results)
 
   def test_using_both_query_and_table_fails(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         r'Both a BigQuery table and a query were specified\. Please specify '
         r'only one of these'):
       beam.io.BigQuerySource(table='dataset.table', query='query')
 
   def test_using_neither_query_nor_table_fails(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, r'A BigQuery table or a query must be specified'):
       beam.io.BigQuerySource()
 
@@ -419,7 +461,7 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         RuntimeError, r'Table project:dataset\.table not found but create '
                       r'disposition is CREATE_NEVER'):
       with beam.io.BigQuerySink(
@@ -452,7 +494,7 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         RuntimeError, r'Table project:dataset\.table requires a schema\. None '
                       r'can be inferred because the table does not exist'):
       with beam.io.BigQuerySink(
@@ -470,7 +512,7 @@ class TestBigQueryWriter(unittest.TestCase):
         schema=bigquery.TableSchema())
     client.tabledata.List.return_value = bigquery.TableDataList(totalRows=1)
     write_disposition = beam.io.BigQueryDisposition.WRITE_EMPTY
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         RuntimeError, r'Table project:dataset\.table is not empty but write '
                       r'disposition is WRITE_EMPTY'):
       with beam.io.BigQuerySink(
@@ -600,7 +642,7 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
     self.assertEqual(output_value, coder.decode(coder.encode(test_value)))
 
   def json_compliance_exception(self, value):
-    with self.assertRaisesRegexp(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
+    with self.assertRaisesRegex(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
       coder = RowAsDictJsonCoder()
       test_value = {'s': value}
       coder.decode(coder.encode(test_value))

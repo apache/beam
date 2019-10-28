@@ -106,7 +106,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
-        transform.getSideInputs().stream()
+        transform.getSideInputs().values().stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
     final ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
@@ -128,12 +128,15 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     final HashMap<String, PCollectionView<?>> idToPValueMap = new HashMap<>();
-    for (PCollectionView<?> view : transform.getSideInputs()) {
+    for (PCollectionView<?> view : transform.getSideInputs().values()) {
       idToPValueMap.put(ctx.getViewId(view), view);
     }
 
     DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
+
+    Map<String, PCollectionView<?>> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(ctx.getCurrentTransform());
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
@@ -141,20 +144,21 @@ class ParDoBoundMultiTranslator<InT, OutT>
             transform.getFn(),
             keyCoder,
             (Coder<InT>) input.getCoder(),
+            null,
             outputCoders,
-            transform.getSideInputs(),
+            transform.getSideInputs().values(),
             transform.getAdditionalOutputTags().getAll(),
             input.getWindowingStrategy(),
             idToPValueMap,
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
-            node.getFullName(),
-            // TODO: infer a fixed id from the name
-            String.valueOf(ctx.getCurrentTopologicalId()),
+            ctx.getTransformFullName(),
+            ctx.getTransformId(),
             input.isBounded(),
             false,
             null,
             Collections.emptyMap(),
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -234,11 +238,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
             });
 
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
-        SamzaPipelineTranslatorUtils.instantiateCoder(inputId, pipeline.getComponents());
-    final String nodeFullname = transform.getTransform().getUniqueName();
+        ctx.instantiateCoder(inputId, pipeline.getComponents());
 
     final DoFnSchemaInformation doFnSchemaInformation;
     doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
+
+    Map<String, PCollectionView<?>> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(transform.getTransform());
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
@@ -249,20 +255,21 @@ class ParDoBoundMultiTranslator<InT, OutT>
             new NoOpDoFn<>(),
             null, // key coder not in use
             windowedInputCoder.getValueCoder(), // input coder not in use
+            windowedInputCoder,
             Collections.emptyMap(), // output coders not in use
             Collections.emptyList(), // sideInputs not in use until side input support
             new ArrayList<>(idToTupleTagMap.values()), // used by java runner only
             SamzaPipelineTranslatorUtils.getPortableWindowStrategy(transform, pipeline),
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
-            nodeFullname,
-            // TODO: infer a fixed id from the name
-            String.valueOf(ctx.getCurrentTopologicalId()),
+            ctx.getTransformFullName(),
+            ctx.getTransformId(),
             isBounded,
             true,
             stagePayload,
             idToTupleTagMap,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {

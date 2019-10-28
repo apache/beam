@@ -32,4 +32,12 @@ public interface DataCatalogPipelineOptions extends PipelineOptions {
   String getDataCatalogEndpoint();
 
   void setDataCatalogEndpoint(String dataCatalogEndpoint);
+
+  /** Whether to truncate timestamps in tables described by Data Catalog. */
+  @Description("Truncate sub-millisecond precision timestamps in tables described by Data Catalog")
+  @Validation.Required
+  @Default.Boolean(false)
+  boolean getTruncateTimestamps();
+
+  void setTruncateTimestamps(boolean newValue);
 }

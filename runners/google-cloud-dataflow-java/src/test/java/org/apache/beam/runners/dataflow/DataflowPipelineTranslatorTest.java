@@ -50,6 +50,8 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -120,9 +122,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
-  private static class IsValidCreateRequest extends ArgumentMatcher<Job> {
+  private static class IsValidCreateRequest implements ArgumentMatcher<Job> {
     @Override
-    public boolean matches(Object o) {
+    public boolean matches(Job o) {
       Job job = (Job) o;
       return job.getId() == null
           && job.getProjectId() == null
@@ -954,6 +956,34 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
+  }
+
+  /**
+   * Tests that when {@link DataflowPipelineOptions#setWorkerHarnessContainerImage(String)} pipeline
+   * option is set, {@link DataflowRunner} sets that value as the {@link
+   * DockerPayload#getContainerImage()} of the default {@link Environment} used when generating the
+   * model pipeline proto.
+   */
+  @Test
+  public void testSetWorkerHarnessContainerImageInPipelineProto() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String containerImage = "gcr.io/IMAGE/foo";
+    options.as(DataflowPipelineOptions.class).setWorkerHarnessContainerImage(containerImage);
+
+    JobSpecification specification =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                Pipeline.create(options),
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList());
+    RunnerApi.Pipeline pipelineProto = specification.getPipelineProto();
+
+    assertEquals(1, pipelineProto.getComponents().getEnvironmentsCount());
+    Environment defaultEnvironment =
+        Iterables.getOnlyElement(pipelineProto.getComponents().getEnvironmentsMap().values());
+
+    DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
+    assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
   }
 
   private static void assertAllStepOutputsHaveUniqueIds(Job job) throws Exception {

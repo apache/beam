@@ -32,15 +32,28 @@ import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Days;
+import org.joda.time.LocalDate;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /** Tests for AVRO schema classes. */
 public class AvroSchemaTest {
@@ -105,8 +118,16 @@ public class AvroSchemaTest {
     @org.apache.avro.reflect.Nullable public ByteBuffer bytes;
 
     @AvroSchema("{\"type\": \"fixed\", \"size\": 4, \"name\": \"fixed4\"}")
-    @org.apache.avro.reflect.Nullable
     public byte[] fixed;
+
+    @AvroSchema("{\"type\": \"int\", \"logicalType\": \"date\"}")
+    public LocalDate date;
+
+    @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
+    public DateTime timestampMillis;
+
+    @AvroSchema("{\"name\": \"TestEnum\", \"type\": \"enum\", \"symbols\": [\"abc\",\"cde\"] }")
+    public TestEnum testEnum;
 
     @org.apache.avro.reflect.Nullable public AvroSubPojo row;
     @org.apache.avro.reflect.Nullable public List<AvroSubPojo> array;
@@ -130,6 +151,9 @@ public class AvroSchemaTest {
           && Objects.equals(string, avroPojo.string)
           && Objects.equals(bytes, avroPojo.bytes)
           && Arrays.equals(fixed, avroPojo.fixed)
+          && Objects.equals(date, avroPojo.date)
+          && Objects.equals(timestampMillis, avroPojo.timestampMillis)
+          && Objects.equals(testEnum, avroPojo.testEnum)
           && Objects.equals(row, avroPojo.row)
           && Objects.equals(array, avroPojo.array)
           && Objects.equals(map, avroPojo.map);
@@ -146,6 +170,9 @@ public class AvroSchemaTest {
           string,
           bytes,
           Arrays.hashCode(fixed),
+          date,
+          timestampMillis,
+          testEnum,
           row,
           array,
           map);
@@ -160,6 +187,9 @@ public class AvroSchemaTest {
         String string,
         ByteBuffer bytes,
         byte[] fixed,
+        LocalDate date,
+        DateTime timestampMillis,
+        TestEnum testEnum,
         AvroSubPojo row,
         List<AvroSubPojo> array,
         Map<String, AvroSubPojo> map) {
@@ -171,6 +201,9 @@ public class AvroSchemaTest {
       this.string = string;
       this.bytes = bytes;
       this.fixed = fixed;
+      this.date = date;
+      this.timestampMillis = timestampMillis;
+      this.testEnum = testEnum;
       this.row = row;
       this.array = array;
       this.map = map;
@@ -197,7 +230,9 @@ public class AvroSchemaTest {
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
-          .addNullableField("timestampMillis", FieldType.DATETIME)
+          .addField("date", FieldType.DATETIME)
+          .addField("timestampMillis", FieldType.DATETIME)
+          .addField("testEnum", FieldType.STRING)
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE))
@@ -213,6 +248,9 @@ public class AvroSchemaTest {
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
+          .addField("date", FieldType.DATETIME)
+          .addField("timestampMillis", FieldType.DATETIME)
+          .addField("testEnum", FieldType.STRING)
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE.withNullable(false)))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE.withNullable(false)))
@@ -220,7 +258,8 @@ public class AvroSchemaTest {
 
   private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
   private static final DateTime DATE_TIME =
-      new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4);
+      new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4);
+  private static final LocalDate DATE = new LocalDate(1979, 3, 14);
   private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
   private static final TestAvro AVRO_SPECIFIC_RECORD =
       new TestAvro(
@@ -232,7 +271,9 @@ public class AvroSchemaTest {
           "mystring",
           ByteBuffer.wrap(BYTE_ARRAY),
           new fixed4(BYTE_ARRAY),
+          DATE,
           DATE_TIME,
+          TestEnum.abc,
           AVRO_NESTED_SPECIFIC_RECORD,
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
           ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
@@ -255,7 +296,9 @@ public class AvroSchemaTest {
               GenericData.get()
                   .createFixed(
                       null, BYTE_ARRAY, org.apache.avro.Schema.createFixed("fixed4", "", "", 4)))
+          .set("date", (int) Days.daysBetween(new LocalDate(1970, 1, 1), DATE).getDays())
           .set("timestampMillis", DATE_TIME.getMillis())
+          .set("testEnum", TestEnum.abc)
           .set("row", AVRO_NESTED_GENERIC_RECORD)
           .set("array", ImmutableList.of(AVRO_NESTED_GENERIC_RECORD, AVRO_NESTED_GENERIC_RECORD))
           .set(
@@ -277,7 +320,9 @@ public class AvroSchemaTest {
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
               BYTE_ARRAY,
+              DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
+              "abc",
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))
@@ -332,6 +377,9 @@ public class AvroSchemaTest {
           "mystring",
           ByteBuffer.wrap(BYTE_ARRAY),
           BYTE_ARRAY,
+          DATE,
+          DATE_TIME,
+          TestEnum.abc,
           SUB_POJO,
           ImmutableList.of(SUB_POJO, SUB_POJO),
           ImmutableMap.of("k1", SUB_POJO, "k2", SUB_POJO));
@@ -347,6 +395,9 @@ public class AvroSchemaTest {
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
               BYTE_ARRAY,
+              DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
+              DATE_TIME,
+              "abc",
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))
@@ -364,5 +415,24 @@ public class AvroSchemaTest {
     SerializableFunction<Row, AvroPojo> fromRow =
         new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(AVRO_POJO, fromRow.apply(ROW_FOR_POJO));
+  }
+
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testAvroPipelineGroupBy() {
+    PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO)).setRowSchema(POJO_SCHEMA);
+
+    PCollection<KV<Row, Iterable<Row>>> output = input.apply(Group.byFieldNames("string"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            KV.of(
+                Row.withSchema(Schema.of(Field.of("string", FieldType.STRING)))
+                    .addValue("mystring")
+                    .build(),
+                ImmutableList.of(ROW_FOR_POJO)));
+
+    pipeline.run();
   }
 }

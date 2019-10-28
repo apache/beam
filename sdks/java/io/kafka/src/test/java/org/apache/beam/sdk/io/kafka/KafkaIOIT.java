@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -80,8 +81,7 @@ public class KafkaIOIT {
 
   private static final String TIMESTAMP = Timestamp.now().toString();
 
-  /** Hash for 1000 uniformly distributed records with 10B keys and 90B values (100kB total). */
-  private static final String EXPECTED_HASHCODE = "4507649971ee7c51abbb446e65a5c660";
+  private static String expectedHashcode;
 
   private static SyntheticSourceOptions sourceOptions;
 
@@ -95,6 +95,12 @@ public class KafkaIOIT {
   public static void setup() throws IOException {
     options = IOITHelper.readIOTestPipelineOptions(Options.class);
     sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
+    // Map of hashes of set size collections with 100b records - 10b key, 90b values.
+    Map<Long, String> expectedHashes =
+        ImmutableMap.of(
+            1000L, "4507649971ee7c51abbb446e65a5c660",
+            100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
+    expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
   }
 
   @Test
@@ -112,7 +118,7 @@ public class KafkaIOIT {
             .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()).withoutDefaults());
 
-    PAssert.thatSingleton(hashcode).isEqualTo(EXPECTED_HASHCODE);
+    PAssert.thatSingleton(hashcode).isEqualTo(expectedHashcode);
 
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
@@ -205,5 +211,14 @@ public class KafkaIOIT {
       String value = Arrays.toString(input.getKV().getValue());
       return String.format("%s %s", key, value);
     }
+  }
+
+  public static String getHashForRecordCount(long recordCount, Map<Long, String> hashes) {
+    String hash = hashes.get(recordCount);
+    if (hash == null) {
+      throw new UnsupportedOperationException(
+          String.format("No hash for that record count: %s", recordCount));
+    }
+    return hash;
   }
 }

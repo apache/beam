@@ -20,9 +20,13 @@ package org.apache.beam.sdk.io.hdfs;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import java.io.IOException;
+import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -30,35 +34,54 @@ import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 
 /** {@link AutoService} registrar for the {@link HadoopFileSystem}. */
 @AutoService(FileSystemRegistrar.class)
 @Experimental(Kind.FILESYSTEM)
 public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
+  private static final List<String> HA_SCHEMES = Arrays.asList("hdfs", "webhdfs");
+
   @Override
   public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
-    List<Configuration> configurations =
+    final List<Configuration> configurations =
         options.as(HadoopFileSystemOptions.class).getHdfsConfiguration();
     if (configurations == null) {
-      configurations = Collections.emptyList();
+      // nothing to register
+      return Collections.emptyList();
     }
     checkArgument(
-        configurations.size() <= 1,
+        configurations.size() == 1,
         String.format(
             "The %s currently only supports at most a single Hadoop configuration.",
             HadoopFileSystemRegistrar.class.getSimpleName()));
 
-    ImmutableList.Builder<FileSystem> builder = ImmutableList.builder();
-    for (Configuration configuration : configurations) {
-      try {
-        builder.add(new HadoopFileSystem(configuration));
-      } catch (IOException e) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Failed to construct Hadoop filesystem with configuration %s", configuration),
-            e);
+    final ImmutableList.Builder<FileSystem> builder = ImmutableList.builder();
+    final Set<String> registeredSchemes = new HashSet<>();
+
+    // this will only do zero or one loop
+    final Configuration configuration = Iterables.getOnlyElement(configurations);
+    final String defaultFs = configuration.get(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY);
+    if (defaultFs != null && !defaultFs.isEmpty()) {
+      final String scheme =
+          Objects.requireNonNull(
+              URI.create(defaultFs).getScheme(),
+              String.format(
+                  "Empty scheme for %s value.",
+                  org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY));
+      builder.add(new HadoopFileSystem(scheme, configuration));
+      registeredSchemes.add(scheme);
+    }
+    final String nameServices = configuration.get(DFSConfigKeys.DFS_NAMESERVICES);
+    if (nameServices != null && !nameServices.isEmpty()) {
+      // we can register schemes that are support by HA cluster
+      for (String scheme : HA_SCHEMES) {
+        if (!registeredSchemes.contains(scheme)) {
+          builder.add(new HadoopFileSystem(scheme, configuration));
+        }
       }
     }
     return builder.build();

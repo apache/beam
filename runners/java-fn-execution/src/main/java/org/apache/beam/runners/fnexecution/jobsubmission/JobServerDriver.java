@@ -94,15 +94,6 @@ public abstract class JobServerDriver implements Runnable {
         handler = ExplicitBooleanOptionHandler.class)
     private boolean cleanArtifactsPerJob = true;
 
-    @Option(
-        name = "--sdk-worker-parallelism",
-        usage =
-            "Default parallelism for SDK worker processes. This option is only applied when the "
-                + "pipeline option sdkWorkerParallelism is set to 0."
-                + "Default is 1, If 0, worker parallelism will be dynamically decided by runner."
-                + "See also: sdkWorkerParallelism Pipeline Option")
-    private long sdkWorkerParallelism = 1L;
-
     public String getHost() {
       return host;
     }
@@ -125,10 +116,6 @@ public abstract class JobServerDriver implements Runnable {
 
     public boolean isCleanArtifactsPerJob() {
       return cleanArtifactsPerJob;
-    }
-
-    public long getSdkWorkerParallelism() {
-      return this.sdkWorkerParallelism;
     }
   }
 

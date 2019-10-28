@@ -171,7 +171,7 @@ public class TestBigQuery implements TestRule {
     }
 
     if (description.getMethodName() != null) {
-      topicName.append(description.getMethodName()).append("_");
+      topicName.append(description.getMethodName().replaceAll("[\\[\\]\\.]", "_")).append("_");
     }
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
@@ -187,6 +187,10 @@ public class TestBigQuery implements TestRule {
         table.getTableReference().getProjectId(),
         table.getTableReference().getDatasetId(),
         table.getTableReference().getTableId());
+  }
+
+  public TableReference tableReference() {
+    return table.getTableReference();
   }
 
   /**

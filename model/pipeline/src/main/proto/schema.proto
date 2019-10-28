@@ -80,6 +80,6 @@ message RowType {
 
 message LogicalType {
   string urn = 1;
-  string args = 2;
+  bytes payload = 2;
   FieldType representation = 3;
 }

@@ -528,7 +528,7 @@ PCollection<SomeEventObject> timeStampedEvents =
 ```
 
 ## Translation
-Euphoria API is build on top of Beam Java SDK. The API is transparently translated into Beam's `PTransforms` in background.
+Euphoria API is built on top of Beam Java SDK. The API is transparently translated into Beam's `PTransforms` in background.
 
 The fact that Euphoria API is translated to Beam Java SDK give us option to fine tune the translation itself. Translation of an `Operator` is realized through implementations of `OperatorTranslator`.
 Euphoria uses `TranslationProvider` to decide which translator should be used. User of Euphoria API can supply its own `OperatorTranslator` through `TranslationProvider` by extending `EuphoriaOptions`. 

@@ -43,6 +43,9 @@ service JobService {
   // Submit the job for execution
   rpc Run (RunJobRequest) returns (RunJobResponse);
 
+  // Get a list of all invoked jobs
+  rpc GetJobs (GetJobsRequest) returns (GetJobsResponse);
+
   // Get the current state of the job
   rpc GetState (GetJobStateRequest) returns (GetJobStateResponse);
 
@@ -121,6 +124,22 @@ message CancelJobRequest {
 // Valid responses include any terminal state or CANCELLING
 message CancelJobResponse {
   JobState.Enum state = 1; // (required)
+}
+
+// A subset of info provided by ProvisionApi.ProvisionInfo
+message JobInfo {
+  string job_id = 1; // (required)
+  string job_name = 2; // (required)
+  google.protobuf.Struct pipeline_options = 3; // (required)
+  JobState.Enum state = 4; // (required)
+}
+
+// GetJobs is a synchronus request that returns a list of invoked jobs back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+message GetJobsRequest { }
+
+message GetJobsResponse {
+  repeated JobInfo job_info = 1; // (required)
 }
 
 

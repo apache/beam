@@ -20,7 +20,10 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
@@ -39,9 +42,11 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -53,6 +58,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -441,6 +447,7 @@ public class PubsubIO {
   private static <T> Read<T> read() {
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .build();
   }
@@ -456,6 +463,23 @@ public class PubsubIO {
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will only contain a {@link PubsubMessage#getPayload() payload} with the {@link
+   * PubsubMessage#getMessageId() messageId} from PubSub, but no {@link
+   * PubsubMessage#getAttributeMap() attributes}.
+   */
+  public static Read<PubsubMessage> readMessagesWithMessageId() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(PubsubMessageWithMessageIdCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(false)
+        .setNeedsMessageId(true)
         .build();
   }
 
@@ -470,6 +494,23 @@ public class PubsubIO {
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(true)
+        .setNeedsMessageId(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
+   * PubsubMessage#getAttributeMap() attributes}, along with the {@link PubsubMessage#getMessageId()
+   * messageId} from PubSub.
+   */
+  public static Read<PubsubMessage> readMessagesWithAttributesAndMessageId() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(PubsubMessageWithAttributesAndMessageIdCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(true)
+        .setNeedsMessageId(true)
         .build();
   }
 
@@ -480,6 +521,7 @@ public class PubsubIO {
   public static Read<String> readStrings() {
     return new AutoValue_PubsubIO_Read.Builder<String>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(StringUtf8Coder.of())
         .setParseFn(new ParsePayloadAsUtf8())
@@ -497,6 +539,7 @@ public class PubsubIO {
     ProtoCoder<T> coder = ProtoCoder.of(messageClass);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(coder)
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -514,9 +557,25 @@ public class PubsubIO {
     AvroCoder<T> coder = AvroCoder.of(clazz);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setCoder(coder)
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream,
+   * mapping each {@link PubsubMessage} into type T using the supplied parse function and coder.
+   */
+  public static <T> Read<T> readMessagesWithCoderAndParseFn(
+      Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
+    return new AutoValue_PubsubIO_Read.Builder<T>()
+        .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(coder)
+        .setParseFn(parseFn)
         .build();
   }
 
@@ -533,6 +592,7 @@ public class PubsubIO {
     AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
     return new AutoValue_PubsubIO_Read.Builder<GenericRecord>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
         .setToRowFn(AvroUtils.getToRowFunction(GenericRecord.class, avroSchema))
@@ -558,6 +618,7 @@ public class PubsubIO {
     Schema schema = AvroUtils.getSchema(clazz, null);
     return new AutoValue_PubsubIO_Read.Builder<T>()
         .setNeedsAttributes(false)
+        .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
         .setToRowFn(AvroUtils.getToRowFunction(clazz, avroSchema))
@@ -645,10 +706,13 @@ public class PubsubIO {
 
     abstract boolean getNeedsAttributes();
 
+    abstract boolean getNeedsMessageId();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T> {
+    abstract static class Builder<T>
+        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<T>> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
 
       abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory clientFactory);
@@ -671,9 +735,90 @@ public class PubsubIO {
 
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
 
+      abstract Builder<T> setNeedsMessageId(boolean needsMessageId);
+
       abstract Builder<T> setClock(@Nullable Clock clock);
 
       abstract Read<T> build();
+
+      @Override
+      public PTransform<PBegin, PCollection<T>> buildExternal(External.Configuration config) {
+        if (config.topic != null) {
+          StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
+          setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()));
+        }
+        if (config.subscription != null) {
+          StaticValueProvider<String> subscription = StaticValueProvider.of(config.subscription);
+          setSubscriptionProvider(
+              NestedValueProvider.of(subscription, new SubscriptionTranslator()));
+        }
+        if (config.idAttribute != null) {
+          setIdAttribute(config.idAttribute);
+        }
+        if (config.timestampAttribute != null) {
+          setTimestampAttribute(config.timestampAttribute);
+        }
+        setPubsubClientFactory(FACTORY);
+        setNeedsAttributes(config.needsAttributes);
+        Coder coder = ByteArrayCoder.of();
+        if (config.needsAttributes) {
+          SimpleFunction<PubsubMessage, T> parseFn =
+              (SimpleFunction<PubsubMessage, T>) new ParsePayloadAsPubsubMessageProto();
+          setParseFn(parseFn);
+          setCoder(coder);
+        } else {
+          setParseFn(new ParsePayloadUsingCoder<>(coder));
+          setCoder(coder);
+        }
+        setNeedsMessageId(false);
+        return build();
+      }
+    }
+
+    /** Exposes {@link PubSubIO.Read} as an external transform for cross-language usage. */
+    @Experimental
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:pubsub:read:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_PubsubIO_Read.Builder.class);
+      }
+
+      /** Parameters class to expose the transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        @Nullable private String topic;
+        @Nullable private String subscription;
+        @Nullable private String idAttribute;
+        @Nullable private String timestampAttribute;
+        private boolean needsAttributes;
+
+        public void setTopic(@Nullable String topic) {
+          this.topic = topic;
+        }
+
+        public void setSubscription(@Nullable String subscription) {
+          this.subscription = subscription;
+        }
+
+        public void setIdLabel(@Nullable String idAttribute) {
+          this.idAttribute = idAttribute;
+        }
+
+        public void setTimestampAttribute(@Nullable String timestampAttribute) {
+          this.timestampAttribute = timestampAttribute;
+        }
+
+        public void setWithAttributes(Boolean needsAttributes) {
+          // we must use Boolean instead of boolean because the external payload system
+          // inspects the native type of each coder urn, and BooleanCoder wants Boolean.
+          this.needsAttributes = needsAttributes;
+        }
+      }
     }
 
     /**
@@ -832,7 +977,8 @@ public class PubsubIO {
               subscriptionPath,
               getTimestampAttribute(),
               getIdAttribute(),
-              getNeedsAttributes());
+              getNeedsAttributes(),
+              getNeedsMessageId());
       PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
       return (getBeamSchema() != null)
           ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
@@ -858,7 +1004,12 @@ public class PubsubIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = 10 * 1024 * 1024;
+    /**
+     * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
+     * four bytes.
+     */
+    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1024 * 1024) / 4) * 3;
+
     private static final int MAX_PUBLISH_BATCH_SIZE = 100;
 
     @Nullable
@@ -890,7 +1041,8 @@ public class PubsubIO {
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T> {
+    abstract static class Builder<T>
+        implements ExternalTransformBuilder<External.Configuration, PCollection<T>, PDone> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
 
       abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory factory);
@@ -906,6 +1058,58 @@ public class PubsubIO {
       abstract Builder<T> setFormatFn(SimpleFunction<T, PubsubMessage> formatFn);
 
       abstract Write<T> build();
+
+      @Override
+      public PTransform<PCollection<T>, PDone> buildExternal(External.Configuration config) {
+        if (config.topic != null) {
+          StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
+          setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()));
+        }
+        if (config.idAttribute != null) {
+          setIdAttribute(config.idAttribute);
+        }
+        if (config.timestampAttribute != null) {
+          setTimestampAttribute(config.timestampAttribute);
+        }
+        SimpleFunction<T, PubsubMessage> parseFn =
+            (SimpleFunction<T, PubsubMessage>) new FormatPayloadFromPubsubMessageProto();
+        setFormatFn(parseFn);
+        return build();
+      }
+    }
+
+    /** Exposes {@link PubSubIO.Write} as an external transform for cross-language usage. */
+    @Experimental
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:pubsub:write:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_PubsubIO_Write.Builder.class);
+      }
+
+      /** Parameters class to expose the transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        private String topic;
+        @Nullable private String idAttribute;
+        @Nullable private String timestampAttribute;
+
+        public void setTopic(String topic) {
+          this.topic = topic;
+        }
+
+        public void setIdLabel(@Nullable String idAttribute) {
+          this.idAttribute = idAttribute;
+        }
+
+        public void setTimestampAttribute(@Nullable String timestampAttribute) {
+          this.timestampAttribute = timestampAttribute;
+        }
+      }
     }
 
     /**
@@ -1148,6 +1352,22 @@ public class PubsubIO {
     }
   }
 
+  private static class ParsePayloadAsPubsubMessageProto
+      extends SimpleFunction<PubsubMessage, byte[]> {
+    @Override
+    public byte[] apply(PubsubMessage input) {
+      Map<String, String> attributes = input.getAttributeMap();
+      com.google.pubsub.v1.PubsubMessage.Builder message =
+          com.google.pubsub.v1.PubsubMessage.newBuilder()
+              .setData(ByteString.copyFrom(input.getPayload()));
+      // TODO(BEAM-8085) this should not be null
+      if (attributes != null) {
+        message.putAllAttributes(attributes);
+      }
+      return message.build().toByteArray();
+    }
+  }
+
   private static class FormatPayloadAsUtf8 extends SimpleFunction<String, PubsubMessage> {
     @Override
     public PubsubMessage apply(String input) {
@@ -1167,6 +1387,20 @@ public class PubsubIO {
       try {
         return new PubsubMessage(CoderUtils.encodeToByteArray(coder, input), ImmutableMap.of());
       } catch (CoderException e) {
+        throw new RuntimeException("Could not decode Pubsub message", e);
+      }
+    }
+  }
+
+  private static class FormatPayloadFromPubsubMessageProto
+      extends SimpleFunction<byte[], PubsubMessage> {
+    @Override
+    public PubsubMessage apply(byte[] input) {
+      try {
+        com.google.pubsub.v1.PubsubMessage message =
+            com.google.pubsub.v1.PubsubMessage.parseFrom(input);
+        return new PubsubMessage(message.getData().toByteArray(), message.getAttributesMap());
+      } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }
     }

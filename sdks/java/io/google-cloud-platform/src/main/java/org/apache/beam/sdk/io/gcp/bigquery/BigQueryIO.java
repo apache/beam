@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -151,7 +152,7 @@ import org.slf4j.LoggerFactory;
  * TableFieldSchema}). The terms field and cell are used interchangeably.
  *
  * <p>{@link TableSchema}: describes the schema (types and order) for values in each row. It has one
- * attribute, ‘fields’, which is list of {@link TableFieldSchema} objects.
+ * attribute, 'fields', which is list of {@link TableFieldSchema} objects.
  *
  * <p>{@link TableFieldSchema}: describes the schema (type, name) for one field. It has several
  * attributes, including 'name' and 'type'. Common values for the type attribute are: 'STRING',
@@ -176,12 +177,66 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Reading from BigQuery is supported by {@link #read(SerializableFunction)}, which parses
  * records in <a href="https://cloud.google.com/bigquery/data-formats#avro_format">AVRO format</a>
- * into a custom type using a specified parse function, and by {@link #readTableRows} which parses
- * them into {@link TableRow}, which may be more convenient but has lower performance.
+ * into a custom type (see the table below for type conversion) using a specified parse function,
+ * and by {@link #readTableRows} which parses them into {@link TableRow}, which may be more
+ * convenient but has lower performance.
  *
  * <p>Both functions support reading either from a table or from the result of a query, via {@link
  * TypedRead#from(String)} and {@link TypedRead#fromQuery} respectively. Exactly one of these must
  * be specified.
+ *
+ * <p>If you are reading from an authorized view wih {@link TypedRead#fromQuery}, you need to use
+ * {@link TypedRead#withQueryLocation(String)} to set the location of the BigQuery job. Otherwise,
+ * Beam will ty to determine that location by reading the metadata of the dataset that contains the
+ * underlying tables. With authorized views, that will result in a 403 error and the query will not
+ * be resolved.
+ *
+ * <p><b>Type Conversion Table</b>
+ *
+ * <table border="1" cellspacing="1">
+ *   <tr>
+ *     <td> <b>BigQuery standard SQL type</b> </td> <td> <b>Avro type</b> </td> <td> <b>Java type</b> </td>
+ *   </tr>
+ *   <tr>
+ *     <td> BOOLEAN </td> <td> boolean </td> <td> Boolean </td>
+ *   </tr>
+ *   <tr>
+ *     <td> INT64 </td> <td> long </td> <td> Long </td>
+ *   </tr>
+ *   <tr>
+ *     <td> FLOAT64 </td> <td> double </td> <td> Double </td>
+ *   </tr>
+ *   <tr>
+ *     <td> BYTES </td> <td> bytes </td> <td> java.nio.ByteBuffer </td>
+ *   </tr>
+ *   <tr>
+ *     <td> STRING </td> <td> string </td> <td> CharSequence </td>
+ *   </tr>
+ *   <tr>
+ *     <td> DATE </td> <td> int </td> <td> Integer </td>
+ *   </tr>
+ *   <tr>
+ *     <td> DATETIME </td> <td> string </td> <td> CharSequence </td>
+ *   </tr>
+ *   <tr>
+ *     <td> TIMESTAMP </td> <td> long </td> <td> Long </td>
+ *   </tr>
+ *   <tr>
+ *     <td> TIME </td> <td> long </td> <td> Long </td>
+ *   </tr>
+ *   <tr>
+ *     <td> NUMERIC </td> <td> bytes </td> <td> java.nio.ByteBuffer </td>
+ *   </tr>
+ *   <tr>
+ *     <td> GEOGRAPHY </td> <td> string </td> <td> CharSequence </td>
+ *   </tr>
+ *   <tr>
+ *     <td> ARRAY </td> <td> array </td> <td> java.util.Collection </td>
+ *   </tr>
+ *   <tr>
+ *     <td> STRUCT </td> <td> record </td> <td> org.apache.avro.generic.GenericRecord </td>
+ *   </tr>
+ * </table>
  *
  * <p><b>Example: Reading rows of a table as {@link TableRow}.</b>
  *
@@ -218,7 +273,7 @@ import org.slf4j.LoggerFactory;
  * <p>Users can optionally specify a query priority using {@link TypedRead#withQueryPriority(
  * TypedRead.QueryPriority)} and a geographic location where the query will be executed using {@link
  * TypedRead#withQueryLocation(String)}. Query location must be specified for jobs that are not
- * executed in US or EU. See <a
+ * executed in US or EU, or if you are reading from an authorized view. See <a
  * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
  * query</a>.
  *
@@ -664,8 +719,19 @@ public class BigQueryIO {
       @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setMethod(Method method);
 
+      /**
+       * @deprecated Use {@link #setSelectedFields(ValueProvider)} and {@link
+       *     #setRowRestriction(ValueProvider)} instead.
+       */
+      @Deprecated
       @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setReadOptions(TableReadOptions readOptions);
+
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
+
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
 
       abstract TypedRead<T> build();
 
@@ -711,9 +777,19 @@ public class BigQueryIO {
     @Experimental(Experimental.Kind.SOURCE_SINK)
     abstract Method getMethod();
 
+    /** @deprecated Use {@link #getSelectedFields()} and {@link #getRowRestriction()} instead. */
+    @Deprecated
     @Experimental(Experimental.Kind.SOURCE_SINK)
     @Nullable
     abstract TableReadOptions getReadOptions();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Nullable
+    abstract ValueProvider<List<String>> getSelectedFields();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Nullable
+    abstract ValueProvider<String> getRowRestriction();
 
     @Nullable
     abstract Coder<T> getCoder();
@@ -913,6 +989,16 @@ public class BigQueryIO {
           "Invalid BigQueryIO.Read: Specifies table read options, "
               + "which only applies when using Method.DIRECT_READ");
 
+      checkArgument(
+          getSelectedFields() == null,
+          "Invalid BigQueryIO.Read: Specifies selected fields, "
+              + "which only applies when using Method.DIRECT_READ");
+
+      checkArgument(
+          getRowRestriction() == null,
+          "Invalid BigQueryIO.Read: Specifies row restriction, "
+              + "which only applies when using Method.DIRECT_READ");
+
       final BigQuerySourceDef sourceDef = createSourceDef();
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
@@ -1057,6 +1143,8 @@ public class BigQueryIO {
                 BigQueryStorageTableSource.create(
                     tableProvider,
                     getReadOptions(),
+                    getSelectedFields(),
+                    getRowRestriction(),
                     getParseFn(),
                     outputCoder,
                     getBigQueryServices())));
@@ -1065,6 +1153,16 @@ public class BigQueryIO {
       checkArgument(
           getReadOptions() == null,
           "Invalid BigQueryIO.Read: Specifies table read options, "
+              + "which only applies when reading from a table");
+
+      checkArgument(
+          getSelectedFields() == null,
+          "Invalid BigQueryIO.Read: Specifies selected fields, "
+              + "which only applies when reading from a table");
+
+      checkArgument(
+          getRowRestriction() == null,
+          "Invalid BigQueryIO.Read: Specifies row restriction, "
               + "which only applies when reading from a table");
 
       //
@@ -1251,6 +1349,16 @@ public class BigQueryIO {
           getJsonTableRef() == null && getQuery() == null, "from() or fromQuery() already called");
     }
 
+    private void ensureReadOptionsNotSet() {
+      checkState(getReadOptions() == null, "withReadOptions() already called");
+    }
+
+    private void ensureReadOptionsFieldsNotSet() {
+      checkState(
+          getSelectedFields() == null && getRowRestriction() == null,
+          "setSelectedFields() or setRowRestriction already called");
+    }
+
     /** See {@link Read#getTableProvider()}. */
     @Nullable
     public ValueProvider<TableReference> getTableProvider() {
@@ -1346,8 +1454,9 @@ public class BigQueryIO {
      * BigQuery geographic location where the query <a
      * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs">job</a> will be
      * executed. If not specified, Beam tries to determine the location by examining the tables
-     * referenced by the query. Location must be specified for queries not executed in US or EU. See
-     * <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
+     * referenced by the query. Location must be specified for queries not executed in US or EU, or
+     * when you are reading from an authorized view. See <a
+     * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
      * query</a>.
      */
     public TypedRead<T> withQueryLocation(String location) {
@@ -1360,10 +1469,52 @@ public class BigQueryIO {
       return toBuilder().setMethod(method).build();
     }
 
-    /** Read options, including a list of selected columns and push-down SQL filter text. */
+    /**
+     * @deprecated Use {@link #withSelectedFields(List)} and {@link #withRowRestriction(String)}
+     *     instead.
+     */
+    @Deprecated
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withReadOptions(TableReadOptions readOptions) {
+      ensureReadOptionsFieldsNotSet();
       return toBuilder().setReadOptions(readOptions).build();
+    }
+
+    /** See {@link #withSelectedFields(ValueProvider)}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withSelectedFields(List<String> selectedFields) {
+      return withSelectedFields(StaticValueProvider.of(selectedFields));
+    }
+
+    /**
+     * Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in
+     * the order specified. If no value is specified, then all fields are returned.
+     *
+     * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
+     */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withSelectedFields(ValueProvider<List<String>> selectedFields) {
+      ensureReadOptionsNotSet();
+      return toBuilder().setSelectedFields(selectedFields).build();
+    }
+
+    /** See {@link #withRowRestriction(ValueProvider)}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withRowRestriction(String rowRestriction) {
+      return withRowRestriction(StaticValueProvider.of(rowRestriction));
+    }
+
+    /**
+     * Read only rows which match the specified filter, which must be a SQL expression compatible
+     * with <a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/">Google standard
+     * SQL</a>. If no value is specified, then all rows are returned.
+     *
+     * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
+     */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withRowRestriction(ValueProvider<String> rowRestriction) {
+      ensureReadOptionsNotSet();
+      return toBuilder().setRowRestriction(rowRestriction).build();
     }
 
     @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -2019,8 +2170,17 @@ public class BigQueryIO {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
+    /**
+     * Control how many files will be written concurrently by a single worker when using BigQuery
+     * load jobs before spilling to a shuffle. When data comes into this transform, it is written to
+     * one file per destination per worker. When there are more files than maxFilesPerBundle
+     * (DEFAULT: 20), the data is shuffled (i.e. Grouped By Destination), and written to files
+     * one-by-one-per-worker. This flag sets the maximum number of files that a single worker can
+     * write concurrently before shuffling the data. This flag should be used with caution. Setting
+     * a high number can increase the memory pressure on workers, and setting a low number can make
+     * a pipeline slower (due to the need to shuffle data).
+     */
+    public Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
       checkArgument(
           maxFilesPerBundle > 0, "maxFilesPerBundle must be > 0, but was: %s", maxFilesPerBundle);
       return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();

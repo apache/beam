@@ -100,15 +100,21 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   void setStateDurable(Boolean stateDurable);
 
-  @Description("The maximum number of event-time timers buffered in memory for a transform.")
-  @Default.Integer(50000)
-  int getTimerBufferSize();
-
-  void setTimerBufferSize(int timerBufferSize);
-
   @JsonIgnore
   @Description("The metrics reporters that will be used to emit metrics.")
   List<MetricsReporter> getMetricsReporters();
 
   void setMetricsReporters(List<MetricsReporter> reporters);
+
+  @Description("The maximum number of elements in a bundle.")
+  @Default.Long(1)
+  long getMaxBundleSize();
+
+  void setMaxBundleSize(long maxBundleSize);
+
+  @Description("The maximum time to wait before finalising a bundle (in milliseconds).")
+  @Default.Long(1000)
+  long getMaxBundleTimeMs();
+
+  void setMaxBundleTimeMs(long maxBundleTimeMs);
 }

@@ -231,13 +231,13 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
       }
       BundleApplication primaryApplication =
           BundleApplication.newBuilder()
-              .setPtransformId(context.ptransformId)
+              .setTransformId(context.ptransformId)
               .setInputId(mainInputId)
               .setElement(primaryBytes.toByteString())
               .build();
       BundleApplication residualApplication =
           BundleApplication.newBuilder()
-              .setPtransformId(context.ptransformId)
+              .setTransformId(context.ptransformId)
               .setInputId(mainInputId)
               .setElement(residualBytes.toByteString())
               .build();

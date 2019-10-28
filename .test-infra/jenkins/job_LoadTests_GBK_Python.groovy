@@ -23,11 +23,10 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def loadTestConfigurations = { datasetName -> [
         [
-                title        : 'GroupByKey Python Load test: 2GB of 10B records',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python Load test: 2GB of 10B records',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-1-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -39,17 +38,15 @@ def loadTestConfigurations = { datasetName -> [
                                 '"value_size": 9}\'',
                         iterations           : 1,
                         fanout               : 1,
-                        max_num_workers      : 5,
                         num_workers          : 5,
                         autoscaling_algorithm: "NONE"
                 ]
         ],
         [
-                title        : 'GroupByKey Python Load test: 2GB of 100B records',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python Load test: 2GB of 100B records',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-2-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -61,17 +58,15 @@ def loadTestConfigurations = { datasetName -> [
                                 '"value_size": 90}\'',
                         iterations           : 1,
                         fanout               : 1,
-                        max_num_workers      : 5,
                         num_workers          : 5,
                         autoscaling_algorithm: "NONE"
                 ]
         ],
         [
-                title        : 'GroupByKey Python Load test: 2GB of 100kB records',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python Load test: 2GB of 100kB records',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-3-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -83,17 +78,15 @@ def loadTestConfigurations = { datasetName -> [
                                 '"value_size": 900000}\'',
                         iterations           : 1,
                         fanout               : 1,
-                        max_num_workers      : 5,
                         num_workers          : 5,
                         autoscaling_algorithm: "NONE"
                 ]
         ],
         [
-                title        : 'GroupByKey Python Load test: fanout 4 times with 2GB 10-byte records total',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python Load test: fanout 4 times with 2GB 10-byte records total',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-4-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -105,17 +98,15 @@ def loadTestConfigurations = { datasetName -> [
                                 '"value_size": 90}\'',
                         iterations           : 1,
                         fanout               : 4,
-                        max_num_workers      : 5,
                         num_workers          : 5,
                         autoscaling_algorithm: "NONE"
                 ]
         ],
         [
-                title        : 'GroupByKey Python Load test: fanout 8 times with 2GB 10-byte records total',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python Load test: fanout 8 times with 2GB 10-byte records total',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-5-' + now,
                         project              : 'apache-beam-testing',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -127,7 +118,6 @@ def loadTestConfigurations = { datasetName -> [
                                 '"value_size": 90}\'',
                         iterations           : 1,
                         fanout               : 8,
-                        max_num_workers      : 5,
                         num_workers          : 5,
                         autoscaling_algorithm: "NONE"
                 ]

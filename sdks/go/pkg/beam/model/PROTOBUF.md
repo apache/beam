@@ -26,5 +26,10 @@ To do that, you will need:
 * A proper Go development setup per `BUILD.md` (variables GOPATH and GOBIN set properly)
 * `go get -u github.com/golang/protobuf/protoc-gen-go`
 
+> **Note:** Newer releases of the protobuf compiler may be incompatible with the
+> protobuf version in Beam. For guaranteed compatibility, use the latest release
+> available from the date of the golang/protobuf release used by Beam. (Currently
+> v3.5.2)
+
 If all this setup is complete, simply run `go generate` in the current directory
 (`pkg/beam/model`).

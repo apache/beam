@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Method;
 import java.sql.SQLException;
@@ -30,11 +30,11 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
@@ -43,12 +43,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.schema.Function;
-import org.apache.calcite.sql.SqlExecutableStatement;
-import org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlExecutableStatement;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to

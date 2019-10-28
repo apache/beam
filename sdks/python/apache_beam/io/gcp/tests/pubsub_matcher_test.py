@@ -23,6 +23,8 @@ import logging
 import sys
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 from hamcrest import assert_that as hc_assert_that
 
@@ -88,7 +90,7 @@ class PubSubMatcherTest(unittest.TestCase):
     mock_sub.pull.side_effect = [
         create_pull_response([PullResponseMessage(b'a', {'k': 'v'})])
     ]
-    with self.assertRaisesRegexp(AssertionError, r'Unexpected'):
+    with self.assertRaisesRegex(AssertionError, r'Unexpected'):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
     self.assertEqual(mock_sub.acknowledge.call_count, 1)
@@ -114,7 +116,7 @@ class PubSubMatcherTest(unittest.TestCase):
     mock_sub.pull.side_effect = [create_pull_response([
         PullResponseMessage(b'a', {'id': 'foo', 'k': 'v'})
     ])]
-    with self.assertRaisesRegexp(AssertionError, r'Stripped attributes'):
+    with self.assertRaisesRegex(AssertionError, r'Stripped attributes'):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
     self.assertEqual(mock_sub.acknowledge.call_count, 1)
@@ -142,7 +144,7 @@ class PubSubMatcherTest(unittest.TestCase):
     mock_sub = mock_get_sub.return_value
     mock_sub.return_value.full_name.return_value = 'mock_sub'
     self.pubsub_matcher.timeout = 0.1
-    with self.assertRaisesRegexp(AssertionError, r'Expected 1.*\n.*Got 0'):
+    with self.assertRaisesRegex(AssertionError, r'Expected 1.*\n.*Got 0'):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertTrue(mock_sub.pull.called)
     self.assertEqual(mock_sub.acknowledge.call_count, 0)

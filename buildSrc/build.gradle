@@ -20,7 +20,7 @@
 plugins {
   id 'java-gradle-plugin'
   id 'groovy'
-  id "com.diffplug.gradle.spotless" version "3.17.0"
+  id "com.diffplug.gradle.spotless" version "3.24.0"
 }
 
 // Define the set of repositories required to fetch and enable plugins.
@@ -38,13 +38,13 @@ dependencies {
   compile gradleApi()
   compile localGroovy()
   compile 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
-  compile 'gradle.plugin.com.github.spotbugs:spotbugs-gradle-plugin:1.6.9'                            // Enable spotbugs
+  compile 'gradle.plugin.com.github.spotbugs:spotbugs-gradle-plugin:2.0.0'                            // Enable spotbugs
 
   runtime "net.ltgt.gradle:gradle-apt-plugin:0.20"                                                    // Enable a Java annotation processor
   runtime "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                          // Enable proto code generation
   runtime "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                            // Enable provided and optional configurations
   runtime "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                   // Enable Avro code generation
-  runtime "com.diffplug.spotless:spotless-plugin-gradle:3.17.0"                                       // Enable a code formatting plugin
+  runtime "com.diffplug.spotless:spotless-plugin-gradle:3.24.0"                                       // Enable a code formatting plugin
   runtime "gradle.plugin.com.github.blindpirate:gogradle:0.11.4"                                      // Enable Go code compilation
   runtime "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.20.1"                             // Enable building Docker containers
   runtime "gradle.plugin.com.dorongold.plugins:task-tree:1.3.1"                                       // Adds a 'taskTree' task to print task dependency tree
@@ -54,8 +54,8 @@ dependencies {
   runtime "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                           // Enable errorprone Java static analysis
   runtime "org.ajoberstar.grgit:grgit-gradle:3.0.0"                                                   // Enable website git publish to asf-site branch
   runtime "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                       // Enable docker compose tasks
-  runtime "ca.cutterslade.gradle:gradle-dependency-analyze:1.3.0"                                     // Enable dep analysis
-  runtime "gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11"
+  runtime "ca.cutterslade.gradle:gradle-dependency-analyze:1.3.1"                                     // Enable dep analysis
+  runtime "gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11"                                  // Enable dep vulnerability analysis
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

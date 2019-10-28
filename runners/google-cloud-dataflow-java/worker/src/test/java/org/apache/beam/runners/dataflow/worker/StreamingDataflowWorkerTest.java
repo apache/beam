@@ -30,7 +30,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -219,6 +222,7 @@ public class StreamingDataflowWorkerTest {
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
 
   WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
+  HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
 
   private final Supplier<Long> idGenerator =
       new Supplier<Long>() {
@@ -315,7 +319,8 @@ public class StreamingDataflowWorkerTest {
                     null /* side input views */,
                     null /* input coder */,
                     new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-                    DoFnSchemaInformation.create()))));
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap()))));
     return new ParallelInstruction()
         .setSystemName(DEFAULT_PARDO_SYSTEM_NAME)
         .setName(DEFAULT_PARDO_USER_NAME)
@@ -413,6 +418,7 @@ public class StreamingDataflowWorkerTest {
         messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
       }
     }
+
     return builder.build();
   }
 
@@ -498,6 +504,9 @@ public class StreamingDataflowWorkerTest {
             + "    work_token: "
             + index
             + "    cache_token: 3"
+            + "    hot_key_info {"
+            + "      hot_key_age_usec: 1000000"
+            + "    }"
             + "    message_bundles {"
             + "      source_computation_id: \""
             + DEFAULT_SOURCE_COMPUTATION_ID
@@ -634,7 +643,8 @@ public class StreamingDataflowWorkerTest {
             options,
             null /* pipeline */,
             SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            publishCounters);
+            publishCounters,
+            hotKeyLogger);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;
@@ -665,6 +675,8 @@ public class StreamingDataflowWorkerTest {
       assertEquals(
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
     }
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
 
   @Test
@@ -702,6 +714,8 @@ public class StreamingDataflowWorkerTest {
       assertEquals(
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
     }
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
 
   static class BlockingFn extends DoFn<String, String> implements TestRule {

@@ -122,11 +122,11 @@ public class PCollectionConsumerRegistryTest {
     wrapperConsumer.accept(element);
 
     // Verify that static scopedMetricsContainer is called with pTransformA's container.
-    PowerMockito.verifyStatic(times(1));
+    PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));
     MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformA"));
 
     // Verify that static scopedMetricsContainer is called with pTransformB's container.
-    PowerMockito.verifyStatic(times(1));
+    PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));
     MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformB"));
   }
 }

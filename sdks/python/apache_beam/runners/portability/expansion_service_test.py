@@ -35,22 +35,40 @@ from apache_beam.transforms import ptransform
 # external transform test cases. See external_test.py for details.
 
 
-@ptransform.PTransform.register_urn('count_per_element_bytes', None)
-class KV2BytesTransform(ptransform.PTransform):
+@ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
+class CountPerElementTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return (
-        pcoll
-        | combine.Count.PerElement()
-        | beam.Map(
-            lambda x: '{}->{}'.format(x[0], x[1])).with_output_types(bytes)
+        pcoll | combine.Count.PerElement()
     )
 
   def to_runner_api_parameter(self, unused_context):
-    return 'kv_to_bytes', None
+    return 'beam:transforms:xlang:count', None
 
   @staticmethod
   def from_runner_api_parameter(unused_parameter, unused_context):
-    return KV2BytesTransform()
+    return CountPerElementTransform()
+
+
+@ptransform.PTransform.register_urn(
+    'beam:transforms:xlang:filter_less_than_eq', bytes)
+class FilterLessThanTransform(ptransform.PTransform):
+  def __init__(self, payload):
+    self._payload = payload
+
+  def expand(self, pcoll):
+    return (
+        pcoll | beam.Filter(
+            lambda elem, target: elem <= target, int(ord(self._payload[0])))
+    )
+
+  def to_runner_api_parameter(self, unused_context):
+    return (
+        'beam:transforms:xlang:filter_less_than', self._payload.encode('utf8'))
+
+  @staticmethod
+  def from_runner_api_parameter(payload, unused_context):
+    return FilterLessThanTransform(payload.decode('utf8'))
 
 
 @ptransform.PTransform.register_urn('simple', None)
@@ -133,6 +151,11 @@ class FibTransform(ptransform.PTransform):
 server = None
 
 
+def cleanup(unused_signum, unused_frame):
+  logging.info('Shutting down expansion service.')
+  server.stop(None)
+
+
 def main(unused_argv):
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', '--port',
@@ -148,17 +171,10 @@ def main(unused_argv):
   server.start()
   logging.info('Listening for expansion requests at %d', options.port)
 
+  signal.signal(signal.SIGTERM, cleanup)
+  signal.signal(signal.SIGINT, cleanup)
   # blocking main thread forever.
   signal.pause()
-
-
-def cleanup(unused_signum, unused_frame):
-  logging.info('Shutting down expansion service.')
-  server.stop(None)
-
-
-signal.signal(signal.SIGTERM, cleanup)
-signal.signal(signal.SIGINT, cleanup)
 
 
 if __name__ == '__main__':

@@ -122,12 +122,34 @@ class TypeCodersTest(unittest.TestCase):
         real_coder.encode(b'abc'), expected_coder.encode(b'abc'))
     self.assertEqual(b'abc', real_coder.decode(real_coder.encode(b'abc')))
 
+  def test_standard_bool_coder(self):
+    real_coder = typecoders.registry.get_coder(bool)
+    expected_coder = coders.BooleanCoder()
+    self.assertEqual(
+        real_coder.encode(True), expected_coder.encode(True))
+    self.assertEqual(True, real_coder.decode(real_coder.encode(True)))
+    self.assertEqual(
+        real_coder.encode(False), expected_coder.encode(False))
+    self.assertEqual(False, real_coder.decode(real_coder.encode(False)))
+
   def test_iterable_coder(self):
     real_coder = typecoders.registry.get_coder(typehints.Iterable[bytes])
     expected_coder = coders.IterableCoder(coders.BytesCoder())
     values = [b'abc', b'xyz']
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(real_coder.encode(values), expected_coder.encode(values))
+
+  def test_list_coder(self):
+    real_coder = typecoders.registry.get_coder(typehints.List[bytes])
+    expected_coder = coders.IterableCoder(coders.BytesCoder())
+    values = [b'abc', b'xyz']
+    self.assertEqual(expected_coder, real_coder)
+    self.assertEqual(real_coder.encode(values), expected_coder.encode(values))
+    # IterableCoder.decode() always returns a list.  Its implementation,
+    # IterableCoderImpl, *can* return a non-list if it is provided a read_state
+    # object, but this is not possible using the atomic IterableCoder interface.
+    self.assertIs(list,
+                  type(expected_coder.decode(expected_coder.encode(values))))
 
 
 if __name__ == '__main__':

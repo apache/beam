@@ -80,6 +80,11 @@ public class GroupIntoBatches<K, InputT>
     return new GroupIntoBatches<>(batchSize);
   }
 
+  /** Returns the size of the batch. */
+  public long getBatchSize() {
+    return batchSize;
+  }
+
   @Override
   public PCollection<KV<K, Iterable<InputT>>> expand(PCollection<KV<K, InputT>> input) {
     Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();

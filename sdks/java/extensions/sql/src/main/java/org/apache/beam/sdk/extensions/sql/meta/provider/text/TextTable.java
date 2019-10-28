@@ -20,7 +20,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.TextRowCountEstimator;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,15 +36,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link TextTable} is a {@link org.apache.beam.sdk.extensions.sql.BeamSqlTable} that reads text
- * files and converts them according to the specified format.
+ * {@link TextTable} is a {@link BeamSqlTable} that reads text files and converts them according to
+ * the specified format.
  *
  * <p>Support formats are {@code "csv"} and {@code "lines"}.
  *
  * <p>{@link CSVFormat} itself has many dialects, check its javadoc for more info.
  */
 @Internal
-public class TextTable extends BaseBeamTable {
+public class TextTable extends SchemaBaseBeamTable {
 
   private final PTransform<PCollection<String>, PCollection<Row>> readConverter;
   private final PTransform<PCollection<Row>, PCollection<String>> writeConverter;

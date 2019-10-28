@@ -45,6 +45,8 @@ type JobOptions struct {
 	Region              string
 	Zone                string
 	Network             string
+	Subnetwork          string
+	NoUsePublicIPs      bool
 	NumWorkers          int64
 	MachineType         string
 	Labels              map[string]string
@@ -104,6 +106,11 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 		experiments = append(experiments, "use_staged_dataflow_worker_jar")
 	}
 
+	ipConfiguration := "WORKER_IP_UNSPECIFIED"
+	if opts.NoUsePublicIPs {
+		ipConfiguration = "WORKER_IP_PRIVATE"
+	}
+
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -131,12 +138,14 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
+				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
 				WorkerHarnessContainerImage: images[0],
 				NumWorkers:                  1,
 				MachineType:                 opts.MachineType,
 				Network:                     opts.Network,
+				Subnetwork:                  opts.Subnetwork,
 				Zone:                        opts.Zone,
 			}},
 			TempStoragePrefix: opts.TempLocation,
@@ -243,6 +252,7 @@ func printOptions(opts *JobOptions, images []string) []*displayData {
 	addIfNonEmpty("region", opts.Region)
 	addIfNonEmpty("zone", opts.Zone)
 	addIfNonEmpty("network", opts.Network)
+	addIfNonEmpty("subnetwork", opts.Subnetwork)
 	addIfNonEmpty("machine_type", opts.MachineType)
 	addIfNonEmpty("container_images", strings.Join(images, ","))
 	addIfNonEmpty("temp_location", opts.TempLocation)

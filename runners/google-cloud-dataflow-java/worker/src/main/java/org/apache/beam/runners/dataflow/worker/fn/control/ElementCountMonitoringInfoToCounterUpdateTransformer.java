@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.slf4j.Logger;
@@ -102,7 +103,7 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
 
     String counterName = pcollectionName + "-ElementCount";
     NameAndKind name = new NameAndKind();
-    name.setName(counterName).setKind("SUM");
+    name.setName(counterName).setKind(Kind.SUM.toString());
 
     return new CounterUpdate()
         .setNameAndKind(name)

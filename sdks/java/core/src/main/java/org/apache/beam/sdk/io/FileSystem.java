@@ -35,7 +35,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
  * <p>It defines APIs for writing file systems agnostic code.
  *
  * <p>All methods are protected, and they are for file system providers to implement. Clients should
- * use {@link FileSystems} utility.
+ * use the {@link FileSystems} utility.
  */
 @Experimental(Kind.FILESYSTEM)
 public abstract class FileSystem<ResourceIdT extends ResourceId> {

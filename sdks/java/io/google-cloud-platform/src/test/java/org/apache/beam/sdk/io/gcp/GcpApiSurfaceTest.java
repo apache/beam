@@ -39,7 +39,7 @@ public class GcpApiSurfaceTest {
   @Test
   public void testGcpApiSurface() throws Exception {
 
-    final Package thisPackage = getClass().getPackage();
+    final Package thisPackage = this.getClass().getPackage();
     final ClassLoader thisClassLoader = getClass().getClassLoader();
 
     final ApiSurface apiSurface =

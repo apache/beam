@@ -198,3 +198,61 @@ func (n *BenchRoot) FinishBundle(ctx context.Context) error {
 func (n *BenchRoot) Down(ctx context.Context) error {
 	return nil
 }
+
+// BlockingNode is a test node that blocks execution based on a predicate.
+type BlockingNode struct {
+	UID     UnitID
+	Out     Node
+	Block   func(*FullValue) bool
+	Unblock <-chan struct{}
+
+	status Status
+}
+
+func (n *BlockingNode) ID() UnitID {
+	return n.UID
+}
+
+func (n *BlockingNode) Up(ctx context.Context) error {
+	if n.status != Initializing {
+		return errors.Errorf("invalid status for %v: %v, want Initializing", n.UID, n.status)
+	}
+	n.status = Up
+	return nil
+}
+
+func (n *BlockingNode) StartBundle(ctx context.Context, id string, data DataContext) error {
+	if n.status != Up {
+		return errors.Errorf("invalid status for %v: %v, want Up", n.UID, n.status)
+	}
+	err := n.Out.StartBundle(ctx, id, data)
+	n.status = Active
+	return err
+}
+
+func (n *BlockingNode) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
+	if n.status != Active {
+		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
+	}
+	if n.Block(elm) {
+		<-n.Unblock // Block until we get the signal to continue.
+	}
+	return n.Out.ProcessElement(ctx, elm, values...)
+}
+
+func (n *BlockingNode) FinishBundle(ctx context.Context) error {
+	if n.status != Active {
+		return errors.Errorf("invalid status for %v: %v, want Active", n.UID, n.status)
+	}
+	err := n.Out.FinishBundle(ctx)
+	n.status = Up
+	return err
+}
+
+func (n *BlockingNode) Down(ctx context.Context) error {
+	if n.status != Up {
+		return errors.Errorf("invalid status for %v: %v, want Up", n.UID, n.status)
+	}
+	n.status = Down
+	return nil
+}

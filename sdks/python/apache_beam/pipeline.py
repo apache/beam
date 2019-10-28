@@ -145,8 +145,8 @@ class Pipeline(object):
     if isinstance(runner, str):
       runner = create_runner(runner)
     elif not isinstance(runner, PipelineRunner):
-      raise TypeError('Runner must be a PipelineRunner object or the '
-                      'name of a registered runner.')
+      raise TypeError('Runner %s is not a PipelineRunner object or the '
+                      'name of a registered runner.' % runner)
 
     # Validate pipeline options
     errors = PipelineOptionsValidator(self._options, runner).validate()
@@ -154,9 +154,9 @@ class Pipeline(object):
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
 
-    # set default experiments for portable runner
+    # set default experiments for portable runners
     # (needs to occur prior to pipeline construction)
-    if self._options.view_as(StandardOptions).runner == 'PortableRunner':
+    if runner.is_fnapi_compatible():
       experiments = (self._options.view_as(DebugOptions).experiments or [])
       if not 'beam_fn_api' in experiments:
         experiments.append('beam_fn_api')
@@ -485,8 +485,7 @@ class Pipeline(object):
                            label or transform.label]).lstrip('/')
     if full_label in self.applied_labels:
       raise RuntimeError(
-          'Transform "%s" does not have a stable unique label. '
-          'This will prevent updating of pipelines. '
+          'A transform with label "%s" already exists in the pipeline. '
           'To apply a transform with a specified label write '
           'pvalue | "label" >> transform'
           % full_label)
@@ -641,8 +640,10 @@ class Pipeline(object):
           if len(transform_node.outputs) == 1:
             # The runner often has expectations about the output types as well.
             output, = transform_node.outputs.values()
-            output.element_type = transform_node.transform.infer_output_type(
-                pcoll.element_type)
+            if not output.element_type:
+              output.element_type = transform_node.transform.infer_output_type(
+                  pcoll.element_type
+              )
         for side_input in transform_node.transform.side_inputs:
           if side_input.requires_keyed_input():
             side_input.pvalue.element_type = typehints.coerce_to_kv_type(

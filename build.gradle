@@ -19,12 +19,12 @@
 plugins {
   id 'base'
   // Enable publishing build scans
-  id 'com.gradle.build-scan' version '2.1' apply false
+  id 'com.gradle.build-scan' version '2.3' apply false
   // This plugin provides a task to determine which dependencies have updates.
   // Additionally, the plugin checks for updates to Gradle itself.
   //
   // See https://github.com/ben-manes/gradle-versions-plugin for further details.
-  id 'com.github.ben-manes.versions' version '0.17.0'
+  id 'com.github.ben-manes.versions' version '0.20.0'
   // Apply one top level rat plugin to perform any required license enforcement analysis
   id 'org.nosphere.apache.rat' version '0.4.0'
   // Enable gradle-based release management
@@ -32,10 +32,6 @@ plugins {
   id 'org.apache.beam.module'
   id "org.sonarqube" version "2.7"
 }
-
-// Add performanceTest task to this build.gradle file
-// so that running Performance tests using PerfKitBenchmarker is possible.
-createPerformanceTestHarness()
 
 /*************************************************************************************************/
 // Configure the root project
@@ -100,15 +96,18 @@ rat {
     "ownership/**/*",
     "**/OWNERS",
 
-    // FIXME add license header
-    "project-mappings",
-    "deprecation-warning.txt",
-
     // Json doesn't support comments.
     "**/*.json",
-      
+
     // Katas files
-    "learning/katas/*/IO/**/*.txt"
+    "learning/katas/**/course-remote-info.yaml",
+    "learning/katas/**/section-remote-info.yaml",
+    "learning/katas/**/lesson-remote-info.yaml",
+    "learning/katas/**/task-remote-info.yaml",
+    "learning/katas/*/IO/**/*.txt",
+
+    // Mockito extensions
+    "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -144,6 +143,10 @@ task javaPreCommit() {
   dependsOn ":runners:direct-java:needsRunnerTests"
 }
 
+task javaPreCommitBeamZetaSQL() {
+  dependsOn ":sdks:java:extensions:sql:zetasql:test"
+}
+
 task javaPreCommitPortabilityApi() {
   dependsOn ":runners:google-cloud-dataflow-java:worker:build"
   dependsOn ":runners:google-cloud-dataflow-java:examples:verifyPortabilityApi"
@@ -152,12 +155,14 @@ task javaPreCommitPortabilityApi() {
 task javaPostCommit() {
   dependsOn ":runners:google-cloud-dataflow-java:postCommit"
   dependsOn ":sdks:java:extensions:google-cloud-platform-core:postCommit"
+  dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
 }
 
 task sqlPostCommit() {
   dependsOn ":sdks:java:extensions:sql:postCommit"
   dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
+  dependsOn ":sdks:java:extensions:sql:datacatalog:postCommit"
 }
 
 task javaPostCommitPortabilityApi () {
@@ -203,6 +208,11 @@ task pythonPreCommit() {
   // have caught. Note that the same tests will still run in postcommit.
 }
 
+task pythonLintPreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py2:lint"
+  dependsOn ":sdks:python:test-suites:tox:py37:lint"
+}
+
 task python2PostCommit() {
   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
   dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
@@ -230,6 +240,8 @@ task python37PostCommit() {
 task portablePythonPreCommit() {
   dependsOn ":sdks:python:test-suites:portable:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:portable:py35:preCommitPy35"
+  dependsOn ":sdks:python:test-suites:portable:py36:preCommitPy36"
+  dependsOn ":sdks:python:test-suites:portable:py37:preCommitPy37"
 }
 
 task websitePreCommit() {

@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false)
+applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.runners.samza')
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -87,6 +87,7 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
   }
 }
 

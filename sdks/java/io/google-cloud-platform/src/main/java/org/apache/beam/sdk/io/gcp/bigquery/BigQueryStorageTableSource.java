@@ -47,11 +47,19 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
   public static <T> BigQueryStorageTableSource<T> create(
       ValueProvider<TableReference> tableRefProvider,
       @Nullable TableReadOptions readOptions,
+      @Nullable ValueProvider<List<String>> selectedFields,
+      @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageTableSource<>(
-        tableRefProvider, readOptions, parseFn, outputCoder, bqServices);
+        tableRefProvider,
+        readOptions,
+        selectedFields,
+        rowRestriction,
+        parseFn,
+        outputCoder,
+        bqServices);
   }
 
   private final ValueProvider<TableReference> tableReferenceProvider;
@@ -61,10 +69,12 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
   private BigQueryStorageTableSource(
       ValueProvider<TableReference> tableRefProvider,
       @Nullable TableReadOptions readOptions,
+      @Nullable ValueProvider<List<String>> selectedFields,
+      @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(readOptions, parseFn, outputCoder, bqServices);
+    super(readOptions, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
     this.tableReferenceProvider = checkNotNull(tableRefProvider, "tableRefProvider");
     cachedTable = new AtomicReference<>();
   }
@@ -113,7 +123,9 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
   }
 
   private List<String> getSelectedFields() {
-    if (tableReadOptions != null && !tableReadOptions.getSelectedFieldsList().isEmpty()) {
+    if (selectedFieldsProvider != null) {
+      return selectedFieldsProvider.get();
+    } else if (tableReadOptions != null && !tableReadOptions.getSelectedFieldsList().isEmpty()) {
       return tableReadOptions.getSelectedFieldsList();
     }
     return null;

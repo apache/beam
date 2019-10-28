@@ -26,6 +26,8 @@ from builtins import object
 from builtins import range
 from datetime import datetime
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 import apache_beam as beam
@@ -35,6 +37,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
@@ -95,7 +98,7 @@ class DataflowRunnerTest(unittest.TestCase):
         self.dataflow_client.list_messages = mock.MagicMock(
             return_value=([], None))
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         DataflowRuntimeException, 'Dataflow pipeline failed. State: FAILED'):
       failed_runner = MockDataflowRunner([values_enum.JOB_STATE_FAILED])
       failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
@@ -126,7 +129,7 @@ class DataflowRunnerTest(unittest.TestCase):
       self.assertEqual(result, PipelineState.RUNNING)
 
     with mock.patch('time.time', mock.MagicMock(side_effect=[1, 1, 2, 2, 3])):
-      with self.assertRaisesRegexp(
+      with self.assertRaisesRegex(
           DataflowRuntimeException,
           'Dataflow pipeline failed. State: CANCELLED'):
         duration_failed_runner = MockDataflowRunner(
@@ -152,7 +155,7 @@ class DataflowRunnerTest(unittest.TestCase):
         self.dataflow_client.list_messages = mock.MagicMock(
             return_value=([], None))
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         DataflowRuntimeException, 'Failed to cancel job'):
       failed_runner = MockDataflowRunner(values_enum.JOB_STATE_RUNNING, False)
       failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
@@ -175,6 +178,23 @@ class DataflowRunnerTest(unittest.TestCase):
     self.assertTrue(
         isinstance(create_runner('TestDataflowRunner'),
                    TestDataflowRunner))
+
+  def test_environment_override_translation(self):
+    self.default_properties.append('--experiments=beam_fn_api')
+    self.default_properties.append('--worker_harness_container_image=FOO')
+    remote_runner = DataflowRunner()
+    p = Pipeline(remote_runner,
+                 options=PipelineOptions(self.default_properties))
+    (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+     | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+     | ptransform.GroupByKey())
+    p.run()
+    self.assertEqual(
+        list(remote_runner.proto_pipeline.components.environments.values()),
+        [beam_runner_api_pb2.Environment(
+            urn=common_urns.environments.DOCKER.urn,
+            payload=beam_runner_api_pb2.DockerPayload(
+                container_image='FOO').SerializeToString())])
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
@@ -206,8 +226,8 @@ class DataflowRunnerTest(unittest.TestCase):
     self.default_properties.append("--streaming")
     p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
     _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
-    with self.assertRaisesRegexp(ValueError,
-                                 r'source is not currently available'):
+    with self.assertRaisesRegex(ValueError,
+                                r'source is not currently available'):
       p.run()
 
   def test_remote_runner_display_data(self):
@@ -308,7 +328,7 @@ class DataflowRunnerTest(unittest.TestCase):
           r"Input to 'label' must be compatible with KV\[Any, Any\]. "
           "Found .*")
       for pcoll in [pcoll1, pcoll2]:
-        with self.assertRaisesRegexp(ValueError, err_msg):
+        with self.assertRaisesRegex(ValueError, err_msg):
           DataflowRunner.group_by_key_input_visitor().visit_transform(
               AppliedPTransform(None, transform, "label", [pcoll]))
 

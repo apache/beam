@@ -62,7 +62,7 @@ class ArgumentPlaceholder(object):
     return hash(type(self))
 
 
-def remove_objects_from_args(args, kwargs, pvalue_classes):
+def remove_objects_from_args(args, kwargs, pvalue_class):
   """For internal use only; no backwards-compatibility guarantees.
 
   Replaces all objects of a given type in args/kwargs with a placeholder.
@@ -70,9 +70,8 @@ def remove_objects_from_args(args, kwargs, pvalue_classes):
   Args:
     args: A list of positional arguments.
     kwargs: A dictionary of keyword arguments.
-    pvalue_classes: A tuple of class objects representing the types of the
-      arguments that must be replaced with a placeholder value (instance of
-      ArgumentPlaceholder)
+    pvalue_class: A class object representing the types of arguments that must
+      be replaced with a placeholder value (instance of ArgumentPlaceholder).
 
   Returns:
     A 3-tuple containing a modified list of positional arguments, a modified
@@ -84,11 +83,11 @@ def remove_objects_from_args(args, kwargs, pvalue_classes):
   def swapper(value):
     pvals.append(value)
     return ArgumentPlaceholder()
-  new_args = [swapper(v) if isinstance(v, pvalue_classes) else v for v in args]
+  new_args = [swapper(v) if isinstance(v, pvalue_class) else v for v in args]
   # Make sure the order in which we process the dictionary keys is predictable
   # by sorting the entries first. This will be important when putting back
   # PValues.
-  new_kwargs = dict((k, swapper(v)) if isinstance(v, pvalue_classes) else (k, v)
+  new_kwargs = dict((k, swapper(v)) if isinstance(v, pvalue_class) else (k, v)
                     for k, v in sorted(kwargs.items()))
   return (new_args, new_kwargs, pvals)
 

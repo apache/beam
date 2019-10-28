@@ -448,13 +448,12 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
-    # The Cloud Dataflow service does not yet honor this setting. However, once
-    # service support is added then users of this SDK will be able to control
-    # the region. Default is up to the Dataflow service. See
+    # The Google Compute Engine region for creating Dataflow jobs. See
     # https://cloud.google.com/compute/docs/regions-zones/regions-zones for a
-    # list of valid options/
+    # list of valid options. Currently defaults to us-central1, but future
+    # releases of Beam will require the user to set the region explicitly.
     parser.add_argument('--region',
-                        default='us-central1',
+                        default=None,
                         help='The Google Compute Engine region for creating '
                         'Dataflow job.')
     parser.add_argument('--service_account_email',
@@ -514,6 +513,15 @@ class GoogleCloudOptions(PipelineOptions):
       if self.view_as(GoogleCloudOptions).template_location:
         errors.append('--dataflow_job_file and --template_location '
                       'are mutually exclusive.')
+
+    if self.view_as(GoogleCloudOptions).region is None:
+      self.view_as(GoogleCloudOptions).region = 'us-central1'
+      runner = self.view_as(StandardOptions).runner
+      if runner == 'DataflowRunner' or runner == 'TestDataflowRunner':
+        logging.warning(
+            '--region not set; will default to us-central1. Future releases of '
+            'Beam will require the user to set the region explicitly. '
+            'https://cloud.google.com/compute/docs/regions-zones/regions-zones')
 
     return errors
 
@@ -672,6 +680,16 @@ class DebugOptions(PipelineOptions):
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
 
+    parser.add_argument(
+        '--number_of_worker_harness_threads',
+        type=int,
+        default=None,
+        help=
+        ('Number of threads per worker to use on the runner. If left '
+         'unspecified, the runner will compute an appropriate number of '
+         'threads to use. Currently only enabled for DataflowRunner when '
+         'experiment \'use_unified_worker\' is enabled.'))
+
   def add_experiment(self, experiment):
     # pylint: disable=access-member-before-definition
     if self.experiments is None:
@@ -796,19 +814,29 @@ class SetupOptions(PipelineOptions):
 
 class PortableOptions(PipelineOptions):
   """Portable options are common options expected to be understood by most of
-  the portable runners.
+  the portable runners. Should generally be kept in sync with
+  PortablePipelineOptions.java.
   """
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--job_endpoint',
-                        default=None,
-                        help=
-                        ('Job service endpoint to use. Should be in the form '
-                         'of address and port, e.g. localhost:3000'))
+    parser.add_argument(
+        '--job_endpoint', default=None,
+        help=('Job service endpoint to use. Should be in the form of address '
+              'and port, e.g. localhost:3000'))
+    parser.add_argument(
+        '--job-server-timeout', default=60, type=int,
+        help=('Job service request timeout in seconds. The timeout '
+              'determines the max time the driver program will wait to '
+              'get a response from the job server. NOTE: the timeout does not '
+              'apply to the actual pipeline run time. The driver program can '
+              'still wait for job completion indefinitely.'))
     parser.add_argument(
         '--environment_type', default=None,
         help=('Set the default environment type for running '
-              'user code. Possible options are DOCKER and PROCESS.'))
+              'user code. DOCKER (default) runs user code in a container. '
+              'PROCESS runs user code in processes that are automatically '
+              'started on each worker node. LOOPBACK runs user code on the '
+              'same process that originally submitted the job.'))
     parser.add_argument(
         '--environment_config', default=None,
         help=('Set environment configuration for running the user code.\n For '
@@ -818,11 +846,10 @@ class PortableOptions(PipelineOptions):
               '"<ENV_VAL>"} }. All fields in the json are optional except '
               'command.'))
     parser.add_argument(
-        '--sdk_worker_parallelism', default=0,
+        '--sdk_worker_parallelism', default=1,
         help=('Sets the number of sdk worker processes that will run on each '
-              'worker node. Default is 0. If 0, it will be automatically set '
-              'by the runner by looking at different parameters (e.g. number '
-              'of CPU cores on the worker machine or configuration).'))
+              'worker node. Default is 1. If 0, a value will be chosen by the '
+              'runner.'))
     parser.add_argument(
         '--environment_cache_millis', default=0,
         help=('Duration in milliseconds for environment cache within a job. '

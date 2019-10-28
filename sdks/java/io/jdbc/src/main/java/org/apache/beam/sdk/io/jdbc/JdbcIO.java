@@ -28,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -205,6 +206,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_ReadRows.Builder()
         .setFetchSize(DEFAULT_FETCH_SIZE)
         .setOutputParallelization(true)
+        .setStatementPreparator(ignored -> {})
         .build();
   }
 
@@ -286,6 +288,9 @@ public class JdbcIO {
     abstract ValueProvider<String> getConnectionProperties();
 
     @Nullable
+    abstract ValueProvider<Collection<String>> getConnectionInitSqls();
+
+    @Nullable
     abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -301,6 +306,8 @@ public class JdbcIO {
       abstract Builder setPassword(ValueProvider<String> password);
 
       abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
+
+      abstract Builder setConnectionInitSqls(ValueProvider<Collection<String>> connectionInitSqls);
 
       abstract Builder setDataSource(DataSource dataSource);
 
@@ -368,6 +375,25 @@ public class JdbcIO {
       return builder().setConnectionProperties(connectionProperties).build();
     }
 
+    /**
+     * Sets the connection init sql statements to driver.connect(...).
+     *
+     * <p>NOTE - This property is not applicable across databases. Only MySQL and MariaDB support
+     * this. A Sql exception is thrown if your database does not support it.
+     */
+    public DataSourceConfiguration withConnectionInitSqls(Collection<String> connectionInitSqls) {
+      checkArgument(connectionInitSqls != null, "connectionInitSqls can not be null");
+      return withConnectionInitSqls(ValueProvider.StaticValueProvider.of(connectionInitSqls));
+    }
+
+    /** Same as {@link #withConnectionInitSqls(Collection)} but accepting a ValueProvider. */
+    public DataSourceConfiguration withConnectionInitSqls(
+        ValueProvider<Collection<String>> connectionInitSqls) {
+      checkArgument(connectionInitSqls != null, "connectionInitSqls can not be null");
+      checkArgument(!connectionInitSqls.get().isEmpty(), "connectionInitSqls can not be empty");
+      return builder().setConnectionInitSqls(connectionInitSqls).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -396,6 +422,12 @@ public class JdbcIO {
         if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
           basicDataSource.setConnectionProperties(getConnectionProperties().get());
         }
+        if (getConnectionInitSqls() != null
+            && getConnectionInitSqls().get() != null
+            && !getConnectionInitSqls().get().isEmpty()) {
+          basicDataSource.setConnectionInitSqls(getConnectionInitSqls().get());
+        }
+
         return basicDataSource;
       }
       return getDataSource();
@@ -444,6 +476,10 @@ public class JdbcIO {
       abstract Builder setOutputParallelization(boolean outputParallelization);
 
       abstract ReadRows build();
+    }
+
+    public ReadRows withDataSourceConfiguration(DataSourceConfiguration config) {
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
     public ReadRows withDataSourceProviderFn(
@@ -531,11 +567,6 @@ public class JdbcIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-    @Deprecated
-    @Nullable
-    abstract DataSourceConfiguration getDataSourceConfiguration();
-
     @Nullable
     abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
@@ -559,10 +590,6 @@ public class JdbcIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-      @Deprecated
-      abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
-
       abstract Builder<T> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
@@ -582,7 +609,6 @@ public class JdbcIO {
     }
 
     public Read<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
-      toBuilder().setDataSourceConfiguration(config);
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
@@ -647,7 +673,6 @@ public class JdbcIO {
           .apply(Create.of((Void) null))
           .apply(
               JdbcIO.<Void, T>readAll()
-                  .withDataSourceConfiguration(getDataSourceConfiguration())
                   .withDataSourceProviderFn(getDataSourceProviderFn())
                   .withQuery(getQuery())
                   .withCoder(getCoder())
@@ -678,11 +703,6 @@ public class JdbcIO {
   @AutoValue
   public abstract static class ReadAll<ParameterT, OutputT>
       extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
-    /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-    @Deprecated
-    @Nullable
-    abstract DataSourceConfiguration getDataSourceConfiguration();
-
     @Nullable
     abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
@@ -706,11 +726,6 @@ public class JdbcIO {
 
     @AutoValue.Builder
     abstract static class Builder<ParameterT, OutputT> {
-      /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-      @Deprecated
-      abstract Builder<ParameterT, OutputT> setDataSourceConfiguration(
-          DataSourceConfiguration config);
-
       abstract Builder<ParameterT, OutputT> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
@@ -732,7 +747,6 @@ public class JdbcIO {
 
     public ReadAll<ParameterT, OutputT> withDataSourceConfiguration(
         DataSourceConfiguration config) {
-      toBuilder().setDataSourceConfiguration(config);
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
@@ -1123,11 +1137,6 @@ public class JdbcIO {
   /** A {@link PTransform} to write to a JDBC datasource. */
   @AutoValue
   public abstract static class WriteVoid<T> extends PTransform<PCollection<T>, PCollection<Void>> {
-    /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-    @Deprecated
-    @Nullable
-    abstract DataSourceConfiguration getDataSourceConfiguration();
-
     @Nullable
     abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
@@ -1149,10 +1158,6 @@ public class JdbcIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      /** @deprecated It is not needed anymore. It will be removed in a future version of Beam. */
-      @Deprecated
-      abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
-
       abstract Builder<T> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
@@ -1170,7 +1175,6 @@ public class JdbcIO {
     }
 
     public WriteVoid<T> withDataSourceConfiguration(DataSourceConfiguration config) {
-      toBuilder().setDataSourceConfiguration(config);
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 

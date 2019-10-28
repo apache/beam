@@ -20,28 +20,45 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import sys
+
 from apache_beam.options import pipeline_options
+from apache_beam.runners.portability import flink_uber_jar_job_server
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 
-PUBLISHED_FLINK_VERSIONS = ['1.6', '1.7', '1.8']
+PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8']
 
 
 class FlinkRunner(portable_runner.PortableRunner):
   def default_job_server(self, options):
-    return FlinkJarJobServer(options)
+    flink_master = options.view_as(FlinkRunnerOptions).flink_master
+    if flink_master == '[local]' or sys.version_info < (3, 6):
+      portable_options = options.view_as(pipeline_options.PortableOptions)
+      if flink_master == '[local]' and not portable_options.environment_type:
+        portable_options.environment_type == 'LOOPBACK'
+      return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
+    else:
+      return flink_uber_jar_job_server.FlinkUberJarJobServer(flink_master)
 
 
 class FlinkRunnerOptions(pipeline_options.PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--flink_master_url', default='[local]')
+    parser.add_argument('--flink_master',
+                        default='[auto]',
+                        help='Flink master address (host:port) to submit the'
+                             ' job against. Use "[local]" to start a local'
+                             ' cluster for the execution. Use "[auto]" if you'
+                             ' plan to either execute locally or submit through'
+                             ' Flink\'s CLI.')
     parser.add_argument('--flink_version',
                         default=PUBLISHED_FLINK_VERSIONS[-1],
                         choices=PUBLISHED_FLINK_VERSIONS,
                         help='Flink version to use.')
     parser.add_argument('--flink_job_server_jar',
                         help='Path or URL to a flink jobserver jar.')
+    parser.add_argument('--artifacts_dir', default=None)
 
 
 class FlinkJarJobServer(job_server.JavaJarJobServer):
@@ -49,20 +66,22 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
     super(FlinkJarJobServer, self).__init__()
     options = options.view_as(FlinkRunnerOptions)
     self._jar = options.flink_job_server_jar
-    self._master_url = options.flink_master_url
+    self._master_url = options.flink_master
     self._flink_version = options.flink_version
+    self._artifacts_dir = options.artifacts_dir
 
   def path_to_jar(self):
     if self._jar:
       return self._jar
     else:
-      return self.path_to_gradle_target_jar(
+      return self.path_to_beam_jar(
           'runners:flink:%s:job-server:shadowJar' % self._flink_version)
 
   def java_arguments(self, job_port, artifacts_dir):
     return [
         '--flink-master-url', self._master_url,
-        '--artifacts-dir', artifacts_dir,
+        '--artifacts-dir', (self._artifacts_dir
+                            if self._artifacts_dir else artifacts_dir),
         '--job-port', job_port,
         '--artifact-port', 0,
         '--expansion-port', 0

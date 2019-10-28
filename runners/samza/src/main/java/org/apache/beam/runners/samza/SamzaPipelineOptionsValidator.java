@@ -18,17 +18,44 @@
 package org.apache.beam.runners.samza;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.samza.config.TaskConfig;
 
 /** Validates that the {@link SamzaPipelineOptions} conforms to all the criteria. */
 public class SamzaPipelineOptionsValidator {
-  public static SamzaPipelineOptions validate(PipelineOptions opts) {
-    final SamzaPipelineOptions samzaOptions =
-        PipelineOptionsValidator.validate(SamzaPipelineOptions.class, opts);
+  public static void validate(SamzaPipelineOptions opts) {
+    checkArgument(opts.getMaxSourceParallelism() >= 1);
+    validateBundlingRelatedOptions(opts);
+  }
 
-    checkArgument(samzaOptions.getMaxSourceParallelism() >= 1);
-    return samzaOptions;
+  /*
+   * Perform some bundling related validation for pipeline option .
+   */
+  private static void validateBundlingRelatedOptions(SamzaPipelineOptions pipelineOptions) {
+    if (pipelineOptions.getMaxBundleSize() > 1) {
+      // TODO: remove this check and implement bundling for side input, timer, etc in DoFnOp.java
+      checkState(
+          isPortable(pipelineOptions),
+          "Bundling is not supported in non portable mode. Please disable by setting maxBundleSize to 1.");
+
+      String taskConcurrencyConfig = TaskConfig.MAX_CONCURRENCY();
+      Map<String, String> configs =
+          pipelineOptions.getConfigOverride() == null
+              ? new HashMap<>()
+              : pipelineOptions.getConfigOverride();
+      long taskConcurrency = Long.parseLong(configs.getOrDefault(taskConcurrencyConfig, "1"));
+      checkState(
+          taskConcurrency == 1,
+          "Bundling is not supported if "
+              + taskConcurrencyConfig
+              + " is greater than 1. Please disable bundling by setting maxBundleSize to 1. Or disable task concurrency.");
+    }
+  }
+
+  private static boolean isPortable(SamzaPipelineOptions options) {
+    return options instanceof SamzaPortablePipelineOptions;
   }
 }

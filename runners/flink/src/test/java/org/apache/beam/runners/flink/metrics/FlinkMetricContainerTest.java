@@ -19,8 +19,8 @@ package org.apache.beam.runners.flink.metrics;
 
 import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlinkMetricNameString;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
@@ -51,7 +51,7 @@ import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
@@ -123,13 +123,15 @@ public class FlinkMetricContainerTest {
   @Test
   public void testMonitoringInfoUpdate() {
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = container.getMetricsContainer("step");
 
     SimpleCounter userCounter = new SimpleCounter();
     when(metricGroup.counter("ns1.metric1")).thenReturn(userCounter);
 
-    SimpleCounter elemCounter = new SimpleCounter();
-    when(metricGroup.counter("beam.metric:element_count:v1")).thenReturn(elemCounter);
+    SimpleCounter pCollectionCounter = new SimpleCounter();
+    when(metricGroup.counter("pcoll.metric:element_count:v1")).thenReturn(pCollectionCounter);
+
+    SimpleCounter pTransformCounter = new SimpleCounter();
+    when(metricGroup.counter("anyPTransform.myMetric")).thenReturn(pTransformCounter);
 
     MonitoringInfo userCountMonitoringInfo =
         new SimpleMonitoringInfoBuilder()
@@ -141,22 +143,32 @@ public class FlinkMetricContainerTest {
             .build();
     assertNotNull(userCountMonitoringInfo);
 
-    MonitoringInfo elemCountMonitoringInfo =
+    MonitoringInfo pCollectionScoped =
         new SimpleMonitoringInfoBuilder()
             .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
             .setInt64Value(222)
-            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
             .setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll")
             .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
             .build();
-    assertNotNull(elemCountMonitoringInfo);
+    assertNotNull(pCollectionScoped);
+
+    MonitoringInfo transformScoped =
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS)
+            .setInt64Value(333)
+            .setLabel(MonitoringInfoConstants.Labels.NAME, "myMetric")
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
+            .build();
+    assertNotNull(transformScoped);
 
     assertThat(userCounter.getCount(), is(0L));
-    assertThat(elemCounter.getCount(), is(0L));
+    assertThat(pCollectionCounter.getCount(), is(0L));
+    assertThat(pTransformCounter.getCount(), is(0L));
     container.updateMetrics(
-        "step", ImmutableList.of(userCountMonitoringInfo, elemCountMonitoringInfo));
+        "step", ImmutableList.of(userCountMonitoringInfo, pCollectionScoped, transformScoped));
     assertThat(userCounter.getCount(), is(111L));
-    assertThat(elemCounter.getCount(), is(222L));
+    assertThat(pCollectionCounter.getCount(), is(222L));
+    assertThat(pTransformCounter.getCount(), is(333L));
   }
 
   @Test
@@ -248,7 +260,7 @@ public class FlinkMetricContainerTest {
             argThat(
                 new ArgumentMatcher<FlinkDistributionGauge>() {
                   @Override
-                  public boolean matches(Object argument) {
+                  public boolean matches(FlinkDistributionGauge argument) {
                     DistributionResult actual = ((FlinkDistributionGauge) argument).getValue();
                     DistributionResult expected = DistributionResult.create(30, 10, 1, 5);
                     return actual.equals(expected);

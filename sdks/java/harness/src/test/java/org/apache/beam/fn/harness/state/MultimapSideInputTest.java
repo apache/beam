@@ -62,7 +62,7 @@ public class MultimapSideInputTest {
     return StateKey.newBuilder()
         .setMultimapSideInput(
             StateKey.MultimapSideInput.newBuilder()
-                .setPtransformId("ptransformId")
+                .setTransformId("ptransformId")
                 .setSideInputId("sideInputId")
                 .setWindow(ByteString.copyFromUtf8("encodedWindow"))
                 .setKey(encode(id)))

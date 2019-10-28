@@ -198,6 +198,10 @@ class PipelineRunner(object):
         'Execution of [%s] not implemented in runner %s.' % (
             transform_node.transform, self))
 
+  def is_fnapi_compatible(self):
+    """Whether to enable the beam_fn_api experiment by default."""
+    return True
+
 
 class PValueCache(object):
   """For internal use only; no backwards-compatibility guarantees.
@@ -301,7 +305,7 @@ class PipelineState(object):
   pipeline in. Currently, it represents the values of the dataflow
   API JobState enum.
   """
-  UNKNOWN = 'UNKNOWN'  # not specified
+  UNKNOWN = 'UNKNOWN'  # not specified by a runner, or unknown to a runner.
   STARTING = 'STARTING'  # not yet started
   STOPPED = 'STOPPED'  # paused or not yet started
   RUNNING = 'RUNNING'  # currently running
@@ -314,6 +318,8 @@ class PipelineState(object):
   PENDING = 'PENDING' # the job has been created but is not yet running.
   CANCELLING = 'CANCELLING' # job has been explicitly cancelled and is
                             # in the process of stopping
+  UNRECOGNIZED = 'UNRECOGNIZED' # the job state reported by a runner cannot be
+                                # interpreted by the SDK.
 
   @classmethod
   def is_terminal(cls, state):
@@ -378,6 +384,6 @@ class PipelineResult(object):
   # pylint: disable=unused-argument
   def aggregated_values(self, aggregator_or_name):
     """Return a dict of step names to values of the Aggregator."""
-    logging.warn('%s does not implement aggregated_values',
-                 self.__class__.__name__)
+    logging.warning('%s does not implement aggregated_values',
+                    self.__class__.__name__)
     return {}

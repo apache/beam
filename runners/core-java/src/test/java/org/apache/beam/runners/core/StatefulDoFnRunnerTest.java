@@ -207,7 +207,8 @@ public class StatefulDoFnRunnerTest {
         null,
         Collections.emptyMap(),
         WINDOWING_STRATEGY,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
   }
 
   private static void advanceInputWatermark(

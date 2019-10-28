@@ -36,7 +36,6 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -47,6 +46,7 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -55,13 +55,17 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.joda.time.Days;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
@@ -158,8 +162,8 @@ public class AvroUtils {
     }
 
     /** Convert to an AVRO type. */
-    public org.apache.avro.Schema toAvroType() {
-      return org.apache.avro.Schema.createFixed(null, "", "", size);
+    public org.apache.avro.Schema toAvroType(String name, String namespace) {
+      return org.apache.avro.Schema.createFixed(name, null, namespace, size);
     }
   }
 
@@ -171,12 +175,11 @@ public class AvroUtils {
   }
 
   /** Get Avro Field from Beam Field. */
-  public static org.apache.avro.Schema.Field toAvroField(Schema.Field field) {
-    org.apache.avro.Schema fieldSchema = getFieldSchema(field.getType());
-    org.apache.avro.Schema.Field avroField =
-        new org.apache.avro.Schema.Field(
-            field.getName(), fieldSchema, field.getDescription(), (Object) null);
-    return avroField;
+  public static org.apache.avro.Schema.Field toAvroField(Schema.Field field, String namespace) {
+    org.apache.avro.Schema fieldSchema =
+        getFieldSchema(field.getType(), field.getName(), namespace);
+    return new org.apache.avro.Schema.Field(
+        field.getName(), fieldSchema, field.getDescription(), (Object) null);
   }
 
   private AvroUtils() {}
@@ -201,14 +204,22 @@ public class AvroUtils {
   }
 
   /** Converts a Beam Schema into an AVRO schema. */
-  public static org.apache.avro.Schema toAvroSchema(Schema beamSchema) {
+  public static org.apache.avro.Schema toAvroSchema(
+      Schema beamSchema, @Nullable String name, @Nullable String namespace) {
+    final String schemaName = Strings.isNullOrEmpty(name) ? "topLevelRecord" : name;
+    final String schemaNamespace = namespace == null ? "" : namespace;
+    String childNamespace =
+        !"".equals(schemaNamespace) ? schemaNamespace + "." + schemaName : schemaName;
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     for (Schema.Field field : beamSchema.getFields()) {
-      org.apache.avro.Schema.Field recordField = toAvroField(field);
+      org.apache.avro.Schema.Field recordField = toAvroField(field, childNamespace);
       fields.add(recordField);
     }
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
-    return avroSchema;
+    return org.apache.avro.Schema.createRecord(schemaName, null, schemaNamespace, false, fields);
+  }
+
+  public static org.apache.avro.Schema toAvroSchema(Schema beamSchema) {
+    return toAvroSchema(beamSchema, null, null);
   }
 
   /**
@@ -308,6 +319,57 @@ public class AvroUtils {
   public static SerializableFunction<Row, GenericRecord> getRowToGenericRecordFunction(
       @Nullable org.apache.avro.Schema avroSchema) {
     return g -> toGenericRecord(g, avroSchema);
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance for the provided element type.
+   *
+   * @param <T> the element type
+   */
+  public static <T> SchemaCoder<T> schemaCoder(TypeDescriptor<T> type) {
+    @SuppressWarnings("unchecked")
+    Class<T> clazz = (Class<T>) type.getRawType();
+    return schemaCoder(clazz);
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance for the provided element class.
+   *
+   * @param <T> the element type
+   */
+  public static <T> SchemaCoder<T> schemaCoder(Class<T> clazz) {
+    return schemaCoder(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance for the Avro schema. The implicit type is
+   * GenericRecord.
+   */
+  public static SchemaCoder<GenericRecord> schemaCoder(org.apache.avro.Schema schema) {
+    return schemaCoder(GenericRecord.class, schema);
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance for the provided element type using the provided Avro
+   * schema.
+   *
+   * <p>If the type argument is GenericRecord, the schema may be arbitrary. Otherwise, the schema
+   * must correspond to the type provided.
+   *
+   * @param <T> the element type
+   */
+  public static <T> SchemaCoder<T> schemaCoder(Class<T> clazz, org.apache.avro.Schema schema) {
+    return SchemaCoder.of(
+        getSchema(clazz, schema), getToRowFunction(clazz, schema), getFromRowFunction(clazz));
+  }
+
+  /**
+   * Returns an {@code SchemaCoder} instance based on the provided AvroCoder for the element type.
+   *
+   * @param <T> the element type
+   */
+  public static <T> SchemaCoder<T> schemaCoder(AvroCoder<T> avroCoder) {
+    return schemaCoder(avroCoder.getType(), avroCoder.getSchema());
   }
 
   private static final class AvroSpecificRecordFieldValueTypeSupplier
@@ -410,6 +472,8 @@ public class AvroUtils {
         // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
         // this is done, this logical type needs to be changed.
         fieldType = FieldType.DATETIME;
+      } else if (logicalType instanceof LogicalTypes.Date) {
+        fieldType = FieldType.DATETIME;
       }
     }
 
@@ -482,7 +546,8 @@ public class AvroUtils {
     return fieldType;
   }
 
-  private static org.apache.avro.Schema getFieldSchema(Schema.FieldType fieldType) {
+  private static org.apache.avro.Schema getFieldSchema(
+      Schema.FieldType fieldType, String fieldName, String namespace) {
     org.apache.avro.Schema baseType;
     switch (fieldType.getTypeName()) {
       case BYTE:
@@ -531,7 +596,7 @@ public class AvroUtils {
       case LOGICAL_TYPE:
         FixedBytesField fixedBytesField = FixedBytesField.fromBeamFieldType(fieldType);
         if (fixedBytesField != null) {
-          baseType = fixedBytesField.toAvroType();
+          baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
         } else {
           throw new RuntimeException(
               "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -541,20 +606,22 @@ public class AvroUtils {
       case ARRAY:
         baseType =
             org.apache.avro.Schema.createArray(
-                getFieldSchema(fieldType.getCollectionElementType()));
+                getFieldSchema(fieldType.getCollectionElementType(), fieldName, namespace));
         break;
 
       case MAP:
         if (fieldType.getMapKeyType().getTypeName().isStringType()) {
           // Avro only supports string keys in maps.
-          baseType = org.apache.avro.Schema.createMap(getFieldSchema(fieldType.getMapValueType()));
+          baseType =
+              org.apache.avro.Schema.createMap(
+                  getFieldSchema(fieldType.getMapValueType(), fieldName, namespace));
         } else {
           throw new IllegalArgumentException("Avro only supports maps with string keys");
         }
         break;
 
       case ROW:
-        baseType = toAvroSchema(fieldType.getRowSchema());
+        baseType = toAvroSchema(fieldType.getRowSchema(), fieldName, namespace);
         break;
 
       default:
@@ -599,8 +666,16 @@ public class AvroUtils {
         return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
 
       case DATETIME:
-        ReadableInstant instant = (ReadableInstant) value;
-        return instant.getMillis();
+        if (typeWithNullability.type.getType() == Type.INT) {
+          ReadableInstant instant = (ReadableInstant) value;
+          return (int) Days.daysBetween(Instant.EPOCH, instant).getDays();
+        } else if (typeWithNullability.type.getType() == Type.LONG) {
+          ReadableInstant instant = (ReadableInstant) value;
+          return (long) instant.getMillis();
+        } else {
+          throw new IllegalArgumentException(
+              "Can't represent " + fieldType + " as " + typeWithNullability.type.getType());
+        }
 
       case BYTES:
         return ByteBuffer.wrap((byte[]) value);
@@ -686,6 +761,13 @@ public class AvroUtils {
         } else {
           return convertDateTimeStrict((Long) value, fieldType);
         }
+      } else if (logicalType instanceof LogicalTypes.Date) {
+        if (value instanceof ReadableInstant) {
+          int epochDays = Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
+          return convertDateStrict(epochDays, fieldType);
+        } else {
+          return convertDateStrict((Integer) value, fieldType);
+        }
       }
     }
 
@@ -718,7 +800,9 @@ public class AvroUtils {
         return convertRecordStrict((GenericRecord) value, fieldType);
 
       case ENUM:
-        return convertEnumStrict((GenericEnumSymbol) value, fieldType);
+        // enums are either Java enums, or GenericEnumSymbol,
+        // they don't share common interface, but override toString()
+        return convertEnumStrict(value, fieldType);
 
       case ARRAY:
         return convertArrayStrict((List<Object>) value, type.type.getElementType(), fieldType);
@@ -778,6 +862,11 @@ public class AvroUtils {
     return value;
   }
 
+  private static Object convertDateStrict(Integer epochDays, Schema.FieldType fieldType) {
+    checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "date");
+    return Instant.EPOCH.plus(Duration.standardDays(epochDays));
+  }
+
   private static Object convertDateTimeStrict(Long value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "dateTime");
     return new Instant(value);
@@ -798,7 +887,7 @@ public class AvroUtils {
     return value;
   }
 
-  private static Object convertEnumStrict(GenericEnumSymbol value, Schema.FieldType fieldType) {
+  private static Object convertEnumStrict(Object value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), Schema.TypeName.STRING, "enum");
     return value.toString();
   }

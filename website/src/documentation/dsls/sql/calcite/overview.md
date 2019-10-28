@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL in Calcite: Overview"
+title: "Beam Calcite SQL overview"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/calcite/overview/
 ---
@@ -17,33 +17,26 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Calcite support overview
+# Beam Calcite SQL overview
 
 [Apache Calcite](http://calcite.apache.org) is a widespread SQL dialect used in
-big data processing with some streaming enhancements. Calcite provides the
-basic dialect underlying Beam SQL. 
+big data processing with some streaming enhancements. Beam Calcite SQL is the default Beam SQL dialect.
 
-We have added additional extensions to
-make it easy to leverage Beam's unified batch/streaming model and support
-for complex data types.
+Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects, including Beam Calcite SQL.
 
 ## Query syntax
-Query statements scan one or more tables or expressions and return the computed result rows.
-The [Query syntax]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/query-syntax) page describes Beam SQL's syntax for queries when using Apache Calcite.
+Query statements scan one or more tables or expressions and return the computed result rows. For more information about query statements in Beam Calcite SQL, see the [Query syntax]({{ site.baseurl
+}}/documentation/dsls/sql/calcite/query-syntax) reference.
 
 ## Lexical structure 
-A Beam SQL statement comprises a series of tokens. 
-The [Lexical structure]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/lexical) page documents Beam SQL's lexical structure when using Apache Calcite. 
+A Beam SQL statement comprises a series of tokens. For more information about tokens in Beam Calcite SQL, see the [Lexical structure]({{ site.baseurl
+}}/documentation/dsls/sql/calcite/lexical) reference.
 
 ## Data types
-Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows.
-Read about supported [data types]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/data-types) in Beam SQL when using Apache Calcite.
+Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. For more information about scalar data in Beam Calcite SQL, see the [Data types]({{ site.baseurl }}/documentation/dsls/sql/calcite/data-types) reference.
 
 ## Functions and operators  
-The following table summarizes Apache Calcite operators and functions supported by Beam SQL.
+The following table summarizes the Apache Calcite functions and operators supported by Beam Calcite SQL.
 
 <table class="table-bordered table-striped">
   <tr><th>Operators and functions</th><th>Beam SQL support status</th></tr>

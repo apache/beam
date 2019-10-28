@@ -74,14 +74,19 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 class HadoopFileSystem extends FileSystem<HadoopResourceId> {
+
   private static final Logger LOG = LoggerFactory.getLogger(HadoopFileSystem.class);
 
   @VisibleForTesting static final String LOG_CREATE_DIRECTORY = "Creating directory %s";
   @VisibleForTesting static final String LOG_DELETING_EXISTING_FILE = "Deleting existing file %s";
-  @VisibleForTesting final org.apache.hadoop.fs.FileSystem fileSystem;
 
-  HadoopFileSystem(Configuration configuration) throws IOException {
-    this.fileSystem = org.apache.hadoop.fs.FileSystem.newInstance(configuration);
+  private final String scheme;
+
+  @VisibleForTesting final Configuration configuration;
+
+  HadoopFileSystem(String scheme, Configuration configuration) {
+    this.scheme = scheme;
+    this.configuration = configuration;
   }
 
   @Override
@@ -97,7 +102,8 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
               matchRecursiveGlob(spec.substring(0, index + 1), spec.substring(index + 1)));
         } else {
           // normal glob
-          final FileStatus[] fileStatuses = fileSystem.globStatus(new Path(spec));
+          final Path path = new Path(spec);
+          final FileStatus[] fileStatuses = path.getFileSystem(configuration).globStatus(path);
           if (fileStatuses != null) {
             for (FileStatus fileStatus : fileStatuses) {
               metadata.add(toMetadata(fileStatus));
@@ -118,10 +124,11 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
 
   private Set<Metadata> matchRecursiveGlob(String directorySpec, String fileSpec)
       throws IOException {
+    final org.apache.hadoop.fs.FileSystem fs = new Path(directorySpec).getFileSystem(configuration);
     Set<Metadata> metadata = new HashSet<>();
     if (directorySpec.contains("*")) {
       // An abstract directory with a wildcard is converted to concrete directories to search.
-      FileStatus[] directoryStatuses = fileSystem.globStatus(new Path(directorySpec));
+      FileStatus[] directoryStatuses = fs.globStatus(new Path(directorySpec));
       for (FileStatus directoryStatus : directoryStatuses) {
         if (directoryStatus.isDirectory()) {
           metadata.addAll(
@@ -130,7 +137,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       }
     } else {
       // A concrete directory is searched.
-      FileStatus[] fileStatuses = fileSystem.globStatus(new Path(directorySpec + "/" + fileSpec));
+      FileStatus[] fileStatuses = fs.globStatus(new Path(directorySpec + "/" + fileSpec));
       for (FileStatus fileStatus : fileStatuses) {
         if (fileStatus.isFile()) {
           metadata.add(toMetadata(fileStatus));
@@ -138,7 +145,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       }
 
       // All sub-directories of a concrete directory are searched.
-      FileStatus[] directoryStatuses = fileSystem.globStatus(new Path(directorySpec + "/*"));
+      FileStatus[] directoryStatuses = fs.globStatus(new Path(directorySpec + "/*"));
       for (FileStatus directoryStatus : directoryStatuses) {
         if (directoryStatus.isDirectory()) {
           metadata.addAll(
@@ -171,19 +178,24 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   @Override
   protected WritableByteChannel create(HadoopResourceId resourceId, CreateOptions createOptions)
       throws IOException {
-    return Channels.newChannel(fileSystem.create(resourceId.toPath()));
+    return Channels.newChannel(
+        resourceId.toPath().getFileSystem(configuration).create(resourceId.toPath()));
   }
 
   @Override
   protected ReadableByteChannel open(HadoopResourceId resourceId) throws IOException {
-    FileStatus fileStatus = fileSystem.getFileStatus(resourceId.toPath());
-    return new HadoopSeekableByteChannel(fileStatus, fileSystem.open(resourceId.toPath()));
+    final org.apache.hadoop.fs.FileSystem fs = resourceId.toPath().getFileSystem(configuration);
+    final FileStatus fileStatus = fs.getFileStatus(resourceId.toPath());
+    return new HadoopSeekableByteChannel(fileStatus, fs.open(resourceId.toPath()));
   }
 
   @Override
   protected void copy(List<HadoopResourceId> srcResourceIds, List<HadoopResourceId> destResourceIds)
       throws IOException {
     for (int i = 0; i < srcResourceIds.size(); ++i) {
+      // this enforces src and dest file systems to match
+      final org.apache.hadoop.fs.FileSystem fs =
+          srcResourceIds.get(i).toPath().getFileSystem(configuration);
       // Unfortunately HDFS FileSystems don't support a native copy operation so we are forced
       // to use the inefficient implementation found in FileUtil which copies all the bytes through
       // the local machine.
@@ -192,15 +204,15 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       // implementing it. The DFSFileSystem implemented concat by deleting the srcs after which
       // is not what we want. Also, all the other FileSystem implementations I saw threw
       // UnsupportedOperationException within concat.
-      boolean success =
+      final boolean success =
           FileUtil.copy(
-              fileSystem,
+              fs,
               srcResourceIds.get(i).toPath(),
-              fileSystem,
+              fs,
               destResourceIds.get(i).toPath(),
               false,
               true,
-              fileSystem.getConf());
+              fs.getConf());
       if (!success) {
         // Defensive coding as this should not happen in practice
         throw new IOException(
@@ -236,40 +248,45 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       throws IOException {
     for (int i = 0; i < srcResourceIds.size(); ++i) {
 
-      Path src = srcResourceIds.get(i).toPath();
-      Path dest = destResourceIds.get(i).toPath();
+      final Path srcPath = srcResourceIds.get(i).toPath();
+      final Path destPath = destResourceIds.get(i).toPath();
+
+      // this enforces src and dest file systems to match
+      final org.apache.hadoop.fs.FileSystem fs = srcPath.getFileSystem(configuration);
 
       // rename in HDFS requires the target directory to exist or silently fails (BEAM-4861)
-      mkdirs(dest);
+      mkdirs(destPath);
 
-      boolean success = fileSystem.rename(src, dest);
+      boolean success = fs.rename(srcPath, destPath);
 
       // If the failure was due to the file already existing, delete and retry (BEAM-5036).
       // This should be the exceptional case, so handle here rather than incur the overhead of
       // testing first
-      if (!success && fileSystem.exists(src) && fileSystem.exists(dest)) {
+      if (!success && fs.exists(srcPath) && fs.exists(destPath)) {
         LOG.debug(
-            String.format(LOG_DELETING_EXISTING_FILE, Path.getPathWithoutSchemeAndAuthority(dest)));
-        fileSystem.delete(dest, false); // not recursive
-        success = fileSystem.rename(src, dest);
+            String.format(
+                LOG_DELETING_EXISTING_FILE, Path.getPathWithoutSchemeAndAuthority(destPath)));
+        fs.delete(destPath, false); // not recursive
+        success = fs.rename(srcPath, destPath);
       }
 
       if (!success) {
-        if (!fileSystem.exists(src)) {
+        if (!fs.exists(srcPath)) {
           throw new FileNotFoundException(
-              String.format("Unable to rename resource %s to %s as source not found.", src, dest));
+              String.format(
+                  "Unable to rename resource %s to %s as source not found.", srcPath, destPath));
 
-        } else if (fileSystem.exists(dest)) {
+        } else if (fs.exists(destPath)) {
           throw new FileAlreadyExistsException(
               String.format(
                   "Unable to rename resource %s to %s as destination already exists and couldn't be deleted.",
-                  src, dest));
+                  srcPath, destPath));
 
         } else {
           throw new IOException(
               String.format(
                   "Unable to rename resource %s to %s. No further information provided by underlying filesystem.",
-                  src, dest));
+                  srcPath, destPath));
         }
       }
     }
@@ -277,13 +294,13 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
 
   /** Ensures that the target directory exists for the given filePath. */
   private void mkdirs(Path filePath) throws IOException {
-    Path targetDirectory = filePath.getParent();
-    if (!fileSystem.exists(targetDirectory)) {
+    final org.apache.hadoop.fs.FileSystem fs = filePath.getFileSystem(configuration);
+    final Path targetDirectory = filePath.getParent();
+    if (!fs.exists(targetDirectory)) {
       LOG.debug(
           String.format(
               LOG_CREATE_DIRECTORY, Path.getPathWithoutSchemeAndAuthority(targetDirectory)));
-      boolean success = fileSystem.mkdirs(targetDirectory);
-      if (!success) {
+      if (!fs.mkdirs(targetDirectory)) {
         throw new IOException(
             String.format(
                 "Unable to create target directory %s. No further information provided by underlying filesystem.",
@@ -296,7 +313,8 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   protected void delete(Collection<HadoopResourceId> resourceIds) throws IOException {
     for (HadoopResourceId resourceId : resourceIds) {
       // ignore response as issues are surfaced with exception
-      fileSystem.delete(resourceId.toPath(), false);
+      final Path resourcePath = resourceId.toPath();
+      resourcePath.getFileSystem(configuration).delete(resourceId.toPath(), false);
     }
   }
 
@@ -313,7 +331,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
 
   @Override
   protected String getScheme() {
-    return fileSystem.getScheme();
+    return scheme;
   }
 
   /** An adapter around {@link FSDataInputStream} that implements {@link SeekableByteChannel}. */

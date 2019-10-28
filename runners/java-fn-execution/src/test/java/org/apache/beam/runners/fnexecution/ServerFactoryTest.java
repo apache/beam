@@ -57,11 +57,11 @@ public class ServerFactoryTest {
 
   private static final BeamFnApi.Elements CLIENT_DATA =
       BeamFnApi.Elements.newBuilder()
-          .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference("1"))
+          .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId("1"))
           .build();
   private static final BeamFnApi.Elements SERVER_DATA =
       BeamFnApi.Elements.newBuilder()
-          .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference("1"))
+          .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId("1"))
           .build();
 
   @Test

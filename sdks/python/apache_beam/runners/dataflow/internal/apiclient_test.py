@@ -21,6 +21,8 @@ from __future__ import absolute_import
 import sys
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 from apache_beam.metrics.cells import DistributionData
@@ -142,16 +144,16 @@ class UtilTest(unittest.TestCase):
     regexp = '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'
 
     job_name = apiclient.Job._build_default_job_name('invalid.-_user_n*/ame')
-    self.assertRegexpMatches(job_name, regexp)
+    self.assertRegex(job_name, regexp)
 
     job_name = apiclient.Job._build_default_job_name(
         'invalid-extremely-long.username_that_shouldbeshortened_or_is_invalid')
-    self.assertRegexpMatches(job_name, regexp)
+    self.assertRegex(job_name, regexp)
 
   def test_default_job_name(self):
     job_name = apiclient.Job.default_job_name(None)
     regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}'
-    self.assertRegexpMatches(job_name, regexp)
+    self.assertRegex(job_name, regexp)
 
   def test_split_int(self):
     number = 12345
@@ -287,6 +289,18 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
+
+  def test_number_of_worker_harness_threads(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp',
+         '--number_of_worker_harness_threads', '2'])
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].numThreadsPerWorker,
+        2)
 
   @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0')
@@ -627,6 +641,13 @@ class UtilTest(unittest.TestCase):
     self.assertRaises(
         Exception,
         apiclient._verify_interpreter_version_is_supported, pipeline_options)
+
+  def test_get_response_encoding(self):
+    encoding = apiclient.get_response_encoding()
+    version_to_encoding = {3: 'utf8',
+                           2: None}
+
+    assert encoding == version_to_encoding[sys.version_info[0]]
 
 
 if __name__ == '__main__':

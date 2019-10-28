@@ -71,6 +71,7 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -1331,7 +1332,7 @@ public class IsmSideInputReaderTest {
         new CounterUpdate()
             .setStructuredNameAndMetadata(
                 new CounterStructuredNameAndMetadata()
-                    .setMetadata(new CounterMetadata().setKind("SUM"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString()))
                     .setName(
                         new CounterStructuredName()
                             .setOrigin("SYSTEM")

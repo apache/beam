@@ -26,18 +26,18 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Aggregate;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.core.RelFactories;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.tools.RelBuilderFactory;
-import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Aggregate;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Project;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
 import org.joda.time.Duration;
 
 /** Rule to detect the window/trigger settings. */
@@ -57,6 +57,10 @@ public class BeamAggregationRule extends RelOptRule {
     final Aggregate aggregate = call.rel(0);
     final Project project = call.rel(1);
     RelNode x = updateWindow(call, aggregate, project);
+    if (x == null) {
+      // Non-windowed case should be handled by the BeamBasicAggregationRule
+      return;
+    }
     call.transformTo(x);
   }
 
@@ -82,6 +86,10 @@ public class BeamAggregationRule extends RelOptRule {
       }
     }
 
+    if (windowFn == null) {
+      return null;
+    }
+
     final Project newProject =
         project.copy(project.getTraitSet(), project.getInput(), projects, project.getRowType());
 
@@ -89,7 +97,6 @@ public class BeamAggregationRule extends RelOptRule {
         aggregate.getCluster(),
         aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convert(newProject, newProject.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        aggregate.indicator,
         aggregate.getGroupSet(),
         aggregate.getGroupSets(),
         aggregate.getAggCallList(),

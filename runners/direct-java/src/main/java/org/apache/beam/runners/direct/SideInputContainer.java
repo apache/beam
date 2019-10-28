@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
@@ -42,7 +43,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
@@ -283,7 +283,7 @@ class SideInputContainer {
     @Override
     public Optional<? extends Iterable<? extends WindowedValue<?>>> load(
         PCollectionViewWindow<?> key) {
-      return Optional.fromNullable(viewByWindows.getUnchecked(key).get());
+      return Optional.ofNullable(viewByWindows.getUnchecked(key).get());
     }
   }
 }

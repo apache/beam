@@ -367,6 +367,9 @@ public final class TransformTranslator {
         doFnSchemaInformation =
             ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
 
+        Map<String, PCollectionView<?>> sideInputMapping =
+            ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =
             new MultiDoFnFunction<>(
                 metricsAccum,
@@ -377,10 +380,11 @@ public final class TransformTranslator {
                 transform.getAdditionalOutputTags().getAll(),
                 inputCoder,
                 outputCoders,
-                TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                TranslationUtils.getSideInputs(transform.getSideInputs().values(), context),
                 windowingStrategy,
                 stateful,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
         if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures
@@ -547,12 +551,11 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
 
-        final Coder<K> keyCoder = coder.getKeyCoder();
-        final WindowedValue.WindowedValueCoder<V> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
 
         JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
-            GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
+            GroupCombineFunctions.reshuffle(inRDD, wvCoder);
 
         context.putDataset(transform, new BoundedDataset<>(reshuffled));
       }

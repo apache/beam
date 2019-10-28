@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.util.HashIdGenerator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -43,6 +44,8 @@ import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.OutputStream;
 import org.apache.samza.system.descriptors.InputDescriptor;
 import org.apache.samza.system.descriptors.OutputDescriptor;
+import org.apache.samza.table.Table;
+import org.apache.samza.table.descriptors.TableDescriptor;
 
 /**
  * Helper that keeps the mapping from BEAM PCollection id to Samza {@link MessageStream}. It also
@@ -53,8 +56,11 @@ public class PortableTranslationContext {
   private final Map<String, MessageStream<?>> messsageStreams = new HashMap<>();
   private final StreamApplicationDescriptor appDescriptor;
   private final SamzaPipelineOptions options;
-  private int topologicalId;
   private final Set<String> registeredInputStreams = new HashSet<>();
+  private final Map<String, Table> registeredTables = new HashMap<>();
+  private final HashIdGenerator idGenerator = new HashIdGenerator();
+
+  private PipelineNode.PTransformNode currentTransform;
 
   public PortableTranslationContext(
       StreamApplicationDescriptor appDescriptor, SamzaPipelineOptions options) {
@@ -64,14 +70,6 @@ public class PortableTranslationContext {
 
   public SamzaPipelineOptions getSamzaPipelineOptions() {
     return this.options;
-  }
-
-  public void setCurrentTopologicalId(int id) {
-    this.topologicalId = id;
-  }
-
-  public int getCurrentTopologicalId() {
-    return this.topologicalId;
   }
 
   public <T> List<MessageStream<OpMessage<T>>> getAllInputMessageStreams(
@@ -165,5 +163,27 @@ public class PortableTranslationContext {
     WindowingStrategy<?, BoundedWindow> ret =
         (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
     return ret;
+  }
+
+  @SuppressWarnings("unchecked")
+  public <K, V> Table<KV<K, V>> getTable(TableDescriptor<K, V, ?> tableDesc) {
+    return registeredTables.computeIfAbsent(
+        tableDesc.getTableId(), id -> appDescriptor.getTable(tableDesc));
+  }
+
+  public void setCurrentTransform(PipelineNode.PTransformNode currentTransform) {
+    this.currentTransform = currentTransform;
+  }
+
+  public void clearCurrentTransform() {
+    this.currentTransform = null;
+  }
+
+  public String getTransformFullName() {
+    return currentTransform.getTransform().getUniqueName();
+  }
+
+  public String getTransformId() {
+    return idGenerator.getId(currentTransform.getTransform().getUniqueName());
   }
 }

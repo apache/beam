@@ -64,6 +64,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -1305,9 +1306,12 @@ public class Combine {
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
       PCollection<KV<Void, OutputT>> materializationInput =
           combined.apply(new VoidKeyToMultimapMaterialization<>());
+      Coder<OutputT> outputCoder = combined.getCoder();
       PCollectionView<OutputT> view =
           PCollectionViews.singletonView(
               materializationInput,
+              (TypeDescriptorSupplier<OutputT>)
+                  () -> outputCoder != null ? outputCoder.getEncodedTypeDescriptor() : null,
               input.getWindowingStrategy(),
               insertDefault,
               insertDefault ? fn.defaultValue() : null,

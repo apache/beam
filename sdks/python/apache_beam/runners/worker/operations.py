@@ -883,10 +883,11 @@ class PGBKCVOperation(Operation):
       value = accumulator
     else:
       value = self.combine_fn_compact(accumulator)
-    if windows is 0:
+    if windows == 0:
       self.output(_globally_windowed_value.with_value((key, value)))
     else:
-      self.output(WindowedValue((key, value), windows[0].end, windows))
+      self.output(
+          WindowedValue((key, value), windows[0].max_timestamp(), windows))
 
 
 class FlattenOperation(Operation):

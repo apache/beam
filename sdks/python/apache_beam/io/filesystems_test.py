@@ -27,6 +27,8 @@ import shutil
 import tempfile
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 from apache_beam.io import localfilesystem
@@ -123,8 +125,8 @@ class FileSystemsTest(unittest.TestCase):
 
   def test_match_file_exception(self):
     # Match files with None so that it throws an exception
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Unable to get the Filesystem') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Unable to get the Filesystem') as error:
       FileSystems.match([None])
     self.assertEqual(list(error.exception.exception_details), [None])
 
@@ -157,8 +159,8 @@ class FileSystemsTest(unittest.TestCase):
   def test_copy_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Copy operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Copy operation failed') as error:
       FileSystems.copy([path1], [path2])
     self.assertEqual(list(error.exception.exception_details.keys()),
                      [(path1, path2)])
@@ -190,8 +192,8 @@ class FileSystemsTest(unittest.TestCase):
   def test_rename_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Rename operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Rename operation failed') as error:
       FileSystems.rename([path1], [path2])
     self.assertEqual(list(error.exception.exception_details.keys()),
                      [(path1, path2)])
@@ -232,8 +234,8 @@ class FileSystemsTest(unittest.TestCase):
 
   def test_delete_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
-    with self.assertRaisesRegexp(BeamIOError,
-                                 r'^Delete operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Delete operation failed') as error:
       FileSystems.delete([path1])
     self.assertEqual(list(error.exception.exception_details.keys()), [path1])
 

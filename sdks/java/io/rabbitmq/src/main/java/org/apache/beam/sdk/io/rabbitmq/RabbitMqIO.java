@@ -71,8 +71,8 @@ import org.joda.time.Instant;
  * instead of directly from a queue:
  *
  * <pre>{@code
- * PCollection<RabbitMqMessage> messages = pipeline.apply(
- *   RabbitMqIO.read().withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE"));
+ * 	PCollection<RabbitMqMessage> messages = pipeline.apply(RabbitMqIO.read()
+ * 			.withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE"));
  * }</pre>
  *
  * <h3>Publishing messages to RabbitMQ server</h3>
@@ -273,6 +273,20 @@ public class RabbitMqIO {
       checkArgument(
           maxNumRecords() == Long.MAX_VALUE, "maxNumRecord and maxReadTime are exclusive");
       return builder().setMaxReadTime(maxReadTime).build();
+    }
+
+    /**
+     * Toggles deduplication of messages based on the amqp correlation-id property on incoming
+     * messages.
+     *
+     * <p>When set to {@code true} all read messages will require the amqp correlation-id property
+     * to be set.
+     *
+     * <p>When set to {@code false} the correlation-id property will not be used by the Reader and
+     * no automatic deduplication will occur.
+     */
+    public Read withUseCorrelationId(boolean useCorrelationId) {
+      return builder().setUseCorrelationId(useCorrelationId).build();
     }
 
     @Override
