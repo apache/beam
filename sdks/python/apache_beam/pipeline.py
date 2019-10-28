@@ -67,8 +67,6 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.portability import common_urns
-from apache_beam.pvalue import PCollection
-from apache_beam.pvalue import PDone
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ptransform
@@ -339,7 +337,8 @@ class Pipeline(object):
           for original, replacement in output_map.items():
             if (original.tag in transform_node.outputs and
                 transform_node.outputs[original.tag] in output_map):
-              output_replacements[transform_node].append((replacement, original.tag))
+              output_replacements[transform_node].append(
+                  (replacement, original.tag))
 
         if replace_input:
           new_input = [
@@ -775,8 +774,8 @@ class AppliedPTransform(object):
     elif isinstance(output, pvalue.PValue):
       self.outputs[tag] = output
     elif isinstance(output, dict):
-      for tag, pcoll in output.items():
-        self.outputs[tag] = pcoll
+      for output_tag, out in output.items():
+        self.outputs[output_tag] = out
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
@@ -790,8 +789,8 @@ class AppliedPTransform(object):
       assert tag not in self.outputs
       self.outputs[tag] = output
     elif isinstance(output, dict):
-      for tag, pcoll in output.items():
-        self.add_output(pcoll, tag=tag)
+      for output_tag, out in output.items():
+        self.add_output(out, tag=output_tag)
     else:
       raise TypeError("Unexpected output type: %s" % output)
 

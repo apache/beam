@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import copy
-import logging
 import platform
 import unittest
 from builtins import object
@@ -39,7 +38,6 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pvalue import AsSingleton
-from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.direct.evaluation_context import _ExecutionContext
@@ -472,8 +470,8 @@ class PipelineTest(unittest.TestCase):
         numbers = multi.numbers | 'NumbersComposite' >> beam.Map(lambda x: x*5)
 
         return {
-          'letters': letters,
-          'numbers': numbers,
+            'letters': letters,
+            'numbers': numbers,
         }
 
     class MultiOutputOverride(PTransformOverride):
@@ -490,8 +488,9 @@ class PipelineTest(unittest.TestCase):
         yield TaggedOutput('letters', x)
 
     p = TestPipeline()
-    multi = (p | beam.Create([1, 2, 3, 'a', 'b', 'c'])
-               | 'MyMultiOutput' >> beam.ParDo(mux_input).with_outputs())
+    multi = (p
+             | beam.Create([1, 2, 3, 'a', 'b', 'c'])
+             | 'MyMultiOutput' >> beam.ParDo(mux_input).with_outputs())
     letters = multi.letters | 'MyLetters' >> beam.Map(lambda x: x)
     numbers = multi.numbers | 'MyNumbers' >> beam.Map(lambda x: x)
 
@@ -519,7 +518,7 @@ class PipelineTest(unittest.TestCase):
     # Assert the replacement is in the composite list and retrieve the
     # AppliedPTransform.
     self.assertIn(MultiOutputComposite,
-        [t.transform.__class__ for t in composites])
+                  [t.transform.__class__ for t in composites])
     multi_output_composite = list(
         filter(lambda t: t.transform.__class__ == MultiOutputComposite,
                composites))[0]
