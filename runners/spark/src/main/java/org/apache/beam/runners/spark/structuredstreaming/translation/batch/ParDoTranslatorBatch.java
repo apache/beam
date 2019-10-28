@@ -116,6 +116,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
       }
     }
 
+    Map<String, PCollectionView<?>> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
     @SuppressWarnings("unchecked")
     DoFnFunction<InputT, OutputT> doFnWrapper =
         new DoFnFunction(
@@ -130,7 +132,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
             inputCoder,
             outputCoderMap,
             broadcastStateData,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     MultiOuputCoder multipleOutputCoder =
         MultiOuputCoder.of(SerializableCoder.of(TupleTag.class), outputCoderMap, windowCoder);

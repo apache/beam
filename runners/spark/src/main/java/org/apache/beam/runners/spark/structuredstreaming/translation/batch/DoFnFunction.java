@@ -68,6 +68,7 @@ public class DoFnFunction<InputT, OutputT>
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
   private final SideInputBroadcast broadcastStateData;
   private DoFnSchemaInformation doFnSchemaInformation;
+  private Map<String, PCollectionView<?>> sideInputMapping;
 
   public DoFnFunction(
       MetricsContainerStepMapAccumulator metricsAccum,
@@ -81,7 +82,8 @@ public class DoFnFunction<InputT, OutputT>
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoderMap,
       SideInputBroadcast broadcastStateData,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = doFn;
@@ -94,6 +96,7 @@ public class DoFnFunction<InputT, OutputT>
     this.outputCoderMap = outputCoderMap;
     this.broadcastStateData = broadcastStateData;
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
@@ -118,7 +121,8 @@ public class DoFnFunction<InputT, OutputT>
             inputCoder,
             outputCoderMap,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
