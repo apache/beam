@@ -25,7 +25,6 @@ import unittest
 import future.tests.base  # pylint: disable=unused-import
 
 from apache_beam.pvalue import AsSingleton
-from apache_beam.pvalue import PTuple
 from apache_beam.pvalue import PValue
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -53,23 +52,6 @@ class TaggedValueTest(unittest.TestCase):
         TypeError,
         r'Attempting to create a TaggedOutput with non-string tag \(1, 2, 3\)'):
       TaggedOutput((1, 2, 3), 'value')
-
-class PTupleTest(unittest.TestCase):
-  def test_tags_set(self):
-    pipeline = TestPipeline()
-
-    main = PValue(pipeline)
-    first = PValue(pipeline)
-    second = PValue(pipeline)
-
-    ptuple = PTuple(pipeline, None).of({
-        None: main,
-        'first': first,
-        'second': second,
-    })
-    self.assertEqual(main, ptuple[None])
-    self.assertEqual(first, ptuple['first'])
-    self.assertEqual(second, ptuple['second'])
 
 
 if __name__ == '__main__':

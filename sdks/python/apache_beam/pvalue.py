@@ -204,7 +204,7 @@ class PDone(PValue):
 class DoOutputsTuple(object):
   """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
 
-  def __init__(self, pipeline, transform, tags=set(), main_tag=None):
+  def __init__(self, pipeline, transform, tags, main_tag):
     self._pipeline = pipeline
     self._tags = tags
     self._main_tag = main_tag
@@ -215,12 +215,6 @@ class DoOutputsTuple(object):
     self.producer = None
     # Dictionary of PCollections already associated with tags.
     self._pcolls = {}
-
-  def of(self, tagged_pcollections_dict):
-    for k in tagged_pcollections_dict:
-      self._tags.add(k)
-      self._pcolls[k] = tagged_pcollections_dict[k]
-    return self
 
   def __str__(self):
     return '<%s>' % self._str_internal()
