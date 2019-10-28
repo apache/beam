@@ -339,10 +339,7 @@ class Pipeline(object):
           for original, replacement in output_map.items():
             if (original.tag in transform_node.outputs and
                 transform_node.outputs[original.tag] in output_map):
-              output_replacements[transform_node].append((original.tag, replacement))
-          print('output_map .....',output_map)
-          print('transform_node.outputs .....', transform_node.outputs)
-          print('output_replacements .....', output_replacements)
+              output_replacements[transform_node].append((replacement, original.tag))
 
         if replace_input:
           new_input = [
@@ -363,11 +360,8 @@ class Pipeline(object):
     self.visit(InputOutputUpdater(self))
 
     for transform in output_replacements:
-      print('before {} --> {}'.format(transform, transform.outputs))
       for output in output_replacements[transform]:
-        print('replacing with', output)
-        transform.replace_output(output[1], tag=output[0])
-      print('after {} --> {}'.format(transform, transform.outputs))
+        transform.replace_output(output[0], tag=output[1])
 
     for transform in input_replacements:
       transform.inputs = input_replacements[transform]

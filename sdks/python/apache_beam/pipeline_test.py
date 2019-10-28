@@ -124,36 +124,6 @@ class ToStringParDo(beam.PTransform):
     return input | 'Inner' >> beam.Map(lambda a: copy.copy(str(a)))
 
 
-class MultiOutputComposite(PTransform):
-  def __init__(self):
-    self.output_tags = set()
-
-  def expand(self, pcoll):
-    def mux_input(x):
-      print('MyReplacement', x)
-      if isinstance(x, int):
-        yield TaggedOutput('numbers', x)
-      else:
-        yield TaggedOutput('letters', x)
-
-    def printer(label, x):
-      print(label, x)
-      return x
-
-    from functools import partial
-
-    multi = pcoll | 'MyReplacement' >> beam.ParDo(mux_input).with_outputs()
-    letters = (multi.letters
-                          | 'LettersComposite' >> beam.Map(partial(printer, 'LettersComposite')))
-    numbers = (multi.numbers
-                          | 'NumbersComposite' >> beam.Map(partial(printer, 'NumbersComposite')))
-
-    return {
-      'letters': letters,
-      'numbers': numbers,
-    }
-
-
 class PipelineTest(unittest.TestCase):
 
   @staticmethod
@@ -472,36 +442,96 @@ class PipelineTest(unittest.TestCase):
 
 
   def test_ptransform_override_multiple_outputs(self):
-      class MultiOutputOverride(PTransformOverride):
-        def matches(self, applied_ptransform):
-          return applied_ptransform.full_label == 'MyMultiOutput'
+    class _MultiParDoComposite(PTransform):
 
-        def get_replacement_transform(self, ptransform):
-          return MultiOutputComposite()
+      def __init__(self, do_transform, tags, main_tag):
+        super(_MultiParDoComposite, self).__init__(do_transform.label)
+        self._do_transform = do_transform
+        self._tags = tags
+        self._main_tag = main_tag
 
-      def mux_input(x):
-        print('MyMultiOutput', x)
-        if isinstance(x, int):
-          yield TaggedOutput('numbers', x)
-        else:
-          yield TaggedOutput('letters', x)
+      def expand(self, pcoll):
+        _ = pcoll | self._do_transform
+        return beam.pvalue.DoOutputsTuple(
+            pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
 
-      def printer(label, x):
-        print(label, x)
-        return x
-      from functools import partial
+    class MultiOutputComposite(PTransform):
+      def __init__(self):
+        self.output_tags = set()
 
-      p = TestPipeline()
-      multi = (p | beam.Create([1, 2, 3, 'a', 'b', 'c'])
-                 | 'MyMultiOutput' >> beam.ParDo(mux_input).with_outputs())
-      letters = multi.letters | 'MyLetters' >> beam.Map(partial(printer, 'MyLetters'))
-      numbers = multi.numbers | 'MyNumbers' >> beam.Map(partial(printer, 'MyNumbers'))
-      # assert_that(letters, equal_to(['a', 'b', 'c']), label='assert letters')
-      # assert_that(numbers, equal_to([1, 2, 3]), label='assert numbers')
+      def expand(self, pcoll):
+        def mux_input(x):
+          x = x * 2
+          if isinstance(x, int):
+            yield TaggedOutput('numbers', x)
+          else:
+            yield TaggedOutput('letters', x)
 
-      p.replace_all([MultiOutputOverride()])
+        multi = pcoll | 'MyReplacement' >> beam.ParDo(mux_input).with_outputs()
+        letters = multi.letters | 'LettersComposite' >> beam.Map(lambda x: x*3)
+        numbers = multi.numbers | 'NumbersComposite' >> beam.Map(lambda x: x*5)
 
-      p.run()
+        return {
+          'letters': letters,
+          'numbers': numbers,
+        }
+
+    class MultiOutputOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return applied_ptransform.full_label == 'MyMultiOutput'
+
+      def get_replacement_transform(self, ptransform):
+        return MultiOutputComposite()
+
+    def mux_input(x):
+      if isinstance(x, int):
+        yield TaggedOutput('numbers', x)
+      else:
+        yield TaggedOutput('letters', x)
+
+    p = TestPipeline()
+    multi = (p | beam.Create([1, 2, 3, 'a', 'b', 'c'])
+               | 'MyMultiOutput' >> beam.ParDo(mux_input).with_outputs())
+    letters = multi.letters | 'MyLetters' >> beam.Map(lambda x: x)
+    numbers = multi.numbers | 'MyNumbers' >> beam.Map(lambda x: x)
+
+    # Assert that the PCollection replacement worked correctly and that elements
+    # are flowing through. The replacement transform first multiples by 2 then
+    # the leaf nodes inside the composite multiply by an additional 3 and 5. Use
+    # prime numbers to ensure that each transform is getting executed once.
+    assert_that(letters,
+                equal_to(['a'*2*3, 'b'*2*3, 'c'*2*3]),
+                label='assert letters')
+    assert_that(numbers,
+                equal_to([1*2*5, 2*2*5, 3*2*5]),
+                label='assert numbers')
+
+    # Do the replacement and run the element assertions.
+    p.replace_all([MultiOutputOverride()])
+    p.run()
+
+    # The following checks the graph to make sure the replacement occurred.
+    visitor = PipelineTest.Visitor(visited=[])
+    p.visit(visitor)
+    pcollections = visitor.visited
+    composites = visitor.enter_composite
+
+    # Assert the replacement is in the composite list and retrieve the
+    # AppliedPTransform.
+    self.assertIn(MultiOutputComposite,
+        [t.transform.__class__ for t in composites])
+    multi_output_composite = list(
+        filter(lambda t: t.transform.__class__ == MultiOutputComposite,
+               composites))[0]
+
+    # Assert that all of the replacement PCollections are in the graph.
+    for output in multi_output_composite.outputs.values():
+      self.assertIn(output, pcollections)
+
+    # Assert that all of the "old"/replaced PCollections are not in the graph.
+    self.assertNotIn(multi[None], visitor.visited)
+    self.assertNotIn(multi.letters, visitor.visited)
+    self.assertNotIn(multi.numbers, visitor.visited)
 
 
   def test_kv_ptransform_honor_type_hints(self):
@@ -859,5 +889,4 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
   unittest.main()
