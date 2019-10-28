@@ -192,7 +192,10 @@ def createValidatesRunnerTask(Map m) {
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs, project(":runners:core-java").sourceSets.test.output.classesDirs)
+    testClassesDirs = files(
+      project(":sdks:java:core").sourceSets.test.output.classesDirs,
+      project(":runners:core-java").sourceSets.test.output.classesDirs,
+    )
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
     useJUnit {
