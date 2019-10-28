@@ -37,7 +37,6 @@ from __future__ import print_function
 
 import argparse
 import random
-import time
 from builtins import range
 
 import apache_beam as beam
