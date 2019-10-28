@@ -19,8 +19,11 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.projectPathFromPath;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
@@ -31,6 +34,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -205,6 +209,53 @@ public class TestPubsub implements TestRule {
     return messages.stream()
         .map(msg -> new PubsubMessage(msg.elementBytes, msg.attributes, msg.recordId))
         .collect(ImmutableList.toImmutableList());
+  }
+
+  /**
+   * Repeatedly pull messages from {@link #subscriptionPath()}, returns after receiving {@code n}
+   * messages or after waiting for {@code timeoutDuration}.
+   */
+  public List<PubsubMessage> waitForNMessages(int n, Duration timeoutDuration)
+      throws IOException, InterruptedException {
+    List<PubsubMessage> receivedMessages = new ArrayList<>(n);
+
+    DateTime startTime = new DateTime();
+    int timeoutSeconds = timeoutDuration.toStandardSeconds().getSeconds();
+
+    receivedMessages.addAll(pull(n - receivedMessages.size()));
+
+    while (receivedMessages.size() < n
+        && Seconds.secondsBetween(new DateTime(), startTime).getSeconds() < timeoutSeconds) {
+      Thread.sleep(1000);
+      receivedMessages.addAll(pull(n - receivedMessages.size()));
+    }
+
+    return receivedMessages;
+  }
+
+  /**
+   * Repeatedly pull messages from {@link #subscriptionPath()} until receiving one for each matcher
+   * (or timeout is reached), then assert that the received messages match the expectations.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * testTopic
+   *   .assertThatTopicEventuallyReceives(
+   *     hasProperty("payload", equalTo("hello".getBytes(StandardCharsets.US_ASCII))),
+   *     hasProperty("payload", equalTo("world".getBytes(StandardCharsets.US_ASCII))))
+   *   .waitForUpTo(Duration.standardSeconds(20));
+   * </pre>
+   *
+   */
+  public PollingAssertion assertThatTopicEventuallyReceives(Matcher<PubsubMessage>... matchers) {
+    return timeoutDuration ->
+        assertThat(
+            waitForNMessages(matchers.length, timeoutDuration), containsInAnyOrder(matchers));
+  }
+
+  public interface PollingAssertion {
+    void waitForUpTo(Duration timeoutDuration) throws IOException, InterruptedException;
   }
 
   /**
