@@ -65,7 +65,7 @@ public class FlinkJobServerDriver extends JobServerDriver {
     options.as(GcsOptions.class).setGcsUploadBufferSizeBytes(1024 * 1024);
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
-    fromConfig(parseArgs(args)).run();
+    fromParams(args).run();
   }
 
   private static void printUsage(CmdLineParser parser) {
@@ -86,6 +86,11 @@ public class FlinkJobServerDriver extends JobServerDriver {
       throw new IllegalArgumentException("Unable to parse command line arguments.", e);
     }
     return configuration;
+  }
+
+  // this method is used via reflection in TestPortableRunner
+  public static FlinkJobServerDriver fromParams(String[] args) {
+    return fromConfig(parseArgs(args));
   }
 
   public static FlinkJobServerDriver fromConfig(FlinkServerConfiguration configuration) {

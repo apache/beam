@@ -90,9 +90,8 @@ public class FlinkJobServerDriverTest {
     try {
       System.setErr(newErr);
       driver =
-          FlinkJobServerDriver.fromConfig(
-              FlinkJobServerDriver.parseArgs(
-                  new String[] {"--job-port=0", "--artifact-port=0", "--expansion-port=0"}));
+          FlinkJobServerDriver.fromParams(
+              new String[] {"--job-port=0", "--artifact-port=0", "--expansion-port=0"});
       driverThread = new Thread(driver);
       driverThread.start();
       boolean success = false;
