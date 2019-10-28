@@ -20,7 +20,11 @@ package org.apache.beam.sdk.io.rabbitmq;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.rabbitmq.client.*;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.GetResponse;
+import com.rabbitmq.client.MessageProperties;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
