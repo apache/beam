@@ -375,6 +375,10 @@ class PipelineInfo(object):
     for transform_id, transform_proto in self._proto.transforms.items():
       if transform_proto.subtransforms:
         continue
+      # Identify producers of each PCollection. A PTransform is a producer of
+      # a PCollection if it outputs the PCollection but does not consume the
+      # same PCollection as input. The latter part of the definition is to avoid
+      # infinite recursions when constructing the PCollection's derivation.
       transform_inputs = set(transform_proto.inputs.values())
       for tag, pcoll_id in transform_proto.outputs.items():
         if pcoll_id in transform_inputs:
