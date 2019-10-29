@@ -427,14 +427,18 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._added_elements = set()
 
   def _commit(self):
+    to_await = None
     if self._cleared:
-      self._state_handler.clear(self._state_key, is_cached=True).get()
+      to_await = self._state_handler.clear(self._state_key, is_cached=True)
     if self._added_elements:
-      self._state_handler.extend(
+      to_await = self._state_handler.extend(
           self._state_key,
           self._value_coder.get_impl(),
           self._added_elements,
-          is_cached=True).get()
+          is_cached=True)
+    if to_await:
+      # To commit, we need to wait on the last state request future to complete.
+      to_await.get()
 
 
 class OutputTimer(object):
@@ -563,7 +567,7 @@ class BundleProcessor(object):
     Args:
       process_bundle_descriptor (``beam_fn_api_pb2.ProcessBundleDescriptor``):
         a description of the stage that this ``BundleProcessor``is to execute.
-      state_handler (beam_fn_api_pb2_grpc.BeamFnStateServicer).
+      state_handler (CachingStateHandler).
       data_channel_factory (``data_plane.DataChannelFactory``).
     """
     self.process_bundle_descriptor = process_bundle_descriptor
@@ -764,7 +768,7 @@ class BundleProcessor(object):
 
   def monitoring_infos(self):
     """Returns the list of MonitoringInfos collected processing this bundle."""
-    # Construct a new dict first to remove duplciates.
+    # Construct a new dict first to remove duplicates.
     all_monitoring_infos_dict = {}
     for transform_id, op in self.ops.items():
       for mi in op.monitoring_infos(transform_id).values():
