@@ -120,8 +120,13 @@ def generate_proto_files(force=False, log=None):
       if p.exitcode:
         raise ValueError("Proto generation failed (see log for details).")
     else:
-
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
+
+      ret_code = subprocess.call(["pip", "install", "mypy-protobuf==1.12"])
+      if ret_code:
+        raise RuntimeError(
+            'Error installing mypy-protobuf during proto generation')
+
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
       args = (
           [sys.executable] +  # expecting to be called from command line

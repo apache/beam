@@ -24,6 +24,7 @@ import os
 import tempfile
 import unittest
 from builtins import range
+from typing import List
 import sys
 
 # patches unittest.TestCase to be python3 compatible
@@ -90,7 +91,7 @@ RECORDS = [
 
 class AvroBase(object):
 
-  _temp_files = []
+  _temp_files = []  # type: List[str]
 
   def __init__(self, methodName='runTest'):
     super(AvroBase, self).__init__(methodName)

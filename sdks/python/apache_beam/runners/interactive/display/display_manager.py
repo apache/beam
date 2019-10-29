@@ -27,7 +27,7 @@ from __future__ import print_function
 import collections
 import threading
 import time
-import typing
+from typing import TYPE_CHECKING
 
 from apache_beam.runners.interactive.display import interactive_pipeline_graph
 
@@ -38,7 +38,7 @@ try:
   # _display_progress defines how outputs are printed on the frontend.
   _display_progress = ip_display
 
-  if not typing.TYPE_CHECKING:
+  if not TYPE_CHECKING:
     def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
       pp.text(string)
     if get_ipython():

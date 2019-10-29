@@ -65,10 +65,10 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 from apache_beam.utils.plugin import BeamPlugin
 
-try:                    # Python 3
+if sys.version_info[0] > 2:
   unquote_to_bytes = urllib.parse.unquote_to_bytes
   quote = urllib.parse.quote
-except AttributeError:  # Python 2
+else:
   unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
   quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 

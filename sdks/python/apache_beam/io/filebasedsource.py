@@ -28,6 +28,8 @@ For an example implementation of :class:`FileBasedSource` see
 
 from __future__ import absolute_import
 
+from typing import Callable
+
 from past.builtins import long
 from past.builtins import unicode
 
@@ -71,7 +73,7 @@ class FileBasedSource(iobase.BoundedSource):
       file_pattern (str): the file glob to read a string or a
         :class:`~apache_beam.options.value_provider.ValueProvider`
         (placeholder to inject a runtime value).
-      min_bundle_size (str): minimum size of bundles that should be generated
+      min_bundle_size (int): minimum size of bundles that should be generated
         when performing initial splitting on this source.
       compression_type (str): Used to handle compressed output files.
         Typical value is :attr:`CompressionTypes.AUTO
@@ -128,6 +130,7 @@ class FileBasedSource(iobase.BoundedSource):
 
   @check_accessible(['_pattern'])
   def _get_concat_source(self):
+    # type: () -> concat_source.ConcatSource
     if self._concat_source is None:
       pattern = self._pattern.get()
 
@@ -358,6 +361,7 @@ class _ExpandIntoRanges(DoFn):
 class _ReadRange(DoFn):
 
   def __init__(self, source_from_file):
+    # type: (Callable[[str], iobase.BoundedSource]) -> None
     self._source_from_file = source_from_file
 
   def process(self, element, *args, **kwargs):
@@ -380,9 +384,13 @@ class ReadAllFiles(PTransform):
   read a PCollection of files.
   """
 
-  def __init__(
-      self, splittable, compression_type, desired_bundle_size, min_bundle_size,
-      source_from_file):
+  def __init__(self,
+               splittable,  # type: bool
+               compression_type,
+               desired_bundle_size,  # type: int
+               min_bundle_size,  # type: int
+               source_from_file,  # type: Callable[[str], iobase.BoundedSource]
+              ):
     """
     Args:
       splittable: If False, files won't be split into sub-ranges. If True,
