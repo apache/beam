@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -57,6 +58,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -66,6 +68,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -915,5 +918,21 @@ public class JdbcIOTest implements Serializable {
                     }));
 
     pipeline.run();
+  }
+
+  @Test
+  public void testSerializationAndCachingOfPoolingDataSourceProvider() {
+    SerializableFunction<Void, DataSource> provider =
+        PoolableDataSourceProvider.of(
+            JdbcIO.DataSourceConfiguration.create(
+                "org.apache.derby.jdbc.ClientDriver",
+                "jdbc:derby://localhost:" + port + "/target/beam"));
+    SerializableFunction<Void, DataSource> deserializedProvider =
+        SerializableUtils.ensureSerializable(provider);
+
+    // Assert that that same instance is being returned even when there are multiple provider
+    // instances with the same configuration. Also check that the deserialized provider was
+    // able to produce an instance.
+    assertSame(provider.apply(null), deserializedProvider.apply(null));
   }
 }
