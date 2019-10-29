@@ -197,14 +197,21 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       }
 
       PCollection<Row> result = withAllFields;
-      if ((options == PushDownOptions.FILTER || options == PushDownOptions.BOTH)
-          && filters instanceof TestTableFilter) {
-        // Create a filter for each supported node.
-        for (RexNode node : ((TestTableFilter) filters).getSupported()) {
-          result = result.apply("IOPushDownFilter_" + node.toString(), filterFromNode(node));
+      // When filter push-down is supported.
+      if (options == PushDownOptions.FILTER || options == PushDownOptions.BOTH) {
+        if (filters instanceof TestTableFilter) {
+          // Create a filter for each supported node.
+          for (RexNode node : ((TestTableFilter) filters).getSupported()) {
+            result = result.apply("IOPushDownFilter_" + node.toString(), filterFromNode(node));
+          }
+        } else {
+          throw new RuntimeException(
+              "Was expecting a filter of type TestTableFilter, but received: "
+                  + filters.getClass().getSimpleName());
         }
       }
 
+      // When project push-down is supported.
       if ((options == PushDownOptions.PROJECT || options == PushDownOptions.BOTH)
           && !fieldNames.isEmpty()) {
         result =
@@ -228,9 +235,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     public BeamSqlTableFilter constructFilter(List<RexNode> filter) {
       if (options == PushDownOptions.FILTER || options == PushDownOptions.BOTH) {
         return new TestTableFilter(filter);
-      } else {
-        return super.constructFilter(filter);
       }
+      return super.constructFilter(filter);
     }
 
     @Override
@@ -328,34 +334,40 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         List<RexInputRef> inputRefs,
         List<RexLiteral> literals,
         SerializableFunction<Integer, Boolean> comparison) {
+      // Filter push-down only supports comparisons between 2 operands (for now).
+      assert operands.size() == 2;
+      // Comparing two columns (2 input refs).
+      assert inputRefs.size() <= 2;
+      // Case where we compare 2 Literals should never appear and get optimized away.
+      assert literals.size() < 2;
+
       if (inputRefs.size() == 2) { // Comparing 2 columns.
         final int op0 = fieldIds.indexOf(inputRefs.get(0).getIndex());
         final int op1 = fieldIds.indexOf(inputRefs.get(1).getIndex());
         return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
-      } else { // Comparing a column to a literal.
-        int fieldSchemaIndex = inputRefs.get(0).getIndex();
-        FieldType beamFieldType = getSchema().getField(fieldSchemaIndex).getType();
-        final int op0 = fieldIds.indexOf(fieldSchemaIndex);
-
-        // Find Java type of the op0 in Schema
-        final Comparable op1 =
-            literals
-                .get(0)
-                .<Comparable>getValueAs(
-                    FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
-        if (operands.get(0) instanceof RexLiteral) { // First operand is a literal
-          return row -> comparison.apply(op1.compareTo(row.getValue(op0)));
-        } else if (operands.get(0) instanceof RexInputRef) { // First operand is a column value
-          return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
-        } else {
-          throw new RuntimeException(
-              "Was expecting a RexLiteral and a RexInputRef, but received: "
-                  + operands.stream()
-                      .map(o -> o.getClass().getSimpleName())
-                      .collect(Collectors.joining(", ")));
-        }
       }
-      // Case where we compare 2 Literals should never appear and get optimized away.
+      // Comparing a column to a literal.
+      int fieldSchemaIndex = inputRefs.get(0).getIndex();
+      FieldType beamFieldType = getSchema().getField(fieldSchemaIndex).getType();
+      final int op0 = fieldIds.indexOf(fieldSchemaIndex);
+
+      // Find Java type of the op0 in Schema
+      final Comparable op1 =
+          literals
+              .get(0)
+              .<Comparable>getValueAs(
+                  FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
+      if (operands.get(0) instanceof RexLiteral) { // First operand is a literal
+        return row -> comparison.apply(op1.compareTo(row.getValue(op0)));
+      } else if (operands.get(0) instanceof RexInputRef) { // First operand is a column value
+        return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
+      } else {
+        throw new RuntimeException(
+            "Was expecting a RexLiteral and a RexInputRef, but received: "
+                + operands.stream()
+                    .map(o -> o.getClass().getSimpleName())
+                    .collect(Collectors.joining(", ")));
+      }
     }
   }
 
