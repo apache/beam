@@ -65,6 +65,7 @@ from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
+from apache_beam.utils.util import memoize
 
 try:
   import funcsigs  # Python 2 only.
@@ -317,13 +318,14 @@ def get_function_arguments(obj, func):
     Same as get_function_args_defaults.
   """
   func_name = '_inspect_%s' % func
-  if hasattr(obj, func_name):
-    f = getattr(obj, func_name)
+  f = getattr(obj, func_name, None)
+  if f:
     return f()
   f = getattr(obj, func)
   return get_function_args_defaults(f)
 
 
+@memoize
 def get_function_args_defaults(f):
   """Returns the function arguments of a given function.
 

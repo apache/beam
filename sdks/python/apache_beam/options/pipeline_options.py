@@ -32,6 +32,7 @@ from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import processes
+from apache_beam.utils.util import memoize_method
 
 __all__ = [
     'PipelineOptions',
@@ -282,6 +283,7 @@ class PipelineOptions(HasDisplayData):
   def display_data(self):
     return self.get_all_options(True)
 
+  @memoize_method
   def view_as(self, cls):
     """Returns a view of current object as provided PipelineOption subclass.
 
@@ -340,7 +342,8 @@ class PipelineOptions(HasDisplayData):
                            (type(self).__name__, name))
 
   def __setattr__(self, name, value):
-    if name in ('_flags', '_all_options', '_visible_options'):
+    if name in (
+        '_flags', '_all_options', '_visible_options', '__memoize_method_cache'):
       super(PipelineOptions, self).__setattr__(name, value)
     elif name in self._visible_option_list():
       self._all_options[name] = value

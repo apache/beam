@@ -57,6 +57,8 @@ from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
+from apache_beam.utils.util import memoize
+from apache_beam.utils.util import only_element
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -546,23 +548,6 @@ class FnApiUserStateContext(userstate.UserStateContext):
   def reset(self):
     # TODO(BEAM-5428): Implement cross-bundle state caching.
     self._all_states = {}
-
-
-def memoize(func):
-  cache = {}
-  missing = object()
-
-  def wrapper(*args):
-    result = cache.get(args, missing)
-    if result is missing:
-      result = cache[args] = func(*args)
-    return result
-  return wrapper
-
-
-def only_element(iterable):
-  element, = iterable
-  return element
 
 
 class BundleProcessor(object):
