@@ -64,6 +64,7 @@ public class TestTableProviderWithFilterPushDown {
           .addInt32Field("id")
           .addStringField("name")
           .addInt16Field("unused2")
+          .addBooleanField("b")
           .build();
   private static final List<RelOptRule> rulesWithPushDown =
       ImmutableList.of(
@@ -85,8 +86,8 @@ public class TestTableProviderWithFilterPushDown {
     tableProvider.createTable(table);
     tableProvider.addRows(
         table.getName(),
-        row(BASIC_SCHEMA, 100, 1, "one", (short) 100),
-        row(BASIC_SCHEMA, 200, 2, "two", (short) 200));
+        row(BASIC_SCHEMA, 100, 1, "one", (short) 100, true),
+        row(BASIC_SCHEMA, 200, 2, "two", (short) 200, false));
 
     sqlEnv =
         BeamSqlEnv.builder(tableProvider)
@@ -105,6 +106,20 @@ public class TestTableProviderWithFilterPushDown {
     assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
     assertEquals(Schema.builder().addStringField("name").build(), result.getSchema());
     PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "two"));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testIOSourceRel_predicateSimple_Boolean() {
+    String selectTableStatement = "SELECT name FROM TEST where b";
+
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
+    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
+    assertEquals(Schema.builder().addStringField("name").build(), result.getSchema());
+    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "one"));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
@@ -231,10 +246,11 @@ public class TestTableProviderWithFilterPushDown {
 
     assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
     assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2],TestTableFilter=[supported{<>($1, 2)}, unsupported{}])",
+        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2, b],TestTableFilter=[supported{<>($1, 2)}, unsupported{}])",
         beamRelNode.getDigest());
     assertEquals(BASIC_SCHEMA, result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100));
+    PAssert.that(result)
+        .containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100, true));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
@@ -279,10 +295,11 @@ public class TestTableProviderWithFilterPushDown {
         beamRelNode.getInput(0).getDigest());
     // Make sure project push-down was done (all fields since 'select *')
     List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("name", "id", "unused1", "unused2"));
+    assertThat(a, containsInAnyOrder("name", "id", "unused1", "unused2", "b"));
 
     assertEquals(BASIC_SCHEMA, result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100));
+    PAssert.that(result)
+        .containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100, true));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
@@ -319,14 +336,15 @@ public class TestTableProviderWithFilterPushDown {
     assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
     assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2],TestTableFilter=[supported{=($1, 1)}, unsupported{=(+($1, $0), 101)}])",
+        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2, b],TestTableFilter=[supported{=($1, 1)}, unsupported{=(+($1, $0), 101)}])",
         beamRelNode.getInput(0).getDigest());
     // Make sure project push-down was done (all fields since 'select *')
     List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("unused1", "name", "id", "unused2"));
+    assertThat(a, containsInAnyOrder("unused1", "name", "id", "unused2", "b"));
 
     assertEquals(BASIC_SCHEMA, result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100));
+    PAssert.that(result)
+        .containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100, true));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
