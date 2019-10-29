@@ -27,7 +27,7 @@ from apache_beam.runners.portability import flink_uber_jar_job_server
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 
-PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8']
+PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
 
 
 class FlinkRunner(portable_runner.PortableRunner):
