@@ -822,7 +822,7 @@ class DoFnRunner(Receiver):
                kwargs,
                side_inputs,  # type: Iterable[sideinputs.SideInputMap]
                windowing,
-               tagged_receivers=None,  # type: Mapping[Optional[str], Receiver]
+               tagged_receivers,  # type: Mapping[Optional[str], Receiver]
                step_name=None,  # type: Optional[str]
                logging_context=None,
                state=None,
