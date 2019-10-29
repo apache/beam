@@ -77,7 +77,7 @@ class SwitchingDirectRunner(PipelineRunner):
     from apache_beam.pipeline import PipelineVisitor
     from apache_beam.runners.dataflow.native_io.iobase import NativeSource
     from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite
-    from apache_beam.testing.test_stream import TestStream
+    from apache_beam.testing.test_stream import _TestStream
 
     class _FnApiRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the FnApiRunner."""
@@ -90,7 +90,7 @@ class SwitchingDirectRunner(PipelineRunner):
       def visit_transform(self, applied_ptransform):
         transform = applied_ptransform.transform
         # The FnApiRunner does not support streaming execution.
-        if isinstance(transform, TestStream):
+        if isinstance(transform, _TestStream):
           self.supported_by_fnapi_runner = False
         # The FnApiRunner does not support reads from NativeSources.
         if (isinstance(transform, beam.io.Read) and
@@ -186,8 +186,7 @@ def _get_transform_overrides(pipeline_options):
 
   class CombinePerKeyOverride(PTransformOverride):
     def matches(self, applied_ptransform):
-      if isinstance(applied_ptransform.transform, CombinePerKey):
-        return True
+      return isinstance(applied_ptransform.transform, CombinePerKey)
 
     def get_replacement_transform(self, transform):
       # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
@@ -356,7 +355,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     from apache_beam.runners.direct.executor import Executor
     from apache_beam.runners.direct.transform_evaluator import \
       TransformEvaluatorRegistry
-    from apache_beam.testing.test_stream import TestStream
+    from apache_beam.testing.test_stream import _TestStream
 
     # Performing configured PTransform overrides.
     pipeline.replace_all(_get_transform_overrides(options))
@@ -369,7 +368,7 @@ class BundleBasedDirectRunner(PipelineRunner):
         self.uses_test_stream = False
 
       def visit_transform(self, applied_ptransform):
-        if isinstance(applied_ptransform.transform, TestStream):
+        if isinstance(applied_ptransform.transform, _TestStream):
           self.uses_test_stream = True
 
     visitor = _TestStreamUsageVisitor()
