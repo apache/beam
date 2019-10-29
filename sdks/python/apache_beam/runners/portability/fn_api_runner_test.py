@@ -1168,7 +1168,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       print(res._monitoring_infos_by_stage)
       raise
 
-      
+
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
   def create_pipeline(self):
