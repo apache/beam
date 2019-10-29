@@ -64,7 +64,7 @@ def _default_crc32c_fn(value):
   return _default_crc32c_fn.fn(value)
 
 
-_default_crc32c_fn.fn = None
+_default_crc32c_fn.fn = None  # type: ignore
 
 
 class _TFRecordUtil(object):
