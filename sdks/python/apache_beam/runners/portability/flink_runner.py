@@ -33,10 +33,10 @@ PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
 class FlinkRunner(portable_runner.PortableRunner):
   def default_job_server(self, options):
     flink_master = options.view_as(FlinkRunnerOptions).flink_master
-    if flink_master == '[local]' or sys.version_info < (3, 6):
+    if flink_master in ['[local]', '[auto]'] or sys.version_info < (3, 6):
       portable_options = options.view_as(pipeline_options.PortableOptions)
       if flink_master == '[local]' and not portable_options.environment_type:
-        portable_options.environment_type == 'LOOPBACK'
+        portable_options.environment_type = 'LOOPBACK'
       return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
     else:
       return flink_uber_jar_job_server.FlinkUberJarJobServer(flink_master)
@@ -47,11 +47,11 @@ class FlinkRunnerOptions(pipeline_options.PipelineOptions):
   def _add_argparse_args(cls, parser):
     parser.add_argument('--flink_master',
                         default='[auto]',
-                        help='Flink master address (host:port) to submit the'
-                             ' job against. Use "[local]" to start a local'
-                             ' cluster for the execution. Use "[auto]" if you'
-                             ' plan to either execute locally or submit through'
-                             ' Flink\'s CLI.')
+                        help='Flink master address (http://host:port)'
+                             ' Use "[local]" to start a local cluster'
+                             ' for the execution. Use "[auto]" if you'
+                             ' plan to either execute locally or let the'
+                             ' Flink job server infer the cluster address.')
     parser.add_argument('--flink_version',
                         default=PUBLISHED_FLINK_VERSIONS[-1],
                         choices=PUBLISHED_FLINK_VERSIONS,
