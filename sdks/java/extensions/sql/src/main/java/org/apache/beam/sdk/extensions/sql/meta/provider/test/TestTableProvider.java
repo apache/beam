@@ -60,6 +60,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * Test in-memory table provider for use in tests.
@@ -249,15 +250,21 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
      * @return {@code Filter} PTransform.
      */
     private PTransform<PCollection<Row>, PCollection<Row>> filterFromNode(RexNode node) {
-      if (!(node instanceof RexCall)) {
-        throw new RuntimeException(
-            "Was expecting a RexCall, but received: " + node.getClass().getSimpleName());
-      }
-
-      List<RexNode> operands = ((RexCall) node).getOperands();
+      List<RexNode> operands = new ArrayList<>();
       List<Integer> fieldIds = new ArrayList<>();
       List<RexLiteral> literals = new ArrayList<>();
       List<RexInputRef> inputRefs = new ArrayList<>();
+
+      if (node instanceof RexCall) {
+        operands.addAll(((RexCall) node).getOperands());
+      } else if (node instanceof RexInputRef) {
+        operands.add(node);
+        operands.add(RexLiteral.fromJdbcString(node.getType(), SqlTypeName.BOOLEAN, "true"));
+      } else {
+        throw new RuntimeException(
+            "Was expecting a RexCall or a boolean RexInputRef, but received: "
+                + node.getClass().getSimpleName());
+      }
 
       for (RexNode operand : operands) {
         if (operand instanceof RexInputRef) {
@@ -290,6 +297,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           comparison = i -> i >= 0;
           break;
         case EQUALS:
+        case INPUT_REF:
           comparison = i -> i == 0;
           break;
         case NOT_EQUALS:
@@ -337,8 +345,14 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
                     FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
         if (operands.get(0) instanceof RexLiteral) { // First operand is a literal
           return row -> comparison.apply(op1.compareTo(row.getValue(op0)));
-        } else { // First operand is a column value
+        } else if (operands.get(0) instanceof RexInputRef) { // First operand is a column value
           return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
+        } else {
+          throw new RuntimeException(
+              "Was expecting a RexLiteral and a RexInputRef, but received: "
+                  + operands.stream()
+                      .map(o -> o.getClass().getSimpleName())
+                      .collect(Collectors.joining(", ")));
         }
       }
       // Case where we compare 2 Literals should never appear and get optimized away.

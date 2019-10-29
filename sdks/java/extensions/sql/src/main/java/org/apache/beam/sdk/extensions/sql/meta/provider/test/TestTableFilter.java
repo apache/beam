@@ -28,6 +28,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 
 public class TestTableFilter implements BeamSqlTableFilter {
   private List<RexNode> supported;
@@ -78,27 +79,38 @@ public class TestTableFilter implements BeamSqlTableFilter {
    * @return True when a node is supported, false otherwise.
    */
   private boolean isSupported(RexNode node) {
-    if (node instanceof RexCall) {
-      RexCall compositeNode = (RexCall) node;
+    if (node.getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)) {
+      if (node instanceof RexCall) {
+        RexCall compositeNode = (RexCall) node;
 
-      // Only support comparisons in a predicate
-      if (!node.getKind().belongsTo(COMPARISON)) {
-        return false;
-      }
-
-      // Not support IN operator for now
-      if (node.getKind().equals(IN)) {
-        return false;
-      }
-
-      for (RexNode operand : compositeNode.getOperands()) {
-        if (!(operand instanceof RexLiteral) && !(operand instanceof RexInputRef)) {
+        // Only support comparisons in a predicate
+        if (!node.getKind().belongsTo(COMPARISON)) {
           return false;
         }
+
+        // Not support IN operator for now
+        if (node.getKind().equals(IN)) {
+          return false;
+        }
+
+        for (RexNode operand : compositeNode.getOperands()) {
+          if (!(operand instanceof RexLiteral) && !(operand instanceof RexInputRef)) {
+            return false;
+          }
+        }
+      } else if (node instanceof RexInputRef) {
+        // When field is a boolean
+        return true;
+      } else {
+        throw new RuntimeException(
+            "Encountered an unexpected node type: " + node.getClass().getSimpleName());
       }
     } else {
       throw new RuntimeException(
-          "Encountered an unexpected node type: " + node.getClass().getSimpleName());
+          "Predicate node '"
+              + node.getClass().getSimpleName()
+              + "' should be a boolean expression, but was: "
+              + node.getType().getSqlTypeName());
     }
 
     return true;

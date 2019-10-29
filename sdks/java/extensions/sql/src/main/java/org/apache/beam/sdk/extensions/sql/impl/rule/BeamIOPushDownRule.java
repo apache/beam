@@ -86,6 +86,7 @@ public class BeamIOPushDownRule extends RelOptRule {
     final Pair<ImmutableList<RexNode>, ImmutableList<RexNode>> projectFilter = program.split();
     final RelDataType calcInputRowType = program.getInputRowType();
 
+    // When predicate push-down is not supported - all filters are unsupported.
     final BeamSqlTableFilter tableFilter = beamSqlTable.constructFilter(projectFilter.right);
     if (!beamSqlTable.supportsProjects() && tableFilter instanceof DefaultTableFilter) {
       // Either project or filter push-down must be supported by the IO.
@@ -93,20 +94,15 @@ public class BeamIOPushDownRule extends RelOptRule {
     }
 
     if (!(tableFilter instanceof DefaultTableFilter) && !beamSqlTable.supportsProjects()) {
+      // TODO(BEAM-8508): add support for standalone filter push-down.
       // Filter push-down without project push-down is not supported for now.
       return;
     }
 
     // Find all input refs used by projects
-    boolean hasComplexProjects = false;
     Set<String> usedFields = new LinkedHashSet<>();
     for (RexNode project : projectFilter.left) {
       findUtilizedInputRefs(calcInputRowType, project, usedFields);
-      if (project instanceof RexCall) {
-        // Ex: 'SELECT field+10 FROM table'
-        hasComplexProjects = true;
-        break;
-      }
     }
 
     // Find all input refs used by filters
@@ -124,13 +120,10 @@ public class BeamIOPushDownRule extends RelOptRule {
         CalciteUtils.toCalciteRowType(newSchema, ioSourceRel.getCluster().getTypeFactory());
 
     // Check if the calc can be dropped:
-    // 1. There are no complex projects.
-    // 2. And
-    // 2.1. Calc only does projects and renames.
-    //      Or
-    // 2.2. Predicate can be completely pushed-down to IO level.
-    if (!hasComplexProjects
-        && (isProjectRenameOnlyProgram(program) || tableFilter.getNotSupported().isEmpty())) {
+    // 1. Calc only does projects and renames.
+    //    And
+    // 2. Predicate can be completely pushed-down to IO level.
+    if (isProjectRenameOnlyProgram(program) && tableFilter.getNotSupported().isEmpty()) {
       // Tell the optimizer to not use old IO, since the new one is better.
       call.getPlanner().setImportance(ioSourceRel, 0.0);
       call.transformTo(ioSourceRel.copy(calc.getRowType(), newSchema.getFieldNames(), tableFilter));
@@ -270,10 +263,6 @@ public class BeamIOPushDownRule extends RelOptRule {
    */
   @VisibleForTesting
   boolean isProjectRenameOnlyProgram(RexProgram program) {
-    if (program.getCondition() != null) {
-      return false;
-    }
-
     int fieldCount = program.getInputRowType().getFieldCount();
     for (RexLocalRef ref : program.getProjectList()) {
       if (ref.getIndex() >= fieldCount) {
