@@ -83,17 +83,16 @@ class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
                 .toColumn());
 
     // expand the list into separate elements and put the key back into the elements
-    Coder<KV<K, OutputT>> kvCoder = KvCoder.of(keyCoder, outputCoder);
     WindowedValue.WindowedValueCoder<KV<K, OutputT>> wvCoder =
         WindowedValue.FullWindowedValueCoder.of(
-            kvCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
+            outputKVCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
     Dataset<WindowedValue<KV<K, OutputT>>> outputDataset =
         combinedDataset.flatMap(
             (FlatMapFunction<
                     Tuple2<K, Iterable<WindowedValue<OutputT>>>, WindowedValue<KV<K, OutputT>>>)
                 tuple2 -> {
-                  K key = tuple2._1;
-                  Iterable<WindowedValue<OutputT>> windowedValues = tuple2._2;
+                  K key = tuple2._1();
+                  Iterable<WindowedValue<OutputT>> windowedValues = tuple2._2();
                   List<WindowedValue<KV<K, OutputT>>> result = new ArrayList<>();
                   for (WindowedValue<OutputT> windowedValue : windowedValues) {
                     KV<K, OutputT> kv = KV.of(key, windowedValue.getValue());
