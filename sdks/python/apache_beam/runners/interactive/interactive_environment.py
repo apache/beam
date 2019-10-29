@@ -75,28 +75,51 @@ class InteractiveEnvironment(object):
     self.watch('__main__')
     # Do a warning level logging if current python version is below 3.5.3.
     if sys.version_info < (3, 5, 3):
+      self._is_py_version_ready = False
       logging.warning('Interactive Beam requires Python 3.5.3+.')
+    else:
+      self._is_py_version_ready = True
     # Check if [interactive] dependencies are installed.
     try:
       import IPython  # pylint: disable=unused-import
       import jsons  # pylint: disable=unused-import
       import timeloop  # pylint: disable=unused-import
       from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
+      self._is_interactive_ready = True
     except ImportError:
+      self._is_interactive_ready = False
       logging.warning('Dependencies required for Interactive Beam PCollection '
                       'visualization are not available, please use: `pip '
                       'install apache-beam[interactive]` to install necessary '
                       'dependencies to enable all data visualization features.')
 
+    self._is_in_ipython = False
     # Check if the runtime is within an interactive environment, i.e., ipython.
     try:
       from IPython import get_ipython  # pylint: disable=import-error
-      if not get_ipython():
+      if get_ipython():
+        self._is_in_ipython = True
+      else:
         logging.warning('You cannot use Interactive Beam features when you are '
                         'not in an interactive environment such as a Jupyter '
                         'notebook.')
     except ImportError:
       pass
+
+  @property
+  def is_py_version_ready(self):
+    """If Python version is above the minimum requirement."""
+    return self._is_py_version_ready
+
+  @property
+  def is_interactive_ready(self):
+    """If the [interactive] dependencies are installed."""
+    return self._is_interactive_ready
+
+  @property
+  def is_in_ipython(self):
+    """If the runtime is within an IPython kernel."""
+    return self._is_in_ipython
 
   def watch(self, watchable):
     """Watches a watchable.

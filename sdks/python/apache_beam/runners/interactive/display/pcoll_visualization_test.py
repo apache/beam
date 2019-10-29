@@ -35,17 +35,12 @@ except ImportError:
   from mock import patch
 
 try:
-  import IPython  # pylint: disable=unused-import
-  import jsons  # pylint: disable=unused-import
   import timeloop
-  from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
-
-  _interactive_installed = True
 except ImportError:
-  _interactive_installed = False
+  pass
 
 
-@unittest.skipIf(not _interactive_installed,
+@unittest.skipIf(not ie.current_env().is_interactive_ready,
                  '[interactive] dependency is not installed.')
 class PCollectionVisualizationTest(unittest.TestCase):
 
