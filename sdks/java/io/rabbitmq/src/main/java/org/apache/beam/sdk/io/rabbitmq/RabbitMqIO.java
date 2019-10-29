@@ -52,6 +52,11 @@ import org.joda.time.Instant;
 /**
  * A IO to publish or consume messages with a RabbitMQ broker.
  *
+ * <p>Documentation in this module tends to reference interacting with a "queue" vs interacting with
+ * an "exchange". AMQP doesn't technically work this way. For readers, notes on reading from/writing
+ * to a "queue" implies the "default exchange" is in use, operating as a "direct exchange". Notes on
+ * interacting with an "exchange" are more flexible and are generally more applicable.
+ *
  * <h3>Consuming messages from RabbitMQ server</h3>
  *
  * <p>{@link RabbitMqIO} {@link Read} returns an unbounded {@link PCollection} containing RabbitMQ
@@ -59,7 +64,7 @@ import org.joda.time.Instant;
  *
  * <p>To configure a RabbitMQ source, you have to provide a RabbitMQ {@code URI} to connect to a
  * RabbitMQ broker. The following example illustrates various options for configuring the source,
- * reading from the queue:
+ * reading from a named queue on the default exchange:
  *
  * <pre>{@code
  * PCollection<RabbitMqMessage> messages = pipeline.apply(
@@ -67,12 +72,22 @@ import org.joda.time.Instant;
  *
  * }</pre>
  *
- * <p>It's also possible to read from an exchange (providing the exchange type and routing key)
- * instead of directly from a queue:
+ * <p>Often one will want to read from an exchange. The exchange can be declared by Beam or can be
+ * pre-existing. The supplied {@code routingKey} has variable functionality depending on the
+ * exchange type. As examples:
  *
  * <pre>{@code
+ *  // reading from an fanout (pubsub) exchange, declared (non-durable) by RabbitMqIO.
+ *  // Note the routingKey is 'null' as a fanout exchange publishes all messages to
+ *  // all queues, and the specified binding will be ignored
  * 	PCollection<RabbitMqMessage> messages = pipeline.apply(RabbitMqIO.read()
- * 			.withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE"));
+ * 			.withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", null));
+ *
+ * 	// reading from an existing topic exchange named 'EVENTS'
+ * 	// this will use a dynamically-created, non-durable queue subscribing to all
+ * 	// messages with a routing key beginning with 'users.'
+ * 	PCollection<RabbitMqMessage> messages = pipeline.apply(RabbitMqIO.read()
+ * 			.withUri("amqp://user:password@localhost:5672").withExchange("EVENTS", "users.#"));
  * }</pre>
  *
  * <h3>Publishing messages to RabbitMQ server</h3>
@@ -82,21 +97,23 @@ import org.joda.time.Instant;
  *
  * <p>As for the {@link Read}, the {@link Write} is configured with a RabbitMQ URI.
  *
- * <p>For instance, you can write to an exchange (providing the exchange type):
+ * <p>Examples
  *
  * <pre>{@code
+ * // Publishing to a named, non-durable exchange, declared by Beam:
  * pipeline
  *   .apply(...) // provide PCollection<RabbitMqMessage>
  *   .apply(RabbitMqIO.write().withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout"));
- * }</pre>
  *
- * <p>For instance, you can write to a queue:
+ * // Publishing to an existing exchange
+ * pipeline
+ *   .apply(...) // provide PCollection<RabbitMqMessage>
+ *   .apply(RabbitMqIO.write().withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE"));
  *
- * <pre>{@code
+ * // Publishing to a named queue in the default exchange:
  * pipeline
  *   .apply(...) // provide PCollection<RabbitMqMessage>
  *   .apply(RabbitMqIO.write().withUri("amqp://user:password@localhost:5672").withQueue("QUEUE"));
- *
  * }</pre>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -104,6 +121,7 @@ public class RabbitMqIO {
   public static Read read() {
     return new AutoValue_RabbitMqIO_Read.Builder()
         .setQueueDeclare(false)
+        .setExchangeDeclare(false)
         .setMaxReadTime(null)
         .setMaxNumRecords(Long.MAX_VALUE)
         .setUseCorrelationId(false)
@@ -589,24 +607,33 @@ public class RabbitMqIO {
     }
 
     /**
-     * Defines the exchange where the messages will be sent. The exchange has to be declared. It can
-     * be done by another application or by {@link RabbitMqIO} if you define {@code true} for {@link
-     * RabbitMqIO.Write#withExchangeDeclare(boolean)}.
+     * Defines the to-be-declared exchange where the messages will be sent. By defining the exchange
+     * via this function, RabbitMqIO will be responsible for declaring this exchange, and will
+     * declare it as non-durable. If an exchange with this name already exists but is non-durable or
+     * of a different type, the declaration will fail.
+     *
+     * <p>By calling this function {@code exchangeDeclare} will be set to {@code true}.
+     *
+     * <p>To publish to an existing exchange, use {@link #withExchange(String)}
      */
     public Write withExchange(String exchange, String exchangeType) {
       checkArgument(exchange != null, "exchange can not be null");
       checkArgument(exchangeType != null, "exchangeType can not be null");
-      return builder().setExchange(exchange).setExchangeType(exchangeType).build();
+      return builder()
+          .setExchange(exchange)
+          .setExchangeType(exchangeType)
+          .setExchangeDeclare(true)
+          .build();
     }
 
     /**
-     * If the exchange is not declared by another application, {@link RabbitMqIO} can declare the
-     * exchange itself.
+     * Defines the existing exchange where the messages will be sent.
      *
-     * @param exchangeDeclare {@code true} to declare the exchange, {@code false} else.
+     * <p>By calling this function {@code exchangeDeclare} will be set to {@code false}
      */
-    public Write withExchangeDeclare(boolean exchangeDeclare) {
-      return builder().setExchangeDeclare(exchangeDeclare).build();
+    public Write withExchange(String exchange) {
+      checkArgument(exchange != null, "exchange can not be null");
+      return builder().setExchange(exchange).setExchangeDeclare(false).build();
     }
 
     /**

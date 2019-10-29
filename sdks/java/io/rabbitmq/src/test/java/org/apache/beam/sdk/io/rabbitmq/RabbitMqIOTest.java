@@ -32,8 +32,10 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -129,36 +131,52 @@ public class RabbitMqIOTest implements Serializable {
     }
   }
 
-  @Test(timeout = 60 * 1000)
-  public void testReadExchange() throws Exception {
-    final int maxNumRecords = 10;
+  /**
+   * Helper for running tests against an exchange.
+   *
+   * <p>This function will automatically specify (and overwrite) the uri and maxNumRecords values of
+   * the Read definition.
+   *
+   * @param in Read definition to be used in the text. Exchange name must be non-null.
+   * @param maxNumRecords For test purposes, the source will be Bounded, and this specifies the
+   *     maximum number of messages to be read from source.
+   * @param publishRoutingKey If non-null this is the topic that wil be used when publishing
+   *     messages to the queue. If null, this will be the same value as {@code in.routingKey()}. The
+   *     value used impacts queue bindings and where/how messages are routed when published.
+   */
+  public void doExchangeTest(
+      RabbitMqIO.Read in, int maxNumRecords, @Nullable String publishRoutingKey) throws Exception {
     PCollection<RabbitMqMessage> raw =
         p.apply(
-            RabbitMqIO.read()
-                .withUri("amqp://guest:guest@localhost:" + port)
-                .withExchange("READEXCHANGE", "fanout", "test")
-                .withMaxNumRecords(maxNumRecords));
-    PCollection<String> output =
+            in.withUri("amqp://guest:guest@localhost:" + port).withMaxNumRecords(maxNumRecords));
+
+    PCollection<String> result =
         raw.apply(
             MapElements.into(TypeDescriptors.strings())
                 .via(
                     (RabbitMqMessage message) ->
                         new String(message.getBody(), StandardCharsets.UTF_8)));
 
-    List<String> records =
+    List<String> expected =
         generateRecords(maxNumRecords).stream()
             .map(record -> new String(record, StandardCharsets.UTF_8))
             .collect(Collectors.toList());
-    PAssert.that(output).containsInAnyOrder(records);
+
+    PAssert.that(result).containsInAnyOrder(expected);
+
+    String exchange = in.exchange();
+    String exchangeType = Optional.ofNullable(in.exchangeType()).orElse("fanout");
+    String routingKey = Optional.ofNullable(in.routingKey()).orElse("test");
 
     ConnectionFactory connectionFactory = new ConnectionFactory();
     connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
     Connection connection = null;
     Channel channel = null;
+
     try {
       connection = connectionFactory.newConnection();
       channel = connection.createChannel();
-      channel.exchangeDeclare("READEXCHANGE", "fanout");
+      channel.exchangeDeclare(exchange, exchangeType);
       Channel finalChannel = channel;
       Thread publisher =
           new Thread(
@@ -171,10 +189,7 @@ public class RabbitMqIOTest implements Serializable {
                 for (int i = 0; i < maxNumRecords; i++) {
                   try {
                     finalChannel.basicPublish(
-                        "READEXCHANGE",
-                        "test",
-                        null,
-                        ("Test " + i).getBytes(StandardCharsets.UTF_8));
+                        exchange, routingKey, null, ("Test " + i).getBytes(StandardCharsets.UTF_8));
                   } catch (Exception e) {
                     LOG.error(e.getMessage(), e);
                   }
@@ -193,12 +208,17 @@ public class RabbitMqIOTest implements Serializable {
     }
   }
 
+  @Test(timeout = 60 * 1000)
+  public void testReadExchange() throws Exception {
+    doExchangeTest(RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", "test"), 10, null);
+  }
+
   @Test
   public void testWriteQueue() throws Exception {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
         generateRecords(maxNumRecords).stream()
-            .map(bytes -> new RabbitMqMessage(bytes))
+            .map(RabbitMqMessage::new)
             .collect(Collectors.toList());
     p.apply(Create.of(data))
         .apply(
