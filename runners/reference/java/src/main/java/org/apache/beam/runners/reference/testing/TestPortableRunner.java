@@ -19,7 +19,8 @@ package org.apache.beam.runners.reference.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import java.lang.reflect.InvocationTargetException;
+import java.io.IOException;
+import org.apache.beam.runners.fnexecution.jobsubmission.JobServerDriver;
 import org.apache.beam.runners.reference.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -37,13 +38,8 @@ import org.slf4j.LoggerFactory;
  * {@link TestPortableRunner} is a pipeline runner that wraps a {@link PortableRunner} when running
  * tests against the {@link TestPipeline}.
  *
- * <p>This runner requires a JobServerDriver with following methods.
- *
- * <ul>
- *   <li>public static Object fromParams(String... params)
- *   <li>public String start() // Start JobServer and returns the JobServer host and port.
- *   <li>public void stop() // Stop the JobServer and free all resources.
- * </ul>
+ * <p>This runner requires a {@link JobServerDriver} subclass with the following factory method:
+ * <code>public static JobServerDriver fromParams(String[] args)</code>
  *
  * @see TestPipeline
  */
@@ -64,8 +60,8 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
     TestPortablePipelineOptions testPortablePipelineOptions =
         options.as(TestPortablePipelineOptions.class);
     String jobServerHostPort;
-    Object jobServerDriver;
-    Class<?> jobServerDriverClass = testPortablePipelineOptions.getJobServerDriver();
+    JobServerDriver jobServerDriver;
+    Class<JobServerDriver> jobServerDriverClass = testPortablePipelineOptions.getJobServerDriver();
     String[] parameters = testPortablePipelineOptions.getJobServerConfig();
     try {
       jobServerDriver =
@@ -73,9 +69,9 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
               .fromFactoryMethod("fromParams")
               .withArg(String[].class, parameters)
               .build();
-      jobServerHostPort = (String) jobServerDriverClass.getMethod("start").invoke(jobServerDriver);
-    } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-      throw new IllegalArgumentException(e);
+      jobServerHostPort = jobServerDriver.start();
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to start job server", e);
     }
 
     try {
@@ -87,14 +83,7 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
       assertThat("Pipeline did not succeed.", result.waitUntilFinish(), Matchers.is(State.DONE));
       return result;
     } finally {
-      try {
-        jobServerDriverClass.getMethod("stop").invoke(jobServerDriver);
-      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-        LOG.error(
-            String.format(
-                "Provided JobServiceDriver %s does not implement stop().", jobServerDriverClass),
-            e);
-      }
+      jobServerDriver.stop();
     }
   }
 }
