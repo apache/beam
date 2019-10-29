@@ -104,6 +104,7 @@ public class BeamCalciteTable extends AbstractQueryableTable
         relOptTable,
         beamTable,
         ImmutableList.of(),
+        beamTable.constructFilter(ImmutableList.of()),
         pipelineOptionsMap,
         this);
   }

@@ -145,7 +145,8 @@ public class IOPushDownRuleTest {
             Pair.of("select * from TEST", true),
             Pair.of("select id, name from TEST", true),
             Pair.of("select id+10 from TEST", false),
-            Pair.of("select id from TEST where name='one'", false));
+            // Note that we only care about projects.
+            Pair.of("select id from TEST where name='one'", true));
 
     for (Pair<String, Boolean> test : tests) {
       String sqlQuery = test.left;

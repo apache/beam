@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -38,17 +39,28 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * Test in-memory table provider for use in tests.
@@ -185,14 +197,29 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       }
 
       PCollection<Row> result = withAllFields;
-      if ((options == PushDownOptions.FILTER || options == PushDownOptions.BOTH)
-          && !(filters instanceof DefaultTableFilter)) {
-        throw new RuntimeException("Unimplemented at the moment.");
+      // When filter push-down is supported.
+      if (options == PushDownOptions.FILTER || options == PushDownOptions.BOTH) {
+        if (filters instanceof TestTableFilter) {
+          // Create a filter for each supported node.
+          for (RexNode node : ((TestTableFilter) filters).getSupported()) {
+            result = result.apply("IOPushDownFilter_" + node.toString(), filterFromNode(node));
+          }
+        } else {
+          throw new RuntimeException(
+              "Was expecting a filter of type TestTableFilter, but received: "
+                  + filters.getClass().getSimpleName());
+        }
       }
 
+      // When project push-down is supported.
       if ((options == PushDownOptions.PROJECT || options == PushDownOptions.BOTH)
           && !fieldNames.isEmpty()) {
-        result = result.apply(Select.fieldNames(fieldNames.toArray(new String[0])));
+        result =
+            result.apply(
+                "IOPushDownProject",
+                Select.fieldAccess(
+                    FieldAccessDescriptor.withFieldNames(fieldNames)
+                        .withOrderByFieldInsertionOrder()));
       }
 
       return result;
@@ -205,6 +232,14 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
 
     @Override
+    public BeamSqlTableFilter constructFilter(List<RexNode> filter) {
+      if (options == PushDownOptions.FILTER || options == PushDownOptions.BOTH) {
+        return new TestTableFilter(filter);
+      }
+      return super.constructFilter(filter);
+    }
+
+    @Override
     public boolean supportsProjects() {
       return options == PushDownOptions.BOTH || options == PushDownOptions.PROJECT;
     }
@@ -212,6 +247,127 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     @Override
     public Schema getSchema() {
       return tableWithRows.table.getSchema();
+    }
+
+    /**
+     * A helper method to create a {@code Filter} from {@code RexNode}.
+     *
+     * @param node {@code RexNode} to create a filter from.
+     * @return {@code Filter} PTransform.
+     */
+    private PTransform<PCollection<Row>, PCollection<Row>> filterFromNode(RexNode node) {
+      List<RexNode> operands = new ArrayList<>();
+      List<Integer> fieldIds = new ArrayList<>();
+      List<RexLiteral> literals = new ArrayList<>();
+      List<RexInputRef> inputRefs = new ArrayList<>();
+
+      if (node instanceof RexCall) {
+        operands.addAll(((RexCall) node).getOperands());
+      } else if (node instanceof RexInputRef) {
+        operands.add(node);
+        operands.add(RexLiteral.fromJdbcString(node.getType(), SqlTypeName.BOOLEAN, "true"));
+      } else {
+        throw new RuntimeException(
+            "Was expecting a RexCall or a boolean RexInputRef, but received: "
+                + node.getClass().getSimpleName());
+      }
+
+      for (RexNode operand : operands) {
+        if (operand instanceof RexInputRef) {
+          RexInputRef inputRef = (RexInputRef) operand;
+          fieldIds.add(inputRef.getIndex());
+          inputRefs.add(inputRef);
+        } else if (operand instanceof RexLiteral) {
+          RexLiteral literal = (RexLiteral) operand;
+          literals.add(literal);
+        } else {
+          throw new RuntimeException(
+              "Encountered an unexpected operand: " + operand.getClass().getSimpleName());
+        }
+      }
+
+      SerializableFunction<Integer, Boolean> comparison;
+      // TODO: add support for expressions like:
+      //  =(CAST($3):INTEGER NOT NULL, 200)
+      switch (node.getKind()) {
+        case LESS_THAN:
+          comparison = i -> i < 0;
+          break;
+        case GREATER_THAN:
+          comparison = i -> i > 0;
+          break;
+        case LESS_THAN_OR_EQUAL:
+          comparison = i -> i <= 0;
+          break;
+        case GREATER_THAN_OR_EQUAL:
+          comparison = i -> i >= 0;
+          break;
+        case EQUALS:
+        case INPUT_REF:
+          comparison = i -> i == 0;
+          break;
+        case NOT_EQUALS:
+          comparison = i -> i != 0;
+          break;
+        default:
+          throw new RuntimeException("Unsupported node kind: " + node.getKind().toString());
+      }
+
+      return Filter.<Row>create()
+          .whereFieldIds(
+              fieldIds, createFilter(operands, fieldIds, inputRefs, literals, comparison));
+    }
+
+    /**
+     * A helper method to create a serializable function comparing row fields.
+     *
+     * @param operands A list of operands used in a comparison.
+     * @param fieldIds A list of operand ids.
+     * @param inputRefs A list of operands, which are an instanceof {@code RexInputRef}.
+     * @param literals A list of operands, which are an instanceof {@code RexLiteral}.
+     * @param comparison A comparison to perform between operands.
+     * @return A filter comparing row fields to literals/other fields.
+     */
+    private SerializableFunction<Row, Boolean> createFilter(
+        List<RexNode> operands,
+        List<Integer> fieldIds,
+        List<RexInputRef> inputRefs,
+        List<RexLiteral> literals,
+        SerializableFunction<Integer, Boolean> comparison) {
+      // Filter push-down only supports comparisons between 2 operands (for now).
+      assert operands.size() == 2;
+      // Comparing two columns (2 input refs).
+      assert inputRefs.size() <= 2;
+      // Case where we compare 2 Literals should never appear and get optimized away.
+      assert literals.size() < 2;
+
+      if (inputRefs.size() == 2) { // Comparing 2 columns.
+        final int op0 = fieldIds.indexOf(inputRefs.get(0).getIndex());
+        final int op1 = fieldIds.indexOf(inputRefs.get(1).getIndex());
+        return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
+      }
+      // Comparing a column to a literal.
+      int fieldSchemaIndex = inputRefs.get(0).getIndex();
+      FieldType beamFieldType = getSchema().getField(fieldSchemaIndex).getType();
+      final int op0 = fieldIds.indexOf(fieldSchemaIndex);
+
+      // Find Java type of the op0 in Schema
+      final Comparable op1 =
+          literals
+              .get(0)
+              .<Comparable>getValueAs(
+                  FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
+      if (operands.get(0) instanceof RexLiteral) { // First operand is a literal
+        return row -> comparison.apply(op1.compareTo(row.getValue(op0)));
+      } else if (operands.get(0) instanceof RexInputRef) { // First operand is a column value
+        return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
+      } else {
+        throw new RuntimeException(
+            "Was expecting a RexLiteral and a RexInputRef, but received: "
+                + operands.stream()
+                    .map(o -> o.getClass().getSimpleName())
+                    .collect(Collectors.joining(", ")));
+      }
     }
   }
 
