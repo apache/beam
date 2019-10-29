@@ -15,6 +15,8 @@
 #
 
 """A microbenchmark for measuring changes in the critical path of FnApiRunner.
+This microbenchmark attempts to measure the overhead of the main data paths
+for the FnApiRunner. Specifically state, timers, and shuffling of data.
 
 This runs a series of N parallel pipelines with M parallel stages each. Each
 stage does the following:
@@ -29,6 +31,27 @@ workers, but is generally easier to run (locally) and more stable..
 Run as
 
    python -m apache_beam.tools.fn_api_runner_microbenchmark
+
+The main metric to work with for this benchmark is Fixed Cost. This represents
+the fixed cost of ovehead for the data path of the FnApiRunner.
+
+Initial results were:
+
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 1 of 10, per element time cost: 3.6778 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 2 of 10, per element time cost: 0.053498 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 3 of 10, per element time cost: 0.0299434 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 4 of 10, per element time cost: 0.0211154 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 5 of 10, per element time cost: 0.0170031 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 6 of 10, per element time cost: 0.0150809 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 7 of 10, per element time cost: 0.013218 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 8 of 10, per element time cost: 0.0119685 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 9 of 10, per element time cost: 0.0107382 sec
+run_single_pipeline, 1 element(s) at start, 100 growth per run: run 10 of 10, per element time cost: 0.0103208 sec
+
+
+Fixed cost   4.537164939085642
+Per-element  0.005474923321695039
+R^2          0.95189
 """
 
 from __future__ import absolute_import
