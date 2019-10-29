@@ -28,7 +28,6 @@ import os
 import time
 
 import numpy
-from scipy import stats
 
 
 def check_compiled(module):
@@ -167,6 +166,7 @@ def run_benchmarks(benchmark_suite, verbose=True):
       name = str(benchmark_config)
 
       if isinstance(benchmark_config, LinearRegressionBenchmarkConfig):
+        from scipy import stats
         print()
         # pylint: disable=unused-variable
         gradient, intercept, r_value, p_value, std_err = stats.linregress(
@@ -182,7 +182,7 @@ def run_benchmarks(benchmark_suite, verbose=True):
 
         print(
             "%s: p. element median time cost: %g sec, relative std: %.2f%%" % (
-            name.ljust(pad_length, " "), per_element_median_cost,
-            std * 100 / per_element_median_cost))
+                name.ljust(pad_length, " "), per_element_median_cost,
+                std * 100 / per_element_median_cost))
 
   return size_series, cost_series
