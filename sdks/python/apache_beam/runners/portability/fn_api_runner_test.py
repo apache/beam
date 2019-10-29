@@ -1168,6 +1168,15 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       print(res._monitoring_infos_by_stage)
       raise
 
+      
+class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
+
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
 
