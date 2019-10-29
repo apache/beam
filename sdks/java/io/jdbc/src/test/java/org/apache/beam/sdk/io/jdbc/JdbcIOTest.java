@@ -792,12 +792,13 @@ public class JdbcIOTest implements Serializable {
 
     long epochMilli = 1558719710000L;
     DateTime dateTime = new DateTime(epochMilli, ISOChronology.getInstanceUTC());
+    DateTime time =
+        new DateTime(
+            34567000L /* value must be less than num millis in one day */,
+            ISOChronology.getInstanceUTC());
 
     Row row =
-        Row.withSchema(schema)
-            .addValues(
-                dateTime.withTimeAtStartOfDay(), dateTime.withDate(new LocalDate(0L)), dateTime)
-            .build();
+        Row.withSchema(schema).addValues(dateTime.withTimeAtStartOfDay(), time, dateTime).build();
 
     PreparedStatement psMocked = mock(PreparedStatement.class);
 
