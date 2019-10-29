@@ -18,10 +18,13 @@
 package org.apache.beam.runners.samza;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.expansion.ExpansionServer;
+import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
@@ -35,10 +38,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server. */
+// TODO(BEAM-8510): extend JobServerDriver
 public class SamzaJobServerDriver {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobServerDriver.class);
 
   private final SamzaPortablePipelineOptions pipelineOptions;
+  private ExpansionServer expansionServer;
 
   protected SamzaJobServerDriver(SamzaPortablePipelineOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
@@ -60,6 +65,7 @@ public class SamzaJobServerDriver {
         SamzaRunnerOverrideConfigs.FN_CONTROL_PORT,
         String.valueOf(pipelineOptions.getControlPort()));
     overrideConfig.put(SamzaRunnerOverrideConfigs.FS_TOKEN_PATH, pipelineOptions.getFsTokenPath());
+
     pipelineOptions.setConfigOverride(overrideConfig);
     return new SamzaJobServerDriver(pipelineOptions);
   }
@@ -92,17 +98,43 @@ public class SamzaJobServerDriver {
         InMemoryJobService.DEFAULT_MAX_INVOCATION_HISTORY);
   }
 
+  private ExpansionServer createExpansionService(String host, int expansionPort)
+      throws IOException {
+    ExpansionServer expansionServer =
+        ExpansionServer.create(new ExpansionService(), host, expansionPort);
+    LOG.info(
+        "Java ExpansionService started on {}:{}",
+        expansionServer.getHost(),
+        expansionServer.getPort());
+    return expansionServer;
+  }
+
   public void run() throws Exception {
+    // Create services
     InMemoryJobService service = createJobService();
     GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
         GrpcFnServer.allocatePortAndCreateFor(
             service, ServerFactory.createWithPortSupplier(pipelineOptions::getJobPort));
-    LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
+    String jobServerUrl = jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl();
+    LOG.info("JobServer started on {}", jobServerUrl);
+    URI uri = new URI(jobServerUrl);
+    expansionServer = createExpansionService(uri.getHost(), pipelineOptions.getExpansionPort());
+
     try {
       jobServiceGrpcFnServer.getServer().awaitTermination();
     } finally {
       LOG.info("JobServer closing");
       jobServiceGrpcFnServer.close();
+      if (expansionServer != null) {
+        try {
+          expansionServer.close();
+          LOG.info(
+              "Expansion stopped on {}:{}", expansionServer.getHost(), expansionServer.getPort());
+          expansionServer = null;
+        } catch (Exception e) {
+          LOG.error("Error while closing the Expansion Service.", e);
+        }
+      }
     }
   }
 }

@@ -32,6 +32,10 @@ public interface SamzaPortablePipelineOptions extends SamzaPipelineOptions {
   @Default.Integer(11441)
   int getControlPort();
 
+  @Description("The expansion service port. (Default: 11442) ")
+  @Default.Integer(11442)
+  int getExpansionPort();
+
   void setControlPort(int port);
 
   @Description(
