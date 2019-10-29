@@ -180,7 +180,8 @@ def run_benchmarks(benchmark_suite, verbose=True):
             numpy.median(cost_series[name]) / benchmark_config.size)
         std = numpy.std(cost_series[name]) / benchmark_config.size
 
-        print("%s: per element median time cost: %g sec, relative std: %.2f%%" % (
+        print(
+            "%s: p. element median time cost: %g sec, relative std: %.2f%%" % (
             name.ljust(pad_length, " "), per_element_median_cost,
             std * 100 / per_element_median_cost))
 
