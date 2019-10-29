@@ -181,6 +181,8 @@ public class RabbitMqIO {
     @Nullable
     abstract String exchangeType();
 
+    abstract boolean exchangeDeclare();
+
     @Nullable
     abstract String routingKey();
 
@@ -204,6 +206,8 @@ public class RabbitMqIO {
       abstract Builder setExchange(String exchange);
 
       abstract Builder setExchangeType(String exchangeType);
+
+      abstract Builder setExchangeDeclare(boolean exchangeDeclare);
 
       abstract Builder setRoutingKey(String routingKey);
 
@@ -233,26 +237,73 @@ public class RabbitMqIO {
 
     /**
      * You can "force" the declaration of a queue on the RabbitMQ broker. Exchanges and queues are
-     * the high-level building blocks of AMQP. These must be "declared" before they can be used.
-     * Declaring either type of object simply ensures that one of that name exists, creating it if
-     * necessary.
+     * the high-level building blocks of AMQP. These must be "declared" (created) before they can be
+     * used. Declaring either type of object ensures that one of that name and of the specified
+     * properties exists, creating it if necessary.
      *
-     * @param queueDeclare If {@code true}, {@link RabbitMqIO} will declare the queue. If another
-     *     application declare the queue, it's not required.
+     * <p>NOTE: When declaring a queue or exchange that already exists, the properties specified in
+     * the declaration must match those of the existing queue or exchange. That is, if you declare a
+     * queue to be non-durable but a durable queue already exists with the same name, the
+     * declaration will fail. When declaring a queue, RabbitMqIO will declare it to be non-durable.
+     *
+     * @param queueDeclare If {@code true}, {@link RabbitMqIO} will declare a non-durable queue. If
+     *     another application created the queue, this is not required and should be set to {@code
+     *     false}
      */
     public Read withQueueDeclare(boolean queueDeclare) {
       return builder().setQueueDeclare(queueDeclare).build();
     }
 
     /**
-     * Instead of consuming messages on a specific queue, you can consume message from a given
-     * exchange. Then you specify the exchange name, type and optionally routing key where you want
-     * to consume messages.
+     * In AMQP, messages are published to an exchange and routed to queues based on the exchange
+     * type and a queue binding. Most exchange types utilize the routingKey to determine which
+     * queues to deliver messages to. It is incumbent upon the developer to understand the paradigm
+     * in place to determine whether to declare a queue, with the appropriate binding should be, and
+     * what the routingKey will be in use.
+     *
+     * <p>This function should be used if the Beam pipeline will be responsible for declaring the
+     * exchange. As a result of calling this function, {@code exchangeDeclare} will be set to {@code
+     * true} and the resulting exchange will be non-durable and of the supplied type. If an exchange
+     * with the given name already exists but is durable or is of another type, exchange declaration
+     * will fail.
+     *
+     * <p>To use an exchange without declaring it, especially for cases when the exchange is shared
+     * with other application or already exists, use {@link #withExchange(String, String)} instead.
+     *
+     * @see
+     *     "https://www.cloudamqp.com/blog/2015-09-03-part4-rabbitmq-for-beginners-exchanges-routing-keys-bindings.html"
+     *     for a write-up on exchange types and routing semantics
      */
-    public Read withExchange(String name, String type, String routingKey) {
-      checkArgument(name != null, "name can not be null");
-      checkArgument(type != null, "type can not be null");
-      return builder().setExchange(name).setExchangeType(type).setRoutingKey(routingKey).build();
+    public Read withExchange(String name, String type, @Nullable String routingKey) {
+      checkArgument(name != null, "exchange name can not be null");
+      checkArgument(type != null, "exchange type can not be null");
+      return builder()
+          .setExchange(name)
+          .setExchangeType(type)
+          .setRoutingKey(routingKey)
+          .setExchangeDeclare(true)
+          .build();
+    }
+
+    /**
+     * In AMQP, messages are published to an exchange and routed to queues based on the exchange
+     * type and a queue binding. Most exchange types utilize the routingKey to determine which
+     * queues to deliver messages to. It is incumbent upon the developer to understand the paradigm
+     * in place to determine whether to declare a queue, with the appropriate binding should be, and
+     * what the routingKey will be in use.
+     *
+     * <p>This function should be used if the Beam pipeline will be using an exchange that has
+     * already been declared or when using an exchange shared by other applications, such as an
+     * events bus or pubsub. As a result of calling this function, {@code exchangeDeclare} will be
+     * set to {@code false}.
+     */
+    public Read withExchange(String name, @Nullable String routingKey) {
+      checkArgument(name != null, "exchange name can not be null");
+      return builder()
+          .setExchange(name)
+          .setExchangeDeclare(false)
+          .setRoutingKey(routingKey)
+          .build();
     }
 
     /**
@@ -436,7 +487,9 @@ public class RabbitMqIO {
           channel.queueDeclare(queueName, false, false, false, null);
         }
         if (source.spec.exchange() != null) {
-          channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
+          if (source.spec.exchangeDeclare()) {
+            channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
+          }
           if (queueName == null) {
             queueName = channel.queueDeclare().getQueue();
           }
