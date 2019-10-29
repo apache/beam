@@ -111,13 +111,13 @@ public class FlinkMetricContainerTest {
     MetricName metricName = MetricName.named("namespace", "name");
     Gauge gauge = step.getGauge(metricName);
 
-    assertThat(flinkGauge.getValue(), is(GaugeResult.empty()));
+    assertThat(flinkGauge.getValue(), is(-1L));
     // first set will install the mocked gauge
     container.updateMetrics("step");
     gauge.set(1);
     gauge.set(42);
     container.updateMetrics("step");
-    assertThat(flinkGauge.getValue().getValue(), is(42L));
+    assertThat(flinkGauge.getValue(), is(42L));
   }
 
   @Test
