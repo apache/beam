@@ -176,6 +176,8 @@ public class RabbitMqIOTest implements Serializable {
 
     PAssert.that(result).containsInAnyOrder(expected);
 
+    // on UUID fallback: tests appear to execute concurrently in jenkins, so
+    // exchanges and queues between tests must be distinct
     String exchange =
         Optional.ofNullable(read.exchange()).orElseGet(() -> UUID.randomUUID().toString());
     String exchangeType = Optional.ofNullable(read.exchangeType()).orElse("fanout");
@@ -200,7 +202,7 @@ public class RabbitMqIOTest implements Serializable {
       connection = connectionFactory.newConnection();
       channel = connection.createChannel();
       channel.exchangeDeclare(exchange, exchangeType);
-      Channel finalChannel = channel;
+      final Channel finalChannel = channel;
       Thread publisher =
           new Thread(
               () -> {
@@ -252,7 +254,7 @@ public class RabbitMqIOTest implements Serializable {
   public void testReadDeclaredFanoutExchange() throws Exception {
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", "ignored"), 10));
+            RabbitMqIO.read().withExchange("DeclaredFanoutExchange", "fanout", "ignored"), 10));
   }
 
   @Test(timeout = ONE_MINUTE_MS)
@@ -260,7 +262,7 @@ public class RabbitMqIOTest implements Serializable {
     doExchangeTest(
         new ExchangeTestPlan(
             RabbitMqIO.read()
-                .withExchange("READEXCHANGE", "topic", "#")
+                .withExchange("DeclaredTopicExchangeWithQueueDeclare", "topic", "#")
                 .withQueue("declared-queue")
                 .withQueueDeclare(true),
             10));
@@ -269,7 +271,8 @@ public class RabbitMqIOTest implements Serializable {
   @Test(timeout = ONE_MINUTE_MS)
   public void testReadDeclaredTopicExchange() throws Exception {
     final int numRecords = 10;
-    RabbitMqIO.Read read = RabbitMqIO.read().withExchange("READTOPIC", "topic", "user.create.#");
+    RabbitMqIO.Read read =
+        RabbitMqIO.read().withExchange("DeclaredTopicExchange", "topic", "user.create.#");
 
     final Supplier<String> publishRoutingKeyGen =
         new Supplier<String>() {
@@ -305,7 +308,8 @@ public class RabbitMqIOTest implements Serializable {
 
   @Test(timeout = ONE_MINUTE_MS)
   public void testDeclareIncompatibleExchangeFails() throws Exception {
-    RabbitMqIO.Read read = RabbitMqIO.read().withExchange("READDIRECT", "direct", "unused");
+    RabbitMqIO.Read read =
+        RabbitMqIO.read().withExchange("IncompatibleExchange", "direct", "unused");
     try {
       doExchangeTest(new ExchangeTestPlan(read, 1), true);
       fail("Expected to have failed to declare an incompatible exchange");
