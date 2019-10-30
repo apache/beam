@@ -172,16 +172,42 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
     with gzip.GzipFile(os.path.join(dir, 'compressed.gz'), 'w') as f:
       f.write(file_contents)
 
+    file_contents2 = b'compressed_contents_bz2!'
+    import bz2
+    with bz2.BZ2File(os.path.join(dir, 'compressed2.bz2'), 'w') as f:
+      f.write(file_contents2)
+
     with TestPipeline() as p:
       content_pc = (p
                     | beam.Create([FileSystems.join(dir, '*')])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
-                    | beam.Map(lambda rf: rf.open().read(len(file_contents))))
+                    | beam.Map(lambda rf: rf.open().readline()))
+
+      assert_that(content_pc, equal_to([file_contents,
+                                        file_contents2]))
+
+  def test_read_bz2_compressed_file_without_suffix(self):
+    dir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    file_contents = b'compressed_contents!'
+    import bz2
+    with bz2.BZ2File(os.path.join(dir, 'compressed'), 'w') as f:
+      f.write(file_contents)
+
+    with TestPipeline() as p:
+      content_pc = (p
+                    | beam.Create([FileSystems.join(dir, '*')])
+                    | fileio.MatchAll()
+                    | fileio.ReadMatches()
+                    | beam.Map(lambda rf:
+                               rf.open(
+                                   compression_type=CompressionTypes.BZIP2)
+                               .read(len(file_contents))))
 
       assert_that(content_pc, equal_to([file_contents]))
 
-  def test_read_compressed_file_without_suffix(self):
+  def test_read_gzip_compressed_file_without_suffix(self):
     dir = '%s%s' % (self._new_tempdir(), os.sep)
 
     file_contents = b'compressed_contents!'
