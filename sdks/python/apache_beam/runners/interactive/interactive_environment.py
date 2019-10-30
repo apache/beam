@@ -107,8 +107,8 @@ class InteractiveEnvironment(object):
     if not self._is_in_ipython:
       logging.warning('You cannot use Interactive Beam features when you are '
                       'not in an interactive environment such as a Jupyter '
-                      'notebook.')
-    if not self._is_in_notebook:
+                      'notebook or ipython terminal.')
+    if self._is_in_ipython and not self._is_in_notebook:
       logging.warning('You have limited Interactive Beam features since your '
                       'ipython kernel is not connected any notebook frontend.')
 

@@ -117,7 +117,7 @@ def visualize(pcoll, dynamic_plotting_interval=None):
     # We don't want to do dynamic plotting if there is no notebook frontend.
     return None
 
-  if ie.current_env().is_in_notebook and dynamic_plotting_interval:
+  if dynamic_plotting_interval:
     # Disables the verbose logging from timeloop.
     logging.getLogger('timeloop').disabled = True
     tl = Timeloop()
@@ -183,7 +183,7 @@ class PCollectionVisualization(object):
     This function is used when the ipython kernel is not connected to a
     notebook frontend such as when running ipython in terminal or in unit tests.
     """
-    # Double check if the dependency is ready in case someone mistakenly use
+    # Double check if the dependency is ready in case someone mistakenly uses
     # the function.
     if _pcoll_visualization_ready:
       data = self._to_dataframe()
