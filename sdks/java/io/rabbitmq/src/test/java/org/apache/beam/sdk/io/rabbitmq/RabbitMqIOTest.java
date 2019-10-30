@@ -20,22 +20,20 @@ package org.apache.beam.sdk.io.rabbitmq;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Consumer;
-import com.rabbitmq.client.DefaultConsumer;
-import com.rabbitmq.client.Envelope;
-import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -60,6 +58,8 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class RabbitMqIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(RabbitMqIOTest.class);
+
+  private static final int ONE_MINUTE_MS = 60 * 1000;
 
   private static int port;
   @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -100,11 +100,11 @@ public class RabbitMqIOTest implements Serializable {
             MapElements.into(TypeDescriptors.strings())
                 .via(
                     (RabbitMqMessage message) ->
-                        new String(message.getBody(), StandardCharsets.UTF_8)));
+                        RabbitMqTestUtils.recordToString(message.getBody())));
 
     List<String> records =
-        generateRecords(maxNumRecords).stream()
-            .map(record -> new String(record, StandardCharsets.UTF_8))
+        RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
+            .map(RabbitMqTestUtils::recordToString)
             .collect(Collectors.toList());
     PAssert.that(output).containsInAnyOrder(records);
 
@@ -134,42 +134,32 @@ public class RabbitMqIOTest implements Serializable {
   /**
    * Helper for running tests against an exchange.
    *
-   * <p>This function will automatically specify (and overwrite) the uri and maxNumRecords values of
+   * <p>This function will automatically specify (and overwrite) the uri and numRecords values of
    * the Read definition.
-   *
-   * @param in Read definition to be used in the text. Exchange name must be non-null.
-   * @param maxNumRecords For test purposes, the source will be Bounded, and this specifies the
-   *     maximum number of messages to be read from source.
-   * @param publishRoutingKey If non-null this is the topic that wil be used when publishing
-   *     messages to the queue. If null, this will be the same value as {@code in.routingKey()}. The
-   *     value used impacts queue bindings and where/how messages are routed when published.
    */
-  public void doExchangeTest(
-      RabbitMqIO.Read in, int maxNumRecords, @Nullable String publishRoutingKey) throws Exception {
+  public void doExchangeTest(ExchangeTestPlan testPlan) throws Exception {
+    String uri = "amqp://guest:guest@localhost:" + port;
+    RabbitMqIO.Read read = testPlan.getRead();
     PCollection<RabbitMqMessage> raw =
-        p.apply(
-            in.withUri("amqp://guest:guest@localhost:" + port).withMaxNumRecords(maxNumRecords));
+        p.apply(read.withUri(uri).withMaxNumRecords(testPlan.getNumRecords()));
 
     PCollection<String> result =
         raw.apply(
             MapElements.into(TypeDescriptors.strings())
                 .via(
                     (RabbitMqMessage message) ->
-                        new String(message.getBody(), StandardCharsets.UTF_8)));
+                        RabbitMqTestUtils.recordToString(message.getBody())));
 
-    List<String> expected =
-        generateRecords(maxNumRecords).stream()
-            .map(record -> new String(record, StandardCharsets.UTF_8))
-            .collect(Collectors.toList());
+    List<String> expected = testPlan.expectedResults();
 
     PAssert.that(result).containsInAnyOrder(expected);
 
-    String exchange = in.exchange();
-    String exchangeType = Optional.ofNullable(in.exchangeType()).orElse("fanout");
-    String routingKey = Optional.ofNullable(in.routingKey()).orElse("test");
+    String exchange =
+        Optional.ofNullable(read.exchange()).orElseGet(() -> UUID.randomUUID().toString());
+    String exchangeType = Optional.ofNullable(read.exchangeType()).orElse("fanout");
 
     ConnectionFactory connectionFactory = new ConnectionFactory();
-    connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
+    connectionFactory.setUri(uri);
     Connection connection = null;
     Channel channel = null;
 
@@ -186,10 +176,13 @@ public class RabbitMqIOTest implements Serializable {
                 } catch (Exception e) {
                   LOG.error(e.getMessage(), e);
                 }
-                for (int i = 0; i < maxNumRecords; i++) {
+                for (int i = 0; i < testPlan.getNumRecordsToPublish(); i++) {
                   try {
                     finalChannel.basicPublish(
-                        exchange, routingKey, null, ("Test " + i).getBytes(StandardCharsets.UTF_8));
+                        exchange,
+                        testPlan.publishRoutingKeyGen().get(),
+                        null,
+                        RabbitMqTestUtils.generateRecord(i));
                   } catch (Exception e) {
                     LOG.error(e.getMessage(), e);
                   }
@@ -208,16 +201,53 @@ public class RabbitMqIOTest implements Serializable {
     }
   }
 
-  @Test(timeout = 60 * 1000)
-  public void testReadExchange() throws Exception {
-    doExchangeTest(RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", "test"), 10, null);
+  @Test(timeout = ONE_MINUTE_MS)
+  public void testReadDeclaredFanoutExchange() throws Exception {
+    doExchangeTest(
+        new ExchangeTestPlan(RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", null), 10));
+  }
+
+  @Test(timeout = ONE_MINUTE_MS)
+  public void testReadDeclaredTopicExchange() throws Exception {
+    final int numRecords = 10;
+    RabbitMqIO.Read read = RabbitMqIO.read().withExchange("READTOPIC", "topic", "user.create.#");
+
+    final Supplier<String> publishRoutingKeyGen = new Supplier<String>() {
+      private AtomicInteger counter = new AtomicInteger(0);
+
+      @Override
+      public String get() {
+        int count = counter.getAndIncrement();
+        if (count % 2 == 0) return "user.create." + count;
+        return "user.delete." + count;
+      }
+    };
+
+    ExchangeTestPlan plan =
+        new ExchangeTestPlan(read, numRecords / 2, numRecords) {
+          @Override
+          public Supplier<String> publishRoutingKeyGen() {
+            return publishRoutingKeyGen;
+          }
+
+          @Override
+          public List<String> expectedResults() {
+            return IntStream.range(0, numRecords)
+                .filter(i -> i % 2 == 0)
+                .mapToObj(RabbitMqTestUtils::generateRecord)
+                .map(RabbitMqTestUtils::recordToString)
+                .collect(Collectors.toList());
+          }
+        };
+
+    doExchangeTest(plan);
   }
 
   @Test
   public void testWriteQueue() throws Exception {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
-        generateRecords(maxNumRecords).stream()
+        RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
             .map(RabbitMqMessage::new)
             .collect(Collectors.toList());
     p.apply(Create.of(data))
@@ -233,7 +263,7 @@ public class RabbitMqIOTest implements Serializable {
       connection = connectionFactory.newConnection();
       channel = connection.createChannel();
       channel.queueDeclare("TEST", true, false, false, null);
-      Consumer consumer = new TestConsumer(channel, received);
+      Consumer consumer = new RabbitMqTestUtils.TestConsumer(channel, received);
       channel.basicConsume("TEST", true, consumer);
 
       p.run();
@@ -260,8 +290,8 @@ public class RabbitMqIOTest implements Serializable {
   public void testWriteExchange() throws Exception {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
-        generateRecords(maxNumRecords).stream()
-            .map(bytes -> new RabbitMqMessage(bytes))
+        RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
+            .map(RabbitMqMessage::new)
             .collect(Collectors.toList());
     p.apply(Create.of(data))
         .apply(
@@ -280,7 +310,7 @@ public class RabbitMqIOTest implements Serializable {
       channel.exchangeDeclare("WRITE", "fanout");
       String queueName = channel.queueDeclare().getQueue();
       channel.queueBind(queueName, "WRITE", "");
-      Consumer consumer = new TestConsumer(channel, received);
+      Consumer consumer = new RabbitMqTestUtils.TestConsumer(channel, received);
       channel.basicConsume(queueName, true, consumer);
 
       p.run();
@@ -300,30 +330,6 @@ public class RabbitMqIOTest implements Serializable {
       if (connection != null) {
         connection.close();
       }
-    }
-  }
-
-  private static List<byte[]> generateRecords(int maxNumRecords) {
-    return IntStream.range(0, maxNumRecords)
-        .mapToObj(i -> ("Test " + i).getBytes(StandardCharsets.UTF_8))
-        .collect(Collectors.toList());
-  }
-
-  private static class TestConsumer extends DefaultConsumer {
-
-    private final List<String> received;
-
-    public TestConsumer(Channel channel, List<String> received) {
-      super(channel);
-      this.received = received;
-    }
-
-    @Override
-    public void handleDelivery(
-        String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
-        throws IOException {
-      String message = new String(body, "UTF-8");
-      received.add(message);
     }
   }
 }
