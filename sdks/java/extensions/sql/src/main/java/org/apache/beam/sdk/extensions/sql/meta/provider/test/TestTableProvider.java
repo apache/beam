@@ -211,9 +211,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         }
       }
 
-      // When project push-down is supported.
-      if ((options == PushDownOptions.PROJECT || options == PushDownOptions.BOTH)
-          && !fieldNames.isEmpty()) {
+      // When project push-down is supported or field reordering is needed.
+      if (!fieldNames.isEmpty()) {
         result =
             result.apply(
                 "IOPushDownProject",

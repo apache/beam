@@ -93,12 +93,6 @@ public class BeamIOPushDownRule extends RelOptRule {
       return;
     }
 
-    if (!(tableFilter instanceof DefaultTableFilter) && !beamSqlTable.supportsProjects()) {
-      // TODO(BEAM-8508): add support for standalone filter push-down.
-      // Filter push-down without project push-down is not supported for now.
-      return;
-    }
-
     // Find all input refs used by projects
     boolean hasComplexProjects = false;
     Set<String> usedFields = new LinkedHashSet<>();
@@ -115,6 +109,16 @@ public class BeamIOPushDownRule extends RelOptRule {
       findUtilizedInputRefs(calcInputRowType, filter, usedFields);
     }
 
+    if (!(tableFilter instanceof DefaultTableFilter) && !beamSqlTable.supportsProjects()) {
+      // When applying standalone filter push-down all fields must be project by an IO regardless.
+      usedFields.addAll(calcInputRowType.getFieldNames());
+    }
+
+    if (usedFields.isEmpty()) {
+      // No need to do push-down for queries like this: "select UPPER('hello')".
+      return;
+    }
+
     FieldAccessDescriptor resolved =
         FieldAccessDescriptor.withFieldNames(usedFields)
             .withOrderByFieldInsertionOrder()
@@ -128,7 +132,11 @@ public class BeamIOPushDownRule extends RelOptRule {
     // 1. Calc only does projects and renames.
     //    And
     // 2. Predicate can be completely pushed-down to IO level.
-    if (isProjectRenameOnlyProgram(program) && tableFilter.getNotSupported().isEmpty()) {
+    //    And
+    // 3. And IO supports project push-down OR all fields are projected by a Calc
+    if (isProjectRenameOnlyProgram(program)
+        && tableFilter.getNotSupported().isEmpty()
+        && (beamSqlTable.supportsProjects() || calc.getRowType().getFieldCount() == calcInputRowType.getFieldCount())) {
       // Tell the optimizer to not use old IO, since the new one is better.
       call.getPlanner().setImportance(ioSourceRel, 0.0);
       call.transformTo(ioSourceRel.copy(calc.getRowType(), newSchema.getFieldNames(), tableFilter));
@@ -179,9 +187,9 @@ public class BeamIOPushDownRule extends RelOptRule {
     if (newFilter.size() < projectFilter.right.size()) {
       // Smaller Calc programs are indisputably better.
       // Tell the optimizer not to use old Calc and IO.
+      call.transformTo(result);
       call.getPlanner().setImportance(calc, 0.0);
       call.getPlanner().setImportance(ioSourceRel, 0.0);
-      call.transformTo(result);
     } else if (newFilter.size() == projectFilter.right.size()) {
       // But we can consider something with the same number of filters.
       call.transformTo(result);
