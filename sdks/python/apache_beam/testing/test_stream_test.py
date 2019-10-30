@@ -125,6 +125,37 @@ class TestStreamTest(unittest.TestCase):
 
     p.run()
 
+  def test_multiple_outputs(self):
+    test_stream = (TestStream()
+                   .advance_watermark_to(5, tag='letters')
+                   .add_elements(['a', 'b', 'c'], tag='letters')
+                   .advance_watermark_to(10, tag='numbers')
+                   .add_elements(['1', '2', '3'], tag='numbers'))
+
+    class RecordFn(beam.DoFn):
+      def process(self, element=beam.DoFn.ElementParam,
+                  timestamp=beam.DoFn.TimestampParam):
+        yield (element, timestamp)
+
+    options = StandardOptions(streaming=True)
+    p = TestPipeline(options=options)
+
+    main = p | test_stream
+    letters = main.letters | 'record letters' >> beam.ParDo(RecordFn())
+    numbers = main.numbers | 'record numbers' >> beam.ParDo(RecordFn())
+
+    assert_that(letters, equal_to([
+        ('a', Timestamp(5)),
+        ('b', Timestamp(5)),
+        ('c', Timestamp(5))]), label='assert letters')
+
+    assert_that(numbers, equal_to([
+        ('1', Timestamp(10)),
+        ('2', Timestamp(10)),
+        ('3', Timestamp(10))]), label='assert numbers')
+
+    p.run()
+
   def test_gbk_execution_no_triggers(self):
     test_stream = (TestStream()
                    .advance_watermark_to(10)
