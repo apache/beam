@@ -332,7 +332,6 @@ func (r *dataReader) Read(buf []byte) (int, error) {
 	if r.cur == nil {
 		b, ok := <-r.buf
 		if !ok {
-			log.Errorf(context.TODO(), "dataReader.Read %v channel closed: %v", r.id, r.err)
 			if r.err == nil {
 				return 0, io.EOF
 			}
