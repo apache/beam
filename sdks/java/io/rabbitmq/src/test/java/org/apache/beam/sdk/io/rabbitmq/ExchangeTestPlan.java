@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
+import com.rabbitmq.client.AMQP;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * RabbitMqIO documents "using a queue" vs "using an exchange", but AMQP always interacts with an
@@ -36,9 +38,14 @@ class ExchangeTestPlan {
   private final RabbitMqIO.Read read;
   private final int numRecords;
   private final int numRecordsToPublish;
+  @Nullable private final AMQP.BasicProperties publishProperties;
 
   public ExchangeTestPlan(RabbitMqIO.Read read, int maxRecordsRead) {
     this(read, maxRecordsRead, maxRecordsRead);
+  }
+
+  public ExchangeTestPlan(RabbitMqIO.Read read, int maxRecordsRead, int numRecordsToPublish) {
+    this(read, maxRecordsRead, numRecordsToPublish, null);
   }
 
   /**
@@ -49,11 +56,17 @@ class ExchangeTestPlan {
    *     case it's simpler to use {@link #ExchangeTestPlan(RabbitMqIO.Read, int)}, but when testing
    *     topic exchanges or exchanges where not all messages will be routed to the queue being read
    *     from, these numbers will differ.
+   * @param publishProperties AMQP Properties to be used when publishing
    */
-  public ExchangeTestPlan(RabbitMqIO.Read read, int maxRecordsRead, int numRecordsToPublish) {
+  public ExchangeTestPlan(
+      RabbitMqIO.Read read,
+      int maxRecordsRead,
+      int numRecordsToPublish,
+      @Nullable AMQP.BasicProperties publishProperties) {
     this.read = read;
     this.numRecords = maxRecordsRead;
     this.numRecordsToPublish = numRecordsToPublish;
+    this.publishProperties = publishProperties;
   }
 
   public RabbitMqIO.Read getRead() {
@@ -66,6 +79,10 @@ class ExchangeTestPlan {
 
   public int getNumRecordsToPublish() {
     return numRecordsToPublish;
+  }
+
+  public AMQP.BasicProperties getPublishProperties() {
+    return publishProperties;
   }
 
   /**

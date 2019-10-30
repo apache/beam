@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -221,7 +222,7 @@ public class RabbitMqIOTest implements Serializable {
                     finalChannel.basicPublish(
                         exchange,
                         testPlan.publishRoutingKeyGen().get(),
-                        null,
+                        testPlan.getPublishProperties(),
                         RabbitMqTestUtils.generateRecord(i));
                   } catch (Exception e) {
                     LOG.error(e.getMessage(), e);
@@ -338,6 +339,35 @@ public class RabbitMqIOTest implements Serializable {
         fail("Expected to fail with ShutdownSignalException. Instead failed with " + cause);
       }
     }
+  }
+
+  @Test(timeout = ONE_MINUTE_MS)
+  public void testUseCorrelationIdSucceedsWhenIdsPresent() throws Exception {
+    int messageCount = 1;
+    AMQP.BasicProperties publishProps =
+        new AMQP.BasicProperties().builder().correlationId("123").build();
+    doExchangeTest(
+        new ExchangeTestPlan(
+            RabbitMqIO.read()
+                .withExchange("CorrelationIdSuccess", "fanout")
+                .withUseCorrelationId(true),
+            messageCount,
+            messageCount,
+            publishProps));
+  }
+
+  @Test(expected = Pipeline.PipelineExecutionException.class)
+  public void testUseCorrelationIdFailsWhenIdsMissing() throws Exception {
+    int messageCount = 1;
+    AMQP.BasicProperties publishProps = null;
+    doExchangeTest(
+        new ExchangeTestPlan(
+            RabbitMqIO.read()
+                .withExchange("CorrelationIdFailure", "fanout")
+                .withUseCorrelationId(true),
+            messageCount,
+            messageCount,
+            publishProps));
   }
 
   @Test(expected = Pipeline.PipelineExecutionException.class)
