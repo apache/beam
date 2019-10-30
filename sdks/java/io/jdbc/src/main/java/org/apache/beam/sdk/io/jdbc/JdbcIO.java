@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -935,10 +936,7 @@ public class JdbcIO {
 
     /** See {@link WriteVoid#withDataSourceConfiguration(DataSourceConfiguration)}. */
     public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
-      return new Write(
-          inner
-              .withDataSourceConfiguration(config)
-              .withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config)));
+      return new Write(inner.withDataSourceConfiguration(config));
     }
 
     /** See {@link WriteVoid#withDataSourceProviderFn(SerializableFunction)}. */
@@ -1369,79 +1367,79 @@ public class JdbcIO {
     }
   }
 
-  /** Wraps a {@link DataSourceConfiguration} to provide a {@link PoolingDataSource}. */
+  /**
+   * Wraps a {@link DataSourceConfiguration} to provide a {@link PoolingDataSource}.
+   *
+   * <p>At most a single {@link DataSource} instance will be constructed during pipeline execution
+   * for each unique {@link DataSourceConfiguration} within the pipeline.
+   */
   public static class PoolableDataSourceProvider
       implements SerializableFunction<Void, DataSource>, HasDisplayData {
-    private static PoolableDataSourceProvider instance;
-    private static transient DataSource source;
-    private static SerializableFunction<Void, DataSource> dataSourceProviderFn;
+    private static final ConcurrentHashMap<DataSourceConfiguration, DataSource> instances =
+        new ConcurrentHashMap<>();
+    private final DataSourceProviderFromDataSourceConfiguration config;
 
     private PoolableDataSourceProvider(DataSourceConfiguration config) {
-      dataSourceProviderFn = DataSourceProviderFromDataSourceConfiguration.of(config);
+      this.config = new DataSourceProviderFromDataSourceConfiguration(config);
     }
 
-    public static synchronized SerializableFunction<Void, DataSource> of(
-        DataSourceConfiguration config) {
-      if (instance == null) {
-        instance = new PoolableDataSourceProvider(config);
-      }
-      return instance;
+    public static SerializableFunction<Void, DataSource> of(DataSourceConfiguration config) {
+      return new PoolableDataSourceProvider(config);
     }
 
     @Override
     public DataSource apply(Void input) {
-      return buildDataSource(input);
-    }
-
-    static synchronized DataSource buildDataSource(Void input) {
-      if (source == null) {
-        DataSource basicSource = dataSourceProviderFn.apply(input);
-        DataSourceConnectionFactory connectionFactory =
-            new DataSourceConnectionFactory(basicSource);
-        PoolableConnectionFactory poolableConnectionFactory =
-            new PoolableConnectionFactory(connectionFactory, null);
-        GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-        poolConfig.setMaxTotal(1);
-        poolConfig.setMinIdle(0);
-        poolConfig.setMinEvictableIdleTimeMillis(10000);
-        poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
-        GenericObjectPool connectionPool =
-            new GenericObjectPool(poolableConnectionFactory, poolConfig);
-        poolableConnectionFactory.setPool(connectionPool);
-        poolableConnectionFactory.setDefaultAutoCommit(false);
-        poolableConnectionFactory.setDefaultReadOnly(false);
-        source = new PoolingDataSource(connectionPool);
-      }
-      return source;
+      return instances.computeIfAbsent(
+          config.config,
+          ignored -> {
+            DataSource basicSource = config.apply(input);
+            DataSourceConnectionFactory connectionFactory =
+                new DataSourceConnectionFactory(basicSource);
+            PoolableConnectionFactory poolableConnectionFactory =
+                new PoolableConnectionFactory(connectionFactory, null);
+            GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+            poolConfig.setMaxTotal(1);
+            poolConfig.setMinIdle(0);
+            poolConfig.setMinEvictableIdleTimeMillis(10000);
+            poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
+            GenericObjectPool connectionPool =
+                new GenericObjectPool(poolableConnectionFactory, poolConfig);
+            poolableConnectionFactory.setPool(connectionPool);
+            poolableConnectionFactory.setDefaultAutoCommit(false);
+            poolableConnectionFactory.setDefaultReadOnly(false);
+            return new PoolingDataSource(connectionPool);
+          });
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      if (dataSourceProviderFn instanceof HasDisplayData) {
-        ((HasDisplayData) dataSourceProviderFn).populateDisplayData(builder);
-      }
+      config.populateDisplayData(builder);
     }
   }
 
-  private static class DataSourceProviderFromDataSourceConfiguration
+  /**
+   * Wraps a {@link DataSourceConfiguration} to provide a {@link DataSource}.
+   *
+   * <p>At most a single {@link DataSource} instance will be constructed during pipeline execution
+   * for each unique {@link DataSourceConfiguration} within the pipeline.
+   */
+  public static class DataSourceProviderFromDataSourceConfiguration
       implements SerializableFunction<Void, DataSource>, HasDisplayData {
+    private static final ConcurrentHashMap<DataSourceConfiguration, DataSource> instances =
+        new ConcurrentHashMap<>();
     private final DataSourceConfiguration config;
-    private static DataSourceProviderFromDataSourceConfiguration instance;
 
     private DataSourceProviderFromDataSourceConfiguration(DataSourceConfiguration config) {
       this.config = config;
     }
 
     public static SerializableFunction<Void, DataSource> of(DataSourceConfiguration config) {
-      if (instance == null) {
-        instance = new DataSourceProviderFromDataSourceConfiguration(config);
-      }
-      return instance;
+      return new DataSourceProviderFromDataSourceConfiguration(config);
     }
 
     @Override
     public DataSource apply(Void input) {
-      return config.buildDatasource();
+      return instances.computeIfAbsent(config, (config) -> config.buildDatasource());
     }
 
     @Override
