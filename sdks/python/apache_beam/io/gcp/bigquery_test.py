@@ -36,12 +36,13 @@ import mock
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
-from apache_beam.io.gcp.bigquery import _BigQueryRowCoder
+from apache_beam.io.gcp.bigquery import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
@@ -247,40 +248,71 @@ class TestBigQuerySource(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class TestBigQueryRowCoder(unittest.TestCase):
-
-  def setUp(self):
-    schema = self._make_schema([
-        ('float', 'FLOAT'),
-        ('string', 'STRING')
-    ])
-    self.coder = _BigQueryRowCoder(schema)
+class TestJsonToDictCoder(unittest.TestCase):
 
   @staticmethod
   def _make_schema(fields):
+    def _fill_schema(fields):
+      for field in fields:
+        table_field = bigquery.TableFieldSchema()
+        table_field.name, table_field.type, nested_fields = field
+        if nested_fields:
+          table_field.fields = list(_fill_schema(nested_fields))
+        yield table_field
+
     schema = bigquery.TableSchema()
-    for field in fields:
-      table_field = bigquery.TableFieldSchema()
-      table_field.name, table_field.type = field
-      schema.fields.append(table_field)
+    schema.fields = list(_fill_schema(fields))
     return schema
 
   def test_coder_is_pickable(self):
     try:
-      pickle.dumps(self.coder)
+      schema = self._make_schema([
+          ('record', 'RECORD', [
+              ('float', 'FLOAT', []),
+          ]),
+          ('integer', 'INTEGER', []),
+      ])
+      coder = _JsonToDictCoder(schema)
+      pickler.loads(pickler.dumps(coder))
     except pickle.PicklingError:
-      self.fail('{} is not pickable'.format(self.coder.__class__.__name__))
+      self.fail('{} is not pickable'.format(coder.__class__.__name__))
 
   def test_values_are_converted(self):
     input_row = '{"float": "10.5", "string": "abc"}'
     expected_row = {'float': 10.5, 'string': 'abc'}
-    actual = self.coder.decode(input_row)
+    schema = self._make_schema([
+        ('float', 'FLOAT', []),
+        ('string', 'STRING', [])
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
     self.assertEqual(expected_row, actual)
 
   def test_null_fields_are_preserved(self):
     input_row = '{"float": "10.5"}'
     expected_row = {'float': 10.5, 'string': None}
-    actual = self.coder.decode(input_row)
+    schema = self._make_schema([
+        ('float', 'FLOAT', []),
+        ('string', 'STRING', [])
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_record_field_is_properly_converted(self):
+    input_row = '{"record": {"float": "55.5"}, "integer": 10}'
+    expected_row = {'record': {'float': 55.5}, 'integer': 10}
+    schema = self._make_schema([
+        ('record', 'RECORD', [
+            ('float', 'FLOAT', []),
+        ]),
+        ('integer', 'INTEGER', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
     self.assertEqual(expected_row, actual)
 
 

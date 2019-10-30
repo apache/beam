@@ -508,7 +508,7 @@ class BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
-SchemaFields = collections.namedtuple('SchemaFields', 'fields mode name type')
+FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 
 
 def _to_bool(value):
@@ -525,16 +525,11 @@ def _to_bytes(value):
   return value.encode('utf-8')
 
 
-class _BigQueryRowCoder(coders.Coder):
-  """A coder for a table row (represented as a dict) from a JSON string which
-  applies additional conversions.
-  """
+class _JsonToDictCoder(coders.Coder):
+  """A coder for a JSON string to a Python dict."""
 
   def __init__(self, table_schema):
-    # bigquery.TableSchema type is unpickable so we must translate it to a
-    # pickable type
-    self.fields = [SchemaFields(x.fields, x.mode, x.name, x.type)
-                   for x in table_schema.fields]
+    self.fields = self._convert_to_tuple(table_schema.fields)
     self._converters = {
         'INTEGER': int,
         'INT64': int,
@@ -544,9 +539,25 @@ class _BigQueryRowCoder(coders.Coder):
         'BYTES': _to_bytes,
     }
 
+  @classmethod
+  def _convert_to_tuple(cls, table_field_schemas):
+    """Recursively converts the list of TableFieldSchema instances to the
+    list of tuples to prevent errors when pickling and unpickling
+    TableFieldSchema` instances.
+    """
+    if not table_field_schemas:
+      return []
+
+    return [FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name,
+                        x.type)
+            for x in table_field_schemas]
+
   def decode(self, value):
     value = json.loads(value)
-    for field in self.fields:
+    return self._decode_with_schema(value, self.fields)
+
+  def _decode_with_schema(self, value, schema_fields):
+    for field in schema_fields:
       if field.name not in value:
         # The field exists in the schema, but it doesn't exist in this row.
         # It probably means its value was null, as the extract to JSON job
@@ -554,12 +565,16 @@ class _BigQueryRowCoder(coders.Coder):
         value[field.name] = None
         continue
 
-      try:
-        converter = self._converters[field.type]
-        value[field.name] = converter(value[field.name])
-      except KeyError:
-        # No need to do any conversion
-        pass
+      if field.type == 'RECORD':
+        value[field.name] = self._decode_with_schema(value[field.name],
+                                                     field.fields)
+      else:
+        try:
+          converter = self._converters[field.type]
+          value[field.name] = converter(value[field.name])
+        except KeyError:
+          # No need to do any conversion
+          pass
     return value
 
   def is_deterministic(self):
@@ -596,7 +611,7 @@ class _BigQuerySource(BoundedSource):
     self.project = project
     self.validate = validate
     self.flatten_results = flatten_results
-    self.coder = coder or _BigQueryRowCoder
+    self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
     self.split_result = None
 
@@ -1499,10 +1514,9 @@ class ReadFromBigQuery(PTransform):
       execution by a previous step.
     coder (~apache_beam.coders.coders.Coder): The coder for the table
       rows. If :data:`None`, then the default coder is
-      :class:`~apache_beam.io.gcp.bigquery._BigQueryRowCoder`,
+      :class:`~apache_beam.io.gcp.bigquery._JsonToDictCoder`,
       which will interpret every line in a file as a JSON serialized
-      dictionary. This argument needs a value only in special cases when
-      returning table rows as dictionaries is not desirable.
+      dictionary.
     use_standard_sql (bool): Specifies whether to use BigQuery's standard SQL
       dialect for this query. The default value is :data:`False`.
       If set to :data:`True`, the query will use BigQuery's updated SQL
@@ -1512,8 +1526,10 @@ class ReadFromBigQuery(PTransform):
       query results. The default value is :data:`True`.
     kms_key (str): Experimental. Optional Cloud KMS key name for use when
       creating new temporary tables.
-    gcs_bucket_name (str): The name of the Google Cloud Storage bucket where
-      the extracted table should be written.
+    gcs_location (str): The name of the Google Cloud Storage bucket where
+      the extracted table should be written as a string or
+      a :class:`~apache_beam.options.value_provider.ValueProvider`. If
+      :data:`None`, then the temp_location parameter is used.
    """
   def __init__(self, *args, **kwargs):
     self._args = args
