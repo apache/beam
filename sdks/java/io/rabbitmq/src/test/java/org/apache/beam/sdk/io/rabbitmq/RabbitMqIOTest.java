@@ -204,7 +204,7 @@ public class RabbitMqIOTest implements Serializable {
   @Test(timeout = ONE_MINUTE_MS)
   public void testReadDeclaredFanoutExchange() throws Exception {
     doExchangeTest(
-        new ExchangeTestPlan(RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", null), 10));
+        new ExchangeTestPlan(RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", "ignored"), 10));
   }
 
   @Test(timeout = ONE_MINUTE_MS)
