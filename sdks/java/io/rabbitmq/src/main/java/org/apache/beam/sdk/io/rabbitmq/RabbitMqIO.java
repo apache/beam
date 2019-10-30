@@ -515,6 +515,8 @@ public class RabbitMqIO {
         }
         checkpointMark.channel = channel;
         channel.txSelect();
+      } catch (IOException e) {
+        throw e;
       } catch (Exception e) {
         throw new IOException(e);
       }
@@ -547,6 +549,8 @@ public class RabbitMqIO {
         if (currentTimestamp.isBefore(checkpointMark.oldestTimestamp)) {
           checkpointMark.oldestTimestamp = currentTimestamp;
         }
+      } catch (IOException e) {
+        throw e;
       } catch (Exception e) {
         throw new IOException(e);
       }

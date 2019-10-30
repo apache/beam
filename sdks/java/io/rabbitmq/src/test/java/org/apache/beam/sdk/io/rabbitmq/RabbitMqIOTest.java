@@ -17,23 +17,28 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Consumer;
+import com.rabbitmq.client.Method;
+import com.rabbitmq.client.ShutdownSignalException;
 import java.io.Serializable;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -41,8 +46,9 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.qpid.server.Broker;
-import org.apache.qpid.server.BrokerOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.qpid.server.SystemLauncher;
+import org.apache.qpid.server.model.SystemConfig;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -62,28 +68,43 @@ public class RabbitMqIOTest implements Serializable {
   private static final int ONE_MINUTE_MS = 60 * 1000;
 
   private static int port;
+  private static String defaultPort;
+
   @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
-  private static transient Broker broker;
+  private static transient SystemLauncher launcher;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
     port = NetworkTestHelper.getAvailableLocalPort();
 
+    defaultPort = System.getProperty("qpid.amqp_port");
+    System.setProperty("qpid.amqp_port", "" + port);
+
     System.setProperty("derby.stream.error.field", "MyApp.DEV_NULL");
-    broker = new Broker();
-    BrokerOptions options = new BrokerOptions();
-    options.setConfigProperty(BrokerOptions.QPID_AMQP_PORT, String.valueOf(port));
-    options.setConfigProperty(BrokerOptions.QPID_WORK_DIR, temporaryFolder.newFolder().toString());
-    options.setConfigProperty(BrokerOptions.QPID_HOME_DIR, "src/test/qpid");
-    broker.startup(options);
+
+    // see https://stackoverflow.com/a/49234754/796064 for qpid setup
+    launcher = new SystemLauncher();
+
+    Map<String, Object> attributes = new HashMap<>();
+    URL initialConfig = RabbitMqIOTest.class.getResource("rabbitmq-io-test-config.json");
+    attributes.put("type", "Memory");
+    attributes.put("initialConfigurationLocation", initialConfig.toExternalForm());
+    attributes.put(SystemConfig.DEFAULT_QPID_WORK_DIR, temporaryFolder.newFolder().toString());
+
+    launcher.startup(attributes);
   }
 
   @AfterClass
   public static void afterClass() {
-    broker.shutdown();
+    launcher.shutdown();
+    if (defaultPort != null) {
+      System.setProperty("qpid.amqp_port", defaultPort);
+    } else {
+      System.clearProperty("qpid.amqp_port");
+    }
   }
 
   @Test
@@ -137,7 +158,8 @@ public class RabbitMqIOTest implements Serializable {
    * <p>This function will automatically specify (and overwrite) the uri and numRecords values of
    * the Read definition.
    */
-  public void doExchangeTest(ExchangeTestPlan testPlan) throws Exception {
+  private void doExchangeTest(ExchangeTestPlan testPlan, boolean simulateIncompatibleExchange)
+      throws Exception {
     String uri = "amqp://guest:guest@localhost:" + port;
     RabbitMqIO.Read read = testPlan.getRead();
     PCollection<RabbitMqMessage> raw =
@@ -157,8 +179,19 @@ public class RabbitMqIOTest implements Serializable {
     String exchange =
         Optional.ofNullable(read.exchange()).orElseGet(() -> UUID.randomUUID().toString());
     String exchangeType = Optional.ofNullable(read.exchangeType()).orElse("fanout");
+    if (simulateIncompatibleExchange) {
+      // Rabbit will fail when attempting to declare an existing exchange that
+      // has different properties (e.g. declaring a non-durable exchange if
+      // an existing one is durable). QPid does not exhibit this behavior. To
+      // simulate the error condition where RabbitMqIO attempts to declare an
+      // incompatible exchange, we instead declare an exchange with the same
+      // name but of a different type. Both Rabbit and QPid will fail this.
+      if ("fanout".equalsIgnoreCase(exchangeType)) exchangeType = "direct";
+      else exchangeType = "fanout";
+    }
 
     ConnectionFactory connectionFactory = new ConnectionFactory();
+    connectionFactory.setAutomaticRecoveryEnabled(false);
     connectionFactory.setUri(uri);
     Connection connection = null;
     Channel channel = null;
@@ -193,12 +226,26 @@ public class RabbitMqIOTest implements Serializable {
       publisher.join();
     } finally {
       if (channel != null) {
-        channel.close();
+        // channel may have already been closed automatically due to protocol failure
+        try {
+          channel.close();
+        } catch (Exception e) {
+          /* ignored */
+        }
       }
       if (connection != null) {
-        connection.close();
+        // connection may have already been closed automatically due to protocol failure
+        try {
+          connection.close();
+        } catch (Exception e) {
+          /* ignored */
+        }
       }
     }
+  }
+
+  private void doExchangeTest(ExchangeTestPlan testPlan) throws Exception {
+    doExchangeTest(testPlan, false);
   }
 
   @Test(timeout = ONE_MINUTE_MS)
@@ -206,6 +253,17 @@ public class RabbitMqIOTest implements Serializable {
     doExchangeTest(
         new ExchangeTestPlan(
             RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", "ignored"), 10));
+  }
+
+  @Test(timeout = ONE_MINUTE_MS)
+  public void testReadDeclaredTopicExchangeWithQueueDeclare() throws Exception {
+    doExchangeTest(
+        new ExchangeTestPlan(
+            RabbitMqIO.read()
+                .withExchange("READEXCHANGE", "topic", "#")
+                .withQueue("declared-queue")
+                .withQueueDeclare(true),
+            10));
   }
 
   @Test(timeout = ONE_MINUTE_MS)
@@ -243,6 +301,38 @@ public class RabbitMqIOTest implements Serializable {
         };
 
     doExchangeTest(plan);
+  }
+
+  @Test(timeout = ONE_MINUTE_MS)
+  public void testDeclareIncompatibleExchangeFails() throws Exception {
+    RabbitMqIO.Read read = RabbitMqIO.read().withExchange("READDIRECT", "direct", "unused");
+    try {
+      doExchangeTest(new ExchangeTestPlan(read, 1), true);
+      fail("Expected to have failed to declare an incompatible exchange");
+    } catch (Exception e) {
+      Throwable cause = Throwables.getRootCause(e);
+      if (cause instanceof ShutdownSignalException) {
+        ShutdownSignalException sse = (ShutdownSignalException) cause;
+        Method reason = sse.getReason();
+        if (reason instanceof com.rabbitmq.client.AMQP.Connection.Close) {
+          com.rabbitmq.client.AMQP.Connection.Close close =
+              (com.rabbitmq.client.AMQP.Connection.Close) reason;
+          assertEquals("Expected failure is 530: not-allowed", 530, close.getReplyCode());
+        } else {
+          fail(
+              "Unexpected ShutdownSignalException reason. Expected Connection.Close. Got: "
+                  + reason);
+        }
+      } else {
+        fail("Expected to fail with ShutdownSignalException. Instead failed with " + cause);
+      }
+    }
+  }
+
+  @Test(expected = Pipeline.PipelineExecutionException.class)
+  public void testQueueDeclareWithoutQueueNameFails() throws Exception {
+    RabbitMqIO.Read read = RabbitMqIO.read().withQueueDeclare(true);
+    doExchangeTest(new ExchangeTestPlan(read, 1));
   }
 
   @Test
