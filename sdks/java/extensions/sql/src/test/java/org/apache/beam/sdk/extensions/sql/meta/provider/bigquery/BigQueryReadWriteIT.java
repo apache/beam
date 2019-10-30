@@ -351,7 +351,7 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
-    String selectTableStatement = "SELECT c_tinyint, c_integer, c_varchar FROM TEST";
+    String selectTableStatement = "SELECT c_integer, c_varchar, c_tinyint FROM TEST";
     BeamRelNode relNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
 
@@ -359,13 +359,13 @@ public class BigQueryReadWriteIT implements Serializable {
     assertEquals(
         output.getSchema(),
         Schema.builder()
-            .addNullableField("c_tinyint", BYTE)
             .addNullableField("c_integer", INT32)
             .addNullableField("c_varchar", STRING)
+            .addNullableField("c_tinyint", BYTE)
             .build());
 
     PAssert.that(output)
-        .containsInAnyOrder(row(output.getSchema(), (byte) 127, 2147483647, "varchar"));
+        .containsInAnyOrder(row(output.getSchema(), 2147483647, "varchar", (byte) 127));
     PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
     assertEquals(state, State.DONE);
   }
