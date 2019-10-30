@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.File;
 import java.io.IOException;
@@ -380,6 +380,42 @@ public class FlinkExecutionEnvironmentsTest {
     assertThat(
         Whitebox.getInternalState(sev, "host"), is("FE80:CD00:0000:0CDE:1257:0000:211E:729C"));
     assertThat(Whitebox.getInternalState(sev, "port"), is(RestOptions.PORT.defaultValue()));
+  }
+
+  @Test
+  public void shouldRemoveHttpProtocolFromHostBatch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+
+    for (String flinkMaster :
+        new String[] {
+          "http://host:1234", " http://host:1234", "https://host:1234", " https://host:1234"
+        }) {
+      options.setFlinkMaster(flinkMaster);
+      ExecutionEnvironment sev =
+          FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+              options, Collections.emptyList());
+      assertThat(Whitebox.getInternalState(sev, "host"), is("host"));
+      assertThat(Whitebox.getInternalState(sev, "port"), is(1234));
+    }
+  }
+
+  @Test
+  public void shouldRemoveHttpProtocolFromHostStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+
+    for (String flinkMaster :
+        new String[] {
+          "http://host:1234", " http://host:1234", "https://host:1234", " https://host:1234"
+        }) {
+      options.setFlinkMaster(flinkMaster);
+      StreamExecutionEnvironment sev =
+          FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+              options, Collections.emptyList());
+      assertThat(Whitebox.getInternalState(sev, "host"), is("host"));
+      assertThat(Whitebox.getInternalState(sev, "port"), is(1234));
+    }
   }
 
   private String extractFlinkConfig() throws IOException {
