@@ -276,8 +276,8 @@ public class RabbitMqIO {
      * In AMQP, messages are published to an exchange and routed to queues based on the exchange
      * type and a queue binding. Most exchange types utilize the routingKey to determine which
      * queues to deliver messages to. It is incumbent upon the developer to understand the paradigm
-     * in place to determine whether to declare a queue, with the appropriate binding should be, and
-     * what the routingKey will be in use.
+     * in place to determine whether to declare a queue, what the appropriate binding should be, and
+     * what routingKey will be in use.
      *
      * <p>This function should be used if the Beam pipeline will be responsible for declaring the
      * exchange. As a result of calling this function, {@code exchangeDeclare} will be set to {@code
@@ -286,7 +286,7 @@ public class RabbitMqIO {
      * will fail.
      *
      * <p>To use an exchange without declaring it, especially for cases when the exchange is shared
-     * with other application or already exists, use {@link #withExchange(String, String)} instead.
+     * with other applications or already exists, use {@link #withExchange(String, String)} instead.
      *
      * @see
      *     "https://www.cloudamqp.com/blog/2015-09-03-part4-rabbitmq-for-beginners-exchanges-routing-keys-bindings.html"
@@ -308,7 +308,7 @@ public class RabbitMqIO {
      * type and a queue binding. Most exchange types utilize the routingKey to determine which
      * queues to deliver messages to. It is incumbent upon the developer to understand the paradigm
      * in place to determine whether to declare a queue, with the appropriate binding should be, and
-     * what the routingKey will be in use.
+     * what routingKey will be in use.
      *
      * <p>This function should be used if the Beam pipeline will be using an exchange that has
      * already been declared or when using an exchange shared by other applications, such as an

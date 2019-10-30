@@ -22,12 +22,12 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * RabbitMqIO documents "using a queue" vs "using an exchange", but AMQP always interats with an
+ * RabbitMqIO documents "using a queue" vs "using an exchange", but AMQP always interacts with an
  * exchange. The 'queue' semantics only make sense for a "direct exchange" where the routing key and
  * queue name match.
  *
  * <p>To facilitate the many combinations of queue bindings, routing keys, and exchange declarations
- * that could be used, this class has been implemented to help represent the paramters of a test
+ * that could be used, this class has been implemented to help represent the parameters of a test
  * oriented around reading messages published to an exchange.
  */
 class ExchangeTestPlan {
