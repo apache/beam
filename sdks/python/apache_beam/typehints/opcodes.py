@@ -152,7 +152,7 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
-  base = state.stack.pop()
+  base = Const.unwrap(state.stack.pop())
   if base in (str, unicode):
     out = base
   elif (isinstance(index, Const) and isinstance(index.value, int)

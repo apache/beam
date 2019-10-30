@@ -69,6 +69,9 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(str, lambda v: v[::-1], [str])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [typehints.Any])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [object])
+    # Test binary_subscr on a slice of a Const.
+    test_list = ['a', 'b']
+    self.assertReturnType(typehints.List[str], lambda: test_list[:], [])
 
   def testUnpack(self):
     def reverse(a_b):
