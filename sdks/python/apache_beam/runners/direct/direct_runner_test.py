@@ -29,14 +29,16 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners import DirectRunner
 from apache_beam.runners import TestDirectRunner
 from apache_beam.runners import create_runner
 from apache_beam.testing import test_pipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
+from apache_beam.utils.timestamp import Timestamp
 
 class DirectPipelineResultTest(unittest.TestCase):
 
