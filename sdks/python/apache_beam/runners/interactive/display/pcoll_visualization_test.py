@@ -48,6 +48,9 @@ class PCollectionVisualizationTest(unittest.TestCase):
     # Allow unit test to run outside of ipython kernel since we don't test the
     # frontend rendering in unit tests.
     pv._pcoll_visualization_ready = True
+    # Generally test the logic where notebook is connected to the assumed
+    # ipython kernel by forcefully setting notebook check to True.
+    ie.current_env()._is_in_notebook = True
 
     self._p = beam.Pipeline()
     # pylint: disable=range-builtin-not-iterating
@@ -146,6 +149,17 @@ class PCollectionVisualizationTest(unittest.TestCase):
     time.sleep(1)
     # "assert_called" is new in Python 3.6.
     mocked_timeloop.assert_called()
+
+  @unittest.skipIf(sys.version_info < (3, 5, 3),
+                   'PCollectionVisualization is supported on Python 3.5.3+.')
+  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
+         '.PCollectionVisualization._to_element_list', lambda x: [1, 2, 3])
+  @patch('pandas.DataFrame.sample')
+  def test_display_plain_text_when_kernel_has_no_frontend(self,
+                                                          _mocked_sample):
+    ie.new_env()  # Resets the notebook check. Should be False in unit tests.
+    self.assertIsNone(pv.visualize(self._pcoll))
+    _mocked_sample.assert_called_once()
 
 
 if __name__ == '__main__':

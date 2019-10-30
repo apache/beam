@@ -94,17 +94,23 @@ class InteractiveEnvironment(object):
                       'dependencies to enable all data visualization features.')
 
     self._is_in_ipython = False
+    self._is_in_notebook = False
     # Check if the runtime is within an interactive environment, i.e., ipython.
     try:
       from IPython import get_ipython  # pylint: disable=import-error
       if get_ipython():
         self._is_in_ipython = True
-      else:
-        logging.warning('You cannot use Interactive Beam features when you are '
-                        'not in an interactive environment such as a Jupyter '
-                        'notebook.')
+        if 'IPKernelApp' in get_ipython().config:
+          self._is_in_notebook = True
     except ImportError:
       pass
+    if not self._is_in_ipython:
+      logging.warning('You cannot use Interactive Beam features when you are '
+                      'not in an interactive environment such as a Jupyter '
+                      'notebook.')
+    if not self._is_in_notebook:
+      logging.warning('You have limited Interactive Beam features since your '
+                      'ipython kernel is not connected any notebook frontend.')
 
   @property
   def is_py_version_ready(self):
@@ -120,6 +126,15 @@ class InteractiveEnvironment(object):
   def is_in_ipython(self):
     """If the runtime is within an IPython kernel."""
     return self._is_in_ipython
+
+  @property
+  def is_in_notebook(self):
+    """If the kernel is connected to a notebook frontend.
+
+    If not, it could be that the user is using kernel in a terminal or a unit
+    test.
+    """
+    return self._is_in_notebook
 
   def watch(self, watchable):
     """Watches a watchable.

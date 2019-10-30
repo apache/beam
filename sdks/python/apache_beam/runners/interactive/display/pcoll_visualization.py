@@ -103,13 +103,21 @@ def visualize(pcoll, dynamic_plotting_interval=None):
     # Otherwise, dynamic plotting ends when pipeline is not running anymore.
 
   If dynamic_plotting is not enabled (by default), None is returned.
+
+  The function is experimental. For internal use only; no
+  backwards-compatibility guarantees.
   """
   if not _pcoll_visualization_ready:
     return None
   pv = PCollectionVisualization(pcoll)
-  pv.display_facets()
+  if ie.current_env().is_in_notebook:
+    pv.display_facets()
+  else:
+    pv.display_plain_text()
+    # We don't want to do dynamic plotting if there is no notebook frontend.
+    return None
 
-  if dynamic_plotting_interval:
+  if ie.current_env().is_in_notebook and dynamic_plotting_interval:
     # Disables the verbose logging from timeloop.
     logging.getLogger('timeloop').disabled = True
     tl = Timeloop()
@@ -168,6 +176,19 @@ class PCollectionVisualization(object):
     self._overview_display_id = 'facets_overview_{}_{}'.format(self._cache_key,
                                                                id(self))
     self._df_display_id = 'df_{}_{}'.format(self._cache_key, id(self))
+
+  def display_plain_text(self):
+    """Displays a random sample of the normalized PCollection data.
+
+    This function is used when the ipython kernel is not connected to a
+    notebook frontend such as when running ipython in terminal or in unit tests.
+    """
+    # Double check if the dependency is ready in case someone mistakenly use
+    # the function.
+    if _pcoll_visualization_ready:
+      data = self._to_dataframe()
+      data_sample = data.sample(n=25 if len(data) > 25 else len(data))
+      display(data_sample)
 
   def display_facets(self, updating_pv=None):
     """Displays the visualization through IPython.
