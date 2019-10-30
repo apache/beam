@@ -182,7 +182,7 @@ class _TestStream(PTransform):
         timestamp.MAX_TIMESTAMP - timestamp.TIME_GRANULARITY,
         _TestStream.WATERMARK_CONTROL_TAG)]
     test_stream_stop = [WatermarkEvent(timestamp.MAX_TIMESTAMP,
-                                        _TestStream.WATERMARK_CONTROL_TAG)]
+                                       _TestStream.WATERMARK_CONTROL_TAG)]
 
     return (test_stream_init
             + watermark_starts
@@ -245,7 +245,7 @@ class _TestStream(PTransform):
 
 
 class _TestStreamMultiOutputs(object):
-  """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
+  """An object grouping multiple PCollections."""
 
   def __init__(self, pcoll_dict):
     self._pcolls = pcoll_dict
@@ -258,10 +258,9 @@ class _TestStreamMultiOutputs(object):
 
   def _str_internal(self):
     return '%s main_tag=%s tags=%s transform=%s' % (
-        self.__class__.__name__, self._main_tag, self._tags, self._transform)
+        self.__class__.__name__, self._pcolls)
 
   def __iter__(self):
-    """Iterates over tags returning for each call a (tag, pvalue) pair."""
     for tag in self._pcolls:
       yield self[tag]
 
@@ -273,10 +272,6 @@ class _TestStreamMultiOutputs(object):
     return self[tag]
 
   def __getitem__(self, tag):
-    # Accept int tags so that we can look at Partition tags with the
-    # same ints that we used in the partition function.
-    # TODO(gildea): Consider requiring string-based tags everywhere.
-    # This will require a partition function that does not return ints.
     return self._pcolls[tag]
 
 
@@ -302,12 +297,12 @@ class TestStream(PTransform):
     assert(isinstance(pbegin, pvalue.PBegin))
     self.pipeline = pbegin.pipeline
 
+    # This enables multiplexing to multiple output PCollections.
     def mux(event):
       if event.tag:
         yield pvalue.TaggedOutput(event.tag, event)
       else:
         yield event
-
     mux_output = (pbegin
                   | _TestStream(self.output_tags, events=self._events)
                   | 'TestStream Multiplexer' >> beam.ParDo(mux).with_outputs())

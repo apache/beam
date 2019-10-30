@@ -326,9 +326,13 @@ class _BoundedReadEvaluator(_TransformEvaluator):
 
 
 class _WatermarkControllerEvaluator(_TransformEvaluator):
-  WATERMARK_HOLD = _ValueStateTag('_WatermarkControllerEvaluator_Watermark_Hold')
+  """TransformEvaluator for the _WatermarkController transform.
 
-  """TransformEvaluator for the TestStream transform."""
+  This is used to enable multiple output watermarks for the TestStream.
+  """
+
+  # The state tag used to store the watermark.
+  WATERMARK_TAG = _ValueStateTag('_WatermarkControllerEvaluator_Watermark_Tag')
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs):
@@ -342,28 +346,27 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
   def _init_state(self):
     transform_states = self._evaluation_context._transform_keyed_states
     state = transform_states[self._applied_ptransform]
-    if self.WATERMARK_HOLD not in state:
+    if self.WATERMARK_TAG not in state:
       watermark_state = InMemoryUnmergedState()
-      watermark_state.set_global_state(self.WATERMARK_HOLD, MIN_TIMESTAMP)
-      state[self.WATERMARK_HOLD] = watermark_state
-    return state[self.WATERMARK_HOLD]
+      watermark_state.set_global_state(self.WATERMARK_TAG, MIN_TIMESTAMP)
+      state[self.WATERMARK_TAG] = watermark_state
+    return state[self.WATERMARK_TAG]
 
   @property
   def _watermark(self):
-    return self._state.get_global_state(self.WATERMARK_HOLD)
+    return self._state.get_global_state(self.WATERMARK_TAG)
 
   @_watermark.setter
   def _watermark(self, watermark):
-    self._state.set_global_state(self.WATERMARK_HOLD, watermark)
+    self._state.set_global_state(self.WATERMARK_TAG, watermark)
 
   def start_bundle(self):
     self.bundles = []
 
   def process_element(self, element):
-    event = element.value
-
     # In order to keep the order of the elements between the script and what
     # flows through the pipeline the same, emit the elements here.
+    event = element.value
     if isinstance(event, WatermarkEvent):
       self._watermark = event.new_watermark
     elif isinstance(event, ElementEvent):
@@ -375,6 +378,8 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
       self.bundles.append(bundle)
 
   def finish_bundle(self):
+    # The watermark hold we set here is the way we allow the TestStream events
+    # to control the output watermark.
     return TransformResult(
         self, self.bundles, [], None, {None: self._watermark})
 
@@ -391,25 +396,20 @@ class _TestStreamEvaluator(_TransformEvaluator):
         side_inputs)
 
   def start_bundle(self):
-    watermarks = self._evaluation_context._watermark_manager.get_watermarks(self._applied_ptransform)
     label = self._applied_ptransform.full_label
     self.current_index = 0
-    self.watermarks = { }
     self.bundles = []
     self.watermark = MIN_TIMESTAMP
 
   def process_element(self, element):
-    index = element.value
+    self.current_index = element.value
     self.watermark = element.timestamp
-    assert isinstance(index, int)
-    assert 0 <= index <= len(self.test_stream.events)
-    self.current_index = index
-    main_output = list(self._outputs)[0]
     for event in self.test_stream.events(self.current_index):
       if isinstance(event, (ElementEvent, WatermarkEvent)):
         if event.tag == _TestStream.WATERMARK_CONTROL_TAG:
           self.watermark = event.new_watermark
         else:
+          main_output = list(self._outputs)[0]
           bundle = self._evaluation_context.create_bundle(main_output)
           bundle.output(GlobalWindows.windowed_value(event))
           self.bundles.append(bundle)
@@ -421,8 +421,6 @@ class _TestStreamEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     unprocessed_bundles = []
-
-    hold = self.watermark
     next_index = self.test_stream.next(self.current_index)
     if not self.test_stream.end(next_index):
       unprocessed_bundle = self._evaluation_context.create_bundle(
@@ -432,7 +430,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
       unprocessed_bundles.append(unprocessed_bundle)
 
     return TransformResult(
-        self, self.bundles, unprocessed_bundles, None, {None: hold})
+        self, self.bundles, unprocessed_bundles, None, {None: self.watermark})
 
 
 class _PubSubReadEvaluator(_TransformEvaluator):
