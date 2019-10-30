@@ -374,6 +374,7 @@ class EvaluationContext(object):
 
     for applied_ptransform in self._step_names:
       if not self._is_transform_done(applied_ptransform):
+        print(applied_ptransform)
         return False
     return True
 
