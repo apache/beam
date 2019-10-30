@@ -21,15 +21,35 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+/**
+ * RabbitMqIO documents "using a queue" vs "using an exchange", but AMQP always interats with an
+ * exchange. The 'queue' semantics only make sense for a "direct exchange" where the routing key and
+ * queue name match.
+ *
+ * <p>To facilitate the many combinations of queue bindings, routing keys, and exchange declarations
+ * that could be used, this class has been implemented to help represent the paramters of a test
+ * oriented around reading messages published to an exchange.
+ */
 class ExchangeTestPlan {
+  static final String DEFAULT_ROUTING_KEY = "someRoutingKey";
+
   private final RabbitMqIO.Read read;
   private final int numRecords;
   private final int numRecordsToPublish;
 
-    public ExchangeTestPlan(RabbitMqIO.Read read, int maxRecordsRead) {
-        this(read, maxRecordsRead, maxRecordsRead);
-    }
+  public ExchangeTestPlan(RabbitMqIO.Read read, int maxRecordsRead) {
+    this(read, maxRecordsRead, maxRecordsRead);
+  }
 
+  /**
+   * @param read Read semantics to use for a test
+   * @param maxRecordsRead Maximum messages to be processed by Beam within a test
+   * @param numRecordsToPublish Number of messages that will be published to the exchange as part of
+   *     a test. Note that this will frequently be the same value as {@code numRecordsRead} in which
+   *     case it's simpler to use {@link #ExchangeTestPlan(RabbitMqIO.Read, int)}, but when testing
+   *     topic exchanges or exchanges where not all messages will be routed to the queue being read
+   *     from, these numbers will differ.
+   */
   public ExchangeTestPlan(RabbitMqIO.Read read, int maxRecordsRead, int numRecordsToPublish) {
     this.read = read;
     this.numRecords = maxRecordsRead;
@@ -45,14 +65,18 @@ class ExchangeTestPlan {
   }
 
   public int getNumRecordsToPublish() {
-        return numRecordsToPublish;
+    return numRecordsToPublish;
   }
 
-
+  /**
+   * @return The routing key to be used for an arbitrary message to be published to the exchange for
+   *     a test. The default implementation uses a fixed value of {@link #DEFAULT_ROUTING_KEY}
+   */
   public Supplier<String> publishRoutingKeyGen() {
-    return () -> "someRoutingKey";
+    return () -> DEFAULT_ROUTING_KEY;
   }
 
+  /** @return The expected parsed (String) messages read from the queue during the test. */
   public List<String> expectedResults() {
     return RabbitMqTestUtils.generateRecords(numRecordsToPublish).stream()
         .map(RabbitMqTestUtils::recordToString)

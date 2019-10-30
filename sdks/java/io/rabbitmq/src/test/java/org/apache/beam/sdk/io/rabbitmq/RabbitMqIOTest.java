@@ -204,7 +204,8 @@ public class RabbitMqIOTest implements Serializable {
   @Test(timeout = ONE_MINUTE_MS)
   public void testReadDeclaredFanoutExchange() throws Exception {
     doExchangeTest(
-        new ExchangeTestPlan(RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", "ignored"), 10));
+        new ExchangeTestPlan(
+            RabbitMqIO.read().withExchange("READEXCHANGE", "fanout", "ignored"), 10));
   }
 
   @Test(timeout = ONE_MINUTE_MS)
@@ -212,16 +213,17 @@ public class RabbitMqIOTest implements Serializable {
     final int numRecords = 10;
     RabbitMqIO.Read read = RabbitMqIO.read().withExchange("READTOPIC", "topic", "user.create.#");
 
-    final Supplier<String> publishRoutingKeyGen = new Supplier<String>() {
-      private AtomicInteger counter = new AtomicInteger(0);
+    final Supplier<String> publishRoutingKeyGen =
+        new Supplier<String>() {
+          private AtomicInteger counter = new AtomicInteger(0);
 
-      @Override
-      public String get() {
-        int count = counter.getAndIncrement();
-        if (count % 2 == 0) return "user.create." + count;
-        return "user.delete." + count;
-      }
-    };
+          @Override
+          public String get() {
+            int count = counter.getAndIncrement();
+            if (count % 2 == 0) return "user.create." + count;
+            return "user.delete." + count;
+          }
+        };
 
     ExchangeTestPlan plan =
         new ExchangeTestPlan(read, numRecords / 2, numRecords) {
