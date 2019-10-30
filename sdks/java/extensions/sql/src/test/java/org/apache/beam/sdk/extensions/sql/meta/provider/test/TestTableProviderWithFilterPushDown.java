@@ -19,9 +19,11 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import static org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider.PUSH_DOWN_OPTION;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import com.alibaba.fastjson.JSON;
 import java.util.List;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterToCalcRule;
@@ -82,7 +85,7 @@ public class TestTableProviderWithFilterPushDown {
   @Before
   public void buildUp() {
     TestTableProvider tableProvider = new TestTableProvider();
-    Table table = getTable("TEST", PushDownOptions.BOTH);
+    Table table = getTable("TEST", PushDownOptions.FILTER);
     tableProvider.createTable(table);
     tableProvider.addRows(
         table.getName(),
@@ -97,13 +100,21 @@ public class TestTableProviderWithFilterPushDown {
   }
 
   @Test
-  public void testIOSourceRel_predicateSimple() {
-    String selectTableStatement = "SELECT name FROM TEST where id=2";
+  public void testIOSourceRel_withFilter_shouldProjectAllFields() {
+    String selectTableStatement = "SELECT name FROM TEST where name='two'";
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    // Condition should be pushed-down to IO level
+    assertNull(((Calc) beamRelNode).getProgram().getCondition());
+
+    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    List<String> projects = beamRelNode.getInput(0).getRowType().getFieldNames();
+    // When performing standalone filter push-down IO should project all fields.
+    assertThat(projects, containsInAnyOrder("unused1", "id", "name", "unused2", "b"));
+
     assertEquals(Schema.builder().addStringField("name").build(), result.getSchema());
     PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "two"));
 
@@ -111,169 +122,48 @@ public class TestTableProviderWithFilterPushDown {
   }
 
   @Test
-  public void testIOSourceRel_predicateSimple_Boolean() {
-    String selectTableStatement = "SELECT name FROM TEST where b";
-
-    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
-    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
-    assertEquals(Schema.builder().addStringField("name").build(), result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "one"));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
-  @Test
-  public void testIOSourceRel_predicateWithAnd() {
-    String selectTableStatement = "SELECT name FROM TEST where id>=2 and unused1<=200";
-
-    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
-    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
-    assertEquals(Schema.builder().addStringField("name").build(), result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "two"));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
-  @Test
-  public void testIOSourceRel_withComplexProjects_withSupportedFilter() {
-    String selectTableStatement =
-        "SELECT name as new_name, unused1+10-id as new_id FROM TEST where 1<id";
+  public void testIOSourceRel_withSupportedFilter_selectInRandomOrder() {
+    String selectTableStatement = "SELECT unused2, id, name FROM TEST where b";
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    // Condition should be pushed-down to IO level
+    assertNull(((Calc) beamRelNode).getProgram().getCondition());
+
     assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
-    // Make sure project push-down was done
-    List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("name", "unused1", "id"));
-    assertEquals(
-        Schema.builder().addStringField("new_name").addInt32Field("new_id").build(),
-        result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "two", 208));
+    List<String> projects = beamRelNode.getInput(0).getRowType().getFieldNames();
+    // When performing standalone filter push-down IO should project all fields.
+    assertThat(projects, containsInAnyOrder("unused1", "id", "name", "unused2", "b"));
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
-  @Test
-  public void testIOSourceRel_selectFieldsInRandomOrder_withRename_withSupportedFilter() {
-    String selectTableStatement =
-        "SELECT name as new_name, id as new_id, unused1 as new_unused1 FROM TEST where 1<id";
-
-    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
-    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
-    // Make sure project push-down was done
-    List<String> a = beamRelNode.getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("new_name", "new_id", "new_unused1"));
     assertEquals(
         Schema.builder()
-            .addStringField("new_name")
-            .addInt32Field("new_id")
-            .addInt32Field("new_unused1")
+            .addInt16Field("unused2")
+            .addInt32Field("id")
+            .addStringField("name")
             .build(),
         result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "two", 2, 200));
+    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), (short) 100, 1, "one"));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
   @Test
-  public void testIOSourceRel_selectFieldsInRandomOrder_withRename_withUnsupportedFilter() {
-    String selectTableStatement =
-        "SELECT name as new_name, id as new_id, unused1 as new_unused1 FROM TEST where id+unused1=202";
+  public void testIOSourceRel_withUnsupportedFilter_calcPreservesCondition() {
+    String selectTableStatement = "SELECT name FROM TEST where id+1=2";
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    // Unsupported condition should be preserved in a Calc
+    assertNotNull(((Calc) beamRelNode).getProgram().getCondition());
+
     assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
-    // Make sure project push-down was done
-    List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("name", "id", "unused1"));
-    assertEquals(
-        Schema.builder()
-            .addStringField("new_name")
-            .addInt32Field("new_id")
-            .addInt32Field("new_unused1")
-            .build(),
-        result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "two", 2, 200));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
-  @Test
-  public void
-      testIOSourceRel_selectFieldsInRandomOrder_withRename_withSupportedAndUnsupportedFilters() {
-    String selectTableStatement =
-        "SELECT name as new_name, id as new_id, unused1 as new_unused1 FROM TEST where 1<id and id+unused1=202";
-
-    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
-    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
-    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
-    // Make sure project push-down was done
-    List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("name", "id", "unused1"));
-    assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{<(1, $1)}, unsupported{=(+($1, $0), 202)}])",
-        beamRelNode.getInput(0).getDigest());
-    assertEquals(
-        Schema.builder()
-            .addStringField("new_name")
-            .addInt32Field("new_id")
-            .addInt32Field("new_unused1")
-            .build(),
-        result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "two", 2, 200));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
-  @Test
-  public void testIOSourceRel_selectAllField() {
-    String selectTableStatement = "SELECT * FROM TEST where id<>2";
-
-    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
-    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
-    assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2, b],TestTableFilter=[supported{<>($1, 2)}, unsupported{}])",
-        beamRelNode.getDigest());
-    assertEquals(BASIC_SCHEMA, result.getSchema());
-    PAssert.that(result)
-        .containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100, true));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
-  private static Row row(Schema schema, Object... objects) {
-    return Row.withSchema(schema).addValues(objects).build();
-  }
-
-  @Test
-  public void testIOSourceRel_withUnsupportedPredicate() {
-    String selectTableStatement = "SELECT name FROM TEST where id+unused1=101";
-
-    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
-    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
-    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
-    assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{}, unsupported{=(+($1, $0), 101)}])",
-        beamRelNode.getInput(0).getDigest());
-    // Make sure project push-down was done
-    List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("name", "id", "unused1"));
+    List<String> projects = beamRelNode.getInput(0).getRowType().getFieldNames();
+    // When performing standalone filter push-down IO should project all fields.
+    assertThat(projects, containsInAnyOrder("unused1", "id", "name", "unused2", "b"));
 
     assertEquals(Schema.builder().addStringField("name").build(), result.getSchema());
     PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "one"));
@@ -282,69 +172,21 @@ public class TestTableProviderWithFilterPushDown {
   }
 
   @Test
-  public void testIOSourceRel_selectAll_withUnsupportedPredicate() {
-    String selectTableStatement = "SELECT * FROM TEST where id+unused1=101";
+  public void testIOSourceRel_selectAllFieldsInRandomOrder_shouldPushDownSupportedFilter() {
+    String selectTableStatement = "SELECT unused2, name, id, b, unused1 FROM TEST where name='two'";
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
-    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
-    assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],TestTableFilter=[supported{}, unsupported{}])",
-        beamRelNode.getInput(0).getDigest());
-    // Make sure project push-down was done (all fields since 'select *')
-    List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("name", "id", "unused1", "unused2", "b"));
+    // Calc should be dropped, because all filters are supported and all fields are projected.
+    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
+    List<String> projects = beamRelNode.getRowType().getFieldNames();
+    // When performing standalone filter push-down IO should project all fields.
+    assertThat(projects, containsInAnyOrder("unused1", "id", "name", "unused2", "b"));
 
-    assertEquals(BASIC_SCHEMA, result.getSchema());
+    assertEquals(Schema.builder().addInt16Field("unused2").addStringField("name").addInt32Field("id").addBooleanField("b").addInt32Field("unused1").build(), result.getSchema());
     PAssert.that(result)
-        .containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100, true));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
-  @Test
-  public void testIOSourceRel_withSupportedAndUnsupportedPredicate() {
-    String selectTableStatement = "SELECT name FROM TEST where id+unused1=101 and id=1";
-
-    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
-    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
-    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
-    assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{=($1, 1)}, unsupported{=(+($1, $0), 101)}])",
-        beamRelNode.getInput(0).getDigest());
-    // Make sure project push-down was done
-    List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("name", "id", "unused1"));
-
-    assertEquals(Schema.builder().addStringField("name").build(), result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), "one"));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
-  @Test
-  public void testIOSourceRel_selectAll_withSupportedAndUnsupportedPredicate() {
-    String selectTableStatement = "SELECT * FROM TEST where id+unused1=101 and id=1";
-
-    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
-    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
-    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
-    assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2, b],TestTableFilter=[supported{=($1, 1)}, unsupported{=(+($1, $0), 101)}])",
-        beamRelNode.getInput(0).getDigest());
-    // Make sure project push-down was done (all fields since 'select *')
-    List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
-    assertThat(a, containsInAnyOrder("unused1", "name", "id", "unused2", "b"));
-
-    assertEquals(BASIC_SCHEMA, result.getSchema());
-    PAssert.that(result)
-        .containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100, true));
+        .containsInAnyOrder(row(result.getSchema(), (short) 200, "two", 2, false, 200));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
@@ -358,5 +200,9 @@ public class TestTableProviderWithFilterPushDown {
             JSON.parseObject("{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
+  }
+
+  private static Row row(Schema schema, Object... objects) {
+    return Row.withSchema(schema).addValues(objects).build();
   }
 }
