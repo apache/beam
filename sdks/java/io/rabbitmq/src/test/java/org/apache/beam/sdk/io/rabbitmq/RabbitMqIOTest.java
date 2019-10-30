@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -188,8 +190,11 @@ public class RabbitMqIOTest implements Serializable {
       // simulate the error condition where RabbitMqIO attempts to declare an
       // incompatible exchange, we instead declare an exchange with the same
       // name but of a different type. Both Rabbit and QPid will fail this.
-      if ("fanout".equalsIgnoreCase(exchangeType)) exchangeType = "direct";
-      else exchangeType = "fanout";
+      if ("fanout".equalsIgnoreCase(exchangeType)) {
+        exchangeType = "direct";
+      } else {
+        exchangeType = "fanout";
+      }
     }
 
     ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -281,7 +286,9 @@ public class RabbitMqIOTest implements Serializable {
           @Override
           public String get() {
             int count = counter.getAndIncrement();
-            if (count % 2 == 0) return "user.create." + count;
+            if (count % 2 == 0) {
+              return "user.create." + count;
+            }
             return "user.delete." + count;
           }
         };

@@ -48,7 +48,7 @@ public class RabbitMqTestUtils {
   }
 
   /**
-   * Produces payloads for {@code numRecords} messages utilizing {@link #generateRecord(int)}
+   * Produces payloads for {@code numRecords} messages utilizing {@link #generateRecord(int)}.
    *
    * @param numRecords the number of messages to produce
    * @return a list of length {@code numRecords} of distinct message payloads
