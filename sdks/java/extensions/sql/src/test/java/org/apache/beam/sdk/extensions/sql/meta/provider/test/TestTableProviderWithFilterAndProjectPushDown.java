@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.alibaba.fastjson.JSON;
 import java.util.List;
@@ -345,6 +346,67 @@ public class TestTableProviderWithFilterAndProjectPushDown {
     assertEquals(BASIC_SCHEMA, result.getSchema());
     PAssert.that(result)
         .containsInAnyOrder(row(result.getSchema(), 100, 1, "one", (short) 100, true));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testIOSourceRel_selectOneFieldsMoreThanOnce() {
+    String selectTableStatement = "SELECT b, b, b, b, b FROM TEST";
+
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
+    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    // Calc must not be dropped
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    // Make sure project push-down was done
+    List<String> pushedFields = beamRelNode.getInput(0).getRowType().getFieldNames();
+    assertThat(pushedFields, containsInAnyOrder("b"));
+
+    assertEquals(
+        Schema.builder()
+            .addBooleanField("b")
+            .addBooleanField("b0")
+            .addBooleanField("b1")
+            .addBooleanField("b2")
+            .addBooleanField("b3")
+            .build(),
+        result.getSchema());
+    PAssert.that(result)
+        .containsInAnyOrder(
+            row(result.getSchema(), true, true, true, true, true),
+            row(result.getSchema(), false, false, false, false, false));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testIOSourceRel_selectOneFieldsMoreThanOnce_withSupportedPredicate() {
+    String selectTableStatement = "SELECT b, b, b, b, b FROM TEST where b";
+
+    // Calc must not be dropped
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
+    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    // Supported predicate should be pushed-down
+    assertNull(((BeamCalcRel) beamRelNode).getProgram().getCondition());
+    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    // Make sure project push-down was done
+    List<String> pushedFields = beamRelNode.getInput(0).getRowType().getFieldNames();
+    assertThat(pushedFields, containsInAnyOrder("b"));
+
+    assertEquals(
+        Schema.builder()
+            .addBooleanField("b")
+            .addBooleanField("b0")
+            .addBooleanField("b1")
+            .addBooleanField("b2")
+            .addBooleanField("b3")
+            .build(),
+        result.getSchema());
+    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), true, true, true, true, true));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }

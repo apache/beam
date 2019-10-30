@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Queue;
@@ -110,7 +111,8 @@ public class BeamIOPushDownRule extends RelOptRule {
     }
 
     if (!(tableFilter instanceof DefaultTableFilter) && !beamSqlTable.supportsProjects()) {
-      // When applying standalone filter push-down all fields must be project by an IO regardless.
+      // When applying standalone filter push-down all fields must be project by an IO.
+      // With a single exception: Calc projects all fields and does nothing else.
       usedFields.addAll(calcInputRowType.getFieldNames());
     }
 
@@ -133,10 +135,11 @@ public class BeamIOPushDownRule extends RelOptRule {
     //    And
     // 2. Predicate can be completely pushed-down to IO level.
     //    And
-    // 3. And IO supports project push-down OR all fields are projected by a Calc
+    // 3. And IO supports project push-down OR all fields are projected by a Calc.
     if (isProjectRenameOnlyProgram(program)
         && tableFilter.getNotSupported().isEmpty()
-        && (beamSqlTable.supportsProjects() || calc.getRowType().getFieldCount() == calcInputRowType.getFieldCount())) {
+        && (beamSqlTable.supportsProjects()
+            || calc.getRowType().getFieldCount() == calcInputRowType.getFieldCount())) {
       // Tell the optimizer to not use old IO, since the new one is better.
       call.getPlanner().setImportance(ioSourceRel, 0.0);
       call.transformTo(ioSourceRel.copy(calc.getRowType(), newSchema.getFieldNames(), tableFilter));
@@ -184,8 +187,9 @@ public class BeamIOPushDownRule extends RelOptRule {
 
     RelNode result = relBuilder.build();
 
-    if (newFilter.size() < projectFilter.right.size()) {
-      // Smaller Calc programs are indisputably better.
+    if (newFilter.size() < projectFilter.right.size()
+        || usedFields.size() < calcInputRowType.getFieldCount()) {
+      // Smaller Calc programs are indisputably better, as well as IOs with less projected fields.
       // Tell the optimizer not to use old Calc and IO.
       call.transformTo(result);
       call.getPlanner().setImportance(calc, 0.0);
@@ -270,6 +274,7 @@ public class BeamIOPushDownRule extends RelOptRule {
   /**
    * Determine whether a program only performs renames and/or projects. RexProgram#isTrivial is not
    * sufficient in this case, because number of projects does not need to be the same as inputs.
+   * Calc should not be dropped when the same field projected more than once.
    *
    * @param program A program to check.
    * @return True when program performs only projects (w/o any modifications), false otherwise.
@@ -277,8 +282,9 @@ public class BeamIOPushDownRule extends RelOptRule {
   @VisibleForTesting
   boolean isProjectRenameOnlyProgram(RexProgram program) {
     int fieldCount = program.getInputRowType().getFieldCount();
+    Set<Integer> projectIndex = new HashSet<>();
     for (RexLocalRef ref : program.getProjectList()) {
-      if (ref.getIndex() >= fieldCount) {
+      if (ref.getIndex() >= fieldCount || !projectIndex.add(ref.getIndex())) {
         return false;
       }
     }
