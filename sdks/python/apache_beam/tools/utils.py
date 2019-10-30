@@ -72,6 +72,38 @@ class BenchmarkConfig(
         str(self.size))
 
 
+class LinearRegressionBenchmarkConfig(
+    collections.namedtuple(
+        "LinearRegressionBenchmarkConfig",
+        ["benchmark", "starting_point", "increment", "num_runs"])):
+  """
+  Attributes:
+    benchmark: a callable that takes an int argument - benchmark size,
+      and returns a callable. A returned callable must run the code being
+      benchmarked on an input of specified size.
+
+      For example, one can implement a benchmark as:
+
+      class MyBenchmark(object):
+        def __init__(self, size):
+          [do necessary initialization]
+        def __call__(self):
+          [run the code in question]
+
+    starting_point: int, an initial size of the input. Regression results are
+      calculated based on the input.
+    increment: int, the rate of growth of the input for each run of the
+      benchmark.
+    num_runs: int, number of times to run each benchmark.
+  """
+  def __str__(self):
+    return "%s, %s element(s) at start, %s growth per run" % (
+        getattr(self.benchmark, '__name__', str(self.benchmark)),
+        str(self.starting_point), str(self.increment))
+
+
+
+
 def run_benchmarks(benchmark_suite, verbose=True):
   """Runs benchmarks, and collects execution times.
 
@@ -96,20 +128,34 @@ def run_benchmarks(benchmark_suite, verbose=True):
     return time.time() - start
 
   cost_series = collections.defaultdict(list)
+  size_series = collections.defaultdict(list)
   for benchmark_config in benchmark_suite:
     name = str(benchmark_config)
     num_runs = benchmark_config.num_runs
-    size = benchmark_config.size
+
+    if isinstance(benchmark_config, LinearRegressionBenchmarkConfig):
+      size = benchmark_config.starting_point
+      step = benchmark_config.increment
+    else:
+      assert isinstance(benchmark_config, BenchmarkConfig)
+      size = benchmark_config.size
+      step = 0
+
     for run_id in range(num_runs):
       # Do a proactive GC before each run to minimize side-effects of different
       # runs.
       gc.collect()
       time_cost = run(benchmark_config.benchmark, size)
+      # Appending size and time cost to perform linear regression
       cost_series[name].append(time_cost)
+      size_series[name].append(size)
       if verbose:
         per_element_cost = time_cost / size
         print("%s: run %d of %d, per element time cost: %g sec" % (
             name, run_id + 1, num_runs, per_element_cost))
+
+      # Incrementing the size of the benchmark run by the step size
+      size += step
     if verbose:
       print("")
 
@@ -118,12 +164,25 @@ def run_benchmarks(benchmark_suite, verbose=True):
 
     for benchmark_config in benchmark_suite:
       name = str(benchmark_config)
-      per_element_median_cost = (
-          numpy.median(cost_series[name]) / benchmark_config.size)
-      std = numpy.std(cost_series[name]) / benchmark_config.size
 
-      print("%s: per element median time cost: %g sec, relative std: %.2f%%" % (
-          name.ljust(pad_length, " "), per_element_median_cost,
-          std * 100 / per_element_median_cost))
+      if isinstance(benchmark_config, LinearRegressionBenchmarkConfig):
+        from scipy import stats
+        print()
+        # pylint: disable=unused-variable
+        gradient, intercept, r_value, p_value, std_err = stats.linregress(
+            size_series[name], cost_series[name])
+        print("Fixed cost  ", intercept)
+        print("Per-element ", gradient)
+        print("R^2         ", r_value**2)
+      else:
+        assert isinstance(benchmark_config, BenchmarkConfig)
+        per_element_median_cost = (
+            numpy.median(cost_series[name]) / benchmark_config.size)
+        std = numpy.std(cost_series[name]) / benchmark_config.size
 
-  return cost_series
+        print(
+            "%s: p. element median time cost: %g sec, relative std: %.2f%%" % (
+                name.ljust(pad_length, " "), per_element_median_cost,
+                std * 100 / per_element_median_cost))
+
+  return size_series, cost_series
