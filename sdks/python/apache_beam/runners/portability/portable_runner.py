@@ -95,6 +95,11 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def _create_environment(options):
     portable_options = options.view_as(PortableOptions)
+    # Do not set a Runner. Otherwise this can cause problems in Java's
+    # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
+    # does not exist in the Java SDK. In portability, the entry point is clearly
+    # defined via the JobService.
+    portable_options.view_as(StandardOptions).runner = None
     environment_urn = common_urns.environments.DOCKER.urn
     if portable_options.environment_type == 'DOCKER':
       environment_urn = common_urns.environments.DOCKER.urn
