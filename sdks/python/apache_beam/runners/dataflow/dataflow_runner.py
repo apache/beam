@@ -622,9 +622,12 @@ class DataflowRunner(PipelineRunner):
 
   def run_Impulse(self, transform_node, options):
     standard_options = options.view_as(StandardOptions)
+    debug_options = options.view_as(DebugOptions)
+    use_fn_api = (debug_options.experiments and
+                  'beam_fn_api' in debug_options.experiments)
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
-    if standard_options.streaming:
+    if standard_options.streaming and not use_fn_api:
       step.add_property(PropertyNames.FORMAT, 'pubsub')
       step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
     else:
@@ -634,8 +637,7 @@ class DataflowRunner(PipelineRunner):
           coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
               window.GlobalWindows.windowed_value(b''))
 
-      from apache_beam.runners.dataflow.internal import apiclient
-      if apiclient._use_fnapi(options):
+      if use_fn_api:
         encoded_impulse_as_str = self.byte_array_to_json_string(
             encoded_impulse_element)
       else:
