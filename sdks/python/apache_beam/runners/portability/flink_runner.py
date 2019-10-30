@@ -34,6 +34,14 @@ MAGIC_HOST_NAMES = ['[local]', '[auto]']
 
 
 class FlinkRunner(portable_runner.PortableRunner):
+  def run_pipeline(self, pipeline, options):
+    portable_options = options.view_as(pipeline_options.PortableOptions)
+    if (options.view_as(FlinkRunnerOptions).flink_master in MAGIC_HOST_NAMES
+        and not portable_options.environment_type
+        and not portable_options.output_executable_path):
+      portable_options.environment_type = 'LOOPBACK'
+    return super(FlinkRunner, self).run_pipeline(pipeline, options)
+
   def default_job_server(self, options):
     flink_master = self.add_http_scheme(
         options.view_as(FlinkRunnerOptions).flink_master)
