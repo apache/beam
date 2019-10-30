@@ -386,7 +386,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * elements in the current pane. If there is no such value the timestamp is the end of the window.
    */
   public ReadableState<OldAndNewHolds> extractAndRelease(
-      final ReduceFn<?, ?, ?, W>.Context context, final boolean isFinished) {
+      final ReduceFn<?, ?, ?, W>.Context context) {
     WindowTracing.debug(
         "WatermarkHold.extractAndRelease: for key:{}; window:{}; inputWatermark:{}; "
             + "outputWatermark:{}",
@@ -440,10 +440,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
         elementHoldState.clear();
         extraHoldState.clear();
 
-        @Nullable Instant newHold = null;
-        if (!isFinished) {
-          newHold = addGarbageCollectionHold(context, true /*paneIsEmpty*/);
-        }
+        @Nullable Instant newHold = addGarbageCollectionHold(context, true /*paneIsEmpty*/);
 
         return new OldAndNewHolds(oldHold, newHold);
       }

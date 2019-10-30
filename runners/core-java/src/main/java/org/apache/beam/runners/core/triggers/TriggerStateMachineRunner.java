@@ -94,31 +94,31 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     state.clear();
   }
 
-  /** Return true if the trigger is closed in the window corresponding to the specified state. */
-  public boolean isClosed(StateAccessor<?> state) {
+  /** Return true if the trigger is finished in the window corresponding to the specified state. */
+  public boolean isFinished(StateAccessor<?> state) {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).isFinished(rootTrigger);
   }
 
-  public void prefetchIsClosed(StateAccessor<?> state) {
+  public void prefetchIsFinished(StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
     }
   }
 
   public void prefetchForValue(W window, StateAccessor<?> state) {
-    prefetchIsClosed(state);
+    prefetchIsFinished(state);
     rootTrigger
         .getSpec()
         .prefetchOnElement(contextFactory.createStateAccessor(window, rootTrigger));
   }
 
   public void prefetchOnFire(W window, StateAccessor<?> state) {
-    prefetchIsClosed(state);
+    prefetchIsFinished(state);
     rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateAccessor(window, rootTrigger));
   }
 
   public void prefetchShouldFire(W window, StateAccessor<?> state) {
-    prefetchIsClosed(state);
+    prefetchIsFinished(state);
     rootTrigger
         .getSpec()
         .prefetchShouldFire(contextFactory.createStateAccessor(window, rootTrigger));
@@ -213,8 +213,8 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
   }
 
   /**
-   * Clear the state used for executing triggers, but leave the finished set to indicate the window
-   * is closed.
+   * Clear the state used for executing triggers, but leave the finished set to indicate the trigger
+   * is finished in that window.
    */
   public void clearState(W window, Timers timers, StateAccessor<?> state) throws Exception {
     // Don't need to clone, because we'll be clearing the finished bits anyways.

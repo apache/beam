@@ -36,8 +36,6 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -104,10 +102,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private final OutputWindowedValue<KV<K, OutputT>> outputter;
 
   private final StateInternals stateInternals;
-
-  private final Counter droppedDueToClosedWindow;
-
-  public static final String DROPPED_DUE_TO_CLOSED_WINDOW = "droppedDueToClosedWindow";
 
   private final K key;
 
@@ -219,8 +213,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.stateInternals = stateInternals;
     this.outputter = outputter;
     this.reduceFn = reduceFn;
-    this.droppedDueToClosedWindow =
-        Metrics.counter(ReduceFnRunner.class, DROPPED_DUE_TO_CLOSED_WINDOW);
 
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectWindowingStrategy =
@@ -259,7 +251,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   @VisibleForTesting
   boolean isFinished(W window) {
-    return triggerRunner.isClosed(contextFactory.base(window, StateStyle.DIRECT).state());
+    return triggerRunner.isFinished(contextFactory.base(window, StateStyle.DIRECT).state());
   }
 
   @VisibleForTesting
@@ -272,7 +264,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.Context directContext =
           contextFactory.base(window, StateStyle.DIRECT);
-      if (!triggerRunner.isClosed(directContext.state())) {
+      if (!triggerRunner.isFinished(directContext.state())) {
         result.add(window);
       }
     }
@@ -577,19 +569,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext directContext =
           contextFactory.forValue(
               window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
-      if (triggerRunner.isClosed(directContext.state())) {
-        // This window has already been closed.
-        droppedDueToClosedWindow.inc();
-        WindowTracing.debug(
-            "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
-                + "since window is no longer active at inputWatermark:{}; outputWatermark:{}",
-            value.getTimestamp(),
-            key,
-            window,
-            timerInternals.currentInputWatermarkTime(),
-            timerInternals.currentOutputWatermarkTime());
-        continue;
-      }
 
       activeWindows.ensureWindowIsActive(window);
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext renamedContext =
@@ -668,9 +647,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // - If the window function does not support windowing then all windows will be considered
     // active.
     // So we must take conjunction of activeWindows and triggerRunner state.
-    public boolean windowIsActiveAndOpen() {
-      return activeWindows.isActive(directContext.window())
-          && !triggerRunner.isClosed(directContext.state());
+    public boolean windowIsActive() {
+      return activeWindows.isActive(directContext.window());
     }
   }
 
@@ -725,21 +703,32 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       // Perform prefetching of state to determine if the trigger should fire.
       if (windowActivation.isGarbageCollection) {
-        triggerRunner.prefetchIsClosed(directContext.state());
+        triggerRunner.prefetchIsFinished(directContext.state());
       } else {
         triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
       }
     }
 
-    // For those windows that are active and open, prefetch the triggering or emitting state.
-    for (WindowActivation timer : windowActivations.values()) {
-      if (timer.windowIsActiveAndOpen()) {
-        ReduceFn<K, InputT, OutputT, W>.Context directContext = timer.directContext;
-        if (timer.isGarbageCollection) {
-          prefetchOnTrigger(directContext, timer.renamedContext);
-        } else if (triggerRunner.shouldFire(
-            directContext.window(), directContext.timers(), directContext.state())) {
-          prefetchEmit(directContext, timer.renamedContext);
+    // For those windows that are active, prefetch the triggering or emitting state.
+    for (WindowActivation windowActivation : windowActivations.values()) {
+      if (windowActivation.windowIsActive()) {
+        // If the window will be garbage collected, then we are certain to emit any
+        // remaining state without consulting the trigger, so the prefetch is
+        // smaller and corresponds to `onTrigger`.
+        if (windowActivation.isGarbageCollection) {
+          prefetchOnTrigger(windowActivation.directContext, windowActivation.renamedContext);
+          continue;
+        }
+
+        // If the window will not be expired and the trigger indicates
+        // it should fire, then prefetch data for `emit` which handles
+        // trigger-based firing
+        if (triggerRunner.shouldFire(
+            windowActivation.directContext.window(),
+            windowActivation.directContext.timers(),
+            windowActivation.directContext.state())) {
+          prefetchEmit(windowActivation.directContext, windowActivation.renamedContext);
+          continue;
         }
       }
     }
@@ -758,24 +747,21 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
 
-        boolean windowIsActiveAndOpen = windowActivation.windowIsActiveAndOpen();
-        if (windowIsActiveAndOpen) {
+        boolean windowIsActive = windowActivation.windowIsActive();
+        if (windowIsActive) {
           // We need to call onTrigger to emit the final pane if required.
           // The final pane *may* be ON_TIME if no prior ON_TIME pane has been emitted,
           // and the watermark has passed the end of the window.
           @Nullable
           Instant newHold =
               onTrigger(
-                  directContext,
-                  renamedContext,
-                  true /* isFinished */,
-                  windowActivation.isEndOfWindow);
+                  directContext, renamedContext, true /* isGc */, windowActivation.isEndOfWindow);
           checkState(newHold == null, "Hold placed at %s despite isFinished being true.", newHold);
         }
 
         // Cleanup flavor B: Clear all the remaining state for this window since we'll never
         // see elements for it again.
-        clearAllState(directContext, renamedContext, windowIsActiveAndOpen);
+        clearAllState(directContext, renamedContext, windowIsActive);
       } else {
         WindowTracing.debug(
             "{}.onTimers: Triggering for key:{}; window:{} at {} with "
@@ -784,7 +770,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             directContext.window(),
             timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
-        if (windowActivation.windowIsActiveAndOpen()
+        if (windowActivation.windowIsActive()
             && triggerRunner.shouldFire(
                 directContext.window(), directContext.timers(), directContext.state())) {
           emit(directContext, renamedContext);
@@ -803,7 +789,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           // any final trigger finished bits.
           checkState(
               windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO),
-              "Unexpected zero getAllowedLateness");
+              "Allowed lateness is zero but end-of-window timer did not cause garbage collection");
           Instant cleanupTime =
               LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
           WindowTracing.debug(
@@ -886,25 +872,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     triggerRunner.clearFinished(directContext.state());
   }
 
-  /** Should the reduce function state be cleared? */
-  private boolean shouldDiscardAfterFiring(boolean isFinished) {
-    if (isFinished) {
-      // This is the last firing for trigger.
-      return true;
-    }
-    if (windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
-      // Nothing should be accumulated between panes.
-      return true;
-    }
-    return false;
-  }
-
   private void prefetchEmit(
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
     triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
     triggerRunner.prefetchOnFire(directContext.window(), directContext.state());
-    triggerRunner.prefetchIsClosed(directContext.state());
+    triggerRunner.prefetchIsFinished(directContext.state());
     prefetchOnTrigger(directContext, renamedContext);
   }
 
@@ -919,38 +892,32 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     // Inform the trigger of the transition to see if it is finished
     triggerRunner.onFire(directContext.window(), directContext.timers(), directContext.state());
-    boolean isFinished = triggerRunner.isClosed(directContext.state());
 
     // Will be able to clear all element state after triggering?
-    boolean shouldDiscard = shouldDiscardAfterFiring(isFinished);
 
     // Run onTrigger to produce the actual pane contents.
     // As a side effect it will clear all element holds, but not necessarily any
     // end-of-window or garbage collection holds.
-    onTrigger(directContext, renamedContext, isFinished, false /*isEndOfWindow*/);
+    onTrigger(directContext, renamedContext, false /* isGc */, false /*isEndOfWindow*/);
 
     // Now that we've triggered, the pane is empty.
     nonEmptyPanes.clearPane(renamedContext.state());
 
     // Cleanup buffered data if appropriate
-    if (shouldDiscard) {
+    if (windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
       // Cleanup flavor C: The user does not want any buffered data to persist between panes.
       reduceFn.clearState(renamedContext);
     }
 
-    if (isFinished) {
-      // Cleanup flavor D: If trigger is closed we will ignore all new incoming elements.
-      // Clear state not otherwise cleared by onTrigger and clearPane above.
-      // Remember the trigger is, indeed, closed until the window is garbage collected.
+    if (triggerRunner.isFinished(directContext.state())) {
+      // Cleanup flavor D: If trigger is closed we will not need its state any more
       triggerRunner.clearState(
           directContext.window(), directContext.timers(), directContext.state());
-      paneInfoTracker.clear(directContext.state());
-      activeWindows.remove(directContext.window());
     }
   }
 
   /** Do we need to emit? */
-  private boolean needToEmit(boolean isEmpty, boolean isFinished, PaneInfo.Timing timing) {
+  private boolean needToEmit(boolean isEmpty, boolean isGc, PaneInfo.Timing timing) {
     if (!isEmpty) {
       // The pane has elements.
       return true;
@@ -960,8 +927,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // This is an empty ON_TIME pane.
       return true;
     }
-    if (isFinished && windowingStrategy.getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS) {
-      // This is known to be the final pane, and the user has requested it even when empty.
+    if (isGc && windowingStrategy.getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS) {
+      // This is known to be the GC pane, and the user has requested it even when empty.
+      // This is the only pane ever known to be final, so users filtering for final pane
+      // must request it
       return true;
     }
     return false;
@@ -985,12 +954,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private Instant onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
-      final boolean isFinished,
+      final boolean isGc,
       boolean isEndOfWindow)
       throws Exception {
     // Extract the window hold, and as a side effect clear it.
     final WatermarkHold.OldAndNewHolds pair =
-        watermarkHold.extractAndRelease(renamedContext, isFinished).read();
+        watermarkHold.extractAndRelease(renamedContext).read();
     // TODO: This isn't accurate if the elements are late. See BEAM-2262
     final Instant outputTimestamp = pair.oldHold;
     @Nullable Instant newHold = pair.newHold;
@@ -1004,8 +973,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     Instant inputWM = timerInternals.currentInputWatermarkTime();
     if (newHold != null) {
-      // We can't be finished yet.
-      checkState(!isFinished, "new hold at %s but finished %s", newHold, directContext.window());
       // The hold cannot be behind the input watermark.
       checkState(
           !newHold.isBefore(inputWM), "new hold %s is before input watermark %s", newHold, inputWM);
@@ -1033,11 +1000,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       }
     }
 
-    // Calculate the pane info.
-    final PaneInfo pane = paneInfoTracker.getNextPaneInfo(directContext, isFinished).read();
+    // Calculate the pane info. There is futher output if and only if there is a hold set
+    // for the timestamp of that output
+    final PaneInfo pane = paneInfoTracker.getNextPaneInfo(directContext, isGc).read();
 
     // Only emit a pane if it has data or empty panes are observable.
-    if (needToEmit(isEmpty, isFinished, pane.getTiming())) {
+    if (needToEmit(isEmpty, isGc, pane.getTiming())) {
       // Run reduceFn.onTrigger method.
       final List<W> windows = Collections.singletonList(directContext.window());
       ReduceFn<K, InputT, OutputT, W>.OnTriggerContext renamedTriggerContext =
@@ -1047,11 +1015,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
               StateStyle.RENAMED,
               toOutput -> {
                 // We're going to output panes, so commit the (now used) PaneInfo.
-                // This is unnecessary if the trigger isFinished since the saved
-                // state will be immediately deleted.
-                if (!isFinished) {
-                  paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
-                }
+                paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
 
                 // Output the actual value.
                 outputter.outputWindowedValue(KV.of(key, toOutput), outputTimestamp, windows, pane);

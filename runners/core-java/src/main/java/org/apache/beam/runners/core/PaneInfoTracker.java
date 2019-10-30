@@ -58,8 +58,7 @@ public class PaneInfoTracker {
    * Return a ({@link ReadableState} for) the pane info appropriate for {@code context}. The pane
    * info includes the timing for the pane, who's calculation is quite subtle.
    *
-   * @param isFinal should be {@code true} only if the triggering machinery can guarantee no further
-   *     firings for the
+   * @param isFinal should be {@code true} only if there will be no further panes
    */
   public ReadableState<PaneInfo> getNextPaneInfo(
       ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal) {
