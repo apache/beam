@@ -40,6 +40,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -137,7 +138,12 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       builder.withSelectedFields(fieldNames);
     }
 
-    return begin.apply("Read Input BQ Rows with push-down", builder);
+    return begin
+        .apply("Read Input BQ Rows with push-down", builder)
+        .apply(
+            "ReorderRowFields",
+            Select.fieldAccess(
+                FieldAccessDescriptor.withFieldNames(fieldNames).withOrderByFieldInsertionOrder()));
   }
 
   @Override
@@ -151,7 +157,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public boolean supportsProjects() {
-    return true;
+    return method.equals(Method.DIRECT_READ);
   }
 
   private TypedRead<Row> getBigQueryReadBuilder(Schema schema) {
