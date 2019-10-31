@@ -236,7 +236,6 @@ import decimal
 import itertools
 import json
 import logging
-import os
 import time
 import uuid
 from builtins import object
@@ -261,6 +260,8 @@ from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import ValueProvider
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
@@ -543,7 +544,7 @@ class _JsonToDictCoder(coders.Coder):
   def _convert_to_tuple(cls, table_field_schemas):
     """Recursively converts the list of TableFieldSchema instances to the
     list of tuples to prevent errors when pickling and unpickling
-    TableFieldSchema` instances.
+    TableFieldSchema instances.
     """
     if not table_field_schemas:
       return []
@@ -585,13 +586,9 @@ class _JsonToDictCoder(coders.Coder):
 
 
 class _BigQuerySource(BoundedSource):
-  def __init__(self, table=None, dataset=None, project=None, query=None,
-               validate=False, coder=None, use_standard_sql=False,
-               flatten_results=True, kms_key=None, gcs_bucket_name=None):
-    if gcs_bucket_name is None:
-      raise ValueError('The name of the GCS bucket must be specified')
-    self.gcs_bucket_name = gcs_bucket_name
-
+  def __init__(self, gcs_location=None, table=None, dataset=None,
+               project=None, query=None, validate=False, coder=None,
+               use_standard_sql=False, flatten_results=True, kms_key=None):
     if table is not None and query is not None:
       raise ValueError('Both a BigQuery table and a query were specified.'
                        ' Please specify only one of these.')
@@ -608,6 +605,7 @@ class _BigQuerySource(BoundedSource):
       self.use_legacy_sql = not use_standard_sql
       self.table_reference = None
 
+    self.gcs_location = gcs_location
     self.project = project
     self.validate = validate
     self.flatten_results = flatten_results
@@ -680,29 +678,18 @@ class _BigQuerySource(BoundedSource):
       bigquery.TableSchema instance, a list of FileMetadata instances
     """
     job_id = uuid.uuid4().hex
-    destination = self._get_destination_uri(self.gcs_bucket_name, job_id)
-    job_ref = bq.perform_extract_job([destination], job_id,
+    job_ref = bq.perform_extract_job([self.gcs_location], job_id,
                                      self.table_reference,
                                      bigquery_tools.ExportFileFormat.JSON,
                                      include_header=False)
     bq.wait_for_bq_job(job_ref)
-    metadata_list = FileSystems.match([destination])[0].metadata_list
+    metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
     table = bq.get_table(self.table_reference.projectId,
                          self.table_reference.datasetId,
                          self.table_reference.tableId)
 
     return table.schema, metadata_list
-
-  @staticmethod
-  def _get_destination_uri(gcs_bucket_name, subdir_name):
-    """Returns the fully qualified Google Cloud Storage URI where the
-    extracted table should be written.
-    """
-    # We need subdirectories to prevent from overwriting files when
-    # multiple export jobs run in parallel.
-    return os.path.join(gcs_bucket_name, subdir_name,
-                        'bigquery-table-dump-*.json')
 
 
 @deprecated(since='2.11.0', current="WriteToBigQuery")
@@ -1483,6 +1470,32 @@ bigquery_v2_messages.TableSchema):
 
 
 @experimental()
+class PassThroughThenCleanup(PTransform):
+  """A PTransform that invokes a DoFn after the input PCollection has been
+    processed.
+  """
+  def __init__(self, cleanup_dofn):
+    self.cleanup_dofn = cleanup_dofn
+
+  def expand(self, input):
+    class PassThrough(beam.DoFn):
+      def process(self, element):
+        yield element
+
+    output = input | beam.ParDo(PassThrough()).with_outputs('cleanup_signal',
+                                                            main='main')
+    main_output = output['main']
+    cleanup_signal = output['cleanup_signal']
+
+    _ = (input.pipeline
+         | beam.Create([None])
+         | beam.ParDo(self.cleanup_dofn, beam.pvalue.AsSingleton(
+             cleanup_signal)))
+
+    return main_output
+
+
+@experimental()
 class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
@@ -1514,9 +1527,8 @@ class ReadFromBigQuery(PTransform):
       execution by a previous step.
     coder (~apache_beam.coders.coders.Coder): The coder for the table
       rows. If :data:`None`, then the default coder is
-      :class:`~apache_beam.io.gcp.bigquery._JsonToDictCoder`,
-      which will interpret every line in a file as a JSON serialized
-      dictionary.
+      _JsonToDictCoder, which will interpret every row as a JSON
+      serialized dictionary.
     use_standard_sql (bool): Specifies whether to use BigQuery's standard SQL
       dialect for this query. The default value is :data:`False`.
       If set to :data:`True`, the query will use BigQuery's updated SQL
@@ -1531,10 +1543,64 @@ class ReadFromBigQuery(PTransform):
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
       :data:`None`, then the temp_location parameter is used.
    """
-  def __init__(self, *args, **kwargs):
+  def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
+    if gcs_location:
+      if not isinstance(gcs_location, (str, unicode, ValueProvider)):
+        raise TypeError('%s: gcs_location must be of type string'
+                        ' or ValueProvider; got %r instead'
+                        % (self.__class__.__name__, type(gcs_location)))
+
+      if isinstance(gcs_location, (str, unicode)):
+        gcs_location = StaticValueProvider(str, gcs_location)
+    self.gcs_location = gcs_location
+    self.validate = validate
+
     self._args = args
     self._kwargs = kwargs
 
+  def _get_destination_uri(self, temp_location):
+    """Returns the fully qualified Google Cloud Storage URI where the
+    extracted table should be written.
+    """
+    file_pattern = 'bigquery-table-dump-*.json'
+
+    if self.gcs_location is not None:
+      gcs_base = self.gcs_location.get()
+    elif temp_location is not None:
+      gcs_base = temp_location
+      logging.debug("gcs_location is empty, using temp_location instead")
+    else:
+      raise ValueError('{} requires a GCS location to be provided'
+                       .format(self.__class__.__name__))
+    if self.validate:
+      self._validate_gcs_location(gcs_base)
+
+    job_id = uuid.uuid4().hex
+    return FileSystems.join(gcs_base, job_id, file_pattern)
+
+  @staticmethod
+  def _validate_gcs_location(gcs_location):
+    if not gcs_location.startswith('gs://'):
+      raise ValueError('Invalid GCS location: {}'.format(gcs_location))
+
   def expand(self, pcoll):
+    class RemoveJsonFiles(beam.DoFn):
+      def __init__(self, gcs_location):
+        self._gcs_location = gcs_location
+
+      def process(self, unused_element, signal):
+        match_result = FileSystems.match([self._gcs_location])[0].metadata_list
+        logging.debug("%s: matched %s files", self.__class__.__name__,
+                      len(match_result))
+        paths = [x.path for x in match_result]
+        FileSystems.delete(paths)
+
+    temp_location = pcoll.pipeline.options.view_as(
+        GoogleCloudOptions).temp_location
+    gcs_location = self._get_destination_uri(temp_location)
+
     return (pcoll
-            | beam.io.Read(_BigQuerySource(*self._args, **self._kwargs)))
+            | beam.io.Read(_BigQuerySource(gcs_location=gcs_location,
+                                           validate=self.validate,
+                                           *self._args, **self._kwargs))
+            | PassThroughThenCleanup(RemoveJsonFiles(gcs_location)))
