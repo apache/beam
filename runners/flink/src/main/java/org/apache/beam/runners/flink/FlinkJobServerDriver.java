@@ -39,6 +39,7 @@ public class FlinkJobServerDriver extends JobServerDriver {
   public static class FlinkServerConfiguration extends ServerConfiguration {
     @Option(
         name = "--flink-master",
+        aliases = {"--flink-master-url"},
         usage =
             "Flink master address (host:port) to submit the job against. Use Use \"[local]\" to start a local "
                 + "cluster for the execution. Use \"[auto]\" if you plan to either execute locally or submit through "
