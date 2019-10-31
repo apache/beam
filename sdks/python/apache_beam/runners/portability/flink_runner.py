@@ -96,7 +96,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
 
   def java_arguments(self, job_port, artifacts_dir):
     return [
-        '--flink-master-url', self._master_url,
+        '--flink-master', self._master_url,
         '--artifacts-dir', (self._artifacts_dir
                             if self._artifacts_dir else artifacts_dir),
         '--job-port', job_port,
