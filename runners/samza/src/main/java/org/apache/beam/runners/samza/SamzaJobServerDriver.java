@@ -101,7 +101,9 @@ public class SamzaJobServerDriver {
 
   private ExpansionServer createExpansionService(String host, int expansionPort)
       throws IOException {
-    if (host == null) host = InetAddress.getLoopbackAddress().getHostName();
+    if (host == null) {
+      host = InetAddress.getLoopbackAddress().getHostName();
+    }
     ExpansionServer expansionServer =
         ExpansionServer.create(new ExpansionService(), host, expansionPort);
     LOG.info(
