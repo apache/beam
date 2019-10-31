@@ -125,10 +125,10 @@ class TestStream(PTransform):
   """Test stream that generates events on an unbounded PCollection of elements.
 
   Each event emits elements, advances the watermark or advances the processing
-  time.  After all of the specified elements are emitted, ceases to produce
+  time. After all of the specified elements are emitted, ceases to produce
   output.
   """
-  def __init__(self, coder=coders.FastPrimitivesCoder):
+  def __init__(self, coder=coders.FastPrimitivesCoder()):
     assert coder is not None
     self.coder = coder
     self.watermarks = { None: timestamp.MIN_TIMESTAMP }
@@ -241,6 +241,14 @@ class TestStream(PTransform):
 
 
 class _WatermarkController(PTransform):
+  """A runner-overridable PTransform Primitive to control the watermark.
+
+  Expected implementation behavior:
+   - If the instance recieves a WatermarkEvent, it sets its output watermark to
+     the specified value then drops the event.
+   - If the instance receives an ElementEvent, it emits all specified elements
+     to the Global Window with the event time set to the element's timestamp.
+  """
   def get_windowing(self, _):
     return core.Windowing(window.GlobalWindows())
 
@@ -249,28 +257,29 @@ class _WatermarkController(PTransform):
 
 
 class _TestStream(PTransform):
-  # This tag is used on WatermarkEvents to control the watermark at the root
-  # TestStream.
-  WATERMARK_CONTROL_TAG = '_TestStream_Watermark'
-
   """Test stream that generates events on an unbounded PCollection of elements.
 
   Each event emits elements, advances the watermark or advances the processing
   time.  After all of the specified elements are emitted, ceases to produce
   output.
 
-  Expected run-time behavior:
+  Expected implementation behavior:
    - If the instance receives a WatermarkEvent with the WATERMARK_CONTROL_TAG
      then the instance sets its own watermark hold at the specified value and
      drops the event.
    - If the instance receives any other WatermarkEvent or ElementEvent, it
      passes it to the consumer.
   """
-  def __init__(self, output_tags, coder=coders.FastPrimitivesCoder, events=[]):
+
+  # This tag is used on WatermarkEvents to control the watermark at the root
+  # TestStream.
+  WATERMARK_CONTROL_TAG = '_TestStream_Watermark'
+
+  def __init__(self, output_tags, coder=coders.FastPrimitivesCoder(),
+               events=[]):
     assert coder is not None
     self.coder = coder
     self._events = self._add_watermark_advancements(output_tags, events)
-    self._is_done = False
 
   def _add_watermark_advancements(self, output_tags, events):
     """Adds watermark advancements to the given events.
