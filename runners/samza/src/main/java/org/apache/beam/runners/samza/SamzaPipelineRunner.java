@@ -19,7 +19,10 @@ package org.apache.beam.runners.samza;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
+import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
@@ -36,8 +39,16 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
 
   @Override
   public PortablePipelineResult run(final Pipeline pipeline, JobInfo jobInfo) {
+    // Expand any splittable DoFns within the graph to enable sizing and splitting of bundles.
+    Pipeline pipelineWithSdfExpanded =
+        ProtoOverrides.updateTransform(
+            PTransformTranslation.PAR_DO_TRANSFORM_URN,
+            pipeline,
+            SplittableParDoExpander.createSizedReplacement());
+
     // Fused pipeline proto.
-    final RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
+    final RunnerApi.Pipeline fusedPipeline =
+        GreedyPipelineFuser.fuse(pipelineWithSdfExpanded).toPipeline();
     LOG.info("Portable pipeline to run:");
     LOG.info(PipelineDotRenderer.toDotString(fusedPipeline));
     // the pipeline option coming from sdk will set the sdk specific runner which will break
