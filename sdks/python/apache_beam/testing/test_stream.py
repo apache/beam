@@ -128,12 +128,11 @@ class TestStream(PTransform):
   time.  After all of the specified elements are emitted, ceases to produce
   output.
   """
-  def __init__(self, coder=coders.FastPrimitivesCoder, endpoint=''):
+  def __init__(self, coder=coders.FastPrimitivesCoder):
     assert coder is not None
     self.coder = coder
     self.watermarks = { None: timestamp.MIN_TIMESTAMP }
     self._events = []
-    self._endpoint = endpoint
     self.output_tags = set()
 
   def get_windowing(self, unused_inputs):
@@ -267,12 +266,10 @@ class _TestStream(PTransform):
    - If the instance receives any other WatermarkEvent or ElementEvent, it
      passes it to the consumer.
   """
-  def __init__(self, output_tags, coder=coders.FastPrimitivesCoder, events=[],
-               endpoint=''):
+  def __init__(self, output_tags, coder=coders.FastPrimitivesCoder, events=[]):
     assert coder is not None
     self.coder = coder
     self._events = self._add_watermark_advancements(output_tags, events)
-    self._endpoint = endpoint
     self._is_done = False
 
   def _add_watermark_advancements(self, output_tags, events):
@@ -327,45 +324,17 @@ class _TestStream(PTransform):
   def _infer_output_coder(self, input_type=None, input_coder=None):
     return self.coder
 
-  def _events_from_service(self):
-    channel = grpc.insecure_channel(self._endpoint)
-    stub = beam_interactive_api_pb2_grpc.InteractiveServiceStub(channel)
-    request = beam_interactive_api_pb2.EventsRequest()
-    for response in stub.Events(request):
-      if response.end_of_stream:
-        self._is_done = True
-      else:
-        self._is_done = False
-      for event in response.events:
-        if event.HasField('watermark_event'):
-          yield WatermarkEvent(event.watermark_event.new_watermark)
-        elif event.HasField('processing_time_event'):
-          yield ProcessingTimeEvent(
-              event.processing_time_event.advance_duration)
-        elif event.HasField('element_event'):
-          for element in event.element_event.elements:
-            value = self.coder().decode(element.encoded_element)
-            yield ElementEvent([TimestampedValue(value, element.timestamp)])
-
   def _events_from_script(self, index):
-    if len(self._events) == 0:
-      return
     yield self._events[index]
 
   def events(self, index):
-    if self._endpoint:
-      return self._events_from_service()
     return self._events_from_script(index)
 
   def begin(self):
     return 0
 
   def end(self, index):
-    if self._endpoint:
-      return self._is_done
     return index >= len(self._events)
 
   def next(self, index):
-    if self._endpoint:
-      return 0
     return index + 1
