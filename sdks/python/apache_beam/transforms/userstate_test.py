@@ -598,9 +598,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
 
       def process(self,
-          element,
-          set_state=beam.DoFn.StateParam(SET_STATE),
-          emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+                  element,
+                  set_state=beam.DoFn.StateParam(SET_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
         _, value = element
         set_state.add(value)
 
@@ -626,9 +626,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      | beam.ParDo(SetStateClearingStatefulDoFn())
                      | beam.GroupByKey())
 
-    actual_values | 'printe' >> beam.Map(print)
-    # TODO(pabloem, MUST): Remove this fixing.
-    assert_that(actual_values, equal_to([[100]]))
+    assert_that(actual_values, equal_to([('key', [1, 2, 3, 4, 5])]))
+    result = p.run()
+    result.wait_until_finish()
 
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()

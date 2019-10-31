@@ -265,6 +265,10 @@ class FnApiRunnerTest(unittest.TestCase):
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(pcoll)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
+  def test_pardo_unfusable_by_gbk_side_inputs(self):
+    def cross_product(elem, sides):
+      for side in sides:
+        yield elem, side
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
       derived = ((pcoll, ) | beam.Flatten()
@@ -426,7 +430,7 @@ class FnApiRunnerTest(unittest.TestCase):
     def is_buffered_correctly(actual):
       # Pickling self in the closure for asserts gives errors (only on jenkins).
       self = FnApiRunnerTest('__init__')
-      # Acutal should be a grouping of the inputs into batches of size
+      # Actual should be a grouping of the inputs into batches of size
       # at most buffer_size, but the actual batching is nondeterministic
       # based on ordering and trigger firing timing.
       self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
@@ -556,9 +560,10 @@ class FnApiRunnerTest(unittest.TestCase):
       res = (pcboth
              | beam.GroupByKey()
              | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
-      res | beam.Map(lambda x: print(x))
-      # TODO(pabloem, MUST): Uncomment assert
-      #assert_that(res, equal_to([('a', [1, 2]), ('b', [3])]))
+      assert_that(res, equal_to([('a', [1, 2]),
+                                 ('b', [3]),
+                                 ('c', [1, 2]),
+                                 ('d', [3])]))
 
   # Runners may special case the Reshuffle transform urn.
   def test_reshuffle(self):
@@ -574,9 +579,9 @@ class FnApiRunnerTest(unittest.TestCase):
       else:
         additional = ['d']
       res = (p | 'a' >> beam.Create(['a']) | 'ma' >> beam.Map(lambda x: x),
-             p | 'bc' >> beam.Create(['b', 'c']) | 'mbc' >> beam.Map(lambda x: x),
+             p | 'bc' >> beam.Create(['b', 'c']),
              p | 'd' >> beam.Create(additional) | 'md' >> beam.Map(lambda x: x)
-             ) | beam.Flatten()
+            ) | beam.Flatten()
       assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
   def test_flatten_same_pcollections(self, with_transcoding=True):
