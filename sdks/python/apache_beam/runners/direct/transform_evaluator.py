@@ -192,8 +192,6 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
     test_stream = self._applied_ptransform.transform
     bundle = self._evaluation_context.create_bundle(
         pvalue.PBegin(self._applied_ptransform.transform.pipeline))
-    # Explicitly set timestamp to MIN_TIMESTAMP to ensure that we hold the
-    # watermark.
     bundle.add(GlobalWindows.windowed_value(test_stream.begin(),
                                             timestamp=MIN_TIMESTAMP))
     bundle.commit(None)

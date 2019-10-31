@@ -121,6 +121,126 @@ class ProcessingTimeEvent(Event):
     return self.advance_by < other.advance_by
 
 
+class TestStream(PTransform):
+  """Test stream that generates events on an unbounded PCollection of elements.
+
+  Each event emits elements, advances the watermark or advances the processing
+  time.  After all of the specified elements are emitted, ceases to produce
+  output.
+  """
+  def __init__(self, coder=coders.FastPrimitivesCoder, endpoint=''):
+    assert coder is not None
+    self.coder = coder
+    self.watermarks = { None: timestamp.MIN_TIMESTAMP }
+    self._events = []
+    self._endpoint = endpoint
+    self.output_tags = set()
+
+  def get_windowing(self, unused_inputs):
+    return core.Windowing(window.GlobalWindows())
+
+  def expand(self, pbegin):
+    assert(isinstance(pbegin, pvalue.PBegin))
+    self.pipeline = pbegin.pipeline
+
+    # This enables multiplexing to multiple output PCollections.
+    def mux(event):
+      if event.tag:
+        yield pvalue.TaggedOutput(event.tag, event)
+      else:
+        yield event
+    mux_output = (pbegin
+                  | _TestStream(self.output_tags, events=self._events)
+                  | 'TestStream Multiplexer' >> beam.ParDo(mux).with_outputs())
+
+    # Apply a way to control the watermark per output.
+    outputs = {}
+    for tag in self.output_tags:
+      label = '_WatermarkController[{}]'.format(tag)
+      outputs[tag] = (mux_output[tag] | label >> _WatermarkController())
+
+    # Downstream consumers expect a PCollection if there is only a single
+    # output.
+    if len(outputs) == 1:
+      return list(outputs.values())[0]
+    return pvalue.PTuple(outputs)
+
+  def _add(self, event):
+    if isinstance(event, ElementEvent):
+      for tv in event.timestamped_values:
+        assert tv.timestamp < timestamp.MAX_TIMESTAMP, (
+            'Element timestamp must be before timestamp.MAX_TIMESTAMP.')
+    elif isinstance(event, WatermarkEvent):
+      if event.tag not in self.watermarks:
+        self.watermarks[event.tag] = timestamp.MIN_TIMESTAMP
+      assert event.new_watermark > self.watermarks[event.tag], (
+          'Watermark must strictly-monotonically advance.')
+      self.watermarks[event.tag] = event.new_watermark
+    elif isinstance(event, ProcessingTimeEvent):
+      assert event.advance_by > 0, (
+          'Must advance processing time by positive amount.')
+    else:
+      raise ValueError('Unknown event: %s' % event)
+    self._events.append(event)
+
+  def add_elements(self, elements, tag=None, event_timestamp=None):
+    """Add elements to the TestStream.
+
+    Elements added to the TestStream will be produced during pipeline execution.
+    These elements can be TimestampedValue, WindowedValue or raw unwrapped
+    elements that are serializable using the TestStream's specified Coder.  When
+    a TimestampedValue or a WindowedValue element is used, the timestamp of the
+    TimestampedValue or WindowedValue will be the timestamp of the produced
+    element; otherwise, the current watermark timestamp will be used for that
+    element.  The windows of a given WindowedValue are ignored by the
+    TestStream.
+    """
+    self.output_tags.add(tag)
+    timestamped_values = []
+    if tag not in self.watermarks:
+      self.watermarks[tag] = timestamp.MIN_TIMESTAMP
+
+    for element in elements:
+      if isinstance(element, TimestampedValue):
+        timestamped_values.append(element)
+      elif isinstance(element, WindowedValue):
+        # Drop windows for elements in test stream.
+        timestamped_values.append(
+            TimestampedValue(element.value, element.timestamp))
+      else:
+        # Add elements with timestamp equal to current watermark.
+        if event_timestamp == None:
+          event_timestamp = self.watermarks[tag]
+        timestamped_values.append(TimestampedValue(element, event_timestamp))
+    self._add(ElementEvent(timestamped_values, tag))
+    return self
+
+  def advance_watermark_to(self, new_watermark, tag=None):
+    """Advance the watermark to a given Unix timestamp.
+
+    The Unix timestamp value used must be later than the previous watermark
+    value and should be given as an int, float or utils.timestamp.Timestamp
+    object.
+    """
+    self.output_tags.add(tag)
+    self._add(WatermarkEvent(new_watermark, tag))
+    return self
+
+  def advance_watermark_to_infinity(self, tag=None):
+    """Advance the watermark to the end of time, completing this TestStream."""
+    self.advance_watermark_to(timestamp.MAX_TIMESTAMP, tag)
+    return self
+
+  def advance_processing_time(self, advance_by):
+    """Advance the current processing time by a given duration in seconds.
+
+    The duration must be a positive second duration and should be given as an
+    int, float or utils.timestamp.Duration object.
+    """
+    self._add(ProcessingTimeEvent(advance_by))
+    return self
+
+
 class _WatermarkController(PTransform):
   def get_windowing(self, _):
     return core.Windowing(window.GlobalWindows())
@@ -139,6 +259,13 @@ class _TestStream(PTransform):
   Each event emits elements, advances the watermark or advances the processing
   time.  After all of the specified elements are emitted, ceases to produce
   output.
+
+  Expected run-time behavior:
+   - If the instance receives a WatermarkEvent with the WATERMARK_CONTROL_TAG
+     then the instance sets its own watermark hold at the specified value and
+     drops the event.
+   - If the instance receives any other WatermarkEvent or ElementEvent, it
+     passes it to the consumer.
   """
   def __init__(self, output_tags, coder=coders.FastPrimitivesCoder, events=[],
                endpoint=''):
@@ -242,150 +369,3 @@ class _TestStream(PTransform):
     if self._endpoint:
       return 0
     return index + 1
-
-
-class _TestStreamMultiOutputs(object):
-  """An object grouping multiple PCollections."""
-
-  def __init__(self, pcoll_dict):
-    self._pcolls = pcoll_dict
-
-  def __str__(self):
-    return '<%s>' % self._str_internal()
-
-  def __repr__(self):
-    return '<%s at %s>' % (self._str_internal(), hex(id(self)))
-
-  def _str_internal(self):
-    return '%s main_tag=%s tags=%s transform=%s' % (
-        self.__class__.__name__, self._pcolls)
-
-  def __iter__(self):
-    for tag in self._pcolls:
-      yield self[tag]
-
-  def __getattr__(self, tag):
-    # Special methods which may be accessed before the object is
-    # fully constructed (e.g. in unpickling).
-    if tag[:2] == tag[-2:] == '__':
-      return object.__getattr__(self, tag)
-    return self[tag]
-
-  def __getitem__(self, tag):
-    return self._pcolls[tag]
-
-
-class TestStream(PTransform):
-  """Test stream that generates events on an unbounded PCollection of elements.
-
-  Each event emits elements, advances the watermark or advances the processing
-  time.  After all of the specified elements are emitted, ceases to produce
-  output.
-  """
-  def __init__(self, coder=coders.FastPrimitivesCoder, endpoint=''):
-    assert coder is not None
-    self.coder = coder
-    self.watermarks = { None: timestamp.MIN_TIMESTAMP }
-    self._events = []
-    self._endpoint = endpoint
-    self.output_tags = set()
-
-  def get_windowing(self, unused_inputs):
-    return core.Windowing(window.GlobalWindows())
-
-  def expand(self, pbegin):
-    assert(isinstance(pbegin, pvalue.PBegin))
-    self.pipeline = pbegin.pipeline
-
-    # This enables multiplexing to multiple output PCollections.
-    def mux(event):
-      if event.tag:
-        yield pvalue.TaggedOutput(event.tag, event)
-      else:
-        yield event
-    mux_output = (pbegin
-                  | _TestStream(self.output_tags, events=self._events)
-                  | 'TestStream Multiplexer' >> beam.ParDo(mux).with_outputs())
-
-    outputs = {}
-    for tag in self.output_tags:
-      label = '_WatermarkController[{}]'.format(tag)
-      outputs[tag] = (mux_output[tag] | label >> _WatermarkController())
-
-    if len(outputs) == 1:
-      return list(outputs.values())[0]
-    return _TestStreamMultiOutputs(outputs)
-
-  def _infer_output_coder(self, input_type=None, input_coder=None):
-    return self.coder
-
-  def _add(self, event):
-    if isinstance(event, ElementEvent):
-      for tv in event.timestamped_values:
-        assert tv.timestamp < timestamp.MAX_TIMESTAMP, (
-            'Element timestamp must be before timestamp.MAX_TIMESTAMP.')
-    elif isinstance(event, WatermarkEvent):
-      if event.tag not in self.watermarks:
-        self.watermarks[event.tag] = timestamp.MIN_TIMESTAMP
-      assert event.new_watermark > self.watermarks[event.tag], (
-          'Watermark must strictly-monotonically advance.')
-      self.watermarks[event.tag] = event.new_watermark
-    elif isinstance(event, ProcessingTimeEvent):
-      assert event.advance_by > 0, (
-          'Must advance processing time by positive amount.')
-    else:
-      raise ValueError('Unknown event: %s' % event)
-    self._events.append(event)
-
-  def add_elements(self, elements, tag=None, event_timestamp=None):
-    """Add elements to the TestStream.
-
-    Elements added to the TestStream will be produced during pipeline execution.
-    These elements can be TimestampedValue, WindowedValue or raw unwrapped
-    elements that are serializable using the TestStream's specified Coder.  When
-    a TimestampedValue or a WindowedValue element is used, the timestamp of the
-    TimestampedValue or WindowedValue will be the timestamp of the produced
-    element; otherwise, the current watermark timestamp will be used for that
-    element.  The windows of a given WindowedValue are ignored by the
-    TestStream.
-    """
-    self.output_tags.add(tag)
-    timestamped_values = []
-    for element in elements:
-      if isinstance(element, TimestampedValue):
-        timestamped_values.append(element)
-      elif isinstance(element, WindowedValue):
-        # Drop windows for elements in test stream.
-        timestamped_values.append(
-            TimestampedValue(element.value, element.timestamp))
-      else:
-        # Add elements with timestamp equal to current watermark.
-        timestamped_values.append(
-            TimestampedValue(element, self.current_watermark))
-    self._add(ElementEvent(timestamped_values))
-    return self
-
-  def advance_watermark_to(self, new_watermark):
-    """Advance the watermark to a given Unix timestamp.
-
-    The Unix timestamp value used must be later than the previous watermark
-    value and should be given as an int, float or utils.timestamp.Timestamp
-    object.
-    """
-    self.output_tags.add(tag)
-    self._add(WatermarkEvent(new_watermark, tag))
-    return self
-
-  def advance_watermark_to_infinity(self):
-    """Advance the watermark to the end of time, completing this TestStream."""
-    self.advance_watermark_to(timestamp.MAX_TIMESTAMP)
-    return self
-
-  def advance_processing_time(self, advance_by):
-    """Advance the current processing time by a given duration in seconds.
-
-    The duration must be a positive second duration and should be given as an
-    int, float or utils.timestamp.Duration object.
-    """
-    self._add(ProcessingTimeEvent(advance_by))
-    return self
