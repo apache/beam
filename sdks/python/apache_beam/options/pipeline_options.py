@@ -602,6 +602,25 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
     parser.add_argument(
+        '--worker_region',
+        default=None,
+        help=
+        ('The Compute Engine region '
+         '(https://cloud.google.com/compute/docs/regions-zones/regions-zones) '
+         'in which worker processing should occur, e.g. "us-west1". Mutually '
+         'exclusive with worker_zone. If neither worker_region nor worker_zone '
+         'is specified, default to same value as --region.'))
+    parser.add_argument(
+        '--worker_zone',
+        default=None,
+        help=
+        ('The Compute Engine zone '
+         '(https://cloud.google.com/compute/docs/regions-zones/regions-zones) '
+         'in which worker processing should occur, e.g. "us-west1-a". Mutually '
+         'exclusive with worker_region. If neither worker_region nor '
+         'worker_zone is specified, the Dataflow service will choose a zone in '
+         '--region based on available capacity.'))
+    parser.add_argument(
         '--zone',
         default=None,
         help=(
@@ -660,6 +679,7 @@ class WorkerOptions(PipelineOptions):
     if validator.is_service_runner():
       errors.extend(
           validator.validate_optional_argument_positive(self, 'num_workers'))
+      errors.extend(validator.validate_worker_region_zone(self))
     return errors
 
 
