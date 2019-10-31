@@ -581,10 +581,9 @@ class FnApiRunnerTest(unittest.TestCase):
         additional = ['d']
       res = (p | 'a' >> beam.Create(['a']) | 'ma' >> beam.Map(lambda x: x),
              p | 'bc' >> beam.Create(['b', 'c']) | 'mbc' >> beam.Map(lambda x: x),
-             p | 'd' >> beam.Create(additional) | 'md' >> beam.Map(lambda x: x)) | beam.Flatten()
-      res | beam.Map(lambda x: print(x))
-      # TODO(pabloem, MUST): Uncomment assert.
-      #assert_that(res, equal_to(['a', 'b', 'c'] + additional))
+             p | 'd' >> beam.Create(additional) | 'md' >> beam.Map(lambda x: x)
+             ) | beam.Flatten()
+      assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
   def test_combine_per_key(self):
     with self.create_pipeline() as p:

@@ -419,6 +419,8 @@ class _FnApiRunnerExecution(object):
       safe_coders):
     for transform_id, tag, buffer_id, si in side_input_infos:
       _, pcoll_id = split_buffer_id(buffer_id)
+      print('Persisting data for Side input\n\t', pcoll_id,
+            '\n\t Consumer:', transform_id)
       value_coder = context.coders[safe_coders[
         pipeline_components.pcollections[pcoll_id].coder_id]]
       elements_by_window = _WindowGroupingBuffer(si, value_coder)
@@ -562,6 +564,7 @@ class _ProcessingQueueManager(object):
                           list(self._q))
 
   def __init__(self):
+    self.watermark_pending_inputs = _ProcessingQueueManager.KeyedQueue()
     self.ready_inputs = _ProcessingQueueManager.KeyedQueue()
 
   def __str__(self):
@@ -706,11 +709,12 @@ class FnApiRunner(runner.PipelineRunner):
         use_state_iterables=self._use_state_iterables)
 
   @staticmethod
-  def _enqueue_all_initial_inputs(stages, input_queue_manager):
+  def _enqueue_all_initial_inputs(stages, input_queue_manager, execution_context):
     # type: (List[fn_api_runner_transforms.Stage], Dict[str, List[Bytes]], _ProcessingQueueManager) -> None
     """Put all initial inputs to the pipeline in the input queue."""
     for stage in stages:
       data_inputs = {}
+      ready_to_schedule = True
       for transform in stage.transforms:
         if (transform.spec.urn == bundle_processor.DATA_INPUT_URN and
             transform.spec.payload == fn_api_runner_transforms.IMPULSE_BUFFER):
@@ -721,18 +725,23 @@ class FnApiRunner(runner.PipelineRunner):
           # encoded input.
           data_inputs[transform.unique_name] = _ListBuffer(
               [ENCODED_IMPULSE_VALUE])
+          pcoll_name = '%s%s' % (stage.name,
+                                 fn_api_runner_transforms.IMPULSE_BUFFER)
+          execution_context.update_pcoll_watermark(pcoll_name,
+                                                   timestamp.MAX_TIMESTAMP)
         elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           if payload.side_inputs:
             # If the stage needs side inputs, then it's not ready to be
             # executed.
-            #data_inputs = {}
-            #break
-            pass  # TODO(pabloem, MUST): Uncomment this.
-      if data_inputs:
+            ready_to_schedule = False
+      if data_inputs and ready_to_schedule:
         # We push the data inputs, along with the name of the consuming stage.
         input_queue_manager.ready_inputs.enque((stage.name, data_inputs))
+      elif data_inputs and not ready_to_schedule:
+        input_queue_manager.watermark_pending_inputs.enque(
+            (stage.name, data_inputs))
 
   def run_stages(self, stage_context, stages):
     """Run a list of topologically-sorted stages in batch mode.
@@ -750,21 +759,29 @@ class FnApiRunner(runner.PipelineRunner):
 
     execution_context = PipelineExecutionContext(stage_context.components,
                                                  stages)
+    execution_context.show()
 
-    self._enqueue_all_initial_inputs(stages, input_queue_manager)
+    self._enqueue_all_initial_inputs(stages, input_queue_manager, execution_context)
 
     try:
       with self.maybe_profile():
         while len(input_queue_manager.ready_inputs) > 0:
-          next_ready_elements = input_queue_manager.ready_inputs.deque()
-          consuming_stage_name = next_ready_elements[0]
+          stage_and_ready_elements = input_queue_manager.ready_inputs.deque()
+          consuming_stage_name = stage_and_ready_elements[0]
+          next_ready_elements = stage_and_ready_elements[1]
 
           stage = execution_context.stages_per_name[consuming_stage_name].stage
           data_input, data_output = execution_context.endpoints_per_stage[
             stage.name]
 
-          endpoints_for_execution = (next_ready_elements[1], data_output)
+          for transform_name, pcoll_id in data_input.items():
+            if transform_name in next_ready_elements:
+              continue
+            # Empty-filling the data input.
+            next_ready_elements[transform_name] = _ListBuffer()
+          endpoints_for_execution = (next_ready_elements, data_output)
 
+          print('Executing bundle for stage\n\t', stage.name)
           stage_results, output_bundles = self._execute_bundle(
               execution_context,
               worker_handler_manager.get_worker_handlers,
@@ -778,24 +795,60 @@ class FnApiRunner(runner.PipelineRunner):
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
 
-          # TODO(pabloem, MUST): Update watermarks, and pass ready elements to ready queue.
-          self._update_watermarks(
-              execution_context,
-              stage, data_input, output_bundles)
+          self._update_watermarks(execution_context,
+                                  stage, data_input, output_bundles)
           self._process_output_bundles(
               execution_context, output_bundles, input_queue_manager)
+          self._schedule_newly_ready_bundles(execution_context,
+                                             input_queue_manager)
 
     finally:
       worker_handler_manager.close_all()
+
+    if len(input_queue_manager.watermark_pending_inputs) > 0:
+      # TODO(pabloem, MUST): REMOVE THIS SECTION
+      print('U TUFIKA U GOT STUFF LEFT: ',
+            input_queue_manager.watermark_pending_inputs)
+      raise RuntimeError()
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
+
+  def _schedule_newly_ready_bundles(self,
+                                    execution_context,
+                                    input_queue_manager):
+    # type: (PipelineExecutionContext, _ProcessingQueueManager) -> None
+    """Inspect watermark pending bundles, and schedule ready ones.
+
+    This function should be called after the watermarks have been recalculated.
+    """
+    requed_inputs = []
+    while len(input_queue_manager.watermark_pending_inputs) > 0:
+      stage_name, inputs = input_queue_manager.watermark_pending_inputs.deque()
+      stage_watermark = execution_context.get_watermark(stage_name)
+      if stage_watermark == timestamp.MAX_TIMESTAMP:
+        print('Enqueuing stage\n\t', stage_name, '\n\t', inputs)
+        input_queue_manager.ready_inputs.enque((stage_name, inputs))
+      else:
+        print('NOT Enqueuing stage\n\t', stage_name, '\n\tWatermark: ', stage_watermark)
+        requed_inputs.append((stage_name, inputs))
+
+    for elm in requed_inputs:
+      input_queue_manager.watermark_pending_inputs.enque(elm)
 
   def _update_watermarks(
       self, execution_context,
       stage, input_bundles, output_bundles):
     # type: (PipelineExecutionContext, fn_api_runner_transforms.Stage, Dict[str, bytes], List[Tuple[bytes, List[bytes]]]) -> None
-    print('DInput', str(input_bundles))
-    print('DOutput', str(output_bundles))
+    #print('Stage timer pcolls:', str(stage.timer_pcollections))
+    #print('DInput', str(input_bundles))
+    #print('DOutput', str(output_bundles))
+
+    # Map Timer reading transform to Timer write PCollection
+    timer_read_transform_to_written_pcoll_map = {}
+    timer_written_pcoll_to_read_pcoll_map = {}
+    for reading_transform, written_pcoll in stage.timer_pcollections:
+      timer_read_transform_to_written_pcoll_map[reading_transform] = written_pcoll
+
     for consumer, buffer_id in input_bundles.items():
       if buffer_id == fn_api_runner_transforms.IMPULSE_BUFFER:
         pcoll_name = '%s%s' % (stage.name,
@@ -807,20 +860,34 @@ class FnApiRunner(runner.PipelineRunner):
       else:
         kind, pcoll_name = split_buffer_id(buffer_id)
         if kind == 'timers':
-          # For timers, we simply continue. These will be observed in the
+          # For timers, we map the PCollection that's written, and the
+          # PCollection that's read by the runner. These will be observed in the
           # data output later.
+          written_pcoll = timer_read_transform_to_written_pcoll_map[consumer]
+          timer_written_pcoll_to_read_pcoll_map[written_pcoll] = pcoll_name
           continue
-        else:
+        else:  # elif kind == 'group':
           # TODO(pabloem, MUST): WHAT TO DO ABOUT OTHER BUFFER KINDS?
-          pass
+          #   I think: For batch, once it's been executed, we're done.
+          execution_context.update_pcoll_watermark(pcoll_name,
+                                                   timestamp.MAX_TIMESTAMP)
+        #else:
+        #  print('Dont know what to do about\n\t', buffer_id)
+
+    # STARTING WITH TIMERS!
+    output_bundles = sorted(output_bundles,
+                            key=lambda x: not x[0].startswith(b'timers'))
 
     for buffer_id, output_bytes in output_bundles:
+      print('BID: ', buffer_id)
       kind, pcoll_name = split_buffer_id(buffer_id)
       watermark_hold = timestamp.MAX_TIMESTAMP
       # TODO(pabloem, MUST): WHAT TO DO ABOUT OTHER BUFFER KINDS?
       if kind == 'timers':
+        # For timers, pcoll_name is the written PCollection.
         if output_bytes:
-          coder_id = execution_context.pipeline_components.pcollections[pcoll_name].coder_id
+          coder_id = execution_context.pipeline_components.pcollections[
+            pcoll_name].coder_id
           windowed_timer_coder_impl = self.pipeline_context.coders[
             coder_id].get_impl()
           written_timers = output_bytes
@@ -837,8 +904,19 @@ class FnApiRunner(runner.PipelineRunner):
           # For batch, after nothing comes in from the timers, we're done.
           # TODO(pabloem, MUST): What if timers are set BEFORE the current
           #   watermark for this pcollection?
-          execution_context.update_pcoll_watermark(pcoll_name,
-                                                   watermark_hold)
+        # We update the written and read collections' watermars.
+        read_pcoll_name = timer_written_pcoll_to_read_pcoll_map[pcoll_name]
+        execution_context.update_pcoll_watermark(read_pcoll_name,
+                                                 watermark_hold)
+        execution_context.update_pcoll_watermark(pcoll_name,
+                                                 watermark_hold)
+      else:  # elif kind == 'group':
+        # TODO(pabloem, MUST): WHAT TO DO ABOUT OTHER BUFFER KINDS?
+        #   I think: For batch, once it's been executed, we're done.
+        execution_context.update_pcoll_watermark(pcoll_name,
+                                                 timestamp.MAX_TIMESTAMP)
+      #else:
+      #  print('Dont know what to do about\n\t', buffer_id)
 
   @staticmethod
   def _process_output_bundles(execution_context, output_bundles, input_queue_manager):
@@ -852,13 +930,20 @@ class FnApiRunner(runner.PipelineRunner):
       consuming_transform_name = (consumer_transform.unique_name
                                   if consumer_transform else None)
 
+      _, pcoll_id = split_buffer_id(buffer_id)
       if not consuming_stage_name or not consuming_transform_name:
         # This means that the PCollection is not consumed by any transforms,
         # and we can discard the elements.
         continue
       if data:
-        input_queue_manager.ready_inputs.enque(
-            (consuming_stage_name, {consuming_transform_name: data}))
+        pcoll_watermark = execution_context.get_watermark(pcoll_id)
+        print('PColl watermark:\n\t', pcoll_id, '\n\t', pcoll_watermark)
+        if pcoll_watermark == timestamp.MAX_TIMESTAMP:
+          input_queue_manager.ready_inputs.enque(
+              (consuming_stage_name, {consuming_transform_name: data}))
+        else:
+          input_queue_manager.watermark_pending_inputs.enque(
+              (consuming_stage_name, {consuming_transform_name: data}))
 
   def _run_bundle_multiple_times_for_testing(
       self, worker_handler_list, process_bundle_descriptor, data_input,
@@ -965,7 +1050,7 @@ class FnApiRunner(runner.PipelineRunner):
         num_workers=self._num_workers,
         cache_token_generator=cache_token_generator)
 
-    print('Data input: ' + str(input_bundle))
+    #print('Data input: ' + str(input_bundle))
     #print('Data output: ' + str(data_output))
     result, splits = bundle_manager.process_bundle(input_bundle, data_output)
     #print('Result PRocessbundle residuals: ' + str(result.process_bundle.residual_roots))
@@ -2014,7 +2099,8 @@ class ParallelBundleManager(BundleManager):
     part_inputs = [{} for _ in range(self._num_workers)]
     for name, input in inputs.items():
       for ix, part in enumerate(input.partition(self._num_workers)):
-        part_inputs[ix][name] = part
+        if part:
+          part_inputs[ix][name] = part
 
     merged_result = None
     split_result_list = []
