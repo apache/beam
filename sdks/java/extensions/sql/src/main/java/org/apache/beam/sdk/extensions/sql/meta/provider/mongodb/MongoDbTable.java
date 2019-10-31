@@ -62,7 +62,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     Matcher matcher = locationPattern.matcher(location);
     checkArgument(
         matcher.matches(),
-        "MongoDb location must be in the following format: 'mongodb://(username:password@)?localhost:27017/database/collection'");
+        "MongoDb location must be in the following format: 'mongodb://[username:password@]localhost:27017/database/collection'");
     this.dbUri = matcher.group("credsHostPort"); // "mongodb://localhost:27017"
     this.dbName = matcher.group("database");
     this.dbCollection = matcher.group("collection");
