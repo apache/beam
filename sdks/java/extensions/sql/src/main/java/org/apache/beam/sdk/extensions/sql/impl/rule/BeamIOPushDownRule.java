@@ -89,31 +89,27 @@ public class BeamIOPushDownRule extends RelOptRule {
 
     // When predicate push-down is not supported - all filters are unsupported.
     final BeamSqlTableFilter tableFilter = beamSqlTable.constructFilter(projectFilter.right);
-    if (!beamSqlTable.supportsProjects() && tableFilter instanceof DefaultTableFilter) {
+    if (!beamSqlTable.supportsProjects().isProjectSupported() && tableFilter instanceof DefaultTableFilter) {
       // Either project or filter push-down must be supported by the IO.
       return;
     }
 
-    // Find all input refs used by projects
-    boolean hasComplexProjects = false;
     Set<String> usedFields = new LinkedHashSet<>();
-    for (RexNode project : projectFilter.left) {
-      findUtilizedInputRefs(calcInputRowType, project, usedFields);
-      if (!hasComplexProjects && project instanceof RexCall) {
-        // Ex: 'SELECT field+10 FROM table'
-        hasComplexProjects = true;
-      }
-    }
-
-    // Find all input refs used by filters
-    for (RexNode filter : tableFilter.getNotSupported()) {
-      findUtilizedInputRefs(calcInputRowType, filter, usedFields);
-    }
-
-    if (!(tableFilter instanceof DefaultTableFilter) && !beamSqlTable.supportsProjects()) {
+    if (!(tableFilter instanceof DefaultTableFilter) && !beamSqlTable.supportsProjects().isProjectSupported()) {
       // When applying standalone filter push-down all fields must be project by an IO.
-      // With a single exception: Calc projects all fields and does nothing else.
+      // With a single exception: Calc projects all fields (in the same order) and does nothing
+      // else.
       usedFields.addAll(calcInputRowType.getFieldNames());
+    } else {
+      // Find all input refs used by projects
+      for (RexNode project : projectFilter.left) {
+        findUtilizedInputRefs(calcInputRowType, project, usedFields);
+      }
+
+      // Find all input refs used by filters
+      for (RexNode filter : tableFilter.getNotSupported()) {
+        findUtilizedInputRefs(calcInputRowType, filter, usedFields);
+      }
     }
 
     if (usedFields.isEmpty()) {
@@ -121,25 +117,33 @@ public class BeamIOPushDownRule extends RelOptRule {
       return;
     }
 
-    FieldAccessDescriptor resolved =
-        FieldAccessDescriptor.withFieldNames(usedFields)
-            .withOrderByFieldInsertionOrder()
-            .resolve(beamSqlTable.getSchema());
+    boolean fieldReorderingSupported = beamSqlTable.supportsProjects().isFieldReorderingSupported();
+    //boolean fieldsProjectedInOrder = fieldsProjectedInSchemaOrder(beamSqlTable, program, calcInputRowType);
+    boolean isProjectSupported = beamSqlTable.supportsProjects().isProjectSupported();
+
+    FieldAccessDescriptor resolved = FieldAccessDescriptor.withFieldNames(usedFields);
+    if (fieldReorderingSupported) {
+      // Only needs to be done when field reordering is supported.
+      resolved = resolved.withOrderByFieldInsertionOrder();
+    }
+    resolved = resolved.resolve(beamSqlTable.getSchema());
     Schema newSchema =
         SelectHelpers.getOutputSchema(ioSourceRel.getBeamSqlTable().getSchema(), resolved);
     RelDataType calcInputType =
         CalciteUtils.toCalciteRowType(newSchema, ioSourceRel.getCluster().getTypeFactory());
 
     // Check if the calc can be dropped:
-    // 1. Calc only does projects and renames.
+    // 1. Calc only does projects and renames of fields in the same order when field reordering is not supported.
     //    And
     // 2. Predicate can be completely pushed-down to IO level.
     //    And
-    // 3. And IO supports project push-down OR all fields are projected by a Calc.
-    if (isProjectRenameOnlyProgram(program)
+    // 3. Project push-down supported // TODO: Or all fields are projected by a Calc in the same order?
+    if (isProjectRenameOnlyProgram(program, fieldReorderingSupported)
         && tableFilter.getNotSupported().isEmpty()
-        && (beamSqlTable.supportsProjects()
-            || calc.getRowType().getFieldCount() == calcInputRowType.getFieldCount())) {
+        && (isProjectSupported || program.getProjectList().stream()
+        .map(ref -> program.getInputRowType().getFieldList().get(ref.getIndex()).getName())
+        .collect(Collectors.toList())
+        .equals(calcInputRowType.getFieldNames()))) {
       // Tell the optimizer to not use old IO, since the new one is better.
       call.getPlanner().setImportance(ioSourceRel, 0.0);
       call.transformTo(ioSourceRel.copy(calc.getRowType(), newSchema.getFieldNames(), tableFilter));
@@ -274,19 +278,28 @@ public class BeamIOPushDownRule extends RelOptRule {
   /**
    * Determine whether a program only performs renames and/or projects. RexProgram#isTrivial is not
    * sufficient in this case, because number of projects does not need to be the same as inputs.
-   * Calc should not be dropped when the same field projected more than once.
+   * Calc should NOT be dropped in the following cases:
+   * 1. Projected fields are manipulated (ex: 'select field1+10').
+   * 2. When the same field projected more than once.
+   * 3. When an IO doesn't supports field reordering and projections in different (from schema) order.
    *
    * @param program A program to check.
+   * @param projectReorderingSupported Whether project push-down supports field reordering.
    * @return True when program performs only projects (w/o any modifications), false otherwise.
    */
   @VisibleForTesting
-  boolean isProjectRenameOnlyProgram(RexProgram program) {
+  boolean isProjectRenameOnlyProgram(RexProgram program, boolean projectReorderingSupported) {
     int fieldCount = program.getInputRowType().getFieldCount();
     Set<Integer> projectIndex = new HashSet<>();
+    int previousIndex = -1;
     for (RexLocalRef ref : program.getProjectList()) {
-      if (ref.getIndex() >= fieldCount || !projectIndex.add(ref.getIndex())) {
+      int index = ref.getIndex();
+      if (index >= fieldCount // Projected values are InputRefs.
+          || !projectIndex.add(ref.getIndex()) // Each field projected once.
+          || (!projectReorderingSupported && index <= previousIndex)) { // In the same order.
         return false;
       }
+      previousIndex = index;
     }
 
     return true;

@@ -27,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
@@ -40,7 +41,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -135,15 +135,11 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
     }
 
     if (!fieldNames.isEmpty()) {
-      builder.withSelectedFields(fieldNames);
+      builder = builder.withSelectedFields(fieldNames);
     }
 
     return begin
-        .apply("Read Input BQ Rows with push-down", builder)
-        .apply(
-            "ReorderRowFields",
-            Select.fieldAccess(
-                FieldAccessDescriptor.withFieldNames(fieldNames).withOrderByFieldInsertionOrder()));
+        .apply("Read Input BQ Rows with push-down", builder);
   }
 
   @Override
@@ -156,8 +152,8 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   }
 
   @Override
-  public boolean supportsProjects() {
-    return method.equals(Method.DIRECT_READ);
+  public ProjectSupport supportsProjects() {
+    return method.equals(Method.DIRECT_READ) ? ProjectSupport.WITHOUT_FIELD_REORDERING : ProjectSupport.NONE;
   }
 
   private TypedRead<Row> getBigQueryReadBuilder(Schema schema) {

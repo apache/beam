@@ -45,7 +45,7 @@ public abstract class BaseBeamTable implements BeamSqlTable {
   }
 
   @Override
-  public boolean supportsProjects() {
-    return false;
+  public ProjectSupport supportsProjects() {
+    return ProjectSupport.NONE;
   }
 }

@@ -123,6 +123,25 @@ public class TestTableProviderWithFilterPushDown {
   }
 
   @Test
+  public void testIOSourceRel_selectAll_withSupportedFilter_shouldDropCalc() {
+    String selectTableStatement = "SELECT * FROM TEST where name='two'";
+
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
+    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    // Calc is dropped, because all fields are projected in the same order and filter is pushed-down.
+    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
+
+    List<String> projects = beamRelNode.getRowType().getFieldNames();
+    assertThat(projects, containsInAnyOrder("unused1", "id", "name", "unused2", "b"));
+
+    assertEquals(BASIC_SCHEMA, result.getSchema());
+    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), 200, 2, "two", (short) 200, false));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
   public void testIOSourceRel_withSupportedFilter_selectInRandomOrder() {
     String selectTableStatement = "SELECT unused2, id, name FROM TEST where b";
 
@@ -179,9 +198,13 @@ public class TestTableProviderWithFilterPushDown {
     BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    // Calc should be dropped, because all filters are supported and all fields are projected.
-    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
-    List<String> projects = beamRelNode.getRowType().getFieldNames();
+    // Calc should not be dropped, because fields are selected in a different order, even though
+    //  all filters are supported and all fields are projected.
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    assertNull(((BeamCalcRel) beamRelNode).getProgram().getCondition());
+
+    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    List<String> projects = beamRelNode.getInput(0).getRowType().getFieldNames();
     // When performing standalone filter push-down IO should project all fields.
     assertThat(projects, containsInAnyOrder("unused1", "id", "name", "unused2", "b"));
 

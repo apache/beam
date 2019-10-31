@@ -35,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -212,7 +213,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       }
 
       // When project push-down is supported or field reordering is needed.
-      if (!fieldNames.isEmpty()) {
+      if ((options == PushDownOptions.PROJECT || options == PushDownOptions.BOTH)
+          && !fieldNames.isEmpty()) {
         result =
             result.apply(
                 "IOPushDownProject",
@@ -239,8 +241,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
 
     @Override
-    public boolean supportsProjects() {
-      return options == PushDownOptions.BOTH || options == PushDownOptions.PROJECT;
+    public ProjectSupport supportsProjects() {
+      return (options == PushDownOptions.BOTH || options == PushDownOptions.PROJECT) ? ProjectSupport.WITH_FIELD_REORDERING : ProjectSupport.NONE;
     }
 
     @Override
