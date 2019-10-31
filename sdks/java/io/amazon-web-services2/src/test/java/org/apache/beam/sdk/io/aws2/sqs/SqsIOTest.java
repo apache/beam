@@ -143,11 +143,11 @@ public class SqsIOTest {
       sqsRestServer.stopAndWait();
     }
 
-    public SqsClient getClient() {
+    SqsClient getClient() {
       return client;
     }
 
-    public String getQueueUrl() {
+    String getQueueUrl() {
       return queueUrl;
     }
   }

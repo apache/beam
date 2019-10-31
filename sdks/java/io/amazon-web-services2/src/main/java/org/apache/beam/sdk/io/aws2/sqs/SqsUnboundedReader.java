@@ -167,7 +167,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
   }
 
   private Instant getTimestamp(final Message message) {
+    String timeStamp = message.messageAttributes().get(QueueAttributeName.CREATED_TIMESTAMP.toString()).stringValue();
     return new Instant(
-        Long.parseLong(message.attributes().get(QueueAttributeName.CREATED_TIMESTAMP)));
+        Long.parseLong(timeStamp));
   }
 }
