@@ -141,6 +141,11 @@ public abstract class WindowedValue<T> {
     return false;
   }
 
+  /** Returns {@code true} if this WindowedValue is a retraction. */
+  public boolean isRetraction() {
+    throw new UnsupportedOperationException("isRetraction() is not supported");
+  }
+
   /**
    * Returns a collection of {@link WindowedValue WindowedValues} identical to this one, except each
    * is in exactly one of the windows that this {@link WindowedValue} is in.
