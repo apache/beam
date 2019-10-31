@@ -78,9 +78,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
-    /** Controls the JDK source language and target compatibility. */
-    double javaVersion = 1.8
-
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
@@ -300,7 +297,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.17.0'
+    project.version = '2.18.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -370,7 +367,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.43.0"
     def generated_grpc_dc_beta_version = "0.27.0-alpha"
     def google_auth_version = "0.12.0"
-    def google_clients_version = "1.27.0"
+    def google_clients_version = "1.28.0"
     def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_core_version = "1.61.0"
     def google_cloud_spanner_version = "1.6.0"
@@ -440,12 +437,12 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common:1.7.0",
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20181104-$google_clients_version",
-        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20180801-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20181221-$google_clients_version",
+        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20181114-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190607-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181105-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181013-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190927-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181213-$google_clients_version",
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181109-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:$google_clients_version",
@@ -596,7 +593,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Configures a project with a default set of plugins that should apply to all Java projects.
     //
     // Users should invoke this method using Groovy map syntax. For example:
-    // applyJavaNature(javaVersion: 1.8)
+    // applyJavaNature(enableSpotbugs: true)
     //
     // See JavaNatureConfiguration for the set of accepted properties.
     //
@@ -656,8 +653,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
       // we configure the Java compiler to use UTF-8.
-      project.sourceCompatibility = configuration.javaVersion
-      project.targetCompatibility = configuration.javaVersion
+      project.sourceCompatibility = project.javaVersion
+      project.targetCompatibility = project.javaVersion
 
       def defaultLintSuppressions = [
         'options',

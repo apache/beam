@@ -169,7 +169,7 @@ public class PubsubJsonClient extends PubsubClient {
       @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Payload.
-      byte[] elementBytes = pubsubMessage.decodeData();
+      byte[] elementBytes = pubsubMessage.getData() == null ? null : pubsubMessage.decodeData();
       if (elementBytes == null) {
         elementBytes = new byte[0];
       }

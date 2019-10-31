@@ -28,7 +28,8 @@ import time
 import grpc
 
 from apache_beam import version as beam_version
-from apache_beam import metrics
+from apache_beam.metrics import metric
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -41,6 +42,7 @@ from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import job_server
+from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
@@ -95,6 +97,11 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def _create_environment(options):
     portable_options = options.view_as(PortableOptions)
+    # Do not set a Runner. Otherwise this can cause problems in Java's
+    # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
+    # does not exist in the Java SDK. In portability, the entry point is clearly
+    # defined via the JobService.
+    portable_options.view_as(StandardOptions).runner = None
     environment_urn = common_urns.environments.DOCKER.urn
     if portable_options.environment_type == 'DOCKER':
       environment_urn = common_urns.environments.DOCKER.urn
@@ -361,16 +368,30 @@ class PortableRunner(runner.PipelineRunner):
                           state_stream, cleanup_callbacks)
 
 
-class PortableMetrics(metrics.metric.MetricResults):
+class PortableMetrics(metric.MetricResults):
   def __init__(self, job_metrics_response):
-    # TODO(lgajowy): Convert portable metrics to MetricResults
-    # and allow querying them (BEAM-4775)
-    pass
+    metrics = job_metrics_response.metrics
+    self.attempted = portable_metrics.from_monitoring_infos(metrics.attempted)
+    self.committed = portable_metrics.from_monitoring_infos(metrics.committed)
+
+  @staticmethod
+  def _combine(committed, attempted, filter):
+    all_keys = set(committed.keys()) | set(attempted.keys())
+    return [
+        MetricResult(key, committed.get(key), attempted.get(key))
+        for key in all_keys
+        if metric.MetricResults.matches(filter, key)
+    ]
 
   def query(self, filter=None):
-    return {'counters': [],
-            'distributions': [],
-            'gauges': []}
+    counters, distributions, gauges = [
+        self._combine(x, y, filter)
+        for x, y in zip(self.committed, self.attempted)
+    ]
+
+    return {self.COUNTERS: counters,
+            self.DISTRIBUTIONS: distributions,
+            self.GAUGES: gauges}
 
 
 class PipelineResult(runner.PipelineResult):

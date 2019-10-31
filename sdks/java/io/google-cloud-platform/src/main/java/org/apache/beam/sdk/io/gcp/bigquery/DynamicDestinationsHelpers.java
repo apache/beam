@@ -385,7 +385,8 @@ class DynamicDestinationsHelpers {
         return new TableDestination(
             wrappedDestination.getTableSpec(),
             existingTable.getDescription(),
-            existingTable.getTimePartitioning());
+            existingTable.getTimePartitioning(),
+            existingTable.getClustering());
       }
     }
 

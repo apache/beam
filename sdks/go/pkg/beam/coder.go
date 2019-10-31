@@ -151,12 +151,16 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 				return nil, err
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
-		case reflectx.Float32, reflectx.Float64:
+
+		case reflectx.Float32:
 			c, err := coderx.NewFloat(t.Type())
 			if err != nil {
 				return nil, err
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+
+		case reflectx.Float64:
+			return &coder.Coder{Kind: coder.Double, T: t}, nil
 
 		case reflectx.String:
 			c, err := coderx.NewString()

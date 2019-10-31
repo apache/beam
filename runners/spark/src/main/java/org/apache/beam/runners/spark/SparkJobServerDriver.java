@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark;
 
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystems;
@@ -32,11 +31,6 @@ import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server for the Spark runner. */
 public class SparkJobServerDriver extends JobServerDriver {
-
-  @Override
-  protected JobInvoker createJobInvoker() {
-    return SparkJobInvoker.create((SparkServerConfiguration) configuration);
-  }
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkJobServerDriver.class);
 
@@ -100,6 +94,10 @@ public class SparkJobServerDriver extends JobServerDriver {
       SparkServerConfiguration configuration,
       ServerFactory jobServerFactory,
       ServerFactory artifactServerFactory) {
-    super(configuration, jobServerFactory, artifactServerFactory);
+    super(
+        configuration,
+        jobServerFactory,
+        artifactServerFactory,
+        () -> SparkJobInvoker.create(configuration));
   }
 }

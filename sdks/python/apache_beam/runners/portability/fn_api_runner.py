@@ -39,13 +39,12 @@ import grpc
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam import coders
-from apache_beam import metrics
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
+from apache_beam.metrics import metric
 from apache_beam.metrics import monitoring_infos
-from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -62,6 +61,7 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner_transforms
+from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner_transforms import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner_transforms import only_element
 from apache_beam.runners.portability.fn_api_runner_transforms import split_buffer_id
@@ -1133,14 +1133,14 @@ class EmbeddedWorkerHandler(WorkerHandler):
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self
     self.data_conn = self.data_plane_handler
+    state_cache = StateCache(STATE_CACHE_SIZE)
     self.worker = sdk_worker.SdkWorker(
         sdk_worker.BundleProcessorCache(
             FnApiRunner.SingletonStateHandlerFactory(
-                sdk_worker.CachingMaterializingStateHandler(
-                    StateCache(STATE_CACHE_SIZE), state)),
+                sdk_worker.CachingStateHandler(state_cache, state)),
             data_plane.InMemoryDataChannelFactory(
                 self.data_plane_handler.inverse()),
-            {}))
+            {}), state_cache_metrics_fn=state_cache.get_monitoring_infos)
     self._uid_counter = 0
 
   def push(self, request):
@@ -1883,53 +1883,34 @@ class ControlFuture(object):
     return self._response
 
 
-class FnApiMetrics(metrics.metric.MetricResults):
+class FnApiMetrics(metric.MetricResults):
   def __init__(self, step_monitoring_infos, user_metrics_only=True):
     """Used for querying metrics from the PipelineResult object.
 
       step_monitoring_infos: Per step metrics specified as MonitoringInfos.
-      use_monitoring_infos: If true, return the metrics based on the
-          step_monitoring_infos.
+      user_metrics_only: If true, includes user metrics only.
     """
     self._counters = {}
     self._distributions = {}
     self._gauges = {}
     self._user_metrics_only = user_metrics_only
-    self._init_metrics_from_monitoring_infos(step_monitoring_infos)
     self._monitoring_infos = step_monitoring_infos
 
-  def _init_metrics_from_monitoring_infos(self, step_monitoring_infos):
     for smi in step_monitoring_infos.values():
-      # Only include user metrics.
-      for mi in smi:
-        if (self._user_metrics_only and
-            not monitoring_infos.is_user_monitoring_info(mi)):
-          continue
-        key = self._to_metric_key(mi)
-        if monitoring_infos.is_counter(mi):
-          self._counters[key] = (
-              monitoring_infos.extract_metric_result_map_value(mi))
-        elif monitoring_infos.is_distribution(mi):
-          self._distributions[key] = (
-              monitoring_infos.extract_metric_result_map_value(mi))
-        elif monitoring_infos.is_gauge(mi):
-          self._gauges[key] = (
-              monitoring_infos.extract_metric_result_map_value(mi))
-
-  def _to_metric_key(self, monitoring_info):
-    # Right now this assumes that all metrics have a PTRANSFORM
-    transform_id = monitoring_info.labels['PTRANSFORM']
-    namespace, name = monitoring_infos.parse_namespace_and_name(monitoring_info)
-    return MetricKey(transform_id, MetricName(namespace, name))
+      counters, distributions, gauges = \
+          portable_metrics.from_monitoring_infos(smi, user_metrics_only)
+      self._counters.update(counters)
+      self._distributions.update(distributions)
+      self._gauges.update(gauges)
 
   def query(self, filter=None):
-    counters = [metrics.execution.MetricResult(k, v, v)
+    counters = [MetricResult(k, v, v)
                 for k, v in self._counters.items()
                 if self.matches(filter, k)]
-    distributions = [metrics.execution.MetricResult(k, v, v)
+    distributions = [MetricResult(k, v, v)
                      for k, v in self._distributions.items()
                      if self.matches(filter, k)]
-    gauges = [metrics.execution.MetricResult(k, v, v)
+    gauges = [MetricResult(k, v, v)
               for k, v in self._gauges.items()
               if self.matches(filter, k)]
 

@@ -583,9 +583,11 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
     if fn_type_hints is not None:
       try:
-        return fn_type_hints.strip_iterable()
+        fn_type_hints = fn_type_hints.strip_iterable()
       except ValueError as e:
         raise ValueError('Return value not iterable: %s: %s' % (self, e))
+    # Prefer class decorator type hints for backwards compatibility.
+    return get_type_hints(self.__class__).with_defaults(fn_type_hints)
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner

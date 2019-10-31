@@ -809,9 +809,9 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  apply to the objects or particular cases such as failover or 
  instance reuse. They also give instanciation use cases.
  
- 
+<!-- The source for the sequence diagram can be found in the the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](
-  {{ "/images/dofn-sequence-diagram.png" | prepend: site.baseurl }})
+  {{ "/images/dofn-sequence-diagram.svg" | prepend: site.baseurl }})
 
 #### 4.2.2. GroupByKey {#groupbykey}
 

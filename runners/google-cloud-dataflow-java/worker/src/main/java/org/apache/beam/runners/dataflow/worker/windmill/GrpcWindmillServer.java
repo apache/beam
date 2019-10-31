@@ -707,8 +707,9 @@ public class GrpcWindmillServer extends WindmillServerStub {
             status = ((StatusRuntimeException) t).getStatus();
           }
           if (errorCount.incrementAndGet() % logEveryNStreamFailures == 0) {
-            LOG.warn(
-                "{} streaming Windmill RPC errors for a stream, last was: {} with status {}",
+            LOG.debug(
+                "{} streaming Windmill RPC errors for a stream, last was: {} with status {}. "
+                    + "This is normal during autoscaling.",
                 errorCount.get(),
                 t.toString(),
                 status);

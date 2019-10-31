@@ -187,7 +187,10 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner(), self.create_options())
 
-  # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
+  def test_metrics(self):
+    self.skipTest('Metrics not supported.')
+
+  # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
 
 
 @unittest.skip("BEAM-7248")

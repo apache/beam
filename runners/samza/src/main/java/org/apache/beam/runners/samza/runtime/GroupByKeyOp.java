@@ -195,7 +195,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   }
 
   @Override
-  public void processWatermark(Instant watermark, OpEmitter<KV<K, OutputT>> ctx) {
+  public void processWatermark(Instant watermark, OpEmitter<KV<K, OutputT>> emitter) {
     timerInternalsFactory.setInputWatermark(watermark);
 
     fnRunner.startBundle();
@@ -207,12 +207,12 @@ public class GroupByKeyOp<K, InputT, OutputT>
     if (timerInternalsFactory.getOutputWatermark() == null
         || timerInternalsFactory.getOutputWatermark().isBefore(watermark)) {
       timerInternalsFactory.setOutputWatermark(watermark);
-      ctx.emitWatermark(timerInternalsFactory.getOutputWatermark());
+      emitter.emitWatermark(timerInternalsFactory.getOutputWatermark());
     }
   }
 
   @Override
-  public void processTimer(KeyedTimerData<K> keyedTimerData) {
+  public void processTimer(KeyedTimerData<K> keyedTimerData, OpEmitter<KV<K, OutputT>> emitter) {
     fnRunner.startBundle();
     fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
     fnRunner.finishBundle();

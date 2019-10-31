@@ -32,9 +32,6 @@ decorators._enable_from_callable = True
 class MainInputTest(unittest.TestCase):
 
   def test_typed_dofn_method(self):
-    # process annotations are recognized and take precedence over decorators.
-    @typehints.with_input_types(typehints.Tuple[int, int])
-    @typehints.with_output_types(int)
     class MyDoFn(beam.DoFn):
       def process(self, element: int) -> typehints.Tuple[str]:
         return tuple(str(element))
@@ -48,6 +45,25 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
+      _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
+
+  def test_typed_dofn_method_with_class_decorators(self):
+    # Class decorators take precedence over PEP 484 hints.
+    @typehints.with_input_types(typehints.Tuple[int, int])
+    @typehints.with_output_types(int)
+    class MyDoFn(beam.DoFn):
+      def process(self, element: int) -> typehints.Tuple[str]:
+        yield element[0]
+
+    result = [(1, 2)] | beam.ParDo(MyDoFn())
+    self.assertEqual([1], sorted(result))
+
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*Tuple\[int, int\].*got.*str'):
+      _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
+
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*Tuple\[int, int\].*got.*int'):
       _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_instance(self):

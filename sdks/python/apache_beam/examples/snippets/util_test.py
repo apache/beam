@@ -60,6 +60,17 @@ class UtilTest(unittest.TestCase):
       )
       util.assert_matches_stdout(actual, expected)
 
+  def test_assert_matches_stdout_sorted_keys(self):
+    expected = [{'list': [1, 2]}, {'list': [3, 4]}]
+    with TestPipeline() as pipeline:
+      actual = (
+          pipeline
+          | beam.Create([{'list': [2, 1]}, {'list': [4, 3]}])
+          | beam.Map(str)
+      )
+      util.assert_matches_stdout(
+          actual, expected, lambda elem: {'sorted': sorted(elem['list'])})
+
   @patch('subprocess.call', lambda cmd: None)
   def test_run_shell_commands(self):
     commands = [
