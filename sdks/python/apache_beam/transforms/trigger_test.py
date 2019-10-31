@@ -775,14 +775,14 @@ class TestStreamTranscriptTest(TranscriptTest):
           | beam.GroupByKey()
           | beam.MapTuple(
               lambda k, vs,
-              window=beam.DoFn.WindowParam,
-              t=beam.DoFn.TimestampParam: (
-                  k,
-                  {
-                      'values': sorted(vs),
-                      'window': [int(window.start), int(window.end - 1)],
-                      'timestamp': t
-                  }))
+                     window=beam.DoFn.WindowParam,
+                     t=beam.DoFn.TimestampParam: (
+                         k,
+                         {
+                             'values': sorted(vs),
+                             'window': [int(window.start), int(window.end - 1)],
+                             'timestamp': t
+                         }))
           # Place outputs back into the global window to allow flattening
           # and share a single state in Check.
           | 'Global' >> beam.WindowInto(beam.transforms.window.GlobalWindows()))
