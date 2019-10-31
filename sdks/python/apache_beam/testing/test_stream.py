@@ -73,11 +73,13 @@ class Event(with_metaclass(ABCMeta, object)):
 class ElementEvent(Event):
   """Element-producing test stream event."""
 
-  def __init__(self, timestamped_values):
+  def __init__(self, timestamped_values, tag=None):
     self.timestamped_values = timestamped_values
+    self.tag = tag
 
   def __eq__(self, other):
-    return self.timestamped_values == other.timestamped_values
+    return (self.timestamped_values == other.timestamped_values and
+            self.tag == other.tag)
 
   def __hash__(self):
     return hash(self.timestamped_values)
@@ -89,11 +91,12 @@ class ElementEvent(Event):
 class WatermarkEvent(Event):
   """Watermark-advancing test stream event."""
 
-  def __init__(self, new_watermark):
+  def __init__(self, new_watermark, tag=None):
     self.new_watermark = timestamp.Timestamp.of(new_watermark)
+    self.tag = tag
 
   def __eq__(self, other):
-    return self.new_watermark == other.new_watermark
+    return self.new_watermark == other.new_watermark and self.tag == other.tag
 
   def __hash__(self):
     return hash(self.new_watermark)

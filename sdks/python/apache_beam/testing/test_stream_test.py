@@ -55,7 +55,7 @@ class TestStreamTest(unittest.TestCase):
                    .add_elements(['d'])
                    .advance_watermark_to_infinity())
     self.assertEqual(
-        test_stream.events,
+        test_stream._events,
         [
             WatermarkEvent(0),
             ElementEvent([
