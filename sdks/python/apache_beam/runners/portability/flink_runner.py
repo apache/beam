@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import logging
+import re
 import sys
 
 from apache_beam.options import pipeline_options
@@ -27,25 +29,46 @@ from apache_beam.runners.portability import flink_uber_jar_job_server
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 
-PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8']
+PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
+MAGIC_HOST_NAMES = ['[local]', '[auto]']
 
 
 class FlinkRunner(portable_runner.PortableRunner):
   def default_job_server(self, options):
-    flink_master = options.view_as(FlinkRunnerOptions).flink_master
-    if flink_master == '[local]' or sys.version_info < (3, 6):
-      portable_options = options.view_as(pipeline_options.PortableOptions)
-      if flink_master == '[local]' and not portable_options.environment_type:
-        portable_options.environment_type == 'LOOPBACK'
+    flink_master = self.add_http_scheme(
+        options.view_as(FlinkRunnerOptions).flink_master)
+    options.view_as(FlinkRunnerOptions).flink_master = flink_master
+    if flink_master in MAGIC_HOST_NAMES or sys.version_info < (3, 6):
       return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
     else:
+      # This has to be changed [auto], otherwise we will attempt to submit a
+      # the pipeline remotely on the Flink JobMaster which will _fail_.
+      # DO NOT CHANGE the following line, unless you have tested this.
+      options.view_as(FlinkRunnerOptions).flink_master = '[auto]'
       return flink_uber_jar_job_server.FlinkUberJarJobServer(flink_master)
+
+  @staticmethod
+  def add_http_scheme(flink_master):
+    """Adds a http protocol scheme if none provided."""
+    flink_master = flink_master.strip()
+    if not flink_master in MAGIC_HOST_NAMES and \
+          not re.search('^http[s]?://', flink_master):
+      logging.info('Adding HTTP protocol scheme to flink_master parameter: '
+                   'http://%s', flink_master)
+      flink_master = 'http://' + flink_master
+    return flink_master
 
 
 class FlinkRunnerOptions(pipeline_options.PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--flink_master', default='[local]')
+    parser.add_argument('--flink_master',
+                        default='[auto]',
+                        help='Flink master address (http://host:port)'
+                             ' Use "[local]" to start a local cluster'
+                             ' for the execution. Use "[auto]" if you'
+                             ' plan to either execute locally or let the'
+                             ' Flink job server infer the cluster address.')
     parser.add_argument('--flink_version',
                         default=PUBLISHED_FLINK_VERSIONS[-1],
                         choices=PUBLISHED_FLINK_VERSIONS,

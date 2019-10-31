@@ -183,14 +183,15 @@ public class PortableTimersExecutionTest implements Serializable {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
 
     JobInvocation jobInvocation =
-        FlinkJobInvoker.createJobInvocation(
-            "id",
-            "none",
-            flinkJobExecutor,
-            pipelineProto,
-            options.as(FlinkPipelineOptions.class),
-            new FlinkPipelineRunner(
-                options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
+        FlinkJobInvoker.create(null)
+            .createJobInvocation(
+                "id",
+                "none",
+                flinkJobExecutor,
+                pipelineProto,
+                options.as(FlinkPipelineOptions.class),
+                new FlinkPipelineRunner(
+                    options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
 
     jobInvocation.start();
     while (jobInvocation.getState() != Enum.DONE) {

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.reference.testing;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.runners.fnexecution.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -32,11 +33,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 public interface TestPortablePipelineOptions extends TestPipelineOptions, PortablePipelineOptions {
 
   @Required
-  @Description(
-      "Fully qualified class name of TestJobServiceDriver capable of managing the JobService.")
-  Class getJobServerDriver();
+  @Description("Fully qualified class name of a JobServerDriver subclass.")
+  Class<JobServerDriver> getJobServerDriver();
 
-  void setJobServerDriver(Class jobServerDriver);
+  void setJobServerDriver(Class<JobServerDriver> jobServerDriver);
 
   @Description("String containing comma separated arguments for the JobServer.")
   @Default.InstanceFactory(DefaultJobServerConfigFactory.class)

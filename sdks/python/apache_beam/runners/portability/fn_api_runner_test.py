@@ -35,7 +35,6 @@ from builtins import range
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 import hamcrest  # pylint: disable=ungrouped-imports
-import mock
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
 from tenacity import retry
@@ -43,10 +42,8 @@ from tenacity import stop_after_attempt
 
 import apache_beam as beam
 from apache_beam.io import restriction_trackers
-from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -110,48 +107,6 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Map(lambda e: e * 2)
              | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
-
-  def test_pardo_metrics(self):
-
-    class MyDoFn(beam.DoFn):
-
-      def start_bundle(self):
-        self.count = beam.metrics.Metrics.counter('ns1', 'elements')
-
-      def process(self, element):
-        self.count.inc(element)
-        return [element]
-
-    class MyOtherDoFn(beam.DoFn):
-
-      def start_bundle(self):
-        self.count = beam.metrics.Metrics.counter('ns2', 'elementsplusone')
-
-      def process(self, element):
-        self.count.inc(element + 1)
-        return [element]
-
-    with self.create_pipeline() as p:
-      res = (p | beam.Create([1, 2, 3])
-             | 'mydofn' >> beam.ParDo(MyDoFn())
-             | 'myotherdofn' >> beam.ParDo(MyOtherDoFn()))
-      p.run()
-      if not MetricsEnvironment.METRICS_SUPPORTED:
-        self.skipTest('Metrics are not supported.')
-
-      counter_updates = [{'key': key, 'value': val}
-                         for container in p.runner.metrics_containers()
-                         for key, val in
-                         container.get_updates().counters.items()]
-      counter_values = [update['value'] for update in counter_updates]
-      counter_keys = [update['key'] for update in counter_updates]
-      assert_that(res, equal_to([1, 2, 3]))
-      self.assertEqual(counter_values, [6, 9])
-      self.assertEqual(counter_keys, [
-          MetricKey('mydofn',
-                    MetricName('ns1', 'elements')),
-          MetricKey('myotherdofn',
-                    MetricName('ns2', 'elementsplusone'))])
 
   def test_pardo_side_outputs(self):
     def tee(elem, *tags):
@@ -529,33 +484,6 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
-  def _run_sdf_wrapper_pipeline(self, source, expected_value):
-    with self.create_pipeline() as p:
-      experiments = (p._options.view_as(DebugOptions).experiments or [])
-
-      # Setup experiment option to enable using SDFBoundedSourceWrapper
-      if not 'use_sdf_bounded_source' in experiments:
-        experiments.append('use_sdf_bounded_source')
-
-      p._options.view_as(DebugOptions).experiments = experiments
-
-      actual = (
-          p | beam.io.Read(source)
-      )
-    assert_that(actual, equal_to(expected_value))
-
-  @mock.patch('apache_beam.io.iobase._SDFBoundedSourceWrapper.expand')
-  def test_sdf_wrapper_overrides_read(self, sdf_wrapper_mock_expand):
-    def _fake_wrapper_expand(pbegin):
-      return (pbegin
-              | beam.Create(['1']))
-
-    sdf_wrapper_mock_expand.side_effect = _fake_wrapper_expand
-    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), ['1'])
-
-  def test_sdf_wrap_range_source(self):
-    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
-
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (p
@@ -683,10 +611,6 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_metrics(self):
     p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # This test is inherited by others that may not support the same
-      # internal way of accessing progress metrics.
-      self.skipTest('Metrics not supported.')
 
     counter = beam.metrics.Metrics.counter('ns', 'counter')
     distribution = beam.metrics.Metrics.distribution('ns', 'distribution')
@@ -875,10 +799,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         yield element
 
     p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # This test is inherited by others that may not support the same
-      # internal way of accessing progress metrics.
-      self.skipTest('Metrics not supported.')
 
     # Produce enough elements to make sure byte sampling occurs.
     num_source_elems = 100
@@ -1013,10 +933,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # This test is inherited by others that may not support the same
-      # internal way of accessing progress metrics.
-      self.skipTest('Metrics not supported.')
 
     pcoll = p | beam.Create(['a', 'zzz'])
     # pylint: disable=expression-not-assigned
@@ -1057,11 +973,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
   @retry(reraise=True, stop=stop_after_attempt(3))
   def test_progress_metrics(self):
     p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # This test is inherited by others that may not support the same
-      # internal way of accessing progress metrics.
-      self.skipTest('Progress metrics not supported.')
-      return
 
     _ = (p
          | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])

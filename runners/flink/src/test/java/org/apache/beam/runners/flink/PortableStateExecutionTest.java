@@ -196,14 +196,15 @@ public class PortableStateExecutionTest implements Serializable {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 
     JobInvocation jobInvocation =
-        FlinkJobInvoker.createJobInvocation(
-            "id",
-            "none",
-            flinkJobExecutor,
-            pipelineProto,
-            options.as(FlinkPipelineOptions.class),
-            new FlinkPipelineRunner(
-                options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
+        FlinkJobInvoker.create(null)
+            .createJobInvocation(
+                "id",
+                "none",
+                flinkJobExecutor,
+                pipelineProto,
+                options.as(FlinkPipelineOptions.class),
+                new FlinkPipelineRunner(
+                    options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
 
     jobInvocation.start();
 

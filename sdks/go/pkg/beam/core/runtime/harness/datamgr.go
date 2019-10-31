@@ -144,6 +144,9 @@ type DataChannel struct {
 	readers map[clientID]*dataReader
 	// TODO: early/late closed, bad instructions, finer locks, reconnect?
 
+	// readErr indicates a client.Recv error and is used to prevent new readers.
+	readErr error
+
 	mu sync.Mutex // guards both the readers and writers maps.
 }
 
@@ -174,7 +177,12 @@ func makeDataChannel(ctx context.Context, id string, client dataClient) *DataCha
 
 // OpenRead returns an io.ReadCloser of the data elements for the given instruction and ptransform.
 func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID instructionID) io.ReadCloser {
-	return c.makeReader(ctx, clientID{ptransformID: ptransformID, instID: instID})
+	cid := clientID{ptransformID: ptransformID, instID: instID}
+	if c.readErr != nil {
+		log.Errorf(ctx, "opening a reader %v on a closed channel", cid)
+		return &errReader{c.readErr}
+	}
+	return c.makeReader(ctx, cid)
 }
 
 // OpenWrite returns an io.WriteCloser of the data elements for the given instruction and ptransform.
@@ -187,8 +195,21 @@ func (c *DataChannel) read(ctx context.Context) {
 	for {
 		msg, err := c.client.Recv()
 		if err != nil {
+			// This connection is bad, so we should close and delete all extant streams.
+			c.mu.Lock()
+			c.readErr = err // prevent not yet opened readers from hanging.
+			for _, r := range c.readers {
+				log.Errorf(ctx, "DataChannel.read %v reader %v closing due to error on channel", c.id, r.id)
+				if !r.completed {
+					r.completed = true
+					r.err = err
+					close(r.buf)
+				}
+				delete(cache, r.id)
+			}
+			c.mu.Unlock()
+
 			if err == io.EOF {
-				// TODO(herohde) 10/12/2017: can this happen before shutdown? Reconnect?
 				log.Warnf(ctx, "DataChannel.read %v closed", c.id)
 				return
 			}
@@ -204,8 +225,6 @@ func (c *DataChannel) read(ctx context.Context) {
 
 		for _, elm := range msg.GetData() {
 			id := clientID{ptransformID: elm.TransformId, instID: instructionID(elm.GetInstructionId())}
-
-			// log.Printf("Chan read (%v): %v\n", sid, elm.GetData())
 
 			var r *dataReader
 			if local, ok := cache[id]; ok {
@@ -224,6 +243,7 @@ func (c *DataChannel) read(ctx context.Context) {
 			}
 			if len(elm.GetData()) == 0 {
 				// Sentinel EOF segment for stream. Close buffer to signal EOF.
+				r.completed = true
 				close(r.buf)
 
 				// Clean up local bookkeeping. We'll never see another message
@@ -242,9 +262,22 @@ func (c *DataChannel) read(ctx context.Context) {
 			case r.buf <- elm.GetData():
 			case <-r.done:
 				r.completed = true
+				close(r.buf)
 			}
 		}
 	}
+}
+
+type errReader struct {
+	err error
+}
+
+func (r *errReader) Read(_ []byte) (int, error) {
+	return 0, r.err
+}
+
+func (r *errReader) Close() error {
+	return r.err
 }
 
 func (c *DataChannel) makeReader(ctx context.Context, id clientID) *dataReader {
@@ -286,6 +319,7 @@ type dataReader struct {
 	cur       []byte
 	channel   *DataChannel
 	completed bool
+	err       error
 }
 
 func (r *dataReader) Close() error {
@@ -298,7 +332,10 @@ func (r *dataReader) Read(buf []byte) (int, error) {
 	if r.cur == nil {
 		b, ok := <-r.buf
 		if !ok {
-			return 0, io.EOF
+			if r.err == nil {
+				return 0, io.EOF
+			}
+			return 0, r.err
 		}
 		r.cur = b
 	}
@@ -378,7 +415,7 @@ func (w *dataWriter) Write(p []byte) (n int, err error) {
 		l := len(w.buf)
 		// We can't fit this message into the buffer. We need to flush the buffer
 		if err := w.Flush(); err != nil {
-			return 0, errors.Wrapf(err, "datamgr.go: error flushing buffer of length %d", l)
+			return 0, errors.Wrapf(err, "datamgr.go [%v]: error flushing buffer of length %d", w.id, l)
 		}
 	}
 

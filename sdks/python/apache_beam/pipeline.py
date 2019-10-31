@@ -171,10 +171,6 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()
-    # A boolean value indicating whether the pipeline is created in an
-    # interactive environment such as interactive notebooks. Initialized as
-    # None. The value is set ad hoc when `pipeline.run()` is invoked.
-    self.interactive = None
 
   @property
   @deprecated(since='First stable release',
@@ -399,56 +395,28 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
-  def run(self, test_runner_api=True, runner=None, options=None,
-          interactive=None):
-    """Runs the pipeline. Returns whatever our runner returns after running.
+  def run(self, test_runner_api=True):
+    """Runs the pipeline. Returns whatever our runner returns after running."""
 
-    If another runner instance and options are provided, that runner will
-    execute the pipeline with the given options. If either of them is not set,
-    a ValueError is raised. The usage is similar to directly invoking
-    `runner.run_pipeline(pipeline, options)`.
-    Additionally, an interactive field can be set to override the pipeline's
-    self.interactive field to mark current pipeline as being initiated from an
-    interactive environment.
-    """
-    from apache_beam.runners.interactive import interactive_runner
-    if interactive:
-      self.interactive = interactive
-    elif isinstance(self.runner, interactive_runner.InteractiveRunner):
-      self.interactive = True
-    else:
-      self.interactive = False
-    runner_in_use = self.runner
-    options_in_use = self._options
-    if runner and options:
-      runner_in_use = runner
-      options_in_use = options
-    elif not runner and options:
-      raise ValueError('Parameter runner is not given when parameter options '
-                       'is given.')
-    elif not options and runner:
-      raise ValueError('Parameter options is not given when parameter runner '
-                       'is given.')
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
       return Pipeline.from_runner_api(
           self.to_runner_api(use_fake_coders=True),
-          runner_in_use,
-          options_in_use).run(test_runner_api=False,
-                              interactive=self.interactive)
+          self.runner,
+          self._options).run(False)
 
-    if options_in_use.view_as(TypeOptions).runtime_type_check:
+    if self._options.view_as(TypeOptions).runtime_type_check:
       from apache_beam.typehints import typecheck
       self.visit(typecheck.TypeCheckVisitor())
 
-    if options_in_use.view_as(SetupOptions).save_main_session:
+    if self._options.view_as(SetupOptions).save_main_session:
       # If this option is chosen, verify we can pickle the main session early.
       tmpdir = tempfile.mkdtemp()
       try:
         pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
       finally:
         shutil.rmtree(tmpdir)
-    return runner_in_use.run_pipeline(self, options_in_use)
+    return self.runner.run_pipeline(self, self._options)
 
   def __enter__(self):
     return self
@@ -575,13 +543,15 @@ class Pipeline(object):
     return pvalueish_result
 
   def _infer_result_type(self, transform, inputs, result_pcollection):
-    # TODO(robertwb): Multi-input, multi-output inference.
+    # TODO(robertwb): Multi-input inference.
     type_options = self._options.view_as(TypeOptions)
-    if (type_options is not None and type_options.pipeline_type_check
-        and isinstance(result_pcollection, pvalue.PCollection)
+    if type_options is None or not type_options.pipeline_type_check:
+      return
+    if (isinstance(result_pcollection, pvalue.PCollection)
         and (not result_pcollection.element_type
              # TODO(robertwb): Ideally we'd do intersection here.
              or result_pcollection.element_type == typehints.Any)):
+      # Single-input, single-output inference.
       input_element_type = (
           inputs[0].element_type
           if len(inputs) == 1
@@ -601,6 +571,13 @@ class Pipeline(object):
       else:
         result_pcollection.element_type = transform.infer_output_type(
             input_element_type)
+    elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
+      # Single-input, multi-output inference.
+      # TODO(BEAM-4132): Add support for tagged type hints.
+      #   https://github.com/apache/beam/pull/9810#discussion_r338765251
+      for pcoll in result_pcollection:
+        if pcoll.element_type is None:
+          pcoll.element_type = typehints.Any
 
   def __reduce__(self):
     # Some transforms contain a reference to their enclosing pipeline,

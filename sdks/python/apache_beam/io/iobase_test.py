@@ -21,10 +21,16 @@ from __future__ import absolute_import
 
 import unittest
 
+import mock
+
+import apache_beam as beam
 from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io import iobase
 from apache_beam.io.iobase import SourceBundle
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
@@ -152,6 +158,37 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
                                          actual_residual.weight))
     self.assertEqual(actual_primary.weight,
                      self.sdf_restriction_tracker._weight)
+
+
+class UseSdfBoundedSourcesTests(unittest.TestCase):
+
+  def _run_sdf_wrapper_pipeline(self, source, expected_values):
+    with beam.Pipeline() as p:
+      experiments = (p._options.view_as(DebugOptions).experiments or [])
+
+      # Setup experiment option to enable using SDFBoundedSourceWrapper
+      if 'use_sdf_bounded_source' not in experiments:
+        experiments.append('use_sdf_bounded_source')
+      if 'beam_fn_api' not in experiments:
+        # Required so mocking below doesn't mock Create used in assert_that.
+        experiments.append('beam_fn_api')
+
+      p._options.view_as(DebugOptions).experiments = experiments
+
+      actual = p | beam.io.Read(source)
+      assert_that(actual, equal_to(expected_values))
+
+  @mock.patch('apache_beam.io.iobase._SDFBoundedSourceWrapper.expand')
+  def test_sdf_wrapper_overrides_read(self, sdf_wrapper_mock_expand):
+    def _fake_wrapper_expand(pbegin):
+      return (pbegin
+              | beam.Create(['fake']))
+
+    sdf_wrapper_mock_expand.side_effect = _fake_wrapper_expand
+    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), ['fake'])
+
+  def test_sdf_wrap_range_source(self):
+    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
 
 
 if __name__ == '__main__':
