@@ -281,6 +281,10 @@ class FnApiRunnerTest(unittest.TestCase):
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(pcoll)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
+  def test_pardo_unfusable_by_gbk_side_inputs(self):
+    def cross_product(elem, sides):
+      for side in sides:
+        yield elem, side
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
       derived = ((pcoll,) | beam.Flatten()
@@ -439,7 +443,7 @@ class FnApiRunnerTest(unittest.TestCase):
     def is_buffered_correctly(actual):
       # Pickling self in the closure for asserts gives errors (only on jenkins).
       self = FnApiRunnerTest('__init__')
-      # Acutal should be a grouping of the inputs into batches of size
+      # Actual should be a grouping of the inputs into batches of size
       # at most buffer_size, but the actual batching is nondeterministic
       # based on ordering and trigger firing timing.
       self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)

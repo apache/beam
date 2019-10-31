@@ -419,8 +419,6 @@ class _FnApiRunnerExecution(object):
       safe_coders):
     for transform_id, tag, buffer_id, si in side_input_infos:
       _, pcoll_id = split_buffer_id(buffer_id)
-      print('Persisting data for Side input\n\t', pcoll_id,
-            '\n\t Consumer:', transform_id)
       value_coder = context.coders[safe_coders[
         pipeline_components.pcollections[pcoll_id].coder_id]]
       elements_by_window = _WindowGroupingBuffer(si, value_coder)
@@ -741,7 +739,7 @@ class FnApiRunner(runner.PipelineRunner):
         input_queue_manager.ready_inputs.enque((stage.name, data_inputs))
       elif data_inputs and not ready_to_schedule:
         input_queue_manager.watermark_pending_inputs.enque(
-            (stage.name, data_inputs))
+            ((stage.name, timestamp.MAX_TIMESTAMP), data_inputs))
 
   def run_stages(self, stage_context, stages):
     """Run a list of topologically-sorted stages in batch mode.
@@ -795,10 +793,11 @@ class FnApiRunner(runner.PipelineRunner):
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
 
-          self._update_watermarks(execution_context,
-                                  stage, data_input, output_bundles)
-          self._process_output_bundles(
-              execution_context, output_bundles, input_queue_manager)
+          output_bundles_with_timestamps = self._update_watermarks(
+              execution_context, stage, data_input, output_bundles)
+          self._process_output_bundles(execution_context,
+                                       output_bundles_with_timestamps,
+                                       input_queue_manager)
           self._schedule_newly_ready_bundles(execution_context,
                                              input_queue_manager)
 
@@ -823,14 +822,15 @@ class FnApiRunner(runner.PipelineRunner):
     """
     requed_inputs = []
     while len(input_queue_manager.watermark_pending_inputs) > 0:
-      stage_name, inputs = input_queue_manager.watermark_pending_inputs.deque()
+      next_elm = input_queue_manager.watermark_pending_inputs.deque()
+      (stage_name, bundle_watermark), inputs = next_elm
       stage_watermark = execution_context.get_watermark(stage_name)
-      if stage_watermark == timestamp.MAX_TIMESTAMP:
+      if stage_watermark == bundle_watermark:
         print('Enqueuing stage\n\t', stage_name, '\n\t', inputs)
         input_queue_manager.ready_inputs.enque((stage_name, inputs))
       else:
         print('NOT Enqueuing stage\n\t', stage_name, '\n\tWatermark: ', stage_watermark)
-        requed_inputs.append((stage_name, inputs))
+        requed_inputs.append(((stage_name, bundle_watermark), inputs))
 
     for elm in requed_inputs:
       input_queue_manager.watermark_pending_inputs.enque(elm)
@@ -838,7 +838,11 @@ class FnApiRunner(runner.PipelineRunner):
   def _update_watermarks(
       self, execution_context,
       stage, input_bundles, output_bundles):
-    # type: (PipelineExecutionContext, fn_api_runner_transforms.Stage, Dict[str, bytes], List[Tuple[bytes, List[bytes]]]) -> None
+    # type: (PipelineExecutionContext, fn_api_runner_transforms.Stage, Dict[str, bytes], List[Tuple[bytes, List[bytes]]]) -> List[Tuple[Tuple[timestam.Timestamp, bytes], List[bytes]]]
+    """Update the watermarks after execution of a bundle.
+
+    It also recomputes the output bundle list to contain consumer and target
+    watermark (i.e. the input watermark of the consumer to be scheduled)."""
     #print('Stage timer pcolls:', str(stage.timer_pcollections))
     #print('DInput', str(input_bundles))
     #print('DOutput', str(output_bundles))
@@ -871,18 +875,15 @@ class FnApiRunner(runner.PipelineRunner):
           #   I think: For batch, once it's been executed, we're done.
           execution_context.update_pcoll_watermark(pcoll_name,
                                                    timestamp.MAX_TIMESTAMP)
-        #else:
-        #  print('Dont know what to do about\n\t', buffer_id)
 
-    # STARTING WITH TIMERS!
-    output_bundles = sorted(output_bundles,
-                            key=lambda x: not x[0].startswith(b'timers'))
+    output_bundles_with_target_watermarks = []
 
-    for buffer_id, output_bytes in output_bundles:
-      print('BID: ', buffer_id)
+    # Starting with timers, as they affect input PCollections, and therefore
+    # the input watermark of the current stage.
+    for index, (buffer_id, output_bytes) in enumerate(output_bundles):
       kind, pcoll_name = split_buffer_id(buffer_id)
       watermark_hold = timestamp.MAX_TIMESTAMP
-      # TODO(pabloem, MUST): WHAT TO DO ABOUT OTHER BUFFER KINDS?
+      single_timer_per_window_key = _ListBuffer()
       if kind == 'timers':
         # For timers, pcoll_name is the written PCollection.
         if output_bytes:
@@ -890,16 +891,26 @@ class FnApiRunner(runner.PipelineRunner):
             pcoll_name].coder_id
           windowed_timer_coder_impl = self.pipeline_context.coders[
             coder_id].get_impl()
-          written_timers = output_bytes
 
+          timer_data_per_key_window = {}
           # Keep only the "last" timer set per key and window.
-          for elements_data in written_timers:
+          for elements_data in output_bytes:
             input_stream = create_InputStream(elements_data)
             while input_stream.size() > 0:
               windowed_key_timer = windowed_timer_coder_impl.decode_from_stream(
                   input_stream, True)
               timer_timestamp = windowed_key_timer.timestamp
+              # TODO(pabloem, MUST): What to do about multiple windows?
+              key_window_pair = (windowed_key_timer.windows[0],
+                                 windowed_key_timer.value[0])
+              timer_data_per_key_window[key_window_pair] = windowed_key_timer
               watermark_hold = min(watermark_hold, timer_timestamp)
+              # TODO(pabloem, MUST): KEEP THE LATEST ONLY
+
+          for t in timer_data_per_key_window.values():
+            out = create_OutputStream()
+            windowed_timer_coder_impl.encode_to_stream(t, out, True)
+            single_timer_per_window_key.append(out.get())
 
           # For batch, after nothing comes in from the timers, we're done.
           # TODO(pabloem, MUST): What if timers are set BEFORE the current
@@ -910,19 +921,25 @@ class FnApiRunner(runner.PipelineRunner):
                                                  watermark_hold)
         execution_context.update_pcoll_watermark(pcoll_name,
                                                  watermark_hold)
-      else:  # elif kind == 'group':
+        output_bundles_with_target_watermarks.append(
+            ((watermark_hold, buffer_id), single_timer_per_window_key))
+
+    for buffer_id, output_bytes in output_bundles:
+      kind, pcoll_name = split_buffer_id(buffer_id)
+      if kind != 'timers':
         # TODO(pabloem, MUST): WHAT TO DO ABOUT OTHER BUFFER KINDS?
-        #   I think: For batch, once it's been executed, we're done.
         execution_context.update_pcoll_watermark(pcoll_name,
                                                  timestamp.MAX_TIMESTAMP)
-      #else:
-      #  print('Dont know what to do about\n\t', buffer_id)
+        output_bundles_with_target_watermarks.append(
+            ((timestamp.MAX_TIMESTAMP, buffer_id), output_bytes))
+
+    return output_bundles_with_target_watermarks
 
   @staticmethod
   def _process_output_bundles(execution_context, output_bundles, input_queue_manager):
     """TODO(pabloem)"""
 
-    for buffer_id, data in output_bundles:
+    for (bundle_watermark, buffer_id), data in output_bundles:
       consumer_stage = execution_context.get_consuming_stage(buffer_id)
       consumer_transform = execution_context.get_consuming_transform(buffer_id)
 
@@ -936,14 +953,14 @@ class FnApiRunner(runner.PipelineRunner):
         # and we can discard the elements.
         continue
       if data:
-        pcoll_watermark = execution_context.get_watermark(pcoll_id)
-        print('PColl watermark:\n\t', pcoll_id, '\n\t', pcoll_watermark)
-        if pcoll_watermark == timestamp.MAX_TIMESTAMP:
+        pcoll_watermark = execution_context.get_watermark(consuming_stage_name)
+        if pcoll_watermark >= bundle_watermark:
           input_queue_manager.ready_inputs.enque(
               (consuming_stage_name, {consuming_transform_name: data}))
         else:
           input_queue_manager.watermark_pending_inputs.enque(
-              (consuming_stage_name, {consuming_transform_name: data}))
+              ((consuming_stage_name, bundle_watermark),
+               {consuming_transform_name: data}))
 
   def _run_bundle_multiple_times_for_testing(
       self, worker_handler_list, process_bundle_descriptor, data_input,
