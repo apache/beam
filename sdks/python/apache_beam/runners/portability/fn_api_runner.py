@@ -1091,6 +1091,11 @@ class FnApiRunner(runner.PipelineRunner):
     last_result = result
     last_sent = input_bundle
 
+    # TODO(pabloem, MUST): THE PROBLEM CURRENTLY IS THAT WHEN THERE ARE DEFERRED
+    #  INPUTS, WE MUST HOLD BACK THE WATERMARK FOR A STAGE. We are not doing
+    #  that currently, and thus when we have deferred inputs, the watermark
+    #  still moves to +MAX_TS, and downstream operations are scheduled.
+    #  THIS BAD.
     while True:
       deferred_inputs = FnApiRunner._collect_deferred_inputs(
         pipeline_context,
