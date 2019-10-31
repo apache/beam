@@ -267,6 +267,7 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
           files(project(project.path).sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     commonExcludeCategories.each {
       excludeCategories it
     }
