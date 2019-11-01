@@ -55,6 +55,9 @@ RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
+# Log complete list of what exact packages and versions are installed.
+RUN pip freeze --all
+
 ADD target/launcher/linux_amd64/boot /opt/apache/beam/
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
