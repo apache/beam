@@ -659,7 +659,7 @@ public class ExecutableStageDoFnOperatorTest {
       ExecutableStageDoFnOperator.BagUserStateFactory<ByteString, Integer, GlobalWindow>
           bagUserStateFactory =
               new ExecutableStageDoFnOperator.BagUserStateFactory<>(
-                  cacheTokenGenerator, test, stateBackend, NoopLock.get());
+                  cacheTokenGenerator, test, stateBackend, NoopLock.get(), null);
 
       ByteString key1 = ByteString.copyFrom("key1", Charsets.UTF_8);
       ByteString key2 = ByteString.copyFrom("key2", Charsets.UTF_8);
