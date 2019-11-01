@@ -566,9 +566,10 @@ class FnApiRunnerTest(unittest.TestCase):
       res = (pcboth
              | beam.GroupByKey()
              | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
-      res | beam.Map(lambda x: print(x))
-      # TODO(pabloem, MUST): Uncomment assert
-      #assert_that(res, equal_to([('a', [1, 2]), ('b', [3])]))
+      assert_that(res, equal_to([('a', [1, 2]),
+                                 ('b', [3]),
+                                 ('c', [1, 2]),
+                                 ('d', [3])]))
 
   # Runners may special case the Reshuffle transform urn.
   def test_reshuffle(self):
