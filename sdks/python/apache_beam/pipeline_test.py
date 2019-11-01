@@ -438,21 +438,7 @@ class PipelineTest(unittest.TestCase):
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
 
-
   def test_ptransform_override_multiple_outputs(self):
-    class _MultiParDoComposite(PTransform):
-
-      def __init__(self, do_transform, tags, main_tag):
-        super(_MultiParDoComposite, self).__init__(do_transform.label)
-        self._do_transform = do_transform
-        self._tags = tags
-        self._main_tag = main_tag
-
-      def expand(self, pcoll):
-        _ = pcoll | self._do_transform
-        return beam.pvalue.DoOutputsTuple(
-            pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
-
     class MultiOutputComposite(PTransform):
       def __init__(self):
         self.output_tags = set()

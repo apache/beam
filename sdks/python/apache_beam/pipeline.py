@@ -271,6 +271,9 @@ class Pipeline(object):
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
           # errors when visiting child nodes.
+          #
+          # NOTE: When replacing multiple outputs, the replacement PCollection
+          # tags must have a matching tag in the original transform.
           if isinstance(new_output, pvalue.PValue):
             if not new_output.producer:
               new_output.producer = replacement_transform_node
