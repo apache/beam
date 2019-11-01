@@ -245,7 +245,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Example: Writing CSV files</h3>
  *
  * <pre>{@code
- * class CSVSink implements FileSink<List<String>> {
+ * class CSVSink implements FileIO.Sink<List<String>> {
  *   private String header;
  *   private PrintWriter writer;
  *
@@ -262,7 +262,7 @@ import org.slf4j.LoggerFactory;
  *     writer.println(Joiner.on(",").join(element));
  *   }
  *
- *   public void finish() throws IOException {
+ *   public void flush() throws IOException {
  *     writer.flush();
  *   }
  * }
@@ -270,13 +270,13 @@ import org.slf4j.LoggerFactory;
  * PCollection<BankTransaction> transactions = ...;
  * // Convert transactions to strings before writing them to the CSV sink.
  * transactions.apply(MapElements
- *         .into(lists(strings()))
+ *         .into(TypeDescriptors.lists(TypeDescriptors.strings()))
  *         .via(tx -> Arrays.asList(tx.getUser(), tx.getAmount())))
  *     .apply(FileIO.<List<String>>write()
- *         .via(new CSVSink(Arrays.asList("user", "amount"))
+ *         .via(new CSVSink(Arrays.asList("user", "amount")))
  *         .to(".../path/to/")
  *         .withPrefix("transactions")
- *         .withSuffix(".csv")
+ *         .withSuffix(".csv"));
  * }</pre>
  *
  * <h3>Example: Writing CSV files to different directories and with different headers</h3>
