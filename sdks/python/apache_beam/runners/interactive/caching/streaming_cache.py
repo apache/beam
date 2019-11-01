@@ -17,6 +17,8 @@
 
 from __future__ import absolute_import
 
+import collections
+
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
@@ -40,13 +42,22 @@ class StreamingCache(object):
     clock advancement events, and watermark advancement events.
     """
     def __init__(self, readers):
-      self._timestamp = Timestamp.of(0)
+      # This timestamp is used as the monotonic clock to order events in the
+      # replay.
+      self._monotonic_clock = timestamp.Timestamp.of(0)
+
+      # The maximum timestamp read.
+      self._target_timestamp = timestamp.Timestamp.of(0)
+
+      # The PCollection cache readers.
       self._readers = {}
+
+      # The file headers that are metadata for that particular PCollection.
       self._headers = {}
-      readers = [r.read() for r in readers]
 
       # The header allows for metadata about an entire stream, so that the data
       # isn't copied per record.
+      readers = [r.read() for r in readers]
       for r in readers:
         header = InteractiveStreamHeader()
         header.ParseFromString(next(r))
@@ -57,65 +68,112 @@ class StreamingCache(object):
         self._headers[header.tag if header.tag else None] = header
         self._readers[header.tag if header.tag else None] = r
 
+      # The watermarks per tag. Useful for introspection in the stream.
       self._watermarks = {tag: timestamp.MIN_TIMESTAMP for tag in self._headers}
+
+      # The most recently read timestamp per tag.
+      self._stream_times = {tag: timestamp.MIN_TIMESTAMP
+                           for tag in self._headers}
+
+    def _read_next(self):
+      """Reads the next iteration of elements from each stream.
+      """
+      records = []
+      for tag, r in self._readers.items():
+        # The target_timestamp is the maximum timestamp that was read from the
+        # stream. Some readers may have elements that are less than this. Thus,
+        # we skip all readers that already have elements that are at this
+        # timestamp so that we don't read everything into memory.
+        if self._stream_times[tag] >= self._target_timestamp:
+          continue
+        try:
+          record = InteractiveStreamRecord()
+          record.ParseFromString(next(r))
+          records.append((tag, record))
+          self._stream_times[tag] = Timestamp.from_proto(
+              record.processing_time)
+        except StopIteration:
+          pass
+      return records
 
     def read(self):
       """Reads records from PCollection readers.
       """
-      records = {}
-      for tag, r in self._readers.items():
-        try:
-          record = InteractiveStreamRecord()
-          record.ParseFromString(next(r))
-          records[tag] = record
-        except StopIteration:
-          pass
+      # We use a generator here because the underlying readers may have to much
+      # data to read into memory.
 
       events = []
-      if not records:
-        self.advance_watermark(timestamp.MAX_TIMESTAMP, events)
+      while True:
+        # Read the next set of events. The read events will most likely be
+        # out of order if there are multiple readers. Here we sort them into
+        # a more manageable state.
+        events = events + self._read_next()
+        events = sorted(events,
+                        key=lambda x: Timestamp.from_proto(
+                            x[1].processing_time),
+                        reverse=True)
+        if not events:
+          break
 
-      records = sorted(records.items(), key=lambda x: x[1].processing_time)
-      for tag, r in records:
-        # We always send the processing time event first so that the TestStream
-        # can sleep so as to emulate the original stream.
-        self.advance_processing_time(
-            Timestamp.from_proto(r.processing_time), events)
-        self.advance_watermark(Timestamp.from_proto(r.watermark), events,
-                               tag=tag)
+        # Retrieves the minimum timestamp from the read events.
+        min_timestamp = (
+            lambda: Timestamp.from_proto(events[-1][1].processing_time)
+                    if events else timestamp.MAX_TIMESTAMP)
 
-        events.append(TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
-                elements=[r.element], tag=tag)))
-      return events
+        # Get the next largest timestamp in the stream. This is used as the
+        # timestamp for readers to "catch-up" to. This will only read from
+        # readers with a timestamp less than this.
+        self._target_timestamp = min_timestamp()
 
-    def advance_processing_time(self, processing_time, events):
-      """Advances the internal clock state and injects an AdvanceProcessingTime
-         event.
+        # Loop through the elements with the correct timestamp.
+        while events and min_timestamp() <= self._target_timestamp:
+          tag, r = events.pop()
+
+          # First advance the clock to match the time of the stream. This has
+          # a side-effect of also advancing this cache's clock.
+          curr_timestamp = Timestamp.from_proto(r.processing_time)
+          if curr_timestamp > self._monotonic_clock:
+            yield self._advance_processing_time(curr_timestamp)
+
+          # Then, send either a new element or watermark.
+          if r.HasField('element'):
+            yield self._add_element(r.element, tag)
+          elif r.HasField('watermark'):
+            yield self._advance_watermark(r.watermark, tag)
+        self._target_timestamp = min_timestamp()
+
+    def _add_element(self, element, tag):
+      """Constructs an AddElement event for the specified element and tag.
       """
-      if self._timestamp != processing_time:
-        duration = timestamp.Duration(
-            micros=processing_time.micros - self._timestamp.micros)
+      return TestStreamPayload.Event(
+          element_event=TestStreamPayload.Event.AddElements(
+              elements=[element], tag=tag))
 
-        self._timestamp = processing_time
-        processing_time_event = TestStreamPayload.Event.AdvanceProcessingTime(
-            advance_duration=duration.micros)
-        events.append(TestStreamPayload.Event(
-            processing_time_event=processing_time_event))
-
-    def advance_watermark(self, watermark, events, tag=None):
-      """Advances the internal clock state and injects an AdvanceWatermark
-         event.
+    def _advance_processing_time(self, new_timestamp):
+      """Advances the internal clock and returns an AdvanceProcessingTime event.
       """
-      if self._watermarks[tag] < watermark:
-        self._watermarks[tag] = watermark
-        payload = TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=self._watermarks[tag].micros, tag=tag))
-        events.append(payload)
+      advancy_by = new_timestamp.micros - self._monotonic_clock.micros
+      e = TestStreamPayload.Event(
+          processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+              advance_duration=advancy_by
+      ))
+      self._monotonic_clock = new_timestamp
+      return e
+
+    def _advance_watermark(self, watermark, tag):
+      """Advances the watermark for tag and returns AdvanceWatermark event.
+      """
+      self._watermarks[tag] = Timestamp.from_proto(watermark)
+      e = TestStreamPayload.Event(
+          watermark_event=TestStreamPayload.Event.AdvanceWatermark(
+              new_watermark=self._watermarks[tag].micros, tag=tag))
+      return e
 
     def stream_time(self):
-      return self._timestamp
+      return self._monotonic_clock
+
+    def watermarks(self):
+      return self._watermarks
 
     def watermark(self):
       return min(self._watermarks.values())

@@ -27,14 +27,7 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStre
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.utils import timestamp
-
-
-def to_timestamp_proto(timestamp_secs):
-  """Converts seconds since epoch to a google.protobuf.Timestamp.
-  """
-  seconds = int(timestamp_secs)
-  nanos = int((timestamp_secs - seconds) * 10**9)
-  return timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
+from apache_beam.utils.timestamp import Timestamp
 
 
 class InMemoryReader(object):
@@ -42,14 +35,19 @@ class InMemoryReader(object):
     self._records = [InteractiveStreamHeader(tag=tag).SerializeToString()]
     self._coder = coders.FastPrimitivesCoder()
 
-  def add_element(self, element, event_time, processing_time, watermark):
+  def add_element(self, element, event_time, processing_time):
     element_payload = TestStreamPayload.TimestampedElement(
         encoded_element=self._coder.encode(element),
-        timestamp=event_time * 10**6)
+        timestamp=Timestamp.of(event_time).micros)
     record = InteractiveStreamRecord(
         element=element_payload,
-        processing_time=to_timestamp_proto(processing_time),
-        watermark=to_timestamp_proto(watermark))
+        processing_time=Timestamp.of(processing_time).to_proto())
+    self._records.append(record.SerializeToString())
+
+  def advance_watermark(self, watermark, processing_time):
+    record = InteractiveStreamRecord(
+        watermark=Timestamp.of(watermark).to_proto(),
+        processing_time=Timestamp.of(processing_time).to_proto())
     self._records.append(record.SerializeToString())
 
   def read(self):
@@ -59,10 +57,7 @@ class InMemoryReader(object):
 
 def all_events(reader):
   events = []
-  while True:
-    e = reader.read()
-    if not e:
-      break
+  for e in reader.read():
     events.append(e)
   return events
 
@@ -71,95 +66,168 @@ class StreamingCacheTest(unittest.TestCase):
   def setUp(self):
     pass
 
-  def test_normal_run(self):
+  def test_single_reader(self):
     """Tests that we expect to see all the correctly emitted TestStreamPayloads.
     """
     in_memory_reader = InMemoryReader()
     in_memory_reader.add_element(
         element=0,
         event_time=0,
-        processing_time=0,
-        watermark=0)
-    cache = StreamingCache([in_memory_reader])
-    reader = cache.reader()
-    coder = coders.FastPrimitivesCoder()
-    events = all_events(reader)
-
-    expected = []
-    expected.append([
-        # Event to advance the watermark to 0.
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=0)),
-        # Event to add the element.
-        TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode(0),
-                    timestamp=0)]))
-    ])
-    # The last event advances the watermark to MAX_TIMESTAMP to close all
-    # downstream windows and triggers.
-    expected.append([TestStreamPayload.Event(
-        watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-            new_watermark=timestamp.MAX_TIMESTAMP.micros))])
-    self.assertSequenceEqual(events, expected)
-
-  def test_advances_processing_time(self):
-    """Tests that the service advances the clock. """
-
-    in_memory_reader = InMemoryReader()
-    in_memory_reader.add_element(
-        element=0,
-        event_time=0,
-        processing_time=0,
-        watermark=0)
+        processing_time=0)
     in_memory_reader.add_element(
         element=1,
-        event_time=10,
-        processing_time=10,
-        watermark=10)
+        event_time=1,
+        processing_time=1)
+    in_memory_reader.add_element(
+        element=2,
+        event_time=2,
+        processing_time=2)
     cache = StreamingCache([in_memory_reader])
     reader = cache.reader()
     coder = coders.FastPrimitivesCoder()
     events = all_events(reader)
 
-    expected = []
-    expected.append([
-        # Event to advance the watermark to 0.
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=0)),
-        # Event to add the element.
+    expected = [
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode(0),
-                    timestamp=0)]))
-    ])
-    expected.append([
-        # Event to advance the clock to 10s. The advance_duration should be the
-        # difference between the processing_time of the first and second
-        # elements.
+                    timestamp=0)])),
         TestStreamPayload.Event(
             processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-                advance_duration=10 * 10**6)),
-        # Event to advance the watermark to 10s.
-        TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=10 * 10**6)),
-        # Event to add the element.
+                advance_duration=1 * 10**6)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode(1),
-                    timestamp=10 * 10**6)]))
-    ])
-    # The last event advances the watermark to MAX_TIMESTAMP to close all
-    # downstream windows and triggers.
-    expected.append([TestStreamPayload.Event(
-        watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-            new_watermark=timestamp.MAX_TIMESTAMP.micros))])
+                    timestamp=1 * 10**6)])),
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1 * 10**6)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[TestStreamPayload.TimestampedElement(
+                    encoded_element=coder.encode(2),
+                    timestamp=2 * 10**6)])),
+    ]
+    self.assertSequenceEqual(events, expected)
+
+  def test_multiple_readers(self):
+    """Tests that the service advances the clock with multiple outputs."""
+
+    letters = InMemoryReader('letters')
+    letters.advance_watermark(0, 1)
+    letters.add_element(
+        element='a',
+        event_time=0,
+        processing_time=1)
+    letters.advance_watermark(10, 11)
+    letters.add_element(
+        element='b',
+        event_time=10,
+        processing_time=11)
+
+    numbers = InMemoryReader('numbers')
+    numbers.add_element(
+        element=1,
+        event_time=0,
+        processing_time=2)
+    numbers.add_element(
+        element=2,
+        event_time=0,
+        processing_time=3)
+    numbers.add_element(
+        element=2,
+        event_time=0,
+        processing_time=4)
+
+    late = InMemoryReader('late')
+    late.add_element(
+        element='late',
+        event_time=0,
+        processing_time=101)
+
+    cache = StreamingCache([letters, numbers, late])
+    reader = cache.reader()
+    coder = coders.FastPrimitivesCoder()
+    events = all_events(reader)
+
+    expected = [
+        # Advances clock from 0 to 1
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1 * 10**6)),
+        TestStreamPayload.Event(
+            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
+                new_watermark=0,
+                tag='letters')),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[TestStreamPayload.TimestampedElement(
+                    encoded_element=coder.encode('a'),
+                    timestamp=0)],
+                tag='letters')),
+
+        # Advances clock from 1 to 2
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1 * 10**6)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[TestStreamPayload.TimestampedElement(
+                    encoded_element=coder.encode(1),
+                    timestamp=0)],
+                tag='numbers')),
+
+        # Advances clock from 2 to 3
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1 * 10**6)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[TestStreamPayload.TimestampedElement(
+                    encoded_element=coder.encode(2),
+                    timestamp=0)],
+                tag='numbers')),
+
+        # Advances clock from 3 to 4
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1 * 10**6)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[TestStreamPayload.TimestampedElement(
+                    encoded_element=coder.encode(2),
+                    timestamp=0)],
+                tag='numbers')),
+
+        # Advances clock from 4 to 11
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=7 * 10**6)),
+        TestStreamPayload.Event(
+            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
+                new_watermark=10 * 10**6,
+                tag='letters')),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[TestStreamPayload.TimestampedElement(
+                    encoded_element=coder.encode('b'),
+                    timestamp=10 * 10**6)],
+                tag='letters')),
+
+        # Advances clock from 11 to 101
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=90 * 10**6)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[TestStreamPayload.TimestampedElement(
+                    encoded_element=coder.encode('late'),
+                    timestamp=0)],
+                tag='late')),
+    ]
+
     self.assertSequenceEqual(events, expected)
 
 
