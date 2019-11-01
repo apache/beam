@@ -17,32 +17,22 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import java.util.concurrent.CompletableFuture;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
-/** Custom Coder for handling publish result. */
-public class PublishResponseCoder extends AtomicCoder<PublishResponse> implements Serializable {
-  private static final PublishResponseCoder INSTANCE = new PublishResponseCoder();
+final class MockSnsAsyncExceptionClient extends MockSnsAsyncBaseClient {
+  private MockSnsAsyncExceptionClient() {}
 
-  private PublishResponseCoder() {}
-
-  static PublishResponseCoder of() {
-    return INSTANCE;
+  static MockSnsAsyncExceptionClient create() {
+    return new MockSnsAsyncExceptionClient();
   }
 
   @Override
-  public void encode(PublishResponse value, OutputStream outStream) throws IOException {
-    StringUtf8Coder.of().encode(value.messageId(), outStream);
-  }
-
-  @Override
-  public PublishResponse decode(InputStream inStream) throws IOException {
-    final String messageId = StringUtf8Coder.of().decode(inStream);
-    return PublishResponse.builder().messageId(messageId).build();
+  public CompletableFuture<PublishResponse> publish(PublishRequest publishRequest) {
+    CompletableFuture<PublishResponse> completableFuture = new CompletableFuture<>();
+    completableFuture.completeExceptionally(
+        new RuntimeException("Error occurred during publish call"));
+    return completableFuture;
   }
 }
