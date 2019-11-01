@@ -182,7 +182,17 @@ class SdkHarness(object):
     self._responses.put(response)
 
   def _request_register(self, request):
-    self._request_execute(request)
+
+    def task():
+      for process_bundle_descriptor in getattr(
+          request, request.WhichOneof('request')).process_bundle_descriptor:
+        self._fns[process_bundle_descriptor.id] = process_bundle_descriptor
+
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=request.instruction_id,
+          register=beam_fn_api_pb2.RegisterResponse())
+
+    self._execute(task, request)
 
   def _request_process_bundle(self, request):
 
@@ -231,9 +241,6 @@ class SdkHarness(object):
     self._progress_thread_pool.submit(task)
 
   def _request_finalize_bundle(self, request):
-    self._request_execute(request)
-
-  def _request_execute(self, request):
 
     def task():
       # Get one available worker.
