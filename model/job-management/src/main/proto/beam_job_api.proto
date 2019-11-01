@@ -201,6 +201,16 @@ message JobMessagesResponse {
 }
 
 // Enumeration of all JobStates
+//
+// The state transition diagram is:
+//   STOPPED -> STARTING -> RUNNING -> DONE
+//                                  \> FAILED
+//                                  \> CANCELLING -> CANCELLED
+//                                  \> UPDATING -> UPDATED
+//                                  \> DRAINING -> DRAINED
+//
+// Transitions are optional such that a job may go from STOPPED to RUNNING
+// without needing to pass through STARTING.
 message JobState {
   enum Enum {
     UNSPECIFIED = 0;
@@ -214,6 +224,7 @@ message JobState {
     DRAINED = 8;
     STARTING = 9;
     CANCELLING = 10;
+    UPDATING = 11;
   }
 }
 
