@@ -16,6 +16,7 @@
 #
 from __future__ import absolute_import
 
+import itertools
 import logging
 import os
 import queue
@@ -44,6 +45,13 @@ from apache_beam.runners.portability import fn_api_runner
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _iter_queue(q):
+  def iter_queue():
+    while True:
+      yield q.get(block=True)
+  return iter_queue()
 
 
 class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
@@ -194,7 +202,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         job_id, provision_info.provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
-    self._state = None
+    self._state_history = []
     self._state_queues = []
     self._log_queues = []
     self.state = beam_job_api_pb2.JobState.STOPPED
@@ -203,17 +211,22 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
   @property
   def state(self):
-    return self._state
+    """Get the latest state enum"""
+    return self.get_state()[0]
 
   @state.setter
   def state(self, new_state):
+    """Set the latest state as an int enum"""
     # Inform consumers of the new state.
+    timestamp = time.time()
     for queue in self._state_queues:
-      queue.put(new_state)
-    self._state = new_state
+      queue.put((new_state, timestamp))
+    self._state_history.append((new_state, timestamp))
 
   def get_state(self):
-    return self.state
+    """Get a tuple of the latest state and its timestamp"""
+    # this is safe: initial state is set in __init__
+    return self._state_history[-1]
 
   def prepare(self):
     pass
@@ -253,10 +266,9 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     state_queue = queue.Queue()
     self._state_queues.append(state_queue)
 
-    yield self.state
-    while True:
-      current_state = state_queue.get(block=True)
-      yield current_state
+    for current_state, timestamp in itertools.chain(
+        self._state_history, _iter_queue(state_queue)):
+      yield current_state, timestamp
       if self.is_terminal_state(current_state):
         break
 
@@ -266,13 +278,15 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._log_queues.append(log_queue)
     self._state_queues.append(log_queue)
 
-    current_state = self.state
-    yield current_state
-    while not self.is_terminal_state(current_state):
-      msg = log_queue.get(block=True)
-      yield msg
-      if isinstance(msg, int):
-        current_state = msg
+    for msg in _iter_queue(log_queue):
+      if isinstance(msg, tuple):
+        assert len(msg) == 2 and isinstance(msg[0], int)
+        current_state = msg[0]
+        yield current_state
+        if self.is_terminal_state(current_state):
+          break
+      else:
+        yield msg
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):

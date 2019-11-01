@@ -22,6 +22,7 @@ from builtins import object
 
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.utils import proto_utils
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,8 +86,9 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       raise LookupError("Job {} does not exist".format(request.job_id))
 
     job = self._jobs[request.job_id]
-    for state in job.get_state_stream():
-      yield beam_job_api_pb2.GetJobStateResponse(state=state)
+    for state, timestamp in job.get_state_stream():
+      yield beam_job_api_pb2.GetJobStateResponse(
+          state=state, timestamp=proto_utils.to_Timestamp(timestamp))
 
   def GetMessageStream(self, request, context=None, timeout=None):
     """Yields messages since the stream started.

@@ -32,6 +32,7 @@ option java_outer_classname = "JobApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 import "metrics.proto";
 
 // Job Service for running RunnerAPI pipelines
@@ -153,6 +154,7 @@ message GetJobStateRequest {
 
 message GetJobStateResponse {
   JobState.Enum state = 1; // (required)
+  google.protobuf.Timestamp timestamp = 2; // (required)
 }
 
 

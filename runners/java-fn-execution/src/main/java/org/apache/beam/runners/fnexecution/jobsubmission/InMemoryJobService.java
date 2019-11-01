@@ -190,8 +190,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       String invocationId = invocation.getId();
 
       invocation.addStateListener(
-          state -> {
-            if (!JobInvocation.isTerminated(state)) {
+          event -> {
+            if (!JobInvocation.isTerminated(event.state())) {
               return;
             }
             String stagingSessionToken = stagingSessionTokens.get(preparationId);
@@ -313,10 +313,11 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-      Consumer<JobState.Enum> stateListener =
-          state -> {
-            responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
-            if (JobInvocation.isTerminated(state)) {
+
+      Consumer<JobStateEvent> stateListener =
+          event -> {
+            responseObserver.onNext(event.toProto());
+            if (JobInvocation.isTerminated(event.state())) {
               responseObserver.onCompleted();
             }
           };
@@ -341,13 +342,11 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       // and message listener.
       StreamObserver<JobMessagesResponse> syncResponseObserver =
           SynchronizedStreamObserver.wrapping(responseObserver);
-      Consumer<JobState.Enum> stateListener =
-          state -> {
+      Consumer<JobStateEvent> stateListener =
+          event -> {
             syncResponseObserver.onNext(
-                JobMessagesResponse.newBuilder()
-                    .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
-                    .build());
-            if (JobInvocation.isTerminated(state)) {
+                JobMessagesResponse.newBuilder().setStateResponse(event.toProto()).build());
+            if (JobInvocation.isTerminated(event.state())) {
               responseObserver.onCompleted();
             }
           };
