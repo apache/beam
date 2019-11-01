@@ -21,6 +21,8 @@ from __future__ import absolute_import
 import importlib
 import unittest
 
+import apache_beam as beam
+from apache_beam.runners import runner
 from apache_beam.runners.interactive import interactive_environment as ie
 
 # The module name is also a variable in module.
@@ -30,6 +32,7 @@ _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
 class InteractiveEnvironmentTest(unittest.TestCase):
 
   def setUp(self):
+    self._p = beam.Pipeline()
     self._var_in_class_instance = 'a var in class instance'
     ie.new_env()
 
@@ -87,6 +90,73 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     ie.current_env().watch(self)
     self.assertVariableWatched('_var_in_class_instance',
                                self._var_in_class_instance)
+
+  def test_fail_to_set_pipeline_result_key_not_pipeline(self):
+    class NotPipeline(object):
+      pass
+
+    with self.assertRaises(AssertionError) as ctx:
+      ie.current_env().set_pipeline_result(NotPipeline(),
+                                           runner.PipelineResult(
+                                               runner.PipelineState.RUNNING))
+      self.assertTrue('pipeline must be an instance of apache_beam.Pipeline '
+                      'or its subclass' in ctx.exception)
+
+  def test_fail_to_set_pipeline_result_value_not_pipeline_result(self):
+    class NotResult(object):
+      pass
+
+    with self.assertRaises(AssertionError) as ctx:
+      ie.current_env().set_pipeline_result(self._p, NotResult())
+      self.assertTrue('result must be an instance of '
+                      'apache_beam.runners.runner.PipelineResult or its '
+                      'subclass' in ctx.exception)
+
+  def test_set_pipeline_result_successfully(self):
+    class PipelineSubClass(beam.Pipeline):
+      pass
+
+    class PipelineResultSubClass(runner.PipelineResult):
+      pass
+
+    pipeline = PipelineSubClass()
+    pipeline_result = PipelineResultSubClass(runner.PipelineState.RUNNING)
+    ie.current_env().set_pipeline_result(pipeline, pipeline_result)
+    self.assertIs(ie.current_env().pipeline_result(pipeline), pipeline_result)
+
+  def test_determine_terminal_state(self):
+    for state in (runner.PipelineState.DONE,
+                  runner.PipelineState.STOPPED,
+                  runner.PipelineState.FAILED,
+                  runner.PipelineState.CANCELLED,
+                  runner.PipelineState.UPDATED,
+                  runner.PipelineState.DRAINED):
+      ie.current_env().set_pipeline_result(self._p, runner.PipelineResult(
+          state))
+      self.assertTrue(ie.current_env().is_terminated(self._p))
+    for state in (runner.PipelineState.UNKNOWN,
+                  runner.PipelineState.STARTING,
+
+                  runner.PipelineState.RUNNING,
+                  runner.PipelineState.DRAINING,
+                  runner.PipelineState.PENDING,
+                  runner.PipelineState.CANCELLING,
+                  runner.PipelineState.UNRECOGNIZED):
+      ie.current_env().set_pipeline_result(self._p, runner.PipelineResult(
+          state))
+      self.assertFalse(ie.current_env().is_terminated(self._p))
+
+  def test_evict_pipeline_result(self):
+    pipeline_result = runner.PipelineResult(runner.PipelineState.DONE)
+    ie.current_env().set_pipeline_result(self._p, pipeline_result)
+    self.assertIs(ie.current_env().evict_pipeline_result(self._p),
+                  pipeline_result)
+    self.assertIs(ie.current_env().pipeline_result(self._p), None)
+
+  def test_is_none_when_pipeline_absent(self):
+    self.assertIs(ie.current_env().pipeline_result(self._p), None)
+    self.assertIs(ie.current_env().is_terminated(self._p), True)
+    self.assertIs(ie.current_env().evict_pipeline_result(self._p), None)
 
 
 if __name__ == '__main__':
