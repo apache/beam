@@ -889,7 +889,7 @@ class AppliedPTransform(object):
                 for tag, pc in sorted(self.named_inputs().items())},
         outputs={str(tag): context.pcollections.get_id(out)
                  for tag, out in sorted(self.named_outputs().items())},
-        # TODO(BEAM-115): display_data
+        # TODO(BEAM-366): Add display_data.
         display_data=None)
 
   @staticmethod

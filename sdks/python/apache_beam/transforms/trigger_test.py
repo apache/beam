@@ -512,7 +512,7 @@ class TranscriptTest(unittest.TestCase):
   def _run_log_test(self, spec):
     if 'error' in spec:
       self.assertRaisesRegex(
-          AssertionError, spec['error'], self._run_log, spec)
+          Exception, spec['error'], self._run_log, spec)
     else:
       self._run_log(spec)
 
@@ -594,6 +594,23 @@ class TranscriptTest(unittest.TestCase):
         TimestampCombiner,
         spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
+    def only_element(xs):
+      x, = list(xs)
+      return x
+
+    transcript = [only_element(line.items()) for line in spec['transcript']]
+
+    self._execute(
+        window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
+        transcript, spec)
+
+
+class TriggerDriverTranscriptTest(TranscriptTest):
+
+  def _execute(
+      self, window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
+      transcript, unused_spec):
+
     driver = GeneralTriggerDriver(
         Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner),
         TestClock())
@@ -613,14 +630,13 @@ class TranscriptTest(unittest.TestCase):
                            'timestamp': wvalue.timestamp})
         to_fire = state.get_and_clear_timers(watermark)
 
-    for line in spec['transcript']:
-
-      action, params = list(line.items())[0]
+    for action, params in transcript:
 
       if action != 'expect':
         # Fail if we have output that was not expected in the transcript.
         self.assertEqual(
-            [], output, msg='Unexpected output: %s before %s' % (output, line))
+            [], output, msg='Unexpected output: %s before %s: %s' % (
+                output, action, params))
 
       if action == 'input':
         bundle = [
@@ -659,11 +675,132 @@ class TranscriptTest(unittest.TestCase):
     self.assertEqual([], output, msg='Unexpected output: %s' % output)
 
 
+class TestStreamTranscriptTest(TranscriptTest):
+  """A suite of TestStream-based tests based on trigger transcript entries.
+  """
+
+  def _execute(
+      self, window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
+      transcript, spec):
+
+    runner_name = TestPipeline().runner.__class__.__name__
+    if runner_name in spec.get('broken_on', ()):
+      self.skipTest('Known to be broken on %s' % runner_name)
+
+    test_stream = TestStream()
+    for action, params in transcript:
+      if action == 'expect':
+        test_stream.add_elements([('expect', params)])
+      else:
+        test_stream.add_elements([('expect', [])])
+        if action == 'input':
+          test_stream.add_elements([('input', e) for e in params])
+        elif action == 'watermark':
+          test_stream.advance_watermark_to(params)
+        elif action == 'clock':
+          test_stream.advance_processing_time(params)
+        elif action == 'state':
+          pass  # Requires inspection of implementation details.
+        else:
+          raise ValueError('Unexpected action: %s' % action)
+    test_stream.add_elements([('expect', [])])
+
+    class Check(beam.DoFn):
+      """A StatefulDoFn that verifies outputs are produced as expected.
+
+      This DoFn takes in two kinds of inputs, actual outputs and
+      expected outputs.  When an actual output is received, it is buffered
+      into state, and when an expected output is received, this buffered
+      state is retrieved and compared against the expected value(s) to ensure
+      they match.
+
+      The key is ignored, but all items must be on the same key to share state.
+      """
+      def process(
+          self, element, seen=beam.DoFn.StateParam(
+              beam.transforms.userstate.BagStateSpec(
+                  'seen',
+                  beam.coders.FastPrimitivesCoder()))):
+        _, (action, data) = element
+        if action == 'actual':
+          seen.add(data)
+
+        elif action == 'expect':
+          actual = list(seen.read())
+          seen.clear()
+
+          if len(actual) > len(data):
+            raise AssertionError(
+                'Unexpected output: expected %s but got %s' % (data, actual))
+          elif len(data) > len(actual):
+            raise AssertionError(
+                'Unmatched output: expected %s but got %s' % (data, actual))
+          else:
+
+            def diff(actual, expected):
+              for key in sorted(expected.keys(), reverse=True):
+                if key in actual:
+                  if actual[key] != expected[key]:
+                    return key
+
+            for output in actual:
+              diffs = [diff(output, expected) for expected in data]
+              if all(diffs):
+                raise AssertionError(
+                    'Unmatched output: %s not found in %s (diffs in %s)' % (
+                        output, data, diffs))
+
+        else:
+          raise ValueError('Unexpected action: %s' % action)
+
+    with TestPipeline(options=PipelineOptions(streaming=True)) as p:
+      # Split the test stream into a branch of to-be-processed elements, and
+      # a branch of expected results.
+      inputs, expected = (
+          p
+          | test_stream
+          | beam.MapTuple(
+              lambda tag, value: beam.pvalue.TaggedOutput(tag, ('key', value))
+              ).with_outputs('input', 'expect'))
+      # Process the inputs with the given windowing to produce actual outputs.
+      outputs = (
+          inputs
+          | beam.MapTuple(
+              lambda key, value: TimestampedValue((key, value), value))
+          | beam.WindowInto(
+              window_fn,
+              trigger=trigger_fn,
+              accumulation_mode=accumulation_mode,
+              timestamp_combiner=timestamp_combiner)
+          | beam.GroupByKey()
+          | beam.MapTuple(
+              lambda k, vs,
+                     window=beam.DoFn.WindowParam,
+                     t=beam.DoFn.TimestampParam: (
+                         k,
+                         {
+                             'values': sorted(vs),
+                             'window': [int(window.start), int(window.end - 1)],
+                             'timestamp': t
+                         }))
+          # Place outputs back into the global window to allow flattening
+          # and share a single state in Check.
+          | 'Global' >> beam.WindowInto(beam.transforms.window.GlobalWindows()))
+      # Feed both the expected and actual outputs to Check() for comparison.
+      tagged_expected = (
+          expected | beam.MapTuple(lambda key, value: (key, ('expect', value))))
+      tagged_outputs = (
+          outputs | beam.MapTuple(lambda key, value: (key, ('actual', value))))
+      # pylint: disable=expression-not-assigned
+      (tagged_expected, tagged_outputs) | beam.Flatten() | beam.ParDo(Check())
+
+
 TRANSCRIPT_TEST_FILE = os.path.join(
     os.path.dirname(__file__), '..', 'testing', 'data',
     'trigger_transcripts.yaml')
 if os.path.exists(TRANSCRIPT_TEST_FILE):
-  TranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
+  TriggerDriverTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
+  TestStreamTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
 
 
 if __name__ == '__main__':

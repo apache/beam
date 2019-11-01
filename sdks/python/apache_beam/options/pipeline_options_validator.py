@@ -191,6 +191,23 @@ class PipelineOptionsValidator(object):
           break
     return errors
 
+  def validate_worker_region_zone(self, view):
+    """Validates Dataflow worker region and zone arguments are consistent."""
+    errors = []
+    if view.zone and (view.worker_region or view.worker_zone):
+      errors.extend(self._validate_error(
+          'Cannot use deprecated flag --zone along with worker_region or '
+          'worker_zone.'))
+    if self.options.view_as(DebugOptions).lookup_experiment('worker_region')\
+        and (view.worker_region or view.worker_zone):
+      errors.extend(self._validate_error(
+          'Cannot use deprecated experiment worker_region along with '
+          'worker_region or worker_zone.'))
+    if view.worker_region and view.worker_zone:
+      errors.extend(self._validate_error(
+          'worker_region and worker_zone are mutually exclusive.'))
+    return errors
+
   def validate_optional_argument_positive(self, view, arg_name):
     """Validates that an optional argument (if set) has a positive value."""
     arg = getattr(view, arg_name, None)

@@ -126,7 +126,7 @@ if __name__ == '__main__':
         return [
             'java',
             '-jar', flink_job_server_jar,
-            '--flink-master-url', '[local]',
+            '--flink-master', '[local]',
             '--flink-conf-dir', cls.conf_dir,
             '--artifacts-dir', tmp_dir,
             '--job-port', str(job_port),
