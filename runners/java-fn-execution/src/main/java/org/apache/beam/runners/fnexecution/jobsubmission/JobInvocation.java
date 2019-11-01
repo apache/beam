@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Thro
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -51,12 +52,12 @@ public class JobInvocation {
   private final PortablePipelineRunner pipelineRunner;
   private final JobInfo jobInfo;
   private final ListeningExecutorService executorService;
-  private List<Consumer<Enum>> stateObservers;
+  private List<Consumer<JobStateEvent>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
-  private JobState.Enum jobState;
   private JobApi.MetricResults metrics;
   private PortablePipelineResult resultHandle;
   @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
+  private List<JobStateEvent> stateHistory;
 
   public JobInvocation(
       JobInfo jobInfo,
@@ -70,8 +71,9 @@ public class JobInvocation {
     this.stateObservers = new ArrayList<>();
     this.messageObservers = new ArrayList<>();
     this.invocationFuture = null;
-    this.jobState = JobState.Enum.STOPPED;
+    this.stateHistory = new ArrayList<>();
     this.metrics = JobApi.MetricResults.newBuilder().build();
+    this.setState(JobState.Enum.STOPPED);
   }
 
   private PortablePipelineResult runPipeline() throws Exception {
@@ -191,7 +193,12 @@ public class JobInvocation {
 
   /** Retrieve the job's current state. */
   public JobState.Enum getState() {
-    return this.jobState;
+    return getStateEvent().state();
+  }
+
+  /** Retrieve the job's current state. */
+  public JobStateEvent getStateEvent() {
+    return stateHistory.get(stateHistory.size() - 1);
   }
 
   /** Retrieve the job's pipeline. */
@@ -200,8 +207,10 @@ public class JobInvocation {
   }
 
   /** Listen for job state changes with a {@link Consumer}. */
-  public synchronized void addStateListener(Consumer<JobState.Enum> stateStreamObserver) {
-    stateStreamObserver.accept(getState());
+  public synchronized void addStateListener(Consumer<JobStateEvent> stateStreamObserver) {
+    for (JobStateEvent event : stateHistory) {
+      stateStreamObserver.accept(event);
+    }
     stateObservers.add(stateStreamObserver);
   }
 
@@ -221,9 +230,11 @@ public class JobInvocation {
   }
 
   private synchronized void setState(JobState.Enum state) {
-    this.jobState = state;
-    for (Consumer<JobState.Enum> observer : stateObservers) {
-      observer.accept(state);
+    JobStateEvent event =
+        JobStateEvent.builder().setState(state).setTimestamp(Instant.now()).build();
+    this.stateHistory.add(event);
+    for (Consumer<JobStateEvent> observer : stateObservers) {
+      observer.accept(event);
     }
   }
 

@@ -28,10 +28,9 @@ import threading
 import time
 from builtins import object
 
-from google.protobuf import timestamp_pb2
-
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
+from apache_beam.utils import proto_utils
 
 try:
   import cython
@@ -364,17 +363,13 @@ class GaugeData(object):
     return GaugeData(value, timestamp=timestamp)
 
   def to_runner_api(self):
-    seconds = int(self.timestamp)
-    nanos = int((self.timestamp - seconds) * 10**9)
-    gauge_timestamp = timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
     return beam_fn_api_pb2.Metrics.User.GaugeData(
-        value=self.value, timestamp=gauge_timestamp)
+        value=self.value, timestamp=proto_utils.to_Timestamp(self.timestamp))
 
   @staticmethod
   def from_runner_api(proto):
-    gauge_timestamp = (proto.timestamp.seconds +
-                       float(proto.timestamp.nanos) / 10**9)
-    return GaugeData(proto.value, timestamp=gauge_timestamp)
+    return GaugeData(proto.value,
+                     timestamp=proto_utils.from_Timestamp(proto.timestamp))
 
   def to_runner_api_monitoring_info(self):
     """Returns a Metric with this value for use in a MonitoringInfo."""
