@@ -17,22 +17,15 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import com.google.auto.service.AutoService;
-import java.util.List;
-import org.apache.beam.sdk.coders.CoderProvider;
-import org.apache.beam.sdk.coders.CoderProviderRegistrar;
-import org.apache.beam.sdk.coders.CoderProviders;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import software.amazon.awssdk.services.sns.model.PublishResponse;
+import java.io.Serializable;
+import software.amazon.awssdk.services.sns.SnsAsyncClient;
 
-/** A {@link CoderProviderRegistrar} for standard types used with {@link SnsIO}. */
-@AutoService(CoderProviderRegistrar.class)
-public class SnsCoderProviderRegistrar implements CoderProviderRegistrar {
+class MockSnsAsyncBaseClient implements SnsAsyncClient, Serializable {
   @Override
-  public List<CoderProvider> getCoderProviders() {
-    return ImmutableList.of(
-        CoderProviders.forCoder(
-            TypeDescriptor.of(PublishResponse.class), PublishResponseCoder.of()));
+  public String serviceName() {
+    return null;
   }
+
+  @Override
+  public void close() {}
 }

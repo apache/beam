@@ -18,14 +18,14 @@
 package org.apache.beam.sdk.io.aws2.sns;
 
 import java.io.Serializable;
-import software.amazon.awssdk.services.sns.SnsAsyncClient;
 
-/**
- * Provides instances of SNS client.
- *
- * <p>Please note, that any instance of {@link SnsClientProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
- */
-public interface SnsClientProvider extends Serializable {
-  SnsAsyncClient getSnsAsyncClient();
+public enum SnsPublishStatus implements Serializable {
+  UNKNOWN,
+  SUCCESS,
+  HTTP_ERROR,
+  ERROR;
+
+  public boolean isSuccessful() {
+    return this.equals(SUCCESS);
+  }
 }
