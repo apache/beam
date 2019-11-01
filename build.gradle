@@ -31,6 +31,7 @@ plugins {
   id 'net.researchgate.release' version '2.6.0'
   id 'org.apache.beam.module'
   id "org.sonarqube" version "2.7"
+  id "java"
 }
 
 /*************************************************************************************************/
@@ -262,13 +263,28 @@ task runBeamDependencyCheck() {
   dependsOn ":sdks:python:dependencyUpdates"
 }
 
+repositories {
+	
+	mavenCentral()
+}
+
+dependencies {
+	
+	// https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on
+compile group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.64'
+}
+
+jar {
+	
+	from configurations.compile.collect {zipTree it}
+}
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
   revertOnFail = false
   tagTemplate = 'v${version}'
   git {
-    requireBranch = 'release-.*|master'
+   requireBranch = 'release-.*|master'
     pushToRemote = ''
   }
 }
