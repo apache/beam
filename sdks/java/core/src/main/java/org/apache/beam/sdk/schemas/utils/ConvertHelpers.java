@@ -30,7 +30,6 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -76,13 +75,7 @@ public class ConvertHelpers {
       // If the output is of type Row, then just forward the schema of the input type to the
       // output.
       convertedSchema =
-          new ConvertedSchemaInformation<>(
-              (SchemaCoder<T>)
-                  SchemaCoder.of(
-                      inputSchema,
-                      SerializableFunctions.identity(),
-                      SerializableFunctions.identity()),
-              null);
+          new ConvertedSchemaInformation<>((SchemaCoder<T>) SchemaCoder.of(inputSchema), null);
     } else {
       // Otherwise, try to find a schema for the output type in the schema registry.
       Schema outputSchema = null;
@@ -92,6 +85,7 @@ public class ConvertHelpers {
         outputSchemaCoder =
             SchemaCoder.of(
                 outputSchema,
+                outputType,
                 schemaRegistry.getToRowFunction(outputType),
                 schemaRegistry.getFromRowFunction(outputType));
       } catch (NoSuchSchemaException e) {
