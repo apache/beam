@@ -18,12 +18,16 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasProperty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -38,6 +42,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -46,13 +51,14 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -61,6 +67,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
@@ -90,7 +97,6 @@ public class PubsubJsonIT implements Serializable {
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();
   @Rule public transient TestPubsubSignal resultSignal = TestPubsubSignal.create();
-  @Rule public transient TestPubsubSignal dlqSignal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   /**
@@ -219,36 +225,20 @@ public class PubsubJsonIT implements Serializable {
     Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
     pipeline.begin().apply("signal query results started", resultSignal.signalStart());
 
-    // Another PCollection, reads from DLQ
-    PCollection<PubsubMessage> dlq =
-        pipeline.apply(
-            PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath().getPath()));
-
-    // Observe DLQ contents and send success signal after seeing the expected messages
-    dlq.apply(
-        "waitForDlq",
-        dlqSignal.signalSuccessWhen(
-            PubsubMessageWithAttributesCoder.of(),
-            dlqMessages ->
-                containsAll(dlqMessages, message(ts(4), "{ - }"), message(ts(5), "{ + }"))));
-
-    // Send the start signal to make sure the signaling topic is initialized
-    Supplier<Void> startDlq = dlqSignal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply("signal DLQ started", dlqSignal.signalStart());
-
     // Start the pipeline
     pipeline.run();
 
     // Wait until got the response from the signalling topics
     start.get();
-    startDlq.get();
 
     // Start publishing the messages when main pipeline is started and signaling topics are ready
     eventsTopic.publish(messages);
 
     // Poll the signaling topic for success message
     resultSignal.waitForSuccess(Duration.standardMinutes(2));
-    dlqSignal.waitForSuccess(Duration.standardMinutes(2));
+    dlqTopic
+        .assertThatTopicEventuallyReceives(messageLike(ts(4), "{ - }"), messageLike(ts(5), "{ + }"))
+        .waitForUpTo(Duration.standardSeconds(20));
   }
 
   @Test
@@ -317,6 +307,41 @@ public class PubsubJsonIT implements Serializable {
     pool.shutdown();
   }
 
+  @Test
+  public void testWritesJsonRowsToPubsub() throws Exception {
+    Schema personSchema =
+        Schema.builder()
+            .addStringField("name")
+            .addInt32Field("height")
+            .addBooleanField("knowsJavascript")
+            .build();
+    PCollection<Row> rows =
+        pipeline
+            .apply(
+                Create.of(
+                    row(personSchema, "person1", 80, true),
+                    row(personSchema, "person2", 70, false),
+                    row(personSchema, "person3", 60, true),
+                    row(personSchema, "person4", 50, false),
+                    row(personSchema, "person5", 40, true)))
+            .setRowSchema(personSchema)
+            .apply(
+                SqlTransform.query(
+                    "SELECT name FROM PCOLLECTION AS person WHERE person.knowsJavascript"));
+
+    // Convert rows to JSON and write to pubsub
+    rows.apply(ToJson.of()).apply(PubsubIO.writeStrings().to(eventsTopic.topicPath().getPath()));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    eventsTopic
+        .assertThatTopicEventuallyReceives(
+            messageLike("{\"name\":\"person1\"}"),
+            messageLike("{\"name\":\"person3\"}"),
+            messageLike("{\"name\":\"person5\"}"))
+        .waitForUpTo(Duration.standardSeconds(20));
+  }
+
   private static String toArg(Object o) {
     try {
       String jsonRepr = MAPPER.writeValueAsString(o);
@@ -378,6 +403,16 @@ public class PubsubJsonIT implements Serializable {
   private PubsubMessage message(Instant timestamp, String jsonPayload) {
     return new PubsubMessage(
         jsonPayload.getBytes(UTF_8), ImmutableMap.of("ts", String.valueOf(timestamp.getMillis())));
+  }
+
+  private Matcher<PubsubMessage> messageLike(Instant timestamp, String jsonPayload) {
+    return allOf(
+        hasProperty("payload", equalTo(jsonPayload.getBytes(StandardCharsets.US_ASCII))),
+        hasProperty("attributeMap", hasEntry("ts", String.valueOf(timestamp.getMillis()))));
+  }
+
+  private Matcher<PubsubMessage> messageLike(String jsonPayload) {
+    return hasProperty("payload", equalTo(jsonPayload.getBytes(StandardCharsets.US_ASCII)));
   }
 
   private String jsonString(int id, String name) {
