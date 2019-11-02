@@ -267,11 +267,17 @@ repositories {
 	
 	mavenCentral()
 }
-
+    // to use:
+    // dependencies {
+    //   compile library.java.slf4j_api
 dependencies {
 	
 	// https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on
 compile group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.64'
+
+// https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-client
+compile group: 'org.apache.hadoop', name: 'hadoop-client', version: '3.2.0'
+
 }
 
 jar {

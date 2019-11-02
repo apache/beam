@@ -91,7 +91,7 @@ the relevant section below.</p>
   <tr><td>io.grpc</td><td>grpc-stub</td><td>1.13.1</td></tr>
   <tr><td>com.google.guava</td><td>guava</td><td>20.0</td></tr>
   <tr><td>com.google.guava</td><td>guava-testlib</td><td>20.0</td></tr>
-  <tr><td>org.apache.hadoop</td><td>hadoop-client</td><td>2.7.3</td></tr>
+  <tr><td>org.apache.hadoop</td><td>hadoop-client</td><td>3.2.0</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-common</td><td>2.7.3</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-hdfs</td><td>2.7.3</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-mapreduce-client-core</td><td>2.7.3</td></tr>
@@ -199,7 +199,7 @@ the relevant section below.</p>
   <tr><td>io.grpc</td><td>grpc-stub</td><td>1.13.1</td></tr>
   <tr><td>com.google.guava</td><td>guava</td><td>20.0</td></tr>
   <tr><td>com.google.guava</td><td>guava-testlib</td><td>20.0</td></tr>
-  <tr><td>org.apache.hadoop</td><td>hadoop-client</td><td>2.7.3</td></tr>
+  <tr><td>org.apache.hadoop</td><td>hadoop-client</td><td>3.2.0</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-common</td><td>2.7.3</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-hdfs</td><td>2.7.3</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-hdfs</td><td>2.7.3</td></tr>
@@ -310,7 +310,7 @@ the relevant section below.</p>
   <tr><td>io.grpc</td><td>grpc-stub</td><td>1.13.1</td></tr>
   <tr><td>com.google.guava</td><td>guava</td><td>20.0</td></tr>
   <tr><td>com.google.guava</td><td>guava-testlib</td><td>20.0</td></tr>
-  <tr><td>org.apache.hadoop</td><td>hadoop-client</td><td>2.7.3</td></tr>
+  <tr><td>org.apache.hadoop</td><td>hadoop-client</td><td>3.2.0</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-common</td><td>2.7.3</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-hdfs</td><td>2.7.3</td></tr>
   <tr><td>org.apache.hadoop</td><td>hadoop-hdfs</td><td>2.7.3</td></tr>
