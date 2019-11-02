@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Post-commit policies details</title>
+  <title>Jira Priorities</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -42,7 +42,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/postcommits-policies-details/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/jira-priorities/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -144,7 +144,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/postcommits-policies-details.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/jira-priorities.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -223,12 +223,11 @@
 
 
 <ul class="nav">
-  <li><a href="#rollback_first">Rollback first</a></li>
-  <li><a href="#failing_test_is_critical_bug">A failing test is a critical/P1 issue</a></li>
-  <li><a href="#flake_is_failing">A flaky test is a critical/P1 issue</a></li>
-  <li><a href="#remove_flake">Flaky tests must be fixed or removed</a></li>
-  <li><a href="#precommit_for_postcommit">Add new pre-commit tests as part of a post-commit fix</a></li>
-  <li><a href="#inform_community">Inform the community if Beam breaks downstream projects</a></li>
+  <li><a href="#blocker--p0">Blocker / P0</a></li>
+  <li><a href="#critical--p1">Critical / P1</a></li>
+  <li><a href="#major--p2">Major / P2</a></li>
+  <li><a href="#minor--p3">Minor / P3</a></li>
+  <li><a href="#trivial--p4">Trivial / P4</a></li>
 </ul>
 
 
@@ -249,96 +248,72 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="post-commit-policies-details">Post-commit policies details</h1>
+<h1 id="jira-priorities">Jira Priorities</h1>
 
-<p>A post-commit test failure means that there is a bug in the code. The longer the
-bug exists, the harder it is to fix it due to ongoing code contributions. As a
-result, we want to fix bugs quickly. The Beam community’s post-commit test
-policies help keep our code and test results in a good state.</p>
+<h2 id="blocker--p0">Blocker / P0</h2>
 
-<h2 id="rollback_first">Rollback first</h2>
+<p><em>Expectation</em>: Drop everything else and work continuously to resolve. Note that
+the term “blocker” does not refer to blocking releases. A P0 issue is more
+urgent than simply blocking the next release.</p>
 
-<p>Beam uses a “rollback first” approach: the first action to resolve a test
-failure is to rollback the culprit code change. The two main benefits of this
-approach are short implementation time and high reliability. When we rollback
-first, we quickly return to a previously verified good state.</p>
+<p><em>Example Blocker/P0 issues</em>:</p>
 
-<p>At a high level, this approach consists of the following steps:</p>
+<ul>
+  <li>the build is broken, halting all development</li>
+  <li>the website is down</li>
+  <li>a vulnerability requires a point release ASAP</li>
+</ul>
 
-<ol>
-  <li>Revert the culprit commit.</li>
-  <li>Re-run the post-commit tests to verify the tests pass.</li>
-  <li>Push the revert commit.</li>
-</ol>
+<h2 id="critical--p1">Critical / P1</h2>
 
-<p>For background on this policy, see the
-<a href="https://lists.apache.org/thread.html/3bb4aa777751da2e2d7e22666aa6a2e18ae31891cb09d91718b75e74@%3Cdev.beam.apache.org%3E">mailing list thread</a>
-and <a href="https://docs.google.com/document/d/1sczGwnCvdHiboVajGVdnZL0rfnr7ViXXAebBAf_uQME/edit">design doc</a>.</p>
+<p><em>Expectation</em>: Continuous status updates. Critical bugs should not be
+unassigned. Most critical bugs should block release.</p>
 
-<h2 id="failing_test_is_critical_bug">A failing test is a critical/P1 issue</h2>
+<p><em>Example Critical/P1 issues</em>:</p>
 
-<p>It is difficult to properly verify new changes made on top of buggy code. In
-some cases, adding additional code can make the problem worse. To avoid this
-situation, fixing failing tests is our highest priority.</p>
+<ul>
+  <li>data loss error</li>
+  <li>important component is nonfunctional for important use cases</li>
+  <li>major performance regression</li>
+  <li>failing postcommit test</li>
+  <li>flaky test</li>
+</ul>
 
-<h2 id="flake_is_failing">A flaky test is a critical/P1 issue</h2>
+<h2 id="major--p2">Major / P2</h2>
 
-<p>Flaky tests are considered failing tests, and fixing a flaky test is a
-critical/P1 issue.</p>
+<p><em>Expectation</em>: Most tickets fall into this priority. These can be planned and
+executed by anyone who is interested. No special urgency is associated.</p>
 
-<p>Flaky tests are tests that randomly succeed or fail while using the same code
-version. Flaky test failures are one of the most dangerous types of failures
-because they are easy to ignore – another run of the flaky test might pass
-successfully. However, these failures can hide real bugs and flaky tests often
-slowly accumulate. Someone must repeatedly triage the failures, and flaky tests
-are often the hardest ones to fix.</p>
+<p><em>Example Major/P2 issues</em></p>
 
-<p>Flaky tests do not provide a reliable quality signal, so it is important to
-quickly fix the flakiness. If a fix will take awhile to implement, it is safer
-to disable the test until the fix is ready.</p>
+<ul>
+  <li>typical feature request</li>
+  <li>bug that affects some use cases but don’t make a component nonfunctional</li>
+  <li>ignored (“sickbayed”) test</li>
+</ul>
 
-<p>Martin Fowler has a good <a href="https://martinfowler.com/articles/nonDeterminism.html">article</a>
-about non-determinism in tests.</p>
+<h2 id="minor--p3">Minor / P3</h2>
 
-<h2 id="remove_flake">Flaky tests must be fixed or removed</h2>
+<p><em>Expectation</em>: Nice-to-have improvements.</p>
 
-<p>Flaky tests do not provide a reliable quality signal, which has a harmful effect
-on all tests and can lead to a loss of trust in our test suite. As a result,
-contributors might start to ignore test failures.</p>
+<p><em>Example Minor/P3 issues</em></p>
 
-<p>We want everyone to trust our tests, so it is important to diligently fix all
-flaky tests. If it is not possible to fix a flaky test, we must remove the test.</p>
+<ul>
+  <li>feature request that is nice-to-have</li>
+</ul>
 
-<h2 id="precommit_for_postcommit">Add new pre-commit tests as part of a post-commit fix</h2>
+<h2 id="trivial--p4">Trivial / P4</h2>
 
-<p>Post-commit tests are an important fail-safe, but we want to fail fast. Failing
-fast means that we want to detect bugs in pre-commit tests, and <em>not</em> in
-post-commit tests.</p>
+<p><em>Expectation</em>: Nice-to-have improvements that are also very small and easy.
+Usually it is quicker to just fix them than to file a bug, but the Jira
+can be referenced by a pull request and shows up in release notes.</p>
 
-<p>When you implement a fix for a post-commit test failure, add a new pre-commit
-test that will detect similar failures in the future. For example, you can
-implement a new unit test that covers a problematic code branch.</p>
+<p><em>Example Trivial/P4 issues</em></p>
 
-<h2 id="inform_community">Inform the community if Beam breaks downstream projects</h2>
+<ul>
+  <li>spelling errors in comments or code</li>
+</ul>
 
-<p>There are multiple external projects depending on Beam which contain tests that are
-outside of Beam repository. For example, Dataflow, Samza runner, and IBM Streams.</p>
-
-<p>When an external project encounters an issue caused by (a PR) in Beam
-and, in consequence, requests for a change in the Beam repository,
-the first thing is to create a JIRA entry that addresses 
-the following three questions:</p>
-
-<ol>
-  <li>Descriptions on what the issue is.</li>
-  <li>Does a revert fix it? (Or it is supposed to be fixed differently)</li>
-  <li>Is a revert the best way to fix it?</li>
-</ol>
-
-<p>It is encouraged to bring the discussion to the dev mailing list as well. 
-Ideally, after the incident, we prefer to have discussions regarding
-whether we should extend tests in Beam repository, with the goal of
-catching similar issues early in the future.</p>
 
       </div>
     </div>
