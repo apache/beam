@@ -30,10 +30,13 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.joda.time.Duration;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+
+import java.net.URI;
 
 /**
  * An unbounded source for Amazon Simple Queue Service (SQS).
@@ -104,7 +107,10 @@ public class SqsIO {
     @Nullable
     abstract Duration maxReadTime();
 
-    abstract Builder toBuilder();
+    @Nullable
+    abstract SqsClientProvider sqsClientProvider();
+
+    abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -113,6 +119,8 @@ public class SqsIO {
       abstract Builder setMaxNumRecords(long maxNumRecords);
 
       abstract Builder setMaxReadTime(Duration maxReadTime);
+
+      abstract Builder setSqsClientProvider(SqsClientProvider sqsClientProvider);
 
       abstract Read build();
     }
@@ -123,7 +131,7 @@ public class SqsIO {
      * PCollection}.
      */
     public Read withMaxNumRecords(long maxNumRecords) {
-      return toBuilder().setMaxNumRecords(maxNumRecords).build();
+      return builder().setMaxNumRecords(maxNumRecords).build();
     }
 
     /**
@@ -131,14 +139,46 @@ public class SqsIO {
      * max read time is not null, the {@link Read} will provide a bounded {@link PCollection}.
      */
     public Read withMaxReadTime(Duration maxReadTime) {
-      return toBuilder().setMaxReadTime(maxReadTime).build();
+      return builder().setMaxReadTime(maxReadTime).build();
     }
 
     /** Define the queueUrl used by the {@link Read} to receive messages from SQS. */
     public Read withQueueUrl(String queueUrl) {
       checkArgument(queueUrl != null, "queueUrl can not be null");
       checkArgument(!queueUrl.isEmpty(), "queueUrl can not be empty");
-      return toBuilder().setQueueUrl(queueUrl).build();
+      return builder().setQueueUrl(queueUrl).build();
+    }
+
+    /**
+     * Allows to specify custom {@link SqsClientProvider}. {@link SqsClientProvider} creates new
+     * {@link SqsClient} which is later used for writing to a SqS queue.
+     */
+    public Read withSqsClientProvider(SqsClientProvider awsClientsProvider) {
+      return builder().setSqsClientProvider(awsClientsProvider).build();
+    }
+
+    /**
+     * Specify {@link software.amazon.awssdk.auth.credentials.AwsCredentialsProvider} and region to be used to read from SQS. If you need
+     * more sophisticated credential protocol, then you should look at {@link
+     * Read#withSqsClientProvider(SqsClientProvider)}.
+     */
+    public Read withSqsClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region) {
+      return withSqsClientProvider(credentialsProvider, region, null);
+    }
+
+    /**
+     * Specify {@link AwsCredentialsProvider} and region to be used to write to SQS. If you need
+     * more sophisticated credential protocol, then you should look at {@link
+     * Read#withSqsClientProvider(SqsClientProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     */
+    public Read withSqsClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
+      return withSqsClientProvider(
+          new BasicSqsClientProvider(credentialsProvider, region, serviceEndpoint));
     }
 
     @Override
@@ -146,9 +186,7 @@ public class SqsIO {
 
       org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
           org.apache.beam.sdk.io.Read.from(
-              new SqsUnboundedSource(
-                  this,
-                  new SqsConfiguration(input.getPipeline().getOptions().as(AwsOptions.class))));
+              new SqsUnboundedSource(this));
 
       PTransform<PBegin, PCollection<Message>> transform = unbounded;
 
@@ -166,51 +204,75 @@ public class SqsIO {
    */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SendMessageRequest>, PDone> {
-    abstract Builder toBuilder();
+
+    @Nullable
+    abstract SqsClientProvider getSqsClientProvider();
+
+    abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
+
+      abstract Builder setSqsClientProvider(SqsClientProvider sqsClientProvider);
+
       abstract Write build();
+    }
+
+    /**
+     * Allows to specify custom {@link SqsClientProvider}. {@link SqsClientProvider} creates new
+     * {@link SqsClient} which is later used for writing to a SqS queue.
+     */
+    public Write withSqsClientProvider(SqsClientProvider awsClientsProvider) {
+      return builder().setSqsClientProvider(awsClientsProvider).build();
+    }
+
+    /**
+     * Specify {@link software.amazon.awssdk.auth.credentials.AwsCredentialsProvider} and region to be used to write to SQS. If you need
+     * more sophisticated credential protocol, then you should look at {@link
+     * Write#withSqsClientProvider(SqsClientProvider)}.
+     */
+    public Write withSqsClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region) {
+      return withSqsClientProvider(credentialsProvider, region, null);
+    }
+
+    /**
+     * Specify {@link AwsCredentialsProvider} and region to be used to write to SQS. If you need
+     * more sophisticated credential protocol, then you should look at {@link
+     * Write#withSqsClientProvider(SqsClientProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     */
+    public Write withSqsClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
+      return withSqsClientProvider(
+          new BasicSqsClientProvider(credentialsProvider, region, serviceEndpoint));
     }
 
     @Override
     public PDone expand(PCollection<SendMessageRequest> input) {
-      input.apply(
-          ParDo.of(
-              new SqsWriteFn(
-                  new SqsConfiguration(input.getPipeline().getOptions().as(AwsOptions.class)))));
+      input.apply(ParDo.of(new SqsWriteFn(this)));
       return PDone.in(input.getPipeline());
     }
   }
 
   private static class SqsWriteFn extends DoFn<SendMessageRequest, Void> {
-    private final SqsConfiguration sqsConfiguration;
+    private final Write spec;
     private transient SqsClient sqs;
 
-    SqsWriteFn(SqsConfiguration sqsConfiguration) {
-      this.sqsConfiguration = sqsConfiguration;
+    SqsWriteFn(Write write) {
+      this.spec = write;
     }
 
     @Setup
     public void setup() {
-      sqs =
-          SqsClient.builder()
-              .overrideConfiguration(sqsConfiguration.getClientConfiguration())
-              .credentialsProvider(sqsConfiguration.getAwsCredentialsProvider())
-              .region(Region.of(sqsConfiguration.getAwsRegion()))
-              .build();
+      sqs = spec.getSqsClientProvider().getSqsClient();
     }
 
     @ProcessElement
     public void processElement(ProcessContext processContext) throws Exception {
       sqs.sendMessage(processContext.element());
-    }
-
-    @Teardown
-    public void teardown() throws Exception {
-      if (sqs != null) {
-        sqs.close();
-      }
     }
   }
 }

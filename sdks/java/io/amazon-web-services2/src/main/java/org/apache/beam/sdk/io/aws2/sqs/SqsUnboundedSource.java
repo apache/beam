@@ -33,31 +33,22 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.Message;
 
 class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
-
   private final Read read;
-  private final SqsConfiguration sqsConfiguration;
   private final Supplier<SqsClient> sqs;
 
-  public SqsUnboundedSource(Read read, SqsConfiguration sqsConfiguration) {
+  public SqsUnboundedSource(Read read) {
     this.read = read;
-    this.sqsConfiguration = sqsConfiguration;
-
     sqs =
         Suppliers.memoize(
             (Supplier<SqsClient> & Serializable)
-                () ->
-                    SqsClient.builder()
-                        .overrideConfiguration(sqsConfiguration.getClientConfiguration())
-                        .credentialsProvider(sqsConfiguration.getAwsCredentialsProvider())
-                        .region(Region.of(sqsConfiguration.getAwsRegion()))
-                        .build());
+                () -> read.sqsClientProvider().getSqsClient());
   }
 
   @Override
   public List<SqsUnboundedSource> split(int desiredNumSplits, PipelineOptions options) {
     List<SqsUnboundedSource> sources = new ArrayList<>();
     for (int i = 0; i < Math.max(1, desiredNumSplits); ++i) {
-      sources.add(new SqsUnboundedSource(read, sqsConfiguration));
+      sources.add(new SqsUnboundedSource(read));
     }
     return sources;
   }

@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.elasticmq.rest.sqs.SQSRestServer;
 import org.elasticmq.rest.sqs.SQSRestServerBuilder;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
@@ -41,6 +42,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -52,15 +54,15 @@ public class SqsIOTest {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @Rule public EmbeddedSqsServer embeddedSqsRestServer = new EmbeddedSqsServer();
-
   @Test
   public void testRead() {
-    final SqsClient client = embeddedSqsRestServer.getClient();
-    final String queueUrl = embeddedSqsRestServer.getQueueUrl();
+    final SqsClient client = EmbeddedSqsServer.getClient();
+    final String queueUrl = EmbeddedSqsServer.getQueueUrl();
 
     final PCollection<Message> output =
-        pipeline.apply(SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(100));
+        pipeline.apply(SqsIO.read()
+            .withSqsClientProvider(SqsClientProviderMock.of(client))
+            .withQueueUrl(queueUrl).withMaxNumRecords(100));
 
     PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(100L);
 
@@ -74,8 +76,8 @@ public class SqsIOTest {
 
   @Test
   public void testWrite() {
-    final SqsClient client = embeddedSqsRestServer.getClient();
-    final String queueUrl = embeddedSqsRestServer.getQueueUrl();
+    final SqsClient client = EmbeddedSqsServer.getClient();
+    final String queueUrl = EmbeddedSqsServer.getQueueUrl();
 
     List<SendMessageRequest> messages = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
@@ -86,7 +88,9 @@ public class SqsIOTest {
               .build();
       messages.add(request);
     }
-    pipeline.apply(Create.of(messages)).apply(SqsIO.write());
+
+    pipeline.apply(Create.of(messages)).apply(SqsIO.write()
+        .withSqsClientProvider(SqsClientProviderMock.of(client)));
     pipeline.run().waitUntilFinish();
 
     List<String> received = new ArrayList<>();
@@ -102,53 +106,20 @@ public class SqsIOTest {
         }
       }
     }
+
     assertEquals(100, received.size());
     for (int i = 0; i < 100; i++) {
       received.contains("This is a test " + i);
     }
   }
 
-  private static class EmbeddedSqsServer extends ExternalResource {
+  @BeforeClass
+  public static void before() {
+    EmbeddedSqsServer.start();
+  }
 
-    private SQSRestServer sqsRestServer;
-    private SqsClient client;
-    private String queueUrl;
-
-    @Override
-    protected void before() {
-      sqsRestServer = SQSRestServerBuilder.start();
-
-      String endpoint = "http://localhost:9324";
-      String region = "elasticmq";
-      String accessKey = "x";
-      String secretKey = "x";
-
-
-      client =
-          SqsClient.builder()
-              .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
-              .endpointOverride(URI.create(endpoint))
-              .region(Region.of(region))
-              .overrideConfiguration(ClientOverrideConfiguration.builder().build())
-              .build();
-
-      CreateQueueRequest createQueueRequest =
-          CreateQueueRequest.builder().queueName("test").build();
-      final CreateQueueResponse queue = client.createQueue(createQueueRequest);
-      queueUrl = queue.queueUrl();
-    }
-
-    @Override
-    protected void after() {
-      sqsRestServer.stopAndWait();
-    }
-
-    SqsClient getClient() {
-      return client;
-    }
-
-    String getQueueUrl() {
-      return queueUrl;
-    }
+  @BeforeClass
+  public static void after() {
+    EmbeddedSqsServer.stop();
   }
 }

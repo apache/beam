@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -148,7 +149,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
     final ReceiveMessageRequest receiveMessageRequest =
         ReceiveMessageRequest.builder()
             .maxNumberOfMessages(MAX_NUMBER_OF_MESSAGES)
-            .attributeNames(Arrays.asList(QueueAttributeName.CREATED_TIMESTAMP))
+            .attributeNamesWithStrings(MessageSystemAttributeName.APPROXIMATE_FIRST_RECEIVE_TIMESTAMP.toString())
             .queueUrl(source.getRead().queueUrl())
             .build();
 
@@ -167,7 +168,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
   }
 
   private Instant getTimestamp(final Message message) {
-    String timeStamp = message.messageAttributes().get(QueueAttributeName.CREATED_TIMESTAMP.toString()).stringValue();
+    String timeStamp = message.attributes().get(MessageSystemAttributeName.APPROXIMATE_FIRST_RECEIVE_TIMESTAMP);
     return new Instant(
         Long.parseLong(timeStamp));
   }
