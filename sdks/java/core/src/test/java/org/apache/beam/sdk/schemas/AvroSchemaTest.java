@@ -41,6 +41,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -50,6 +51,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
+import org.joda.time.Instant;
 import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
@@ -412,9 +414,23 @@ public class AvroSchemaTest {
 
   @Test
   public void testRowToPojo() {
+
+    LocalDate test = new LocalDate(((Instant) ROW_FOR_POJO.getValue(8)).getMillis());
     SerializableFunction<Row, AvroPojo> fromRow =
         new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(AVRO_POJO, fromRow.apply(ROW_FOR_POJO));
+  }
+
+  @Test
+  public void testPojoRecordToRowSerializable() {
+    SerializableUtils.ensureSerializableRoundTrip(
+        new AvroRecordSchema().toRowFunction(TypeDescriptor.of(AvroPojo.class)));
+  }
+
+  @Test
+  public void testPojoRecordFromRowSerializable() {
+    SerializableUtils.ensureSerializableRoundTrip(
+        new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class)));
   }
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();

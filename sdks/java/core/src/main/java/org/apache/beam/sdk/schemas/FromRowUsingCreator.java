@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -35,16 +36,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 /** Function to convert a {@link Row} to a user type using a creator factory. */
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   private final Class<T> clazz;
+  private final GetterBasedSchemaProvider schemaProvider;
   private final Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory;
   private final Factory<List<FieldValueTypeInformation>> fieldValueTypeInformationFactory;
 
-  public FromRowUsingCreator(
-      Class<T> clazz,
-      UserTypeCreatorFactory schemaTypeUserTypeCreatorFactory,
-      FieldValueTypeInformationFactory fieldValueTypeInformationFactory) {
+  public FromRowUsingCreator(Class<T> clazz, GetterBasedSchemaProvider schemaProvider) {
     this.clazz = clazz;
-    this.schemaTypeCreatorFactory = new CachingFactory<>(schemaTypeUserTypeCreatorFactory);
-    this.fieldValueTypeInformationFactory = new CachingFactory<>(fieldValueTypeInformationFactory);
+    this.schemaProvider = schemaProvider;
+    this.schemaTypeCreatorFactory = new CachingFactory<>(schemaProvider::schemaTypeCreator);
+    this.fieldValueTypeInformationFactory =
+        new CachingFactory<>(schemaProvider::fieldValueTypeInformations);
   }
 
   @Override
@@ -172,5 +173,22 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       newMap.put(key, value);
     }
     return newMap;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    FromRowUsingCreator<?> that = (FromRowUsingCreator<?>) o;
+    return clazz.equals(that.clazz) && schemaProvider.equals(that.schemaProvider);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(clazz, schemaProvider);
   }
 }

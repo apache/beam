@@ -107,6 +107,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -497,7 +498,9 @@ public class BigQueryIO {
     return read(new TableRowParser())
         .withCoder(TableRowJsonCoder.of())
         .withBeamRowConverters(
-            BigQueryUtils.tableRowToBeamRow(), BigQueryUtils.tableRowFromBeamRow());
+            TypeDescriptor.of(TableRow.class),
+            BigQueryUtils.tableRowToBeamRow(),
+            BigQueryUtils.tableRowFromBeamRow());
   }
 
   /**
@@ -742,6 +745,9 @@ public class BigQueryIO {
       abstract Builder<T> setKmsKey(String kmsKey);
 
       @Experimental(Experimental.Kind.SCHEMAS)
+      abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
+
+      @Experimental(Experimental.Kind.SCHEMAS)
       abstract Builder<T> setToBeamRowFn(ToBeamRowFunction<T> toRowFn);
 
       @Experimental(Experimental.Kind.SCHEMAS)
@@ -796,6 +802,10 @@ public class BigQueryIO {
 
     @Nullable
     abstract String getKmsKey();
+
+    @Nullable
+    @Experimental(Experimental.Kind.SCHEMAS)
+    abstract TypeDescriptor<T> getTypeDescriptor();
 
     @Nullable
     @Experimental(Experimental.Kind.SCHEMAS)
@@ -973,7 +983,7 @@ public class BigQueryIO {
 
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
       boolean beamSchemaEnabled = false;
-      if (getToBeamRowFn() != null && getFromBeamRowFn() != null) {
+      if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
         beamSchemaEnabled = true;
       }
 
@@ -1128,7 +1138,7 @@ public class BigQueryIO {
         SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
         SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
 
-        rows.setSchema(beamSchema, toBeamRow, fromBeamRow);
+        rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
       }
       return rows;
     }
@@ -1394,8 +1404,14 @@ public class BigQueryIO {
      */
     @Experimental(Experimental.Kind.SCHEMAS)
     public TypedRead<T> withBeamRowConverters(
-        ToBeamRowFunction<T> toRowFn, FromBeamRowFunction<T> fromRowFn) {
-      return toBuilder().setToBeamRowFn(toRowFn).setFromBeamRowFn(fromRowFn).build();
+        TypeDescriptor<T> typeDescriptor,
+        ToBeamRowFunction<T> toRowFn,
+        FromBeamRowFunction<T> fromRowFn) {
+      return toBuilder()
+          .setTypeDescriptor(typeDescriptor)
+          .setToBeamRowFn(toRowFn)
+          .setFromBeamRowFn(fromRowFn)
+          .build();
     }
 
     /** See {@link Read#from(String)}. */

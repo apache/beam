@@ -71,6 +71,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -595,6 +596,7 @@ public class PubsubIO {
         .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
+        .setTypeDescriptor(TypeDescriptor.of(GenericRecord.class))
         .setToRowFn(AvroUtils.getToRowFunction(GenericRecord.class, avroSchema))
         .setFromRowFn(AvroUtils.getFromRowFunction(GenericRecord.class))
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -621,6 +623,7 @@ public class PubsubIO {
         .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
+        .setTypeDescriptor(TypeDescriptor.of(clazz))
         .setToRowFn(AvroUtils.getToRowFunction(clazz, avroSchema))
         .setFromRowFn(AvroUtils.getFromRowFunction(clazz))
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -696,6 +699,9 @@ public class PubsubIO {
     abstract Schema getBeamSchema();
 
     @Nullable
+    abstract TypeDescriptor<T> getTypeDescriptor();
+
+    @Nullable
     abstract SerializableFunction<T, Row> getToRowFn();
 
     @Nullable
@@ -728,6 +734,8 @@ public class PubsubIO {
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
 
       abstract Builder<T> setBeamSchema(@Nullable Schema beamSchema);
+
+      abstract Builder<T> setTypeDescriptor(@Nullable TypeDescriptor<T> typeDescriptor);
 
       abstract Builder<T> setToRowFn(@Nullable SerializableFunction<T, Row> toRowFn);
 
@@ -981,7 +989,7 @@ public class PubsubIO {
               getNeedsMessageId());
       PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
       return (getBeamSchema() != null)
-          ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
+          ? read.setSchema(getBeamSchema(), getTypeDescriptor(), getToRowFn(), getFromRowFn())
           : read.setCoder(getCoder());
     }
 

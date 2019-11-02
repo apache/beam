@@ -63,6 +63,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
@@ -418,6 +419,7 @@ public class CreateTest {
             Create.of("a", "b", "c", "d")
                 .withSchema(
                     STRING_SCHEMA,
+                    TypeDescriptors.strings(),
                     s -> Row.withSchema(STRING_SCHEMA).addValue(s).build(),
                     r -> r.getString("field")));
     assertThat(out.getCoder(), instanceOf(SchemaCoder.class));

@@ -64,6 +64,16 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
               })
           .collect(Collectors.toList());
     }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && this.getClass() == obj.getClass();
+    }
   }
 
   /** {@link FieldValueTypeSupplier} that's based on setter methods. */
@@ -78,6 +88,16 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forSetter)
           .collect(Collectors.toList());
+    }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && this.getClass() == obj.getClass();
     }
   }
 
@@ -99,39 +119,35 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public FieldValueGetterFactory fieldValueGetterFactory() {
-    return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getGetters(targetClass, schema, GetterTypeSupplier.INSTANCE);
+  List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getGetters(targetClass, schema, GetterTypeSupplier.INSTANCE);
   }
 
   @Override
-  UserTypeCreatorFactory schemaTypeCreatorFactory() {
+  List<FieldValueTypeInformation> fieldValueTypeInformations(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(targetClass, schema, GetterTypeSupplier.INSTANCE);
+  }
+
+  @Override
+  SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+    // If a static method is marked with @SchemaCreate, use that.
+    Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
+    if (annotated != null) {
+      return JavaBeanUtils.getStaticCreator(
+          targetClass, annotated, schema, GetterTypeSupplier.INSTANCE);
+    }
+
+    // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
+    Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
+    if (constructor != null) {
+      return JavaBeanUtils.getConstructorCreator(
+          targetClass, constructor, schema, GetterTypeSupplier.INSTANCE);
+    }
+
+    // Else try to make a setter-based creator
     UserTypeCreatorFactory setterBasedFactory =
         new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
-
-    return (Class<?> targetClass, Schema schema) -> {
-      // If a static method is marked with @SchemaCreate, use that.
-      Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
-      if (annotated != null) {
-        return JavaBeanUtils.getStaticCreator(
-            targetClass, annotated, schema, GetterTypeSupplier.INSTANCE);
-      }
-
-      // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
-      Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
-      if (constructor != null) {
-        return JavaBeanUtils.getConstructorCreator(
-            targetClass, constructor, schema, GetterTypeSupplier.INSTANCE);
-      }
-
-      return setterBasedFactory.create(targetClass, schema);
-    };
-  }
-
-  @Override
-  public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
-    return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getFieldTypes(targetClass, schema, GetterTypeSupplier.INSTANCE);
+    return setterBasedFactory.create(targetClass, schema);
   }
 
   /** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
@@ -140,5 +156,15 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
       return JavaBeanUtils.getSetters(targetClass, schema, SetterTypeSupplier.INSTANCE);
     }
+  }
+
+  @Override
+  public int hashCode() {
+    return System.identityHashCode(this);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj != null && this.getClass() == obj.getClass();
   }
 }
