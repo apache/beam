@@ -41,7 +41,9 @@ class InteractiveStreamController(InteractiveServiceServicer):
     beam_interactive_api_pb2_grpc.add_InteractiveServiceServicer_to_server(
         self, self._server)
     self._streaming_cache = streaming_cache
-    self._playback_speed = 1 / 1000000.0
+
+    self._sessions = {}
+    self._session_id = 0
 
   def start(self):
     self._server.start()
@@ -51,22 +53,23 @@ class InteractiveStreamController(InteractiveServiceServicer):
     self._server.stop(0)
     self._server.wait_for_termination()
 
+  def Connect(self, request, context):
+    session_id = str(self._session_id)
+    self._session_id += 1
+    self._sessions[session_id] = self._streaming_cache.reader().read()
+    return beam_interactive_api_pb2.ConnectResponse(session_id=session_id)
+
   def Events(self, request, context):
-    events = self._reader.read()
-    if events:
-      for e in events:
-        # Here we assume that the first event is the processing_time_event so
-        # that we can sleep and then emit the element. Thereby, trying to
-        # emulate the original stream.
-        if e.HasField('processing_time_event'):
-          sleep_duration = (
-              e.processing_time_event.advance_duration * self._playback_speed
-              ) * 10**-6
-          if sleep_duration > 0.001:
-            time.sleep(sleep_duration)
-        yield beam_interactive_api_pb2.EventsResponse(events=[e])
-    else:
-      resp = beam_interactive_api_pb2.EventsResponse()
-      resp.end_of_stream = True
-      yield resp
-      return
+    assert request.session_id in self._sessions, (\
+        'Session "{}" was not found. Did you forget to call Connect ' +
+        'first?').format(request.session_id)
+
+    reader = self._sessions[request.session_id]
+    token = (int(request.token) if request.token else 0) + 1
+    event = None
+    try:
+      event = next(reader)
+    except StopIteration:
+      token = None
+    return beam_interactive_api_pb2.EventsResponse(
+        event=event, token=str(token) if token else None)

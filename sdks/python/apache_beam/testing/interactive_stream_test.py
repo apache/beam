@@ -43,8 +43,7 @@ class InMemoryReader(object):
           encoded_element=coder.encode(i), timestamp=i)
       record = InteractiveStreamRecord(
           element=element,
-          processing_time=Timestamp.of(i).to_proto(),
-          watermark=Timestamp.of(i).to_proto())
+          processing_time=Timestamp.of(i).to_proto())
       yield record.SerializeToString()
 
 
@@ -61,21 +60,23 @@ class InteractiveStreamTest(unittest.TestCase):
     self.controller.stop()
 
   def test_normal_run(self):
+    session_id = self.stub.Connect(interactive_api.ConnectRequest()).session_id
+
     events = []
+    token = None
     while True:
-      e = [e for e in self.stub.Events(interactive_api.EventsRequest())]
-      if e[0].end_of_stream:
+      r = self.stub.Events(interactive_api.EventsRequest(session_id=session_id,
+                                                         token=token))
+      token = r.token
+      if r.token:
+        events.append(r.event)
+      else:
         break
-      events = events + [j for i in e for j in i.events]
 
     streaming_cache_reader = StreamingCache(readers=[InMemoryReader()]).reader()
     expected_events = []
-    while True:
-      e = streaming_cache_reader.read()
-      if e:
-        expected_events += e
-      else:
-        break
+    for e in streaming_cache_reader.read():
+      expected_events.append(e)
 
     self.assertEqual(events, expected_events)
 
