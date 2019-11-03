@@ -23,7 +23,7 @@ import com.google.auto.value.AutoValue;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.GetResponse;
+import com.rabbitmq.client.Delivery;
 import com.rabbitmq.client.MessageProperties;
 import java.io.IOException;
 import java.io.Serializable;
@@ -34,6 +34,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -436,7 +437,7 @@ public class RabbitMqIO {
     private RabbitMqMessage current;
     private byte[] currentRecordId;
     private ConnectionHandler connectionHandler;
-    private String queueName;
+    private SingleQueueingConsumer consumer;
     private Instant currentTimestamp;
     private final RabbitMQCheckpointMark checkpointMark;
 
@@ -498,7 +499,7 @@ public class RabbitMqIO {
 
         Channel channel = connectionHandler.getChannel();
 
-        queueName = source.spec.queue();
+        String queueName = source.spec.queue();
         if (source.spec.queueDeclare()) {
           // declare the queue (if not done by another application)
           // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
@@ -514,7 +515,11 @@ public class RabbitMqIO {
           channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
         }
         checkpointMark.channel = channel;
+        consumer = new SingleQueueingConsumer(channel);
         channel.txSelect();
+        channel.setDefaultConsumer(consumer);
+        // consume message without autoAck so that ack can be done within finalizeCheckpoint
+        channel.basicConsume(queueName, false, consumer);
       } catch (IOException e) {
         throw e;
       } catch (Exception e) {
@@ -528,12 +533,13 @@ public class RabbitMqIO {
       try {
         Channel channel = connectionHandler.getChannel();
         // we consume message without autoAck (we want to do the ack ourselves)
-        GetResponse delivery = channel.basicGet(queueName, false);
+        Delivery delivery = consumer.poll(1, TimeUnit.SECONDS);
+
         if (delivery == null) {
           return false;
         }
         if (source.spec.useCorrelationId()) {
-          String correlationId = delivery.getProps().getCorrelationId();
+          String correlationId = delivery.getProperties().getCorrelationId();
           if (correlationId == null) {
             throw new IOException(
                 "RabbitMqIO.Read uses message correlation ID, but received "
@@ -545,7 +551,7 @@ public class RabbitMqIO {
         checkpointMark.sessionIds.add(deliveryTag);
 
         current = new RabbitMqMessage(source.spec.routingKey(), delivery);
-        currentTimestamp = new Instant(delivery.getProps().getTimestamp());
+        currentTimestamp = new Instant(delivery.getProperties().getTimestamp());
         if (currentTimestamp.isBefore(checkpointMark.oldestTimestamp)) {
           checkpointMark.oldestTimestamp = currentTimestamp;
         }

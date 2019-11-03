@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.AMQP.BasicProperties;
+import com.rabbitmq.client.Delivery;
 import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.LongString;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -43,11 +43,11 @@ public class RabbitMqMessage implements Serializable {
    * @param processed
    * @return
    */
-  private static GetResponse serializableDeliveryOf(GetResponse processed) {
+  private static Delivery serializableDeliveryOf(Delivery processed) {
     // All content of envelope is serializable, so no problem there
     Envelope envelope = processed.getEnvelope();
     // in basicproperties, there may be LongString, which are *not* serializable
-    BasicProperties properties = processed.getProps();
+    BasicProperties properties = processed.getProperties();
     BasicProperties nextProperties =
         new BasicProperties.Builder()
             .appId(properties.getAppId())
@@ -65,8 +65,7 @@ public class RabbitMqMessage implements Serializable {
             .type(properties.getType())
             .userId(properties.getUserId())
             .build();
-    return new GetResponse(
-        envelope, nextProperties, processed.getBody(), processed.getMessageCount());
+    return new Delivery(envelope, nextProperties, processed.getBody());
   }
 
   private static Map<String, Object> serializableHeaders(Map<String, Object> headers) {
@@ -134,24 +133,24 @@ public class RabbitMqMessage implements Serializable {
     clusterId = null;
   }
 
-  public RabbitMqMessage(String routingKey, GetResponse delivery) {
+  public RabbitMqMessage(String routingKey, Delivery delivery) {
     this.routingKey = routingKey;
     delivery = serializableDeliveryOf(delivery);
     body = delivery.getBody();
-    contentType = delivery.getProps().getContentType();
-    contentEncoding = delivery.getProps().getContentEncoding();
-    headers = delivery.getProps().getHeaders();
-    deliveryMode = delivery.getProps().getDeliveryMode();
-    priority = delivery.getProps().getPriority();
-    correlationId = delivery.getProps().getCorrelationId();
-    replyTo = delivery.getProps().getReplyTo();
-    expiration = delivery.getProps().getExpiration();
-    messageId = delivery.getProps().getMessageId();
-    timestamp = delivery.getProps().getTimestamp();
-    type = delivery.getProps().getType();
-    userId = delivery.getProps().getUserId();
-    appId = delivery.getProps().getAppId();
-    clusterId = delivery.getProps().getClusterId();
+    contentType = delivery.getProperties().getContentType();
+    contentEncoding = delivery.getProperties().getContentEncoding();
+    headers = delivery.getProperties().getHeaders();
+    deliveryMode = delivery.getProperties().getDeliveryMode();
+    priority = delivery.getProperties().getPriority();
+    correlationId = delivery.getProperties().getCorrelationId();
+    replyTo = delivery.getProperties().getReplyTo();
+    expiration = delivery.getProperties().getExpiration();
+    messageId = delivery.getProperties().getMessageId();
+    timestamp = delivery.getProperties().getTimestamp();
+    type = delivery.getProperties().getType();
+    userId = delivery.getProperties().getUserId();
+    appId = delivery.getProperties().getAppId();
+    clusterId = delivery.getProperties().getClusterId();
   }
 
   public RabbitMqMessage(
