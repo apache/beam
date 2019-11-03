@@ -543,6 +543,9 @@ public class RabbitMqIO {
         // we consume message without autoAck (we want to do the ack ourselves)
         GetResponse delivery = channel.basicGet(queueName, false);
         if (delivery == null) {
+          current = null;
+          currentRecordId = null;
+          currentTimestamp = null;
           checkpointMark.advanceWatermark(Instant.now());
           return false;
         }
