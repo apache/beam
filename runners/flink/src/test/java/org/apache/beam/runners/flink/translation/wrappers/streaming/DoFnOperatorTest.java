@@ -1313,20 +1313,25 @@ public class DoFnOperatorTest {
     options.setMaxBundleSize(2L);
     options.setMaxBundleTimeMills(10L);
 
-    IdentityDoFn<KV<String, String>> doFn =
-        new IdentityDoFn<KV<String, String>>() {
+    DoFn<KV<String, String>, String> doFn =
+        new DoFn<KV<String, String>, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext ctx) {
+            // Change output type of element to test that we do not depend on the input keying
+            ctx.output(ctx.element().getValue());
+          }
+
           @FinishBundle
           public void finishBundle(FinishBundleContext context) {
             context.output(
-                KV.of("key2", "finishBundle"),
-                BoundedWindow.TIMESTAMP_MIN_VALUE,
-                GlobalWindow.INSTANCE);
+                "finishBundle", BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE);
           }
         };
 
-    DoFnOperator.MultiOutputOutputManagerFactory<KV<String, String>> outputManagerFactory =
+    DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
-            outputTag, WindowedValue.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE));
+            outputTag,
+            WindowedValue.getFullCoder(kvCoder.getValueCoder(), GlobalWindow.Coder.INSTANCE));
 
     DoFnOperator<KV<String, String>, KV<String, String>> doFnOperator =
         new DoFnOperator(
@@ -1347,8 +1352,7 @@ public class DoFnOperatorTest {
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
 
-    OneInputStreamOperatorTestHarness<
-            WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, String>>, WindowedValue<String>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
                 doFnOperator, keySelector, keySelector.getProducedType());
@@ -1365,10 +1369,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "c"))));
+            WindowedValue.valueInGlobalWindow("a"),
+            WindowedValue.valueInGlobalWindow("b"),
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("c")));
 
     // Take a snapshot
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
@@ -1376,12 +1380,11 @@ public class DoFnOperatorTest {
     // Finish bundle element will be buffered as part of finishing a bundle in snapshot()
     PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
         doFnOperator.outputManager.pushedBackElementsHandler;
-    assertThat(pushedBackElementsHandler, instanceOf(KeyedPushedBackElementsHandler.class));
+    assertThat(pushedBackElementsHandler, instanceOf(NonKeyedPushedBackElementsHandler.class));
     List<KV<Integer, WindowedValue<?>>> bufferedElements =
         pushedBackElementsHandler.getElements().collect(Collectors.toList());
     assertThat(
-        bufferedElements,
-        contains(KV.of(0, WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")))));
+        bufferedElements, contains(KV.of(0, WindowedValue.valueInGlobalWindow("finishBundle"))));
 
     testHarness.close();
 
@@ -1424,9 +1427,9 @@ public class DoFnOperatorTest {
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
             // The first finishBundle is restored from the checkpoint
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "d")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("d"),
+            WindowedValue.valueInGlobalWindow("finishBundle")));
 
     testHarness.close();
   }
