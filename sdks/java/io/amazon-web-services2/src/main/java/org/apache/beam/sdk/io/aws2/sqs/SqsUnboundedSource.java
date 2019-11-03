@@ -28,11 +28,9 @@ import org.apache.beam.sdk.io.aws2.sqs.SqsIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.Message;
 
-class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
+class SqsUnboundedSource extends UnboundedSource<SqsMessage, SqsCheckpointMark> {
   private final Read read;
   private final Supplier<SqsClient> sqs;
 
@@ -40,8 +38,7 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
     this.read = read;
     sqs =
         Suppliers.memoize(
-            (Supplier<SqsClient> & Serializable)
-                () -> read.sqsClientProvider().getSqsClient());
+            (Supplier<SqsClient> & Serializable) () -> read.sqsClientProvider().getSqsClient());
   }
 
   @Override
@@ -54,7 +51,7 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
   }
 
   @Override
-  public UnboundedReader<Message> createReader(
+  public UnboundedReader<SqsMessage> createReader(
       PipelineOptions options, @Nullable SqsCheckpointMark checkpointMark) {
     return new SqsUnboundedReader(this, checkpointMark);
   }
@@ -65,8 +62,8 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
   }
 
   @Override
-  public Coder<Message> getOutputCoder() {
-    return SerializableCoder.of(Message.class);
+  public Coder<SqsMessage> getOutputCoder() {
+    return SerializableCoder.of(SqsMessage.class);
   }
 
   public Read getRead() {

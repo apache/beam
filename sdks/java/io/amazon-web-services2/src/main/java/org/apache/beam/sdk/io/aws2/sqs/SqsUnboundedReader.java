@@ -21,7 +21,6 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -33,15 +32,15 @@ import org.joda.time.Instant;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName;
-import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
-class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implements Serializable {
+class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage>
+    implements Serializable {
 
   public static final int MAX_NUMBER_OF_MESSAGES = 10;
   private final SqsUnboundedSource source;
-  private Message current;
+  private SqsMessage current;
   private final Queue<Message> messagesNotYetRead;
   private List<Message> messagesToDelete;
   private Instant oldestPendingTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -64,7 +63,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
   }
 
   @Override
-  public Message getCurrent() throws NoSuchElementException {
+  public SqsMessage getCurrent() throws NoSuchElementException {
     if (current == null) {
       throw new NoSuchElementException();
     }
@@ -77,7 +76,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
       throw new NoSuchElementException();
     }
 
-    return getTimestamp(current);
+    return getTimestamp(current.getTimeStamp());
   }
 
   @Override
@@ -85,7 +84,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
     if (current == null) {
       throw new NoSuchElementException();
     }
-    return current.messageId().getBytes(StandardCharsets.UTF_8);
+    return current.getMessageId().getBytes(StandardCharsets.UTF_8);
   }
 
   @Override
@@ -109,12 +108,16 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
       pull();
     }
 
-    current = messagesNotYetRead.poll();
-    if (current == null) {
+    Message orgMsg = messagesNotYetRead.poll();
+    if (orgMsg != null) {
+      String timeStamp =
+          orgMsg.attributes().get(MessageSystemAttributeName.APPROXIMATE_FIRST_RECEIVE_TIMESTAMP);
+      current = SqsMessage.create(orgMsg.body(), orgMsg.messageId(), timeStamp);
+    } else {
       return false;
     }
 
-    messagesToDelete.add(current);
+    messagesToDelete.add(orgMsg);
 
     Instant currentMessageTimestamp = getCurrentTimestamp();
     if (getCurrentTimestamp().isBefore(oldestPendingTimestamp)) {
@@ -137,7 +140,11 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
                 .build();
 
         source.getSqs().deleteMessage(deleteMessageRequest);
-        Instant currentMessageTimestamp = getTimestamp(message);
+        Instant currentMessageTimestamp =
+            getTimestamp(
+                message
+                    .attributes()
+                    .get(MessageSystemAttributeName.APPROXIMATE_FIRST_RECEIVE_TIMESTAMP));
         if (currentMessageTimestamp.isAfter(oldestPendingTimestamp)) {
           oldestPendingTimestamp = currentMessageTimestamp;
         }
@@ -149,7 +156,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
     final ReceiveMessageRequest receiveMessageRequest =
         ReceiveMessageRequest.builder()
             .maxNumberOfMessages(MAX_NUMBER_OF_MESSAGES)
-            .attributeNamesWithStrings(MessageSystemAttributeName.APPROXIMATE_FIRST_RECEIVE_TIMESTAMP.toString())
+            .attributeNamesWithStrings(
+                MessageSystemAttributeName.APPROXIMATE_FIRST_RECEIVE_TIMESTAMP.toString())
             .queueUrl(source.getRead().queueUrl())
             .build();
 
@@ -162,14 +170,10 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
       return;
     }
 
-    for (Message message : messages) {
-      messagesNotYetRead.add(message);
-    }
+    messagesNotYetRead.addAll(messages);
   }
 
-  private Instant getTimestamp(final Message message) {
-    String timeStamp = message.attributes().get(MessageSystemAttributeName.APPROXIMATE_FIRST_RECEIVE_TIMESTAMP);
-    return new Instant(
-        Long.parseLong(timeStamp));
+  private Instant getTimestamp(String timeStamp) {
+    return new Instant(Long.parseLong(timeStamp));
   }
 }

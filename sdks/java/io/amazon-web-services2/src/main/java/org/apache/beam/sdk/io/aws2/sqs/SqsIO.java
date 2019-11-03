@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.sqs;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.net.URI;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
@@ -31,12 +32,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.joda.time.Duration;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-
-import java.net.URI;
 
 /**
  * An unbounded source for Amazon Simple Queue Service (SQS).
@@ -97,7 +94,7 @@ public class SqsIO {
    * on usage and configuration.
    */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<SqsMessage>> {
 
     @Nullable
     abstract String queueUrl();
@@ -158,12 +155,11 @@ public class SqsIO {
     }
 
     /**
-     * Specify {@link software.amazon.awssdk.auth.credentials.AwsCredentialsProvider} and region to be used to read from SQS. If you need
-     * more sophisticated credential protocol, then you should look at {@link
-     * Read#withSqsClientProvider(SqsClientProvider)}.
+     * Specify {@link software.amazon.awssdk.auth.credentials.AwsCredentialsProvider} and region to
+     * be used to read from SQS. If you need more sophisticated credential protocol, then you should
+     * look at {@link Read#withSqsClientProvider(SqsClientProvider)}.
      */
-    public Read withSqsClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region) {
+    public Read withSqsClientProvider(AwsCredentialsProvider credentialsProvider, String region) {
       return withSqsClientProvider(credentialsProvider, region, null);
     }
 
@@ -182,13 +178,12 @@ public class SqsIO {
     }
 
     @Override
-    public PCollection<Message> expand(PBegin input) {
+    public PCollection<SqsMessage> expand(PBegin input) {
 
-      org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
-          org.apache.beam.sdk.io.Read.from(
-              new SqsUnboundedSource(this));
+      org.apache.beam.sdk.io.Read.Unbounded<SqsMessage> unbounded =
+          org.apache.beam.sdk.io.Read.from(new SqsUnboundedSource(this));
 
-      PTransform<PBegin, PCollection<Message>> transform = unbounded;
+      PTransform<PBegin, PCollection<SqsMessage>> transform = unbounded;
 
       if (maxNumRecords() < Long.MAX_VALUE || maxReadTime() != null) {
         transform = unbounded.withMaxReadTime(maxReadTime()).withMaxNumRecords(maxNumRecords());
@@ -227,12 +222,11 @@ public class SqsIO {
     }
 
     /**
-     * Specify {@link software.amazon.awssdk.auth.credentials.AwsCredentialsProvider} and region to be used to write to SQS. If you need
-     * more sophisticated credential protocol, then you should look at {@link
-     * Write#withSqsClientProvider(SqsClientProvider)}.
+     * Specify {@link software.amazon.awssdk.auth.credentials.AwsCredentialsProvider} and region to
+     * be used to write to SQS. If you need more sophisticated credential protocol, then you should
+     * look at {@link Write#withSqsClientProvider(SqsClientProvider)}.
      */
-    public Write withSqsClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region) {
+    public Write withSqsClientProvider(AwsCredentialsProvider credentialsProvider, String region) {
       return withSqsClientProvider(credentialsProvider, region, null);
     }
 

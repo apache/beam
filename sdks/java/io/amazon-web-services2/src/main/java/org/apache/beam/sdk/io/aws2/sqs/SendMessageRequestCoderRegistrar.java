@@ -18,14 +18,13 @@
 package org.apache.beam.sdk.io.aws2.sqs;
 
 import com.google.auto.service.AutoService;
+import java.util.List;
 import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-
-import java.util.List;
 
 /** A {@link CoderProviderRegistrar} for standard types used with {@link SqsIO}. */
 @AutoService(CoderProviderRegistrar.class)

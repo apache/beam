@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
+import java.net.URI;
+import javax.annotation.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsClientBuilder;
-
-import java.net.URI;
-import javax.annotation.Nullable;
-
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 /** Basic implementation of {@link SqsClientProvider} used by default in {@link SqsIO}. */
 class BasicSqsClientProvider implements SqsClientProvider {

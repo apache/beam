@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.aws2.sqs;
 
 import static org.junit.Assert.assertEquals;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
@@ -27,22 +26,13 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.elasticmq.rest.sqs.SQSRestServer;
-import org.elasticmq.rest.sqs.SQSRestServerBuilder;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
-import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
-import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -59,10 +49,12 @@ public class SqsIOTest {
     final SqsClient client = EmbeddedSqsServer.getClient();
     final String queueUrl = EmbeddedSqsServer.getQueueUrl();
 
-    final PCollection<Message> output =
-        pipeline.apply(SqsIO.read()
-            .withSqsClientProvider(SqsClientProviderMock.of(client))
-            .withQueueUrl(queueUrl).withMaxNumRecords(100));
+    final PCollection<SqsMessage> output =
+        pipeline.apply(
+            SqsIO.read()
+                .withSqsClientProvider(SqsClientProviderMock.of(client))
+                .withQueueUrl(queueUrl)
+                .withMaxNumRecords(100));
 
     PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(100L);
 
@@ -89,8 +81,9 @@ public class SqsIOTest {
       messages.add(request);
     }
 
-    pipeline.apply(Create.of(messages)).apply(SqsIO.write()
-        .withSqsClientProvider(SqsClientProviderMock.of(client)));
+    pipeline
+        .apply(Create.of(messages))
+        .apply(SqsIO.write().withSqsClientProvider(SqsClientProviderMock.of(client)));
     pipeline.run().waitUntilFinish();
 
     List<String> received = new ArrayList<>();
@@ -118,7 +111,7 @@ public class SqsIOTest {
     EmbeddedSqsServer.start();
   }
 
-  @BeforeClass
+  @AfterClass
   public static void after() {
     EmbeddedSqsServer.stop();
   }

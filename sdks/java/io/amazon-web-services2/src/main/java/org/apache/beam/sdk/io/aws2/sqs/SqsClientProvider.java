@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
-import software.amazon.awssdk.services.sqs.SqsClient;
-
 import java.io.Serializable;
+import software.amazon.awssdk.services.sqs.SqsClient;
 
 /**
  * Provides instances of DynamoDB clients.

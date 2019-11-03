@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
-import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 /** Custom Coder for handling SendMessageRequest for using in Write. */
-public class SendMessageRequestCoder extends AtomicCoder<SendMessageRequest> implements Serializable {
+public class SendMessageRequestCoder extends AtomicCoder<SendMessageRequest>
+    implements Serializable {
   private static final SendMessageRequestCoder INSTANCE = new SendMessageRequestCoder();
 
   private SendMessageRequestCoder() {}
