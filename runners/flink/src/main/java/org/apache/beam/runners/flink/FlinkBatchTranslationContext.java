@@ -127,20 +127,6 @@ class FlinkBatchTranslationContext {
     }
   }
 
-  @SuppressWarnings("unchecked")
-  public <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
-    return getTypeInfo(collection.getCoder(), collection.getWindowingStrategy());
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T> TypeInformation<WindowedValue<T>> getTypeInfo(
-      Coder<T> coder, WindowingStrategy<?, ?> windowingStrategy) {
-    WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
-        WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
-
-    return new CoderTypeInformation<>(windowedValueCoder);
-  }
-
   Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
     return currentTransform.getInputs();
   }
@@ -157,5 +143,19 @@ class FlinkBatchTranslationContext {
   @SuppressWarnings("unchecked")
   <T extends PValue> T getOutput(PTransform<?, T> transform) {
     return (T) Iterables.getOnlyElement(currentTransform.getOutputs().values());
+  }
+
+  @SuppressWarnings("unchecked")
+  static <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
+    return getTypeInfo(collection.getCoder(), collection.getWindowingStrategy());
+  }
+
+  @SuppressWarnings("unchecked")
+  static <T> TypeInformation<WindowedValue<T>> getTypeInfo(
+      Coder<T> coder, WindowingStrategy<?, ?> windowingStrategy) {
+    WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
+        WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
+
+    return new CoderTypeInformation<>(windowedValueCoder);
   }
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.flink.FlinkBatchTranslationContext.getTypeInfo;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -145,7 +146,7 @@ class FlinkBatchTransformTranslators {
       String name = transform.getName();
       PCollection<byte[]> output = context.getOutput(transform);
 
-      TypeInformation<WindowedValue<byte[]>> typeInformation = context.getTypeInfo(output);
+      TypeInformation<WindowedValue<byte[]>> typeInformation = getTypeInfo(output);
       DataSource<WindowedValue<byte[]>> dataSource =
           new DataSource<>(
               context.getExecutionEnvironment(), new ImpulseInputFormat(), typeInformation, name);
@@ -173,7 +174,7 @@ class FlinkBatchTransformTranslators {
       }
       PCollection<T> output = context.getOutput(transform);
 
-      TypeInformation<WindowedValue<T>> typeInformation = context.getTypeInfo(output);
+      TypeInformation<WindowedValue<T>> typeInformation = getTypeInfo(output);
 
       String fullName = getCurrentTransformName(context);
 
@@ -198,8 +199,7 @@ class FlinkBatchTransformTranslators {
         FlinkBatchTranslationContext context) {
       PValue input = context.getInput(transform);
 
-      TypeInformation<WindowedValue<T>> resultTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
+      TypeInformation<WindowedValue<T>> resultTypeInfo = getTypeInfo(context.getOutput(transform));
 
       DataSet<WindowedValue<T>> inputDataSet = context.getInputDataSet(input);
 
@@ -393,8 +393,7 @@ class FlinkBatchTransformTranslators {
           context.getInput(transform).getWindowingStrategy();
 
       TypeInformation<WindowedValue<KV<K, AccumT>>> partialReduceTypeInfo =
-          context.getTypeInfo(
-              KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder), windowingStrategy);
+          getTypeInfo(KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder), windowingStrategy);
 
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
           inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
@@ -433,7 +432,7 @@ class FlinkBatchTransformTranslators {
         transformSideInputs(((Combine.PerKey) transform).getSideInputs(), groupCombine, context);
 
         TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
-            context.getTypeInfo(context.getOutput(transform));
+            getTypeInfo(context.getOutput(transform));
 
         Grouping<WindowedValue<KV<K, AccumT>>> intermediateGrouping =
             groupCombine.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
@@ -459,7 +458,7 @@ class FlinkBatchTransformTranslators {
                     combineFn, boundedStrategy, sideInputStrategies, context.getPipelineOptions());
 
         TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
-            context.getTypeInfo(context.getOutput(transform));
+            getTypeInfo(context.getOutput(transform));
 
         Grouping<WindowedValue<KV<K, InputT>>> grouping =
             inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
@@ -637,7 +636,7 @@ class FlinkBatchTransformTranslators {
         FlinkBatchTranslationContext context,
         int integerTag,
         PCollection<T> collection) {
-      TypeInformation<WindowedValue<T>> outputType = context.getTypeInfo(collection);
+      TypeInformation<WindowedValue<T>> outputType = getTypeInfo(collection);
 
       FlinkMultiOutputPruningFunction<T> pruningFunction =
           new FlinkMultiOutputPruningFunction<>(integerTag, context.getPipelineOptions());

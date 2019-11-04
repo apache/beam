@@ -62,20 +62,20 @@ class FlinkStreamingTranslationContext {
     this.dataStreams = new HashMap<>();
   }
 
-  public StreamExecutionEnvironment getExecutionEnvironment() {
+  StreamExecutionEnvironment getExecutionEnvironment() {
     return env;
   }
 
-  public PipelineOptions getPipelineOptions() {
+  PipelineOptions getPipelineOptions() {
     return options;
   }
 
   @SuppressWarnings("unchecked")
-  public <T> DataStream<T> getInputDataStream(PValue value) {
+  <T> DataStream<T> getInputDataStream(PValue value) {
     return (DataStream<T>) dataStreams.get(value);
   }
 
-  public void setOutputDataStream(PValue value, DataStream<?> set) {
+  void setOutputDataStream(PValue value, DataStream<?> set) {
     if (!dataStreams.containsKey(value)) {
       dataStreams.put(value, set);
     }
@@ -86,57 +86,52 @@ class FlinkStreamingTranslationContext {
    *
    * @param currentTransform
    */
-  public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
+  void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
     this.currentTransform = currentTransform;
   }
 
-  public <T> Coder<WindowedValue<T>> getWindowedInputCoder(PCollection<T> collection) {
+  Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return currentTransform.getOutputs().entrySet().stream()
+        .filter(e -> e.getValue() instanceof PCollection)
+        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+  }
+
+  AppliedPTransform<?, ?, ?> getCurrentTransform() {
+    return currentTransform;
+  }
+
+  @SuppressWarnings("unchecked")
+  <T extends PValue> T getInput(PTransform<T, ?> transform) {
+    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
+  }
+
+  <T extends PInput> Map<TupleTag<?>, PValue> getInputs(PTransform<T, ?> transform) {
+    return currentTransform.getInputs();
+  }
+
+  @SuppressWarnings("unchecked")
+  <T extends PValue> T getOutput(PTransform<?, T> transform) {
+    return (T) Iterables.getOnlyElement(currentTransform.getOutputs().values());
+  }
+
+  <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(PTransform<?, OutputT> transform) {
+    return currentTransform.getOutputs();
+  }
+
+  static <T> Coder<WindowedValue<T>> getWindowedCoder(PCollection<T> collection) {
     Coder<T> valueCoder = collection.getCoder();
 
     return WindowedValue.getFullCoder(
         valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
   }
 
-  public <T> Coder<T> getInputCoder(PCollection<T> collection) {
-    return collection.getCoder();
-  }
-
-  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
-    return currentTransform.getOutputs().entrySet().stream()
-        .filter(e -> e.getValue() instanceof PCollection)
-        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
-  }
-
   @SuppressWarnings("unchecked")
-  public <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
+  static <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
     Coder<T> valueCoder = collection.getCoder();
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
         WindowedValue.getFullCoder(
             valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
 
     return new CoderTypeInformation<>(windowedValueCoder);
-  }
-
-  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
-    return currentTransform;
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T extends PValue> T getInput(PTransform<T, ?> transform) {
-    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
-  }
-
-  public <T extends PInput> Map<TupleTag<?>, PValue> getInputs(PTransform<T, ?> transform) {
-    return currentTransform.getInputs();
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T extends PValue> T getOutput(PTransform<?, T> transform) {
-    return (T) Iterables.getOnlyElement(currentTransform.getOutputs().values());
-  }
-
-  public <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(
-      PTransform<?, OutputT> transform) {
-    return currentTransform.getOutputs();
   }
 }

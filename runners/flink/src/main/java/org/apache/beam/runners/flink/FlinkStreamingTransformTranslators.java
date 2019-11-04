@@ -19,6 +19,8 @@ package org.apache.beam.runners.flink;
 
 import static java.lang.String.format;
 import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
+import static org.apache.beam.runners.flink.FlinkStreamingTranslationContext.getTypeInfo;
+import static org.apache.beam.runners.flink.FlinkStreamingTranslationContext.getWindowedCoder;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -185,8 +187,7 @@ class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<T>> source;
       DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
-      TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
+      TypeInformation<WindowedValue<T>> outputTypeInfo = getTypeInfo(context.getOutput(transform));
 
       Coder<T> coder = context.getOutput(transform).getCoder();
 
@@ -314,8 +315,7 @@ class FlinkStreamingTransformTranslators {
         PTransform<PBegin, PCollection<T>> transform, FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
-      TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
+      TypeInformation<WindowedValue<T>> outputTypeInfo = getTypeInfo(context.getOutput(transform));
 
       BoundedSource<T> rawSource;
       try {
@@ -494,18 +494,17 @@ class FlinkStreamingTransformTranslators {
               entry.getKey(),
               new OutputTag<WindowedValue<?>>(
                   entry.getKey().getId(),
-                  (TypeInformation) context.getTypeInfo((PCollection<?>) entry.getValue())));
+                  (TypeInformation) getTypeInfo((PCollection<?>) entry.getValue())));
           tagsToCoders.put(
-              entry.getKey(),
-              (Coder) context.getWindowedInputCoder((PCollection<OutputT>) entry.getValue()));
+              entry.getKey(), (Coder) getWindowedCoder((PCollection<OutputT>) entry.getValue()));
           tagsToIds.put(entry.getKey(), idCount++);
         }
       }
 
       SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
 
-      Coder<WindowedValue<InputT>> windowedInputCoder = context.getWindowedInputCoder(input);
-      Coder<InputT> inputCoder = context.getInputCoder(input);
+      Coder<WindowedValue<InputT>> windowedInputCoder = getWindowedCoder(input);
+      Coder<InputT> inputCoder = input.getCoder();
       Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
 
       DataStream<WindowedValue<InputT>> inputDataStream = context.getInputDataStream(input);
@@ -530,7 +529,7 @@ class FlinkStreamingTransformTranslators {
 
       CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation =
           new CoderTypeInformation<>(
-              context.getWindowedInputCoder((PCollection<OutputT>) outputs.get(mainOutputTag)));
+              getWindowedCoder((PCollection<OutputT>) outputs.get(mainOutputTag)));
 
       if (sideInputs.isEmpty()) {
         DoFnOperator<InputT, OutputT> doFnOperator =
@@ -813,8 +812,7 @@ class FlinkStreamingTransformTranslators {
       WindowingStrategy<T, BoundedWindow> windowingStrategy =
           (WindowingStrategy<T, BoundedWindow>) context.getOutput(transform).getWindowingStrategy();
 
-      TypeInformation<WindowedValue<T>> typeInfo =
-          context.getTypeInfo(context.getOutput(transform));
+      TypeInformation<WindowedValue<T>> typeInfo = getTypeInfo(context.getOutput(transform));
 
       DataStream<WindowedValue<T>> inputDataStream =
           context.getInputDataStream(context.getInput(transform));
@@ -901,9 +899,9 @@ class FlinkStreamingTransformTranslators {
           SystemReduceFn.buffering(inputKvCoder.getValueCoder());
 
       Coder<WindowedValue<KV<K, Iterable<InputT>>>> outputCoder =
-          context.getWindowedInputCoder(context.getOutput(transform));
+          getWindowedCoder(context.getOutput(transform));
       TypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
+          getTypeInfo(context.getOutput(transform));
 
       TupleTag<KV<K, Iterable<InputT>>> mainTag = new TupleTag<>("main output");
 
@@ -1003,9 +1001,9 @@ class FlinkStreamingTransformTranslators {
                   combineFn, input.getPipeline().getCoderRegistry(), inputKvCoder));
 
       Coder<WindowedValue<KV<K, OutputT>>> outputCoder =
-          context.getWindowedInputCoder(context.getOutput(transform));
+          getWindowedCoder(context.getOutput(transform));
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
+          getTypeInfo(context.getOutput(transform));
 
       List<PCollectionView<?>> sideInputs = ((Combine.PerKey) transform).getSideInputs();
 
