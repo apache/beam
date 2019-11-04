@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.reference;
+package org.apache.beam.runners.portability;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -25,7 +25,7 @@ import java.io.Serializable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.core.construction.InMemoryArtifactStagerService;
-import org.apache.beam.runners.reference.testing.TestJobService;
+import org.apache.beam.runners.portability.testing.TestJobService;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
