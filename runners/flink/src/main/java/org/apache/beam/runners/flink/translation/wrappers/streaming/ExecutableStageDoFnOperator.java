@@ -827,20 +827,20 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final List<String> userStateNames;
     private final Coder windowCoder;
     private final ArrayDeque<KV<ByteBuffer, BoundedWindow>> cleanupQueue;
-    private final Supplier<ByteBuffer> keyedStateBackend;
+    private final Supplier<ByteBuffer> currentKeySupplier;
 
     StateCleaner(
-        List<String> userStateNames, Coder windowCoder, Supplier<ByteBuffer> keyedStateBackend) {
+        List<String> userStateNames, Coder windowCoder, Supplier<ByteBuffer> currentKeySupplier) {
       this.userStateNames = userStateNames;
       this.windowCoder = windowCoder;
-      this.keyedStateBackend = keyedStateBackend;
+      this.currentKeySupplier = currentKeySupplier;
       this.cleanupQueue = new ArrayDeque<>();
     }
 
     @Override
     public void clearForWindow(BoundedWindow window) {
       // Executed in the context of onTimer(..) where the correct key will be set
-      cleanupQueue.add(KV.of(keyedStateBackend.get(), window));
+      cleanupQueue.add(KV.of(currentKeySupplier.get(), window));
     }
 
     @SuppressWarnings("ByteBufferBackingArray")
