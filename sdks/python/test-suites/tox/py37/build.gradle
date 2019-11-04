@@ -58,14 +58,12 @@ toxTask "testPy37CythonPytest", "py37-cython-pytest"
 testPy37CythonPytest.mustRunAfter testPython37Pytest, testPy37GcpPytest
 
 task preCommitPy37() {
-    dependsOn "testPython37"
     dependsOn "testPy37Gcp"
     dependsOn "testPy37Cython"
     dependsOn "testPy37Interactive"
 }
 
 task preCommitPy37Pytest {
-  dependsOn "testPython37Pytest"
   dependsOn "testPy37GcpPytest"
   dependsOn "testPy37CythonPytest"
 }
