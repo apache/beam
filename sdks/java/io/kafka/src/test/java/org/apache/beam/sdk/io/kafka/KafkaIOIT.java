@@ -126,7 +126,8 @@ public class KafkaIOIT {
     PipelineResult readResult = readPipeline.run();
     PipelineResult.State readState =
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
-    cancelIfNotTerminal(readResult, readState);
+
+    cancelIfTimeouted(readResult, readState);
 
     Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
     IOITMetrics.publish(
@@ -152,9 +153,12 @@ public class KafkaIOIT {
     return ImmutableSet.of(readTime, writeTime, runTime);
   }
 
-  private void cancelIfNotTerminal(PipelineResult readResult, PipelineResult.State readState)
+  private void cancelIfTimeouted(PipelineResult readResult, PipelineResult.State readState)
       throws IOException {
-    if (!readState.isTerminal()) {
+
+    // TODO(lgajowy) this solution works for dataflow only - it returns null when
+    //  waitUntilFinish(Duration duration) exceeds provided duration.
+    if (readState == null) {
       readResult.cancel();
     }
   }
