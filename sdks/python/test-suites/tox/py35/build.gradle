@@ -34,6 +34,7 @@ test.dependsOn testPy35Gcp
 
 toxTask "testPy35Cython", "py35-cython"
 test.dependsOn testPy35Cython
+
 // Ensure that testPy35Cython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
@@ -48,13 +49,11 @@ toxTask "testPy35CythonPytest", "py35-cython-pytest"
 testPy35CythonPytest.mustRunAfter testPython35Pytest, testPy35GcpPytest
 
 task preCommitPy35() {
-    dependsOn "testPython35"
     dependsOn "testPy35Gcp"
     dependsOn "testPy35Cython"
 }
 
 task preCommitPy35Pytest {
-  dependsOn "testPython35Pytest"
   dependsOn "testPy35GcpPytest"
   dependsOn "testPy35CythonPytest"
   dependsOn "lint"
