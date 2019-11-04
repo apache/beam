@@ -34,17 +34,27 @@ import "google/protobuf/timestamp.proto";
 
 
 service InteractiveService {
+  rpc Connect(ConnectRequest) returns (ConnectResponse) {}
   // A TestStream will request for events using this RPC.
-  rpc Events(EventsRequest) returns (stream EventsResponse) {}
+  rpc Events(EventsRequest) returns (EventsResponse) {}
 }
 
-message EventsRequest { }
+message ConnectRequest {}
+message ConnectResponse {
+  string session_id = 1;
+}
+
+message EventsRequest {
+  string session_id = 1;
+  string token = 2;
+}
+
 message EventsResponse {
   // The TestStreamPayloads that will be sent to the TestStream.
-  repeated org.apache.beam.model.pipeline.v1.TestStreamPayload.Event events = 1;
+  org.apache.beam.model.pipeline.v1.TestStreamPayload.Event event = 1;
 
-  // Is true when there are no more events to read.
-  bool end_of_stream = 2;
+  // The continuation token to send back in the next request.
+  string token = 2;
 }
 
 // The first record to be read in an interactive stream. This contains metadata
@@ -54,16 +64,18 @@ message InteractiveStreamHeader {
   string tag = 1;
 }
 
-// A record is a recorded element that sound source produced. Its function is
-// to give enough information to the InteractiveService to create a faithful
+// A record is a recorded element that the source produced. Its function is to
+// give enough information to the InteractiveService to create a faithful
 // recreation of the original source of data.
 message InteractiveStreamRecord {
-  // The recorded element with its event timestamp (when it was produced).
-  org.apache.beam.model.pipeline.v1.TestStreamPayload.TimestampedElement element = 1;
+  oneof recorded_event {
+    // The recorded element with its event timestamp (when it was produced).
+    org.apache.beam.model.pipeline.v1.TestStreamPayload.TimestampedElement element = 1;
 
-  // The timestamp of when this element was ingested into the pipeline.
-  google.protobuf.Timestamp processing_time = 2;
+    // Indicating the output watermark of the source changed.
+    google.protobuf.Timestamp watermark = 2;
+  }
 
-  // The output watermark of the source producing this element.
-  google.protobuf.Timestamp watermark = 3;
+  // The timestamp of either the new element or watermark change.
+  google.protobuf.Timestamp processing_time = 3;
 }
