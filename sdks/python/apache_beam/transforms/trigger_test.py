@@ -119,7 +119,7 @@ class TriggerTest(unittest.TestCase):
     for bundle in bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
-        self.assertEqual(window.end, wvalue.timestamp)
+        self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
     while state.timers:
@@ -128,13 +128,13 @@ class TriggerTest(unittest.TestCase):
         for wvalue in driver.process_timer(
             timer_window, name, time_domain, timestamp, state):
           window, = wvalue.windows
-          self.assertEqual(window.end, wvalue.timestamp)
+          self.assertEqual(window.max_timestamp(), wvalue.timestamp)
           actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
-        self.assertEqual(window.end, wvalue.timestamp)
+        self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
       while state.timers:
@@ -143,7 +143,7 @@ class TriggerTest(unittest.TestCase):
           for wvalue in driver.process_timer(
               timer_window, name, time_domain, timestamp, state):
             window, = wvalue.windows
-            self.assertEqual(window.end, wvalue.timestamp)
+            self.assertEqual(window.max_timestamp(), wvalue.timestamp)
             actual_panes[window].append(set(wvalue.value))
 
     self.assertEqual(expected_panes, actual_panes)
@@ -604,6 +604,20 @@ class TranscriptTest(unittest.TestCase):
         window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
         transcript, spec)
 
+  def _windowed_value_info(self, windowed_value):
+    # Currently some runners operate at the millisecond level, and some at the
+    # microsecond level.  Trigger transcript timestamps are expressed as
+    # integral units of the finest granularity, whatever that may be.
+    # In these tests we interpret them as integral seconds and then truncate
+    # the results to integral seconds to allow for portability across
+    # different sub-second resolutions.
+    window, = windowed_value.windows
+    return {
+        'window': [int(window.start), int(window.max_timestamp())],
+        'values': sorted(windowed_value.value),
+        'timestamp': int(windowed_value.timestamp),
+    }
+
 
 class TriggerDriverTranscriptTest(TranscriptTest):
 
@@ -624,10 +638,7 @@ class TriggerDriverTranscriptTest(TranscriptTest):
         for timer_window, (name, time_domain, t_timestamp) in to_fire:
           for wvalue in driver.process_timer(
               timer_window, name, time_domain, t_timestamp, state):
-            window, = wvalue.windows
-            output.append({'window': [window.start, window.end - 1],
-                           'values': sorted(wvalue.value),
-                           'timestamp': wvalue.timestamp})
+            output.append(self._windowed_value_info(wvalue))
         to_fire = state.get_and_clear_timers(watermark)
 
     for action, params in transcript:
@@ -642,12 +653,9 @@ class TriggerDriverTranscriptTest(TranscriptTest):
         bundle = [
             WindowedValue(t, t, window_fn.assign(WindowFn.AssignContext(t, t)))
             for t in params]
-        output = [{'window': [wvalue.windows[0].start,
-                              wvalue.windows[0].end - 1],
-                   'values': sorted(wvalue.value),
-                   'timestamp': wvalue.timestamp}
-                  for wvalue
-                  in driver.process_elements(state, bundle, watermark)]
+        output = [
+            self._windowed_value_info(wv)
+            for wv in driver.process_elements(state, bundle, watermark)]
         fire_timers()
 
       elif action == 'watermark':
@@ -778,11 +786,8 @@ class TestStreamTranscriptTest(TranscriptTest):
                      window=beam.DoFn.WindowParam,
                      t=beam.DoFn.TimestampParam: (
                          k,
-                         {
-                             'values': sorted(vs),
-                             'window': [int(window.start), int(window.end - 1)],
-                             'timestamp': t
-                         }))
+                         self._windowed_value_info(
+                             WindowedValue(vs, windows=[window], timestamp=t))))
           # Place outputs back into the global window to allow flattening
           # and share a single state in Check.
           | 'Global' >> beam.WindowInto(beam.transforms.window.GlobalWindows()))
