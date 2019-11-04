@@ -50,6 +50,11 @@ try:
 except ImportError:
   pass
 
+try:
+  from apache_beam.io.aws.s3filesystem import S3FileSystem
+except ImportError:
+  pass
+
 
 # pylint: enable=wrong-import-position, unused-import
 
