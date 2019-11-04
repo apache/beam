@@ -437,7 +437,7 @@ public class RabbitMqIO {
     private RabbitMqMessage current;
     private byte[] currentRecordId;
     private ConnectionHandler connectionHandler;
-    private SingleQueueingConsumer consumer;
+    private LegacyQueueingConsumer consumer;
     private Instant currentTimestamp;
     private final RabbitMQCheckpointMark checkpointMark;
 
@@ -515,7 +515,7 @@ public class RabbitMqIO {
           channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
         }
         checkpointMark.channel = channel;
-        consumer = new SingleQueueingConsumer(channel);
+        consumer = new LegacyQueueingConsumer(channel);
         channel.txSelect();
         channel.setDefaultConsumer(consumer);
         // consume message without autoAck so that ack can be done within finalizeCheckpoint
@@ -532,8 +532,7 @@ public class RabbitMqIO {
     public boolean advance() throws IOException {
       try {
         Channel channel = connectionHandler.getChannel();
-        // we consume message without autoAck (we want to do the ack ourselves)
-        Delivery delivery = consumer.poll(1, TimeUnit.SECONDS);
+        Delivery delivery = consumer.nextDelivery(1, TimeUnit.SECONDS);
 
         if (delivery == null) {
           return false;
