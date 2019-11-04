@@ -82,7 +82,7 @@ dependencies {
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
-  validatesPortableRunner project(path: ":runners:reference:java", configuration: "testRuntime")
+  validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
   runtime project(":sdks:java:extensions:google-cloud-platform-core")
   runtime library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.

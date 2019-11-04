@@ -15,6 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.portability;
 
-/** Support for executing a pipeline locally over the Beam fn API. */
-package org.apache.beam.runners.reference;
+import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+
+/** Registrar for the portable runner. */
+@AutoService(PipelineRunnerRegistrar.class)
+public class PortableRunnerRegistrar implements PipelineRunnerRegistrar {
+
+  @Override
+  public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
+    return ImmutableList.of(PortableRunner.class);
+  }
+}

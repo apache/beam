@@ -17,4 +17,4 @@
  */
 
 /** Testing utilities for the reference runner. */
-package org.apache.beam.runners.reference.testing;
+package org.apache.beam.runners.portability.testing;
