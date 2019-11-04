@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
@@ -47,6 +48,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,7 +137,11 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
     TypedRead<Row> builder = getBigQueryReadBuilder(newSchema);
 
     if (!(filters instanceof DefaultTableFilter)) {
-      throw new RuntimeException("Unimplemented at the moment.");
+      BigQueryFilter bigQueryFilter = (BigQueryFilter) filters;
+      String rowRestriction = generateRowRestrictions(getSchema(), bigQueryFilter.getSupported());
+      if (!rowRestriction.isEmpty()) {
+        builder.withRowRestriction(rowRestriction);
+      }
     }
 
     if (!fieldNames.isEmpty()) {
@@ -155,6 +165,32 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
     return method.equals(Method.DIRECT_READ)
         ? ProjectSupport.WITHOUT_FIELD_REORDERING
         : ProjectSupport.NONE;
+  }
+
+  @Override
+  public BeamSqlTableFilter constructFilter(List<RexNode> filter) {
+    if (method.equals(Method.DIRECT_READ)) {
+      return new BigQueryFilter(filter);
+    }
+
+    return super.constructFilter(filter);
+  }
+
+  private String generateRowRestrictions(Schema schema, List<RexNode> supported) {
+    final IntFunction<SqlNode> field = i -> new SqlIdentifier(schema.getField(i).getName(), SqlParserPos.ZERO);
+    // We do need to get RexBuilder from somewhere.
+    // Maybe IOSourceRel#getCluster().getRexBuilder().
+    //rexBuilder.makeCall(SqlStdOperatorTable.AND, supported);
+    // Alternative approach would be to join supported sql string with " AND ". Need to handle brackets ().
+
+    // TODO: BigQuerySqlDialectWithTypeTranslation can be replaced with BigQuerySqlDialect after updating vendor Calcite version.
+    SqlImplementor.SimpleContext context = new SqlImplementor.SimpleContext(BigQuerySqlDialectWithTypeTranslation.DEFAULT, field);
+    // Supported nodes should be flattened and should not need a RexProgram.
+    String result = supported.stream().map(n ->  "(" + context.toSql(null, n).toSqlString(BigQuerySqlDialectWithTypeTranslation.DEFAULT).getSql() + ")").collect(
+        Collectors.joining(" AND "));
+
+    LOGGER.info("Pushing down the following filter: " + result);
+    return result;
   }
 
   private TypedRead<Row> getBigQueryReadBuilder(Schema schema) {
