@@ -26,6 +26,7 @@ import tempfile
 import unittest
 
 import mock
+import pytest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
@@ -160,6 +161,8 @@ class StagerTest(unittest.TestCase):
                      self.stager.stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
+  # xdist adds unpicklable modules to the main session.
+  @pytest.mark.no_xdist
   def test_with_main_session(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()
