@@ -82,10 +82,9 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
 
   private Iterable<WindowedValue<AccumT>> createAccumulator(WindowedValue<KV<K, InputT>> inputWv) {
     AccumT accumulator = combineFn.createAccumulator();
-    combineFn.addInput(accumulator, inputWv.getValue().getValue());
+    AccumT accumT = combineFn.addInput(accumulator, inputWv.getValue().getValue());
     return Lists.newArrayList(
-        WindowedValue.of(
-            accumulator, inputWv.getTimestamp(), inputWv.getWindows(), inputWv.getPane()));
+        WindowedValue.of(accumT, inputWv.getTimestamp(), inputWv.getWindows(), inputWv.getPane()));
   }
 
   @Override
