@@ -542,6 +542,7 @@ message TestStreamPayload {
     int64 timestamp = 2;
   }
 }
+
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
 
