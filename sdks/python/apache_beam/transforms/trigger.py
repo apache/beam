@@ -1180,7 +1180,7 @@ class GeneralTriggerDriver(TriggerDriver):
     timestamp = state.get_state(window, self.WATERMARK_HOLD)
     if timestamp is None:
       # If no watermark hold was set, output at end of window.
-      timestamp = window.end
+      timestamp = window.max_timestamp()
     else:
       state.clear_state(window, self.WATERMARK_HOLD)
 
