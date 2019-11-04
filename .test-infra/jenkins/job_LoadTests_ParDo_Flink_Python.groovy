@@ -33,7 +33,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-1-' + now,
                         project              : 'apache-beam-testing',
-                        publish_to_big_query : false,
+                        publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_1',
                         input_options        : '\'{' +
@@ -56,7 +56,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-2-' + now,
                         project              : 'apache-beam-testing',
-                        publish_to_big_query : false,
+                        publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_2',
                         input_options        : '\'{' +
@@ -79,7 +79,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-3-' + now,
                         project              : 'apache-beam-testing',
-                        publish_to_big_query : false,
+                        publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_3',
                         input_options        : '\'{' +
@@ -102,7 +102,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-4-' + now,
                         project              : 'apache-beam-testing',
-                        publish_to_big_query : false,
+                        publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_4',
                         input_options        : '\'{' +
