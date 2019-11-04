@@ -60,18 +60,9 @@ job(jobName) {
       rootBuildScriptDir(common.checkoutDir)
       common.setGradleSwitches(delegate)
       switches("--info")
-      switches("-DintegrationTestPipelineOptions=\'${parsePipelineOptions(pipelineOptions)}\'")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinOptionsWithNestedJsonValues(pipelineOptions)}\'")
       switches("-DintegrationTestRunner=dataflow")
       tasks(":sdks:java:io:kafka:integrationTest --tests org.apache.beam.sdk.io.kafka.KafkaIOIT")
     }
   }
 }
-
-static String parsePipelineOptions(Map pipelineOptions) {
-  List<String> pipelineArgList = []
-  pipelineOptions.each({
-    key, value -> pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
-  })
-  return "[" + pipelineArgList.join(',') + "]"
-}
-

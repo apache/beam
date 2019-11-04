@@ -327,6 +327,22 @@ class CommonJobProperties {
     return "[" + pipelineArgList.join(',') + "]"
   }
 
+  /**
+   * Transforms pipeline options to a string of format like below:
+   * ["--pipelineOption=123", "--pipelineOption2=abc", ...]
+   *
+   * Use this variant when some options values contain json as string.
+   *
+   * @param pipelineOptions A map of pipeline options.
+   */
+  static String joinOptionsWithNestedJsonValues(Map pipelineOptions) {
+    List<String> pipelineArgList = []
+    pipelineOptions.each({
+      key, value -> pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
+    })
+    return "[" + pipelineArgList.join(',') + "]"
+  }
+
 
   /**
    * Returns absolute path to beam project's files.
