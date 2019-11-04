@@ -24,13 +24,11 @@ from __future__ import absolute_import
 from abc import ABCMeta
 from abc import abstractmethod
 from builtins import object
-from collections import namedtuple
 from functools import total_ordering
 
 from future.utils import with_metaclass
 
 import apache_beam as beam
-
 from apache_beam import coders
 from apache_beam import core
 from apache_beam import pvalue
@@ -131,7 +129,7 @@ class TestStream(PTransform):
   def __init__(self, coder=coders.FastPrimitivesCoder()):
     assert coder is not None
     self.coder = coder
-    self.watermarks = { None: timestamp.MIN_TIMESTAMP }
+    self.watermarks = {None: timestamp.MIN_TIMESTAMP}
     self._events = []
     self.output_tags = set()
 
@@ -139,7 +137,7 @@ class TestStream(PTransform):
     return core.Windowing(window.GlobalWindows())
 
   def expand(self, pbegin):
-    assert(isinstance(pbegin, pvalue.PBegin))
+    assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
 
     # This enables multiplexing to multiple output PCollections.
@@ -208,7 +206,7 @@ class TestStream(PTransform):
             TimestampedValue(element.value, element.timestamp))
       else:
         # Add elements with timestamp equal to current watermark.
-        if event_timestamp == None:
+        if event_timestamp is None:
           event_timestamp = self.watermarks[tag]
         timestamped_values.append(TimestampedValue(element, event_timestamp))
     self._add(ElementEvent(timestamped_values, tag))
@@ -276,7 +274,7 @@ class _TestStream(PTransform):
   WATERMARK_CONTROL_TAG = '_TestStream_Watermark'
 
   def __init__(self, output_tags, coder=coders.FastPrimitivesCoder(),
-               events=[]):
+               events=None):
     assert coder is not None
     self.coder = coder
     self._events = self._add_watermark_advancements(output_tags, events)

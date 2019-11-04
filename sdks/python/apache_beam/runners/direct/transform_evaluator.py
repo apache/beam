@@ -49,8 +49,8 @@ from apache_beam.runners.direct.util import TransformResult
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
-from apache_beam.testing.test_stream import _TestStream
 from apache_beam.testing.test_stream import WatermarkEvent
+from apache_beam.testing.test_stream import _TestStream
 from apache_beam.testing.test_stream import _WatermarkController
 from apache_beam.transforms import core
 from apache_beam.transforms.trigger import InMemoryUnmergedState
@@ -66,7 +66,6 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.utils import counters
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from apache_beam.utils.timestamp import TIME_GRANULARITY
 from apache_beam.utils.timestamp import Timestamp
 
 
@@ -394,7 +393,6 @@ class _TestStreamEvaluator(_TransformEvaluator):
         side_inputs)
 
   def start_bundle(self):
-    label = self._applied_ptransform.full_label
     self.current_index = 0
     self.bundles = []
     self.watermark = MIN_TIMESTAMP
