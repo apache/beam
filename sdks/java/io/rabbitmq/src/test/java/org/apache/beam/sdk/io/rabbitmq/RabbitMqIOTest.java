@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.qpid.server.SystemLauncher;
 import org.apache.qpid.server.model.SystemConfig;
@@ -203,25 +204,45 @@ public class RabbitMqIOTest implements Serializable {
     connectionFactory.setUri(uri);
     Connection connection = null;
     Channel channel = null;
+    Thread publisher = null;
+
+    // for debugging log messages
+    Map<String, String> testNameComponents = new HashMap<>();
+    testNameComponents.put("exchange", exchange);
+    testNameComponents.put("exchangeType", exchangeType);
+    testNameComponents.put("queue", Optional.ofNullable(read.queue()).orElse("<no queue>"));
+    final String testName = Joiner.on(", ").withKeyValueSeparator("=").join(testNameComponents);
 
     try {
       connection = connectionFactory.newConnection();
       channel = connection.createChannel();
       channel.exchangeDeclare(exchange, exchangeType);
       final Channel finalChannel = channel;
-      Thread publisher =
+      final String finalExchangeType = exchangeType;
+
+      publisher =
           new Thread(
               () -> {
                 try {
                   Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                  // allow the test construct to cancel the thread
+                  LOG.info("Test {} interrupted before beginning publishing", testName);
+                  return;
                 } catch (Exception e) {
                   LOG.error(e.getMessage(), e);
                 }
                 for (int i = 0; i < testPlan.getNumRecordsToPublish(); i++) {
                   try {
+                    String routingKey = testPlan.publishRoutingKeyGen().get();
+                    // allow the test construct to cancel the thread
+                    if (Thread.interrupted()) {
+                      LOG.info("Test {} interrupted while publishing", testName);
+                      return;
+                    }
                     finalChannel.basicPublish(
                         exchange,
-                        testPlan.publishRoutingKeyGen().get(),
+                        routingKey,
                         testPlan.getPublishProperties(),
                         RabbitMqTestUtils.generateRecord(i));
                   } catch (Exception e) {
@@ -233,6 +254,13 @@ public class RabbitMqIOTest implements Serializable {
       p.run();
       publisher.join();
     } finally {
+      if (publisher != null) {
+        try {
+          publisher.interrupt();
+        } catch (Exception e) {
+          /* ignored */
+        }
+      }
       if (channel != null) {
         // channel may have already been closed automatically due to protocol failure
         try {
