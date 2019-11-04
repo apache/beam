@@ -17,8 +17,6 @@
 
 from __future__ import absolute_import
 
-import collections
-
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
@@ -73,7 +71,7 @@ class StreamingCache(object):
 
       # The most recently read timestamp per tag.
       self._stream_times = {tag: timestamp.MIN_TIMESTAMP
-                           for tag in self._headers}
+                            for tag in self._headers}
 
     def _read_next(self):
       """Reads the next iteration of elements from each stream.
@@ -118,7 +116,7 @@ class StreamingCache(object):
         # Retrieves the minimum timestamp from the read events.
         min_timestamp = (
             lambda: Timestamp.from_proto(events[-1][1].processing_time)
-                    if events else timestamp.MAX_TIMESTAMP)
+            if events else timestamp.MAX_TIMESTAMP)
 
         # Get the next largest timestamp in the stream. This is used as the
         # timestamp for readers to "catch-up" to. This will only read from
@@ -155,8 +153,7 @@ class StreamingCache(object):
       advancy_by = new_timestamp.micros - self._monotonic_clock.micros
       e = TestStreamPayload.Event(
           processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-              advance_duration=advancy_by
-      ))
+              advance_duration=advancy_by))
       self._monotonic_clock = new_timestamp
       return e
 

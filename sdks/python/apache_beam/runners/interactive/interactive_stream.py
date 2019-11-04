@@ -17,7 +17,6 @@
 
 from __future__ import absolute_import
 
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 import grpc
@@ -54,12 +53,22 @@ class InteractiveStreamController(InteractiveServiceServicer):
     self._server.wait_for_termination()
 
   def Connect(self, request, context):
+    """Starts a session.
+
+    Callers should use the returned session id in all future requests.
+    """
     session_id = str(self._session_id)
     self._session_id += 1
     self._sessions[session_id] = self._streaming_cache.reader().read()
     return beam_interactive_api_pb2.ConnectResponse(session_id=session_id)
 
   def Events(self, request, context):
+    """Returns the next event from the streaming cache.
+
+    Token behavior: the first request should have a token of "None". Each
+    subsequent request should use the previously received token from the
+    response. The stream ends when the returned token is the empty string.
+    """
     assert request.session_id in self._sessions, (\
         'Session "{}" was not found. Did you forget to call Connect ' +
         'first?').format(request.session_id)

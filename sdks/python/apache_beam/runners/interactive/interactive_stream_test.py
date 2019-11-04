@@ -28,7 +28,7 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStre
 from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
-from apache_beam.testing.interactive_stream import InteractiveStreamController
+from apache_beam.runners.interactive.interactive_stream import InteractiveStreamController
 from apache_beam.utils.timestamp import Timestamp
 
 
@@ -68,7 +68,7 @@ class InteractiveStreamTest(unittest.TestCase):
       r = self.stub.Events(interactive_api.EventsRequest(session_id=session_id,
                                                          token=token))
       token = r.token
-      if r.token:
+      if token:
         events.append(r.event)
       else:
         break
