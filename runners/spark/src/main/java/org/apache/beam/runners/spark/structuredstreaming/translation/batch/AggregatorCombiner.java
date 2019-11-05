@@ -111,16 +111,19 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     // group accumulators by their merged window
     Map<W, List<WindowedValue<AccumT>>> mergedWindowToAccumulators = new HashMap<>();
     for (WindowedValue<AccumT> accumulator : accumulators) {
-      // each accumulator has only one window
-      BoundedWindow accumulatorWindow = accumulator.getWindows().iterator().next();
-      W mergedWindowForAccumulator = windowToMergeResult.get(accumulatorWindow);
-      mergedWindowForAccumulator =
-          (mergedWindowForAccumulator == null) ? (W) accumulatorWindow : mergedWindowForAccumulator;
+      for (BoundedWindow accumulatorWindow : accumulator.getWindows()) {
+        W mergedWindowForAccumulator = windowToMergeResult.get(accumulatorWindow);
+        mergedWindowForAccumulator =
+            (mergedWindowForAccumulator == null)
+                ? (W) accumulatorWindow
+                : mergedWindowForAccumulator;
 
-      if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null) {
-        mergedWindowToAccumulators.put(mergedWindowForAccumulator, Lists.newArrayList(accumulator));
-      } else {
-        mergedWindowToAccumulators.get(mergedWindowForAccumulator).add(accumulator);
+        if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null) {
+          mergedWindowToAccumulators.put(
+              mergedWindowForAccumulator, Lists.newArrayList(accumulator));
+        } else {
+          mergedWindowToAccumulators.get(mergedWindowForAccumulator).add(accumulator);
+        }
       }
     }
     // merge the accumulators for each mergedWindow
@@ -166,9 +169,11 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
   private Set<W> collectAccumulatorsWindows(Iterable<WindowedValue<AccumT>> accumulators) {
     Set<W> windows = new HashSet<>();
     for (WindowedValue<?> accumulator : accumulators) {
-      // an accumulator has only one window associated to it.
-      W accumulatorWindow = (W) accumulator.getWindows().iterator().next();
-      windows.add(accumulatorWindow);
+      for (BoundedWindow untypedWindow : accumulator.getWindows()) {
+        @SuppressWarnings("unchecked")
+        W window = (W) untypedWindow;
+        windows.add(window);
+      }
     }
     return windows;
   }
