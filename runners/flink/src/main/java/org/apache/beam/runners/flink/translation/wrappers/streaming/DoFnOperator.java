@@ -388,11 +388,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     outputManager =
         outputManagerFactory.create(
-            output,
-            getLockToAcquireForStateAccessDuringBundles(),
-            getOperatorStateBackend(),
-            getKeyedStateBackend(),
-            keySelector);
+            output, getLockToAcquireForStateAccessDuringBundles(), getOperatorStateBackend());
   }
 
   /**
@@ -828,9 +824,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     BufferedOutputManager<OutputT> create(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         Lock bufferLock,
-        @Nullable OperatorStateBackend operatorStateBackend,
-        @Nullable KeyedStateBackend keyedStateBackend,
-        @Nullable KeySelector keySelector)
+        OperatorStateBackend operatorStateBackend)
         throws Exception;
   }
 
@@ -1018,35 +1012,19 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     public BufferedOutputManager<OutputT> create(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         Lock bufferLock,
-        OperatorStateBackend operatorStateBackend,
-        @Nullable KeyedStateBackend keyedStateBackend,
-        @Nullable KeySelector keySelector)
+        OperatorStateBackend operatorStateBackend)
         throws Exception {
       Preconditions.checkNotNull(output);
       Preconditions.checkNotNull(bufferLock);
       Preconditions.checkNotNull(operatorStateBackend);
-      Preconditions.checkState(
-          (keyedStateBackend == null) == (keySelector == null),
-          "Either both KeyedStatebackend and Keyselector are provided or none.");
 
       TaggedKvCoder taggedKvCoder = buildTaggedKvCoder();
       ListStateDescriptor<KV<Integer, WindowedValue<?>>> taggedOutputPushbackStateDescriptor =
           new ListStateDescriptor<>("bundle-buffer-tag", new CoderTypeSerializer<>(taggedKvCoder));
-
-      final PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler;
-      if (keyedStateBackend != null) {
-        // build a key selector for the tagged output
-        KeySelector<KV<Integer, WindowedValue<?>>, ?> taggedValueKeySelector =
-            (KeySelector<KV<Integer, WindowedValue<?>>, Object>)
-                value -> keySelector.getKey(value.getValue());
-        pushedBackElementsHandler =
-            KeyedPushedBackElementsHandler.create(
-                taggedValueKeySelector, keyedStateBackend, taggedOutputPushbackStateDescriptor);
-      } else {
-        ListState<KV<Integer, WindowedValue<?>>> listState =
-            operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
-        pushedBackElementsHandler = NonKeyedPushedBackElementsHandler.create(listState);
-      }
+      ListState<KV<Integer, WindowedValue<?>>> listStateBuffer =
+          operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
+      PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
+          NonKeyedPushedBackElementsHandler.create(listStateBuffer);
 
       return new BufferedOutputManager<>(
           output, mainTag, tagsToOutputTags, tagsToIds, bufferLock, pushedBackElementsHandler);
