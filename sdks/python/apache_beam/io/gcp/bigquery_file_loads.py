@@ -387,6 +387,14 @@ class TriggerLoadJobs(beam.DoFn):
     else:
       schema = self.schema
 
+    import unicode
+    import json
+
+    if isinstance(schema, (str, unicode)):
+      schema = bigquery_tools.parse_table_schema_from_json(schema)
+    elif isinstance(schema, dict):
+      schema = bigquery_tools.parse_table_schema_from_json(json.dumps(schema))
+
     if callable(self.additional_bq_parameters):
       additional_parameters = self.additional_bq_parameters(destination)
     elif isinstance(self.additional_bq_parameters, vp.ValueProvider):
@@ -521,14 +529,12 @@ class WaitForBQJobs(beam.DoFn):
 
       logging.info("Job status: %s", job.status)
       if job.status.state == 'DONE' and job.status.errorResult:
-        logging.warning("Job %s seems to have failed. Error Result: %s",
-                        ref.jobId, job.status.errorResult)
+        logging.warn("Job %s seems to have failed. Error Result: %s",
+                     ref.jobId, job.status.errorResult)
         self._latest_error = job.status
         return WaitForBQJobs.FAILED
       elif job.status.state == 'DONE':
         continue
-      else:
-        return WaitForBQJobs.WAITING
 
     return WaitForBQJobs.ALL_DONE
 
@@ -602,7 +608,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     # If we have multiple destinations, then we will have multiple load jobs,
     # thus we will need temporary tables for atomicity.
-    self.dynamic_destinations = bool(callable(destination))
+    self.dynamic_destinations = True if callable(destination) else False
 
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()
