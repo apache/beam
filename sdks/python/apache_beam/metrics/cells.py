@@ -19,9 +19,6 @@
 This file contains metric cell classes. A metric cell is used to accumulate
 in-memory changes to a metric. It represents a specific metric in a single
 context.
-
-Cells depend on a 'dirty-bit' in the CellCommitState class that tracks whether
-a cell's updates have been committed.
 """
 
 from __future__ import absolute_import
@@ -42,79 +39,6 @@ from apache_beam.portability.api import metrics_pb2
 __all__ = ['DistributionResult', 'GaugeResult']
 
 
-class CellCommitState(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Atomically tracks a cell's dirty/clean commit status.
-
-  Reporting a metric update works in a two-step process: First, updates to the
-  metric are received, and the metric is marked as 'dirty'. Later, updates are
-  committed, and then the cell may be marked as 'clean'.
-
-  The tracking of a cell's state is done conservatively: A metric may be
-  reported DIRTY even if updates have not occurred.
-
-  This class is thread-safe.
-  """
-
-  # Indicates that there have been changes to the cell since the last commit.
-  DIRTY = 0
-  # Indicates that there have NOT been changes to the cell since last commit.
-  CLEAN = 1
-  # Indicates that a commit of the current value is in progress.
-  COMMITTING = 2
-
-  def __init__(self):
-    """Initializes ``CellCommitState``.
-
-    A cell is initialized as dirty.
-    """
-    self._lock = threading.Lock()
-    self._state = CellCommitState.DIRTY
-
-  @property
-  def state(self):
-    with self._lock:
-      return self._state
-
-  def after_modification(self):
-    """Indicate that changes have been made to the metric being tracked.
-
-    Should be called after modification of the metric value.
-    """
-    with self._lock:
-      self._state = CellCommitState.DIRTY
-
-  def after_commit(self):
-    """Mark changes made up to the last call to ``before_commit`` as committed.
-
-    The next call to ``before_commit`` will return ``False`` unless there have
-    been changes made.
-    """
-    with self._lock:
-      if self._state == CellCommitState.COMMITTING:
-        self._state = CellCommitState.CLEAN
-
-  def before_commit(self):
-    """Check the dirty state, and mark the metric as committing.
-
-    After this call, the state is either CLEAN, or COMMITTING. If the state
-    was already CLEAN, then we simply return. If it was either DIRTY or
-    COMMITTING, then we set the cell as COMMITTING (e.g. in the middle of
-    a commit).
-
-    After a commit is successful, ``after_commit`` should be called.
-
-    Returns:
-      A boolean, which is false if the cell is CLEAN, and true otherwise.
-    """
-    with self._lock:
-      if self._state == CellCommitState.CLEAN:
-        return False
-      self._state = CellCommitState.COMMITTING
-      return True
-
-
 class MetricCell(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -126,7 +50,6 @@ class MetricCell(object):
   directly within a runner.
   """
   def __init__(self):
-    self.commit = CellCommitState()
     self._lock = threading.Lock()
 
   def get_cumulative(self):
@@ -149,7 +72,6 @@ class CounterCell(Counter, MetricCell):
     self.value = CounterAggregator.identity_element()
 
   def reset(self):
-    self.commit = CellCommitState()
     self.value = CounterAggregator.identity_element()
 
   def combine(self, other):
@@ -160,7 +82,6 @@ class CounterCell(Counter, MetricCell):
   def inc(self, n=1):
     with self._lock:
       self.value += n
-      self.commit.after_modification()
 
   def get_cumulative(self):
     with self._lock:
@@ -195,7 +116,6 @@ class DistributionCell(Distribution, MetricCell):
     self.data = DistributionAggregator.identity_element()
 
   def reset(self):
-    self.commit = CellCommitState()
     self.data = DistributionAggregator.identity_element()
 
   def combine(self, other):
@@ -205,7 +125,6 @@ class DistributionCell(Distribution, MetricCell):
 
   def update(self, value):
     with self._lock:
-      self.commit.after_modification()
       self._update(value)
 
   def _update(self, value):
@@ -240,7 +159,6 @@ class GaugeCell(Gauge, MetricCell):
     self.data = GaugeAggregator.identity_element()
 
   def reset(self):
-    self.commit = CellCommitState()
     self.data = GaugeAggregator.identity_element()
 
   def combine(self, other):
@@ -251,7 +169,6 @@ class GaugeCell(Gauge, MetricCell):
   def set(self, value):
     value = int(value)
     with self._lock:
-      self.commit.after_modification()
       # Set the value directly without checking timestamp, because
       # this value is naturally the latest value.
       self.data.value = value
