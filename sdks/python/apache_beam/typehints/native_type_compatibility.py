@@ -50,6 +50,17 @@ def _get_compatible_args(typ):
   return None
 
 
+def _get_args(typ):
+  """Returns the index-th argument to the given type."""
+  try:
+    return typ.__args__
+  except AttributeError:
+    compatible_args = _get_compatible_args(typ)
+    if compatible_args is None:
+      raise
+    return compatible_args
+
+
 def _get_arg(typ, index):
   """Returns the index-th argument to the given type."""
   try:
@@ -105,6 +116,15 @@ def _match_same_type(match_against):
   return lambda user_type: type(user_type) == type(match_against)
 
 
+def _match_is_exactly_mapping(user_type):
+  # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
+  if sys.version_info < (3, 7):
+    expected_origin = typing.Mapping
+  else:
+    expected_origin = collections.abc.Mapping
+  return getattr(user_type, '__origin__', None) is expected_origin
+
+
 def _match_is_exactly_iterable(user_type):
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
   if sys.version_info < (3, 7):
@@ -117,6 +137,22 @@ def _match_is_exactly_iterable(user_type):
 def _match_is_named_tuple(user_type):
   return (_safe_issubclass(user_type, typing.Tuple) and
           hasattr(user_type, '_field_types'))
+
+
+def _match_is_optional(user_type):
+  return _match_is_union(user_type) and sum(
+      tp is type(None) for tp in _get_args(user_type)) == 1
+
+
+def extract_optional_type(user_type):
+  """Extracts the non-None type from Optional type user_type.
+
+  If user_type is not Optional, returns None
+  """
+  if not _match_is_optional(user_type):
+    return None
+  else:
+    return next(tp for tp in _get_args(user_type) if tp is not type(None))
 
 
 def _match_is_union(user_type):
