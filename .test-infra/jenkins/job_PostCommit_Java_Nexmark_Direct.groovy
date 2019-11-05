@@ -20,100 +20,26 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
-import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 
+def final JOB_SPECIFIC_OPTIONS = [
+    'suite' : 'SMOKE',
+    'enforceEncodability' : true,
+    'enforceImmutability' : true
+]
+
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Direct',
         'Direct Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Direct runner.')
-
-  // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
-
-  // Gradle goals for this job.
-  steps {
-    shell('echo *** RUN NEXMARK IN BATCH MODE USING DIRECT RUNNER ***')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:direct-java"' +
-              ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=DirectRunner',
-              '--streaming=false',
-              '--suite=SMOKE',
-              '--manageResources=false',
-              '--monitorJobs=true',
-              '--enforceEncodability=true',
-              '--enforceImmutability=true"'].join(' '))
-    }
-    shell('echo *** RUN NEXMARK IN STREAMING MODE USING DIRECT RUNNER ***')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:direct-java"' +
-              ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=DirectRunner',
-              '--streaming=true',
-              '--suite=SMOKE',
-              '--manageResources=false',
-              '--monitorJobs=true',
-              '--enforceEncodability=true',
-              '--enforceImmutability=true"'].join(' '))
-    }
-    shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING DIRECT RUNNER ***')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:direct-java"' +
-              ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=DirectRunner',
-              '--queryLanguage=sql',
-              '--streaming=false',
-              '--suite=SMOKE',
-              '--manageResources=false',
-              '--monitorJobs=true',
-              '--enforceEncodability=true',
-              '--enforceImmutability=true"'].join(' '))
-    }
-    shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING DIRECT RUNNER ***')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:direct-java"' +
-              ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=DirectRunner',
-              '--queryLanguage=sql',
-              '--streaming=true',
-              '--suite=SMOKE',
-              '--manageResources=false',
-              '--monitorJobs=true',
-              '--enforceEncodability=true',
-              '--enforceImmutability=true"'].join(' '))
-    }
-  }
+  Nexmark.standardJob(delegate, Runner.DIRECT, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.POST_COMMIT)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Direct',
         'Run Direct Runner Nexmark Tests', 'Direct Runner Nexmark Tests', this) {
-
   description('Runs the Nexmark suite on the Direct runner against a Pull Request, on demand.')
-
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-
-  def final JOB_SPECIFIC_OPTIONS = [
-          'suite' : 'SMOKE',
-          'enforceEncodability' : true,
-          'enforceImmutability' : true
-  ]
   Nexmark.standardJob(delegate, Runner.DIRECT, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }
