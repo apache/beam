@@ -1899,11 +1899,12 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      def addPortableWordCountTask = { boolean isStreaming ->
-        project.task('portableWordCount' + (isStreaming ? 'Streaming' : 'Batch')) {
+      def addPortableWordCountTask = { boolean isStreaming, String runner ->
+        project.task('portableWordCount' + (runner.equals("PortableRunner") ? "" : runner) + (isStreaming ? 'Streaming' : 'Batch')) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ':runners:flink:1.9:job-server-container:docker',
+            ':runners:flink:1.9:job-server:shadowJar',
             ':sdks:python:container:py2:docker',
             ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',
@@ -1914,7 +1915,7 @@ class BeamModulePlugin implements Plugin<Project> {
             def options = [
               "--input=/etc/profile",
               "--output=/tmp/py-wordcount-direct",
-              "--runner=PortableRunner",
+              "--runner=${runner}",
               "--experiments=worker_threads=100",
               "--parallelism=2",
               "--shutdown_sources_on_final_watermark",
@@ -1953,8 +1954,10 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.ext.addPortableWordCountTasks = {
         ->
-        addPortableWordCountTask(false)
-        addPortableWordCountTask(true)
+        addPortableWordCountTask(false, "PortableRunner")
+        addPortableWordCountTask(true, "PortableRunner")
+        addPortableWordCountTask(false, "FlinkRunner")
+        addPortableWordCountTask(true, "FlinkRunner")
       }
     }
   }

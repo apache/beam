@@ -34,6 +34,13 @@ task preCommitPy2() {
   dependsOn portableWordCountStreaming
 }
 
+task postCommitPy2() {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+  dependsOn portableWordCountFlinkRunnerBatch
+  dependsOn portableWordCountFlinkRunnerStreaming
+}
+
 // TODO: Move the rest of this file into ../common.gradle.
 
 // Before running this, you need to:
