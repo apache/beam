@@ -136,17 +136,17 @@ This runner is not yet available for the Python SDK.
 
 {:.runner-flink-local}
 ```
-This runner is not yet available for the Python SDK.
+See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
 ```
 
 {:.runner-flink-cluster}
 ```
-This runner is not yet available for the Python SDK.
+See https://beam.apache.org/documentation/runners/flink/ for more information.
 ```
 
 {:.runner-spark}
 ```
-This runner is not yet available for the Python SDK.
+See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
 ```
 
 {:.runner-dataflow}
@@ -184,12 +184,4 @@ These unsupported Beam features apply to all runners.
 - Splittable `DoFn` API
 - Handling of late data
 - User-defined custom merging `WindowFn` (with fnapi)
-
-### DataflowRunner specific features
-
-Additionally, `DataflowRunner` does not currently support the following Cloud
-Dataflow specific features with Python streaming execution.
-
-- Cloud Dataflow Templates
-
 
