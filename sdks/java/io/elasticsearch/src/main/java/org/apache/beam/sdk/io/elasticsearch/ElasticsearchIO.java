@@ -458,10 +458,6 @@ public class ElasticsearchIO {
               return requestConfigBuilder;
             }
           });
-      if (getSocketAndRetryTimeout() != null) {
-        restClientBuilder.setMaxRetryTimeoutMillis(getSocketAndRetryTimeout());
-      }
-
       return restClientBuilder.build();
     }
   }
@@ -794,7 +790,9 @@ public class ElasticsearchIO {
       }
       String endpoint = String.format("/%s/_stats", connectionConfiguration.getIndex());
       try (RestClient restClient = connectionConfiguration.createClient()) {
-        return parseResponse(restClient.performRequest("GET", endpoint, params).getEntity());
+        Request request = new Request("GET", endpoint);
+        request.addParameters(params);
+        return parseResponse(restClient.performRequest(request).getEntity());
       }
     }
   }
@@ -842,7 +840,10 @@ public class ElasticsearchIO {
         }
       }
       HttpEntity queryEntity = new NStringEntity(query, ContentType.APPLICATION_JSON);
-      Response response = restClient.performRequest("GET", endPoint, params, queryEntity);
+      Request request = new Request("GET", endPoint);
+      request.addParameters(params);
+      request.setEntity(queryEntity);
+      Response response = restClient.performRequest(request);
       JsonNode searchResult = parseResponse(response.getEntity());
       updateScrollId(searchResult);
       return readNextBatchAndReturnFirstDocument(searchResult);
@@ -863,9 +864,10 @@ public class ElasticsearchIO {
                 "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
                 source.spec.getScrollKeepalive(), scrollId);
         HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
-        Response response =
-            restClient.performRequest(
-                "GET", "/_search/scroll", Collections.emptyMap(), scrollEntity);
+        Request request = new Request("GET", "/_search/scroll");
+        request.addParameters(Collections.emptyMap());
+        request.setEntity(scrollEntity);
+        Response response = restClient.performRequest(request);
         JsonNode searchResult = parseResponse(response.getEntity());
         updateScrollId(searchResult);
         return readNextBatchAndReturnFirstDocument(searchResult);
@@ -910,7 +912,10 @@ public class ElasticsearchIO {
       String requestBody = String.format("{\"scroll_id\" : [\"%s\"]}", scrollId);
       HttpEntity entity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
       try {
-        restClient.performRequest("DELETE", "/_search/scroll", Collections.emptyMap(), entity);
+        Request request = new Request("DELETE", "/_search/scroll");
+        request.addParameters(Collections.emptyMap());
+        request.setEntity(entity);
+        restClient.performRequest(request);
       } finally {
         if (restClient != null) {
           restClient.close();
@@ -1378,7 +1383,10 @@ public class ElasticsearchIO {
                 spec.getConnectionConfiguration().getType());
         HttpEntity requestBody =
             new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
-        response = restClient.performRequest("POST", endPoint, Collections.emptyMap(), requestBody);
+        Request request = new Request("POST", endPoint);
+        request.addParameters(Collections.emptyMap());
+        request.setEntity(requestBody);
+        response = restClient.performRequest(request);
         responseEntity = new BufferedHttpEntity(response.getEntity());
         if (spec.getRetryConfiguration() != null
             && spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
@@ -1399,7 +1407,10 @@ public class ElasticsearchIO {
         // while retry policy exists
         while (BackOffUtils.next(sleeper, backoff)) {
           LOG.warn(String.format(RETRY_ATTEMPT_LOG, ++attempt));
-          response = restClient.performRequest(method, endpoint, params, requestBody);
+          Request request = new Request(method, endpoint);
+          request.addParameters(params);
+          request.setEntity(requestBody);
+          response = restClient.performRequest(request);
           responseEntity = new BufferedHttpEntity(response.getEntity());
           // if response has no 429 errors
           if (!spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
@@ -1420,15 +1431,19 @@ public class ElasticsearchIO {
 
   static int getBackendVersion(ConnectionConfiguration connectionConfiguration) {
     try (RestClient restClient = connectionConfiguration.createClient()) {
-      Response response = restClient.performRequest("GET", "");
+      Request request = new Request("GET", "");
+      Response response = restClient.performRequest(request);
       JsonNode jsonNode = parseResponse(response.getEntity());
       int backendVersion =
           Integer.parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
       checkArgument(
-          (backendVersion == 2 || backendVersion == 5 || backendVersion == 6),
+          (backendVersion == 2
+              || backendVersion == 5
+              || backendVersion == 6
+              || backendVersion == 7),
           "The Elasticsearch version to connect to is %s.x. "
               + "This version of the ElasticsearchIO is only compatible with "
-              + "Elasticsearch v6.x, v5.x and v2.x",
+              + "Elasticsearch v7.x, v6.x, v5.x and v2.x",
           backendVersion);
       return backendVersion;
 
