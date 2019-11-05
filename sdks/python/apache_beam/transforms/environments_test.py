@@ -39,6 +39,7 @@ class RunnerApiTest(unittest.TestCase):
     for environment in (
         DockerEnvironment(),
         DockerEnvironment(container_image='img'),
+        DockerEnvironment(container_image='img', env={'k1': 'v1'}),
         ProcessEnvironment('run.sh'),
         ProcessEnvironment('run.sh', os='linux', arch='amd64',
                            env={'k1': 'v1'}),

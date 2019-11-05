@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -132,6 +133,11 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             // We need to pass on the information about Docker-on-Mac environment (due to missing
             // host networking on Mac)
             .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"));
+
+    Map<String, String> dockerEnvMap = dockerPayload.getEnvMap();
+    if (!dockerEnvMap.isEmpty()) {
+      dockerEnvMap.forEach((k, v) -> dockerOptsBuilder.add(String.format("--env=%s=%s", k, v)));
+    }
 
     Boolean retainDockerContainer =
         pipelineOptions.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();

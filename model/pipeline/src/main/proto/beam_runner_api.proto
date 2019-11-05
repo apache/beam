@@ -1085,6 +1085,7 @@ message StandardEnvironments {
 // The payload of a Docker image
 message DockerPayload {
   string container_image = 1;  // implicitly linux_amd64.
+  map<string, string> env = 2; // Environment variables
 }
 
 message ProcessPayload {

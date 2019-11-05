@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import inspect
+import json
 import logging
 import platform
 import signal
@@ -310,6 +311,22 @@ class PortableRunnerInternalTest(unittest.TestCase):
             'environment_type': 'DOCKER',
             'environment_config': docker_image,
         })), environments.DockerEnvironment(container_image=docker_image))
+
+  def test__create_docker_environment_json_config(self):
+    docker_image = 'py-docker'
+    env_map = {'ENVKEY1': 'ENVVALUE1'}
+    config_map = {'docker_image': docker_image, 'env': env_map}
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+            'environment_type': 'DOCKER',
+            'environment_config': json.dumps(config_map),
+        })), environments.DockerEnvironment(container_image=docker_image,
+                                            env=env_map))
+    with self.assertRaises(ValueError):
+      PortableRunner._create_environment(PipelineOptions.from_dictionary({
+          'environment_type': 'DOCKER',
+          'environment_config': json.dumps({'env': env_map}),
+      }))
 
   def test__create_process_environment(self):
     self.assertEqual(

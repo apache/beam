@@ -57,11 +57,15 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   @Description(
       "Set environment configuration for running the user code.\n"
-          + " For DOCKER: Url for the docker image.\n"
+          + " For DOCKER: Url for the docker image, or json of the form "
+          + "{\"docker_image\": \"<URL>\", "
+          + "\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }, "
+          + " where the image URL is a required field.\n"
           + " For PROCESS: json of the form "
-          + "{\"os\": \"<OS>\", \"arch\": \"<ARCHITECTURE>\", \"command\": \"<process to execute>\", "
-          + "\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }. "
-          + "All fields in the json are optional except command.")
+          + "{\"os\": \"<OS>\", \"arch\": \"<ARCHITECTURE>\", "
+          + "\"command\": \"<process to execute>\", "
+          + "\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }, "
+          + "where all fields are optional except command.")
   @Nullable
   String getDefaultEnvironmentConfig();
 

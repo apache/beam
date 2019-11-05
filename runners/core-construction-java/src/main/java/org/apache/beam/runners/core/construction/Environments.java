@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Map;
@@ -115,14 +116,34 @@ public class Environments {
     }
   }
 
-  public static Environment createDockerEnvironment(String dockerImageUrl) {
-    if (Strings.isNullOrEmpty(dockerImageUrl)) {
+  public static Environment createDockerEnvironment(String config) {
+    if (Strings.isNullOrEmpty(config)) {
       return JAVA_SDK_HARNESS_ENVIRONMENT;
+    }
+    // Support a JSON config, but fall back to interpreting it as a simple URL
+    // in case of a parse error.
+    try {
+      DockerPayloadReferenceJSON payloadReferenceJSON =
+          MAPPER.readValue(config, DockerPayloadReferenceJSON.class);
+      return createDockerEnvironment(
+          payloadReferenceJSON.getDockerImageUrl(), payloadReferenceJSON.getEnv());
+    } catch (IOException e) {
+      return createDockerEnvironment(config, null);
+    }
+  }
+
+  public static Environment createDockerEnvironment(
+      String dockerImageUrl, Map<String, String> env) {
+    if (Strings.isNullOrEmpty(dockerImageUrl)) {
+      throw new RuntimeException("Empty Docker image URL");
+    }
+    DockerPayload.Builder builder = DockerPayload.newBuilder().setContainerImage(dockerImageUrl);
+    if (env != null) {
+      builder.putAllEnv(env);
     }
     return Environment.newBuilder()
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
-        .setPayload(
-            DockerPayload.newBuilder().setContainerImage(dockerImageUrl).build().toByteString())
+        .setPayload(builder.build().toByteString())
         .build();
   }
 
@@ -246,6 +267,24 @@ public class Environments {
     return WindowIntoPayload.parseFrom(transform.getSpec().getPayload())
         .getWindowFn()
         .getEnvironmentId();
+  }
+
+  private static class DockerPayloadReferenceJSON {
+    @JsonProperty("docker_image")
+    @Nullable
+    private String dockerImageUrl;
+
+    @Nullable private Map<String, String> env;
+
+    @Nullable
+    public String getDockerImageUrl() {
+      return dockerImageUrl;
+    }
+
+    @Nullable
+    public Map<String, String> getEnv() {
+      return env;
+    }
   }
 
   private static class ProcessPayloadReferenceJSON {

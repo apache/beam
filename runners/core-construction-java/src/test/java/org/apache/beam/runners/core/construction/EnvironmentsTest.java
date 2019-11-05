@@ -69,6 +69,21 @@ public class EnvironmentsTest implements Serializable {
                 .build()));
     assertThat(
         Environments.createOrGetDefaultEnvironment(
+            Environments.ENVIRONMENT_DOCKER,
+            "{\"docker_image\": \"java\", \"env\": {\"k1\": \"v1\", \"k2\": \"v2\"} }"),
+        is(
+            Environment.newBuilder()
+                .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
+                .setPayload(
+                    DockerPayload.newBuilder()
+                        .setContainerImage("java")
+                        .putEnv("k1", "v1")
+                        .putEnv("k2", "v2")
+                        .build()
+                        .toByteString())
+                .build()));
+    assertThat(
+        Environments.createOrGetDefaultEnvironment(
             Environments.ENVIRONMENT_PROCESS,
             "{\"os\": \"linux\", \"arch\": \"amd64\", \"command\": \"run.sh\", \"env\":{\"k1\": \"v1\", \"k2\": \"v2\"} }"),
         is(

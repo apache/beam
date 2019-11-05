@@ -899,11 +899,13 @@ class PortableOptions(PipelineOptions):
     parser.add_argument(
         '--environment_config', default=None,
         help=('Set environment configuration for running the user code.\n For '
-              'DOCKER: Url for the docker image.\n For PROCESS: json of the '
+              'DOCKER: Url for the docker image, or json of the form '
+              '\n {"docker_image": "<URL>", "env":{'
+              '"<Environment variables 1>": "<ENV_VAL>"} }, where the image '
+              'URL is a required field.\n For PROCESS: json of the '
               'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
               '"<process to execute>", "env":{"<Environment variables 1>": '
-              '"<ENV_VAL>"} }. All fields in the json are optional except '
-              'command.'))
+              '"<ENV_VAL>"} }, where all fields are optional except command.'))
     parser.add_argument(
         '--sdk_worker_parallelism', default=1,
         help=('Sets the number of sdk worker processes that will run on each '

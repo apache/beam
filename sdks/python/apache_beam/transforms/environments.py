@@ -39,6 +39,12 @@ __all__ = ['Environment',
            'SubprocessSDKEnvironment', 'RunnerAPIEnvironmentHolder']
 
 
+def _looks_like_json(config):
+  import re
+  return isinstance(config, (str, bytes)) \
+      and re.match(r'\s*\{.*\}\s*$', config) is not None
+
+
 class Environment(object):
   """Abstract base class for environments.
 
@@ -120,15 +126,17 @@ class Environment(object):
                           beam_runner_api_pb2.DockerPayload)
 class DockerEnvironment(Environment):
 
-  def __init__(self, container_image=None):
+  def __init__(self, container_image=None, env=None):
     if container_image:
       self.container_image = container_image
     else:
       self.container_image = self.default_docker_image()
+    self.env = env or {}
 
   def __eq__(self, other):
     return self.__class__ == other.__class__ \
-           and self.container_image == other.container_image
+           and self.container_image == other.container_image \
+           and self.env == other.env
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -138,20 +146,33 @@ class DockerEnvironment(Environment):
     return hash((self.__class__, self.container_image))
 
   def __repr__(self):
-    return 'DockerEnvironment(container_image=%s)' % self.container_image
+    return 'DockerEnvironment(container_image=%s,env=%s)' % (
+        self.container_image, self.env)
 
   def to_runner_api_parameter(self, context):
     return (common_urns.environments.DOCKER.urn,
             beam_runner_api_pb2.DockerPayload(
-                container_image=self.container_image))
+                container_image=self.container_image,
+                env=self.env))
 
   @staticmethod
   def from_runner_api_parameter(payload, context):
-    return DockerEnvironment(container_image=payload.container_image)
+    return DockerEnvironment(container_image=payload.container_image,
+                             env=payload.env)
 
   @classmethod
   def from_options(cls, options):
-    return cls(container_image=options.environment_config)
+    if _looks_like_json(options.environment_config):
+      config = json.loads(options.environment_config)
+      docker_image = config.get('docker_image')
+      if not docker_image:
+        raise ValueError('Docker image URL must be set.')
+      env = config.get('env')
+    else:
+      docker_image = options.environment_config
+      env = None
+
+    return cls(container_image=docker_image, env=env)
 
   @staticmethod
   def default_docker_image():
@@ -221,7 +242,7 @@ class ProcessEnvironment(Environment):
   def from_options(cls, options):
     config = json.loads(options.environment_config)
     return cls(config.get('command'), os=config.get('os', ''),
-               arch=config.get('arch', ''), env=config.get('env', ''))
+               arch=config.get('arch', ''), env=config.get('env'))
 
 
 @Environment.register_urn(common_urns.environments.EXTERNAL.urn,
@@ -263,11 +284,7 @@ class ExternalEnvironment(Environment):
 
   @classmethod
   def from_options(cls, options):
-    def looks_like_json(environment_config):
-      import re
-      return re.match(r'\s*\{.*\}\s*$', environment_config)
-
-    if looks_like_json(options.environment_config):
+    if _looks_like_json(options.environment_config):
       config = json.loads(options.environment_config)
       url = config.get('url')
       if not url:
