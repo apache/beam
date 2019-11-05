@@ -233,19 +233,19 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         fractionConsumedFromCurrentResponse = getFractionConsumed(currentResponse);
 
         Preconditions.checkArgument(
-            totalRowCountFromCurrentResponse > 0L,
-            "Row count from current response (%s) must be greater than one.",
+            totalRowCountFromCurrentResponse >= 0L,
+            "Row count from current response (%s) must be greater than or equal to zero.",
             totalRowCountFromCurrentResponse);
         Preconditions.checkArgument(
             0f <= fractionConsumedFromCurrentResponse && fractionConsumedFromCurrentResponse <= 1f,
             "Fraction consumed from current response (%s) is not in the range [0.0, 1.0].",
             fractionConsumedFromCurrentResponse);
         Preconditions.checkArgument(
-            fractionConsumedFromPreviousResponse < fractionConsumedFromCurrentResponse,
-            "Fraction consumed from previous response (%s) is not less than fraction consumed "
-                + "from current response (%s).",
-            fractionConsumedFromPreviousResponse,
-            fractionConsumedFromCurrentResponse);
+            fractionConsumedFromPreviousResponse <= fractionConsumedFromCurrentResponse,
+            "Fraction consumed from the current response (%s) has to be larger than or equal to "
+                + "the fraction consumed from the previous response (%s).",
+            fractionConsumedFromCurrentResponse,
+            fractionConsumedFromPreviousResponse);
       }
 
       record = datumReader.read(record, decoder);
