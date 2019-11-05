@@ -128,14 +128,11 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
         FieldAccessDescriptor.withFieldNames(fieldNames).resolve(getSchema());
     final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
 
-    TypedRead<Row> builder = getBigQueryReadBuilder(newSchema);
+    TypedRead<Row> builder = getBigQueryReadBuilder(newSchema)
+        .withSelectedFields(fieldNames);
 
     if (!(filters instanceof DefaultTableFilter)) {
       throw new RuntimeException("Unimplemented at the moment.");
-    }
-
-    if (!fieldNames.isEmpty()) {
-      builder = builder.withSelectedFields(fieldNames);
     }
 
     return begin

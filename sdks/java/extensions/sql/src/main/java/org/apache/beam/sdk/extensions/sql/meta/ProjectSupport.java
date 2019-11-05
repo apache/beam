@@ -5,11 +5,11 @@ public enum ProjectSupport {
   WITHOUT_FIELD_REORDERING,
   WITH_FIELD_REORDERING;
 
-  public boolean isProjectSupported() {
+  public boolean isSupported() {
     return !this.equals(NONE);
   }
 
-  public boolean isFieldReorderingSupported() {
+  public boolean withFieldReordering() {
     return this.equals(WITH_FIELD_REORDERING);
   }
 }
