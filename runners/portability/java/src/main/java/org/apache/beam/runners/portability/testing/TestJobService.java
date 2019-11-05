@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.reference.testing;
+package org.apache.beam.runners.portability.testing;
 
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
