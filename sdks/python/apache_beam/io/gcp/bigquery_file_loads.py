@@ -530,7 +530,7 @@ class WaitForBQJobs(beam.DoFn):
       logging.info("Job status: %s", job.status)
       if job.status.state == 'DONE' and job.status.errorResult:
         logging.warning("Job %s seems to have failed. Error Result: %s",
-                     ref.jobId, job.status.errorResult)
+                        ref.jobId, job.status.errorResult)
         self._latest_error = job.status
         return WaitForBQJobs.FAILED
       elif job.status.state == 'DONE':
