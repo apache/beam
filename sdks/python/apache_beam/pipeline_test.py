@@ -57,6 +57,7 @@ from apache_beam.transforms import WindowInto
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
@@ -681,6 +682,23 @@ class DoFnTest(unittest.TestCase):
       assert_that(
           p | Create([1, 2]) | beam.Map(lambda _, t=DoFn.TimestampParam: t),
           equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
+
+  def test_pane_info_param(self):
+    with TestPipeline() as p:
+      pc = p | Create([(None, None)])
+      assert_that(
+          pc | beam.Map(lambda _, p=DoFn.PaneInfoParam: p),
+          equal_to([windowed_value.PANE_INFO_UNKNOWN]),
+          label='CheckUngrouped')
+      assert_that(
+          pc | beam.GroupByKey() | beam.Map(lambda _, p=DoFn.PaneInfoParam: p),
+          equal_to([windowed_value.PaneInfo(
+              is_first=True,
+              is_last=True,
+              timing=windowed_value.PaneInfoTiming.ON_TIME,
+              index=0,
+              nonspeculative_index=0)]),
+          label='CheckGrouped')
 
   def test_incomparable_default(self):
 

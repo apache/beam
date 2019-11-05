@@ -44,6 +44,15 @@ class PaneInfoTiming(object):
   LATE = 2
   UNKNOWN = 3
 
+  @classmethod
+  def to_string(cls, value):
+    return {
+        cls.EARLY: 'EARLY',
+        cls.ON_TIME: 'ON_TIME',
+        cls.LATE: 'LATE',
+        cls.UNKNOWN: 'UNKNOWN',
+    }[value]
+
 
 class PaneInfo(object):
   """Describes the trigger firing information for a given WindowedValue.
@@ -106,9 +115,10 @@ class PaneInfo(object):
 
   def __repr__(self):
     return ('PaneInfo(first: %r, last: %r, timing: %s, index: %d, '
-            'nonspeculative_index: %d)') % (self.is_first, self.is_last,
-                                            self.timing, self.index,
-                                            self.nonspeculative_index)
+            'nonspeculative_index: %d)') % (
+                self.is_first, self.is_last,
+                PaneInfoTiming.to_string(self.timing),
+                self.index, self.nonspeculative_index)
 
   def __eq__(self, other):
     if self is other:
