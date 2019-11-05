@@ -53,7 +53,6 @@ from apache_beam.transforms.trigger import GeneralTriggerDriver
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.trigger import TriggerFn
-from apache_beam.transforms.window import MIN_TIMESTAMP
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
@@ -61,6 +60,9 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.windowed_value import PaneInfoTiming
 
 
 class CustomTimestampingFixedWindowsWindowFn(FixedWindows):
@@ -132,7 +134,7 @@ class TriggerTest(unittest.TestCase):
           actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
-      for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
+      for wvalue in driver.process_elements(state, bundle, MAX_TIMESTAMP):
         window, = wvalue.windows
         self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
@@ -385,7 +387,7 @@ class TriggerTest(unittest.TestCase):
 
   def test_picklable_output(self):
     global_window = (trigger.GlobalWindow(),)
-    driver = trigger.DiscardingGlobalTriggerDriver()
+    driver = trigger.BatchGlobalTriggerDriver()
     unpicklable = (WindowedValue(k, 0, global_window)
                    for k in range(10))
     with self.assertRaises(TypeError):
@@ -616,6 +618,11 @@ class TranscriptTest(unittest.TestCase):
         'window': [int(window.start), int(window.max_timestamp())],
         'values': sorted(windowed_value.value),
         'timestamp': int(windowed_value.timestamp),
+        'index': windowed_value.pane_info.index,
+        'nonspeculative_index': windowed_value.pane_info.nonspeculative_index,
+        'early': windowed_value.pane_info.timing == PaneInfoTiming.EARLY,
+        'late': windowed_value.pane_info.timing == PaneInfoTiming.LATE,
+        'final': windowed_value.pane_info.is_last,
     }
 
 
@@ -784,10 +791,11 @@ class TestStreamTranscriptTest(TranscriptTest):
           | beam.MapTuple(
               lambda k, vs,
                      window=beam.DoFn.WindowParam,
-                     t=beam.DoFn.TimestampParam: (
+                     t=beam.DoFn.TimestampParam,
+                     p=beam.DoFn.PaneInfoParam: (
                          k,
-                         self._windowed_value_info(
-                             WindowedValue(vs, windows=[window], timestamp=t))))
+                         self._windowed_value_info(WindowedValue(
+                             vs, windows=[window], timestamp=t, pane_info=p))))
           # Place outputs back into the global window to allow flattening
           # and share a single state in Check.
           | 'Global' >> beam.WindowInto(beam.transforms.window.GlobalWindows()))
