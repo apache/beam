@@ -293,7 +293,6 @@
   <li><a href="#unsupported-features">Unsupported features</a>
     <ul>
       <li><a href="#general-beam-features">General Beam features</a></li>
-      <li><a href="#dataflowrunner-specific-features">DataflowRunner specific features</a></li>
     </ul>
   </li>
 </ul>
@@ -430,15 +429,15 @@ python -m apache_beam.examples.streaming_wordcount \
 </code></pre>
 </div>
 
-<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
 </code></pre>
 </div>
 
-<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>See https://beam.apache.org/documentation/runners/flink/ for more information.
 </code></pre>
 </div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
 </code></pre>
 </div>
 
@@ -478,15 +477,6 @@ about executing streaming pipelines:</p>
   <li>Splittable <code class="highlighter-rouge">DoFn</code> API</li>
   <li>Handling of late data</li>
   <li>User-defined custom merging <code class="highlighter-rouge">WindowFn</code> (with fnapi)</li>
-</ul>
-
-<h3 id="dataflowrunner-specific-features">DataflowRunner specific features</h3>
-
-<p>Additionally, <code class="highlighter-rouge">DataflowRunner</code> does not currently support the following Cloud
-Dataflow specific features with Python streaming execution.</p>
-
-<ul>
-  <li>Cloud Dataflow Templates</li>
 </ul>
 
 
