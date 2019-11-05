@@ -96,18 +96,10 @@ private void createPostCommitJob(jobConfig) {
                 rootBuildScriptDir(common.checkoutDir)
                 common.setGradleSwitches(delegate)
                 switches("--info")
-                switches("-DintegrationTestPipelineOptions=\'${parsePipelineOptions(jobConfig.properties)}\'")
+                switches("-DintegrationTestPipelineOptions=\'${common.joinOptionsWithNestedJsonValues(jobConfig.properties)}\'")
                 switches("-DintegrationTestRunner=dataflow")
                 tasks(":sdks:java:io:bigquery-io-perf-tests:integrationTest --tests ${jobConfig.itClass}")
             }
         }
     }
-}
-
-static String parsePipelineOptions(Map pipelineOptions) {
-    List<String> pipelineArgList = []
-    pipelineOptions.each({
-        key, value -> pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
-    })
-    return "[" + pipelineArgList.join(',') + "]"
 }
