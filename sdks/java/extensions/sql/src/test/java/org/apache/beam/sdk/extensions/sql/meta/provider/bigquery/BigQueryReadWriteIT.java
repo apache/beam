@@ -486,16 +486,18 @@ public class BigQueryReadWriteIT implements Serializable {
     assertThat(relNode, instanceOf(BeamCalcRel.class));
     assertThat(relNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     // IO projects fields in the same order they are defined in the schema.
-    assertThat(relNode.getInput(0).getRowType().getFieldNames(), containsInAnyOrder(
-        "c_tinyint", "c_integer", "c_varchar"));
+    assertThat(
+        relNode.getInput(0).getRowType().getFieldNames(),
+        containsInAnyOrder("c_tinyint", "c_integer", "c_varchar"));
     // Field reordering is done in a Calc
     assertThat(
         output.getSchema(),
-        equalTo(Schema.builder()
-            .addNullableField("c_integer", INT32)
-            .addNullableField("c_varchar", STRING)
-            .addNullableField("c_tinyint", BYTE)
-            .build()));
+        equalTo(
+            Schema.builder()
+                .addNullableField("c_integer", INT32)
+                .addNullableField("c_varchar", STRING)
+                .addNullableField("c_tinyint", BYTE)
+                .build()));
 
     PAssert.that(output)
         .containsInAnyOrder(row(output.getSchema(), 2147483647, "varchar", (byte) 127));

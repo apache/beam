@@ -129,14 +129,16 @@ public class TestTableProviderWithFilterPushDown {
     BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    // Calc is dropped, because all fields are projected in the same order and filter is pushed-down.
+    // Calc is dropped, because all fields are projected in the same order and filter is
+    // pushed-down.
     assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
 
     List<String> projects = beamRelNode.getRowType().getFieldNames();
     assertThat(projects, containsInAnyOrder("unused1", "id", "name", "unused2", "b"));
 
     assertEquals(BASIC_SCHEMA, result.getSchema());
-    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), 200, 2, "two", (short) 200, false));
+    PAssert.that(result)
+        .containsInAnyOrder(row(result.getSchema(), 200, 2, "two", (short) 200, false));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }

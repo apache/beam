@@ -90,13 +90,15 @@ public class BeamIOPushDownRule extends RelOptRule {
 
     // When predicate push-down is not supported - all filters are unsupported.
     final BeamSqlTableFilter tableFilter = beamSqlTable.constructFilter(projectFilter.right);
-    if (!beamSqlTable.supportsProjects().isSupported() && tableFilter instanceof DefaultTableFilter) {
+    if (!beamSqlTable.supportsProjects().isSupported()
+        && tableFilter instanceof DefaultTableFilter) {
       // Either project or filter push-down must be supported by the IO.
       return;
     }
 
     Set<String> usedFields = new LinkedHashSet<>();
-    if (!(tableFilter instanceof DefaultTableFilter) && !beamSqlTable.supportsProjects().isSupported()) {
+    if (!(tableFilter instanceof DefaultTableFilter)
+        && !beamSqlTable.supportsProjects().isSupported()) {
       // When applying standalone filter push-down all fields must be project by an IO.
       // With a single exception: Calc projects all fields (in the same order) and does nothing
       // else.
@@ -120,7 +122,8 @@ public class BeamIOPushDownRule extends RelOptRule {
 
     FieldAccessDescriptor resolved = FieldAccessDescriptor.withFieldNames(usedFields);
     if (beamSqlTable.supportsProjects().withFieldReordering()) {
-      // Only needs to be done when field reordering is supported, otherwise IO should project fields in the same order they are defined in the schema and let Calc do the reordering.
+      // Only needs to be done when field reordering is supported, otherwise IO should project
+      // fields in the same order they are defined in the schema and let Calc do the reordering.
       resolved = resolved.withOrderByFieldInsertionOrder();
     }
     resolved = resolved.resolve(beamSqlTable.getSchema());
@@ -128,7 +131,13 @@ public class BeamIOPushDownRule extends RelOptRule {
     if (canDropCalc(program, beamSqlTable.supportsProjects(), tableFilter)) {
       // Tell the optimizer to not use old IO, since the new one is better.
       call.getPlanner().setImportance(ioSourceRel, 0.0);
-      call.transformTo(ioSourceRel.copy(calc.getRowType(), resolved.getFieldsAccessed().stream().map(FieldDescriptor::getFieldName).collect(Collectors.toList()), tableFilter));
+      call.transformTo(
+          ioSourceRel.copy(
+              calc.getRowType(),
+              resolved.getFieldsAccessed().stream()
+                  .map(FieldDescriptor::getFieldName)
+                  .collect(Collectors.toList()),
+              tableFilter));
       return;
     }
 
@@ -140,7 +149,14 @@ public class BeamIOPushDownRule extends RelOptRule {
       return;
     }
 
-    RelNode result = constructNodesWithPushDown(resolved, call.builder(), ioSourceRel, tableFilter, calc.getRowType(), projectFilter.left);
+    RelNode result =
+        constructNodesWithPushDown(
+            resolved,
+            call.builder(),
+            ioSourceRel,
+            tableFilter,
+            calc.getRowType(),
+            projectFilter.left);
 
     if (tableFilter.getNotSupported().size() <= projectFilter.right.size()
         || usedFields.size() < calcInputRowType.getFieldCount()) {
@@ -225,10 +241,11 @@ public class BeamIOPushDownRule extends RelOptRule {
   /**
    * Determine whether a program only performs renames and/or projects. RexProgram#isTrivial is not
    * sufficient in this case, because number of projects does not need to be the same as inputs.
-   * Calc should NOT be dropped in the following cases:
-   * 1. Projected fields are manipulated (ex: 'select field1+10').
-   * 2. When the same field projected more than once.
-   * 3. When an IO does not supports field reordering and projects fields in a different (from schema) order.
+   * Calc should NOT be dropped in the following cases:<br>
+   * 1. Projected fields are manipulated (ex: 'select field1+10').<br>
+   * 2. When the same field projected more than once.<br>
+   * 3. When an IO does not supports field reordering and projects fields in a different (from
+   * schema) order.
    *
    * @param program A program to check.
    * @param projectReorderingSupported Whether project push-down supports field reordering.
@@ -253,11 +270,11 @@ public class BeamIOPushDownRule extends RelOptRule {
   }
 
   /**
-   * Perform a series of checks to determine whether a Calc can be dropped.
-   * Following conditions need to be met in order for that to happen (logical AND):
+   * Perform a series of checks to determine whether a Calc can be dropped. Following conditions
+   * need to be met in order for that to happen (logical AND):<br>
    * 1. Program should do simple projects, project each field once, and project fields in the same
-   *     order when field reordering is not supported.
-   * 2. Predicate can be completely pushed-down.
+   * order when field reordering is not supported.<br>
+   * 2. Predicate can be completely pushed-down.<br>
    * 3. Project push-down is supported by the IO or all fields are projected by a Calc.
    *
    * @param program A {@code RexProgram} of a {@code Calc}.
@@ -265,10 +282,12 @@ public class BeamIOPushDownRule extends RelOptRule {
    * @param tableFilter A class containing information about IO predicate push-down capabilities.
    * @return True when Calc can be dropped, false otherwise.
    */
-  private boolean canDropCalc(RexProgram program, ProjectSupport projectSupport, BeamSqlTableFilter tableFilter) {
+  private boolean canDropCalc(
+      RexProgram program, ProjectSupport projectSupport, BeamSqlTableFilter tableFilter) {
     RelDataType calcInputRowType = program.getInputRowType();
 
-    // Program should do simple projects, project each field once, and project fields in the same order when field reordering is not supported.
+    // Program should do simple projects, project each field once, and project fields in the same
+    // order when field reordering is not supported.
     boolean fieldReorderingSupported = projectSupport.withFieldReordering();
     if (!isProjectRenameOnlyProgram(program, fieldReorderingSupported)) {
       return false;
@@ -279,25 +298,34 @@ public class BeamIOPushDownRule extends RelOptRule {
     }
     // Project push-down is supported by the IO or all fields are projected by a Calc.
     boolean isProjectSupported = projectSupport.isSupported();
-    boolean allFieldsProjected = program.getProjectList().stream()
-        .map(ref -> program.getInputRowType().getFieldList().get(ref.getIndex()).getName())
-        .collect(Collectors.toList())
-        .equals(calcInputRowType.getFieldNames());
+    boolean allFieldsProjected =
+        program.getProjectList().stream()
+            .map(ref -> program.getInputRowType().getFieldList().get(ref.getIndex()).getName())
+            .collect(Collectors.toList())
+            .equals(calcInputRowType.getFieldNames());
     return isProjectSupported || allFieldsProjected;
   }
 
   /**
-   * Construct a new {@link BeamIOSourceRel} with predicate and/or project pushed-down and a new {@code Calc} to do field reordering/field duplication/complex projects.
+   * Construct a new {@link BeamIOSourceRel} with predicate and/or project pushed-down and a new
+   * {@code Calc} to do field reordering/field duplication/complex projects.
    *
    * @param resolved A descriptor of fields used by a {@code Calc}.
-   * @param relBuilder A {@code RelBuilder} for constructing {@code Project} and {@code Filter} Rel nodes with operations unsupported by the IO.
-   * @param ioSourceRel An original {@code BeamIOSourceRel} we are attempting to perform push-down for.
+   * @param relBuilder A {@code RelBuilder} for constructing {@code Project} and {@code Filter} Rel
+   *     nodes with operations unsupported by the IO.
+   * @param ioSourceRel Original {@code BeamIOSourceRel} we are attempting to perform push-down for.
    * @param tableFilter A class containing information about IO predicate push-down capabilities.
    * @param calcDataType A Calcite output schema of an original {@code Calc}.
    * @param calcProjects A list of projected {@code RexNode}s by a {@code Calc}.
    * @return An alternative {@code RelNode} with supported filters/projects pushed-down to IO Rel.
    */
-  private RelNode constructNodesWithPushDown(FieldAccessDescriptor resolved, RelBuilder relBuilder, BeamIOSourceRel ioSourceRel, BeamSqlTableFilter tableFilter, RelDataType calcDataType, List<RexNode> calcProjects) {
+  private RelNode constructNodesWithPushDown(
+      FieldAccessDescriptor resolved,
+      RelBuilder relBuilder,
+      BeamIOSourceRel ioSourceRel,
+      BeamSqlTableFilter tableFilter,
+      RelDataType calcDataType,
+      List<RexNode> calcProjects) {
     Schema newSchema =
         SelectHelpers.getOutputSchema(ioSourceRel.getBeamSqlTable().getSchema(), resolved);
     RelDataType calcInputType =
