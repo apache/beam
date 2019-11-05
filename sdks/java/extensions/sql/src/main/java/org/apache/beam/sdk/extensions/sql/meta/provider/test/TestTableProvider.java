@@ -242,7 +242,9 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public ProjectSupport supportsProjects() {
-      return (options == PushDownOptions.BOTH || options == PushDownOptions.PROJECT) ? ProjectSupport.WITH_FIELD_REORDERING : ProjectSupport.NONE;
+      return (options == PushDownOptions.BOTH || options == PushDownOptions.PROJECT)
+          ? ProjectSupport.WITH_FIELD_REORDERING
+          : ProjectSupport.NONE;
     }
 
     @Override

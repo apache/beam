@@ -128,15 +128,13 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
         FieldAccessDescriptor.withFieldNames(fieldNames).resolve(getSchema());
     final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
 
-    TypedRead<Row> builder = getBigQueryReadBuilder(newSchema)
-        .withSelectedFields(fieldNames);
+    TypedRead<Row> builder = getBigQueryReadBuilder(newSchema).withSelectedFields(fieldNames);
 
     if (!(filters instanceof DefaultTableFilter)) {
       throw new RuntimeException("Unimplemented at the moment.");
     }
 
-    return begin
-        .apply("Read Input BQ Rows with push-down", builder);
+    return begin.apply("Read Input BQ Rows with push-down", builder);
   }
 
   @Override
@@ -150,7 +148,9 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public ProjectSupport supportsProjects() {
-    return method.equals(Method.DIRECT_READ) ? ProjectSupport.WITHOUT_FIELD_REORDERING : ProjectSupport.NONE;
+    return method.equals(Method.DIRECT_READ)
+        ? ProjectSupport.WITHOUT_FIELD_REORDERING
+        : ProjectSupport.NONE;
   }
 
   private TypedRead<Row> getBigQueryReadBuilder(Schema schema) {
