@@ -44,7 +44,6 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import metric
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricResult
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -362,7 +361,6 @@ class FnApiRunner(runner.PipelineRunner):
     return str(self._last_uid)
 
   def run_pipeline(self, pipeline, options):
-    MetricsEnvironment.set_metrics_supported(False)
     RuntimeValueProvider.set_runtime_options({})
 
     # Setup "beam_fn_api" experiment options if lacked.

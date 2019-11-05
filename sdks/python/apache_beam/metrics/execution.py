@@ -32,7 +32,6 @@ Available classes:
 
 from __future__ import absolute_import
 
-import threading
 from builtins import object
 from collections import defaultdict
 
@@ -140,14 +139,6 @@ class _MetricsEnvironment(object):
   This class is not meant to be instantiated, instead being used to keep
   track of global state.
   """
-  def __init__(self):
-    self.METRICS_SUPPORTED = False
-    self._METRICS_SUPPORTED_LOCK = threading.Lock()
-
-  def set_metrics_supported(self, supported):
-    with self._METRICS_SUPPORTED_LOCK:
-      self.METRICS_SUPPORTED = supported
-
   def current_container(self):
     """Returns the current MetricsContainer."""
     sampler = statesampler.get_current_tracker()
