@@ -323,7 +323,7 @@ class ReshuffleTest(unittest.TestCase):
   def test_reshuffle_windows_unchanged(self):
     pipeline = TestPipeline()
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
+    expected_data = [TestWindowedValue(v, t - .001, [w]) for (v, t, w) in [
         ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
         ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
         ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
@@ -351,11 +351,12 @@ class ReshuffleTest(unittest.TestCase):
         ((1, 2), 2.0, IntervalWindow(2.0, 4.0)),
         ((2, 2), 2.0, IntervalWindow(2.0, 4.0)),
         ((1, 4), 4.0, IntervalWindow(4.0, 6.0))]]
-    expected_merged_windows = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
-        ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
-        ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
-        ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
-        ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
+    expected_merged_windows = [
+        TestWindowedValue(v, t - .001, [w]) for (v, t, w) in [
+            ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+            ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+            ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
+            ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
     before_reshuffle = (pipeline
                         | 'start' >> beam.Create(data)
                         | 'add_timestamp' >> beam.Map(

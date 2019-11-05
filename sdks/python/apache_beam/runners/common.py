@@ -507,6 +507,8 @@ class PerWindowInvoker(DoFnInvoker):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif core.DoFn.TimestampParam == d:
         args_with_placeholders.append(ArgPlaceholder(d))
+      elif core.DoFn.PaneInfoParam == d:
+        args_with_placeholders.append(ArgPlaceholder(d))
       elif core.DoFn.SideInputParam == d:
         # If no more args are present then the value must be passed via kwarg
         try:
@@ -635,6 +637,8 @@ class PerWindowInvoker(DoFnInvoker):
         args_for_process[i] = window
       elif core.DoFn.TimestampParam == p:
         args_for_process[i] = windowed_value.timestamp
+      elif core.DoFn.PaneInfoParam == p:
+        args_for_process[i] = windowed_value.pane_info
       elif isinstance(p, core.DoFn.StateParam):
         args_for_process[i] = (
             self.user_state_context.get_state(p.state_spec, key, window))

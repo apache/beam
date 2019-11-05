@@ -73,9 +73,11 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.transforms import trigger
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
+from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -234,7 +236,15 @@ class _GroupingBuffer(object):
     """
     if not self._grouped_output:
       if self._windowing.is_default():
-        globally_window = GlobalWindows.windowed_value(None).with_value
+        globally_window = GlobalWindows.windowed_value(
+            None,
+            timestamp=GlobalWindow().max_timestamp(),
+            pane_info=windowed_value.PaneInfo(
+                is_first=True,
+                is_last=True,
+                timing=windowed_value.PaneInfoTiming.ON_TIME,
+                index=0,
+                nonspeculative_index=0)).with_value
         windowed_key_values = lambda key, values: [
             globally_window((key, values))]
       else:

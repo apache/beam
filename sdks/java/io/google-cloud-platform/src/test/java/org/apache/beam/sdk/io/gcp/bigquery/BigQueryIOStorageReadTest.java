@@ -861,6 +861,9 @@ public class BigQueryIOStorageReadTest {
             // N.B.: All floating point numbers used in this test can be represented without
             // a loss of precision.
             createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.250),
+            // Some responses may contain zero results, so we must ensure that we can are resilient
+            // to such responses.
+            createResponse(AVRO_SCHEMA, Lists.newArrayList(), 0.250),
             createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.500),
             createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.875));
 
