@@ -63,6 +63,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
@@ -627,13 +628,15 @@ class ElasticsearchIOTestCommon implements Serializable {
   void testDefaultRetryPredicate(RestClient restClient) throws IOException {
 
     HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
-    Response response1 =
-        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity1);
+    Request request = new Request("POST", "/_bulk");
+    request.addParameters(Collections.emptyMap());
+    request.setEntity(entity1);
+    Response response1 = restClient.performRequest(request);
     assertTrue(CUSTOM_RETRY_PREDICATE.test(response1.getEntity()));
 
     HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
-    Response response2 =
-        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity2);
+    request.setEntity(entity2);
+    Response response2 = restClient.performRequest(request);
     assertFalse(DEFAULT_RETRY_PREDICATE.test(response2.getEntity()));
   }
 
