@@ -297,7 +297,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
                 .setRegister(registerRequest)
                 .build();
         registerFuture = instructionRequestHandler.handle(request);
-        getRegisterResponse(registerFuture);
       }
 
       checkState(
@@ -315,7 +314,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
       deregisterStateHandler =
           beamFnStateDelegator.registerForProcessBundleInstructionId(
               getProcessBundleInstructionId(), this::delegateByStateKeyType);
-      processBundleResponse = instructionRequestHandler.handle(processBundleRequest);
+      processBundleResponse =
+          getRegisterResponse(registerFuture)
+              .thenCompose(
+                  registerResponse -> instructionRequestHandler.handle(processBundleRequest));
     }
   }
 

@@ -133,14 +133,16 @@ public class SdkHarnessClient implements AutoCloseable {
       String bundleId = idGenerator.getId();
 
       final CompletionStage<BeamFnApi.InstructionResponse> genericResponse =
-          fnApiControlClient.handle(
-              BeamFnApi.InstructionRequest.newBuilder()
-                  .setInstructionId(bundleId)
-                  .setProcessBundle(
-                      BeamFnApi.ProcessBundleRequest.newBuilder()
-                          .setProcessBundleDescriptorId(processBundleDescriptor.getId())
-                          .addAllCacheTokens(stateRequestHandler.getCacheTokens()))
-                  .build());
+          registrationFuture.thenCompose(
+              registration ->
+                  fnApiControlClient.handle(
+                      BeamFnApi.InstructionRequest.newBuilder()
+                          .setInstructionId(bundleId)
+                          .setProcessBundle(
+                              BeamFnApi.ProcessBundleRequest.newBuilder()
+                                  .setProcessBundleDescriptorId(processBundleDescriptor.getId())
+                                  .addAllCacheTokens(stateRequestHandler.getCacheTokens()))
+                          .build()));
       LOG.debug(
           "Sent {} with ID {} for {} with ID {}",
           ProcessBundleRequest.class.getSimpleName(),
