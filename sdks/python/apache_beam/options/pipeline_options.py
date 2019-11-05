@@ -854,6 +854,10 @@ class PortableOptions(PipelineOptions):
         '--environment_cache_millis', default=0,
         help=('Duration in milliseconds for environment cache within a job. '
               '0 means no caching.'))
+    parser.add_argument(
+        '--output_executable_path', default=None,
+        help=('Create an executable jar at this path rather than running '
+              'the pipeline.'))
 
 
 class TestOptions(PipelineOptions):
