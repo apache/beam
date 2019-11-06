@@ -321,7 +321,10 @@ class _WatermarkManager(object):
       self._watermark = min(producer_wm, wm)
 
     def watermark(self):
-      return self._watermark
+      if self._watermark:
+        return self._watermark
+      else:
+        return min(p.watermark() for p in self.producers)
 
   class StageNode(WatermarkNode):
 
@@ -330,7 +333,7 @@ class _WatermarkManager(object):
       self.inputs = set()
 
     def set_watermark(self, wm):
-      raise NotImplementedError('WHY DIS')
+      raise NotImplementedError('Stages do not have a watermark')
 
     def watermark(self):
       return min(i.watermark() for i in self.inputs)
@@ -443,9 +446,8 @@ class PipelineExecutionContext(object):
         g.node(pcoll_name)
         g.edge(pcoll_name, stage_name)
 
-
-    g.render('/usr/local/google/home/pabloem/codes/streaming-runner/sdks/python/graph.png',
-             format='png')
+    #g.render('graph.png',
+    #         format='png')
 
 
   def get_watermark(self, name):

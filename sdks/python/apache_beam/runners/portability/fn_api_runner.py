@@ -229,11 +229,17 @@ class _GroupingBuffer(object):
           value if is_trivial_windowing
           else windowed_key_value.with_value(value))
 
+  def extend(self, input_buffer):
+    print('Extending GroupingBuffer 0x%x, GO: %s' % (id(self), self._grouped_output))
+    for elm in input_buffer:
+      self.append(elm)
+
   def partition(self, n):
     """ It is used to partition _GroupingBuffer to N parts. Once it is
     partitioned, it would not be re-partitioned with diff N. Re-partition
     is not supported now.
     """
+    print('Partitioning GroupingBuffer 0x%x, GO: %s' % (id(self), self._grouped_output))
     if not self._grouped_output:
       if self._windowing.is_default():
         globally_window = GlobalWindows.windowed_value(None).with_value
@@ -265,8 +271,9 @@ class _GroupingBuffer(object):
     return '<%s at 0x%x>' % (self.__str__(), id(self))
 
   def __str__(self):
-    return '[%s %s]' % (self.__class__.__name__,
-                        list(itertools.chain(*self.partition(1))))
+    return '[%s %s]' % (self.__class__.__name__, None)
+    # TODO(pabloem, MUST): REMOVE NEXT LINE.
+                        #list(itertools.chain(*self.partition(1))))
 
   def __iter__(self):
     """ Since partition() returns a list of lists, add this __iter__ to return
@@ -780,21 +787,26 @@ class FnApiRunner(runner.PipelineRunner):
           endpoints_for_execution = (next_ready_elements, data_output)
 
           print('Executing bundle for stage\n\t', stage.name)
-          stage_results, output_bundles = self._execute_bundle(
+          stage_results, output_bundles, deferred_inputs = self._execute_bundle(
               execution_context,
               worker_handler_manager.get_worker_handlers,
               stage_context.components,
               stage,
               pcoll_buffers,
               stage_context.safe_coders,
-              input_queue_manager,
               endpoints_for_execution)
           metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
 
           output_bundles_with_timestamps = self._update_watermarks(
-              execution_context, stage, data_input, output_bundles)
+              execution_context, stage, data_input, output_bundles, deferred_inputs)
+
+          for k, v in deferred_inputs.items():
+            # TODO(pabloem, MUST): SOMEHOW ENQUEUE THE DEFERRED INPUTS.
+            #  this is not the way. hah.
+            input_queue_manager.ready_inputs.enque((stage.name, {k: v}))
+
           self._process_output_bundles(execution_context,
                                        output_bundles_with_timestamps,
                                        input_queue_manager)
@@ -837,16 +849,15 @@ class FnApiRunner(runner.PipelineRunner):
 
   def _update_watermarks(
       self, execution_context,
-      stage, input_bundles, output_bundles):
+      stage, input_bundles, output_bundles,
+      deferred_inputs):
     # type: (PipelineExecutionContext, fn_api_runner_transforms.Stage, Dict[str, bytes], List[Tuple[bytes, List[bytes]]]) -> List[Tuple[Tuple[timestam.Timestamp, bytes], List[bytes]]]
     """Update the watermarks after execution of a bundle.
 
     It also recomputes the output bundle list to contain consumer and target
     watermark (i.e. the input watermark of the consumer to be scheduled)."""
-    #print('Stage timer pcolls:', str(stage.timer_pcollections))
-    #print('DInput', str(input_bundles))
-    #print('DOutput', str(output_bundles))
 
+    # TODO(pabloem): DOCUMENT THIS!
     # Map Timer reading transform to Timer write PCollection
     timer_read_transform_to_written_pcoll_map = {}
     timer_written_pcoll_to_read_pcoll_map = {}
@@ -854,6 +865,16 @@ class FnApiRunner(runner.PipelineRunner):
       timer_read_transform_to_written_pcoll_map[reading_transform] = written_pcoll
 
     for consumer, buffer_id in input_bundles.items():
+      if consumer in deferred_inputs and deferred_inputs[consumer]:
+        # If there are any deferred inputs, we hold the watermark back.
+        # This should also hold back the watermarks for all downstream
+        # PCollections.
+        kind, pcoll_name = split_buffer_id(buffer_id)
+        print('SETTING A WATERMARK HOLD FOR \n\t', pcoll_name)
+        execution_context.update_pcoll_watermark(pcoll_name,
+                                                 timestamp.MIN_TIMESTAMP)
+        continue
+
       if buffer_id == fn_api_runner_transforms.IMPULSE_BUFFER:
         pcoll_name = '%s%s' % (stage.name,
                                fn_api_runner_transforms.IMPULSE_BUFFER)
@@ -870,9 +891,8 @@ class FnApiRunner(runner.PipelineRunner):
           written_pcoll = timer_read_transform_to_written_pcoll_map[consumer]
           timer_written_pcoll_to_read_pcoll_map[written_pcoll] = pcoll_name
           continue
-        else:  # elif kind == 'group':
-          # TODO(pabloem, MUST): WHAT TO DO ABOUT OTHER BUFFER KINDS?
-          #   I think: For batch, once it's been executed, we're done.
+        else:
+          # TODO(pabloem, MUST): We'll have to handle this better on streaming
           execution_context.update_pcoll_watermark(pcoll_name,
                                                    timestamp.MAX_TIMESTAMP)
 
@@ -927,7 +947,8 @@ class FnApiRunner(runner.PipelineRunner):
     for buffer_id, output_bytes in output_bundles:
       kind, pcoll_name = split_buffer_id(buffer_id)
       if kind != 'timers':
-        # TODO(pabloem, MUST): WHAT TO DO ABOUT OTHER BUFFER KINDS?
+        #pcnode = execution_context._watermark_manager._watermarks_by_name[pcoll_name]
+        #uw = pcnode.upstream_watermark()
         execution_context.update_pcoll_watermark(pcoll_name,
                                                  timestamp.MAX_TIMESTAMP)
         output_bundles_with_target_watermarks.append(
@@ -989,7 +1010,6 @@ class FnApiRunner(runner.PipelineRunner):
                       stage,
                       pcoll_buffers,
                       safe_coders,
-                      input_queue_manager,
                       stage_endpoints):
     """Run an individual stage.
 
@@ -1067,11 +1087,7 @@ class FnApiRunner(runner.PipelineRunner):
         num_workers=self._num_workers,
         cache_token_generator=cache_token_generator)
 
-    #print('Data input: ' + str(input_bundle))
-    #print('Data output: ' + str(data_output))
     result, splits = bundle_manager.process_bundle(input_bundle, data_output)
-    #print('Result PRocessbundle residuals: ' + str(result.process_bundle.residual_roots))
-    #print('Spluts: ' + str(splits))
 
     for si in stage.downstream_side_inputs:
       side_input_infos = execution_context.get_side_input_infos(si)
@@ -1096,49 +1112,42 @@ class FnApiRunner(runner.PipelineRunner):
     #  that currently, and thus when we have deferred inputs, the watermark
     #  still moves to +MAX_TS, and downstream operations are scheduled.
     #  THIS BAD.
-    while True:
-      deferred_inputs = FnApiRunner._collect_deferred_inputs(
-        pipeline_context,
-        process_bundle_descriptor,
-        safe_coders,
-        last_result,
-        splits,
-        last_sent)
+    deferred_inputs = FnApiRunner._collect_deferred_inputs(
+      pipeline_context,
+      process_bundle_descriptor,
+      safe_coders,
+      last_result,
+      splits,
+      last_sent)
 
-      # TODO(pabloem, MUST): It may be that we should just add DEFERRED INPUTS
-      #   to output bundles.
-      for k, v in deferred_inputs.items():
-        # TODO(pabloem, MUST): We may need to empty-fill other inputs without deferred elements?
-        input_queue_manager.ready_inputs.enque((stage.name, {k: v}))
-      break
-      # TODO(pabloem, MUST): NOTE robertwb comment a few lines below. It likely matters.
-      """
-      if deferred_inputs:
-        # The worker will be waiting on these inputs as well.
-        for other_input in data_input:
-          if other_input not in deferred_inputs:
-            deferred_inputs[other_input] = _ListBuffer([])
-        # TODO(robertwb): merge results
-        # We cannot split deferred_input until we include residual_roots to
-        # merged results. Without residual_roots, pipeline stops earlier and we
-        # may miss some data.
-        bundle_manager._num_workers = 1
-        bundle_manager._skip_registration = True
-        last_result, splits = bundle_manager.process_bundle(
-            deferred_inputs, data_output)
-        last_sent = deferred_inputs
-        result = beam_fn_api_pb2.InstructionResponse(
-            process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-                monitoring_infos=monitoring_infos.consolidate(
-                    itertools.chain(
-                        result.process_bundle.monitoring_infos,
-                        last_result.process_bundle.monitoring_infos))),
-            error=result.error or last_result.error)
+    # TODO(pabloem, MUST): NOTE robertwb comment a few lines below regarding DEFERRED INPUTS.
+    """
+    if deferred_inputs:
+      # The worker will be waiting on these inputs as well.
+      for other_input in data_input:
+        if other_input not in deferred_inputs:
+          deferred_inputs[other_input] = _ListBuffer([])
+      # TODO(robertwb): merge results
+      # We cannot split deferred_input until we include residual_roots to
+      # merged results. Without residual_roots, pipeline stops earlier and we
+      # may miss some data.
+      bundle_manager._num_workers = 1
+      bundle_manager._skip_registration = True
+      last_result, splits = bundle_manager.process_bundle(
+          deferred_inputs, data_output)
+      last_sent = deferred_inputs
+      result = beam_fn_api_pb2.InstructionResponse(
+          process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+              monitoring_infos=monitoring_infos.consolidate(
+                  itertools.chain(
+                      result.process_bundle.monitoring_infos,
+                      last_result.process_bundle.monitoring_infos))),
+          error=result.error or last_result.error)
       else:
         break
       """
 
-    return result, output_bundles
+    return result, output_bundles, deferred_inputs
 
   @staticmethod
   def _collect_deferred_inputs(pipeline_context,
