@@ -159,9 +159,8 @@ public class SdkHarnessClientTest {
 
   @Test
   public void testRegisterCachesBundleProcessors() throws Exception {
-    CompletableFuture<InstructionResponse> registerResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(registerResponseFuture);
+        .thenReturn(createRegisterResponse());
 
     ProcessBundleDescriptor descriptor1 =
         ProcessBundleDescriptor.newBuilder().setId("descriptor1").build();
@@ -187,9 +186,8 @@ public class SdkHarnessClientTest {
 
   @Test
   public void testRegisterWithStateRequiresStateDelegator() throws Exception {
-    CompletableFuture<InstructionResponse> registerResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(registerResponseFuture);
+        .thenReturn(createRegisterResponse());
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder()
@@ -214,7 +212,7 @@ public class SdkHarnessClientTest {
   public void testNewBundleNoDataDoesNotCrash() throws Exception {
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(new CompletableFuture<>())
+        .thenReturn(createRegisterResponse())
         .thenReturn(processBundleResponseFuture);
 
     FullWindowedValueCoder<String> coder =
@@ -290,7 +288,7 @@ public class SdkHarnessClientTest {
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(new CompletableFuture<>())
+        .thenReturn(createRegisterResponse())
         .thenReturn(processBundleResponseFuture);
 
     FullWindowedValueCoder<String> coder =
@@ -343,7 +341,7 @@ public class SdkHarnessClientTest {
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(new CompletableFuture<>())
+        .thenReturn(createRegisterResponse())
         .thenReturn(processBundleResponseFuture);
 
     FullWindowedValueCoder<String> coder =
@@ -389,7 +387,7 @@ public class SdkHarnessClientTest {
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(new CompletableFuture<>())
+        .thenReturn(createRegisterResponse())
         .thenReturn(processBundleResponseFuture);
 
     FullWindowedValueCoder<String> coder =
@@ -439,7 +437,7 @@ public class SdkHarnessClientTest {
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(new CompletableFuture<>())
+        .thenReturn(createRegisterResponse())
         .thenReturn(processBundleResponseFuture);
 
     FullWindowedValueCoder<String> coder =
@@ -483,7 +481,7 @@ public class SdkHarnessClientTest {
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(new CompletableFuture<>())
+        .thenReturn(createRegisterResponse())
         .thenReturn(processBundleResponseFuture);
 
     FullWindowedValueCoder<String> coder =
@@ -540,7 +538,7 @@ public class SdkHarnessClientTest {
 
     CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(new CompletableFuture<>())
+        .thenReturn(createRegisterResponse())
         .thenReturn(processBundleResponseFuture);
 
     FullWindowedValueCoder<String> coder =
@@ -582,10 +580,9 @@ public class SdkHarnessClientTest {
   }
 
   @Test
-  public void verifyCacheTokensAreUsedInNewBundleRequest() {
-    CompletableFuture<InstructionResponse> registerResponseFuture = new CompletableFuture<>();
+  public void verifyCacheTokensAreUsedInNewBundleRequest() throws InterruptedException {
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(registerResponseFuture);
+        .thenReturn(createRegisterResponse());
 
     ProcessBundleDescriptor descriptor1 =
         ProcessBundleDescriptor.newBuilder().setId("descriptor1").build();
@@ -624,6 +621,13 @@ public class SdkHarnessClientTest {
         requests.get(1).getRequestCase(),
         is(BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE));
     assertThat(requests.get(1).getProcessBundle().getCacheTokensList(), is(cacheTokens));
+  }
+
+  private CompletableFuture<InstructionResponse> createRegisterResponse() {
+    return CompletableFuture.completedFuture(
+        InstructionResponse.newBuilder()
+            .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
+            .build());
   }
 
   private static class TestFn extends DoFn<String, String> {
