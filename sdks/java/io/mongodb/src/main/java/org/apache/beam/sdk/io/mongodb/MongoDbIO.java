@@ -323,13 +323,6 @@ public class MongoDbIO {
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
     }
 
-    public long getDocumentCount() {
-      checkArgument(uri() != null, "withUri() is required");
-      checkArgument(database() != null, "withDatabase() is required");
-      checkArgument(collection() != null, "withCollection() is required");
-      return new BoundedMongoDbSource(this).getDocumentCount();
-    }
-
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
@@ -381,38 +374,6 @@ public class MongoDbIO {
     @Override
     public BoundedReader<Document> createReader(PipelineOptions options) {
       return new BoundedMongoDbReader(this);
-    }
-
-    /**
-     * Returns number of Documents in a collection.
-     *
-     * @return Positive number of Documents in a collection or -1 on error.
-     */
-    long getDocumentCount() {
-      try (MongoClient mongoClient =
-          new MongoClient(
-              new MongoClientURI(
-                  spec.uri(),
-                  getOptions(
-                      spec.maxConnectionIdleTime(),
-                      spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed())))) {
-        return getDocumentCount(mongoClient, spec.database(), spec.collection());
-      } catch (Exception e) {
-        return -1;
-      }
-    }
-
-    private long getDocumentCount(MongoClient mongoClient, String database, String collection) {
-      MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
-
-      // get the Mongo collStats object
-      // it gives the size for the entire collection
-      BasicDBObject stat = new BasicDBObject();
-      stat.append("collStats", collection);
-      Document stats = mongoDatabase.runCommand(stat);
-
-      return stats.get("count", Number.class).longValue();
     }
 
     @Override
