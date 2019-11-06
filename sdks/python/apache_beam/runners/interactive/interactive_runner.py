@@ -48,7 +48,8 @@ class InteractiveRunner(runners.PipelineRunner):
                underlying_runner=None,
                cache_dir=None,
                cache_format='text',
-               render_option=None):
+               render_option=None,
+               skip_display=False):
     """Constructor of InteractiveRunner.
 
     Args:
@@ -58,12 +59,16 @@ class InteractiveRunner(runners.PipelineRunner):
           PCollection caches. Available options are 'text' and 'tfrecord'.
       render_option: (str) this parameter decides how the pipeline graph is
           rendered. See display.pipeline_graph_renderer for available options.
+      skip_display: (bool) whether to skip display operations when running the
+          pipeline. Useful if running large pipelines when display is not
+          needed.
     """
     self._underlying_runner = (underlying_runner
                                or direct_runner.DirectRunner())
     self._cache_manager = cache.FileBasedCacheManager(cache_dir, cache_format)
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
     self._in_session = False
+    self._skip_display = skip_display
 
   def is_fnapi_compatible(self):
     # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
@@ -140,15 +145,19 @@ class InteractiveRunner(runners.PipelineRunner):
         self._underlying_runner,
         options)
 
-    display = display_manager.DisplayManager(
-        pipeline_proto=pipeline_proto,
-        pipeline_analyzer=analyzer,
-        cache_manager=self._cache_manager,
-        pipeline_graph_renderer=self._renderer)
-    display.start_periodic_update()
+    if not self._skip_display:
+      display = display_manager.DisplayManager(
+          pipeline_proto=pipeline_proto,
+          pipeline_analyzer=analyzer,
+          cache_manager=self._cache_manager,
+          pipeline_graph_renderer=self._renderer)
+      display.start_periodic_update()
+
     result = pipeline_to_execute.run()
     result.wait_until_finish()
-    display.stop_periodic_update()
+
+    if not self._skip_display:
+      display.stop_periodic_update()
 
     return PipelineResult(result, self, self._analyzer.pipeline_info(),
                           self._cache_manager, pcolls_to_pcoll_id)
