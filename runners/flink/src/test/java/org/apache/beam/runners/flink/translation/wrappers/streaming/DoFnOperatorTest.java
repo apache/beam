@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.LRUMap;
@@ -1720,6 +1721,63 @@ public class DoFnOperatorTest {
         keySelector,
         DoFnSchemaInformation.create(),
         Collections.emptyMap());
+  }
+
+  @Test
+  public void testBundleProcessingExceptionIsFatalDuringCheckpointing() throws Exception {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setMaxBundleSize(10L);
+    options.setCheckpointingInterval(1L);
+
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+    StringUtf8Coder coder = StringUtf8Coder.of();
+    WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
+        WindowedValue.getValueOnlyCoder(coder);
+
+    DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            outputTag,
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+
+    @SuppressWarnings("unchecked")
+    DoFnOperator doFnOperator =
+        new DoFnOperator<>(
+            new IdentityDoFn() {
+              @FinishBundle
+              public void finishBundle() {
+                throw new RuntimeException("something went wrong here");
+              }
+            },
+            "stepName",
+            windowedValueCoder,
+            null,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            null,
+            null,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    @SuppressWarnings("unchecked")
+    OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
+        new OneInputStreamOperatorTestHarness<>(doFnOperator);
+
+    testHarness.open();
+
+    // start a bundle
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValue.valueInGlobalWindow("regular element")));
+
+    // Make sure we throw Error, not a regular Exception.
+    // A regular exception would just cause the checkpoint to fail.
+    assertThrows(Error.class, () -> testHarness.snapshot(0, 0));
   }
 
   /**
