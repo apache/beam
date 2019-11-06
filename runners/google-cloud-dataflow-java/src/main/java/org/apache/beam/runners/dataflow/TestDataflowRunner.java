@@ -102,8 +102,6 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         job.getJobId(),
         expectedNumberOfAssertions);
 
-    assertThat(job, testPipelineOptions.getOnCreateMatcher());
-
     Boolean jobSuccess;
     Optional<Boolean> allAssertionsPassed;
 

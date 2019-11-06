@@ -36,10 +36,18 @@ public interface TestPipelineOptions extends PipelineOptions {
 
   void setTempRoot(String value);
 
+  @Deprecated
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
   @JsonIgnore
   SerializableMatcher<PipelineResult> getOnCreateMatcher();
 
+  /**
+   * Checks the matcher {@code value} when a pipeline is created.
+   *
+   * @deprecated This feature has limited runner support and will be removed in a future release,
+   *     users should prefer standard assertions instead.
+   */
+  @Deprecated
   void setOnCreateMatcher(SerializableMatcher<PipelineResult> value);
 
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
