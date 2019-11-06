@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTime;
@@ -292,7 +293,7 @@ public class BigQueryUtils {
       if (!schemaField.getType().getNullable()) {
         field.setMode(Mode.REQUIRED.toString());
       }
-      if (TypeName.ARRAY == type.getTypeName()) {
+      if (type.getTypeName().isCollectionType()) {
         type = type.getCollectionElementType();
         if (type.getTypeName().isCollectionType() || type.getTypeName().isMapType()) {
           throw new IllegalArgumentException("Array of collection is not supported in BigQuery.");
@@ -409,9 +410,10 @@ public class BigQueryUtils {
 
     switch (fieldType.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         FieldType elementType = fieldType.getCollectionElementType();
-        List items = (List) fieldValue;
-        List convertedItems = Lists.newArrayListWithCapacity(items.size());
+        Iterable items = (Iterable) fieldValue;
+        List convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
         for (Object item : items) {
           convertedItems.add(fromBeamField(elementType, item));
         }

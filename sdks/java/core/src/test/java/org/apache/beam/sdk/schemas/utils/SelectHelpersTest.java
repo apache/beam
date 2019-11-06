@@ -64,6 +64,20 @@ public class SelectHelpersTest {
           .addArray(NESTED_ROW, NESTED_ROW)
           .build();
 
+  static final Schema ITERABLE_SCHEMA =
+      Schema.builder()
+          .addIterableField("primitiveIter", FieldType.INT32)
+          .addIterableField("rowIter", FieldType.row(FLAT_SCHEMA))
+          .addIterableField("iterOfRowIter", FieldType.iterable(FieldType.row(FLAT_SCHEMA)))
+          .addIterableField("nestedRowIter", FieldType.row(NESTED_SCHEMA))
+          .build();
+  static final Row ITERABLE_ROW =
+      Row.withSchema(ARRAY_SCHEMA)
+          .addIterable(ImmutableList.of(1, 2))
+          .addIterable(ImmutableList.of(FLAT_ROW, FLAT_ROW))
+          .addIterable(ImmutableList.of(ImmutableList.of(FLAT_ROW), ImmutableList.of(FLAT_ROW)))
+          .addIterable(ImmutableList.of(NESTED_ROW, NESTED_ROW))
+          .build();
   static final Schema MAP_SCHEMA =
       Schema.builder().addMapField("map", FieldType.INT32, FieldType.row(FLAT_SCHEMA)).build();
   static final Row MAP_ROW =
@@ -75,6 +89,15 @@ public class SelectHelpersTest {
           .build();
   static final Row MAP_ARRAY_ROW =
       Row.withSchema(MAP_ARRAY_SCHEMA)
+          .addValue(ImmutableMap.of(1, ImmutableList.of(FLAT_ROW)))
+          .build();
+
+  static final Schema MAP_ITERABLE_SCHEMA =
+      Schema.builder()
+          .addMapField("map", FieldType.INT32, FieldType.iterable(FieldType.row(FLAT_SCHEMA)))
+          .build();
+  static final Row MAP_ITERABLE_ROW =
+      Row.withSchema(MAP_ITERABLE_SCHEMA)
           .addValue(ImmutableMap.of(1, ImmutableList.of(FLAT_ROW)))
           .build();
 
@@ -200,6 +223,21 @@ public class SelectHelpersTest {
   }
 
   @Test
+  public void testSelectIterableOfPrimitive() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("primitiveIter").resolve(ITERABLE_SCHEMA);
+    Schema outputSchema = SelectHelpers.getOutputSchema(ITERABLE_SCHEMA, fieldAccessDescriptor);
+    Schema expectedSchema =
+        Schema.builder().addIterableField("primitiveIter", FieldType.INT32).build();
+    assertEquals(expectedSchema, outputSchema);
+
+    Row row =
+        SelectHelpers.selectRow(ITERABLE_ROW, fieldAccessDescriptor, ITERABLE_SCHEMA, outputSchema);
+    Row expectedRow = Row.withSchema(expectedSchema).addIterable(ImmutableList.of(1, 2)).build();
+    assertEquals(expectedRow, row);
+  }
+
+  @Test
   public void testSelectArrayOfRow() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldNames("rowArray").resolve(ARRAY_SCHEMA);
@@ -214,6 +252,22 @@ public class SelectHelpersTest {
   }
 
   @Test
+  public void testSelectIterableOfRow() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("rowIter").resolve(ITERABLE_SCHEMA);
+    Schema outputSchema = SelectHelpers.getOutputSchema(ITERABLE_SCHEMA, fieldAccessDescriptor);
+    Schema expectedSchema =
+        Schema.builder().addIterableField("rowIter", FieldType.row(FLAT_SCHEMA)).build();
+    assertEquals(expectedSchema, outputSchema);
+
+    Row row =
+        SelectHelpers.selectRow(ITERABLE_ROW, fieldAccessDescriptor, ITERABLE_SCHEMA, outputSchema);
+    Row expectedRow =
+        Row.withSchema(expectedSchema).addIterable(ImmutableList.of(FLAT_ROW, FLAT_ROW)).build();
+    assertEquals(expectedRow, row);
+  }
+
+  @Test
   public void testSelectArrayOfRowPartial() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldNames("rowArray[].field1").resolve(ARRAY_SCHEMA);
@@ -224,6 +278,22 @@ public class SelectHelpersTest {
 
     Row row = SelectHelpers.selectRow(ARRAY_ROW, fieldAccessDescriptor, ARRAY_SCHEMA, outputSchema);
     Row expectedRow = Row.withSchema(expectedSchema).addArray("first", "first").build();
+    assertEquals(expectedRow, row);
+  }
+
+  @Test
+  public void testSelectIterableOfRowPartial() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("rowIter[].field1").resolve(ITERABLE_SCHEMA);
+    Schema outputSchema = SelectHelpers.getOutputSchema(ITERABLE_SCHEMA, fieldAccessDescriptor);
+
+    Schema expectedSchema = Schema.builder().addIterableField("field1", FieldType.STRING).build();
+    assertEquals(expectedSchema, outputSchema);
+
+    Row row =
+        SelectHelpers.selectRow(ITERABLE_ROW, fieldAccessDescriptor, ITERABLE_SCHEMA, outputSchema);
+    Row expectedRow =
+        Row.withSchema(expectedSchema).addIterable(ImmutableList.of("first", "first")).build();
     assertEquals(expectedRow, row);
   }
 
@@ -247,6 +317,26 @@ public class SelectHelpersTest {
   }
 
   @Test
+  public void testSelectIterableOfRowIterable() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("iterOfRowIter[][].field1").resolve(ITERABLE_SCHEMA);
+    Schema outputSchema = SelectHelpers.getOutputSchema(ITERABLE_SCHEMA, fieldAccessDescriptor);
+
+    Schema expectedSchema =
+        Schema.builder().addIterableField("field1", FieldType.iterable(FieldType.STRING)).build();
+    assertEquals(expectedSchema, outputSchema);
+
+    Row row =
+        SelectHelpers.selectRow(ITERABLE_ROW, fieldAccessDescriptor, ITERABLE_SCHEMA, outputSchema);
+
+    Row expectedRow =
+        Row.withSchema(expectedSchema)
+            .addIterable(ImmutableList.of(ImmutableList.of("first"), ImmutableList.of("first")))
+            .build();
+    assertEquals(expectedRow, row);
+  }
+
+  @Test
   public void testSelectArrayOfNestedRow() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldNames("nestedRowArray[].nested.field1")
@@ -259,6 +349,24 @@ public class SelectHelpersTest {
 
     Row row = SelectHelpers.selectRow(ARRAY_ROW, fieldAccessDescriptor, ARRAY_SCHEMA, outputSchema);
     Row expectedRow = Row.withSchema(expectedSchema).addArray("first", "first").build();
+    assertEquals(expectedRow, row);
+  }
+
+  @Test
+  public void testSelectIterableOfNestedRow() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("nestedRowIter[].nested.field1")
+            .resolve(ITERABLE_SCHEMA);
+    Schema outputSchema = SelectHelpers.getOutputSchema(ITERABLE_SCHEMA, fieldAccessDescriptor);
+
+    Schema expectedElementSchema = Schema.builder().addStringField("field1").build();
+    Schema expectedSchema = Schema.builder().addIterableField("field1", FieldType.STRING).build();
+    assertEquals(expectedSchema, outputSchema);
+
+    Row row =
+        SelectHelpers.selectRow(ITERABLE_ROW, fieldAccessDescriptor, ITERABLE_SCHEMA, outputSchema);
+    Row expectedRow =
+        Row.withSchema(expectedSchema).addIterable(ImmutableList.of("first", "first")).build();
     assertEquals(expectedRow, row);
   }
 
@@ -318,6 +426,29 @@ public class SelectHelpersTest {
     Row row =
         SelectHelpers.selectRow(
             MAP_ARRAY_ROW, fieldAccessDescriptor, MAP_ARRAY_SCHEMA, outputSchema);
+
+    Row expectedRow =
+        Row.withSchema(expectedSchema)
+            .addValue(ImmutableMap.of(1, ImmutableList.of("first")))
+            .build();
+    assertEquals(expectedRow, row);
+  }
+
+  @Test
+  public void testSelectMapOfIterable() {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("map.field1").resolve(MAP_ITERABLE_SCHEMA);
+    Schema outputSchema = SelectHelpers.getOutputSchema(MAP_ITERABLE_SCHEMA, fieldAccessDescriptor);
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addMapField("field1", FieldType.INT32, FieldType.iterable(FieldType.STRING))
+            .build();
+    assertEquals(expectedSchema, outputSchema);
+
+    Row row =
+        SelectHelpers.selectRow(
+            MAP_ITERABLE_ROW, fieldAccessDescriptor, MAP_ITERABLE_SCHEMA, outputSchema);
 
     Row expectedRow =
         Row.withSchema(expectedSchema)
@@ -392,6 +523,34 @@ public class SelectHelpersTest {
     Row expected =
         Row.withSchema(outputSchema)
             .addArray(Lists.newArrayList("first", "first"), Lists.newArrayList("first", "first"))
+            .build();
+    assertEquals(expected, out);
+  }
+
+  @Test
+  public void testIterableRowIterable() {
+    Schema f1 = Schema.builder().addStringField("f0").build();
+    Schema f2 = Schema.builder().addIterableField("f1", FieldType.row(f1)).build();
+    Schema f3 = Schema.builder().addRowField("f2", f2).build();
+    Schema f4 = Schema.builder().addIterableField("f3", FieldType.row(f3)).build();
+
+    Row r1 = Row.withSchema(f1).addValue("first").build();
+    Row r2 = Row.withSchema(f2).addIterable(ImmutableList.of(r1, r1)).build();
+    Row r3 = Row.withSchema(f3).addValue(r2).build();
+    Row r4 = Row.withSchema(f4).addIterable(ImmutableList.of(r3, r3)).build();
+
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptor.withFieldNames("f3.f2.f1.f0").resolve(f4);
+    Schema outputSchema = SelectHelpers.getOutputSchema(f4, fieldAccessDescriptor);
+    Schema expectedSchema =
+        Schema.builder().addIterableField("f0", FieldType.iterable(FieldType.STRING)).build();
+    assertEquals(expectedSchema, outputSchema);
+    Row out = SelectHelpers.selectRow(r4, fieldAccessDescriptor, r4.getSchema(), outputSchema);
+    Row expected =
+        Row.withSchema(outputSchema)
+            .addIterable(
+                ImmutableList.of(
+                    ImmutableList.of("first", "first"), ImmutableList.of("first", "first")))
             .build();
     assertEquals(expected, out);
   }
