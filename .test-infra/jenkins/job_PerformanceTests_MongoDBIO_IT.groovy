@@ -60,15 +60,4 @@ job(jobName) {
       tasks(":sdks:java:io:mongodb:integrationTest --tests org.apache.beam.sdk.io.mongodb.MongoDBIOIT")
     }
   }
-
-  steps {
-    gradle {
-      rootBuildScriptDir(common.checkoutDir)
-      common.setGradleSwitches(delegate)
-      switches("--info")
-      switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
-      switches("-DintegrationTestRunner=dataflow")
-      tasks(":sdks:java:extensions:sql:integrationTest --tests org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbReadWriteIT.testWriteAndRead")
-    }
-  }
 }
