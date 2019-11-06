@@ -828,7 +828,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * OutputReceiver<RestrictionT> receiver);}
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
-   * defining the method and returning the {@code restriction} unchanged).
+   * defining the method and outputting the {@code restriction} unchanged).
    */
   // TODO: Make the InputT parameter optional.
   @Documented
