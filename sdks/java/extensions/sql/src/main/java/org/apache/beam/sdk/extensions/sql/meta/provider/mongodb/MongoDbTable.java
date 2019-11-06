@@ -87,7 +87,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     return input
-        .apply(RowToDocument.withSchema(getSchema()))
+        .apply(new RowToDocument())
         .apply(MongoDbIO.write().withUri(dbUri).withDatabase(dbName).withCollection(dbCollection));
   }
 
@@ -147,20 +147,18 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   }
 
   public static class RowToDocument extends PTransform<PCollection<Row>, PCollection<Document>> {
-    private final Schema schema;
 
-    private RowToDocument(Schema schema) {
-      this.schema = schema;
-    }
+    private RowToDocument() {}
 
-    public static RowToDocument withSchema(Schema schema) {
-      return new RowToDocument(schema);
+    public static RowToDocument convert() {
+      return new RowToDocument();
     }
 
     @Override
     public PCollection<Document> expand(PCollection<Row> input) {
       return input
-          .apply("Transform Rows to JSON", ToJson.<Row>of().withSchema(schema))
+          // TODO(BEAM-8498): figure out a way convert Row directly to Document.
+          .apply("Transform Rows to JSON", ToJson.of())
           .apply("Produce documents from JSON", MapElements.via(new ObjectToDocumentFn()));
     }
 

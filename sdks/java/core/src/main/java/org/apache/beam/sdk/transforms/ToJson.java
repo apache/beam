@@ -40,7 +40,6 @@ import org.apache.beam.sdk.values.Row;
 @Experimental
 public class ToJson<T> extends PTransform<PCollection<T>, PCollection<String>> {
   private transient volatile @Nullable ObjectMapper objectMapper;
-  private Schema inputSchema;
 
   private ToJson() {}
 
@@ -48,21 +47,17 @@ public class ToJson<T> extends PTransform<PCollection<T>, PCollection<String>> {
     return new ToJson<>();
   }
 
-  public ToJson<T> withSchema(Schema schema) {
-    inputSchema = schema;
-    return this;
-  }
-
   @Override
   public PCollection<String> expand(PCollection<T> rows) {
+    Schema inputSchema = rows.getSchema();
     SerializableFunction<T, Row> toRow = rows.getToRowFunction();
-    final Schema schema = this.inputSchema == null ? rows.getSchema() : this.inputSchema;
     return rows.apply(
         ParDo.of(
             new DoFn<T, String>() {
               @ProcessElement
               public void processElement(ProcessContext context) {
-                context.output(rowToJson(objectMapper(schema), toRow.apply(context.element())));
+                context.output(
+                    rowToJson(objectMapper(inputSchema), toRow.apply(context.element())));
               }
             }));
   }

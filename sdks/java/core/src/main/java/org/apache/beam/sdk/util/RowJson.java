@@ -324,20 +324,10 @@ public class RowJson {
           gen.writeNumber((byte) value);
           break;
         case DOUBLE:
-          // BigDecimal cannot be cast to double directly
-          if (value instanceof BigDecimal) {
-            gen.writeNumber(((BigDecimal) value).doubleValue());
-          } else {
-            gen.writeNumber((double) value);
-          }
+          gen.writeNumber((double) value);
           break;
         case FLOAT:
-          // BigDecimal cannot be cast to float directly
-          if (value instanceof BigDecimal) {
-            gen.writeNumber(((BigDecimal) value).floatValue());
-          } else {
-            gen.writeNumber((float) value);
-          }
+          gen.writeNumber((float) value);
           break;
         case INT16:
           gen.writeNumber((short) value);
@@ -360,6 +350,9 @@ public class RowJson {
           break;
         case ROW:
           writeRow((Row) value, type.getRowSchema(), gen);
+          break;
+        case LOGICAL_TYPE:
+          writeValue(gen, type.getLogicalType().getBaseType(), value);
           break;
         default:
           throw new IllegalArgumentException("Unsupported field type: " + type);
