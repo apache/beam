@@ -116,6 +116,9 @@ public class Environments {
   }
 
   public static Environment createDockerEnvironment(String dockerImageUrl) {
+    if (Strings.isNullOrEmpty(dockerImageUrl)) {
+      return JAVA_SDK_HARNESS_ENVIRONMENT;
+    }
     return Environment.newBuilder()
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
         .setPayload(
