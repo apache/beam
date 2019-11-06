@@ -908,6 +908,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
      * by a lock.
      */
     void flushBuffer() {
+      if (openBuffer) {
+        // Buffering currently in progress, do not proceed
+        return;
+      }
       try {
         pushedBackElementsHandler
             .getElements()
