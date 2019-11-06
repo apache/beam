@@ -30,9 +30,11 @@ from __future__ import absolute_import
 
 import datetime
 import hashlib
+import json
 import logging
 import random
 import time
+import unicode
 import uuid
 
 from future.utils import iteritems
@@ -387,9 +389,6 @@ class TriggerLoadJobs(beam.DoFn):
     else:
       schema = self.schema
 
-    import unicode
-    import json
-
     if isinstance(schema, (str, unicode)):
       schema = bigquery_tools.parse_table_schema_from_json(schema)
     elif isinstance(schema, dict):
@@ -535,6 +534,8 @@ class WaitForBQJobs(beam.DoFn):
         return WaitForBQJobs.FAILED
       elif job.status.state == 'DONE':
         continue
+      else:
+        return WaitForBQJobs.WAITING
 
     return WaitForBQJobs.ALL_DONE
 
