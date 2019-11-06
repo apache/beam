@@ -95,6 +95,8 @@ class StateSamplerTest(unittest.TestCase):
       self.assertGreater(actual_value, expected_value * (1.0 - margin_of_error))
       self.assertLess(actual_value, expected_value * (1.0 + margin_of_error))
 
+  # TODO: This test is flaky when it is run under load. A better solution
+  # would be to change the test structure to not depend on specific timings.
   @retry(reraise=True, stop=stop_after_attempt(3))
   def test_sampler_transition_overhead(self):
     # Set up state sampler.
