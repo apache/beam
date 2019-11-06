@@ -31,7 +31,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * A test of {@link ElasticsearchIO} on an independent Elasticsearch v6.x instance.
+ * A test of {@link ElasticsearchIO} on an independent Elasticsearch v7.x instance.
  *
  * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
  * database. See {@link ElasticsearchIOITCommon} for instructions to achieve this.
@@ -40,7 +40,7 @@ import org.junit.runners.JUnit4;
  * correct server IP:
  *
  * <pre>
- *  ./gradlew integrationTest -p sdks/java/io/elasticsearch-tests/elasticsearch-tests-6
+ *  ./gradlew integrationTest -p sdks/java/io/elasticsearch-tests/elasticsearch-tests-7
  *  -DintegrationTestPipelineOptions='[
  *  "--elasticsearchServer=1.2.3.4",
  *  "--elasticsearchHttpPort=9200"]'
