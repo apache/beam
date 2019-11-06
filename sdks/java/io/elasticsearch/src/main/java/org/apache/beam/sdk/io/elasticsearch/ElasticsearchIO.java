@@ -202,7 +202,7 @@ public class ElasticsearchIO {
         } else {
           if (backendVersion == 2) {
             errorRootName = "create";
-          } else if (backendVersion == 5 || backendVersion == 6) {
+          } else if (backendVersion == 5 || backendVersion == 6 || backendVersion == 7) {
             errorRootName = "index";
           }
         }
@@ -651,7 +651,7 @@ public class ElasticsearchIO {
               new BoundedElasticsearchSource(spec, shardId, null, null, null, backendVersion));
         }
         checkArgument(!sources.isEmpty(), "No shard found");
-      } else if (backendVersion == 5 || backendVersion == 6) {
+      } else if (backendVersion == 5 || backendVersion == 6 || backendVersion == 7) {
         long indexSize = getEstimatedSizeBytes(options);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
@@ -801,7 +801,7 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if ((source.backendVersion == 5 || source.backendVersion == 6)
+      if ((source.backendVersion == 5 || source.backendVersion == 6 || source.backendVersion == 7)
           && source.numSlices != null
           && source.numSlices > 1) {
         // if there is more than one slice, add the slice to the user query
@@ -1406,10 +1406,13 @@ public class ElasticsearchIO {
       int backendVersion =
           Integer.parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
       checkArgument(
-          (backendVersion == 2 || backendVersion == 5 || backendVersion == 6),
+          (backendVersion == 2
+              || backendVersion == 5
+              || backendVersion == 6
+              || backendVersion == 7),
           "The Elasticsearch version to connect to is %s.x. "
               + "This version of the ElasticsearchIO is only compatible with "
-              + "Elasticsearch v6.x, v5.x and v2.x",
+              + "Elasticsearch v7.x, v6.x, v5.x and v2.x",
           backendVersion);
       return backendVersion;
 
