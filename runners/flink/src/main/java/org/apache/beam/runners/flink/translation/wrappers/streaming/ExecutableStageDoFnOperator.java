@@ -261,8 +261,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
 
-  static class BagUserStateFactory<K extends ByteString, V, W extends BoundedWindow>
-      implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
+  static class BagUserStateFactory<V, W extends BoundedWindow>
+      implements StateRequestHandlers.BagUserStateHandlerFactory<ByteString, V, W> {
 
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
@@ -297,18 +297,18 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     @Override
-    public StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
+    public StateRequestHandlers.BagUserStateHandler<ByteString, V, W> forUserState(
         // Transform id not used because multiple operators with state will not
         // be fused together. See GreedyPCollectionFusers
         String pTransformId,
         String userStateId,
-        Coder<K> keyCoder,
+        Coder<ByteString> keyCoder,
         Coder<V> valueCoder,
         Coder<W> windowCoder) {
-      return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
+      return new StateRequestHandlers.BagUserStateHandler<ByteString, V, W>() {
 
         @Override
-        public Iterable<V> get(K key, W window) {
+        public Iterable<V> get(ByteString key, W window) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -331,7 +331,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
 
         @Override
-        public void append(K key, W window, Iterator<V> values) {
+        public void append(ByteString key, W window, Iterator<V> values) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -355,7 +355,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
 
         @Override
-        public void clear(K key, W window) {
+        public void clear(ByteString key, W window) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -382,7 +382,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           return Optional.of(cacheToken);
         }
 
-        private void prepareStateBackend(K key) {
+        private void prepareStateBackend(ByteString key) {
           // Key for state request is shipped encoded with NESTED context.
           ByteBuffer encodedKey = FlinkKeyUtils.fromEncodedKey(key);
           keyedStateBackend.setCurrentKey(encodedKey);
