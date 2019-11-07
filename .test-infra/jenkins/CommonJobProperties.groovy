@@ -101,7 +101,8 @@ class CommonJobProperties {
                                          String commitStatusContext,
                                          String prTriggerPhrase = '',
                                          boolean onlyTriggerPhraseToggle = true,
-                                         List<String> triggerPathPatterns = []) {
+                                         List<String> triggerPathPatterns = [],
+                                         List<String> excludePathPatterns = []) {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -122,6 +123,9 @@ class CommonJobProperties {
         }
         if (!triggerPathPatterns.isEmpty()) {
           includedRegions(triggerPathPatterns.join('\n'))
+        }
+        if (!excludePathPatterns.isEmpty()) {
+          excludedRegions(excludePathPatterns)
         }
 
         extensions {
