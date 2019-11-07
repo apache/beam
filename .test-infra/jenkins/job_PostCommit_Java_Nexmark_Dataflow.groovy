@@ -53,3 +53,13 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Da
 
   new NexmarkJob(delegate, runner, sdk, TriggeringContext.PR).standardJob(jobSpecificOptions)
 }
+
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java11_Nexmark_Dataflow',
+    'Run Dataflow Runner Nexmark Tests - Java 11', 'Dataflow Runner Nexmark Tests - Java 11', this) {
+  description('Runs the Nexmark suite on the Dataflow runner with Java 11 against a Pull Request, on demand.')
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  NexmarkJob job = new NexmarkJob(delegate, runner, sdk, TriggeringContext.PR)
+  job.javaRuntimeVersion = "11"
+  job.standardJob(jobSpecificOptions)
+}
