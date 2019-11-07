@@ -35,6 +35,7 @@ import org.apache.beam.sdk.util.*
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists
+import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Description
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.TypeSafeMatcher
@@ -160,9 +161,9 @@ class WindowedWordCountITKotlin {
             }
         }
 
-        options.onSuccessMatcher = WordCountsMatcher(expectedWordCounts, expectedOutputFiles)
-
         WindowedWordCount.runWindowedWordCount(options)
+
+        assertThat(expectedOutputFiles, containsWordCounts(expectedWordCounts))
     }
 
     /**
@@ -170,10 +171,10 @@ class WindowedWordCountITKotlin {
      * mechanism, and compares a sharded output file with the result.
      */
     private class WordCountsMatcher(
-            private val expectedWordCounts: SortedMap<String, Long>, private val outputFiles: List<ShardedFile>) : TypeSafeMatcher<PipelineResult>(), SerializableMatcher<PipelineResult> {
+            private val expectedWordCounts: SortedMap<String, Long>) : TypeSafeMatcher<List<ShardedFile>>(), SerializableMatcher<List<ShardedFile>> {
         private var actualCounts: SortedMap<String, Long>? = null
 
-        public override fun matchesSafely(pipelineResult: PipelineResult): Boolean {
+        public override fun matchesSafely(outputFiles: List<ShardedFile>): Boolean {
             try {
                 // Load output data
                 val outputLines = ArrayList<String>()
@@ -202,7 +203,7 @@ class WindowedWordCountITKotlin {
             equalTo(expectedWordCounts).describeTo(description)
         }
 
-        public override fun describeMismatchSafely(pResult: PipelineResult, description: Description) {
+        public override fun describeMismatchSafely(outputFiles: List<ShardedFile>, description: Description) {
             equalTo(expectedWordCounts).describeMismatch(actualCounts, description)
         }
     }
@@ -220,5 +221,10 @@ class WindowedWordCountITKotlin {
         fun setUp() {
             PipelineOptionsFactory.register(TestPipelineOptions::class.java)
         }
+
+        private fun containsWordCounts(expectedWordCounts: SortedMap<String, Long>): WordCountsMatcher {
+            return WordCountsMatcher(expectedWordCounts)
+        }
+
     }
 }

@@ -50,10 +50,18 @@ public interface TestPipelineOptions extends PipelineOptions {
   @Deprecated
   void setOnCreateMatcher(SerializableMatcher<PipelineResult> value);
 
+  @Deprecated
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
   @JsonIgnore
   SerializableMatcher<PipelineResult> getOnSuccessMatcher();
 
+  /**
+   * Checks the matcher {@code value} when a pipeline finishes successfully.
+   *
+   * @deprecated This feature has limited runner support and will be removed in a future release,
+   *     users should prefer standard assertions instead.
+   */
+  @Deprecated
   void setOnSuccessMatcher(SerializableMatcher<PipelineResult> value);
 
   @Default.Long(10 * 60)

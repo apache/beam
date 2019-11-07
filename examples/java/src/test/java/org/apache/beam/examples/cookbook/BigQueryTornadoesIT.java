@@ -17,6 +17,8 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
@@ -63,11 +65,11 @@ public class BigQueryTornadoesIT {
 
   private void runE2EBigQueryTornadoesTest(BigQueryTornadoesITOptions options) throws Exception {
     String query = String.format("SELECT month, tornado_count FROM [%s]", options.getOutput());
-    options.setOnSuccessMatcher(
-        new BigqueryMatcher(
-            options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));
-
     BigQueryTornadoes.runBigQueryTornadoes(options);
+
+    assertThat(
+        BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
+        BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
   }
 
   @Test
