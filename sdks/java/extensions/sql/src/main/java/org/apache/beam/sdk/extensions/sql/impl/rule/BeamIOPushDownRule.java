@@ -28,6 +28,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
@@ -76,6 +77,10 @@ public class BeamIOPushDownRule extends RelOptRule {
     final BeamIOSourceRel ioSourceRel = call.rel(1);
     final BeamSqlTable beamSqlTable = ioSourceRel.getBeamSqlTable();
 
+    if (ioSourceRel instanceof BeamPushDownIOSourceRel) {
+      return;
+    }
+
     // Nested rows are not supported at the moment
     for (RelDataTypeField field : ioSourceRel.getRowType().getFieldList()) {
       if (field.getType() instanceof RelRecordType) {
@@ -120,6 +125,14 @@ public class BeamIOPushDownRule extends RelOptRule {
       return;
     }
 
+    // Already most optimal case:
+    // Calc contains all unsupported filters.
+    // IO only projects fields utilized by a calc.
+    if (tableFilter.getNotSupported().containsAll(projectFilter.right)
+        && usedFields.containsAll(ioSourceRel.getRowType().getFieldNames())) {
+      return;
+    }
+
     FieldAccessDescriptor resolved = FieldAccessDescriptor.withFieldNames(usedFields);
     if (beamSqlTable.supportsProjects().withFieldReordering()) {
       // Only needs to be done when field reordering is supported, otherwise IO should project
@@ -132,7 +145,7 @@ public class BeamIOPushDownRule extends RelOptRule {
       // Tell the optimizer to not use old IO, since the new one is better.
       call.getPlanner().setImportance(ioSourceRel, 0.0);
       call.transformTo(
-          ioSourceRel.copy(
+          ioSourceRel.createPushDownRel(
               calc.getRowType(),
               resolved.getFieldsAccessed().stream()
                   .map(FieldDescriptor::getFieldName)
@@ -163,6 +176,7 @@ public class BeamIOPushDownRule extends RelOptRule {
       // Smaller Calc programs are indisputably better, as well as IOs with less projected fields.
       // We can consider something with the same number of filters.
       // Tell the optimizer not to use old Calc and IO.
+      call.getPlanner().setImportance(ioSourceRel, 0);
       call.transformTo(result);
     }
   }
@@ -332,7 +346,7 @@ public class BeamIOPushDownRule extends RelOptRule {
         CalciteUtils.toCalciteRowType(newSchema, ioSourceRel.getCluster().getTypeFactory());
 
     BeamIOSourceRel newIoSourceRel =
-        ioSourceRel.copy(calcInputType, newSchema.getFieldNames(), tableFilter);
+        ioSourceRel.createPushDownRel(calcInputType, newSchema.getFieldNames(), tableFilter);
     relBuilder.push(newIoSourceRel);
 
     List<RexNode> newProjects = new ArrayList<>();
