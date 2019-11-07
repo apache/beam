@@ -54,6 +54,7 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.internal.names import TransformNames
+from apache_beam.runners.interactive.utils import is_interactive
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -364,9 +365,9 @@ class DataflowRunner(PipelineRunner):
 
   def run_pipeline(self, pipeline, options):
     """Remotely executes entire pipeline or parts reachable from node."""
-    # Label goog-dataflow-notebook if pipeline is initiated from interactive
-    # runner.
-    if pipeline.interactive:
+    # Label goog-dataflow-notebook if job is started from notebook.
+    _, is_in_notebook = is_interactive()
+    if is_in_notebook:
       notebook_version = ('goog-dataflow-notebook=' +
                           beam.version.__version__.replace('.', '_'))
       if options.view_as(GoogleCloudOptions).labels:

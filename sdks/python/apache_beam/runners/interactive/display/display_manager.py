@@ -39,8 +39,9 @@ try:
 
   def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
     pp.text(string)
-  plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
-  plain.for_type(str, _formatter)
+  if get_ipython():
+    plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
+    plain.for_type(str, _formatter)
 
 except ImportError:
   IPython = None
