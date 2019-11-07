@@ -182,10 +182,11 @@ public class TestTableProviderWithProjectPushDown {
         .containsInAnyOrder(
             row(result.getSchema(), 100, 1, "one", 100),
             row(result.getSchema(), 200, 2, "two", 200));
-    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     // If project push-down succeeds new BeamIOSourceRel should not output unused fields
     assertThat(
-        beamRelNode.getRowType().getFieldNames(),
+        beamRelNode.getInput(0).getRowType().getFieldNames(),
         containsInAnyOrder("unused1", "id", "name", "unused2"));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));

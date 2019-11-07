@@ -224,7 +224,7 @@ public class TestTableProviderWithFilterAndProjectPushDown {
     List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
     assertThat(a, containsInAnyOrder("name", "id", "unused1"));
     assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{<(1, $1)}, unsupported{=(+($1, $0), 202)}])",
+        "BeamPushDownIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{<(1, $1)}, unsupported{=(+($1, $0), 202)}])",
         beamRelNode.getInput(0).getDigest());
     assertEquals(
         Schema.builder()
@@ -247,7 +247,7 @@ public class TestTableProviderWithFilterAndProjectPushDown {
 
     assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
     assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2, b],TestTableFilter=[supported{<>($1, 2)}, unsupported{}])",
+        "BeamPushDownIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2, b],TestTableFilter=[supported{<>($1, 2)}, unsupported{}])",
         beamRelNode.getDigest());
     assertEquals(BASIC_SCHEMA, result.getSchema());
     PAssert.that(result)
@@ -270,7 +270,7 @@ public class TestTableProviderWithFilterAndProjectPushDown {
     assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
     assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{}, unsupported{=(+($1, $0), 101)}])",
+        "BeamPushDownIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{}, unsupported{=(+($1, $0), 101)}])",
         beamRelNode.getInput(0).getDigest());
     // Make sure project push-down was done
     List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
@@ -292,8 +292,7 @@ public class TestTableProviderWithFilterAndProjectPushDown {
     assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
     assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],TestTableFilter=[supported{}, unsupported{}])",
-        beamRelNode.getInput(0).getDigest());
+        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST])", beamRelNode.getInput(0).getDigest());
     // Make sure project push-down was done (all fields since 'select *')
     List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
     assertThat(a, containsInAnyOrder("name", "id", "unused1", "unused2", "b"));
@@ -315,7 +314,7 @@ public class TestTableProviderWithFilterAndProjectPushDown {
     assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
     assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{=($1, 1)}, unsupported{=(+($1, $0), 101)}])",
+        "BeamPushDownIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[name, id, unused1],TestTableFilter=[supported{=($1, 1)}, unsupported{=(+($1, $0), 101)}])",
         beamRelNode.getInput(0).getDigest());
     // Make sure project push-down was done
     List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
@@ -337,7 +336,7 @@ public class TestTableProviderWithFilterAndProjectPushDown {
     assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
     assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     assertEquals(
-        "BeamIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2, b],TestTableFilter=[supported{=($1, 1)}, unsupported{=(+($1, $0), 101)}])",
+        "BeamPushDownIOSourceRel.BEAM_LOGICAL(table=[beam, TEST],usedFields=[unused1, id, name, unused2, b],TestTableFilter=[supported{=($1, 1)}, unsupported{=(+($1, $0), 101)}])",
         beamRelNode.getInput(0).getDigest());
     // Make sure project push-down was done (all fields since 'select *')
     List<String> a = beamRelNode.getInput(0).getRowType().getFieldNames();
