@@ -73,12 +73,6 @@ class TestMetricKey(unittest.TestCase):
 
 
 class TestMetricsContainer(unittest.TestCase):
-  def test_create_new_counter(self):
-    mc = MetricsContainer('astep')
-    self.assertFalse(MetricName('namespace', 'name') in mc.counters)
-    mc.get_counter(MetricName('namespace', 'name'))
-    self.assertTrue(MetricName('namespace', 'name') in mc.counters)
-
   def test_add_to_counter(self):
     mc = MetricsContainer('astep')
     counter = mc.get_counter(MetricName('namespace', 'name'))
