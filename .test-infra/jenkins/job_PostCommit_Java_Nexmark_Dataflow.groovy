@@ -20,30 +20,36 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
-import NexmarkBuilder as Nexmark
+import NexmarkJob
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 
-def final JOB_SPECIFIC_OPTIONS = [
-    'suite' : 'STRESS',
-    'numWorkers' : 4,
-    'maxNumWorkers' : 4,
-    'autoscalingAlgorithm' : 'NONE',
-    'nexmarkParallel' : 16,
+Runner runner = Runner.DATAFLOW
+SDK sdk = SDK.JAVA
+
+Map jobSpecificOptions = [
+    'suite'               : 'STRESS',
+    'numWorkers'          : 4,
+    'maxNumWorkers'       : 4,
+    'autoscalingAlgorithm': 'NONE',
+    'nexmarkParallel'     : 16,
     'enforceEncodability' : true,
-    'enforceImmutability' : true
+    'enforceImmutability' : true,
+    'runner'              : runner.option
 ]
 
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow',
-        'Dataflow Runner Nexmark Tests', this) {
+    'Dataflow Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Dataflow runner.')
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-  Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.POST_COMMIT)
+
+  new NexmarkJob(delegate, runner, sdk, TriggeringContext.POST_COMMIT).standardJob(jobSpecificOptions)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow',
-        'Run Dataflow Runner Nexmark Tests', 'Dataflow Runner Nexmark Tests', this) {
+    'Run Dataflow Runner Nexmark Tests', 'Dataflow Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Dataflow runner against a Pull Request, on demand.')
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-  Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+
+  new NexmarkJob(delegate, runner, sdk, TriggeringContext.PR).standardJob(jobSpecificOptions)
 }

@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-
-
 class CommonTestProperties {
     enum SDK {
         PYTHON,

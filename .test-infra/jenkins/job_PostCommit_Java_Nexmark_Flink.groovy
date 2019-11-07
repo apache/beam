@@ -20,25 +20,31 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
-import NexmarkBuilder as Nexmark
+import NexmarkJob
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 
-def final JOB_SPECIFIC_OPTIONS = [
+Runner runner = Runner.FLINK
+SDK sdk = SDK.JAVA
+
+def jobSpecificOptions = [
     'suite'        : 'SMOKE',
     'streamTimeout': 60,
+    'runner' : runner.option
 ]
 
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Flink',
         'Flink Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Flink runner.')
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
-  Nexmark.standardJob(delegate, Runner.FLINK, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+
+  new NexmarkJob(delegate, runner, sdk, TriggeringContext.POST_COMMIT).standardJob(jobSpecificOptions)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Flink',
         'Run Flink Runner Nexmark Tests', 'Flink Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Flink runner against a Pull Request, on demand.')
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-  Nexmark.standardJob(delegate, Runner.FLINK, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+
+  new NexmarkJob(delegate, runner, sdk, TriggeringContext.PR).standardJob(jobSpecificOptions)
 }

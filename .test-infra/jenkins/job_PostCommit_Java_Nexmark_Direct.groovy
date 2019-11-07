@@ -20,26 +20,32 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
-import NexmarkBuilder as Nexmark
+import NexmarkJob
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 
-def final JOB_SPECIFIC_OPTIONS = [
+Runner runner = Runner.DIRECT
+SDK sdk = SDK.JAVA
+
+def jobSpecificOptions = [
     'suite' : 'SMOKE',
     'enforceEncodability' : true,
-    'enforceImmutability' : true
+    'enforceImmutability' : true,
+    'runner': runner.option
 ]
 
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Direct',
         'Direct Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Direct runner.')
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
-  Nexmark.standardJob(delegate, Runner.DIRECT, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.POST_COMMIT)
+
+  new NexmarkJob(delegate, runner, sdk, TriggeringContext.POST_COMMIT).standardJob(jobSpecificOptions)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Direct',
         'Run Direct Runner Nexmark Tests', 'Direct Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Direct runner against a Pull Request, on demand.')
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-  Nexmark.standardJob(delegate, Runner.DIRECT, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+
+  new NexmarkJob(delegate, runner, sdk, TriggeringContext.PR).standardJob(jobSpecificOptions)
 }
