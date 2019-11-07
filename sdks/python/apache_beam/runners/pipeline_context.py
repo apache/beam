@@ -31,23 +31,8 @@ from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
+from apache_beam.transforms import environments
 from apache_beam.typehints import native_type_compatibility
-
-
-class Environment(object):
-  """A wrapper around the environment proto.
-
-  Provides consistency with how the other componentes are accessed.
-  """
-  def __init__(self, proto):
-    self.proto = proto
-
-  def to_runner_api(self, context):
-    return self.proto
-
-  @staticmethod
-  def from_runner_api(proto, context):
-    return Environment(proto)
 
 
 class _PipelineContextMap(object):
@@ -128,7 +113,7 @@ class PipelineContext(object):
       'pcollections': pvalue.PCollection,
       'coders': coders.Coder,
       'windowing_strategies': core.Windowing,
-      'environments': Environment,
+      'environments': environments.Environment,
   }
 
   def __init__(
@@ -146,7 +131,7 @@ class PipelineContext(object):
               self, cls, namespace, getattr(proto, name, None)))
     if default_environment:
       self._default_environment_id = self.environments.get_id(
-          Environment(default_environment), label='default_environment')
+          default_environment, label='default_environment')
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders

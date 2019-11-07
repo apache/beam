@@ -19,7 +19,6 @@ from __future__ import absolute_import
 
 import functools
 import itertools
-import json
 import logging
 import sys
 import threading
@@ -36,8 +35,6 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
@@ -46,6 +43,7 @@ from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
+from apache_beam.transforms import environments
 
 __all__ = ['PortableRunner']
 
@@ -64,6 +62,8 @@ TERMINAL_STATES = [
     beam_job_api_pb2.JobState.FAILED,
     beam_job_api_pb2.JobState.CANCELLED,
 ]
+
+ENV_TYPE_ALIASES = {'LOOPBACK': 'EXTERNAL'}
 
 
 class PortableRunner(runner.PipelineRunner):
@@ -102,65 +102,24 @@ class PortableRunner(runner.PipelineRunner):
     # does not exist in the Java SDK. In portability, the entry point is clearly
     # defined via the JobService.
     portable_options.view_as(StandardOptions).runner = None
-    environment_urn = common_urns.environments.DOCKER.urn
-    if portable_options.environment_type == 'DOCKER':
+    environment_type = portable_options.environment_type
+    if not environment_type:
       environment_urn = common_urns.environments.DOCKER.urn
-    elif portable_options.environment_type == 'PROCESS':
-      environment_urn = common_urns.environments.PROCESS.urn
-    elif portable_options.environment_type in ('EXTERNAL', 'LOOPBACK'):
-      environment_urn = common_urns.environments.EXTERNAL.urn
-    elif portable_options.environment_type:
-      if portable_options.environment_type.startswith('beam:env:'):
-        environment_urn = portable_options.environment_type
-      else:
-        raise ValueError(
-            'Unknown environment type: %s' % portable_options.environment_type)
-
-    if environment_urn == common_urns.environments.DOCKER.urn:
-      docker_image = (
-          portable_options.environment_config
-          or PortableRunner.default_docker_image())
-      return beam_runner_api_pb2.Environment(
-          urn=common_urns.environments.DOCKER.urn,
-          payload=beam_runner_api_pb2.DockerPayload(
-              container_image=docker_image
-          ).SerializeToString())
-    elif environment_urn == common_urns.environments.PROCESS.urn:
-      config = json.loads(portable_options.environment_config)
-      return beam_runner_api_pb2.Environment(
-          urn=common_urns.environments.PROCESS.urn,
-          payload=beam_runner_api_pb2.ProcessPayload(
-              os=(config.get('os') or ''),
-              arch=(config.get('arch') or ''),
-              command=config.get('command'),
-              env=(config.get('env') or '')
-          ).SerializeToString())
-    elif environment_urn == common_urns.environments.EXTERNAL.urn:
-      def looks_like_json(environment_config):
-        import re
-        return re.match(r'\s*\{.*\}\s*$', environment_config)
-
-      if looks_like_json(portable_options.environment_config):
-        config = json.loads(portable_options.environment_config)
-        url = config.get('url')
-        if not url:
-          raise ValueError('External environment endpoint must be set.')
-        params = config.get('params')
-      else:
-        url = portable_options.environment_config
-        params = None
-
-      return beam_runner_api_pb2.Environment(
-          urn=common_urns.environments.EXTERNAL.urn,
-          payload=beam_runner_api_pb2.ExternalPayload(
-              endpoint=endpoints_pb2.ApiServiceDescriptor(url=url),
-              params=params
-          ).SerializeToString())
+    elif environment_type.startswith('beam:env:'):
+      environment_urn = environment_type
     else:
-      return beam_runner_api_pb2.Environment(
-          urn=environment_urn,
-          payload=(portable_options.environment_config.encode('ascii')
-                   if portable_options.environment_config else None))
+      # e.g. handle LOOPBACK -> EXTERNAL
+      environment_type = ENV_TYPE_ALIASES.get(environment_type,
+                                              environment_type)
+      try:
+        environment_urn = getattr(common_urns.environments,
+                                  environment_type).urn
+      except AttributeError:
+        raise ValueError(
+            'Unknown environment type: %s' % environment_type)
+
+    env_class = environments.Environment.get_env_cls_from_urn(environment_urn)
+    return env_class.from_options(portable_options)
 
   def default_job_server(self, portable_options):
     # TODO Provide a way to specify a container Docker URL

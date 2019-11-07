@@ -47,8 +47,6 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.portability import python_urns
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
@@ -58,6 +56,7 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.tools import utils
+from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
@@ -1085,8 +1084,7 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+            default_environment=environments.EmbeddedPythonGrpcEnvironment()))
 
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
@@ -1094,9 +1092,9 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC,
-                payload=b'2,%d' % fn_api_runner.STATE_CACHE_SIZE)))
+            default_environment=environments.EmbeddedPythonGrpcEnvironment(
+                num_workers=2,
+                state_cache_size=fn_api_runner.STATE_CACHE_SIZE)))
 
 
 class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
@@ -1104,10 +1102,8 @@ class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC,
-                # number of workers, state cache size
-                payload=b'2,0')))
+            default_environment=environments.EmbeddedPythonGrpcEnvironment(
+                num_workers=2, state_cache_size=0)))
 
 
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
@@ -1134,8 +1130,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment()),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests..
     p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1185,8 +1180,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     # to the bundle process request.
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+            default_environment=environments.EmbeddedPythonGrpcEnvironment()))
 
   def test_checkpoint(self):
     # This split manager will get re-invoked on each smaller split,
@@ -1490,8 +1484,7 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment()),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests..
     p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1508,8 +1501,7 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
             progress_request_frequency=0.5))
 
   def test_lull_logging(self):
