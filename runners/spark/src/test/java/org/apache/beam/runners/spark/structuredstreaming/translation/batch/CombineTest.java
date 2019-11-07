@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -106,6 +107,24 @@ public class CombineTest implements Serializable {
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersPerKey());
     PAssert.that(input).containsInAnyOrder(KV.of(1, 4), KV.of(1, 5), KV.of(2, 2), KV.of(2, 10));
+    p.run();
+  }
+
+  @Test
+  public void testCombinePerKeyWithSlidingWindows() {
+    PCollection<KV<Integer, Integer>> input =
+        p.apply(
+            Create.timestamped(
+                TimestampedValue.of(KV.of(1, 1), new Instant(1)),
+                TimestampedValue.of(KV.of(1, 3), new Instant(2)),
+                TimestampedValue.of(KV.of(1, 5), new Instant(3)),
+                TimestampedValue.of(KV.of(1, 2), new Instant(1)),
+                TimestampedValue.of(KV.of(1, 4), new Instant(2)),
+                TimestampedValue.of(KV.of(1, 6), new Instant(3))))
+            .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1))))
+            .apply(Sum.integersPerKey());
+    PAssert.that(input).containsInAnyOrder(KV.of(1, 1 + 2), KV.of(1, 1 + 2 + 3 + 4),
+        KV.of(1, 1 + 3 + 5 + 2 + 4 + 6), KV.of(1, 3 + 4 + 5 + 6), KV.of(1, 5 + 6));
     p.run();
   }
 }
