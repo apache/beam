@@ -238,17 +238,6 @@ class TestInput {
   public static final TestBoundedTable TABLE_EMPTY =
       TestBoundedTable.of(Schema.builder().addInt64Field("ColId").addStringField("Value").build());
 
-  private static final Schema TABLE_WTH_MAP_SCHEMA =
-      Schema.builder()
-          .addMapField("map_field", FieldType.STRING, FieldType.STRING)
-          .addRowField("row_field", structSchema)
-          .build();
-  public static final TestBoundedTable TABLE_WITH_MAP =
-      TestBoundedTable.of(TABLE_WTH_MAP_SCHEMA)
-          .addRows(
-              ImmutableMap.of("MAP_KEY_1", "MAP_VALUE_1"),
-              Row.withSchema(structSchema).addValues(1L, "data1").build());
-
   public static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);
   }

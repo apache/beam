@@ -36,7 +36,6 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_EMPTY;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_FOR_CASE_WHEN;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_ARRAY;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_ARRAY_FOR_UNNEST;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_MAP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT_TIMESTAMP_STRING;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT_TWO;
@@ -3311,21 +3310,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  public void testSelectFromTableWithMap() {
-    String sql = "SELECT row_field FROM table_with_map";
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-    Schema rowSchema = Schema.builder().addInt64Field("row_id").addStringField("data").build();
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addRowField("row_field", rowSchema).build())
-                .addValues(Row.withSchema(rowSchema).addValues(1L, "data1").build())
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
   public void testSubQuery() {
     String sql = "select sum(Key) from KeyValue\n" + "group by (select Key)";
 
@@ -3780,7 +3764,6 @@ public class ZetaSQLDialectSpecTest {
     testBoundedTableMap.put("table_empty", TABLE_EMPTY);
     testBoundedTableMap.put("table_all_types", TABLE_ALL_TYPES);
     testBoundedTableMap.put("table_all_types_2", TABLE_ALL_TYPES_2);
-    testBoundedTableMap.put("table_with_map", TABLE_WITH_MAP);
     testBoundedTableMap.put("table_with_struct_ts_string", TABLE_WITH_STRUCT_TIMESTAMP_STRING);
 
     tableProvider = new ReadOnlyTableProvider("test_table_provider", testBoundedTableMap);
