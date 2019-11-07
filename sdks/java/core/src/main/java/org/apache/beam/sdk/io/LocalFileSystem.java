@@ -276,7 +276,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     String specNonWildcardPrefix = getNonWildcardPrefix(spec);
     File file = new File(specNonWildcardPrefix);
     return specNonWildcardPrefix.endsWith(File.separator)
-        ? file
+        ? file.getAbsoluteFile()
         : file.getAbsoluteFile().getParentFile();
   }
 
