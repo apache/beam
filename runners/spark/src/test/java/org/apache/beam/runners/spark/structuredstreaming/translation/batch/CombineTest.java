@@ -27,6 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
@@ -126,5 +127,22 @@ public class CombineTest implements Serializable {
     PAssert.that(input).containsInAnyOrder(KV.of(1, 1 + 2), KV.of(1, 1 + 2 + 3 + 4),
         KV.of(1, 1 + 3 + 5 + 2 + 4 + 6), KV.of(1, 3 + 4 + 5 + 6), KV.of(1, 5 + 6));
     p.run();
+  }
+
+  @Test
+  public void testBinaryCombineWithSlidingWindows(){
+    PCollection<Integer> input =
+        p.apply(
+            Create.timestamped(
+                TimestampedValue.of(1, new Instant(1)),
+                TimestampedValue.of(3, new Instant(2)),
+                TimestampedValue.of(5, new Instant(3))))
+            .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1))))
+            .apply(Combine.globally(Combine.BinaryCombineFn.of(
+                (SerializableBiFunction<Integer, Integer, Integer>) (integer1, integer2) ->
+                    integer1 > integer2 ? integer1 : integer2)).withoutDefaults());
+    PAssert.that(input).containsInAnyOrder(1, 3, 5);
+    p.run();
+
   }
 }
