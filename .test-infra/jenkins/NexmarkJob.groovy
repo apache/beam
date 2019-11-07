@@ -24,6 +24,9 @@ import CommonTestProperties.TriggeringContext
 
 class NexmarkJob {
 
+  private static final String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
+  private static final String JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
+
   private static Map<String, Object> DEFAULT_OPTIONS = [
       'bigQueryTable'          : 'nexmark',
       'project'                : 'apache-beam-testing',
@@ -41,6 +44,8 @@ class NexmarkJob {
   private SDK sdk
 
   private TriggeringContext triggeringContext
+
+  private String javaRuntimeVersion = "1.8"
 
   NexmarkJob(Job job, Runner runner, SDK sdk, TriggeringContext context) {
     this.job = job
@@ -84,6 +89,46 @@ class NexmarkJob {
   }
 
   void suite(String title, Map<String, Object> options) {
+    if (javaRuntimeVersion == "11") {
+      setupSuiteForJava11(title, options)
+    } else {
+      setupSuite(title, options)
+    }
+  }
+
+  // TODO: To be removed once we achieve full Java 11 support
+  private void setupSuiteForJava11(String title, Map<String, Object> options) {
+    job.steps {
+      shell("echo *** RUN ${title} ***")
+
+      // Build with Java 8
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':sdks:java:testing:nexmark:jar')
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-Pnexmark.runner=${runner.getDepenedencyBySDK(sdk)}")
+        switches("-xtest")
+        switches("-Dorg.gradle.java.home=${JAVA_8_HOME}")
+      }
+
+      // Run with Java 11
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':sdks:java:testing:nexmark:run')
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-Pnexmark.runner=${runner.getDepenedencyBySDK(sdk)}")
+        switches("-Pnexmark.args=\"${parseOptions(options)}\"")
+        switches('-x shadowJar')
+        switches('-x shadowTestJar')
+        switches('-x compileJava')
+        switches('-x compileTestJava')
+        switches("-Djava.specification.version=${javaRuntimeVersion}")
+        switches("-Dorg.gradle.java.home=${JAVA_11_HOME}")
+      }
+    }
+  }
+
+  private void setupSuite(String title, Map<String, Object> options) {
     job.steps {
       shell("echo *** RUN ${title} ***")
       gradle {
