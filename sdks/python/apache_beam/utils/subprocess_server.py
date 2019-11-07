@@ -174,8 +174,9 @@ class JavaJarServer(SubprocessServer):
     elif '.dev' in beam_version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
-          'Please build the server with \n  cd %s; ./gradlew %s' % (
-              os.path.abspath(project_root), gradle_target))
+          ('%s not found. '
+           'Please build the server with \n  cd %s; ./gradlew %s') % (
+               local_path, os.path.abspath(project_root), gradle_target))
     else:
       return cls.path_to_maven_jar(
           artifact_id, cls.BEAM_GROUP_ID, beam_version, cls.APACHE_REPOSITORY)
