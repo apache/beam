@@ -20,19 +20,11 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java',
-    gradleTask: ':javaPreCommit',
-    gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
+    nameBase: 'SQL',
+    gradleTask: ':sqlPreCommit',
+    gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in job_PreCommit_Spotless
     triggerPathPatterns: [
-      '^model/.*$',
-      '^sdks/java/.*$',
-      '^runners/.*$',
-      '^examples/java/.*$',
-      '^examples/kotlin/.*$',
-      '^release/.*$',
-    ],
-    excludePathPatterns: [
-      '^sdks/java/extensions/sql/.*$'
+      '^sdks/java/extensions/sql.*$',
     ]
 )
 builder.build {
