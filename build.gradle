@@ -232,22 +232,26 @@ task python2PostCommit() {
   dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
   dependsOn ":sdks:python:test-suites:direct:py2:hdfsIntegrationTest"
   dependsOn ":sdks:python:test-suites:direct:py2:mongodbioIT"
+  dependsOn ":sdks:python:test-suites:portable:py2:postCommitPy2"
 }
 
 task python35PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py35:postCommitIT"
+  dependsOn ":sdks:python:test-suites:portable:py35:postCommitPy35"
 }
 
 task python36PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py36:postCommitIT"
+  dependsOn ":sdks:python:test-suites:portable:py36:postCommitPy36"
 }
 
 task python37PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:hdfsIntegrationTest"
+  dependsOn ":sdks:python:test-suites:portable:py37:postCommitPy37"
 }
 
 task portablePythonPreCommit() {
