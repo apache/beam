@@ -117,6 +117,38 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         typehints.List[typing.Dict[int, str]],
         typehints.List[typehints.Dict[int, str]])
 
+  def test_convert_bare_types(self):
+    # Conversions for unsubscripted types that have implicit subscripts.
+    test_cases = [
+        ('bare list', typing.List, typehints.List[typehints.Any]),
+        ('bare dict', typing.Dict,
+         typehints.Dict[typehints.Any, typehints.Any]),
+        ('bare tuple', typing.Tuple, typehints.Tuple[typehints.Any, ...]),
+        ('bare set', typing.Set, typehints.Set[typehints.Any]),
+        ('bare iterator', typing.Iterator, typehints.Iterator[typehints.Any]),
+        ('bare iterable', typing.Iterable, typehints.Iterable[typehints.Any]),
+        ('nested bare', typing.Tuple[typing.Iterator],
+         typehints.Tuple[typehints.Iterator[typehints.Any]]),
+    ]
+    for test_case in test_cases:
+      description = test_case[0]
+      typing_type = test_case[1]
+      expected_beam_type = test_case[2]
+      converted_beam_type = convert_to_beam_type(typing_type)
+      self.assertEqual(expected_beam_type, converted_beam_type, description)
+
+  def test_convert_bare_types_fail(self):
+    # These conversions should fail.
+    test_cases = [
+        ('bare union', typing.Union),
+        ('bare generator', typing.Generator),
+    ]
+    for test_case in test_cases:
+      description = test_case[0]
+      typing_type = test_case[1]
+      with self.assertRaises(ValueError, msg=description):
+        convert_to_beam_type(typing_type)
+
   def test_convert_to_beam_types(self):
     typing_types = [bytes, typing.List[bytes],
                     typing.List[typing.Tuple[bytes, int]],
