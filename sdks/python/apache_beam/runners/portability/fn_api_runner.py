@@ -230,9 +230,7 @@ class _GroupingBuffer(object):
           else windowed_key_value.with_value(value))
 
   def extend(self, input_buffer):
-    print('Extending GroupingBuffer 0x%x, GO: %s' % (id(self), self._grouped_output))
-    for elm in input_buffer:
-      self.append(elm)
+    raise NotImplementedError('GroupingBuffer is not expected to merge with others')
 
   def partition(self, n):
     """ It is used to partition _GroupingBuffer to N parts. Once it is
@@ -730,10 +728,6 @@ class FnApiRunner(runner.PipelineRunner):
           # encoded input.
           data_inputs[transform.unique_name] = _ListBuffer(
               [ENCODED_IMPULSE_VALUE])
-          pcoll_name = '%s%s' % (stage.name,
-                                 fn_api_runner_transforms.IMPULSE_BUFFER)
-          execution_context.update_pcoll_watermark(pcoll_name,
-                                                   timestamp.MAX_TIMESTAMP)
         elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
@@ -743,6 +737,7 @@ class FnApiRunner(runner.PipelineRunner):
             ready_to_schedule = False
       if data_inputs and ready_to_schedule:
         # We push the data inputs, along with the name of the consuming stage.
+        print('Enqueuing stage\n\t', stage.name)
         input_queue_manager.ready_inputs.enque((stage.name, data_inputs))
       elif data_inputs and not ready_to_schedule:
         input_queue_manager.watermark_pending_inputs.enque(
@@ -836,9 +831,10 @@ class FnApiRunner(runner.PipelineRunner):
     while len(input_queue_manager.watermark_pending_inputs) > 0:
       next_elm = input_queue_manager.watermark_pending_inputs.deque()
       (stage_name, bundle_watermark), inputs = next_elm
-      stage_watermark = execution_context.get_watermark(stage_name)
-      if stage_watermark == bundle_watermark:
-        print('Enqueuing stage\n\t', stage_name, '\n\t', inputs)
+      stage_wm_mgr = execution_context.watermark_manager.get_node(stage_name)
+      stage_watermark = stage_wm_mgr.input_watermark()
+      if stage_watermark >= bundle_watermark:
+        print('Enqueuing new ready stage\n\t', stage_name, '\n\t', inputs)
         input_queue_manager.ready_inputs.enque((stage_name, inputs))
       else:
         print('NOT Enqueuing stage\n\t', stage_name, '\n\tWatermark: ', stage_watermark)
@@ -925,7 +921,6 @@ class FnApiRunner(runner.PipelineRunner):
                                  windowed_key_timer.value[0])
               timer_data_per_key_window[key_window_pair] = windowed_key_timer
               watermark_hold = min(watermark_hold, timer_timestamp)
-              # TODO(pabloem, MUST): KEEP THE LATEST ONLY
 
           for t in timer_data_per_key_window.values():
             out = create_OutputStream()
@@ -947,10 +942,6 @@ class FnApiRunner(runner.PipelineRunner):
     for buffer_id, output_bytes in output_bundles:
       kind, pcoll_name = split_buffer_id(buffer_id)
       if kind != 'timers':
-        #pcnode = execution_context._watermark_manager._watermarks_by_name[pcoll_name]
-        #uw = pcnode.upstream_watermark()
-        execution_context.update_pcoll_watermark(pcoll_name,
-                                                 timestamp.MAX_TIMESTAMP)
         output_bundles_with_target_watermarks.append(
             ((timestamp.MAX_TIMESTAMP, buffer_id), output_bytes))
 
@@ -974,8 +965,11 @@ class FnApiRunner(runner.PipelineRunner):
         # and we can discard the elements.
         continue
       if data:
-        pcoll_watermark = execution_context.get_watermark(consuming_stage_name)
-        if pcoll_watermark >= bundle_watermark:
+        stage_watermark_mgr = execution_context.watermark_manager.get_node(
+            consuming_stage_name)
+        stage_input_watermark = stage_watermark_mgr.input_watermark()
+        if stage_input_watermark >= bundle_watermark:
+          print('Enqueuing output stage\n\t', consuming_stage_name)
           input_queue_manager.ready_inputs.enque(
               (consuming_stage_name, {consuming_transform_name: data}))
         else:

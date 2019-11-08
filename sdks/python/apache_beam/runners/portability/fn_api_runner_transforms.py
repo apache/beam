@@ -304,39 +304,57 @@ class _WatermarkManager(object):
 
   class WatermarkNode(object):
     def __init__(self, name):
-      self._watermark = timestamp.MIN_TIMESTAMP
       self.name = name
 
   class PCollectionNode(WatermarkNode):
     def __init__(self, name):
       super(_WatermarkManager.PCollectionNode, self).__init__(name)
+      self._watermark = timestamp.MIN_TIMESTAMP
       self.producers = set()
 
     def set_watermark(self, wm):
-      if self.producers:
-        producer_wm = min(p.watermark() for p in self.producers)
-      else:
-        producer_wm = timestamp.MAX_TIMESTAMP
+      self._watermark = min(self.upstream_watermark(), wm)
 
-      self._watermark = min(producer_wm, wm)
+    def upstream_watermark(self):
+      if self.producers:
+        return min(p.output_watermark() for p in self.producers)
+      else:
+        return timestamp.MAX_TIMESTAMP
 
     def watermark(self):
       if self._watermark:
         return self._watermark
       else:
-        return min(p.watermark() for p in self.producers)
+        return self.upstream_watermark()
 
   class StageNode(WatermarkNode):
 
     def __init__(self, name):
       super(_WatermarkManager.StageNode, self).__init__(name)
+      # We keep separate inputs and side inputs because side inputs
+      # should hold back a stage's input watermark, to hold back execution
+      # for that stage; but they should not be considered when calculating
+      # the output watermark of the stage, because only the main input
+      # can actually advance that watermark.
       self.inputs = set()
+      self.side_inputs = set()
 
     def set_watermark(self, wm):
       raise NotImplementedError('Stages do not have a watermark')
 
-    def watermark(self):
-      return min(i.watermark() for i in self.inputs)
+    def output_watermark(self):
+      w = min(i.watermark() for i in self.inputs)
+      print('Watermark for stage %s' % self.name, 'is', w)
+      return w
+
+    def input_watermark(self):
+      w = min(i.upstream_watermark() for i in self.inputs)
+
+      if self.side_inputs:
+        w = min(w,
+                min(i.upstream_watermark() for i in self.side_inputs))
+      print('INPUT Watermark for stage %s' % self.name, 'is', w)
+      return w
 
   def __init__(self, stages, execution_context):
     # type: (List[Stage], PipelineExecutionContext) -> None
@@ -372,10 +390,11 @@ class _WatermarkManager(object):
         if si_name not in self._watermarks_by_name:
           self._watermarks_by_name[
             si_name] = _WatermarkManager.PCollectionNode(si_name)
-        stage_node.inputs.add(self._watermarks_by_name[si_name])
+        stage_node.side_inputs.add(self._watermarks_by_name[si_name])
 
-
-    # TODO(pabloem): What about side inputs
+  def get_node(self, name):
+    # type: (str) -> WatermarkNode
+    return self._watermarks_by_name[name]
 
   def get_watermark(self, name):
     element = self._watermarks_by_name[name]
@@ -407,7 +426,7 @@ class PipelineExecutionContext(object):
         stages)
 
     self.stages_per_name = {s.name: self._compute_stage_info(s) for s in stages}
-    self._watermark_manager = _WatermarkManager(stages, self)
+    self.watermark_manager = _WatermarkManager(stages, self)
 
   def show(self):
     # TODO(pabloem, MUST): Figure out what to do about this. Maybe remove
@@ -446,14 +465,7 @@ class PipelineExecutionContext(object):
         g.node(pcoll_name)
         g.edge(pcoll_name, stage_name)
 
-    #g.render('graph.png',
-    #         format='png')
-
-
-  def get_watermark(self, name):
-    # type: (str) -> timestamp.Timestamp
-    """Returns the watermark for a stage or pcollection."""
-    return self._watermark_manager.get_watermark(name)
+    g.render('graph', format='png')
 
   def get_side_input_infos(self, pcoll_name):
     # type: (str) -> List[SideInputInfo]
@@ -471,9 +483,9 @@ class PipelineExecutionContext(object):
   def update_pcoll_watermark(self, pcoll_name, watermark):
     # type: (str, timestamp.Timestamp) -> None
     print('Watermark update: \n\t', pcoll_name, '\n\t', str(watermark))
-    self._watermark_manager.set_watermark(pcoll_name, watermark)
-    if watermark != self._watermark_manager.get_watermark(pcoll_name):
-      print('\n\tBecame: ', self._watermark_manager.get_watermark(pcoll_name))
+    self.watermark_manager.set_watermark(pcoll_name, watermark)
+    if watermark != self.watermark_manager.get_watermark(pcoll_name):
+      print('\n\tBecame: ', self.watermark_manager.get_watermark(pcoll_name))
 
   @staticmethod
   def _compute_pcoll_consumer_per_buffer_id(stages):
