@@ -18,9 +18,9 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.Serializable;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -39,19 +39,21 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark window assign translation. */
 @RunWith(JUnit4.class)
 public class WindowAssignTest implements Serializable {
-  private static Pipeline p;
+  private static Pipeline pipeline;
 
   @BeforeClass
   public static void beforeClass() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
+        .as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    p = Pipeline.create(options);
+    options.setTestMode(true);
+    pipeline = Pipeline.create(options);
   }
 
   @Test
   public void testWindowAssign() {
     PCollection<Integer> input =
-        p.apply(
+        pipeline.apply(
                 Create.timestamped(
                     TimestampedValue.of(1, new Instant(1)),
                     TimestampedValue.of(2, new Instant(2)),
@@ -61,6 +63,6 @@ public class WindowAssignTest implements Serializable {
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersGlobally().withoutDefaults());
     PAssert.that(input).containsInAnyOrder(6, 9);
-    p.run();
+    pipeline.run();
   }
 }

@@ -18,10 +18,10 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import java.io.Serializable;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -34,14 +34,16 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark source translation. */
 @RunWith(JUnit4.class)
 public class SimpleSourceTest implements Serializable {
-  private static Pipeline o;
+  private static Pipeline pipeline;
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   @BeforeClass
   public static void beforeClass() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
+        .as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    o = Pipeline.create(options);
+    options.setTestMode(true);
+    pipeline = Pipeline.create(options);
   }
 
   @Ignore
@@ -49,7 +51,7 @@ public class SimpleSourceTest implements Serializable {
   public void testUnboundedSource() {
     // produces an unbounded PCollection of longs from 0 to Long.MAX_VALUE which elements
     // have processing time as event timestamps.
-    o.apply(GenerateSequence.from(0L));
-    o.run();
+    pipeline.apply(GenerateSequence.from(0L));
+    pipeline.run();
   }
 }

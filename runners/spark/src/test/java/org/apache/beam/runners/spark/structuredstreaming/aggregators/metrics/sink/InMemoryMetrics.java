@@ -23,8 +23,11 @@ import java.util.Properties;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.WithMetricsSupport;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.spark.metrics.sink.Sink;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** An in-memory {@link Sink} implementation for tests. */
+@RunWith(JUnit4.class)
 public class InMemoryMetrics implements Sink {
 
   private static WithMetricsSupport extendedMetricsRegistry;
