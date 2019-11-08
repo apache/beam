@@ -21,7 +21,6 @@ import threading
 import unittest
 from builtins import range
 
-from apache_beam.metrics.cells import CellCommitState
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
@@ -151,28 +150,6 @@ class TestGaugeCell(unittest.TestCase):
     # the final result.
     result = g2.combine(g1)
     self.assertEqual(result.data.value, 1)
-
-
-class TestCellCommitState(unittest.TestCase):
-  def test_basic_path(self):
-    ds = CellCommitState()
-    # Starts dirty
-    self.assertTrue(ds.before_commit())
-    ds.after_commit()
-    self.assertFalse(ds.before_commit())
-
-    # Make it dirty again
-    ds.after_modification()
-    self.assertTrue(ds.before_commit())
-    ds.after_commit()
-    self.assertFalse(ds.before_commit())
-
-    # Dirty again
-    ds.after_modification()
-    self.assertTrue(ds.before_commit())
-    ds.after_modification()
-    ds.after_commit()
-    self.assertTrue(ds.before_commit())
 
 
 if __name__ == '__main__':

@@ -32,7 +32,6 @@ Available classes:
 
 from __future__ import absolute_import
 
-import threading
 from builtins import object
 from collections import defaultdict
 
@@ -140,14 +139,6 @@ class _MetricsEnvironment(object):
   This class is not meant to be instantiated, instead being used to keep
   track of global state.
   """
-  def __init__(self):
-    self.METRICS_SUPPORTED = False
-    self._METRICS_SUPPORTED_LOCK = threading.Lock()
-
-  def set_metrics_supported(self, supported):
-    with self._METRICS_SUPPORTED_LOCK:
-      self.METRICS_SUPPORTED = supported
-
   def current_container(self):
     """Returns the current MetricsContainer."""
     sampler = statesampler.get_current_tracker()
@@ -176,44 +167,21 @@ class MetricsContainer(object):
   def get_gauge(self, metric_name):
     return self.gauges[metric_name]
 
-  def _get_updates(self, filter=None):
-    """Return cumulative values of metrics filtered according to a lambda.
-
-    This returns all the cumulative values for all metrics after filtering
-    then with the filter parameter lambda function. If None is passed in,
-    then cumulative values for all metrics are returned.
-    """
-    if filter is None:
-      filter = lambda v: True
-    counters = {MetricKey(self.step_name, k): v.get_cumulative()
-                for k, v in self.counters.items()
-                if filter(v)}
-
-    distributions = {MetricKey(self.step_name, k): v.get_cumulative()
-                     for k, v in self.distributions.items()
-                     if filter(v)}
-
-    gauges = {MetricKey(self.step_name, k): v.get_cumulative()
-              for k, v in self.gauges.items()
-              if filter(v)}
-
-    return MetricUpdates(counters, distributions, gauges)
-
-  def get_updates(self):
-    """Return cumulative values of metrics that changed since the last commit.
-
-    This returns all the cumulative values for all metrics only if their state
-    prior to the function call was COMMITTING or DIRTY.
-    """
-    return self._get_updates(filter=lambda v: v.commit.before_commit())
-
   def get_cumulative(self):
     """Return MetricUpdates with cumulative values of all metrics in container.
 
-    This returns all the cumulative values for all metrics regardless of whether
-    they have been committed or not.
+    This returns all the cumulative values for all metrics.
     """
-    return self._get_updates()
+    counters = {MetricKey(self.step_name, k): v.get_cumulative()
+                for k, v in self.counters.items()}
+
+    distributions = {MetricKey(self.step_name, k): v.get_cumulative()
+                     for k, v in self.distributions.items()}
+
+    gauges = {MetricKey(self.step_name, k): v.get_cumulative()
+              for k, v in self.gauges.items()}
+
+    return MetricUpdates(counters, distributions, gauges)
 
   def to_runner_api(self):
     return (
