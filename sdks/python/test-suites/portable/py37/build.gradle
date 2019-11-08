@@ -30,3 +30,10 @@ task preCommitPy37() {
     dependsOn portableWordCountBatch
     dependsOn portableWordCountStreaming
 }
+
+task postCommitPy37() {
+    dependsOn 'setupVirtualenv'
+    dependsOn ':runners:flink:1.9:job-server:shadowJar'
+    dependsOn portableWordCountFlinkRunnerBatch
+    dependsOn portableWordCountFlinkRunnerStreaming
+}
