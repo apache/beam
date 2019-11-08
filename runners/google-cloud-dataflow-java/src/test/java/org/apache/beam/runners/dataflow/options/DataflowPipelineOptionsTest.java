@@ -199,4 +199,10 @@ public class DataflowPipelineOptionsTest {
     thrown.expectMessage("Error constructing default value for stagingLocation");
     options.getStagingLocation();
   }
+
+  @Test
+  public void testDefaultGcpRegion() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    assertEquals("us-central1", options.getRegion());
+  }
 }
