@@ -344,7 +344,6 @@ class _WatermarkManager(object):
 
     def output_watermark(self):
       w = min(i.watermark() for i in self.inputs)
-      print('Watermark for stage %s' % self.name, 'is', w)
       return w
 
     def input_watermark(self):
@@ -353,7 +352,6 @@ class _WatermarkManager(object):
       if self.side_inputs:
         w = min(w,
                 min(i.upstream_watermark() for i in self.side_inputs))
-      print('INPUT Watermark for stage %s' % self.name, 'is', w)
       return w
 
   def __init__(self, stages, execution_context):
@@ -482,10 +480,13 @@ class PipelineExecutionContext(object):
 
   def update_pcoll_watermark(self, pcoll_name, watermark):
     # type: (str, timestamp.Timestamp) -> None
-    print('Watermark update: \n\t', pcoll_name, '\n\t', str(watermark))
+    logging.debug(
+      'Updating watermark to %s for PCollection: %s', watermark, pcoll_name)
     self.watermark_manager.set_watermark(pcoll_name, watermark)
     if watermark != self.watermark_manager.get_watermark(pcoll_name):
-      print('\n\tBecame: ', self.watermark_manager.get_watermark(pcoll_name))
+      logging.debug('Due to upstream holds, watermark could not be '
+                    'updated to value desired. Set to: %s',
+                    self.watermark_manager.get_watermark(pcoll_name))
 
   @staticmethod
   def _compute_pcoll_consumer_per_buffer_id(stages):

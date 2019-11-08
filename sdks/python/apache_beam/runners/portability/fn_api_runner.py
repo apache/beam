@@ -62,7 +62,6 @@ from apache_beam.runners.pipeline_context import PipelineContext
 from apache_beam.runners import runner
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner_transforms
-from apache_beam.runners.portability.fn_api_runner_transforms import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner_transforms import PipelineExecutionContext
 from apache_beam.runners.portability.fn_api_runner_transforms import only_element
 from apache_beam.runners.portability.fn_api_runner_transforms import split_buffer_id
@@ -237,7 +236,6 @@ class _GroupingBuffer(object):
     partitioned, it would not be re-partitioned with diff N. Re-partition
     is not supported now.
     """
-    print('Partitioning GroupingBuffer 0x%x, GO: %s' % (id(self), self._grouped_output))
     if not self._grouped_output:
       if self._windowing.is_default():
         globally_window = GlobalWindows.windowed_value(None).with_value
@@ -737,7 +735,7 @@ class FnApiRunner(runner.PipelineRunner):
             ready_to_schedule = False
       if data_inputs and ready_to_schedule:
         # We push the data inputs, along with the name of the consuming stage.
-        print('Enqueuing stage\n\t', stage.name)
+        logging.debug('Scheduling stage for execution. Stage name: %s', stage.name)
         input_queue_manager.ready_inputs.enque((stage.name, data_inputs))
       elif data_inputs and not ready_to_schedule:
         input_queue_manager.watermark_pending_inputs.enque(
@@ -781,7 +779,7 @@ class FnApiRunner(runner.PipelineRunner):
             next_ready_elements[transform_name] = _ListBuffer()
           endpoints_for_execution = (next_ready_elements, data_output)
 
-          print('Executing bundle for stage\n\t', stage.name)
+          logging.info('Executing bundle for stage\n\t', stage.name)
           stage_results, output_bundles, deferred_inputs = self._execute_bundle(
               execution_context,
               worker_handler_manager.get_worker_handlers,
@@ -799,7 +797,7 @@ class FnApiRunner(runner.PipelineRunner):
 
           for k, v in deferred_inputs.items():
             # TODO(pabloem, MUST): SOMEHOW ENQUEUE THE DEFERRED INPUTS.
-            #  this is not the way. hah.
+            #  this is not a nice way.
             input_queue_manager.ready_inputs.enque((stage.name, {k: v}))
 
           self._process_output_bundles(execution_context,
@@ -812,10 +810,10 @@ class FnApiRunner(runner.PipelineRunner):
       worker_handler_manager.close_all()
 
     if len(input_queue_manager.watermark_pending_inputs) > 0:
-      # TODO(pabloem, MUST): REMOVE THIS SECTION
-      print('U TUFIKA U GOT STUFF LEFT: ',
-            input_queue_manager.watermark_pending_inputs)
-      raise RuntimeError()
+      raise RuntimeError('There are bundles pending processing that can not '
+                         'be scheduled because the watermark is stuck. '
+                         'This represents an error in Apache Beam.'
+                         '\n\t%s', input_queue_manager.watermark_pending_inputs)
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
@@ -834,10 +832,13 @@ class FnApiRunner(runner.PipelineRunner):
       stage_wm_mgr = execution_context.watermark_manager.get_node(stage_name)
       stage_watermark = stage_wm_mgr.input_watermark()
       if stage_watermark >= bundle_watermark:
-        print('Enqueuing new ready stage\n\t', stage_name, '\n\t', inputs)
+        logging.debug('Enqueuing bundle for execution. Stage: %s', stage_name)
         input_queue_manager.ready_inputs.enque((stage_name, inputs))
       else:
-        print('NOT Enqueuing stage\n\t', stage_name, '\n\tWatermark: ', stage_watermark)
+        logging.debug(
+          'Unable to enqueue bundle for stage %s'
+          '\n\tStage input watermark: %s'
+          '\n\tBundle scheduled watermark: %s', stage_name)
         requed_inputs.append(((stage_name, bundle_watermark), inputs))
 
     for elm in requed_inputs:
@@ -866,7 +867,8 @@ class FnApiRunner(runner.PipelineRunner):
         # This should also hold back the watermarks for all downstream
         # PCollections.
         kind, pcoll_name = split_buffer_id(buffer_id)
-        print('SETTING A WATERMARK HOLD FOR \n\t', pcoll_name)
+        logging.debug('Setting watermark due to deferred inputs '
+                      'from PCollection: %s', pcoll_name)
         execution_context.update_pcoll_watermark(pcoll_name,
                                                  timestamp.MIN_TIMESTAMP)
         continue
@@ -929,7 +931,7 @@ class FnApiRunner(runner.PipelineRunner):
 
           # For batch, after nothing comes in from the timers, we're done.
           # TODO(pabloem, MUST): What if timers are set BEFORE the current
-          #   watermark for this pcollection?
+          #   watermark for this pcollection? This should be handled by SDK?
         # We update the written and read collections' watermars.
         read_pcoll_name = timer_written_pcoll_to_read_pcoll_map[pcoll_name]
         execution_context.update_pcoll_watermark(read_pcoll_name,
@@ -969,7 +971,8 @@ class FnApiRunner(runner.PipelineRunner):
             consuming_stage_name)
         stage_input_watermark = stage_watermark_mgr.input_watermark()
         if stage_input_watermark >= bundle_watermark:
-          print('Enqueuing output stage\n\t', consuming_stage_name)
+          logging.debug('Enqueuing bundle output after execution, '
+                        'to be consumed by stage:', consuming_stage_name)
           input_queue_manager.ready_inputs.enque(
               (consuming_stage_name, {consuming_transform_name: data}))
         else:
@@ -1101,11 +1104,6 @@ class FnApiRunner(runner.PipelineRunner):
     last_result = result
     last_sent = input_bundle
 
-    # TODO(pabloem, MUST): THE PROBLEM CURRENTLY IS THAT WHEN THERE ARE DEFERRED
-    #  INPUTS, WE MUST HOLD BACK THE WATERMARK FOR A STAGE. We are not doing
-    #  that currently, and thus when we have deferred inputs, the watermark
-    #  still moves to +MAX_TS, and downstream operations are scheduled.
-    #  THIS BAD.
     deferred_inputs = FnApiRunner._collect_deferred_inputs(
       pipeline_context,
       process_bundle_descriptor,
