@@ -1223,7 +1223,8 @@ class DataflowRunner(PipelineRunner):
           element.encoded_element = output_coder.encode(tv.value)
           element.timestamp = tv.timestamp.micros
       elif isinstance(event, ProcessingTimeEvent):
-        new_event.processing_time_event.advance_duration = event.advance_by.micros
+        new_event.processing_time_event.advance_duration = (
+            event.advance_by.micros)
       elif isinstance(event, WatermarkEvent):
         new_event.watermark_event.new_watermark = event.new_watermark.micros
     serialized_payload = self.byte_array_to_json_string(
