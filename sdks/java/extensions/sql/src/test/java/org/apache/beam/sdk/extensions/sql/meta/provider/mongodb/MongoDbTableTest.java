@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbTable.DocumentToRow;
 import org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbTable.RowToDocument;
 import org.apache.beam.sdk.schemas.Schema;
@@ -54,7 +55,7 @@ public class MongoDbTableTest {
           .addNullableField("bool", BOOLEAN)
           .addNullableField("double", DOUBLE)
           .addNullableField("float", FLOAT)
-          .addNullableField("string", STRING)
+          .addNullableField("string", CalciteUtils.CHAR)
           .addRowField("nested", Schema.builder().addNullableField("int32", INT32).build())
           .addNullableField("arr", FieldType.array(STRING))
           .build();

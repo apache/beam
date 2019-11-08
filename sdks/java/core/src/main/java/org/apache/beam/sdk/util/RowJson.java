@@ -137,6 +137,14 @@ public class RowJson {
         return jsonArrayToList(fieldValue);
       }
 
+      if (fieldValue.typeName().isLogicalType()) {
+        return extractJsonNodeValue(
+            FieldValue.of(
+                fieldValue.name(),
+                fieldValue.type().getLogicalType().getBaseType(),
+                fieldValue.jsonValue()));
+      }
+
       return extractJsonPrimitiveValue(fieldValue);
     }
 
