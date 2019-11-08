@@ -684,7 +684,11 @@ class CallableWrapperDoFn(DoFn):
       type_hints = type_hints.strip_iterable()
     except ValueError as e:
       # TODO(BEAM-8466): Raise exception here if using stricter type checking.
-      logging.warning('%s: %s', self.display_data()['fn'].value, e)
+      # TODO: test coverage for this and the other branch
+      if fn_type_hints is not None and fn_type_hints.has_output_types():
+        raise TypeCheckError('%s: %s', self.display_data()['fn'].value, e)
+      else:
+        logging.warning('%s: %s', self.display_data()['fn'].value, e)
     return type_hints
 
   def infer_output_type(self, input_type):

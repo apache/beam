@@ -317,24 +317,24 @@ class IOTypeHints(object):
   def with_defaults(self, hints):
     if not hints:
       return self
-    if self._has_input_types():
+    if self.has_input_types():
       input_types = self.input_types
     else:
       input_types = hints.input_types
-    if self._has_output_types():
+    if self.has_output_types():
       output_types = self.output_types
     else:
       output_types = hints.output_types
     return IOTypeHints(input_types, output_types)
 
-  def _has_input_types(self):
+  def has_input_types(self):
     return self.input_types is not None and any(self.input_types)
 
-  def _has_output_types(self):
+  def has_output_types(self):
     return self.output_types is not None and any(self.output_types)
 
   def __bool__(self):
-    return self._has_input_types() or self._has_output_types()
+    return self.has_input_types() or self.has_output_types()
 
   def __repr__(self):
     return 'IOTypeHints[inputs=%s, outputs=%s]' % (
