@@ -17,7 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -118,8 +124,6 @@ public interface DataflowPipelineOptions
    * The Google Compute Engine <a
    * href="https://cloud.google.com/compute/docs/regions-zones/regions-zones">region</a> for
    * creating Dataflow jobs.
-   *
-   * <p>NOTE: The Cloud Dataflow now also supports the region flag.
    */
   @Hidden
   @Experimental
@@ -128,6 +132,7 @@ public interface DataflowPipelineOptions
           + "https://cloud.google.com/compute/docs/regions-zones/regions-zones for a list of valid "
           + "options. Currently defaults to us-central1, but future releases of Beam will "
           + "require the user to set the region explicitly.")
+  @Default.InstanceFactory(DefaultGcpRegionFactory.class)
   String getRegion();
 
   void setRegion(String region);
@@ -199,6 +204,54 @@ public interface DataflowPipelineOptions
       return FileSystems.matchNewResource(gcpTempLocation, true /* isDirectory */)
           .resolve("staging", StandardResolveOptions.RESOLVE_DIRECTORY)
           .toString();
+    }
+  }
+
+  /**
+   * Factory for a default value for Google Cloud region according to
+   * https://cloud.google.com/compute/docs/gcloud-compute/#default-properties. If no other default
+   * can be found, returns "us-central1".
+   */
+  class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultGcpRegionFactory.class);
+
+    @Override
+    public String create(PipelineOptions options) {
+      String environmentRegion = System.getenv("CLOUDSDK_COMPUTE_REGION");
+      if (environmentRegion != null && !environmentRegion.isEmpty()) {
+        LOG.info("Using default GCP region {} from $CLOUDSDK_COMPUTE_REGION", environmentRegion);
+        return environmentRegion;
+      }
+      try {
+        ProcessBuilder pb =
+            new ProcessBuilder(Arrays.asList("gcloud", "config", "get-value", "compute/region"));
+        Process process = pb.start();
+        try (BufferedReader reader =
+                new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+            BufferedReader errorReader =
+                new BufferedReader(
+                    new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
+          if (process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0) {
+            String gcloudRegion = reader.lines().collect(Collectors.joining());
+            if (!gcloudRegion.isEmpty()) {
+              LOG.info("Using default GCP region {} from gcloud CLI", gcloudRegion);
+              return gcloudRegion;
+            }
+          } else {
+            String stderr = errorReader.lines().collect(Collectors.joining("\n"));
+            LOG.debug("gcloud exited with exit value {}. Stderr:\n{}", process.exitValue(), stderr);
+          }
+        }
+      } catch (Exception e) {
+        // Ignore.
+        LOG.debug("Unable to get gcloud compute region", e);
+      }
+      LOG.warn(
+          "Region will default to us-central1. Future releases of Beam will "
+              + "require the user to set the region explicitly. "
+              + "https://cloud.google.com/compute/docs/regions-zones/regions-zones");
+      return "us-central1";
     }
   }
 }
