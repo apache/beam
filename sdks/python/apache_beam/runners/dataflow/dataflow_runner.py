@@ -30,7 +30,6 @@ import sys
 import threading
 import time
 import traceback
-import unittest
 import urllib
 from builtins import hex
 from collections import defaultdict
@@ -1196,7 +1195,6 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
 
-  @unittest.skip("This is not a test, despite the name.")
   def run_TestStream(self, transform_node, options):
     from apache_beam.portability.api import beam_runner_api_pb2
     from apache_beam.testing.test_stream import ElementEvent
@@ -1238,6 +1236,10 @@ class DataflowRunner(PipelineRunner):
         PropertyNames.ENCODING: step.encoding,
         PropertyNames.OUTPUT_NAME: PropertyNames.OUT
     }])
+
+  # We must mark this method as not a test or else its name is a matcher for
+  # nosetest tests.
+  run_TestStream.__test__ = False
 
   @classmethod
   def serialize_windowing_strategy(cls, windowing):
