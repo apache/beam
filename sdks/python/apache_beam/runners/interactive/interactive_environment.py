@@ -30,7 +30,7 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
-from apache_beam.runners.interactive.utils import is_interactive
+from apache_beam.runners.utils import is_interactive
 
 _interactive_beam_env = None
 

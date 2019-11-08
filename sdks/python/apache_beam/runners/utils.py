@@ -15,16 +15,9 @@
 # limitations under the License.
 #
 
-"""Lightweight interactive utility module.
+"""Common utility module shared by runners.
 
 For internal use only; no backwards-compatibility guarantees.
-Can be safely imported and invoked by other non-interactive packages.
-This module should not contain any static import to non-native python libraries.
-Utilities added in this module should always try-except import non-native
-python libraries in non-global/static scope. When importing modules, try using
-`from ... import ...` in case the dependency changes package hierarchy in
-different versions. Each functionality within this module should always
-"work" even if the dependencies may not available.
 """
 from __future__ import absolute_import
 
@@ -32,8 +25,12 @@ from __future__ import absolute_import
 def is_interactive():
   """Determines if current code execution is in interactive environment.
 
-  is_in_ipython tells if current code is executed within an ipython session.
-  is_in_notebook tells if current code is executed from an ipython notebook.
+  Returns:
+    is_in_ipython: (bool) tells if current code is executed within an ipython
+        session.
+    is_in_notebook: (bool) tells if current code is executed from an ipython
+        notebook.
+
   If is_in_notebook is True, then is_in_ipython must also be True.
   """
   is_in_ipython = False
