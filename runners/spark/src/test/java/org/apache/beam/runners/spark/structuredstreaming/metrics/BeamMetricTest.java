@@ -24,9 +24,12 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-/** Test SparkBeamMetric. */
-public class SparkBeamMetricTest {
+/** Test BeamMetric. */
+@RunWith(JUnit4.class)
+public class BeamMetricTest {
   @Test
   public void testRenderName() {
     MetricResult<Object> metricResult =

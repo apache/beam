@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.runners.spark.structuredstreaming.utils.SerializationDebugger;
 import org.apache.beam.sdk.Pipeline;
@@ -46,14 +47,16 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark source translation. */
 @RunWith(JUnit4.class)
 public class SimpleSourceTest implements Serializable {
-  private static Pipeline p;
+  private static Pipeline pipeline;
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   @BeforeClass
   public static void beforeClass() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
+        .as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    p = Pipeline.create(options);
+    options.setTestMode(true);
+    pipeline = Pipeline.create(options);
   }
 
   @Test
@@ -83,7 +86,7 @@ public class SimpleSourceTest implements Serializable {
     dataSourceOptions.put(DatasetSourceBatch.DEFAULT_PARALLELISM, "4");
     dataSourceOptions.put(
         DatasetSourceBatch.PIPELINE_OPTIONS,
-        new SerializablePipelineOptions(p.getOptions()).toString());
+        new SerializablePipelineOptions(pipeline.getOptions()).toString());
     DataSourceReader objectToTest =
         new DatasetSourceBatch().createReader(new DataSourceOptions(dataSourceOptions));
     SerializationDebugger.testSerialization(objectToTest, TEMPORARY_FOLDER.newFile());
@@ -91,8 +94,8 @@ public class SimpleSourceTest implements Serializable {
 
   @Test
   public void testBoundedSource() {
-    PCollection<Integer> input = p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
     PAssert.that(input).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-    p.run();
+    pipeline.run();
   }
 }

@@ -20,9 +20,9 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -40,39 +40,41 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark {@link ParDo} translation. */
 @RunWith(JUnit4.class)
 public class ParDoTest implements Serializable {
-  private static Pipeline p;
+  private static Pipeline pipeline;
 
   @BeforeClass
   public static void beforeClass() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
+        .as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    p = Pipeline.create(options);
+    options.setTestMode(true);
+    pipeline = Pipeline.create(options);
   }
 
   @Test
   public void testPardo() {
     PCollection<Integer> input =
-        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).apply(ParDo.of(PLUS_ONE_DOFN));
+        pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).apply(ParDo.of(PLUS_ONE_DOFN));
     PAssert.that(input).containsInAnyOrder(2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
-    p.run();
+    pipeline.run();
   }
 
   @Test
   public void testTwoPardoInRow() {
     PCollection<Integer> input =
-        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
             .apply(ParDo.of(PLUS_ONE_DOFN))
             .apply(ParDo.of(PLUS_ONE_DOFN));
     PAssert.that(input).containsInAnyOrder(3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
-    p.run();
+    pipeline.run();
   }
 
   @Test
   public void testSideInputAsList() {
     PCollectionView<List<Integer>> sideInputView =
-        p.apply("Create sideInput", Create.of(1, 2, 3)).apply(View.asList());
+        pipeline.apply("Create sideInput", Create.of(1, 2, 3)).apply(View.asList());
     PCollection<Integer> input =
-        p.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
             .apply(
                 ParDo.of(
                         new DoFn<Integer, Integer>() {
@@ -86,16 +88,16 @@ public class ParDoTest implements Serializable {
                         })
                     .withSideInputs(sideInputView));
     PAssert.that(input).containsInAnyOrder(4, 5, 6, 7, 8, 9, 10);
-    p.run();
+    pipeline.run();
   }
 
   @Test
   public void testSideInputAsSingleton() {
     PCollectionView<Integer> sideInputView =
-        p.apply("Create sideInput", Create.of(1)).apply(View.asSingleton());
+        pipeline.apply("Create sideInput", Create.of(1)).apply(View.asSingleton());
 
     PCollection<Integer> input =
-        p.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
             .apply(
                 ParDo.of(
                         new DoFn<Integer, Integer>() {
@@ -110,16 +112,16 @@ public class ParDoTest implements Serializable {
                     .withSideInputs(sideInputView));
 
     PAssert.that(input).containsInAnyOrder(2, 3, 4, 5, 6, 7, 8, 9, 10);
-    p.run();
+    pipeline.run();
   }
 
   @Test
   public void testSideInputAsMap() {
     PCollectionView<Map<String, Integer>> sideInputView =
-        p.apply("Create sideInput", Create.of(KV.of("key1", 1), KV.of("key2", 2)))
+        pipeline.apply("Create sideInput", Create.of(KV.of("key1", 1), KV.of("key2", 2)))
             .apply(View.asMap());
     PCollection<Integer> input =
-        p.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
             .apply(
                 ParDo.of(
                         new DoFn<Integer, Integer>() {
@@ -133,7 +135,7 @@ public class ParDoTest implements Serializable {
                         })
                     .withSideInputs(sideInputView));
     PAssert.that(input).containsInAnyOrder(3, 4, 5, 6, 7, 8, 9, 10);
-    p.run();
+    pipeline.run();
   }
 
   private static final DoFn<Integer, Integer> PLUS_ONE_DOFN =

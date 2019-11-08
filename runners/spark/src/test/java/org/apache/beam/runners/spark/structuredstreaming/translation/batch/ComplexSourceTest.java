@@ -25,10 +25,10 @@ import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,21 +46,23 @@ public class ComplexSourceTest implements Serializable {
   private static File file;
   private static List<String> lines = createLines(30);
 
-  private static Pipeline p;
+  private static Pipeline pipeline;
 
   @BeforeClass
   public static void beforeClass() throws IOException {
-    PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
+        .as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    p = Pipeline.create(options);
+    options.setTestMode(true);
+    pipeline = Pipeline.create(options);
     file = createFile(lines);
   }
 
   @Test
   public void testBoundedSource() {
-    PCollection<String> input = p.apply(TextIO.read().from(file.getPath()));
+    PCollection<String> input = pipeline.apply(TextIO.read().from(file.getPath()));
     PAssert.that(input).containsInAnyOrder(lines);
-    p.run();
+    pipeline.run();
   }
 
   private static File createFile(List<String> lines) throws IOException {

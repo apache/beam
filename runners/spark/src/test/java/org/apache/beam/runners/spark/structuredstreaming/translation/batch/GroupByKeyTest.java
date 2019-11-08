@@ -23,9 +23,9 @@ import static org.junit.Assert.assertThat;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -48,18 +48,20 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark {@link ParDo} translation. */
 @RunWith(JUnit4.class)
 public class GroupByKeyTest implements Serializable {
-  private static Pipeline p;
+  private static Pipeline pipeline;
 
   @BeforeClass
   public static void beforeClass() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(PipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
+        .as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
-    p = Pipeline.create(options);
+    options.setTestMode(true);
+    pipeline = Pipeline.create(options);
   }
 
   @Test
   public void testGroupByKeyPreservesWindowing() {
-    p.apply(
+    pipeline.apply(
             Create.timestamped(
                 TimestampedValue.of(KV.of(1, 1), new Instant(1)),
                 TimestampedValue.of(KV.of(1, 3), new Instant(2)),
@@ -94,7 +96,7 @@ public class GroupByKeyTest implements Serializable {
                     context.output(element);
                   }
                 }));
-    p.run();
+    pipeline.run();
   }
 
   @Test
@@ -108,7 +110,7 @@ public class GroupByKeyTest implements Serializable {
     elems.add(KV.of(2, 6));
 
     PCollection<KV<Integer, Iterable<Integer>>> input =
-        p.apply(Create.of(elems)).apply(GroupByKey.create());
+        pipeline.apply(Create.of(elems)).apply(GroupByKey.create());
     PAssert.thatMap(input)
         .satisfies(
             results -> {
@@ -116,6 +118,6 @@ public class GroupByKeyTest implements Serializable {
               assertThat(results.get(2), containsInAnyOrder(2, 4, 6));
               return null;
             });
-    p.run();
+    pipeline.run();
   }
 }

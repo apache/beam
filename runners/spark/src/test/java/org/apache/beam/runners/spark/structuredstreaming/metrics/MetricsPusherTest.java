@@ -21,18 +21,23 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsOptions;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.UsesMetricsPusher;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.junit.Before;
-import org.junit.Rule;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,21 +46,27 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A test that verifies that metrics push system works in spark runner.
  */
-public class SparkMetricsPusherTest {
+@RunWith(JUnit4.class)
+public class MetricsPusherTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsPusherTest.class);
 
-  @Rule public final TestPipeline pipeline = TestPipeline.create();
+  private static Pipeline pipeline;
 
-  @Before
-  public void init() {
-    TestMetricsSink.clear();
-    MetricsOptions options = pipeline.getOptions().as(MetricsOptions.class);
-    options.setMetricsSink(TestMetricsSink.class);
+  @BeforeClass
+  public static void beforeClass() {
+    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create().as(
+        SparkStructuredStreamingPipelineOptions.class);
+    options.setRunner(SparkStructuredStreamingRunner.class);
+    options.setTestMode(true);
+    MetricsOptions options1 = options.as(MetricsOptions.class);
+    options1.setMetricsSink(TestMetricsSink.class);
+    pipeline = Pipeline.create(options1);
   }
 
+
   private static class CountingDoFn extends DoFn<Integer, Integer> {
-    private final Counter counter = Metrics.counter(SparkMetricsPusherTest.class, "counter");
+    private final Counter counter = Metrics.counter(MetricsPusherTest.class, "counter");
 
     @ProcessElement
     public void processElement(ProcessContext context) {

@@ -41,8 +41,11 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** This suite tests that various scenarios result in proper states of the pipeline. */
+@RunWith(JUnit4.class)
 public class StructuredStreamingPipelineStateTest implements Serializable {
 
   private static class MyCustomException extends RuntimeException {
@@ -53,7 +56,7 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
   }
 
   private final transient SparkStructuredStreamingPipelineOptions options =
-      PipelineOptionsFactory.as(SparkStructuredStreamingPipelineOptions.class);
+      PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
 
   @Rule public transient TestName testName = new TestName();
 
