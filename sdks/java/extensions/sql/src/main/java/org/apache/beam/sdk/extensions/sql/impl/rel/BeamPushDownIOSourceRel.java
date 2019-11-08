@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptTable;
@@ -105,7 +106,21 @@ public class BeamPushDownIOSourceRel extends BeamIOSourceRel {
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return super.beamComputeSelfCost(planner, mq)
-        .multiplyBy((double) 1 / (getRowType().getFieldCount() + 1));
+    BeamCostModel parentCost = super.beamComputeSelfCost(planner, mq);
+    Preconditions.checkArgument(parentCost.getCpu() >= 0, "Cpu cost must be zero or positive.");
+    // Table schema will always contain all fields, while usedFields may contain less fields due to
+    // push-down. Difference between the two will be the number of fields pushed-down. Bigger
+    // difference - better.
+    double projectBenefit = getBeamSqlTable().getSchema().getFieldCount() - usedFields.size();
+    // Number of filters pushed-down should have a smaller impact.
+    double filterBenefit = tableFilters.numSupported();
+    // Normalize filterBenefit to be between 0.00 and (10% of projectBenefit).
+    filterBenefit = (1.0 - (1.0 / (filterBenefit + 1))) * ((projectBenefit + 1) * 0.1);
+    // Total totalBenefit of having push-down.
+    double totalBenefit = projectBenefit + filterBenefit;
+    // Normalize totalBenefit to be between 0.00 and 1.00.
+    double normalizedBenefit = totalBenefit / Math.max(totalBenefit, parentCost.getCpu() + 1);
+    BeamCostModel minus = BeamCostModel.FACTORY.makeTinyCost().multiplyBy(normalizedBenefit);
+    return parentCost.minus(minus);
   }
 }
