@@ -274,10 +274,12 @@ class PortableRunner(runner.PipelineRunner):
                  for k, v in all_options.items()
                  if v is not None}
 
+    prepare_request = beam_job_api_pb2.PrepareJobRequest(
+        job_name='job', pipeline=proto_pipeline,
+        pipeline_options=job_utils.dict_to_struct(p_options))
+    logging.debug('PrepareJobRequest: %s', prepare_request)
     prepare_response = job_service.Prepare(
-        beam_job_api_pb2.PrepareJobRequest(
-            job_name='job', pipeline=proto_pipeline,
-            pipeline_options=job_utils.dict_to_struct(p_options)),
+        prepare_request,
         timeout=portable_options.job_server_timeout)
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
