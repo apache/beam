@@ -763,12 +763,20 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     // We can't output here anymore because the checkpoint barrier has already been
     // sent downstream. This is going to change with 1.6/1.7's prepareSnapshotBarrier.
-    outputManager.openBuffer();
-    // Ensure that no new bundle gets started as part of finishing a bundle
-    while (bundleStarted.get()) {
-      invokeFinishBundle();
+    try {
+      outputManager.openBuffer();
+      // Ensure that no new bundle gets started as part of finishing a bundle
+      while (bundleStarted.get()) {
+        invokeFinishBundle();
+      }
+      outputManager.closeBuffer();
+    } catch (Exception e) {
+      // https://jira.apache.org/jira/browse/FLINK-14653
+      // Any regular exception during checkpointing will be tolerated by Flink because those
+      // typically do not affect the execution flow. We need to fail hard here because errors
+      // in bundle execution are application errors which are not related to checkpointing.
+      throw new Error("Checkpointing failed because bundle failed to finalize.", e);
     }
-    outputManager.closeBuffer();
 
     super.snapshotState(context);
   }
@@ -908,6 +916,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
      * by a lock.
      */
     void flushBuffer() {
+      if (openBuffer) {
+        // Buffering currently in progress, do not proceed
+        return;
+      }
       try {
         pushedBackElementsHandler
             .getElements()
