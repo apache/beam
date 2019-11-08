@@ -622,9 +622,15 @@ class DataflowRunner(PipelineRunner):
     debug_options = options.view_as(DebugOptions)
     use_fn_api = (debug_options.experiments and
                   'beam_fn_api' in debug_options.experiments)
+    use_streaming_engine = (
+        debug_options.experiments and
+        'enable_streaming_engine' in debug_options.experiments and
+        'enable_windmill_service' in debug_options.experiments)
+
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
-    if standard_options.streaming and not use_fn_api:
+    if (standard_options.streaming and
+        (not use_fn_api or not use_streaming_engine)):
       step.add_property(PropertyNames.FORMAT, 'pubsub')
       step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
     else:
