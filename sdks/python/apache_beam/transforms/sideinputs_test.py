@@ -25,10 +25,17 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import equal_to_per_window
+from apache_beam.transforms import Map
+from apache_beam.transforms import trigger
 from apache_beam.transforms import window
+from apache_beam.utils.timestamp import Timestamp
 
 
 class SideInputsTest(unittest.TestCase):
@@ -309,6 +316,65 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, equal_to(['a', 'b']))
     pipeline.run()
 
+  @attr('ValidatesRunner')
+  def test_multi_triggered_gbk_side_input(self):
+    """Test a GBK sideinput, with multiple triggering."""
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+
+    main_stream = (p
+                   | 'main TestStream' >> TestStream()
+                   .advance_watermark_to(3)
+                   .add_elements(['a1'])
+                   .advance_watermark_to(8)
+                   .add_elements(['a2'])
+                   | 'main windowInto' >> beam.WindowInto(
+                       window.FixedWindows(5),
+                       trigger=trigger.AfterWatermark(
+                           early=trigger.AfterCount(1)),
+                       accumulation_mode=trigger.AccumulationMode.DISCARDING))
+
+    emit_vals = Map(lambda k_vs: k_vs[1])
+
+    side_stream = (p
+                   | 'side TestStream' >> TestStream()
+                   .add_elements([window.TimestampedValue(('k', 100), 2)])
+                   .add_elements([window.TimestampedValue(('k', 400), 7)])
+                   | 'side windowInto' >> beam.WindowInto(
+                       window.FixedWindows(5),
+                       trigger=trigger.AfterWatermark(
+                           early=trigger.AfterCount(1)),
+                       accumulation_mode=trigger.AccumulationMode.DISCARDING)
+                   | 'GBK' >> beam.GroupByKey()
+                   | 'Values' >> emit_vals)
+
+    class RecordFn(beam.DoFn):
+      def process(self,
+                  elm=beam.DoFn.ElementParam,
+                  ts=beam.DoFn.TimestampParam,
+                  side=beam.DoFn.SideInputParam):
+        yield (elm, ts, side)
+
+    records = (main_stream
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
+
+    expected_window_to_elements = {
+        window.IntervalWindow(0, 5): [
+            ('a1', Timestamp(3), [[100]]),
+        ],
+        window.IntervalWindow(5, 10): [
+            ('a2', Timestamp(8), [[400], []])
+        ],
+    }
+
+    assert_that(
+        records,
+        equal_to_per_window(expected_window_to_elements),
+        use_global_window=False,
+        label='assert per window')
+
+    p.run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
