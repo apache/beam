@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.options;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -40,6 +41,8 @@ import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -217,31 +220,16 @@ public interface DataflowPipelineOptions
 
     @Override
     public String create(PipelineOptions options) {
-      String environmentRegion = System.getenv("CLOUDSDK_COMPUTE_REGION");
-      if (environmentRegion != null && !environmentRegion.isEmpty()) {
+      String environmentRegion = getRegionFromEnvironment();
+      if (!Strings.isNullOrEmpty(environmentRegion)) {
         LOG.info("Using default GCP region {} from $CLOUDSDK_COMPUTE_REGION", environmentRegion);
         return environmentRegion;
       }
       try {
-        ProcessBuilder pb =
-            new ProcessBuilder(Arrays.asList("gcloud", "config", "get-value", "compute/region"));
-        Process process = pb.start();
-        try (BufferedReader reader =
-                new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
-            BufferedReader errorReader =
-                new BufferedReader(
-                    new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
-          if (process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0) {
-            String gcloudRegion = reader.lines().collect(Collectors.joining());
-            if (!gcloudRegion.isEmpty()) {
-              LOG.info("Using default GCP region {} from gcloud CLI", gcloudRegion);
-              return gcloudRegion;
-            }
-          } else {
-            String stderr = errorReader.lines().collect(Collectors.joining("\n"));
-            LOG.debug("gcloud exited with exit value {}. Stderr:\n{}", process.exitValue(), stderr);
-          }
+        String gcloudRegion = getRegionFromGcloudCli();
+        if (!gcloudRegion.isEmpty()) {
+          LOG.info("Using default GCP region {} from gcloud CLI", gcloudRegion);
+          return gcloudRegion;
         }
       } catch (Exception e) {
         // Ignore.
@@ -252,6 +240,33 @@ public interface DataflowPipelineOptions
               + "require the user to set the region explicitly. "
               + "https://cloud.google.com/compute/docs/regions-zones/regions-zones");
       return "us-central1";
+    }
+
+    @VisibleForTesting
+    static String getRegionFromEnvironment() {
+      return System.getenv("CLOUDSDK_COMPUTE_REGION");
+    }
+
+    @VisibleForTesting
+    static String getRegionFromGcloudCli() throws IOException, InterruptedException {
+      ProcessBuilder pb =
+          new ProcessBuilder(Arrays.asList("gcloud", "config", "get-value", "compute/region"));
+      Process process = pb.start();
+      try (BufferedReader reader =
+              new BufferedReader(
+                  new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+          BufferedReader errorReader =
+              new BufferedReader(
+                  new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
+        if (process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0) {
+          return reader.lines().collect(Collectors.joining());
+        } else {
+          String stderr = errorReader.lines().collect(Collectors.joining("\n"));
+          throw new RuntimeException(
+              String.format(
+                  "gcloud exited with exit value %d. Stderr:%n%s", process.exitValue(), stderr));
+        }
+      }
     }
   }
 }
