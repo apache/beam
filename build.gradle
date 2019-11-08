@@ -143,6 +143,11 @@ task javaPreCommit() {
   dependsOn ":runners:direct-java:needsRunnerTests"
 }
 
+task sqlPreCommit() {
+  dependsOn ":sdks:java:extensions:sql:build"
+  dependsOn ":sdks:java:extensions:sql:buildDependents"
+}
+
 task javaPreCommitBeamZetaSQL() {
   dependsOn ":sdks:java:extensions:sql:zetasql:test"
 }
