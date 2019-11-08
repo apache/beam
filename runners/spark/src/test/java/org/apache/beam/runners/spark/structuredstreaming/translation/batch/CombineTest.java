@@ -143,7 +143,7 @@ public class CombineTest implements Serializable {
             .apply(Combine.globally(Combine.BinaryCombineFn.of(
                 (SerializableBiFunction<Integer, Integer, Integer>) (integer1, integer2) ->
                     integer1 > integer2 ? integer1 : integer2)).withoutDefaults());
-    PAssert.that(input).containsInAnyOrder(1, 3, 5);
+    PAssert.that(input).containsInAnyOrder(1, 3, 5, 5, 5);
     pipeline.run();
 
   }
