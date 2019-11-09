@@ -219,7 +219,7 @@ message JobState {
     // The job has been paused, or has not yet started.
     STOPPED = 1;
 
-    // The job is currently running. (terminal)
+    // The job is currently running.
     RUNNING = 2;
 
     // The job has successfully completed. (terminal)
@@ -231,7 +231,7 @@ message JobState {
     // The job has been explicitly cancelled. (terminal)
     CANCELLED = 5;
 
-    // The job has been updated.
+    // The job has been updated. (terminal)
     UPDATED = 6;
 
     // The job is draining its data.
@@ -245,6 +245,8 @@ message JobState {
 
     // The job is cancelling.
     CANCELLING = 10;
+
+    // The job is in the process of being updated.
     UPDATING = 11;
   }
 }
