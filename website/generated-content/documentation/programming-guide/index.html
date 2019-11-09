@@ -2705,8 +2705,8 @@ filesystem-specific consistency models. The following TextIO example uses a glob
 operator (*) to read all matching input files that have prefix “input-“ and the
 suffix “.csv” in the given location:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="err">“</span><span class="n">ReadFromText</span><span class="err">”</span><span class="o">,</span>
-    <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/input-*.csv"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ReadFromText"</span><span class="o">,</span>
+    <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/input-*.csv"</span><span class="o">));</span>
 </code></pre>
 </div>
 
