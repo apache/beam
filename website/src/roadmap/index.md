@@ -32,18 +32,20 @@ Below are some highlights for the project as a whole.
 
 ## Portability Framework
 
-Portability is the primary Beam vision: running pipelines authors with _any SDK_
+Portability is the primary Beam vision: running pipelines authored with _any SDK_
 on _any runner_. This is a cross-cutting effort across Java, Python, and Go, 
-and every Beam runner.
+and every Beam runner. Portability is currently supported on the
+[Flink]({{site.baseurl}}/documentation/runners/flink/)
+and [Spark]({{site.baseurl}}/documentation/runners/spark/) runners.
 
 See the details on the [Portability Roadmap]({{site.baseurl}}/roadmap/portability/)
 
-## Python on Flink
+## Cross-language transforms
 
-A major highlight of the portability effort is the effort in running Python pipelines
-the Flink runner.
-
-You can [follow the instructions to try it out]({{site.baseurl}}/roadmap/portability/#python-on-flink)
+As a benefit of the portability effort, we are able to utilize Beam transforms across SDKs.
+Examples include using Java connectors and Beam SQL from Python or Go pipelines
+or Beam TFX transforms from Java and Go.
+For details see [Roadmap for multi-SDK efforts]({{ site.baseurl }}/roadmap/connectors-multi-sdk/).
 
 ## Go SDK
 
