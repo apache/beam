@@ -45,7 +45,7 @@ dependencies {
   fmppTemplates library.java.vendored_calcite_1_20_0
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:join-library")
-  compile project(":runners:direct-java")
+  compile project(path: ":runners:direct-java", configuration: "shadow")
   compile library.java.commons_csv
   compile library.java.vendored_calcite_1_20_0
   compile "com.alibaba:fastjson:1.2.49"

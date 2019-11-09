@@ -35,7 +35,7 @@ dependencies {
     testCompile library.java.junit
     testCompile project(":sdks:java:io:google-cloud-platform")
     testRuntimeOnly library.java.slf4j_simple
-    testRuntimeOnly project(":runners:direct-java")
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }
 
