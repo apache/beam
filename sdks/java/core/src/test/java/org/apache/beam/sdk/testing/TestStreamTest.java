@@ -427,7 +427,8 @@ public class TestStreamTest implements Serializable {
     PCollection<String> result =
         PCollectionList.of(ImmutableList.of(input, grouped))
             .apply(Flatten.pCollections())
-            .apply("Key",
+            .apply(
+                "Key",
                 MapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings()))
                     .via(e -> KV.of("key", e)))
