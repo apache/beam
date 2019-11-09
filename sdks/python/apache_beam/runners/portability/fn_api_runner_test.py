@@ -608,7 +608,7 @@ class FnApiRunnerTest(unittest.TestCase):
       pcoll_b = p | 'b' >> beam.Create(['b'])
       assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
 
-  def test_metrics(self):
+  def test_metrics(self, check_gauge=True):
     p = self.create_pipeline()
 
     counter = beam.metrics.Metrics.counter('ns', 'counter')
@@ -630,14 +630,17 @@ class FnApiRunnerTest(unittest.TestCase):
     c2, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count2'))[
         'counters']
     self.assertEqual(c2.committed, 4)
+
     dist, = res.metrics().query(beam.metrics.MetricsFilter().with_step('dist'))[
         'distributions']
-    gaug, = res.metrics().query(
-        beam.metrics.MetricsFilter().with_step('gauge'))['gauges']
     self.assertEqual(
         dist.committed.data, beam.metrics.cells.DistributionData(4, 2, 1, 3))
     self.assertEqual(dist.committed.mean, 2.0)
-    self.assertEqual(gaug.committed.value, 3)
+
+    if check_gauge:
+      gaug, = res.metrics().query(
+          beam.metrics.MetricsFilter().with_step('gauge'))['gauges']
+      self.assertEqual(gaug.committed.value, 3)
 
   def test_callbacks_with_exception(self):
     elements_list = ['1', '2']
