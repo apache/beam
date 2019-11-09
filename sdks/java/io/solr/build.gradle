@@ -38,5 +38,5 @@ dependencies {
   testCompile "org.apache.solr:solr-core:5.5.4"
   testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.3.2"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
