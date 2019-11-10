@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.values;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -27,9 +26,6 @@ import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
  * A Concrete subclass of {@link Row} that delegates to a set of provided {@link FieldValueGetter}s.
@@ -39,25 +35,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * the appropriate fields from the POJO.
  */
 public class RowWithGetters extends Row {
-  private final Factory<List<FieldValueGetter>> fieldValueGetterFactory;
-  private final Object getterTarget;
-  private final List<FieldValueGetter> getters;
-
-  private final Map<Integer, List> cachedLists = Maps.newHashMap();
-  private final Map<Integer, Map> cachedMaps = Maps.newHashMap();
-
-  private final boolean collectionHandledByGetter;
+  final Factory<List<FieldValueGetter>> fieldValueGetterFactory;
+  final Object getterTarget;
+  final List<FieldValueGetter> getters;
 
   RowWithGetters(
-      Schema schema,
-      Factory<List<FieldValueGetter>> getterFactory,
-      Object getterTarget,
-      boolean collectionHandledByGetter) {
+      Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
     super(schema);
     this.fieldValueGetterFactory = getterFactory;
     this.getterTarget = getterTarget;
     this.getters = fieldValueGetterFactory.create(getterTarget.getClass(), schema);
-    this.collectionHandledByGetter = collectionHandledByGetter;
   }
 
   @Nullable
@@ -73,45 +60,9 @@ public class RowWithGetters extends Row {
     return fieldValue != null ? getValue(type, fieldValue, fieldIdx) : null;
   }
 
-  private List getListValue(FieldType elementType, Object fieldValue) {
-    Iterable iterable = (Iterable) fieldValue;
-    List<Object> list = Lists.newArrayList();
-    for (Object o : iterable) {
-      list.add(getValue(elementType, o, null));
-    }
-    return list;
-  }
-
-  private Map<?, ?> getMapValue(FieldType keyType, FieldType valueType, Map<?, ?> fieldValue) {
-    Map returnMap = Maps.newHashMap();
-    for (Map.Entry<?, ?> entry : fieldValue.entrySet()) {
-      returnMap.put(
-          getValue(keyType, entry.getKey(), null), getValue(valueType, entry.getValue(), null));
-    }
-    return returnMap;
-  }
-
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
-  private <T> T getValue(FieldType type, Object fieldValue, @Nullable Integer cacheKey) {
-    if (type.getTypeName().equals(TypeName.ROW) && !collectionHandledByGetter) {
-      return (T)
-          new RowWithGetters(type.getRowSchema(), fieldValueGetterFactory, fieldValue, false);
-    } else if (type.getTypeName().equals(TypeName.ARRAY) && !collectionHandledByGetter) {
-      return cacheKey != null
-          ? (T)
-              cachedLists.computeIfAbsent(
-                  cacheKey, i -> getListValue(type.getCollectionElementType(), fieldValue))
-          : (T) getListValue(type.getCollectionElementType(), fieldValue);
-    } else if (type.getTypeName().equals(TypeName.MAP) && !collectionHandledByGetter) {
-      Map map = (Map) fieldValue;
-      return cacheKey != null
-          ? (T)
-              cachedMaps.computeIfAbsent(
-                  cacheKey, i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), map))
-          : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), map);
-    } else {
-      return (T) fieldValue;
-    }
+  protected <T> T getValue(FieldType type, Object fieldValue, @Nullable Integer cacheKey) {
+    return (T) fieldValue;
   }
 
   @Override

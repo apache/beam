@@ -761,8 +761,11 @@ public abstract class Row implements Serializable {
         return new RowWithStorage(schema, storageValues);
       } else if (fieldValueGetterFactory != null) {
         checkState(getterTarget != null, "getters require withGetterTarget.");
-        return new RowWithGetters(
-            schema, fieldValueGetterFactory, getterTarget, collectionHandledByGetter);
+        if (collectionHandledByGetter) {
+          return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+        } else {
+          return new RowWithGettersCachedCollections(schema, fieldValueGetterFactory, getterTarget);
+        }
       } else {
         return new RowWithStorage(schema, Collections.emptyList());
       }

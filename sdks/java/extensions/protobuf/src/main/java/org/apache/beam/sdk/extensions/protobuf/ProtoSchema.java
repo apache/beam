@@ -58,28 +58,27 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *
  * <ul>
  *   <li>Protobuf oneOf fields are mapped to nullable fields and flattened into the parent row.
- *   <li>Protobuf primitives are mapped to it's nullable counter part.
+ *   <li>Protobuf primitives are mapped to it's non nullable counter part.
  *   <li>Protobuf maps are mapped to nullable maps, where empty maps are mapped to the null value.
  *   <li>Protobuf repeatables are mapped to nullable arrays, where empty arrays are mapped to the
  *       null value.
  *   <li>Protobuf enums are mapped to non-nullable string values.
- *   <li>Enum map to their string representation
  * </ul>
  *
  * <p>Protobuf Well Know Types are handled by the Beam Schema system. Beam knows of the following
  * Well Know Types:
  *
  * <ul>
- *   <li>google.protobuf.Timestamp maps to a nullable Field.DATATIME.
- *   <li>google.protobuf.StringValue maps to a nullable Field.STRING.
- *   <li>google.protobuf.DoubleValue maps to a nullable Field.DOUBLE.
- *   <li>google.protobuf.FloatValue maps to a nullable Field.FLOAT.
- *   <li>google.protobuf.BytesValue maps to a nullable Field.BYTES.
- *   <li>google.protobuf.BoolValue maps to a nullable Field.BOOL.
- *   <li>google.protobuf.Int64Value maps to a nullable Field.INT64.
- *   <li>google.protobuf.Int32Value maps to a nullable Field.INT32.
- *   <li>google.protobuf.UInt64Value maps to a nullable Field.INT64.
- *   <li>google.protobuf.UInt32Value maps to a nullable Field.INT32.
+ *   <li>google.protobuf.Timestamp maps to a nullable Field.DATATIME
+ *   <li>google.protobuf.StringValue maps to a nullable Field.STRING
+ *   <li>google.protobuf.DoubleValue maps to a nullable Field.DOUBLE
+ *   <li>google.protobuf.FloatValue maps to a nullable Field.FLOAT
+ *   <li>google.protobuf.BytesValue maps to a nullable Field.BYTES
+ *   <li>google.protobuf.BoolValue maps to a nullable Field.BOOL
+ *   <li>google.protobuf.Int64Value maps to a nullable Field.INT64
+ *   <li>google.protobuf.Int32Value maps to a nullable Field.INT32
+ *   <li>google.protobuf.UInt64Value maps to a nullable Field.INT64
+ *   <li>google.protobuf.UInt32Value maps to a nullable Field.INT32
  * </ul>
  */
 @Experimental(Experimental.Kind.SCHEMAS)
