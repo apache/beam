@@ -72,7 +72,7 @@ public class SplittableParDoExpander {
   /** See {@link #createSizedReplacement()} for details. */
   private static class SizedReplacement implements TransformReplacement {
 
-    private static SizedReplacement INSTANCE = new SizedReplacement();
+    private static final SizedReplacement INSTANCE = new SizedReplacement();
 
     @Override
     public MessageWithComponents getReplacement(
@@ -91,10 +91,6 @@ public class SplittableParDoExpander {
         String mainInputPCollectionId = splittableParDo.getInputsOrThrow(mainInputName);
         PCollection mainInputPCollection =
             existingComponents.getPcollectionsOrThrow(mainInputPCollectionId);
-        Coder mainInputCoder =
-            existingComponents.getCodersOrThrow(mainInputPCollection.getCoderId());
-        Coder restrictionCoder =
-            existingComponents.getCodersOrThrow(payload.getRestrictionCoderId());
         Map<String, String> sideInputs =
             Maps.filterKeys(
                 splittableParDo.getInputsMap(), input -> payload.containsSideInputs(input));
