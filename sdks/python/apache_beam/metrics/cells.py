@@ -30,9 +30,6 @@ from builtins import object
 
 from google.protobuf import timestamp_pb2
 
-from apache_beam.metrics.metricbase import Counter
-from apache_beam.metrics.metricbase import Distribution
-from apache_beam.metrics.metricbase import Gauge
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
 
@@ -120,11 +117,11 @@ class CounterCell(MetricCell):
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_counter(
-          name.namespace, name.name,
-          metrics_pb2.Metric(
-              counter_data=metrics_pb2.CounterData(
-                  int64_value=self.get_cumulative())),
-          ptransform=transform_id)
+        name.namespace, name.name,
+        metrics_pb2.Metric(
+            counter_data=metrics_pb2.CounterData(
+                int64_value=self.get_cumulative())),
+        ptransform=transform_id)
 
 
 class DistributionCell(MetricCell):
@@ -182,9 +179,9 @@ class DistributionCell(MetricCell):
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_distribution(
-          name.namespace, name.name,
-          self.get_cumulative().to_runner_api_monitoring_info(),
-          ptransform=transform_id)
+        name.namespace, name.name,
+        self.get_cumulative().to_runner_api_monitoring_info(),
+        ptransform=transform_id)
 
 
 class GaugeCell(MetricCell):
@@ -233,9 +230,9 @@ class GaugeCell(MetricCell):
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_gauge(
-          name.namespace, name.name,
-          self.get_cumulative().to_runner_api_monitoring_info(),
-          ptransform=transform_id)
+        name.namespace, name.name,
+        self.get_cumulative().to_runner_api_monitoring_info(),
+        ptransform=transform_id)
 
 
 class DistributionResult(object):
