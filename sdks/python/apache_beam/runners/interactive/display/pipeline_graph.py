@@ -44,12 +44,12 @@ class PipelineGraph(object):
 
     Examples:
       graph = pipeline_graph.PipelineGraph(pipeline_proto)
-      graph.display_graph()
+      graph.get_dot()
 
       or
 
       graph = pipeline_graph.PipelineGraph(pipeline)
-      graph.display_graph()
+      graph.get_dot()
 
     Args:
       pipeline: (Pipeline proto) or (Pipeline) pipeline to be rendered.
