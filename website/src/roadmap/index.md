@@ -70,6 +70,15 @@ streaming pipelines using only SQL, but also to allow Beam Java developers
 to use SQL in components of their pipeline for added efficiency. See the 
 [Beam SQL Roadmap]({{site.baseurl}}/roadmap/sql/)
 
+## Portable schemas
+
+Schemas allow SDKs and runners to understand
+the structure of user data and unlock relational optimization possibilities.
+Portable schemas enable compatibility between rows in Python and Java.
+A particularly interesting use case is the combination of SQL (implemented in Java)
+with the Python SDK via Beam's cross-language support.
+Learn more about portable schemas from this [presentation](https://s.apache.org/portable-schemas-seattle).
+
 ## Euphoria
 
 Euphoria is Beam's newest API, offering a high-level, fluent style for

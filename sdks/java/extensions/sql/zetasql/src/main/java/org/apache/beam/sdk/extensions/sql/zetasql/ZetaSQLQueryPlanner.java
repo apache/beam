@@ -20,10 +20,13 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import com.google.zetasql.Value;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.NonCumulativeCostImpl;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
@@ -34,6 +37,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDe
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -99,6 +105,18 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             .replace(BeamLogicalConvention.INSTANCE)
             .replace(root.collation)
             .simplify();
+    // beam physical plan
+    root.rel
+        .getCluster()
+        .setMetadataProvider(
+            ChainedRelMetadataProvider.of(
+                org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList.of(
+                    NonCumulativeCostImpl.SOURCE,
+                    RelMdNodeStats.SOURCE,
+                    root.rel.getCluster().getMetadataProvider())));
+    RelMetadataQuery.THREAD_PROVIDERS.set(
+        JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
+    root.rel.getCluster().invalidateMetadataQuery();
     BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
     return beamRelNode;
   }
@@ -143,7 +161,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         .traitDefs(traitDefs)
         .context(Contexts.of(contexts))
         .ruleSets(ruleSets)
-        .costFactory(null)
+        .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
         .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
         .build();

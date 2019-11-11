@@ -209,21 +209,29 @@ class _ReadMatchesFn(beam.DoFn):
           'Found %s.' % metadata.path)
 
     # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
-    yield ReadableFile(metadata)
+    yield ReadableFile(metadata, self._compression)
 
 
 class ReadableFile(object):
   """A utility class for accessing files."""
 
-  def __init__(self, metadata):
+  def __init__(self, metadata, compression=None):
     self.metadata = metadata
+    self._compression = compression
 
-  def open(self, mime_type='text/plain'):
+  def open(self,
+           mime_type='text/plain',
+           compression_type=None):
+    compression = (
+        compression_type or
+        self._compression or
+        filesystems.CompressionTypes.AUTO)
     return filesystems.FileSystems.open(self.metadata.path,
-                                        mime_type=mime_type)
+                                        mime_type=mime_type,
+                                        compression_type=compression)
 
-  def read(self):
-    return self.open('application/octet-stream').read()
+  def read(self, mime_type='application/octet-stream'):
+    return self.open(mime_type).read()
 
   def read_utf8(self):
     return self.open().read().decode('utf-8')

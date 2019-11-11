@@ -16,10 +16,11 @@
 package pipelinex
 
 import (
-	"reflect"
 	"testing"
 
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestEnsureUniqueName(t *testing.T) {
@@ -54,7 +55,7 @@ func TestEnsureUniqueName(t *testing.T) {
 
 	for _, test := range tests {
 		actual := ensureUniqueNames(test.in)
-		if !reflect.DeepEqual(actual, test.exp) {
+		if !cmp.Equal(actual, test.exp, cmp.Comparer(proto.Equal)) {
 			t.Errorf("ensureUniqueName(%v) = %v, want %v", test.in, actual, test.exp)
 		}
 	}
@@ -112,7 +113,7 @@ func TestComputeInputOutput(t *testing.T) {
 
 	for _, test := range tests {
 		actual := computeCompositeInputOutput(test.in)
-		if !reflect.DeepEqual(actual, test.exp) {
+		if !cmp.Equal(actual, test.exp, cmp.Comparer(proto.Equal)) {
 			t.Errorf("coimputeInputOutput(%v) = %v, want %v", test.in, actual, test.exp)
 		}
 	}

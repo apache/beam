@@ -65,6 +65,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.Builder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -165,8 +166,15 @@ public class CloudObjectsTest {
                       CoGbkResultSchema.of(
                           ImmutableList.of(new TupleTag<Long>(), new TupleTag<byte[]>())),
                       UnionCoder.of(ImmutableList.of(VarLongCoder.of(), ByteArrayCoder.of()))))
-              .add(SchemaCoder.of(Schema.builder().build(), new RowIdentity(), new RowIdentity()))
-              .add(SchemaCoder.of(TEST_SCHEMA, new RowIdentity(), new RowIdentity()));
+              .add(
+                  SchemaCoder.of(
+                      Schema.builder().build(),
+                      TypeDescriptors.rows(),
+                      new RowIdentity(),
+                      new RowIdentity()))
+              .add(
+                  SchemaCoder.of(
+                      TEST_SCHEMA, TypeDescriptors.rows(), new RowIdentity(), new RowIdentity()));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());

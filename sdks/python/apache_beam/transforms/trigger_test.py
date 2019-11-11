@@ -53,7 +53,6 @@ from apache_beam.transforms.trigger import GeneralTriggerDriver
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.trigger import TriggerFn
-from apache_beam.transforms.window import MIN_TIMESTAMP
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
@@ -61,6 +60,9 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.windowed_value import PaneInfoTiming
 
 
 class CustomTimestampingFixedWindowsWindowFn(FixedWindows):
@@ -119,7 +121,7 @@ class TriggerTest(unittest.TestCase):
     for bundle in bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
-        self.assertEqual(window.end, wvalue.timestamp)
+        self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
     while state.timers:
@@ -128,13 +130,13 @@ class TriggerTest(unittest.TestCase):
         for wvalue in driver.process_timer(
             timer_window, name, time_domain, timestamp, state):
           window, = wvalue.windows
-          self.assertEqual(window.end, wvalue.timestamp)
+          self.assertEqual(window.max_timestamp(), wvalue.timestamp)
           actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
-      for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
+      for wvalue in driver.process_elements(state, bundle, MAX_TIMESTAMP):
         window, = wvalue.windows
-        self.assertEqual(window.end, wvalue.timestamp)
+        self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
       while state.timers:
@@ -143,7 +145,7 @@ class TriggerTest(unittest.TestCase):
           for wvalue in driver.process_timer(
               timer_window, name, time_domain, timestamp, state):
             window, = wvalue.windows
-            self.assertEqual(window.end, wvalue.timestamp)
+            self.assertEqual(window.max_timestamp(), wvalue.timestamp)
             actual_panes[window].append(set(wvalue.value))
 
     self.assertEqual(expected_panes, actual_panes)
@@ -385,7 +387,7 @@ class TriggerTest(unittest.TestCase):
 
   def test_picklable_output(self):
     global_window = (trigger.GlobalWindow(),)
-    driver = trigger.DiscardingGlobalTriggerDriver()
+    driver = trigger.BatchGlobalTriggerDriver()
     unpicklable = (WindowedValue(k, 0, global_window)
                    for k in range(10))
     with self.assertRaises(TypeError):
@@ -512,7 +514,7 @@ class TranscriptTest(unittest.TestCase):
   def _run_log_test(self, spec):
     if 'error' in spec:
       self.assertRaisesRegex(
-          AssertionError, spec['error'], self._run_log, spec)
+          Exception, spec['error'], self._run_log, spec)
     else:
       self._run_log(spec)
 
@@ -594,6 +596,42 @@ class TranscriptTest(unittest.TestCase):
         TimestampCombiner,
         spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
+    def only_element(xs):
+      x, = list(xs)
+      return x
+
+    transcript = [only_element(line.items()) for line in spec['transcript']]
+
+    self._execute(
+        window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
+        transcript, spec)
+
+  def _windowed_value_info(self, windowed_value):
+    # Currently some runners operate at the millisecond level, and some at the
+    # microsecond level.  Trigger transcript timestamps are expressed as
+    # integral units of the finest granularity, whatever that may be.
+    # In these tests we interpret them as integral seconds and then truncate
+    # the results to integral seconds to allow for portability across
+    # different sub-second resolutions.
+    window, = windowed_value.windows
+    return {
+        'window': [int(window.start), int(window.max_timestamp())],
+        'values': sorted(windowed_value.value),
+        'timestamp': int(windowed_value.timestamp),
+        'index': windowed_value.pane_info.index,
+        'nonspeculative_index': windowed_value.pane_info.nonspeculative_index,
+        'early': windowed_value.pane_info.timing == PaneInfoTiming.EARLY,
+        'late': windowed_value.pane_info.timing == PaneInfoTiming.LATE,
+        'final': windowed_value.pane_info.is_last,
+    }
+
+
+class TriggerDriverTranscriptTest(TranscriptTest):
+
+  def _execute(
+      self, window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
+      transcript, unused_spec):
+
     driver = GeneralTriggerDriver(
         Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner),
         TestClock())
@@ -607,31 +645,24 @@ class TranscriptTest(unittest.TestCase):
         for timer_window, (name, time_domain, t_timestamp) in to_fire:
           for wvalue in driver.process_timer(
               timer_window, name, time_domain, t_timestamp, state):
-            window, = wvalue.windows
-            output.append({'window': [window.start, window.end - 1],
-                           'values': sorted(wvalue.value),
-                           'timestamp': wvalue.timestamp})
+            output.append(self._windowed_value_info(wvalue))
         to_fire = state.get_and_clear_timers(watermark)
 
-    for line in spec['transcript']:
-
-      action, params = list(line.items())[0]
+    for action, params in transcript:
 
       if action != 'expect':
         # Fail if we have output that was not expected in the transcript.
         self.assertEqual(
-            [], output, msg='Unexpected output: %s before %s' % (output, line))
+            [], output, msg='Unexpected output: %s before %s: %s' % (
+                output, action, params))
 
       if action == 'input':
         bundle = [
             WindowedValue(t, t, window_fn.assign(WindowFn.AssignContext(t, t)))
             for t in params]
-        output = [{'window': [wvalue.windows[0].start,
-                              wvalue.windows[0].end - 1],
-                   'values': sorted(wvalue.value),
-                   'timestamp': wvalue.timestamp}
-                  for wvalue
-                  in driver.process_elements(state, bundle, watermark)]
+        output = [
+            self._windowed_value_info(wv)
+            for wv in driver.process_elements(state, bundle, watermark)]
         fire_timers()
 
       elif action == 'watermark':
@@ -659,11 +690,130 @@ class TranscriptTest(unittest.TestCase):
     self.assertEqual([], output, msg='Unexpected output: %s' % output)
 
 
+class TestStreamTranscriptTest(TranscriptTest):
+  """A suite of TestStream-based tests based on trigger transcript entries.
+  """
+
+  def _execute(
+      self, window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
+      transcript, spec):
+
+    runner_name = TestPipeline().runner.__class__.__name__
+    if runner_name in spec.get('broken_on', ()):
+      self.skipTest('Known to be broken on %s' % runner_name)
+
+    test_stream = TestStream()
+    for action, params in transcript:
+      if action == 'expect':
+        test_stream.add_elements([('expect', params)])
+      else:
+        test_stream.add_elements([('expect', [])])
+        if action == 'input':
+          test_stream.add_elements([('input', e) for e in params])
+        elif action == 'watermark':
+          test_stream.advance_watermark_to(params)
+        elif action == 'clock':
+          test_stream.advance_processing_time(params)
+        elif action == 'state':
+          pass  # Requires inspection of implementation details.
+        else:
+          raise ValueError('Unexpected action: %s' % action)
+    test_stream.add_elements([('expect', [])])
+
+    class Check(beam.DoFn):
+      """A StatefulDoFn that verifies outputs are produced as expected.
+
+      This DoFn takes in two kinds of inputs, actual outputs and
+      expected outputs.  When an actual output is received, it is buffered
+      into state, and when an expected output is received, this buffered
+      state is retrieved and compared against the expected value(s) to ensure
+      they match.
+
+      The key is ignored, but all items must be on the same key to share state.
+      """
+      def process(
+          self, element, seen=beam.DoFn.StateParam(
+              beam.transforms.userstate.BagStateSpec(
+                  'seen',
+                  beam.coders.FastPrimitivesCoder()))):
+        _, (action, data) = element
+        if action == 'actual':
+          seen.add(data)
+
+        elif action == 'expect':
+          actual = list(seen.read())
+          seen.clear()
+
+          if len(actual) > len(data):
+            raise AssertionError(
+                'Unexpected output: expected %s but got %s' % (data, actual))
+          elif len(data) > len(actual):
+            raise AssertionError(
+                'Unmatched output: expected %s but got %s' % (data, actual))
+          else:
+
+            def diff(actual, expected):
+              for key in sorted(expected.keys(), reverse=True):
+                if key in actual:
+                  if actual[key] != expected[key]:
+                    return key
+
+            for output in actual:
+              diffs = [diff(output, expected) for expected in data]
+              if all(diffs):
+                raise AssertionError(
+                    'Unmatched output: %s not found in %s (diffs in %s)' % (
+                        output, data, diffs))
+
+        else:
+          raise ValueError('Unexpected action: %s' % action)
+
+    with TestPipeline(options=PipelineOptions(streaming=True)) as p:
+      # Split the test stream into a branch of to-be-processed elements, and
+      # a branch of expected results.
+      inputs, expected = (
+          p
+          | test_stream
+          | beam.MapTuple(
+              lambda tag, value: beam.pvalue.TaggedOutput(tag, ('key', value))
+              ).with_outputs('input', 'expect'))
+      # Process the inputs with the given windowing to produce actual outputs.
+      outputs = (
+          inputs
+          | beam.MapTuple(
+              lambda key, value: TimestampedValue((key, value), value))
+          | beam.WindowInto(
+              window_fn,
+              trigger=trigger_fn,
+              accumulation_mode=accumulation_mode,
+              timestamp_combiner=timestamp_combiner)
+          | beam.GroupByKey()
+          | beam.MapTuple(
+              lambda k, vs,
+                     window=beam.DoFn.WindowParam,
+                     t=beam.DoFn.TimestampParam,
+                     p=beam.DoFn.PaneInfoParam: (
+                         k,
+                         self._windowed_value_info(WindowedValue(
+                             vs, windows=[window], timestamp=t, pane_info=p))))
+          # Place outputs back into the global window to allow flattening
+          # and share a single state in Check.
+          | 'Global' >> beam.WindowInto(beam.transforms.window.GlobalWindows()))
+      # Feed both the expected and actual outputs to Check() for comparison.
+      tagged_expected = (
+          expected | beam.MapTuple(lambda key, value: (key, ('expect', value))))
+      tagged_outputs = (
+          outputs | beam.MapTuple(lambda key, value: (key, ('actual', value))))
+      # pylint: disable=expression-not-assigned
+      (tagged_expected, tagged_outputs) | beam.Flatten() | beam.ParDo(Check())
+
+
 TRANSCRIPT_TEST_FILE = os.path.join(
     os.path.dirname(__file__), '..', 'testing', 'data',
     'trigger_transcripts.yaml')
 if os.path.exists(TRANSCRIPT_TEST_FILE):
-  TranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
+  TriggerDriverTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
+  TestStreamTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
 
 
 if __name__ == '__main__':

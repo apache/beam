@@ -239,6 +239,7 @@ public final class KinesisIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setUpToDateThreshold(Duration.ZERO)
         .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
+        .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD)
         .build();
   }
 
@@ -272,6 +273,8 @@ public final class KinesisIO {
 
     abstract WatermarkPolicyFactory getWatermarkPolicyFactory();
 
+    abstract Integer getMaxCapacityPerShard();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -292,6 +295,8 @@ public final class KinesisIO {
       abstract Builder setRequestRecordsLimit(Integer limit);
 
       abstract Builder setWatermarkPolicyFactory(WatermarkPolicyFactory watermarkPolicyFactory);
+
+      abstract Builder setMaxCapacityPerShard(Integer maxCapacity);
 
       abstract Read build();
     }
@@ -420,6 +425,12 @@ public final class KinesisIO {
       return toBuilder().setWatermarkPolicyFactory(watermarkPolicyFactory).build();
     }
 
+    /** Specifies the maximum number of messages per one shard. */
+    public Read withMaxCapacityPerShard(Integer maxCapacity) {
+      checkArgument(maxCapacity > 0, "maxCapacity must be positive, but was: %s", maxCapacity);
+      return toBuilder().setMaxCapacityPerShard(maxCapacity).build();
+    }
+
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
       Unbounded<KinesisRecord> unbounded =
@@ -430,7 +441,8 @@ public final class KinesisIO {
                   getInitialPosition(),
                   getUpToDateThreshold(),
                   getWatermarkPolicyFactory(),
-                  getRequestRecordsLimit()));
+                  getRequestRecordsLimit(),
+                  getMaxCapacityPerShard()));
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
 

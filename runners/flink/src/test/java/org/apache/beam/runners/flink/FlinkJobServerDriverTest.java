@@ -61,7 +61,7 @@ public class FlinkJobServerDriverTest {
               "43",
               "--expansion-port",
               "44",
-              "--flink-master-url=jobmanager",
+              "--flink-master=jobmanager",
               "--clean-artifacts-per-job=false",
             });
     assertThat(config.getHost(), is("test"));
@@ -70,6 +70,17 @@ public class FlinkJobServerDriverTest {
     assertThat(config.getExpansionPort(), is(44));
     assertThat(config.getFlinkMaster(), is("jobmanager"));
     assertThat(config.isCleanArtifactsPerJob(), is(false));
+  }
+
+  @Test
+  public void testLegacyMasterUrlParameter() {
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        FlinkJobServerDriver.parseArgs(
+            new String[] {
+              // for backwards-compatibility
+              "--flink-master-url=jobmanager",
+            });
+    assertThat(config.getFlinkMaster(), is("jobmanager"));
   }
 
   @Test

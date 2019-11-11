@@ -17,16 +17,22 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** {@link CoderTranslator} implementations for known coder types. */
@@ -114,6 +120,33 @@ class CoderTranslators {
       public FullWindowedValueCoder<?> fromComponents(List<Coder<?>> components) {
         return WindowedValue.getFullCoder(
             components.get(0), (Coder<BoundedWindow>) components.get(1));
+      }
+    };
+  }
+
+  static CoderTranslator<RowCoder> row() {
+    return new CoderTranslator<RowCoder>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(RowCoder from) {
+        return ImmutableList.of();
+      }
+
+      @Override
+      public byte[] getPayload(RowCoder from) {
+        return SchemaTranslation.schemaToProto(from.getSchema()).toByteArray();
+      }
+
+      @Override
+      public RowCoder fromComponents(List<Coder<?>> components, byte[] payload) {
+        checkArgument(
+            components.isEmpty(), "Expected empty component list, but received: " + components);
+        Schema schema;
+        try {
+          schema = SchemaTranslation.fromProto(SchemaApi.Schema.parseFrom(payload));
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
+        }
+        return RowCoder.of(schema);
       }
     };
   }

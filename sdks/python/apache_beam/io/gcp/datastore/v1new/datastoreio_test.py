@@ -28,20 +28,24 @@ import unittest
 from mock import MagicMock
 from mock import call
 from mock import patch
+from mock import ANY
 
 # Protect against environments where datastore library is not available.
 try:
   from apache_beam.io.gcp.datastore.v1 import util
   from apache_beam.io.gcp.datastore.v1new import helper
   from apache_beam.io.gcp.datastore.v1new import query_splitter
+  from apache_beam.io.gcp.datastore.v1new import datastoreio
   from apache_beam.io.gcp.datastore.v1new.datastoreio import DeleteFromDatastore
   from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
   from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
   from apache_beam.io.gcp.datastore.v1new.types import Key
+  from apache_beam.testing.test_utils import patch_retry
   from google.cloud.datastore import client
   from google.cloud.datastore import entity
   from google.cloud.datastore import helpers
   from google.cloud.datastore import key
+  from google.api_core import exceptions
   # Keep this import last so it doesn't import conflicting pb2 modules.
   from apache_beam.io.gcp.datastore.v1 import datastoreio_test  # pylint: disable=ungrouped-imports
   DatastoreioTestBase = datastoreio_test.DatastoreioTest
@@ -105,6 +109,81 @@ class FakeBatch(object):
   def commit(self):
     if self._commit_count:
       self._commit_count[0] += 1
+
+
+@unittest.skipIf(client is None, 'Datastore dependencies are not installed')
+class MutateTest(unittest.TestCase):
+
+  def setUp(self):
+    patch_retry(self, datastoreio)
+
+  def test_write_mutations_no_errors(self):
+    mock_batch = MagicMock()
+    mock_throttler = MagicMock()
+    rpc_stats_callback = MagicMock()
+    mock_throttler.throttle_request.return_value = []
+    mutate = datastoreio._Mutate.DatastoreMutateFn(lambda: None)
+    mutate._batch = mock_batch
+    mutate.write_mutations(mock_throttler, rpc_stats_callback)
+    rpc_stats_callback.assert_has_calls([
+        call(successes=1),
+    ])
+
+  def test_write_mutations_reconstruct_on_error(self):
+    mock_batch = MagicMock()
+    mock_batch.begin.side_effect = [None, ValueError]
+    mock_batch.commit.side_effect = [exceptions.DeadlineExceeded('retryable'),
+                                     None]
+    mock_throttler = MagicMock()
+    rpc_stats_callback = MagicMock()
+    mock_throttler.throttle_request.return_value = []
+    mutate = datastoreio._Mutate.DatastoreMutateFn(lambda: None)
+    mutate._batch = mock_batch
+    mutate._client = MagicMock()
+    mutate._batch_elements = [None]
+    mock_add_to_batch = MagicMock()
+    mutate.add_to_batch = mock_add_to_batch
+    mutate.write_mutations(mock_throttler, rpc_stats_callback)
+    rpc_stats_callback.assert_has_calls([
+        call(successes=1),
+    ])
+    self.assertEqual(1, mock_add_to_batch.call_count)
+
+  def test_write_mutations_throttle_delay_retryable_error(self):
+    mock_batch = MagicMock()
+    mock_batch.commit.side_effect = [exceptions.DeadlineExceeded('retryable'),
+                                     None]
+    mock_throttler = MagicMock()
+    rpc_stats_callback = MagicMock()
+    # First try: throttle once [True, False]
+    # Second try: no throttle [False]
+    mock_throttler.throttle_request.side_effect = [True, False, False]
+    mutate = datastoreio._Mutate.DatastoreMutateFn(lambda: None)
+    mutate._batch = mock_batch
+    mutate._batch_elements = []
+    mutate._client = MagicMock()
+    mutate.write_mutations(mock_throttler, rpc_stats_callback, throttle_delay=0)
+    rpc_stats_callback.assert_has_calls([
+        call(successes=1),
+        call(throttled_secs=ANY),
+        call(errors=1),
+    ], any_order=True)
+    self.assertEqual(3, rpc_stats_callback.call_count)
+
+  def test_write_mutations_non_retryable_error(self):
+    mock_batch = MagicMock()
+    mock_batch.commit.side_effect = [
+        exceptions.InvalidArgument('non-retryable'),
+    ]
+    mock_throttler = MagicMock()
+    rpc_stats_callback = MagicMock()
+    mock_throttler.throttle_request.return_value = False
+    mutate = datastoreio._Mutate.DatastoreMutateFn(lambda: None)
+    mutate._batch = mock_batch
+    with self.assertRaises(exceptions.InvalidArgument):
+      mutate.write_mutations(mock_throttler, rpc_stats_callback,
+                             throttle_delay=0)
+    rpc_stats_callback.assert_called_once_with(errors=1)
 
 
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')

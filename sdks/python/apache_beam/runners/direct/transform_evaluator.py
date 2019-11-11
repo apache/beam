@@ -814,8 +814,10 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
           timer_firing.window, timer_firing.name, timer_firing.time_domain,
           timer_firing.timestamp, state):
         self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
+    watermark = self._evaluation_context._watermark_manager.get_watermarks(
+        self._applied_ptransform).output_watermark
     if vs:
-      for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
+      for wvalue in self.driver.process_elements(state, vs, watermark):
         self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
 
     self.keyed_holds[encoded_k] = state.get_earliest_hold()

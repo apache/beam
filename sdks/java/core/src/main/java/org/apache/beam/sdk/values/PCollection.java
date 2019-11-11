@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -158,6 +157,7 @@ public class PCollection<T> extends PValueBase implements PValue {
         SchemaCoder<T> schemaCoder =
             SchemaCoder.of(
                 schemaRegistry.getSchema(token),
+                token,
                 schemaRegistry.getToRowFunction(token),
                 schemaRegistry.getFromRowFunction(token));
         return new CoderOrFailure<>(schemaCoder, null);
@@ -300,19 +300,17 @@ public class PCollection<T> extends PValueBase implements PValue {
    */
   @Experimental(Kind.SCHEMAS)
   public PCollection<T> setRowSchema(Schema schema) {
-    return setSchema(
-        schema,
-        (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
-        (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity());
+    return setCoder((SchemaCoder<T>) SchemaCoder.of(schema));
   }
 
   /** Sets a {@link Schema} on this {@link PCollection}. */
   @Experimental(Kind.SCHEMAS)
   public PCollection<T> setSchema(
       Schema schema,
+      TypeDescriptor<T> typeDescriptor,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return setCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
+    return setCoder(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
   }
 
   /** Returns whether this {@link PCollection} has an attached schema. */

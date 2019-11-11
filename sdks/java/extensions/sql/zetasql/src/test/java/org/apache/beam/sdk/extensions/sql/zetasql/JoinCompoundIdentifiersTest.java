@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -312,7 +313,7 @@ public class JoinCompoundIdentifiersTest {
         .traitDefs(traitDefs)
         .context(Contexts.of(contexts))
         .ruleSets(BeamRuleSets.getRuleSets())
-        .costFactory(null)
+        .costFactory(BeamCostModel.FACTORY)
         .typeSystem(jdbcConnection.getTypeFactory().getTypeSystem())
         .build();
   }

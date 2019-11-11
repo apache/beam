@@ -42,6 +42,7 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedMapBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBeanWithAnnotations;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -151,6 +152,18 @@ public class JavaBeanSchemaTest {
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getByteBuffer().array());
     assertEquals(BigDecimal.ONE, bean.getBigDecimal());
     assertEquals("stringbuilder", bean.getStringBuilder().toString());
+  }
+
+  @Test
+  public void testToRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getToRowFunction(SimpleBean.class));
+  }
+
+  @Test
+  public void testFromRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getFromRowFunction(SimpleBean.class));
   }
 
   @Test
