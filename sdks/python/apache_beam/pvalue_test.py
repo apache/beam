@@ -25,6 +25,8 @@ import unittest
 import future.tests.base  # pylint: disable=unused-import
 
 from apache_beam.pvalue import AsSingleton
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import PTuple
 from apache_beam.pvalue import PValue
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -43,6 +45,16 @@ class PValueTest(unittest.TestCase):
         'PCollection of size 2 with more than one element accessed as a '
         'singleton view. First two elements encountered are \"1\", \"2\".'):
       AsSingleton._from_runtime_iterable([1, 2], {})
+
+  def test_ptuple(self):
+    p = TestPipeline()
+    a = PCollection(p)
+    b = PCollection(p)
+    pt = PTuple({'a': a, 'b': b})
+    self.assertEqual(pt['a'], a)
+    self.assertEqual(pt.a, a)
+    self.assertEqual(pt['b'], b)
+    self.assertEqual(pt.b, b)
 
 
 class TaggedValueTest(unittest.TestCase):

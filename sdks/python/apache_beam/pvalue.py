@@ -214,24 +214,20 @@ class PTuple(object):
     self._pcolls = pcoll_dict
 
   def __str__(self):
-    return '<%s>' % self._str_internal()
+    return '<{}>'.format(self._str_internal())
 
   def __repr__(self):
-    return '<%s at %s>' % (self._str_internal(), hex(id(self)))
+    return '<{} at {}>'.format(self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
-    return '%s pcollections=%s' % (
-        self.__class__.__name__, self._pcolls)
+    kv_str = ', '.join(['{}={}'.format(k, v) for k, v in self._pcolls.items()])
+    return 'PTuple({})'.format(kv_str)
 
   def __iter__(self):
     for tag in self._pcolls:
       yield self[tag]
 
   def __getattr__(self, tag):
-    # Special methods which may be accessed before the object is
-    # fully constructed (e.g. in unpickling).
-    if tag[:2] == tag[-2:] == '__':
-      return object.__getattr__(self, tag)
     return self[tag]
 
   def __getitem__(self, tag):
