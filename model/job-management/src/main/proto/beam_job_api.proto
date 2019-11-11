@@ -216,7 +216,7 @@ message JobState {
     // The job state reported by a runner cannot be interpreted by the SDK.
     UNSPECIFIED = 0;
 
-    // The job has been paused, or has not yet started.
+    // The job has not yet started.
     STOPPED = 1;
 
     // The job is currently running.
