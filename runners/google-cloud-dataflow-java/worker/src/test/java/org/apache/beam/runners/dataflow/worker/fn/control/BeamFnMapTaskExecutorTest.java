@@ -141,9 +141,7 @@ public class BeamFnMapTaskExecutorTest {
                 return MoreFutures.supplyAsync(
                     () -> {
                       processBundleLatch.await();
-                      return responseFor(request)
-                          .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance())
-                          .build();
+                      return responseFor(request).build();
                     });
               case PROCESS_BUNDLE_PROGRESS:
                 progressSentLatch.countDown();
@@ -238,9 +236,7 @@ public class BeamFnMapTaskExecutorTest {
                 return MoreFutures.supplyAsync(
                     () -> {
                       processBundleLatch.await();
-                      return responseFor(request)
-                          .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance())
-                          .build();
+                      return responseFor(request).build();
                     });
               case PROCESS_BUNDLE_PROGRESS:
                 progressSentTwiceLatch.countDown();
@@ -623,6 +619,20 @@ public class BeamFnMapTaskExecutorTest {
   }
 
   private BeamFnApi.InstructionResponse.Builder responseFor(BeamFnApi.InstructionRequest request) {
-    return BeamFnApi.InstructionResponse.newBuilder().setInstructionId(request.getInstructionId());
+    BeamFnApi.InstructionResponse.Builder response =
+        BeamFnApi.InstructionResponse.newBuilder().setInstructionId(request.getInstructionId());
+    if (request.hasRegister()) {
+      response.setRegister(BeamFnApi.RegisterResponse.getDefaultInstance());
+    } else if (request.hasProcessBundle()) {
+      response.setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
+    } else if (request.hasFinalizeBundle()) {
+      response.setFinalizeBundle(BeamFnApi.FinalizeBundleResponse.getDefaultInstance());
+    } else if (request.hasProcessBundleProgress()) {
+      response.setProcessBundleProgress(
+          BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
+    } else if (request.hasProcessBundleSplit()) {
+      response.setProcessBundleSplit(BeamFnApi.ProcessBundleSplitResponse.getDefaultInstance());
+    }
+    return response;
   }
 }
