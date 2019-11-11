@@ -153,9 +153,9 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             application.getTransform().getSideInputMapping());
 
     DirectStepContext stepContext =
-            evaluationContext
-                    .getExecutionContext(application, inputBundle.getKey())
-                    .getStepContext(evaluationContext.getStepName(application));
+        evaluationContext
+            .getExecutionContext(application, inputBundle.getKey())
+            .getStepContext(evaluationContext.getStepName(application));
 
     stepContext.stateInternals().commit();
     return new StatefulParDoEvaluator<>(delegateEvaluator, stepContext);
@@ -256,7 +256,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     DirectStepContext stepContext;
 
     public StatefulParDoEvaluator(
-        DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator, DirectStepContext stepContext) {
+        DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator,
+        DirectStepContext stepContext) {
       this.delegateEvaluator = delegateEvaluator;
       this.timerInternals = delegateEvaluator.getParDoEvaluator().getStepContext().timerInternals();
       this.stepContext = stepContext;
@@ -286,9 +287,9 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         delegateEvaluator.onTimer(timer, timerWindow);
 
         StateTag<WatermarkHoldState> timerTag =
-                StateTags.makeSystemTagInternal(
-                        StateTags.watermarkStateInternal(
-                                "timer-" + timer.getTimerId(), TimestampCombiner.EARLIEST));
+            StateTags.makeSystemTagInternal(
+                StateTags.watermarkStateInternal(
+                    "timer-" + timer.getTimerId(), TimestampCombiner.EARLIEST));
         stepContext.stateInternals().state(timer.getNamespace(), timerTag).clear();
         stepContext.stateInternals().commit();
 
@@ -306,27 +307,27 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       Boolean isTimerDeclared = false;
       for (TimerData timerData : delegateResult.getTimerUpdate().getSetTimers()) {
         StateTag<WatermarkHoldState> timerTag =
-                StateTags.makeSystemTagInternal(
-                        StateTags.watermarkStateInternal(
-                                "timer-" + timerData.getTimerId(), TimestampCombiner.EARLIEST));
+            StateTags.makeSystemTagInternal(
+                StateTags.watermarkStateInternal(
+                    "timer-" + timerData.getTimerId(), TimestampCombiner.EARLIEST));
 
         stepContext
-                .stateInternals()
-                .state(timerData.getNamespace(), timerTag)
-                .add(timerData.getOutputTimestamp());
+            .stateInternals()
+            .state(timerData.getNamespace(), timerTag)
+            .add(timerData.getOutputTimestamp());
         isTimerDeclared = true;
       }
 
       CopyOnAccessInMemoryStateInternals state;
       Instant watermarkHold;
 
-      if(isTimerDeclared && delegateResult.getState() != null){
+      if (isTimerDeclared && delegateResult.getState() != null) {
         state = delegateResult.getState();
         watermarkHold = stepContext.commitState().getEarliestWatermarkHold();
-      } else if(isTimerDeclared){
+      } else if (isTimerDeclared) {
         state = stepContext.commitState();
         watermarkHold = state.getEarliestWatermarkHold();
-      }else {
+      } else {
         state = delegateResult.getState();
         watermarkHold = delegateResult.getWatermarkHold();
       }
