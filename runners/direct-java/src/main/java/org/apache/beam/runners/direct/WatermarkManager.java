@@ -464,8 +464,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     public synchronized WatermarkUpdate refresh() {
       Instant oldWatermark = currentWatermark.get();
       Instant newWatermark =
-          INSTANT_ORDERING.min(
-              inputWatermark.get(), inputWatermark.getEarliestTimerTimestamp(), holds.getMinHold());
+              INSTANT_ORDERING.min(
+                      inputWatermark.get(), holds.getMinHold(), inputWatermark.getEarliestTimerTimestamp());
+
       newWatermark = INSTANT_ORDERING.max(oldWatermark, newWatermark);
       currentWatermark.set(newWatermark);
       return updateAndTrace(getName(), oldWatermark, newWatermark);
