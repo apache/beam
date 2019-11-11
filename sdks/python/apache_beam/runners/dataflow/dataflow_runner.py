@@ -1212,6 +1212,52 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
 
+  def run_TestStream(self, transform_node, options):
+    from apache_beam.portability.api import beam_runner_api_pb2
+    from apache_beam.testing.test_stream import ElementEvent
+    from apache_beam.testing.test_stream import ProcessingTimeEvent
+    from apache_beam.testing.test_stream import WatermarkEvent
+    standard_options = options.view_as(StandardOptions)
+    if not standard_options.streaming:
+      raise ValueError('TestStream is currently available for use '
+                       'only in streaming pipelines.')
+
+    transform = transform_node.transform
+    step = self._add_step(TransformNames.READ, transform_node.full_label,
+                          transform_node)
+    step.add_property(PropertyNames.FORMAT, 'test_stream')
+    test_stream_payload = beam_runner_api_pb2.TestStreamPayload()
+    # TestStream source doesn't do any decoding of elements,
+    # so we won't set test_stream_payload.coder_id.
+    output_coder = transform._infer_output_coder()  # pylint: disable=protected-access
+    for event in transform.events:
+      new_event = test_stream_payload.events.add()
+      if isinstance(event, ElementEvent):
+        for tv in event.timestamped_values:
+          element = new_event.element_event.elements.add()
+          element.encoded_element = output_coder.encode(tv.value)
+          element.timestamp = tv.timestamp.micros
+      elif isinstance(event, ProcessingTimeEvent):
+        new_event.processing_time_event.advance_duration = (
+            event.advance_by.micros)
+      elif isinstance(event, WatermarkEvent):
+        new_event.watermark_event.new_watermark = event.new_watermark.micros
+    serialized_payload = self.byte_array_to_json_string(
+        test_stream_payload.SerializeToString())
+    step.add_property(PropertyNames.SERIALIZED_TEST_STREAM, serialized_payload)
+
+    step.encoding = self._get_encoded_output_coder(transform_node)
+    step.add_property(PropertyNames.OUTPUT_INFO, [{
+        PropertyNames.USER_NAME:
+            ('%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
+        PropertyNames.ENCODING: step.encoding,
+        PropertyNames.OUTPUT_NAME: PropertyNames.OUT
+    }])
+
+  # We must mark this method as not a test or else its name is a matcher for
+  # nosetest tests.
+  run_TestStream.__test__ = False
+
   @classmethod
   def serialize_windowing_strategy(cls, windowing):
     from apache_beam.runners import pipeline_context
