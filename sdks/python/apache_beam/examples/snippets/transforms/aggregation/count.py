@@ -27,14 +27,8 @@ def count_globally(test=None):
   with beam.Pipeline() as pipeline:
     total_elements = (
         pipeline
-        | 'Create produce counts' >> beam.Create([
-            ('🥕', 3),
-            ('🥕', 2),
-            ('🍆', 1),
-            ('🍅', 4),
-            ('🍅', 5),
-            ('🍅', 3),
-        ])
+        | 'Create plants' >> beam.Create([
+            '🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
         | 'Count all elements' >> beam.combiners.Count.Globally()
         | beam.Map(print)
     )
@@ -50,13 +44,17 @@ def count_per_key(test=None):
   with beam.Pipeline() as pipeline:
     total_elements_per_keys = (
         pipeline
-        | 'Create produce counts' >> beam.Create([
-            ('🥕', 3),
-            ('🥕', 2),
-            ('🍆', 1),
-            ('🍅', 4),
-            ('🍅', 5),
-            ('🍅', 3),
+        | 'Create plants' >> beam.Create([
+            ('spring', '🍓'),
+            ('spring', '🥕'),
+            ('summer', '🥕'),
+            ('fall', '🥕'),
+            ('spring', '🍆'),
+            ('winter', '🍆'),
+            ('spring', '🍅'),
+            ('summer', '🍅'),
+            ('fall', '🍅'),
+            ('summer', '🌽'),
         ])
         | 'Count elements per key' >> beam.combiners.Count.PerKey()
         | beam.Map(print)
@@ -74,13 +72,7 @@ def count_per_element(test=None):
     total_unique_elements = (
         pipeline
         | 'Create produce' >> beam.Create([
-            '🥕',
-            '🥕',
-            '🍆',
-            '🍅',
-            '🍅',
-            '🍅',
-        ])
+            '🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
         | 'Count unique elements' >> beam.combiners.Count.PerElement()
         | beam.Map(print)
     )

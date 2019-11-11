@@ -31,17 +31,29 @@ from . import count
 
 def check_total_elements(actual):
   expected = '''[START total_elements]
-6
+10
 [END total_elements]'''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
 
 def check_total_elements_per_key(actual):
   expected = '''[START total_elements_per_key]
-('🥕', 2)
-('🍆', 1)
-('🍅', 3)
+('spring', 4)
+('summer', 3)
+('fall', 2)
+('winter', 1)
 [END total_elements_per_key]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
+
+
+def check_total_unique_elements(actual):
+  expected = '''[START total_unique_elements]
+('🍓', 1)
+('🥕', 3)
+('🍆', 2)
+('🍅', 3)
+('🌽', 1)
+[END total_unique_elements]'''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
 
@@ -56,7 +68,7 @@ class CountTest(unittest.TestCase):
     count.count_per_key(check_total_elements_per_key)
 
   def test_count_per_element(self):
-    count.count_per_element(check_total_elements_per_key)
+    count.count_per_element(check_total_unique_elements)
 
 
 if __name__ == '__main__':
