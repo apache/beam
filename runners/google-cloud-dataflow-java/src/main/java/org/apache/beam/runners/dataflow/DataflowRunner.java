@@ -1453,7 +1453,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class ImpulseTranslator implements TransformTranslator<Impulse> {
     @Override
     public void translate(Impulse transform, TranslationContext context) {
-      if (context.getPipelineOptions().isStreaming() && !context.isFnApi()) {
+      if (context.getPipelineOptions().isStreaming()
+          && (!context.isFnApi() || !context.isStreamingEngine())) {
         StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
         stepContext.addInput(PropertyNames.FORMAT, "pubsub");
         stepContext.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, "_starting_signal/");
