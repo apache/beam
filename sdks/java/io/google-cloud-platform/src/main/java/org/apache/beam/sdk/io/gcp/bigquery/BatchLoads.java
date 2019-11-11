@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -597,8 +596,8 @@ class BatchLoads<DestinationT, ElementT>
                 maxRetryJobs,
                 ignoreUnknownValues,
                 kmsKey,
-                rowWriterFactory.getSourceFormat())
-                .withSchemaUpdateOptions(schemaUpdateOptions));
+                rowWriterFactory.getSourceFormat(),
+                schemaUpdateOptions));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -632,8 +631,8 @@ class BatchLoads<DestinationT, ElementT>
                 maxRetryJobs,
                 ignoreUnknownValues,
                 kmsKey,
-                rowWriterFactory.getSourceFormat())
-                .withSchemaUpdateOptions(schemaUpdateOptions));
+                rowWriterFactory.getSourceFormat(),
+                schemaUpdateOptions));
   }
 
   private WriteResult writeResult(Pipeline p) {
