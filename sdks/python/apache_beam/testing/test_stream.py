@@ -126,6 +126,7 @@ class TestStream(PTransform):
   time. After all of the specified elements are emitted, ceases to produce
   output.
   """
+
   def __init__(self, coder=coders.FastPrimitivesCoder()):
     assert coder is not None
     self.coder = coder
