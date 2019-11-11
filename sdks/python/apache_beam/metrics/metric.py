@@ -30,13 +30,11 @@ import inspect
 from builtins import object
 
 from apache_beam.metrics import cells
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.runners.worker.statesampler import get_current_tracker
 
 __all__ = ['Metrics', 'MetricsFilter']
 

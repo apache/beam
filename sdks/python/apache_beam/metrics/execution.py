@@ -33,13 +33,11 @@ Available classes:
 from __future__ import absolute_import
 
 from builtins import object
-from collections import defaultdict
 
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
-from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.statesampler import get_current_tracker
 
@@ -234,9 +232,10 @@ class MetricsContainer(object):
                 for k, v in self.metrics.items()
                 if k.cell_type == CounterCell}
 
-    distributions = {MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-                     for k, v in self.metrics.items()
-                     if k.cell_type == DistributionCell}
+    distributions = {
+        MetricKey(self.step_name, k.metric_name): v.get_cumulative()
+        for k, v in self.metrics.items()
+        if k.cell_type == DistributionCell}
 
     gauges = {MetricKey(self.step_name, k.metric_name): v.get_cumulative()
               for k, v in self.metrics.items()
