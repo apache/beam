@@ -185,7 +185,12 @@ class DefaultRootBundleProvider(RootBundleProvider):
 
 
 class _TestStreamRootBundleProvider(RootBundleProvider):
-  """Provides an initial bundle for the TestStream evaluator."""
+  """Provides an initial bundle for the TestStream evaluator.
+
+  This bundle is used as the initial state to the TestStream. Each unprocessed
+  bundle emitted from the TestStream afterwards is its state: index into the
+  stream, and the watermark.
+  """
 
   def get_root_bundles(self):
     test_stream = self._applied_ptransform.transform
@@ -338,16 +343,20 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
     super(_WatermarkControllerEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs)
-    self._state = self._init_state()
+    self._init_state()
 
   def _init_state(self):
+    """Gets and sets the initial state.
+
+    This is used to keep track of the watermark hold between calls.
+    """
     transform_states = self._evaluation_context._transform_keyed_states
     state = transform_states[self._applied_ptransform]
     if self.WATERMARK_TAG not in state:
       watermark_state = InMemoryUnmergedState()
       watermark_state.set_global_state(self.WATERMARK_TAG, MIN_TIMESTAMP)
       state[self.WATERMARK_TAG] = watermark_state
-    return state[self.WATERMARK_TAG]
+    self._state = state[self.WATERMARK_TAG]
 
   @property
   def _watermark(self):
@@ -382,7 +391,15 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
 
 
 class _TestStreamEvaluator(_TransformEvaluator):
-  """TransformEvaluator for the TestStream transform."""
+  """TransformEvaluator for the TestStream transform.
+
+  This evaluator's responsibility is to retrieve the next event from the
+  _TestStream and either: advance the clock, advance the _TestStream watermark,
+  or pass the event to the _WatermarkController.
+
+  The _WatermarkController is in charge of emitting the elements to the
+  downstream consumers and setting its own output watermark.
+  """
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs):
@@ -398,10 +415,21 @@ class _TestStreamEvaluator(_TransformEvaluator):
     self.watermark = MIN_TIMESTAMP
 
   def process_element(self, element):
+    # The index into the TestStream list of events.
     self.current_index = element.value
+
+    # The watermark of the _TestStream transform itself.
     self.watermark = element.timestamp
+
+    # We can either have the _TestStream or the _WatermarkController to emit
+    # the elements. We chose to emit in the _WatermarkController so that the
+    # element is emitted at the correct watermark value.
     for event in self.test_stream.events(self.current_index):
       if isinstance(event, (ElementEvent, WatermarkEvent)):
+        # The WATERMARK_CONTROL_TAG is used to hold the _TestStream's
+        # watermark to -inf, then +inf-1, then +inf. This watermark progression
+        # is ultimately used to set up the proper holds to allow the
+        # _WatermarkControllers to control their own output watermarks.
         if event.tag == _TestStream.WATERMARK_CONTROL_TAG:
           self.watermark = event.new_watermark
         else:
@@ -425,6 +453,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
           next_index, timestamp=self.watermark))
       unprocessed_bundles.append(unprocessed_bundle)
 
+    # Returning the watermark in the dict here is used as a watermark hold.
     return TransformResult(
         self, self.bundles, unprocessed_bundles, None, {None: self.watermark})
 

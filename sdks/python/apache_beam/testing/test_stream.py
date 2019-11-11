@@ -140,7 +140,7 @@ class TestStream(PTransform):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
 
-    # This enables multiplexing to multiple output PCollections.
+    # This multiplexing the  multiple output PCollections.
     def mux(event):
       if event.tag:
         yield pvalue.TaggedOutput(event.tag, event)
@@ -150,7 +150,12 @@ class TestStream(PTransform):
                   | _TestStream(self.output_tags, events=self._events)
                   | 'TestStream Multiplexer' >> beam.ParDo(mux).with_outputs())
 
-    # Apply a way to control the watermark per output.
+    # Apply a way to control the watermark per output. It is necessary to
+    # have an individual _WatermarkController per PCollection because the
+    # calculation of the input watermark of a transform is based on the event
+    # timestamp of the elements flowing through it. Meaning, it is impossible
+    # to control the output watermarks of the individual PCollections solely
+    # on the event timestamps.
     outputs = {}
     for tag in self.output_tags:
       label = '_WatermarkController[{}]'.format(tag)
@@ -160,7 +165,7 @@ class TestStream(PTransform):
     # output.
     if len(outputs) == 1:
       return list(outputs.values())[0]
-    return pvalue.PTuple(outputs)
+    return outputs
 
   def _add(self, event):
     if isinstance(event, ElementEvent):
@@ -279,6 +284,53 @@ class _TestStream(PTransform):
     self.coder = coder
     self._events = self._add_watermark_advancements(output_tags, events)
 
+  def _watermark_starts(self, output_tags):
+    """Sentinel values to hold the watermark of outputs to -inf.
+
+    The output watermarks of the output PCollections (fake unbounded sources) in
+    a TestStream are controlled by watermark holds. This sets the hold of each
+    output PCollection so that the individual holds can be controlled by the
+    given events.
+    """
+    return [WatermarkEvent(timestamp.MIN_TIMESTAMP, tag) for tag in output_tags]
+
+  def _watermark_stops(self, output_tags):
+    """Sentinel values to close the watermark of outputs."""
+    return [WatermarkEvent(timestamp.MAX_TIMESTAMP, tag) for tag in output_tags]
+
+  def _test_stream_start(self):
+    """Sentinel value to move the watermark hold of the TestStream to +inf.
+
+    This sets a hold to +inf such that the individual holds of the output
+    PCollections are allowed to modify their individial output watermarks with
+    their holds. This is because the calculation of the output watermark is a
+    min over all input watermarks.
+    """
+    return [WatermarkEvent(timestamp.MAX_TIMESTAMP - timestamp.TIME_GRANULARITY,
+                           _TestStream.WATERMARK_CONTROL_TAG)]
+
+  def _test_stream_stop(self):
+    """Sentinel value to close the watermark of the TestStream."""
+    return [WatermarkEvent(timestamp.MAX_TIMESTAMP,
+                           _TestStream.WATERMARK_CONTROL_TAG)]
+
+  def _test_stream_init(self):
+    """Sentinel value to hold the watermark of the TestStream to -inf.
+
+    This sets a hold to ensure that the output watermarks of the output
+    PCollections do not advance to +inf before their watermark holds are set.
+    """
+    return [WatermarkEvent(timestamp.MIN_TIMESTAMP,
+                           _TestStream.WATERMARK_CONTROL_TAG)]
+
+  def _set_up(self, output_tags):
+    return (self._test_stream_init()
+            + self._watermark_starts(output_tags)
+            + self._test_stream_start())
+
+  def _tear_down(self, output_tags):
+    return self._watermark_stops(output_tags) + self._test_stream_stop()
+
   def _add_watermark_advancements(self, output_tags, events):
     """Adds watermark advancements to the given events.
 
@@ -302,25 +354,7 @@ class _TestStream(PTransform):
     if not events:
       return []
 
-    watermark_starts = [WatermarkEvent(timestamp.MIN_TIMESTAMP, tag)
-                        for tag in output_tags]
-    watermark_stops = [WatermarkEvent(timestamp.MAX_TIMESTAMP, tag)
-                       for tag in output_tags]
-
-    test_stream_init = [WatermarkEvent(timestamp.MIN_TIMESTAMP,
-                                       _TestStream.WATERMARK_CONTROL_TAG)]
-    test_stream_start = [WatermarkEvent(
-        timestamp.MAX_TIMESTAMP - timestamp.TIME_GRANULARITY,
-        _TestStream.WATERMARK_CONTROL_TAG)]
-    test_stream_stop = [WatermarkEvent(timestamp.MAX_TIMESTAMP,
-                                       _TestStream.WATERMARK_CONTROL_TAG)]
-
-    return (test_stream_init
-            + watermark_starts
-            + test_stream_start
-            + events
-            + watermark_stops
-            + test_stream_stop)
+    return (self._set_up(output_tags) + events + self._tear_down(output_tags))
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
