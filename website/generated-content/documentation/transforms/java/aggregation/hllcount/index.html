@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Max</title>
+  <title>HllCount</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -42,7 +42,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/java/aggregation/max/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/java/aggregation/hllcount/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -144,7 +144,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/java/aggregation/max.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/java/aggregation/hllcount.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -481,42 +481,65 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="max">Max</h1>
+<h1 id="latest">Latest</h1>
 <table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Max.html">
+    <a target="_blank" class="button" href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/extensions/zetasketch/HllCount.html">
       <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px" alt="Javadoc" />
      Javadoc
     </a>
 </table>
-<p><br />
-Provides a variety of different transforms for computing the maximum
-values in a collection, either globally or for each key.</p>
+<p><br /></p>
+
+<p>Estimates the number of distinct elements in a data stream using the
+<a href="http://static.googleusercontent.com/media/research.google.com/en/us/pubs/archive/40671.pdf">HyperLogLog++ algorithm</a>.
+The respective transforms to create and merge sketches, and to extract from them, are:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">HllCount.Init</code> aggregates inputs into HLL++ sketches.</li>
+  <li><code class="highlighter-rouge">HllCount.MergePartial</code> merges HLL++ sketches into a new sketch.</li>
+  <li><code class="highlighter-rouge">HllCount.Extract</code> extracts the estimated count of distinct elements from HLL++ sketches.</li>
+</ul>
+
+<p>You can read more about what a sketch is at https://github.com/google/zetasketch.</p>
 
 <h2 id="examples">Examples</h2>
-<p><strong>Example 1</strong>: get the maximum of a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">Doubles</code>.</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">max</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Max</span><span class="o">.</span><span class="na">doublesGlobally</span><span class="o">());</span>
+<p><strong>Example 1</strong>: creates a long-type sketch for a <code class="highlighter-rouge">PCollection&lt;Long&gt;</code> with a custom precision:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+ <span class="kt">int</span> <span class="n">p</span> <span class="o">=</span> <span class="o">...;</span>
+ <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">sketch</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Init</span><span class="o">.</span><span class="na">forLongs</span><span class="o">().</span><span class="na">withPrecision</span><span class="o">(</span><span class="n">p</span><span class="o">).</span><span class="na">globally</span><span class="o">());</span>
 </code></pre>
 </div>
 
-<p><strong>Example 2</strong>: calculate the maximum of the <code class="highlighter-rouge">Integers</code> associated
-with each unique key (which is of type <code class="highlighter-rouge">String</code>).</p>
+<p><strong>Example 2</strong>: creates a bytes-type sketch for a <code class="highlighter-rouge">PCollection&lt;KV&lt;String, byte[]&gt;&gt;</code>:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+ <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]&gt;&gt;</span> <span class="n">sketch</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Init</span><span class="o">.</span><span class="na">forBytes</span><span class="o">().</span><span class="na">perKey</span><span class="o">());</span>
+</code></pre>
+</div>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">maxPerKey</span> <span class="o">=</span> <span class="n">input</span>
-     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Max</span><span class="o">.</span><span class="na">integersPerKey</span><span class="o">());</span>
+<p><strong>Example 3</strong>: merges existing sketches in a <code class="highlighter-rouge">PCollection&lt;byte[]&gt;</code> into a new sketch,
+which summarizes the union of the inputs that were aggregated in the merged sketches:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">sketches</span> <span class="o">=</span> <span class="o">...;</span>
+ <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">mergedSketch</span> <span class="o">=</span> <span class="n">sketches</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">MergePartial</span><span class="o">.</span><span class="na">globally</span><span class="o">());</span>
+</code></pre>
+</div>
+
+<p><strong>Example 4</strong>: estimates the count of distinct elements in a <code class="highlighter-rouge">PCollection&lt;String&gt;</code>:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+ <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">countDistinct</span> <span class="o">=</span>
+     <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Init</span><span class="o">.</span><span class="na">forStrings</span><span class="o">().</span><span class="na">globally</span><span class="o">()).</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Extract</span><span class="o">.</span><span class="na">globally</span><span class="o">());</span>
+</code></pre>
+</div>
+
+<p><strong>Example 5</strong>: extracts the count distinct estimate from an existing sketch:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">sketch</span> <span class="o">=</span> <span class="o">...;</span>
+ <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">countDistinct</span> <span class="o">=</span> <span class="n">sketch</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Extract</span><span class="o">.</span><span class="na">globally</span><span class="o">());</span>
 </code></pre>
 </div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>
-  <li><a href="/documentation/transforms/java/aggregation/min">Min</a>
-for computing minimum values in a collection</li>
-  <li><a href="/documentation/transforms/java/aggregation/mean">Mean</a>
-for computing the arithmetic mean of the elements in a collection</li>
-  <li><a href="/documentation/transforms/java/aggregation/combine">Combine</a>
-for combining all values associated with a key to a single result</li>
+  <li><a href="/documentation/transforms/java/aggregation/approximateunique">ApproximateUnique</a>
+estimates the number of distinct elements or values in key-value pairs (but does not expose sketches; also less accurate than <code class="highlighter-rouge">HllCount</code>).</li>
 </ul>
 
       </div>
