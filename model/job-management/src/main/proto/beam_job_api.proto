@@ -234,7 +234,7 @@ message JobState {
     // The job has been updated. (terminal)
     UPDATED = 6;
 
-    // The job is draining its data.
+    // The job is draining its data. (optional)
     DRAINING = 7;
 
     // The job has completed draining its data. (terminal)
@@ -243,10 +243,10 @@ message JobState {
     // The job is starting up.
     STARTING = 9;
 
-    // The job is cancelling.
+    // The job is cancelling. (optional)
     CANCELLING = 10;
 
-    // The job is in the process of being updated.
+    // The job is in the process of being updated. (optional)
     UPDATING = 11;
   }
 }
