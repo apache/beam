@@ -241,7 +241,8 @@ class _BatchSizeEstimator(object):
                target_batch_overhead=.1,
                target_batch_duration_secs=1,
                variance=0.25,
-               clock=time.time):
+               clock=time.time,
+               ignore_first_n_seen_per_batch_size=0):
     if min_batch_size > max_batch_size:
       raise ValueError("Minimum (%s) must not be greater than maximum (%s)" % (
           min_batch_size, max_batch_size))
@@ -254,6 +255,9 @@ class _BatchSizeEstimator(object):
     if not (target_batch_overhead or target_batch_duration_secs):
       raise ValueError("At least one of target_batch_overhead or "
                        "target_batch_duration_secs must be positive.")
+    if ignore_first_n_seen_per_batch_size < 0:
+      raise ValueError('ignore_first_n_seen_per_batch_size (%s) must be non '
+                       'negative' % (ignore_first_n_seen_per_batch_size))
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._target_batch_overhead = target_batch_overhead
@@ -262,6 +266,10 @@ class _BatchSizeEstimator(object):
     self._clock = clock
     self._data = []
     self._ignore_next_timing = False
+    self._ignore_first_n_seen_per_batch_size = (
+        ignore_first_n_seen_per_batch_size)
+    self._batch_size_num_seen = {}
+    self._replay_last_batch_size = None
 
     self._size_distribution = Metrics.distribution(
         'BatchElements', 'batch_size')
@@ -279,7 +287,7 @@ class _BatchSizeEstimator(object):
     For example, the first emit of a ParDo operation is known to be anomalous
     due to setup that may occur.
     """
-    self._ignore_next_timing = False
+    self._ignore_next_timing = True
 
   @contextlib.contextmanager
   def record_time(self, batch_size):
@@ -290,8 +298,11 @@ class _BatchSizeEstimator(object):
     self._size_distribution.update(batch_size)
     self._time_distribution.update(int(elapsed_msec))
     self._remainder_msecs = elapsed_msec - int(elapsed_msec)
+    # If we ignore the next timing, replay the batch size to get accurate
+    # timing.
     if self._ignore_next_timing:
       self._ignore_next_timing = False
+      self._replay_last_batch_size = batch_size
     else:
       self._data.append((batch_size, elapsed))
       if len(self._data) >= self._MAX_DATA_POINTS:
@@ -364,7 +375,7 @@ class _BatchSizeEstimator(object):
   except ImportError:
     linear_regression = linear_regression_no_numpy
 
-  def next_batch_size(self):
+  def _calculate_next_batch_size(self):
     if self._min_batch_size == self._max_batch_size:
       return self._min_batch_size
     elif len(self._data) < 1:
@@ -413,6 +424,21 @@ class _BatchSizeEstimator(object):
       target += int(target * self._variance * 2 * (random.random() - .5))
 
     return int(max(self._min_batch_size + jitter, min(target, cap)))
+
+  def next_batch_size(self):
+    # Check if we should replay a previous batch size due to it not being
+    # recorded.
+    if self._replay_last_batch_size:
+      result = self._replay_last_batch_size
+      self._replay_last_batch_size = None
+    else:
+      result = self._calculate_next_batch_size()
+
+    seen_count = self._batch_size_num_seen.get(result, 0) + 1
+    if seen_count <= self._ignore_first_n_seen_per_batch_size:
+      self.ignore_next_timing()
+    self._batch_size_num_seen[result] = seen_count
+    return result
 
 
 class _GlobalWindowsBatchingDoFn(DoFn):
