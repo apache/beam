@@ -364,30 +364,30 @@ class _WatermarkManager(object):
 
       data_input, data_output = execution_context.endpoints_per_stage[s.name]
 
-      for transform_name, buffer_id in data_input.items():
+      for _, buffer_id in data_input.items():
         if buffer_id == IMPULSE_BUFFER:
           pcoll_name = '%s%s' % (stage_name, IMPULSE_BUFFER)
         else:
           _, pcoll_name = split_buffer_id(buffer_id)
         if pcoll_name not in self._watermarks_by_name:
           self._watermarks_by_name[
-            pcoll_name] = _WatermarkManager.PCollectionNode(pcoll_name)
+              pcoll_name] = _WatermarkManager.PCollectionNode(pcoll_name)
 
         stage_node.inputs.add(self._watermarks_by_name[pcoll_name])
 
-      for transform_name, buffer_id in data_output.items():
+      for _, buffer_id in data_output.items():
         _, pcoll_name = split_buffer_id(buffer_id)
         if pcoll_name not in self._watermarks_by_name:
           self._watermarks_by_name[
-            pcoll_name] = _WatermarkManager.PCollectionNode(pcoll_name)
+              pcoll_name] = _WatermarkManager.PCollectionNode(pcoll_name)
         self._watermarks_by_name[pcoll_name].producers.add(stage_node)
 
       side_inputs = PipelineExecutionContext._get_data_side_input_per_pcoll_id(
-            s)
+          s)
       for si_name, _ in side_inputs:
         if si_name not in self._watermarks_by_name:
           self._watermarks_by_name[
-            si_name] = _WatermarkManager.PCollectionNode(si_name)
+              si_name] = _WatermarkManager.PCollectionNode(si_name)
         stage_node.side_inputs.add(self._watermarks_by_name[si_name])
 
   def get_node(self, name):
@@ -434,14 +434,14 @@ class PipelineExecutionContext(object):
     for s in self._stages:
       stage_name = ('_'.join([t.unique_name for t in [s.transforms[0],
                                                       s.transforms[1]]])
-                    .replace('(','_').replace(')', '_').replace('/', '_')
-                    .replace('<','_').replace('>','_').replace(',','_')
-                    .replace(' ','_').replace('.', '_').replace(':', '_'))
+                    .replace('(', '_').replace(')', '_').replace('/', '_')
+                    .replace('<', '_').replace('>', '_').replace(',', '_')
+                    .replace(' ', '_').replace('.', '_').replace(':', '_'))
       stage_name = 'STAGE_' + stage_name
       g.node(stage_name, shape='box')
       data_input, data_output = self.endpoints_per_stage[s.name]
 
-      for transform_name, buffer_id in data_input.items():
+      for _, buffer_id in data_input.items():
         if buffer_id == IMPULSE_BUFFER:
           pcoll_name = IMPULSE_BUFFER
         else:
@@ -450,7 +450,7 @@ class PipelineExecutionContext(object):
         g.node(pcoll_name)
         g.edge(pcoll_name, stage_name)
 
-      for transform_name, buffer_id in data_output.items():
+      for _, buffer_id in data_output.items():
         _, pcoll_name = split_buffer_id(buffer_id)
         pcoll_name = 'PCOLL_' + str(pcoll_name)
         g.node(pcoll_name)
@@ -481,7 +481,7 @@ class PipelineExecutionContext(object):
   def update_pcoll_watermark(self, pcoll_name, watermark):
     # type: (str, timestamp.Timestamp) -> None
     logging.debug(
-      'Updating watermark to %s for PCollection: %s', watermark, pcoll_name)
+        'Updating watermark to %s for PCollection: %s', watermark, pcoll_name)
     self.watermark_manager.set_watermark(pcoll_name, watermark)
     if watermark != self.watermark_manager.get_watermark(pcoll_name):
       logging.debug('Due to upstream holds, watermark could not be '
@@ -539,20 +539,22 @@ class PipelineExecutionContext(object):
     # type: (Stage) -> StageInfo
     result_inputs = set()
     result_outputs = set()
-    side_input_infos = PipelineExecutionContext._get_data_side_input_per_pcoll_id(stage)
-    main_inputs, outputs = PipelineExecutionContext._extract_stage_endpoints(stage)
+    side_input_infos = (PipelineExecutionContext
+                        ._get_data_side_input_per_pcoll_id(stage))
+    main_inputs, outputs = (PipelineExecutionContext
+                            ._extract_stage_endpoints(stage))
 
     for pcoll_id, unused_si_info in side_input_infos:
       result_inputs.add(pcoll_id)
 
-    for transform_name, buffer_id in main_inputs.items():
+    for _, buffer_id in main_inputs.items():
       if buffer_id == IMPULSE_BUFFER:
         pcoll_id = '%s%s' % (stage.name, IMPULSE_BUFFER)
       else:
         _, pcoll_id = split_buffer_id(buffer_id)
       result_inputs.add(pcoll_id)
 
-    for transform_name, buffer_id in outputs.items():
+    for _, buffer_id in outputs.items():
       _, pcoll_id = split_buffer_id(buffer_id)
       result_outputs.add(pcoll_id)
 

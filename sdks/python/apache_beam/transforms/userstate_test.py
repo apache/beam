@@ -577,9 +577,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
 
       def process(self,
-          element,
-          set_state=beam.DoFn.StateParam(SET_STATE),
-          emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+                  element,
+                  set_state=beam.DoFn.StateParam(SET_STATE),
+                  emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
         _, value = element
         set_state.add(value)
 
@@ -604,9 +604,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      | beam.WindowInto(window.FixedWindows(1))
                      | beam.ParDo(SetStateClearingStatefulDoFn())
                      | beam.GroupByKey())
-
-    actual_values | 'printe' >> beam.Map(print)
-    # TODO(pabloem, MUST): Remove this fixing.
 
     result = p.run()
     result.wait_until_finish()
