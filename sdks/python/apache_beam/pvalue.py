@@ -214,12 +214,9 @@ class PTuple(object):
     self._pcolls = pcoll_dict
 
   def __str__(self):
-    return '<{}>'.format(self._str_internal())
+    return self.__repr__()
 
   def __repr__(self):
-    return '<{} at {}>'.format(self._str_internal(), hex(id(self)))
-
-  def _str_internal(self):
     kv_str = ', '.join(['{}={}'.format(k, v) for k, v in self._pcolls.items()])
     return 'PTuple({})'.format(kv_str)
 
