@@ -116,6 +116,24 @@ func Convert(v interface{}, to reflect.Type) interface{} {
 		}
 		return ret.Interface()
 
+	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
+		// Convert []typex.T to typex.X with underlying type []T.
+
+		value := reflect.ValueOf(v)
+
+		// We don't know the underlying element type of an empty universal-typed slice.
+		// So the best we could do is to return it as is.
+		if value.Len() == 0 {
+			return v
+		}
+
+		toE := reflectx.UnderlyingType(value.Index(0)).Type()
+		ret := reflect.New(reflect.SliceOf(toE)).Elem()
+		for i := 0; i < value.Len(); i++ {
+			ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), toE)))
+		}
+		return ret.Interface()
+
 	default:
 		// Arguably this should be:
 		//   reflect.ValueOf(v).Convert(to).Interface()
@@ -151,6 +169,12 @@ func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
 			}
 			return ret.Interface()
 		}
+
+	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
+		return func(v interface{}) interface{} {
+			return Convert(v, to)
+		}
+
 	default:
 		return identity
 	}
