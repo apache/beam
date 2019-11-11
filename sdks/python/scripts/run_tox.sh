@@ -27,7 +27,7 @@
 if [[ $# < 1 || $# > 2 ]]; then
   printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<sdk_location>]"
   printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
-  printf "\n\tsdk_location: [optional] SDK tarball artifact location.\n"
+  printf "\n\tpos_args: [optional] positional arguments to pass to the task.\n"
   exit 1
 fi
 
@@ -46,7 +46,7 @@ fi
 export ENV_NAME=.tox-$1
 
 if [[ ! -z $2 ]]; then
-  tox -c tox.ini --recreate -e $1 --installpkg $2
+  tox -c tox.ini --recreate -e $1 -- "$2"
 else
   tox -c tox.ini --recreate -e $1
 fi

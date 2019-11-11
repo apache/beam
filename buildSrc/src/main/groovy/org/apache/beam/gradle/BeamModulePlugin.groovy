@@ -1865,7 +1865,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env ->
         project.tasks.create(name) {
           dependsOn 'setupVirtualenv'
-          dependsOn ':sdks:python:sdist'
 
           doLast {
             // Python source directory is also tox execution workspace, We want
@@ -1874,10 +1873,9 @@ class BeamModulePlugin implements Plugin<Project> {
             project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
 
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-            def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.11.1 && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall"
+              args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.11.1 && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env"
             }
           }
           inputs.files project.pythonSdkDeps
