@@ -157,6 +157,7 @@ ignore_identifiers = [
   'apache_beam.metrics.metric.MetricResults',
   'apache_beam.pipeline.PipelineVisitor',
   'apache_beam.pipeline.PTransformOverride',
+  'apache_beam.portability.api.schema_pb2.Schema',
   'apache_beam.pvalue.AsSideInput',
   'apache_beam.pvalue.DoOutputsTuple',
   'apache_beam.pvalue.PValue',

@@ -145,6 +145,7 @@ public class Convert {
         output =
             output.setSchema(
                 converted.outputSchemaCoder.getSchema(),
+                outputTypeDescriptor,
                 converted.outputSchemaCoder.getToRowFunction(),
                 converted.outputSchemaCoder.getFromRowFunction());
       } else {

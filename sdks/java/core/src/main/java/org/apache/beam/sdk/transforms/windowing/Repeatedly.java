@@ -69,6 +69,11 @@ public class Repeatedly extends Trigger {
   }
 
   @Override
+  public boolean mayFinish() {
+    return false;
+  }
+
+  @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return new Repeatedly(continuationTriggers.get(REPEATED));
   }

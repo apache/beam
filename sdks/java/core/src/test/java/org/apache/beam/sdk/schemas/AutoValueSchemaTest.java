@@ -29,12 +29,16 @@ import org.apache.beam.sdk.schemas.AutoValueSchemaTest.SimpleAutoValueWithBuilde
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link AutoValueSchema}. */
+@RunWith(JUnit4.class)
 public class AutoValueSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
@@ -281,6 +285,19 @@ public class AutoValueSchemaTest {
   }
 
   @Test
+  public void testToRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getToRowFunction(SimpleAutoValue.class));
+  }
+
+  @Test
+  public void testFromRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(
+        registry.getFromRowFunction(SimpleAutoValue.class));
+  }
+
+  @Test
   public void testToRowBuilder() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     SimpleAutoValueWithBuilder value =
@@ -310,6 +327,20 @@ public class AutoValueSchemaTest {
     SimpleAutoValueWithBuilder value =
         registry.getFromRowFunction(SimpleAutoValueWithBuilder.class).apply(row);
     verifyAutoValue(value);
+  }
+
+  @Test
+  public void testToRowBuilderSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(
+        registry.getToRowFunction(SimpleAutoValueWithBuilder.class));
+  }
+
+  @Test
+  public void testFromRowBuilderSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(
+        registry.getFromRowFunction(SimpleAutoValueWithBuilder.class));
   }
 
   // Test nested classes.

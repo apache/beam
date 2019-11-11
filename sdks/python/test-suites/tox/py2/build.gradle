@@ -40,10 +40,19 @@ test.dependsOn testPython2
 
 toxTask "testPy2Cython", "py27-cython"
 test.dependsOn testPy2Cython
+
 // Ensure that testPy2Cython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
 testPy2Cython.mustRunAfter testPython2, testPy2Gcp
+
+// TODO(BEAM-3713): Temporary pytest tasks that should eventually replace
+//  nose-based test tasks.
+toxTask "testPy2GcpPytest", "py27-gcp-pytest"
+toxTask "testPython2Pytest", "py27-pytest"
+toxTask "testPy2CythonPytest", "py27-cython-pytest"
+// Ensure that cython tests run exclusively to other tests.
+testPy2CythonPytest.mustRunAfter testPython2Pytest, testPy2GcpPytest
 
 toxTask "docs", "docs"
 assemble.dependsOn docs
@@ -53,6 +62,12 @@ toxTask "cover", "cover"
 task preCommitPy2() {
   dependsOn "docs"
   dependsOn "testPy2Cython"
-  dependsOn "testPython2"
   dependsOn "testPy2Gcp"
+}
+
+task preCommitPy2Pytest {
+  dependsOn "docs"
+  dependsOn "testPy2CythonPytest"
+  dependsOn "testPy2GcpPytest"
+  dependsOn "lint"
 }

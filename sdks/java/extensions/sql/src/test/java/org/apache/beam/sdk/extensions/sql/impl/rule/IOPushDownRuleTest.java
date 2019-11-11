@@ -139,24 +139,30 @@ public class IOPushDownRuleTest {
 
   @Test
   public void testIsProjectRenameOnlyProgram() {
-    List<Pair<String, Boolean>> tests =
+    List<Pair<Pair<String, Boolean>, Boolean>> tests =
         ImmutableList.of(
-            Pair.of("select id from TEST", true),
-            Pair.of("select * from TEST", true),
-            Pair.of("select id, name from TEST", true),
-            Pair.of("select id+10 from TEST", false),
+            // Selecting fields in a different order is only allowed with project push-down.
+            Pair.of(Pair.of("select unused2, name, id from TEST", true), true),
+            Pair.of(Pair.of("select unused2, name, id from TEST", false), false),
+            Pair.of(Pair.of("select id from TEST", false), true),
+            Pair.of(Pair.of("select * from TEST", false), true),
+            Pair.of(Pair.of("select id, name from TEST", false), true),
+            Pair.of(Pair.of("select id+10 from TEST", false), false),
             // Note that we only care about projects.
-            Pair.of("select id from TEST where name='one'", true));
+            Pair.of(Pair.of("select id from TEST where name='one'", false), true));
 
-    for (Pair<String, Boolean> test : tests) {
-      String sqlQuery = test.left;
+    for (Pair<Pair<String, Boolean>, Boolean> test : tests) {
+      String sqlQuery = test.left.left;
+      boolean projectPushDownSupported = test.left.right;
       boolean expectedAnswer = test.right;
       BeamRelNode basicRel = sqlEnv.parseQuery(sqlQuery);
       assertThat(basicRel, instanceOf(Calc.class));
 
       Calc calc = (Calc) basicRel;
       assertThat(
-          BeamIOPushDownRule.INSTANCE.isProjectRenameOnlyProgram(calc.getProgram()),
+          test.toString(),
+          BeamIOPushDownRule.INSTANCE.isProjectRenameOnlyProgram(
+              calc.getProgram(), projectPushDownSupported),
           equalTo(expectedAnswer));
     }
   }

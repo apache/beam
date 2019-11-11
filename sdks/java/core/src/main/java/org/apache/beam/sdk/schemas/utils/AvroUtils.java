@@ -245,7 +245,7 @@ public class AvroUtils {
 
   /**
    * Convert from a Beam Row to an AVRO GenericRecord. If a Schema is not provided, one is inferred
-   * from the Beam schema on the orw.
+   * from the Beam schema on the row.
    */
   public static GenericRecord toGenericRecord(
       Row row, @Nullable org.apache.avro.Schema avroSchema) {
@@ -329,7 +329,10 @@ public class AvroUtils {
   public static <T> SchemaCoder<T> schemaCoder(TypeDescriptor<T> type) {
     @SuppressWarnings("unchecked")
     Class<T> clazz = (Class<T>) type.getRawType();
-    return schemaCoder(clazz);
+    org.apache.avro.Schema avroSchema = new ReflectData(clazz.getClassLoader()).getSchema(clazz);
+    Schema beamSchema = toBeamSchema(avroSchema);
+    return SchemaCoder.of(
+        beamSchema, type, getToRowFunction(clazz, avroSchema), getFromRowFunction(clazz));
   }
 
   /**
@@ -338,7 +341,7 @@ public class AvroUtils {
    * @param <T> the element type
    */
   public static <T> SchemaCoder<T> schemaCoder(Class<T> clazz) {
-    return schemaCoder(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
+    return schemaCoder(TypeDescriptor.of(clazz));
   }
 
   /**
@@ -346,7 +349,12 @@ public class AvroUtils {
    * GenericRecord.
    */
   public static SchemaCoder<GenericRecord> schemaCoder(org.apache.avro.Schema schema) {
-    return schemaCoder(GenericRecord.class, schema);
+    Schema beamSchema = toBeamSchema(schema);
+    return SchemaCoder.of(
+        beamSchema,
+        TypeDescriptor.of(GenericRecord.class),
+        getGenericRecordToRowFunction(beamSchema),
+        getRowToGenericRecordFunction(schema));
   }
 
   /**
@@ -360,7 +368,10 @@ public class AvroUtils {
    */
   public static <T> SchemaCoder<T> schemaCoder(Class<T> clazz, org.apache.avro.Schema schema) {
     return SchemaCoder.of(
-        getSchema(clazz, schema), getToRowFunction(clazz, schema), getFromRowFunction(clazz));
+        getSchema(clazz, schema),
+        TypeDescriptor.of(clazz),
+        getToRowFunction(clazz, schema),
+        getFromRowFunction(clazz));
   }
 
   /**

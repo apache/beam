@@ -25,6 +25,11 @@ application code or notebook.
 from __future__ import absolute_import
 
 import importlib
+import logging
+import sys
+
+import apache_beam as beam
+from apache_beam.runners import runner
 
 _interactive_beam_env = None
 
@@ -61,8 +66,75 @@ class InteractiveEnvironment(object):
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
     self._watching_dict_list = []
+    # Holds results of pipeline runs as Dict[Pipeline, PipelineResult].
+    # Each key is a pipeline instance defined by the end user. The
+    # InteractiveRunner is responsible for populating this dictionary
+    # implicitly.
+    self._pipeline_results = {}
     # Always watch __main__ module.
     self.watch('__main__')
+    # Do a warning level logging if current python version is below 3.5.3.
+    if sys.version_info < (3, 5, 3):
+      self._is_py_version_ready = False
+      logging.warning('Interactive Beam requires Python 3.5.3+.')
+    else:
+      self._is_py_version_ready = True
+    # Check if [interactive] dependencies are installed.
+    try:
+      import IPython  # pylint: disable=unused-import
+      import jsons  # pylint: disable=unused-import
+      import timeloop  # pylint: disable=unused-import
+      from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
+      self._is_interactive_ready = True
+    except ImportError:
+      self._is_interactive_ready = False
+      logging.warning('Dependencies required for Interactive Beam PCollection '
+                      'visualization are not available, please use: `pip '
+                      'install apache-beam[interactive]` to install necessary '
+                      'dependencies to enable all data visualization features.')
+
+    self._is_in_ipython = False
+    self._is_in_notebook = False
+    # Check if the runtime is within an interactive environment, i.e., ipython.
+    try:
+      from IPython import get_ipython  # pylint: disable=import-error
+      if get_ipython():
+        self._is_in_ipython = True
+        if 'IPKernelApp' in get_ipython().config:
+          self._is_in_notebook = True
+    except ImportError:
+      pass
+    if not self._is_in_ipython:
+      logging.warning('You cannot use Interactive Beam features when you are '
+                      'not in an interactive environment such as a Jupyter '
+                      'notebook or ipython terminal.')
+    if self._is_in_ipython and not self._is_in_notebook:
+      logging.warning('You have limited Interactive Beam features since your '
+                      'ipython kernel is not connected any notebook frontend.')
+
+  @property
+  def is_py_version_ready(self):
+    """If Python version is above the minimum requirement."""
+    return self._is_py_version_ready
+
+  @property
+  def is_interactive_ready(self):
+    """If the [interactive] dependencies are installed."""
+    return self._is_interactive_ready
+
+  @property
+  def is_in_ipython(self):
+    """If the runtime is within an IPython kernel."""
+    return self._is_in_ipython
+
+  @property
+  def is_in_notebook(self):
+    """If the kernel is connected to a notebook frontend.
+
+    If not, it could be that the user is using kernel in a terminal or a unit
+    test.
+    """
+    return self._is_in_notebook
 
   def watch(self, watchable):
     """Watches a watchable.
@@ -105,3 +177,28 @@ class InteractiveEnvironment(object):
   def cache_manager(self):
     """Gets the cache manager held by current Interactive Environment."""
     return self._cache_manager
+
+  def set_pipeline_result(self, pipeline, result):
+    """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
+    assert issubclass(type(pipeline), beam.Pipeline), (
+        'pipeline must be an instance of apache_beam.Pipeline or its subclass')
+    assert issubclass(type(result), runner.PipelineResult), (
+        'result must be an instance of '
+        'apache_beam.runners.runner.PipelineResult or its subclass')
+    self._pipeline_results[pipeline] = result
+
+  def evict_pipeline_result(self, pipeline):
+    """Evicts the tracking of given pipeline run. Noop if absent."""
+    return self._pipeline_results.pop(pipeline, None)
+
+  def pipeline_result(self, pipeline):
+    """Gets the pipeline run result. None if absent."""
+    return self._pipeline_results.get(pipeline, None)
+
+  def is_terminated(self, pipeline):
+    """Queries if the most recent job (by executing the given pipeline) state
+    is in a terminal state. True if absent."""
+    result = self.pipeline_result(pipeline)
+    if result:
+      return runner.PipelineState.is_terminal(result.state)
+    return True

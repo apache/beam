@@ -119,6 +119,12 @@ public class AfterWatermark {
       return window.maxTimestamp();
     }
 
+    /** @return true if there is no late firing set up, otherwise false */
+    @Override
+    public boolean mayFinish() {
+      return lateTrigger == null;
+    }
+
     @Override
     public String toString() {
       StringBuilder builder = new StringBuilder(TO_STRING);

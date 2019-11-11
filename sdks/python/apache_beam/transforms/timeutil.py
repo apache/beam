@@ -136,4 +136,4 @@ class OutputAtEndOfWindowImpl(DependsOnlyOnWindow):
   """TimestampCombinerImpl outputting at end of window."""
 
   def assign_output_time(self, window, unused_input_timestamp):
-    return window.end
+    return window.max_timestamp()
