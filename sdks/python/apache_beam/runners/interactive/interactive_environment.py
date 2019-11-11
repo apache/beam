@@ -30,6 +30,7 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.utils import is_interactive
 
 _interactive_beam_env = None
 
@@ -93,17 +94,7 @@ class InteractiveEnvironment(object):
                       'install apache-beam[interactive]` to install necessary '
                       'dependencies to enable all data visualization features.')
 
-    self._is_in_ipython = False
-    self._is_in_notebook = False
-    # Check if the runtime is within an interactive environment, i.e., ipython.
-    try:
-      from IPython import get_ipython  # pylint: disable=import-error
-      if get_ipython():
-        self._is_in_ipython = True
-        if 'IPKernelApp' in get_ipython().config:
-          self._is_in_notebook = True
-    except ImportError:
-      pass
+    self._is_in_ipython, self._is_in_notebook = is_interactive()
     if not self._is_in_ipython:
       logging.warning('You cannot use Interactive Beam features when you are '
                       'not in an interactive environment such as a Jupyter '
