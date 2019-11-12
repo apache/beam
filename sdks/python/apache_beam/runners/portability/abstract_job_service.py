@@ -67,7 +67,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         [job.to_runner_api() for job in self._jobs.values()])
 
   def GetState(self, request, context=None):
-    return beam_job_api_pb2.GetJobStateResponse(
+    return beam_job_api_pb2.JobStateEvent(
         state=self._jobs[request.job_id].get_state())
 
   def GetPipeline(self, request, context=None, timeout=None):
@@ -87,7 +87,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
 
     job = self._jobs[request.job_id]
     for state, timestamp in job.get_state_stream():
-      yield beam_job_api_pb2.GetJobStateResponse(
+      yield beam_job_api_pb2.JobStateEvent(
           state=state, timestamp=proto_utils.to_Timestamp(timestamp))
 
   def GetMessageStream(self, request, context=None, timeout=None):
@@ -100,7 +100,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     for msg in job.get_message_stream():
       if isinstance(msg, int):
         resp = beam_job_api_pb2.JobMessagesResponse(
-            state_response=beam_job_api_pb2.GetJobStateResponse(state=msg))
+            state_response=beam_job_api_pb2.JobStateEvent(state=msg))
       else:
         resp = beam_job_api_pb2.JobMessagesResponse(message_response=msg)
       yield resp
