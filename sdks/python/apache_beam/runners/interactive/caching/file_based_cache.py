@@ -146,8 +146,7 @@ class FileBasedCache(PCollectionCache):
                              (self._file_path_prefix,), writer_kwargs)
       return writer
 
-    if ("coder" in self._reader_passthrough_arguments and
-        "coder" not in writer_kwargs):
+    if "coder" in self._reader_passthrough_arguments:
       writer_kwargs["coder"] = (
           self.default_coder if self.default_coder is not None else
           coders.registry.get_coder(self.element_type))
