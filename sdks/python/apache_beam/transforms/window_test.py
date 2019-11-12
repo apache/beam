@@ -298,7 +298,7 @@ class WindowTest(unittest.TestCase):
                                     ('key', [4])]))
 
   @attr('ValidatesRunner')
-  def test_windows_gbk_idempotency(self):
+  def test_window_assignment_through_multiple_gbk_idempotency(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 1, 2, 3, 4)
       result = (pcoll
