@@ -200,7 +200,7 @@ class FileBasedCache(PCollectionCache):
     FileSystems.create(self._file_path_prefix + ".empty").close()
     self.element_type = None
 
-  def remove(self):
+  def delete(self):
     """Deletes the cache, including all underlying data.
 
     The cache should not be used after this method is called.
@@ -208,11 +208,11 @@ class FileBasedCache(PCollectionCache):
     self._finalizer()
 
   @property
-  def removed(self):
+  def deleted(self):
     return not self._finalizer.alive
 
   def __del__(self):
-    self.remove()
+    self.delete()
 
   @property
   def file_pattern(self):

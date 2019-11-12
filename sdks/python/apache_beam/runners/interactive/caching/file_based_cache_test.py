@@ -147,7 +147,7 @@ class FileBasedCacheTest(unittest.TestCase):
   def test_overwrite_cache_3(self):
     cache = self.cache_class(self.location)
     # OK to overwrite cleared cache
-    cache.remove()
+    cache.delete()
     _ = self.cache_class(self.location)
 
   def test_persist_false_0(self):
@@ -155,7 +155,7 @@ class FileBasedCacheTest(unittest.TestCase):
     _ = self.create_dummy_file(self.location)
     files = self._glob_files(self.location + "**")
     self.assertGreater(len(files), 0)
-    cache.remove()
+    cache.delete()
     files = self._glob_files(self.location + "**")
     self.assertEqual(len(files), 0)
 
@@ -185,7 +185,7 @@ class FileBasedCacheTest(unittest.TestCase):
     _ = self.create_dummy_file(self.location)
     files = self._glob_files(self.location + "**")
     self.assertGreater(len(files), 0)
-    cache.remove()
+    cache.delete()
     files = self._glob_files(self.location + "**")
     self.assertGreater(len(files), 0)
 
@@ -361,7 +361,7 @@ class FileBasedCacheTest(unittest.TestCase):
     _ = self.create_dummy_file(self.location)
     self.assertEqual(
         len(list(file_based_cache.glob_files(cache.file_pattern))), 2)
-    cache.remove()
+    cache.delete()
     self.assertEqual(
         len(list(file_based_cache.glob_files(cache.file_pattern))), 0)
 

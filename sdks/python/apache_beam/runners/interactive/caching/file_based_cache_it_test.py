@@ -174,7 +174,7 @@ class RoundtripTestBase(object):
       validate_fn(cache, data * 2)
       cache.truncate()
       validate_fn(cache, [])
-    cache.remove()
+    cache.delete()
 
 
 class FileRoundtripTestBase(RoundtripTestBase):

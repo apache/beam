@@ -100,6 +100,6 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def remove(self):
+  def delete(self):
     """Delete all data and metadata from the cache."""
     raise NotImplementedError
