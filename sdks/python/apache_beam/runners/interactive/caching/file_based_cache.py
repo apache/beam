@@ -51,11 +51,11 @@ __all__ = [
 
 class FileBasedCache(PCollectionCache):
 
-  def __init__(self, location, mode="error", persist=False, **writer_kwargs):
+  def __init__(self, cache_spec, mode="error", persist=False, **writer_kwargs):
     """Initialize a PCollectionCache object.
 
     Args:
-      location (str): A string indicating the location where the cache should
+      cache_spec (str): A string indicating the location where the cache should
           be stored. Typically, this includes the folder and the filename
           prefix for files that will be created.
       mode (str): Controls the behavior when one or more files matching location
@@ -71,7 +71,7 @@ class FileBasedCache(PCollectionCache):
       ~exceptions.IOError: If one or more files matching `location` already
           exist and mode == "error".
     """
-    self.location = location
+    self.cache_spec = cache_spec
     self.element_type = None
     self.default_coder = writer_kwargs.pop("coder", None)
     self._writer_kwargs = writer_kwargs
@@ -216,7 +216,7 @@ class FileBasedCache(PCollectionCache):
 
   @property
   def file_pattern(self):
-    return self.location + '**'
+    return self.cache_spec + '**'
 
   @property
   def _reader_kwargs(self):
@@ -236,7 +236,7 @@ class FileBasedCache(PCollectionCache):
 
   @property
   def _file_path_prefix(self):
-    return self.location + "-{:03d}".format(self._num_writes)
+    return self.cache_spec + "-{:03d}".format(self._num_writes)
 
   def _configure_finalizer(self, persist):
     if persist:
@@ -255,9 +255,9 @@ class TextBasedCache(FileBasedCache):
   _writer_class = textio.WriteToText
   _reader_passthrough_arguments = {"coder", "compression_type"}
 
-  def __init__(self, location, **writer_kwargs):
+  def __init__(self, cache_spec, **writer_kwargs):
     writer_kwargs["coder"] = SafeFastPrimitivesCoder()
-    super(TextBasedCache, self).__init__(location, **writer_kwargs)
+    super(TextBasedCache, self).__init__(cache_spec, **writer_kwargs)
 
 
 class TFRecordBasedCache(FileBasedCache):

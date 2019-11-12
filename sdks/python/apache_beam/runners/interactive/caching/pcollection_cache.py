@@ -24,11 +24,11 @@ from future.utils import with_metaclass
 class PCollectionCache(with_metaclass(abc.ABCMeta)):
 
   @abc.abstractmethod
-  def __init__(self, location, **writer_kwargs):
+  def __init__(self, cache_spec, **writer_kwargs):
     """Initialize PCollectionCache.
 
     Args:
-      location (str): Location where the cache data should be stored.
+      cache_spec (str): Location where the cache data should be stored.
       **writer_kwargs: Arguments to pass to the underlying writer class.
     """
     raise NotImplementedError
