@@ -29,6 +29,7 @@ option go_package = "fnexecution_v1";
 option java_package = "org.apache.beam.model.fnexecution.v1";
 option java_outer_classname = "ProvisionApi";
 
+import "endpoints.proto";
 import "google/protobuf/struct.proto";
 
 // A service to provide runtime provisioning information to the SDK harness
@@ -71,6 +72,11 @@ message ProvisionInfo {
     // (required) The artifact retrieval token produced by
     // ArtifactStagingService.CommitManifestResponse.
     string retrieval_token = 6;
+
+    // (optional) The endpoint for runner to use for hosting the worker status
+    // api server, specify this field only if the runner supports the sdk worker
+    // status report.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor status_endpoint = 7;
 }
 
 // Resources specify limits for local resources, such memory and cpu. It
