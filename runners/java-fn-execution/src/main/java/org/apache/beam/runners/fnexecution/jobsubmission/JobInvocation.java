@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Thro
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -32,10 +31,12 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Timestamps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
@@ -193,7 +194,7 @@ public class JobInvocation {
 
   /** Retrieve the job's current state. */
   public JobState.Enum getState() {
-    return getStateEvent().state();
+    return getStateEvent().getState();
   }
 
   /** Retrieve the job's current state. */
@@ -231,7 +232,10 @@ public class JobInvocation {
 
   private synchronized void setState(JobState.Enum state) {
     JobStateEvent event =
-        JobStateEvent.builder().setState(state).setTimestamp(Instant.now()).build();
+        JobStateEvent.newBuilder()
+            .setState(state)
+            .setTimestamp(Timestamps.fromMillis(System.currentTimeMillis()))
+            .build();
     this.stateHistory.add(event);
     for (Consumer<JobStateEvent> observer : stateObservers) {
       observer.accept(event);

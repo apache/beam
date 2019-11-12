@@ -131,7 +131,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
                       .JOB_MESSAGE_ERROR,
                       message_text='exc_text')),
               beam_job_api_pb2.JobMessagesResponse(
-                  state_response=beam_job_api_pb2.GetJobStateResponse(
+                  state_response=beam_job_api_pb2.JobStateEvent(
                       state=beam_job_api_pb2.JobState.DONE)),
           ])
 
