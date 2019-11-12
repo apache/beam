@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import collections
 import glob
 import io
+import os.path
+import sys
 import tempfile
 from builtins import object
 
@@ -277,3 +279,18 @@ def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
         out_file.write(in_file.read())
     concatenated_file_name = out_file.name
   return io.open(concatenated_file_name, mode, encoding=encoding)
+
+
+def check_cythonization(cython_enabled=False):
+  import apache_beam.coders.coder_impl
+  canary_file = apache_beam.coders.coder_impl.__file__
+  ext = os.path.splitext(canary_file)[1]
+  is_pure = ext in ['.py', '.pyc']
+
+  if 'linux' not in sys.platform or not cython_enabled:
+    if not is_pure:
+      raise RuntimeError("Expected a pure python build. Found %s" %
+                         canary_file)
+  elif is_pure:
+    raise RuntimeError("Expected a cython compiled build. Found %s" %
+                       canary_file)

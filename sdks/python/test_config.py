@@ -49,3 +49,15 @@ class BeamTestPlugin(Plugin):
                       action='store_true',
                       default=False,
                       help='whether not to use test-runner-api')
+    parser.add_option('--cython-enabled',
+                      action='store_true',
+                      default=False,
+                      help='if enabled, will error if the code is using cython')
+
+  def configure(self, options, conf):
+    # note: this runs after any build commands triggered by
+    # `python setup.py nosetests`
+    cython_enabled = getattr(options, 'cython_enabled', False)
+    import apache_beam.testing.util
+    apache_beam.testing.util.check_cythonization(cython_enabled)
+    super(BeamTestPlugin, self).configure(options, conf)
