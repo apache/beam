@@ -590,7 +590,7 @@ class GoogleCloudOptions(PipelineOptions):
       super(GoogleCloudOptions, self).__setattr__(name, value)
 
   @deprecated(
-      since='2.16.0',
+      since='2.17.0',
       custom_message=(
           'GoogleCloudOptions.temp_location is deprecated since %since%. '
           'Please use StandardOptions.temp_location or '
@@ -602,7 +602,7 @@ class GoogleCloudOptions(PipelineOptions):
       return self.view_as(StandardOptions).temp_location
 
   @deprecated(
-      since='2.16.0',
+      since='2.17.0',
       custom_message=(
           'GoogleCloudOptions.temp_location is deprecated since %since%. '
           'Please use StandardOptions.temp_location or '
