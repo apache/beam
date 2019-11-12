@@ -168,6 +168,7 @@ class TestStream(PTransform):
   """
 
   def __init__(self, coder=coders.FastPrimitivesCoder(), events=()):
+    super(TestStream, self).__init__()
     assert coder is not None
     self.coder = coder
     self.current_watermark = timestamp.MIN_TIMESTAMP

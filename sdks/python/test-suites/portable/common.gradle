@@ -92,7 +92,7 @@ task flinkTriggerTranscript() {
           && cd ${pythonRootDir} \\
           && pip install -e .[test] \\
           && python setup.py nosetests \\
-              --tests apache_beam.transforms.trigger_test:TestStreamTranscriptTest.test_fixed_default \\
+              --tests apache_beam.transforms.trigger_test:WeakTestStreamTranscriptTest \\
               --test-pipeline-options='--runner=FlinkRunner --environment_type=LOOPBACK --flink_job_server_jar=${project(":runners:flink:1.9:job-server:").shadowJar.archivePath}'
           """
     }
