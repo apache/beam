@@ -401,14 +401,14 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesTestStream.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class, UsesTestStreamWithMultipleStages.class})
   public void testMultiStage() throws Exception {
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())
-            .addElements("before")
-            .advanceWatermarkTo(Instant.ofEpochSecond(0))
-            .addElements(TimestampedValue.of("after", Instant.ofEpochSecond(10)))
-            .advanceWatermarkToInfinity();
+            .addElements("before")  // before
+            .advanceWatermarkTo(Instant.ofEpochSecond(0))  // BEFORE
+            .addElements(TimestampedValue.of("after", Instant.ofEpochSecond(10)))  // after
+            .advanceWatermarkToInfinity();  // AFTER
 
     PCollection<String> input = p.apply(testStream);
 
