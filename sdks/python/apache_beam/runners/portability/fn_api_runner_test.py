@@ -105,7 +105,7 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Create(['a', 'bc'])
              | beam.Map(lambda e: e * 2)
              | beam.Map(lambda e: e + 'x'))
-      #assert_that(res, equal_to(['aax', 'bcbcx']))
+      assert_that(res, equal_to(['aax', 'bcbcx']))
 
   def test_pardo_metrics(self):
 
@@ -522,14 +522,13 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Create(data)
           | beam.ParDo(ExpandStringsDoFn()))
 
-      actual | beam.Map(print)
       assert_that(actual, equal_to(list(''.join(data))))
 
     if isinstance(p.runner, fn_api_runner.FnApiRunner):
       res = p.runner._latest_run_result
-      #counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
-      #self.assertEqual(1, len(counters))
-      #self.assertEqual(counters[0].committed, len(''.join(data)))
+      counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+      self.assertEqual(1, len(counters))
+      self.assertEqual(counters[0].committed, len(''.join(data)))
 
   def _run_sdf_wrapper_pipeline(self, source, expected_value):
     with self.create_pipeline() as p:
@@ -586,9 +585,9 @@ class FnApiRunnerTest(unittest.TestCase):
       else:
         additional = ['d']
       res = (p | 'a' >> beam.Create(['a']) | 'ma' >> beam.Map(lambda x: x),
-             p | 'bc' >> beam.Create(['b', 'c']) | 'mbc' >> beam.Map(lambda x: x),
+             p | 'bc' >> beam.Create(['b', 'c']),
              p | 'd' >> beam.Create(additional) | 'md' >> beam.Map(lambda x: x)
-             ) | beam.Flatten()
+            ) | beam.Flatten()
       assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
   def test_combine_per_key(self):
