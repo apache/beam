@@ -340,6 +340,22 @@ class IOTypeHints(object):
     return 'IOTypeHints[inputs=%s, outputs=%s]' % (
         self.input_types, self.output_types)
 
+  def __eq__(self, other):
+    def same(a, b):
+      if a is None or not any(a):
+        return b is None or not any(b)
+      else:
+        return a == b
+    return (
+        same(self.input_types, other.input_types)
+        and same(self.output_types, other.output_types))
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash(str(self))
+
 
 class WithTypeHints(object):
   """A mixin class that provides the ability to set and retrieve type hints.
@@ -351,8 +367,9 @@ class WithTypeHints(object):
   def _get_or_create_type_hints(self):
     # __init__ may have not been called
     try:
-      return self._type_hints
-    except AttributeError:
+      # Only return an instance bound to self (see BEAM-8629).
+      return self.__dict__['_type_hints']
+    except KeyError:
       self._type_hints = IOTypeHints()
       return self._type_hints
 
