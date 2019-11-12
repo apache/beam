@@ -36,4 +36,6 @@ task postCommitPy36() {
     dependsOn ':runners:flink:1.9:job-server:shadowJar'
     dependsOn portableWordCountFlinkRunnerBatch
     dependsOn portableWordCountFlinkRunnerStreaming
+    dependsOn ':runners:spark:job-server:shadowJar'
+    dependsOn portableWordCountSparkRunnerBatch
 }

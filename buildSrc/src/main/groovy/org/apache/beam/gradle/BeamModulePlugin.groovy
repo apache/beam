@@ -1905,6 +1905,7 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ':runners:flink:1.9:job-server-container:docker',
             ':runners:flink:1.9:job-server:shadowJar',
+            ':runners:spark:job-server:shadowJar',
             ':sdks:python:container:py2:docker',
             ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',
@@ -1958,6 +1959,7 @@ class BeamModulePlugin implements Plugin<Project> {
         addPortableWordCountTask(true, "PortableRunner")
         addPortableWordCountTask(false, "FlinkRunner")
         addPortableWordCountTask(true, "FlinkRunner")
+        addPortableWordCountTask(false, "SparkRunner")
       }
     }
   }
