@@ -178,10 +178,9 @@ class PortableRunner(runner.PipelineRunner):
         del transform_proto.subtransforms[:]
 
     # Preemptively apply combiner lifting, until all runners support it.
-    # Also apply sdf expansion.
     # These optimizations commute and are idempotent.
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
-        'pre_optimize', 'lift_combiners,expand_sdf').lower()
+        'pre_optimize', 'lift_combiners').lower()
     if not options.view_as(StandardOptions).streaming:
       flink_known_urns = frozenset([
           common_urns.composites.RESHUFFLE.urn,
@@ -210,7 +209,7 @@ class PortableRunner(runner.PipelineRunner):
         phases = []
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
-          if phase_name in ('lift_combiners', 'expand_sdf'):
+          if phase_name in 'lift_combiners':
             phases.append(getattr(fn_api_runner_transforms, phase_name))
           else:
             raise ValueError(
