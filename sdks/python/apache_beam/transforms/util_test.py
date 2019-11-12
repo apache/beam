@@ -502,7 +502,7 @@ class ReshuffleTest(unittest.TestCase):
                                 element, element['timestamp']))
                         )
 
-    # Reshuffle the PCollection above and assign the timestamp of an element to that ele
+    # Reshuffle the PCollection above and assign the timestamp of an element to that
     # element again.
     after_reshuffle = (before_reshuffle
                        | "Reshuffle" >> beam.Reshuffle()
@@ -512,13 +512,13 @@ class ReshuffleTest(unittest.TestCase):
     # Combine each element in before_reshuffle with its timestamp.
     formatted_before_reshuffle = (before_reshuffle
                                   | "Get before_reshuffle timestamp" >>
-                                      beam.ParDo(GetTimestamp())
+                                  beam.ParDo(GetTimestamp())
                                  )
 
     # Combine each element in after_reshuffle with its timestamp.
     formatted_after_reshuffle = (after_reshuffle
                                  | "Get after_reshuffle timestamp" >>
-                                     beam.ParDo(GetTimestamp())
+                                 beam.ParDo(GetTimestamp())
                                 )
 
     expected_data = ["Timestamp(-9223372036854.775000) - foo",
@@ -527,9 +527,9 @@ class ReshuffleTest(unittest.TestCase):
                      "Timestamp(9223372036854.775000) - bar"
                     ]
 
-    # Can't compare formatted_before_reshuffle and formatted_after_reshuffle directly,
-    # because they are deferred PCollections while equal_to only takes a concrete
-    # argument.
+    # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
+    # directly, because they are deferred PCollections while equal_to only takes a
+    # concrete argument.
     assert_that(formatted_before_reshuffle, equal_to(expected_data),
                 label="formatted_before_reshuffle")
     assert_that(formatted_after_reshuffle, equal_to(expected_data),
