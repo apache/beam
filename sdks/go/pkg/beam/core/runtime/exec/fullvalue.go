@@ -107,32 +107,18 @@ func Convert(v interface{}, to reflect.Type) interface{} {
 
 	case typex.IsList(from) && typex.IsList(to):
 		// Convert []A to []B.
-
-		value := reflect.ValueOf(v)
-
-		ret := reflect.New(to).Elem()
-		for i := 0; i < value.Len(); i++ {
-			ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), to.Elem())))
-		}
-		return ret.Interface()
+		return cvtSlice(v, to.Elem())
 
 	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
-		// Convert []typex.T to typex.X with underlying type []T.
+		// Convert []typex.T to the underlying type []T.
 
 		value := reflect.ValueOf(v)
-
-		// We don't know the underlying element type of an empty universal-typed slice.
+		// We don't know the underlying element type of a nil/empty universal-typed slice.
 		// So the best we could do is to return it as is.
 		if value.Len() == 0 {
 			return v
 		}
-
-		toE := reflectx.UnderlyingType(value.Index(0)).Type()
-		ret := reflect.New(reflect.SliceOf(toE)).Elem()
-		for i := 0; i < value.Len(); i++ {
-			ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), toE)))
-		}
-		return ret.Interface()
+		return cvtSlice(v, reflectx.UnderlyingType(value.Index(0)).Type())
 
 	default:
 		// Arguably this should be:
@@ -188,6 +174,16 @@ func identity(v interface{}) interface{} {
 // universal drops the universal type and re-interfaces it to the actual one.
 func universal(v interface{}) interface{} {
 	return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
+}
+
+// cvtSlice converts the input slice to a slice with element type toE.
+func cvtSlice(v interface{}, toE reflect.Type) interface{} {
+	value := reflect.ValueOf(v)
+	ret := reflect.New(reflect.SliceOf(toE)).Elem()
+	for i := 0; i < value.Len(); i++ {
+		ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), toE)))
+	}
+	return ret.Interface()
 }
 
 // ReadAll read a full restream and returns the result.
