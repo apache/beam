@@ -21,12 +21,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 import grpc
 
-from apache_beam.portability.api import beam_interactive_api_pb2
-from apache_beam.portability.api import beam_interactive_api_pb2_grpc
-from apache_beam.portability.api.beam_interactive_api_pb2_grpc import InteractiveServiceServicer
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2_grpc
+from apache_beam.portability.api.beam_runner_api_pb2_grpc import TestStreamServiceServicer
 
 
-class InteractiveStreamController(InteractiveServiceServicer):
+class TestStreamServiceController(TestStreamServiceServicer):
   def __init__(self, streaming_cache, endpoint=None):
     self._server = grpc.server(ThreadPoolExecutor(max_workers=10))
 
@@ -37,7 +37,7 @@ class InteractiveStreamController(InteractiveServiceServicer):
       port = self._server.add_insecure_port('[::]:0')
       self.endpoint = '[::]:{}'.format(port)
 
-    beam_interactive_api_pb2_grpc.add_InteractiveServiceServicer_to_server(
+    beam_runner_api_pb2_grpc.add_TestStreamServiceServicer_to_server(
         self, self._server)
     self._streaming_cache = streaming_cache
 
@@ -59,8 +59,11 @@ class InteractiveStreamController(InteractiveServiceServicer):
     """
     session_id = str(self._session_id)
     self._session_id += 1
-    self._sessions[session_id] = self._streaming_cache.reader().read()
-    return beam_interactive_api_pb2.ConnectResponse(session_id=session_id)
+    self._sessions[session_id] = {
+        'reader': self._streaming_cache.reader().read(),
+        'token': 0
+    }
+    return beam_runner_api_pb2.ConnectResponse(session_id=session_id)
 
   def Events(self, request, context):
     """Returns the next event from the streaming cache.
@@ -73,12 +76,21 @@ class InteractiveStreamController(InteractiveServiceServicer):
         'Session "{}" was not found. Did you forget to call Connect ' +
         'first?').format(request.session_id)
 
-    reader = self._sessions[request.session_id]
-    token = (int(request.token) if request.token else 0) + 1
+    session = self._sessions[request.session_id]
+    reader = session['reader']
+
+    token = int(request.token) if request.token else 0
+    if token:
+      assert token > session['token'], \
+          ('Session token must advance. Did you forget to set the request ' +
+           'token to the previous response token?')
+      session['token'] = token
+
+    next_token = token + 1
     event = None
     try:
       event = next(reader)
     except StopIteration:
-      token = None
-    return beam_interactive_api_pb2.EventsResponse(
-        event=event, token=str(token) if token else None)
+      next_token = None
+    return beam_runner_api_pb2.EventsResponse(
+        event=event, token=str(next_token) if next_token else None)
