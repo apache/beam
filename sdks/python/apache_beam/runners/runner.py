@@ -328,7 +328,7 @@ class PipelineState(object):
 
   @classmethod
   def is_terminal(cls, state):
-    return state in [cls.STOPPED, cls.DONE, cls.FAILED, cls.CANCELLED,
+    return state in [cls.DONE, cls.FAILED, cls.CANCELLED,
                      cls.UPDATED, cls.DRAINED]
 
 
