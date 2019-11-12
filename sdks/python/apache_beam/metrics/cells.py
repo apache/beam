@@ -30,11 +30,15 @@ from builtins import object
 
 from google.protobuf import timestamp_pb2
 
-from apache_beam.metrics.metricbase import Counter
-from apache_beam.metrics.metricbase import Distribution
-from apache_beam.metrics.metricbase import Gauge
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
+
+try:
+  import cython
+except ImportError:
+  class fake_cython:
+    compiled = False
+  globals()['cython'] = fake_cython
 
 __all__ = ['DistributionResult', 'GaugeResult']
 
@@ -52,11 +56,17 @@ class MetricCell(object):
   def __init__(self):
     self._lock = threading.Lock()
 
+  def update(self, value):
+    raise NotImplementedError
+
   def get_cumulative(self):
     raise NotImplementedError
 
+  def __reduce__(self):
+    raise NotImplementedError
 
-class CounterCell(Counter, MetricCell):
+
+class CounterCell(MetricCell):
   """For internal use only; no backwards-compatibility guarantees.
 
   Tracks the current value and delta of a counter metric.
@@ -80,27 +90,41 @@ class CounterCell(Counter, MetricCell):
     return result
 
   def inc(self, n=1):
-    with self._lock:
-      self.value += n
+    self.update(n)
+
+  def dec(self, n=1):
+    self.update(-n)
+
+  def update(self, value):
+    if cython.compiled:
+      ivalue = value
+      # We hold the GIL, no need for another lock.
+      self.value += ivalue
+    else:
+      with self._lock:
+        self.value += value
 
   def get_cumulative(self):
     with self._lock:
       return self.value
 
-  def to_runner_api_monitoring_info(self):
-    """Returns a Metric with this counter value for use in a MonitoringInfo."""
-    # TODO(ajamato): Update this code to be consistent with Gauges
-    # and Distributions. Since there is no CounterData class this method
-    # was added to CounterCell. Consider adding a CounterData class or
-    # removing the GaugeData and DistributionData classes.
-    return metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(
-            int64_value=self.get_cumulative()
-        )
-    )
+  def to_runner_api_user_metric(self, metric_name):
+    return beam_fn_api_pb2.Metrics.User(
+        metric_name=metric_name.to_runner_api(),
+        counter_data=beam_fn_api_pb2.Metrics.User.CounterData(
+            value=self.value))
+
+  def to_runner_api_monitoring_info(self, name, transform_id):
+    from apache_beam.metrics import monitoring_infos
+    return monitoring_infos.int64_user_counter(
+        name.namespace, name.name,
+        metrics_pb2.Metric(
+            counter_data=metrics_pb2.CounterData(
+                int64_value=self.get_cumulative())),
+        ptransform=transform_id)
 
 
-class DistributionCell(Distribution, MetricCell):
+class DistributionCell(MetricCell):
   """For internal use only; no backwards-compatibility guarantees.
 
   Tracks the current value and delta for a distribution metric.
@@ -124,26 +148,43 @@ class DistributionCell(Distribution, MetricCell):
     return result
 
   def update(self, value):
-    with self._lock:
+    if cython.compiled:
+      # We will hold the GIL throughout the entire _update.
       self._update(value)
+    else:
+      with self._lock:
+        self._update(value)
 
   def _update(self, value):
-    value = int(value)
-    self.data.count += 1
-    self.data.sum += value
-    self.data.min = (value
-                     if self.data.min is None or self.data.min > value
-                     else self.data.min)
-    self.data.max = (value
-                     if self.data.max is None or self.data.max < value
-                     else self.data.max)
+    if cython.compiled:
+      ivalue = value
+    else:
+      ivalue = int(value)
+    self.data.count = self.data.count + 1
+    self.data.sum = self.data.sum + ivalue
+    if ivalue < self.data.min:
+      self.data.min = ivalue
+    if ivalue > self.data.max:
+      self.data.max = ivalue
 
   def get_cumulative(self):
     with self._lock:
       return self.data.get_cumulative()
 
+  def to_runner_api_user_metric(self, metric_name):
+    return beam_fn_api_pb2.Metrics.User(
+        metric_name=metric_name.to_runner_api(),
+        distribution_data=self.get_cumulative().to_runner_api())
 
-class GaugeCell(Gauge, MetricCell):
+  def to_runner_api_monitoring_info(self, name, transform_id):
+    from apache_beam.metrics import monitoring_infos
+    return monitoring_infos.int64_user_distribution(
+        name.namespace, name.name,
+        self.get_cumulative().to_runner_api_monitoring_info(),
+        ptransform=transform_id)
+
+
+class GaugeCell(MetricCell):
   """For internal use only; no backwards-compatibility guarantees.
 
   Tracks the current value and delta for a gauge metric.
@@ -167,6 +208,9 @@ class GaugeCell(Gauge, MetricCell):
     return result
 
   def set(self, value):
+    self.update(value)
+
+  def update(self, value):
     value = int(value)
     with self._lock:
       # Set the value directly without checking timestamp, because
@@ -177,6 +221,18 @@ class GaugeCell(Gauge, MetricCell):
   def get_cumulative(self):
     with self._lock:
       return self.data.get_cumulative()
+
+  def to_runner_api_user_metric(self, metric_name):
+    return beam_fn_api_pb2.Metrics.User(
+        metric_name=metric_name.to_runner_api(),
+        gauge_data=self.get_cumulative().to_runner_api())
+
+  def to_runner_api_monitoring_info(self, name, transform_id):
+    from apache_beam.metrics import monitoring_infos
+    return monitoring_infos.int64_user_gauge(
+        name.namespace, name.name,
+        self.get_cumulative().to_runner_api_monitoring_info(),
+        ptransform=transform_id)
 
 
 class DistributionResult(object):
@@ -198,7 +254,7 @@ class DistributionResult(object):
     return not self == other
 
   def __repr__(self):
-    return '<DistributionResult(sum={}, count={}, min={}, max={})>'.format(
+    return 'DistributionResult(sum={}, count={}, min={}, max={})'.format(
         self.sum,
         self.count,
         self.min,
@@ -206,11 +262,11 @@ class DistributionResult(object):
 
   @property
   def max(self):
-    return self.data.max
+    return self.data.max if self.data.count else None
 
   @property
   def min(self):
-    return self.data.min
+    return self.data.min if self.data.count else None
 
   @property
   def count(self):
@@ -340,10 +396,15 @@ class DistributionData(object):
   by other than the DistributionCell that contains it.
   """
   def __init__(self, sum, count, min, max):
-    self.sum = sum
-    self.count = count
-    self.min = min
-    self.max = max
+    if count:
+      self.sum = sum
+      self.count = count
+      self.min = min
+      self.max = max
+    else:
+      self.sum = self.count = 0
+      self.min = 2**63 - 1
+      self.max = -2**63
 
   def __eq__(self, other):
     return (self.sum == other.sum and
@@ -359,7 +420,7 @@ class DistributionData(object):
     return not self == other
 
   def __repr__(self):
-    return '<DistributionData(sum={}, count={}, min={}, max={})>'.format(
+    return 'DistributionData(sum={}, count={}, min={}, max={})'.format(
         self.sum,
         self.count,
         self.min,
@@ -372,15 +433,11 @@ class DistributionData(object):
     if other is None:
       return self
 
-    new_min = (None if self.min is None and other.min is None else
-               min(x for x in (self.min, other.min) if x is not None))
-    new_max = (None if self.max is None and other.max is None else
-               max(x for x in (self.max, other.max) if x is not None))
     return DistributionData(
         self.sum + other.sum,
         self.count + other.count,
-        new_min,
-        new_max)
+        self.min if self.min < other.min else other.min,
+        self.max if self.max > other.max else other.max)
 
   @staticmethod
   def singleton(value):
@@ -449,7 +506,7 @@ class DistributionAggregator(MetricAggregator):
   """
   @staticmethod
   def identity_element():
-    return DistributionData(0, 0, None, None)
+    return DistributionData(0, 0, 2**63 - 1, -2**63)
 
   def combine(self, x, y):
     return x.combine(y)

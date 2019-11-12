@@ -18,28 +18,32 @@
 cimport cython
 cimport libc.stdint
 
-from apache_beam.metrics.cells cimport MetricCell
+
+cdef class MetricCell(object):
+  cdef object _lock
+  cpdef bint update(self, value) except -1
 
 
-cdef object get_current_tracker
+cdef class CounterCell(MetricCell):
+  cdef readonly libc.stdint.int64_t value
+
+  @cython.locals(ivalue=libc.stdint.int64_t)
+  cpdef bint update(self, value) except -1
 
 
-cdef class _TypedMetricName(object):
-  cdef readonly object cell_type
-  cdef readonly object metric_name
-  cdef readonly object fast_name
-  cdef libc.stdint.int64_t _hash
+cdef class DistributionCell(MetricCell):
+  cdef readonly DistributionData data
+
+  @cython.locals(ivalue=libc.stdint.int64_t)
+  cdef inline bint _update(self, value) except -1
 
 
-cdef object _DEFAULT
+cdef class GaugeCell(MetricCell):
+  cdef readonly object data
 
 
-cdef class MetricUpdater(object):
-  cdef _TypedMetricName typed_metric_name
-  cdef object default
-
-
-cdef class MetricsContainer(object):
-  cdef object step_name
-  cdef public dict metrics
-  cpdef MetricCell get_metric_cell(self, metric_key)
+cdef class DistributionData(object):
+  cdef readonly libc.stdint.int64_t sum
+  cdef readonly libc.stdint.int64_t count
+  cdef readonly libc.stdint.int64_t min
+  cdef readonly libc.stdint.int64_t max
