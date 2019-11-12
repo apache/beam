@@ -181,8 +181,9 @@ class BatchElementsTest(unittest.TestCase):
     actual_data_batch_sizes = [x[0] for x in batch_estimator._data]
     self.assertEqual(expected_data_batch_sizes, actual_data_batch_sizes)
     expected_data_timing = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-    actual_data_timing = [round(x[1], 2) for x in batch_estimator._data]
-    self.assertEqual(expected_data_timing, actual_data_timing)
+    for i in range(len(expected_data_timing)):
+      self.assertAlmostEqual(
+          expected_data_timing[i], batch_estimator._data[i][1])
 
   def test_ignore_next_timing(self):
     clock = FakeClock()
@@ -206,8 +207,9 @@ class BatchElementsTest(unittest.TestCase):
     actual_data_batch_sizes = [x[0] for x in batch_estimator._data]
     self.assertEqual(expected_data_batch_sizes, actual_data_batch_sizes)
     expected_data_timing = [0.01, 0.01, 0.01, 0.01, 0.01]
-    actual_data_timing = [round(x[1], 2) for x in batch_estimator._data]
-    self.assertEqual(expected_data_timing, actual_data_timing)
+    for i in range(len(expected_data_timing)):
+      self.assertAlmostEqual(
+          expected_data_timing[i], batch_estimator._data[i][1])
 
   def _run_regression_test(self, linear_regression_fn, test_outliers):
     xs = [random.random() for _ in range(10)]
