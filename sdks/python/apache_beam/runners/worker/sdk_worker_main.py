@@ -145,13 +145,17 @@ def main(unused_argv):
   try:
     _LOGGER.info('Python sdk harness started with pipeline_options: %s',
                  sdk_pipeline_options.get_all_options(drop_default=True))
-    service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+    control_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+    status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
-                      service_descriptor)
+                      control_service_descriptor)
+    text_format.Merge(os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
+                      status_service_descriptor)
     # TODO(robertwb): Support credentials.
-    assert not service_descriptor.oauth2_client_credentials_grant.url
+    assert not control_service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
-        control_address=service_descriptor.url,
+        control_address=control_service_descriptor.url,
+        status_address=status_service_descriptor.url,
         worker_id=_worker_id,
         state_cache_size=_get_state_cache_size(sdk_pipeline_options),
         data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(
