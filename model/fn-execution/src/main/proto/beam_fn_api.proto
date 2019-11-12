@@ -872,3 +872,19 @@ service BeamFnExternalWorkerPool {
   // Stop the SDK worker.
   rpc StopWorker (StopWorkerRequest) returns (StopWorkerResponse) {}
 }
+
+message WorkerStatusRequest {
+  string request_id = 1;
+}
+
+message WorkerStatusResponse {
+  string request_id = 1;
+  string error = 2;
+  // status debugging info reported by SDK harness worker.
+  string status_info = 3;
+}
+
+service BeamFnWorkerStatus {
+  rpc WorkerStatus (stream WorkerStatusResponse)
+    returns (stream WorkerStatusRequest) {}
+}
