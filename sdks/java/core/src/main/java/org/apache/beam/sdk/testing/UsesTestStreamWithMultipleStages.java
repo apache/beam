@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.testing;
 
 /**
- * Subcategory for {@link UsesTestStream} tests which use {@link TestStream}
- # across multiple stages. Some Runners do not properly support quiescence
- * in a way that {@link TestStream} demands it.
+ * Subcategory for {@link UsesTestStream} tests which use {@link TestStream} # across multiple
+ * stages. Some Runners do not properly support quiescence in a way that {@link TestStream} demands
+ * it.
  */
 public interface UsesTestStreamWithMultipleStages extends UsesTestStream {}

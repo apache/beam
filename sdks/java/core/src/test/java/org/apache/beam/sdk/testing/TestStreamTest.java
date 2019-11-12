@@ -405,10 +405,10 @@ public class TestStreamTest implements Serializable {
   public void testMultiStage() throws Exception {
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())
-            .addElements("before")  // before
-            .advanceWatermarkTo(Instant.ofEpochSecond(0))  // BEFORE
-            .addElements(TimestampedValue.of("after", Instant.ofEpochSecond(10)))  // after
-            .advanceWatermarkToInfinity();  // AFTER
+            .addElements("before") // before
+            .advanceWatermarkTo(Instant.ofEpochSecond(0)) // BEFORE
+            .addElements(TimestampedValue.of("after", Instant.ofEpochSecond(10))) // after
+            .advanceWatermarkToInfinity(); // AFTER
 
     PCollection<String> input = p.apply(testStream);
 
