@@ -20,8 +20,8 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam import coders
-from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamFileHeader
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.utils.timestamp import Timestamp
@@ -29,23 +29,27 @@ from apache_beam.utils.timestamp import Timestamp
 
 class InMemoryReader(object):
   def __init__(self, tag=None):
-    self._records = [InteractiveStreamHeader(tag=tag).SerializeToString()]
+    self._header = TestStreamFileHeader(tag=tag)
+    self._records = []
     self._coder = coders.FastPrimitivesCoder()
 
   def add_element(self, element, event_time, processing_time):
     element_payload = TestStreamPayload.TimestampedElement(
         encoded_element=self._coder.encode(element),
         timestamp=Timestamp.of(event_time).micros)
-    record = InteractiveStreamRecord(
+    record = TestStreamFileRecord(
         element=element_payload,
         processing_time=Timestamp.of(processing_time).to_proto())
-    self._records.append(record.SerializeToString())
+    self._records.append(record)
 
   def advance_watermark(self, watermark, processing_time):
-    record = InteractiveStreamRecord(
+    record = TestStreamFileRecord(
         watermark=Timestamp.of(watermark).to_proto(),
         processing_time=Timestamp.of(processing_time).to_proto())
-    self._records.append(record.SerializeToString())
+    self._records.append(record)
+
+  def header(self):
+    return self._header
 
   def read(self):
     for r in self._records:

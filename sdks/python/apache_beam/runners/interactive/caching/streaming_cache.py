@@ -17,8 +17,8 @@
 
 from __future__ import absolute_import
 
-from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import InteractiveStreamRecord
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamFileHeader
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import Timestamp
@@ -34,7 +34,7 @@ class StreamingCache(object):
     """Abstraction that reads from PCollection readers.
 
     This class is an Abstraction layer over multiple PCollection readers to be
-    used for supplying the Interactive Service with TestStream events.
+    used for supplying a TestStream service with events.
 
     This class is also responsible for holding the state of the clock, injecting
     clock advancement events, and watermark advancement events.
@@ -44,27 +44,14 @@ class StreamingCache(object):
       # replay.
       self._monotonic_clock = timestamp.Timestamp.of(0)
 
-      # The maximum timestamp read.
-      self._target_timestamp = timestamp.Timestamp.of(0)
-
       # The PCollection cache readers.
       self._readers = {}
 
       # The file headers that are metadata for that particular PCollection.
-      self._headers = {}
-
       # The header allows for metadata about an entire stream, so that the data
       # isn't copied per record.
-      readers = [r.read() for r in readers]
-      for r in readers:
-        header = InteractiveStreamHeader()
-        header.ParseFromString(next(r))
-
-        # Main PCollections in Beam have a tag as None. Deserializing a Proto
-        # with an empty tag becomes an empty string. Here we normalize to what
-        # Beam expects.
-        self._headers[header.tag if header.tag else None] = header
-        self._readers[header.tag if header.tag else None] = r
+      self._headers = {r.header().tag : r.header() for r in readers}
+      self._readers = {r.header().tag : r.read() for r in readers}
 
       # The watermarks per tag. Useful for introspection in the stream.
       self._watermarks = {tag: timestamp.MIN_TIMESTAMP for tag in self._headers}
@@ -73,7 +60,7 @@ class StreamingCache(object):
       self._stream_times = {tag: timestamp.MIN_TIMESTAMP
                             for tag in self._headers}
 
-    def _read_next(self):
+    def _test_stream_events_before_target(self, target_timestamp):
       """Reads the next iteration of elements from each stream.
       """
       records = []
@@ -82,50 +69,60 @@ class StreamingCache(object):
         # stream. Some readers may have elements that are less than this. Thus,
         # we skip all readers that already have elements that are at this
         # timestamp so that we don't read everything into memory.
-        if self._stream_times[tag] >= self._target_timestamp:
+        if self._stream_times[tag] >= target_timestamp:
           continue
         try:
-          record = InteractiveStreamRecord()
-          record.ParseFromString(next(r))
+          record = next(r)
           records.append((tag, record))
-          self._stream_times[tag] = Timestamp.from_proto(
-              record.processing_time)
+          self._stream_times[tag] = Timestamp.from_proto(record.processing_time)
         except StopIteration:
           pass
       return records
 
+    def _merge_sort(self, previous_events, new_events):
+      return sorted(previous_events + new_events,
+                    key=lambda x: Timestamp.from_proto(
+                        x[1].processing_time),
+                    reverse=True)
+
+    def _min_timestamp_of(self, events):
+      return (Timestamp.from_proto(events[-1][1].processing_time)
+              if events else timestamp.MAX_TIMESTAMP)
+
+    def _event_stream_caught_up_to_target(self, events, target_timestamp):
+      empty_events = not events
+      stream_is_past_target = self._min_timestamp_of(events) > target_timestamp
+      return empty_events or stream_is_past_target
+
     def read(self):
       """Reads records from PCollection readers.
       """
-      # We use a generator here because the underlying readers may have to much
-      # data to read into memory.
 
-      events = []
+      # The largest timestamp read from the different streams.
+      target_timestamp = timestamp.Timestamp.of(0)
+
+      # The events from last iteration that are past the target timestamp.
+      unsent_events = []
+
+      # Emit events until all events have been read.
       while True:
         # Read the next set of events. The read events will most likely be
         # out of order if there are multiple readers. Here we sort them into
         # a more manageable state.
-        events = events + self._read_next()
-        events = sorted(events,
-                        key=lambda x: Timestamp.from_proto(
-                            x[1].processing_time),
-                        reverse=True)
-        if not events:
+        new_events = self._test_stream_events_before_target(target_timestamp)
+        events_to_send = self._merge_sort(unsent_events, new_events)
+        if not events_to_send:
           break
-
-        # Retrieves the minimum timestamp from the read events.
-        min_timestamp = (
-            lambda: Timestamp.from_proto(events[-1][1].processing_time)
-            if events else timestamp.MAX_TIMESTAMP)
 
         # Get the next largest timestamp in the stream. This is used as the
         # timestamp for readers to "catch-up" to. This will only read from
         # readers with a timestamp less than this.
-        self._target_timestamp = min_timestamp()
+        target_timestamp = self._min_timestamp_of(events_to_send)
 
         # Loop through the elements with the correct timestamp.
-        while events and min_timestamp() <= self._target_timestamp:
-          tag, r = events.pop()
+        while not self._event_stream_caught_up_to_target(events_to_send,
+                                                         target_timestamp):
+          tag, r = events_to_send.pop()
 
           # First advance the clock to match the time of the stream. This has
           # a side-effect of also advancing this cache's clock.
@@ -138,7 +135,8 @@ class StreamingCache(object):
             yield self._add_element(r.element, tag)
           elif r.HasField('watermark'):
             yield self._advance_watermark(r.watermark, tag)
-        self._target_timestamp = min_timestamp()
+        unsent_events = events_to_send
+        target_timestamp = self._min_timestamp_of(unsent_events)
 
     def _add_element(self, element, tag):
       """Constructs an AddElement event for the specified element and tag.
@@ -165,15 +163,6 @@ class StreamingCache(object):
           watermark_event=TestStreamPayload.Event.AdvanceWatermark(
               new_watermark=self._watermarks[tag].micros, tag=tag))
       return e
-
-    def stream_time(self):
-      return self._monotonic_clock
-
-    def watermarks(self):
-      return self._watermarks
-
-    def watermark(self):
-      return min(self._watermarks.values())
 
   def reader(self):
     return StreamingCache.Reader(self._readers)
