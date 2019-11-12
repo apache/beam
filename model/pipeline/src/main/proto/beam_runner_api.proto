@@ -32,6 +32,7 @@ option java_outer_classname = "RunnerApi";
 import "endpoints.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
 
 message BeamConstants {
   enum Constants {
@@ -541,6 +542,53 @@ message TestStreamPayload {
     // (Required) The event timestamp of this element.
     int64 timestamp = 2;
   }
+}
+
+service TestStreamService {
+  rpc Connect(ConnectRequest) returns (ConnectResponse) {}
+  // A TestStream will request for events using this RPC.
+  rpc Events(EventsRequest) returns (EventsResponse) {}
+}
+
+message ConnectRequest {}
+message ConnectResponse {
+  string session_id = 1;
+}
+
+message EventsRequest {
+  string session_id = 1;
+  string token = 2;
+}
+
+message EventsResponse {
+  // The TestStreamPayloads that will be sent to the TestStream.
+  TestStreamPayload.Event event = 1;
+
+  // The continuation token to send back in the next request.
+  string token = 2;
+}
+
+// The first record to be read in an interactive stream. This contains metadata
+// about the stream and how to properly process it.
+message TestStreamFileHeader {
+  // The PCollection tag this stream is associated with.
+  string tag = 1;
+}
+
+// A record is a recorded element that the source produced. Its function is to
+// give enough information to the InteractiveService to create a faithful
+// recreation of the original source of data.
+message TestStreamFileRecord {
+  oneof recorded_event {
+    // The recorded element with its event timestamp (when it was produced).
+    TestStreamPayload.TimestampedElement element = 1;
+
+    // Indicating the output watermark of the source changed.
+    google.protobuf.Timestamp watermark = 2;
+  }
+
+  // The timestamp of either the new element or watermark change.
+  google.protobuf.Timestamp processing_time = 3;
 }
 
 // The payload for the special-but-not-primitive WriteFiles transform.
