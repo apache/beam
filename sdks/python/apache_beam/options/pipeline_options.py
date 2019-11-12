@@ -593,7 +593,8 @@ class GoogleCloudOptions(PipelineOptions):
       since='2.16.0',
       custom_message=(
           'GoogleCloudOptions.temp_location is deprecated since %since%. '
-          'Use GoogleCloudOptions.gcp_temp_location instead.'))
+          'Please use StandardOptions.temp_location or '
+          'GoogleCloudOptions.gcp_temp_location, as appropriate.'))
   def _get_temp_location(self):
     if self.gcp_temp_location is not None:
       return self.gcp_temp_location
@@ -604,7 +605,8 @@ class GoogleCloudOptions(PipelineOptions):
       since='2.16.0',
       custom_message=(
           'GoogleCloudOptions.temp_location is deprecated since %since%. '
-          'Use GoogleCloudOptions.gcp_temp_location instead.'))
+          'Please use StandardOptions.temp_location or '
+          'GoogleCloudOptions.gcp_temp_location, as appropriate.'))
   def _set_temp_location(self, temp_location):
     self.gcp_temp_location = temp_location
 
