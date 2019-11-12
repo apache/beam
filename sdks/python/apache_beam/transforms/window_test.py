@@ -284,7 +284,7 @@ class WindowTest(unittest.TestCase):
                   label='assert:mean')
 
   @attr('ValidatesRunner')
-  def test_windows_idempotency(self):
+  def test_window_assignment_idempotency(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 1, 2, 3, 4)
       result = (pcoll
