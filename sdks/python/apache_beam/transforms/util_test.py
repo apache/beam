@@ -333,12 +333,12 @@ class IdentityWindowTest(unittest.TestCase):
       pipeline.run()
 
 class AddTimestamp(beam.DoFn):
- def process(self, element, timestamp=beam.DoFn.TimestampParam):
-   yield beam.window.TimestampedValue(element, timestamp)
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    yield beam.window.TimestampedValue(element, timestamp)
 
 class GetTimestamp(beam.DoFn):
- def process(self, element, timestamp=beam.DoFn.TimestampParam):
-   yield '{} - {}'.format(timestamp, element['name'])
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    yield '{} - {}'.format(timestamp, element['name'])
 
 class ReshuffleTest(unittest.TestCase):
 
@@ -498,35 +498,42 @@ class ReshuffleTest(unittest.TestCase):
                             {'name': 'bar', 'timestamp': MAX_TIMESTAMP},
                         ])
                         | "With timestamp" >> beam.Map(
-                            lambda element: beam.window.TimestampedValue(element, element['timestamp']))
-    )
+                            lambda element: beam.window.TimestampedValue(
+                                element, element['timestamp']))
+                        )
 
-    # Reshuffle the PCollection above and assign the timestamp of an element to that element again.
+    # Reshuffle the PCollection above and assign the timestamp of an element to that ele
+    # element again.
     after_reshuffle = (before_reshuffle
                        | "Reshuffle" >> beam.Reshuffle()
                        | "With timestamps again" >> beam.ParDo(AddTimestamp())
-    )
+                      )
 
     # Combine each element in before_reshuffle with its timestamp.
     formatted_before_reshuffle = (before_reshuffle
-                                  | "Get before_reshuffle timestamp" >> beam.ParDo(GetTimestamp())
-    )
+                                  | "Get before_reshuffle timestamp" >>
+                                      beam.ParDo(GetTimestamp())
+                                 )
 
     # Combine each element in after_reshuffle with its timestamp.
     formatted_after_reshuffle = (after_reshuffle
-                                 | "Get after_reshuffle timestamp" >> beam.ParDo(GetTimestamp())
-    )
+                                 | "Get after_reshuffle timestamp" >>
+                                     beam.ParDo(GetTimestamp())
+                                )
 
     expected_data = ["Timestamp(-9223372036854.775000) - foo",
                      "Timestamp(0) - foo",
                      "Timestamp(33) - bar",
                      "Timestamp(9223372036854.775000) - bar"
-    ]
+                    ]
 
-    # Can't compare formatted_before_reshuffle and formatted_after_reshuffle directly, because they are
-    # '_InvalidUnpickledPCollection' objects and are not iterable.
-    assert_that(formatted_before_reshuffle, equal_to(expected_data), label="formatted_before_reshuffle")
-    assert_that(formatted_after_reshuffle, equal_to(expected_data), label="formatted_after_reshuffle")
+    # Can't compare formatted_before_reshuffle and formatted_after_reshuffle directly,
+    # because they are deferred PCollections while equal_to only takes a concrete
+    # argument.
+    assert_that(formatted_before_reshuffle, equal_to(expected_data),
+                label="formatted_before_reshuffle")
+    assert_that(formatted_after_reshuffle, equal_to(expected_data),
+                label="formatted_after_reshuffle")
 
     pipeline.run()
 
