@@ -355,7 +355,7 @@ class _TestStream(PTransform):
     if not events:
       return []
 
-    return (self._set_up(output_tags) + events + self._tear_down(output_tags))
+    return self._set_up(output_tags) + events + self._tear_down(output_tags)
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())

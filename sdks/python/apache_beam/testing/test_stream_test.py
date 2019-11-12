@@ -192,14 +192,14 @@ class TestStreamTest(unittest.TestCase):
 
     expected_letters = {
         window.IntervalWindow(0, 15): [
-          ('k', ['a', 'b', 'c']),
-          ('k', []),
+            ('k', ['a', 'b', 'c']),
+            ('k', []),
         ],
     }
     expected_numbers = {
         window.IntervalWindow(15, 30): [
-          ('k', ['1', '2', '3']),
-          ('k', []),
+            ('k', ['1', '2', '3']),
+            ('k', []),
         ],
     }
     assert_that(
