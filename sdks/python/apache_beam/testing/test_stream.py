@@ -31,6 +31,8 @@ from future.utils import with_metaclass
 from apache_beam import coders
 from apache_beam import core
 from apache_beam import pvalue
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
@@ -66,6 +68,28 @@ class Event(with_metaclass(ABCMeta, object)):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
+  @abstractmethod
+  def to_runner_api(self, element_coder):
+    raise NotImplementedError
+
+  @staticmethod
+  def from_runner_api(proto, element_coder):
+    if proto.HasField('element_event'):
+      return ElementEvent(
+          [TimestampedValue(
+              element_coder.decode(tv.encoded_element),
+              timestamp.Timestamp(micros=1000 * tv.timestamp))
+           for tv in proto.element_event.elements])
+    elif proto.HasField('watermark_event'):
+      return WatermarkEvent(timestamp.Timestamp(
+          micros=1000 * proto.watermark_event.new_watermark))
+    elif proto.HasField('processing_time_event'):
+      return ProcessingTimeEvent(timestamp.Duration(
+          micros=1000 * proto.processing_time_event.advance_duration))
+    else:
+      raise ValueError(
+          'Unknown TestStream Event type: %s' % proto.WhichOneof('event'))
+
 
 class ElementEvent(Event):
   """Element-producing test stream event."""
@@ -81,6 +105,15 @@ class ElementEvent(Event):
 
   def __lt__(self, other):
     return self.timestamped_values < other.timestamped_values
+
+  def to_runner_api(self, element_coder):
+    return beam_runner_api_pb2.TestStreamPayload.Event(
+        element_event=beam_runner_api_pb2.TestStreamPayload.Event.AddElements(
+            elements=[
+                beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
+                    encoded_element=element_coder.encode(tv.value),
+                    timestamp=tv.timestamp.micros // 1000)
+                for tv in self.timestamped_values]))
 
 
 class WatermarkEvent(Event):
@@ -98,6 +131,11 @@ class WatermarkEvent(Event):
   def __lt__(self, other):
     return self.new_watermark < other.new_watermark
 
+  def to_runner_api(self, unused_element_coder):
+    return beam_runner_api_pb2.TestStreamPayload.Event(
+        watermark_event
+        =beam_runner_api_pb2.TestStreamPayload.Event.AdvanceWatermark(
+            new_watermark=self.new_watermark.micros // 1000))
 
 class ProcessingTimeEvent(Event):
   """Processing time-advancing test stream event."""
@@ -114,6 +152,12 @@ class ProcessingTimeEvent(Event):
   def __lt__(self, other):
     return self.advance_by < other.advance_by
 
+  def to_runner_api(self, unused_element_coder):
+    return beam_runner_api_pb2.TestStreamPayload.Event(
+        processing_time_event
+        =beam_runner_api_pb2.TestStreamPayload.Event.AdvanceProcessingTime(
+            advance_duration=self.advance_by.micros // 1000))
+
 
 class TestStream(PTransform):
   """Test stream that generates events on an unbounded PCollection of elements.
@@ -123,11 +167,12 @@ class TestStream(PTransform):
   output.
   """
 
-  def __init__(self, coder=coders.FastPrimitivesCoder()):
+  def __init__(self, coder=coders.FastPrimitivesCoder(), events=()):
+    super(TestStream, self).__init__()
     assert coder is not None
     self.coder = coder
     self.current_watermark = timestamp.MIN_TIMESTAMP
-    self.events = []
+    self.events = list(events)
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -206,3 +251,19 @@ class TestStream(PTransform):
     """
     self._add(ProcessingTimeEvent(advance_by))
     return self
+
+  def to_runner_api_parameter(self, context):
+    return (
+        common_urns.primitives.TEST_STREAM.urn,
+        beam_runner_api_pb2.TestStreamPayload(
+            coder_id=context.coders.get_id(self.coder),
+            events=[e.to_runner_api(self.coder) for e in self.events]))
+
+  @PTransform.register_urn(
+      common_urns.primitives.TEST_STREAM.urn,
+      beam_runner_api_pb2.TestStreamPayload)
+  def from_runner_api_parameter(payload, context):
+    coder = context.coders.get_by_id(payload.coder_id)
+    return TestStream(
+        coder=coder,
+        events=[Event.from_runner_api(e, coder) for e in payload.events])
