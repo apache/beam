@@ -79,3 +79,22 @@ task flinkCompatibilityMatrixLoopback() {
 task flinkValidatesRunner() {
   dependsOn 'flinkCompatibilityMatrixLoopback'
 }
+
+// TODO(BEAM-8598): Enable on pre-commit.
+task flinkTriggerTranscript() {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', """
+          . ${envdir}/bin/activate \\
+          && cd ${pythonRootDir} \\
+          && pip install -e .[test] \\
+          && python setup.py nosetests \\
+              --tests apache_beam.transforms.trigger_test:WeakTestStreamTranscriptTest \\
+              --test-pipeline-options='--runner=FlinkRunner --environment_type=LOOPBACK --flink_job_server_jar=${project(":runners:flink:1.9:job-server:").shadowJar.archivePath}'
+          """
+    }
+  }
+}
