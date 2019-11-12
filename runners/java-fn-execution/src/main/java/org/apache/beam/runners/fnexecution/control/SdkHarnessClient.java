@@ -146,7 +146,7 @@ public class SdkHarnessClient implements AutoCloseable {
                     "The %s does not have a registered bundle checkpoint handler.",
                     ActiveBundle.class.getSimpleName()));
           },
-          request -> {
+          bundleId -> {
             throw new UnsupportedOperationException(
                 String.format(
                     "The %s does not have a registered bundle finalization handler.",
@@ -313,7 +313,7 @@ public class SdkHarnessClient implements AutoCloseable {
             checkpointHandler.onCheckpoint(completedResponse);
           }
           if (completedResponse.getRequiresFinalization()) {
-            finalizationHandler.requestsFinalization(completedResponse);
+            finalizationHandler.requestsFinalization(bundleId);
           }
         } else {
           // TODO: [BEAM-3962] Handle aborting the bundle being processed.

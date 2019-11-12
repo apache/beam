@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
-
 /**
  * A handler for the runner when a finalization request has been received.
  *
@@ -29,5 +27,12 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
  * details.
  */
 public interface BundleFinalizationHandler {
-  void requestsFinalization(ProcessBundleResponse response);
+  /**
+   * This callback is invoked whenever an inflight bundle that is being processed requests
+   * finalization.
+   *
+   * <p>The runner is responsible for invoking bundle finalization when the output of the bundle has
+   * been durably persisted.
+   */
+  void requestsFinalization(String bundleId);
 }
