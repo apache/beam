@@ -107,7 +107,7 @@ func Convert(v interface{}, to reflect.Type) interface{} {
 
 	case typex.IsList(from) && typex.IsList(to):
 		// Convert []A to []B.
-		return cvtSlice(v, to.Elem())
+		return cvtSlice(v, to)
 
 	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
 		// Convert []typex.T to the underlying type []T.
@@ -118,7 +118,8 @@ func Convert(v interface{}, to reflect.Type) interface{} {
 		if value.Len() == 0 {
 			return v
 		}
-		return cvtSlice(v, reflectx.UnderlyingType(value.Index(0)).Type())
+		toE := reflectx.UnderlyingType(value.Index(0)).Type()
+		return cvtSlice(v, reflect.SliceOf(toE))
 
 	default:
 		// Arguably this should be:
@@ -176,12 +177,12 @@ func universal(v interface{}) interface{} {
 	return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
 }
 
-// cvtSlice converts the input slice to a slice with element type toE.
-func cvtSlice(v interface{}, toE reflect.Type) interface{} {
+// cvtSlice converts the input slice to a slice of type `to`.
+func cvtSlice(v interface{}, to reflect.Type) interface{} {
+	ret := reflect.New(to).Elem()
 	value := reflect.ValueOf(v)
-	ret := reflect.New(reflect.SliceOf(toE)).Elem()
 	for i := 0; i < value.Len(); i++ {
-		ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), toE)))
+		ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), to.Elem())))
 	}
 	return ret.Interface()
 }
