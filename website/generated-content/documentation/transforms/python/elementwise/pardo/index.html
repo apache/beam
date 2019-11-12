@@ -550,7 +550,7 @@ which stores the <code class="highlighter-rouge">delimiter</code> as an object f
 The <code class="highlighter-rouge">process</code> method is called once per element,
 and it can yield zero or more output elements.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">SplitWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s">','</span><span class="p">):</span>
@@ -570,18 +570,16 @@ and it can yield zero or more output elements.</p>
       <span class="o">|</span> <span class="s">'Split words'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">SplitWords</span><span class="p">(</span><span class="s">','</span><span class="p">))</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ParDo</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
 🥔Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -654,7 +652,7 @@ binds the window information as the appropriate
 object.</li>
 </ul>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">AnalyzeElement</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
@@ -682,12 +680,11 @@ object.</li>
       <span class="o">|</span> <span class="s">'Analyze element'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">AnalyzeElement</span><span class="p">())</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip"><code class="highlighter-rouge">stdout</code> output:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code># timestamp
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code># timestamp
 type(timestamp) -&gt; &lt;class 'apache_beam.utils.timestamp.Timestamp'&gt;
 timestamp.micros -&gt; 1584675660000000
 timestamp.to_rfc3339() -&gt; '2020-03-20T03:41:00Z'
@@ -698,8 +695,7 @@ type(window) -&gt; &lt;class 'apache_beam.transforms.window.IntervalWindow'&gt;
 window.start -&gt; Timestamp(1584675660) (2020-03-20 03:41:00)
 window.end -&gt; Timestamp(1584675690) (2020-03-20 03:41:30)
 window.max_timestamp() -&gt; Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -810,7 +806,7 @@ For example, if the worker crashes, <code class="highlighter-rouge">teardown</co
   </li>
 </ul>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">DoFnMethods</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -844,12 +840,11 @@ For example, if the worker crashes, <code class="highlighter-rouge">teardown</co
       <span class="o">|</span> <span class="s">'DoFn methods'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">DoFnMethods</span><span class="p">())</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip"><code class="highlighter-rouge">stdout</code> output:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>__init__
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>__init__
 setup
 start_bundle
 * process: 🍓
@@ -859,8 +854,7 @@ start_bundle
 * process: 🥔
 * finish_bundle: 🌱🌳🌍
 teardown
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

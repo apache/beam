@@ -394,18 +394,16 @@ automatically under the conditions described below.</li>
 
 <p>Syntax:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CAST(expr AS typename)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CAST(expr AS typename)
+</code></pre></div></div>
 
 <p>Cast syntax is used in a query to indicate that the result type of an
 expression should be converted to some other type.</p>
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CAST(x=1 AS STRING)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CAST(x=1 AS STRING)
+</code></pre></div></div>
 
 <p>This results in <code class="highlighter-rouge">"true"</code> if <code class="highlighter-rouge">x</code> is <code class="highlighter-rouge">1</code>, <code class="highlighter-rouge">"false"</code> for any other non-<code class="highlighter-rouge">NULL</code>
 value, and <code class="highlighter-rouge">NULL</code> if <code class="highlighter-rouge">x</code> is <code class="highlighter-rouge">NULL</code>.</p>

@@ -348,19 +348,18 @@ This parser is simply initialized with this schema and the list of fields you wa
 <p>Apache License 2.0</p>
 
 <h3 id="download">Download</h3>
-<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;dependency&gt;
   &lt;groupId&gt;nl.basjes.parse.httpdlog&lt;/groupId&gt;
   &lt;artifactId&gt;httpdlog-parser&lt;/artifactId&gt;
   &lt;version&gt;5.0&lt;/version&gt;
 &lt;/dependency&gt;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="code-example">Code example</h3>
 
 <p>Assuming a WebEvent class that has a the setters setIP, setQueryImg and setQueryStringValues</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;WebEvent&gt; filledWebEvents = input
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PCollection&lt;WebEvent&gt; filledWebEvents = input
   .apply("Extract Elements from logline",
     ParDo.of(new DoFn&lt;String, WebEvent&gt;() {
       private Parser&lt;WebEvent&gt; parser;
@@ -380,8 +379,7 @@ This parser is simply initialized with this schema and the list of fields you wa
       }
     })
   );
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="analyzing-the-useragent-string">Analyzing the Useragent string</h2>
 
@@ -395,16 +393,15 @@ This parser is simply initialized with this schema and the list of fields you wa
 <p>Apache License 2.0</p>
 
 <h3 id="download-1">Download</h3>
-<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;dependency&gt;
   &lt;groupId&gt;nl.basjes.parse.useragent&lt;/groupId&gt;
   &lt;artifactId&gt;yauaa-beam&lt;/artifactId&gt;
   &lt;version&gt;4.2&lt;/version&gt;
 &lt;/dependency&gt;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="code-example-1">Code example</h3>
-<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;WebEvent&gt; filledWebEvents = input
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PCollection&lt;WebEvent&gt; filledWebEvents = input
     .apply("Extract Elements from Useragent",
       ParDo.of(new UserAgentAnalysisDoFn&lt;WebEvent&gt;() {
         @Override
@@ -422,8 +419,7 @@ This parser is simply initialized with this schema and the list of fields you wa
           record.agentNameVersion = value;
         }
     }));
-</code></pre>
-</div>
+</code></pre></div></div>
 
 
       </div>

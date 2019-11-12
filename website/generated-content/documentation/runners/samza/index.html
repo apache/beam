@@ -252,7 +252,7 @@ limitations under the License.
 <h3 id="specify-your-dependency">Specify your dependency</h3>
 
 <p><span class="language-java">You can specify your dependency on the Samza Runner by adding the following to your <code class="highlighter-rouge">pom.xml</code>:</span></p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">samza</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.16</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
@@ -293,31 +293,28 @@ limitations under the License.
   <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
     
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="executing-a-pipeline-with-samza-runner">Executing a pipeline with Samza Runner</h2>
 
 <p>If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Psamza-runner \
     -Dexec.args="--runner=SamzaRunner \
       --inputFile=/path/to/input \
       --output=/path/to/counts"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>To deploy your pipeline to a YARN cluster, here is the <a href="https://samza.apache.org/startup/hello-samza/latest/">instructions</a> of deploying a sample Samza job. First you need to package your application jars and resource files into a <code class="highlighter-rouge">.tgz</code> archive file, and make it available to download for Yarn containers. In your config, you need to specify the URI of this TGZ file location:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>yarn.package.path=${your_job_tgz_URI}
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>yarn.package.path=${your_job_tgz_URI}
 
 job.name=${your_job_name}
 job.factory.class=org.apache.samza.job.yarn.YarnJobFactory
 job.coordinator.system=${job_coordinator_system}
 job.default.system=${job_default_system}
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>For more details on the configuration, see <a href="https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html">Samza Configuration Reference</a>.</p>
 

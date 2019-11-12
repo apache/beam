@@ -552,7 +552,7 @@ where each of the output <code class="highlighter-rouge">iterable</code>’s ele
 <p>We use the function <code class="highlighter-rouge">str.split</code> which takes a single <code class="highlighter-rouge">str</code> element and outputs a <code class="highlighter-rouge">list</code> of <code class="highlighter-rouge">str</code>s.
 This pipeline splits the input element using whitespaces, creating a list of zero or more elements.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
@@ -564,18 +564,16 @@ This pipeline splits the input element using whitespaces, creating a list of zer
       <span class="o">|</span> <span class="s">'Split words'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">split</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
 🥔Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -637,7 +635,7 @@ limitations under the License.
 
 <p>We define a function <code class="highlighter-rouge">split_words</code> which splits an input <code class="highlighter-rouge">str</code> element using the delimiter <code class="highlighter-rouge">','</code> and outputs a <code class="highlighter-rouge">list</code> of <code class="highlighter-rouge">str</code>s.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">def</span> <span class="nf">split_words</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
   <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">','</span><span class="p">)</span>
@@ -652,18 +650,16 @@ limitations under the License.
       <span class="o">|</span> <span class="s">'Split words'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">split_words</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
 🥔Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -727,7 +723,7 @@ limitations under the License.
 Each input element is already an <code class="highlighter-rouge">iterable</code>, where each element is what we want in the resulting <code class="highlighter-rouge">PCollection</code>.
 We use a lambda function that returns the same input element it received.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
@@ -739,18 +735,16 @@ We use a lambda function that returns the same input element it received.</p>
       <span class="o">|</span> <span class="s">'Flatten lists'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elements</span><span class="p">:</span> <span class="n">elements</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
 🥔Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -814,7 +808,7 @@ limitations under the License.
 We use a generator to iterate over the input list and yield each of the elements.
 Each yielded result in the generator is an element in the resulting <code class="highlighter-rouge">PCollection</code>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">def</span> <span class="nf">generate_elements</span><span class="p">(</span><span class="n">elements</span><span class="p">):</span>
   <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">:</span>
@@ -830,18 +824,16 @@ Each yielded result in the generator is an element in the resulting <code class=
       <span class="o">|</span> <span class="s">'Flatten lists'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">generate_elements</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
 🥔Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -904,7 +896,7 @@ limitations under the License.
 <p>If your <code class="highlighter-rouge">PCollection</code> consists of <code class="highlighter-rouge">(key, value)</code> pairs,
 you can use <code class="highlighter-rouge">FlatMapTuple</code> to unpack them into different function arguments.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">def</span> <span class="nf">format_plant</span><span class="p">(</span><span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">):</span>
   <span class="k">if</span> <span class="n">icon</span><span class="p">:</span>
@@ -924,18 +916,16 @@ you can use <code class="highlighter-rouge">FlatMapTuple</code> to unpack them i
       <span class="o">|</span> <span class="s">'Format'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMapTuple</span><span class="p">(</span><span class="n">format_plant</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMapTuple</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
 🥔Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1000,7 +990,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 <p>In this example, <code class="highlighter-rouge">split_words</code> takes <code class="highlighter-rouge">text</code> and <code class="highlighter-rouge">delimiter</code> as arguments.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">def</span> <span class="nf">split_words</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
   <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">delimiter</span><span class="p">)</span>
@@ -1015,18 +1005,16 @@ They are passed as additional positional arguments or keyword arguments to the f
       <span class="o">|</span> <span class="s">'Split words'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">split_words</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s">','</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
 🥔Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1092,7 +1080,7 @@ passing the <code class="highlighter-rouge">PCollection</code> as a <em>singleto
 <p>In this example, we pass a <code class="highlighter-rouge">PCollection</code> the value <code class="highlighter-rouge">','</code> as a singleton.
 We then use that value as the delimiter for the <code class="highlighter-rouge">str.split</code> method.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">delimiter</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Create delimiter'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">','</span><span class="p">])</span>
@@ -1109,18 +1097,16 @@ We then use that value as the delimiter for the <code class="highlighter-rouge">
       <span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
 🥔Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1184,7 +1170,7 @@ limitations under the License.
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large <code class="highlighter-rouge">PCollection</code>s that won’t fit into memory.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">def</span> <span class="nf">normalize_and_validate_durations</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">valid_durations</span><span class="p">):</span>
   <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">=</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
@@ -1213,17 +1199,15 @@ so it is possible to iterate over large <code class="highlighter-rouge">PCollect
       <span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍓',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Strawberry',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🥕',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Carrot',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'biennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍆',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Eggplant',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍅',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Tomato',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'annual'</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1293,7 +1277,7 @@ Each element must be a <code class="highlighter-rouge">(key, value)</code> pair.
 Note that all the elements of the <code class="highlighter-rouge">PCollection</code> must fit into memory for this.
 If the <code class="highlighter-rouge">PCollection</code> won’t fit into memory, use <code class="highlighter-rouge">beam.pvalue.AsIter(pcollection)</code> instead.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">def</span> <span class="nf">replace_duration_if_valid</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">durations</span><span class="p">):</span>
   <span class="k">if</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="ow">in</span> <span class="n">durations</span><span class="p">:</span>
@@ -1322,17 +1306,15 @@ If the <code class="highlighter-rouge">PCollection</code> won’t fit into memor
       <span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">FlatMap</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍓',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Strawberry',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🥕',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Carrot',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'biennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍆',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Eggplant',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍅',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Tomato',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'annual'</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

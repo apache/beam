@@ -385,7 +385,7 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
 
 <p>After reading the score events from the input file, the pipeline groups all of those user/score pairs together and sums the score values into one total value per unique user. <code class="highlighter-rouge">UserScore</code> encapsulates the core logic for that step as the <a href="/documentation/programming-guide/#composite-transforms">user-defined composite transform</a> <code class="highlighter-rouge">ExtractAndSumScore</code>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ExtractAndSumScore</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ExtractAndSumScore</span>
     <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
 
   <span class="kd">private</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">field</span><span class="o">;</span>
@@ -405,9 +405,8 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">integersPerKey</span><span class="o">());</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ExtractAndSumScore</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ExtractAndSumScore</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="s">"""A transform to extract key/score information and sum the scores.
   The constructor argument `field` determines whether 'team' or 'user' info is
   extracted.
@@ -422,14 +421,13 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
     <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
             <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="p">(</span><span class="n">elem</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field</span><span class="p">],</span> <span class="n">elem</span><span class="p">[</span><span class="s">'score'</span><span class="p">]))</span>
             <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">ExtractAndSumScore</code> is written to be more general, in that you can pass in the field by which you want to group the data (in the case of our game, by unique user or unique team). This means we can re-use <code class="highlighter-rouge">ExtractAndSumScore</code> in other pipelines that group score data by team, for example.</p>
 
 <p>Here’s the main method of <code class="highlighter-rouge">UserScore</code>, showing how we apply all three steps of the pipeline:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
   <span class="c1">// Begin constructing a pipeline configured by commandline flags.</span>
   <span class="n">Options</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">Options</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
   <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
@@ -446,9 +444,8 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
   <span class="c1">// Run the batch pipeline.</span>
   <span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">save_main_session</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">save_main_session</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
   <span class="s">"""Main entry point; defines and runs the user_score pipeline."""</span>
   <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
 
@@ -481,8 +478,7 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
      <span class="o">|</span> <span class="s">'UserScore'</span> <span class="o">&gt;&gt;</span> <span class="n">UserScore</span><span class="p">()</span>
      <span class="o">|</span> <span class="s">'FormatUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">format_user_score_sums</span><span class="p">)</span>
      <span class="o">|</span> <span class="s">'WriteUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="limitations">Limitations</h3>
 
@@ -559,23 +555,21 @@ logical windows based on when those scores occurred in event time.</em></p>
 
 <p>The following code shows this:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Add an element timestamp based on the event log, and apply fixed windowing.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Add an element timestamp based on the event log, and apply fixed windowing.</span>
 <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="s">"AddEventTimestamps"</span><span class="o">,</span>
     <span class="n">WithTimestamps</span><span class="o">.</span><span class="na">of</span><span class="o">((</span><span class="n">GameActionInfo</span> <span class="n">i</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">i</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">())))</span>
 <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="s">"FixedWindowsTeam"</span><span class="o">,</span>
     <span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getWindowDuration</span><span class="o">()))))</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Add an element timestamp based on the event log, and apply fixed</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Add an element timestamp based on the event log, and apply fixed</span>
 <span class="c"># windowing.</span>
 <span class="o">|</span> <span class="s">'AddEventTimestamps'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]))</span>
 <span class="o">|</span> <span class="s">'FixedWindowsTeam'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
     <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_duration_in_seconds</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Notice that the transforms the pipeline uses to specify the windowing are distinct from the actual data processing transforms (such as <code class="highlighter-rouge">ExtractAndSumScores</code>). This functionality provides you some flexibility in designing your Beam pipeline, in that you can run existing transforms over datasets with different windowing characteristics.</p>
 
@@ -589,7 +583,7 @@ logical windows based on when those scores occurred in event time.</em></p>
 
 <p>The following code shows how <code class="highlighter-rouge">HourlyTeamScore</code> uses the <code class="highlighter-rouge">Filter</code> transform to filter events that occur either before or after the relevant analysis period:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="s">"FilterStartTime"</span><span class="o">,</span>
     <span class="n">Filter</span><span class="o">.</span><span class="na">by</span><span class="o">(</span>
         <span class="o">(</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">()</span> <span class="o">&gt;</span> <span class="n">startMinTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">()))</span>
@@ -597,20 +591,18 @@ logical windows based on when those scores occurred in event time.</em></p>
     <span class="s">"FilterEndTime"</span><span class="o">,</span>
     <span class="n">Filter</span><span class="o">.</span><span class="na">by</span><span class="o">(</span>
         <span class="o">(</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">()</span> <span class="o">&lt;</span> <span class="n">stopMinTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">()))</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="s">'FilterStartTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">|</span> <span class="s">'FilterStartTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span><span class="p">)</span>
 <span class="o">|</span> <span class="s">'FilterEndTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="calculating-score-per-team-per-window">Calculating Score Per Team, Per Window</h4>
 
 <p><code class="highlighter-rouge">HourlyTeamScore</code> uses the same <code class="highlighter-rouge">ExtractAndSumScores</code> transform as the <code class="highlighter-rouge">UserScore</code> pipeline, but passes a different key (team, as opposed to user). Also, because the pipeline applies <code class="highlighter-rouge">ExtractAndSumScores</code> <em>after</em> applying fixed-time 1-hour windowing to the input data, the data gets grouped by both team <em>and</em> window. You can see the full sequence of transforms in <code class="highlighter-rouge">HourlyTeamScore</code>’s main method:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
   <span class="c1">// Begin constructing a pipeline configured by commandline flags.</span>
   <span class="n">Options</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">Options</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
   <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
@@ -659,9 +651,8 @@ logical windows based on when those scores occurred in event time.</em></p>
 
   <span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">HourlyTeamScore</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">HourlyTeamScore</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_min</span><span class="p">,</span> <span class="n">stop_min</span><span class="p">,</span> <span class="n">window_duration</span><span class="p">):</span>
     <span class="c"># TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.</span>
     <span class="c"># super(HourlyTeamScore, self).__init__()</span>
@@ -768,8 +759,7 @@ logical windows based on when those scores occurred in event time.</em></p>
              <span class="s">'total_score'</span><span class="p">:</span> <span class="s">'INTEGER'</span><span class="p">,</span>
              <span class="s">'window_start'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
          <span class="p">},</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="limitations-1">Limitations</h3>
 
@@ -830,7 +820,7 @@ ten minutes after data is received.</em></p>
 
 <p>The following code example shows how <code class="highlighter-rouge">LeaderBoard</code> sets the processing time trigger to output the data for user scores:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
  * Extract user/score pairs from the event stream using processing time, via global windowing. Get
  * periodic updates on all users' running scores.
  */</span>
@@ -859,9 +849,8 @@ ten minutes after data is received.</em></p>
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractUserScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"user"</span><span class="o">));</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateUserScores</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateUserScores</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="s">"""Extract user/score pairs from the event stream using processing time, via
   global windowing. Get periodic updates on all users' running scores.
   """</span>
@@ -884,8 +873,7 @@ ten minutes after data is received.</em></p>
             <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">)</span>
         <span class="c"># Extract and sum username/score pairs from the event data.</span>
         <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'user'</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">LeaderBoard</code> sets the <a href="/documentation/programming-guide/#window-accumulation-modes">window accumulation mode</a> to accumulate window panes as the trigger fires. This accumulation mode is set by <span class="language-java">invoking <code class="highlighter-rouge">.accumulatingFiredPanes</code></span> <span class="language-py">using <code class="highlighter-rouge">accumulation_mode=trigger.AccumulationMode.ACCUMULATING</code></span> when setting the trigger, and causes the pipeline to accumulate the previously emitted data together with any new data that’s arrived since the last trigger fire. This ensures that <code class="highlighter-rouge">LeaderBoard</code> is a running sum for the user scores, rather than a collection of individual sums.</p>
 
@@ -913,7 +901,7 @@ late results.</em></p>
 
 <p>The following code example shows how <code class="highlighter-rouge">LeaderBoard</code> applies fixed-time windowing with the appropriate triggers to have our pipeline perform the calculations we want:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Extract team/score pairs from the event stream, using hour-long windows by default.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Extract team/score pairs from the event stream, using hour-long windows by default.</span>
 <span class="nd">@VisibleForTesting</span>
 <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CalculateTeamScores</span>
     <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
@@ -947,9 +935,8 @@ late results.</em></p>
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractTeamScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"team"</span><span class="o">));</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateTeamScores</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateTeamScores</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="s">"""Calculates scores for each team within the configured window duration.
 
   Extract team/score pairs from the event stream, using hour-long windows by
@@ -977,8 +964,7 @@ late results.</em></p>
             <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">)</span>
         <span class="c"># Extract and sum teamname/score pairs from the event data.</span>
         <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'team'</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Taken together, these processing strategies let us address the latency and completeness issues present in the <code class="highlighter-rouge">UserScore</code> and <code class="highlighter-rouge">HourlyTeamScore</code> pipelines, while still using the same basic transforms to process the data—as a matter of fact, both calculations still use the same <code class="highlighter-rouge">ExtractAndSumScore</code> transform that we used in both the <code class="highlighter-rouge">UserScore</code> and <code class="highlighter-rouge">HourlyTeamScore</code> pipelines.</p>
 
@@ -1017,7 +1003,7 @@ late results.</em></p>
 
 <p>The following code example shows the composite transform that handles abuse detection. The transform uses the <code class="highlighter-rouge">Sum.integersPerKey</code> transform to sum all scores per user, and then the <code class="highlighter-rouge">Mean.globally</code> transform to determine the average score for all users. Once that’s been calculated (as a <code class="highlighter-rouge">PCollectionView</code> singleton), we can pass it to the filtering <code class="highlighter-rouge">ParDo</code> using <code class="highlighter-rouge">.withSideInputs</code>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CalculateSpammyUsers</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CalculateSpammyUsers</span>
     <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
   <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">Logger</span> <span class="n">LOG</span> <span class="o">=</span> <span class="n">LoggerFactory</span><span class="o">.</span><span class="na">getLogger</span><span class="o">(</span><span class="n">CalculateSpammyUsers</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
   <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">double</span> <span class="n">SCORE_WEIGHT</span> <span class="o">=</span> <span class="mf">2.5</span><span class="o">;</span>
@@ -1065,9 +1051,8 @@ late results.</em></p>
     <span class="k">return</span> <span class="n">filtered</span><span class="o">;</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateSpammyUsers</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateSpammyUsers</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="s">"""Filter out all but those users with a high clickrate, which we will
   consider as 'spammy' uesrs.
 
@@ -1099,12 +1084,11 @@ late results.</em></p>
                 <span class="n">key_score</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">global_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">SCORE_WEIGHT</span><span class="p">,</span>
             <span class="n">global_mean_score</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">filtered</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The abuse-detection transform generates a view of users supected to be spambots. Later in the pipeline, we use that view to filter out any such users when we calculate the team score per hour, again by using the side input mechanism. The following code example shows where we insert the spam filter, between windowing the scores into fixed windows and extracting the team scores:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Calculate the total score per team over fixed windows,</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Calculate the total score per team over fixed windows,</span>
 <span class="c1">// and emit cumulative updates for late data. Uses the side input derived above-- the set of</span>
 <span class="c1">// suspected robots-- to filter out scores from those users from the sum.</span>
 <span class="c1">// Write the results to BigQuery.</span>
@@ -1129,9 +1113,8 @@ late results.</em></p>
             <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">spammersView</span><span class="o">))</span>
     <span class="c1">// Extract and sum teamname/score pairs from the event data.</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractTeamScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"team"</span><span class="o">))</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Calculate the total score per team over fixed windows, and emit cumulative</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Calculate the total score per team over fixed windows, and emit cumulative</span>
 <span class="c"># updates for late data. Uses the side input derived above --the set of</span>
 <span class="c"># suspected robots-- to filter out scores from those users from the sum.</span>
 <span class="c"># Write the results to BigQuery.</span>
@@ -1145,8 +1128,7 @@ late results.</em></p>
      <span class="n">spammers_view</span><span class="p">)</span>
  <span class="c"># Extract and sum teamname/score pairs from the event data.</span>
  <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'team'</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="analyzing-usage-patterns">Analyzing Usage Patterns</h4>
 
@@ -1164,7 +1146,7 @@ between instances are.</em></p>
 
 <p>We can use the session-windowed data to determine the average length of uninterrupted play time for all of our users, as well as the total score they achieve during each session. We can do this in the code by first applying session windows, summing the score per user and session, and then using a transform to calculate the length of each individual session:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Detect user sessions-- that is, a burst of activity separated by a gap from further</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Detect user sessions-- that is, a burst of activity separated by a gap from further</span>
 <span class="c1">// activity. Find and record the mean session lengths.</span>
 <span class="c1">// This information could help the game designers track the changing user engagement</span>
 <span class="c1">// as their set of games changes.</span>
@@ -1179,9 +1161,8 @@ between instances are.</em></p>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Combine</span><span class="o">.</span><span class="na">perKey</span><span class="o">(</span><span class="n">x</span> <span class="o">-&gt;</span> <span class="mi">0</span><span class="o">))</span>
     <span class="c1">// Get the duration per session.</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"UserSessionActivity"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">UserSessionInfoFn</span><span class="o">()))</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Detect user sessions-- that is, a burst of activity separated by a gap</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Detect user sessions-- that is, a burst of activity separated by a gap</span>
 <span class="c"># from further activity. Find and record the mean session lengths.</span>
 <span class="c"># This information could help the game designers track the changing user</span>
 <span class="c"># engagement as their set of game changes.</span>
@@ -1197,12 +1178,11 @@ between instances are.</em></p>
 
  <span class="c"># Get the duration of the session</span>
  <span class="o">|</span> <span class="s">'UserSessionActivity'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">UserSessionActivity</span><span class="p">())</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This gives us a set of user sessions, each with an attached duration. We can then calculate the <em>average</em> session length by re-windowing the data into fixed time windows, and then calculating the average for all sessions that end in each hour:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Re-window to process groups of session sums according to when the sessions complete.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Re-window to process groups of session sums according to when the sessions complete.</span>
 <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="s">"WindowToExtractSessionMean"</span><span class="o">,</span>
     <span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span>
@@ -1217,9 +1197,8 @@ between instances are.</em></p>
         <span class="n">options</span><span class="o">.</span><span class="na">getDataset</span><span class="o">(),</span>
         <span class="n">options</span><span class="o">.</span><span class="na">getGameStatsTablePrefix</span><span class="o">()</span> <span class="o">+</span> <span class="s">"_sessions"</span><span class="o">,</span>
         <span class="n">configureSessionWindowWrite</span><span class="o">()));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Re-window to process groups of session sums according to when the</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Re-window to process groups of session sums according to when the</span>
 <span class="c"># sessions complete</span>
 <span class="o">|</span> <span class="s">'WindowToExtractSessionMean'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
     <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">user_activity_window_duration</span><span class="p">))</span>
@@ -1232,8 +1211,7 @@ between instances are.</em></p>
     <span class="n">args</span><span class="o">.</span><span class="n">table_name</span> <span class="o">+</span> <span class="s">'_sessions'</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
         <span class="s">'mean_duration'</span><span class="p">:</span> <span class="s">'FLOAT'</span><span class="p">,</span>
     <span class="p">},</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>We can use the resulting information to find, for example, what times of day our users are playing the longest, or which stretches of the day are more likely to see shorter play sessions.</p>
 

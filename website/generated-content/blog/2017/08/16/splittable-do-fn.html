@@ -537,7 +537,7 @@ smaller restrictions, and a few others.</p>
 <p>The “Hello World” of SDF is a counter, which takes pairs <em>(x, N)</em> as input and
 produces pairs <em>(x, 0), (x, 1), …, (x, N-1)</em> as output.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">CountFn</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">CountFn</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
   <span class="nd">@ProcessElement</span>
   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">,</span> <span class="n">OffsetRangeTracker</span> <span class="n">tracker</span><span class="o">)</span> <span class="o">{</span>
     <span class="k">for</span> <span class="o">(</span><span class="kt">long</span> <span class="n">i</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="na">currentRestriction</span><span class="o">().</span><span class="na">getFrom</span><span class="o">();</span> <span class="n">tracker</span><span class="o">.</span><span class="na">tryClaim</span><span class="o">(</span><span class="n">i</span><span class="o">);</span> <span class="o">++</span><span class="n">i</span><span class="o">)</span> <span class="o">{</span>
@@ -554,10 +554,9 @@ produces pairs <em>(x, 0), (x, 1), …, (x, N-1)</em> as output.</p>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="err">…</span><span class="o">;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">CountFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CountFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CountFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">tracker</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">RestrictionTrackerParam</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="o">*</span><span class="n">tracker</span><span class="o">.</span><span class="n">current_restriction</span><span class="p">()):</span>
       <span class="k">if</span> <span class="ow">not</span> <span class="n">tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
@@ -566,8 +565,7 @@ produces pairs <em>(x, 0), (x, 1), …, (x, N-1)</em> as output.</p>
         
   <span class="k">def</span> <span class="nf">get_initial_restriction</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">element</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This short <code class="highlighter-rouge">DoFn</code> subsumes the functionality of
 <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/CountingSource.java">CountingSource</a>,
@@ -589,7 +587,7 @@ Long.MAX_VALUE)</code>).</p>
 data from Avro files and illustrates the idea of <em>blocks</em>: we provide pseudocode
 to illustrate the approach.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">ReadFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">AvroRecord</span><span class="o">&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">ReadFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">AvroRecord</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="nd">@ProcessElement</span>
   <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">,</span> <span class="n">OffsetRangeTracker</span> <span class="n">tracker</span><span class="o">)</span> <span class="o">{</span>
     <span class="k">try</span> <span class="o">(</span><span class="n">AvroReader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">Avro</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">filename</span><span class="o">))</span> <span class="o">{</span>
@@ -614,10 +612,9 @@ to illustrate the approach.</p>
     <span class="k">return</span> <span class="k">new</span> <span class="nf">OffsetRange</span><span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="k">new</span> <span class="n">File</span><span class="o">(</span><span class="n">filename</span><span class="o">).</span><span class="na">getSize</span><span class="o">());</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">AvroReader</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">AvroReader</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">tracker</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">RestrictionTrackerParam</span><span class="p">)</span>
     <span class="k">with</span> <span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="nb">file</span><span class="p">:</span>
       <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">current_restriction</span><span class="p">()</span>
@@ -636,8 +633,7 @@ to illustrate the approach.</p>
         
   <span class="k">def</span> <span class="nf">get_initial_restriction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="n">size_in_bytes</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This hypothetical <code class="highlighter-rouge">DoFn</code> reads records from a single Avro file. Notably missing
 is the code for expanding a filepattern: it no longer needs to be part of this

@@ -499,7 +499,7 @@ limitations under the License.
 
 <p>You can use the <code class="highlighter-rouge">ValueProvider</code> interface to pass runtime parameters to your pipeline, but you can only log the parameters from within the the Beam DAG. A solution is to add a pipeline <a href="/documentation/programming-guide/#applying-transforms">branch</a> with a <code class="highlighter-rouge">DoFn</code> that processes a placeholder value and then logs the runtime parameters:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 <span class="cm">/** Sample of PipelineOptions with a ValueProvider option argument. */</span>
 <span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
   <span class="nd">@Description</span><span class="o">(</span><span class="s">"My option"</span><span class="o">)</span>
@@ -541,12 +541,11 @@ limitations under the License.
 <span class="o">}</span>
 
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">logging</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">logging</span>
 
-<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 <span class="kn">from</span> <span class="nn">apache_beam.utils.value_provider</span> <span class="kn">import</span> <span class="n">RuntimeValueProvider</span>
 
@@ -588,8 +587,7 @@ limitations under the License.
 <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
 
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

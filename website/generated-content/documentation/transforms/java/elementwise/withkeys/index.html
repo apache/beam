@@ -502,7 +502,7 @@ compute the key from each value.</li>
 
 <h2 id="examples">Examples</h2>
 <p><strong>Example</strong></p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Hello"</span><span class="o">,</span> <span class="s">"World"</span><span class="o">,</span> <span class="s">"Beam"</span><span class="o">,</span> <span class="s">"is"</span><span class="o">,</span> <span class="s">"fun"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Hello"</span><span class="o">,</span> <span class="s">"World"</span><span class="o">,</span> <span class="s">"Beam"</span><span class="o">,</span> <span class="s">"is"</span><span class="o">,</span> <span class="s">"fun"</span><span class="o">);</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">lengthAndWord</span> <span class="o">=</span>
   <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">WithKeys</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">SerialiazableFunction</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{</span>
     <span class="nd">@Override</span>
@@ -510,8 +510,7 @@ compute the key from each value.</li>
       <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="na">length</span><span class="o">();</span>
     <span class="o">}</span>
   <span class="o">});</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

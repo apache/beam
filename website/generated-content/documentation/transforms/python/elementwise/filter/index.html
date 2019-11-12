@@ -548,7 +548,7 @@ Then, we apply <code class="highlighter-rouge">Filter</code> in multiple ways to
 
 <p>We define a function <code class="highlighter-rouge">is_perennial</code> which returns <code class="highlighter-rouge">True</code> if the element’s duration equals <code class="highlighter-rouge">'perennial'</code>, and <code class="highlighter-rouge">False</code> otherwise.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">def</span> <span class="nf">is_perennial</span><span class="p">(</span><span class="n">plant</span><span class="p">):</span>
   <span class="k">return</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">==</span> <span class="s">'perennial'</span>
@@ -566,16 +566,14 @@ Then, we apply <code class="highlighter-rouge">Filter</code> in multiple ways to
       <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="n">is_perennial</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍓',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Strawberry',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍆',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Eggplant',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🥔',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Potato',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -637,7 +635,7 @@ limitations under the License.
 
 <p>We can also use lambda functions to simplify <strong>Example 1</strong>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">perennials</span> <span class="o">=</span> <span class="p">(</span>
@@ -653,16 +651,14 @@ limitations under the License.
           <span class="k">lambda</span> <span class="n">plant</span><span class="p">:</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">==</span> <span class="s">'perennial'</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍓',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Strawberry',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍆',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Eggplant',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🥔',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Potato',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -727,7 +723,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 <p>In this example, <code class="highlighter-rouge">has_duration</code> takes <code class="highlighter-rouge">plant</code> and <code class="highlighter-rouge">duration</code> as arguments.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">def</span> <span class="nf">has_duration</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">duration</span><span class="p">):</span>
   <span class="k">return</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">==</span> <span class="n">duration</span>
@@ -745,16 +741,14 @@ They are passed as additional positional arguments or keyword arguments to the f
       <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="n">has_duration</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍓',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Strawberry',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍆',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Eggplant',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🥔',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Potato',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -820,7 +814,7 @@ passing the <code class="highlighter-rouge">PCollection</code> as a <em>singleto
 <p>In this example, we pass a <code class="highlighter-rouge">PCollection</code> the value <code class="highlighter-rouge">'perennial'</code> as a singleton.
 We then use that value to filter out perennials.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">perennial</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Perennial'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'perennial'</span><span class="p">])</span>
@@ -840,16 +834,14 @@ We then use that value to filter out perennials.</p>
       <span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍓',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Strawberry',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍆',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Eggplant',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🥔',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Potato',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -913,7 +905,7 @@ limitations under the License.
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large <code class="highlighter-rouge">PCollection</code>s that won’t fit into memory.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">valid_durations</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Valid durations'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
@@ -937,17 +929,15 @@ so it is possible to iterate over large <code class="highlighter-rouge">PCollect
       <span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍓',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Strawberry',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🥕',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Carrot',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'biennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍆',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Eggplant',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍅',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Tomato',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'annual'</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1017,7 +1007,7 @@ Each element must be a <code class="highlighter-rouge">(key, value)</code> pair.
 Note that all the elements of the <code class="highlighter-rouge">PCollection</code> must fit into memory for this.
 If the <code class="highlighter-rouge">PCollection</code> won’t fit into memory, use <code class="highlighter-rouge">beam.pvalue.AsIter(pcollection)</code> instead.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">keep_duration</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Duration filters'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
@@ -1041,16 +1031,14 @@ If the <code class="highlighter-rouge">PCollection</code> won’t fit into memor
       <span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍓',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Strawberry',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🍆',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Eggplant',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span><span class="p">{</span><span class="err">'icon':</span><span class="w"> </span><span class="err">'🥔',</span><span class="w"> </span><span class="err">'name':</span><span class="w"> </span><span class="err">'Potato',</span><span class="w"> </span><span class="err">'duration':</span><span class="w"> </span><span class="err">'perennial'</span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
+{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
+{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

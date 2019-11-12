@@ -250,7 +250,7 @@ limitations under the License.
 
 <p>This interactive notebook shows you what a simple, minimal version of WordCount looks like.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kn">package</span> <span class="n">samples</span><span class="o">.</span><span class="na">quickstart</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">samples</span><span class="o">.</span><span class="na">quickstart</span><span class="o">;</span>
 
 <span class="kn">import</span> <span class="nn">org.apache.beam.sdk.Pipeline</span><span class="o">;</span>
 <span class="kn">import</span> <span class="nn">org.apache.beam.sdk.io.TextIO</span><span class="o">;</span>
@@ -285,8 +285,7 @@ limitations under the License.
     <span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java"><a class="button button--primary" target="_blank" href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/try-apache-beam-java.ipynb">
   Run in Colab
@@ -297,7 +296,7 @@ limitations under the License.
 
 <p class="language-java">To learn how to install and run the Apache Beam Java SDK on your own computer, follow the instructions in the <a href="/get-started/quickstart-java">Java Quickstart</a>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">import</span> <span class="nn">re</span>
 
 <span class="n">inputs_pattern</span> <span class="o">=</span> <span class="s">'data/*'</span>
@@ -313,8 +312,7 @@ limitations under the License.
       <span class="o">|</span> <span class="s">'Format results'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">word_count</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">word_count</span><span class="p">))</span>
       <span class="o">|</span> <span class="s">'Write results'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">outputs_prefix</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-py"><a class="button button--primary" target="_blank" href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/try-apache-beam-py.ipynb">
   Run in Colab
@@ -325,7 +323,7 @@ limitations under the License.
 
 <p class="language-py">To learn how to install and run the Apache Beam Python SDK on your own computer, follow the instructions in the <a href="/get-started/quickstart-py">Python Quickstart</a>.</p>
 
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">package</span><span class="x"> </span><span class="n">main</span><span class="x">
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">package</span><span class="x"> </span><span class="n">main</span><span class="x">
 
 </span><span class="k">import</span><span class="x"> </span><span class="p">(</span><span class="x">
 	</span><span class="s">"context"</span><span class="x">
@@ -370,8 +368,7 @@ limitations under the License.
 
 	</span><span class="n">direct</span><span class="o">.</span><span class="n">Execute</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">Background</span><span class="p">(),</span><span class="x"> </span><span class="n">pipeline</span><span class="p">)</span><span class="x">
 </span><span class="p">}</span><span class="x">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p class="language-go"><a class="button button--primary" target="_blank" href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/try-apache-beam-go.ipynb">
   Run in Colab

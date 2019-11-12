@@ -499,9 +499,8 @@ or running all commands manually.</p>
     <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/preparation_before_release.sh">preparation_before_release.sh</a></p>
   </li>
   <li>Usage
-    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/preparation_before_release.sh
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./beam/release/src/main/scripts/preparation_before_release.sh
+</code></pre></div>    </div>
   </li>
   <li>Tasks included
     <ol>
@@ -525,33 +524,29 @@ or running all commands manually.</p>
   <li>
     <p>Get more entropy for creating a GPG key</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>sudo apt-get install rng-tools
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo apt-get install rng-tools
 sudo rngd -r /dev/urandom
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Create a GPG key</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>gpg --full-generate-key
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gpg --full-generate-key
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Determine your Apache GPG Key and Key ID, as follows:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>gpg --list-keys
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gpg --list-keys
+</code></pre></div>    </div>
 
     <p>This will list your GPG keys. One of these should reflect your Apache account, for example:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>--------------------------------------------------
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--------------------------------------------------
 pub   2048R/845E6689 2016-02-23
 uid                  Nomen Nescio &lt;anonymous@apache.org&gt;
 sub   2048R/BA4D50BE 2016-02-23
-</code></pre>
-    </div>
+</code></pre></div>    </div>
 
     <p>Here, the key ID is the 8-digit hex string in the <code class="highlighter-rouge">pub</code> line: <code class="highlighter-rouge">845E6689</code>.</p>
 
@@ -560,20 +555,18 @@ sub   2048R/BA4D50BE 2016-02-23
   <li>
     <p>Configure <code class="highlighter-rouge">git</code> to use this key when signing code by giving it your key ID, as follows:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>git config --global user.signingkey 845E6689
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git config --global user.signingkey 845E6689
+</code></pre></div>    </div>
 
     <p>You may drop the <code class="highlighter-rouge">--global</code> option if you’d prefer to use this key for the current repository only.</p>
   </li>
   <li>
     <p>Start GPG agent in order to unlock your GPG key</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
 export GPG_TTY=$(tty)
 export GPG_AGENT_INFO
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ul>
 
@@ -589,7 +582,7 @@ export GPG_AGENT_INFO
   <li>
     <p>Insert this snippet twice into your global Maven <code class="highlighter-rouge">settings.xml</code> file, typically <code class="highlighter-rouge">${HOME}/.m2/settings.xml</code>. The end result should look like this, where <code class="highlighter-rouge">TOKEN_NAME</code> and <code class="highlighter-rouge">TOKEN_PASSWORD</code> are your secret tokens:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> &lt;!-- make sure you have the root `settings node: --&gt;
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> &lt;!-- make sure you have the root `settings node: --&gt;
  &lt;settings&gt;
    &lt;servers&gt;
      &lt;server&gt;
@@ -604,8 +597,7 @@ export GPG_AGENT_INFO
      &lt;/server&gt;
    &lt;/servers&gt;
  &lt;/settings&gt; __NOTE__: make sure the XML you end up with matches the structure above.
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ol>
 
@@ -626,13 +618,12 @@ number.</p>
 <p>You should already have setup a local clone of <code class="highlighter-rouge">apache/beam</code>. Setting up a clone
 of <code class="highlighter-rouge">apache/beam-site</code> is similar:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ git clone -b release-docs https://github.com/apache/beam-site.git
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ git clone -b release-docs https://github.com/apache/beam-site.git
 $ cd beam-site
 $ git remote add &lt;GitHub_user&gt; git@github.com:&lt;GitHub_user&gt;/beam-site.git
 $ git fetch --all
 $ git checkout -b &lt;my-branch&gt; origin/release-docs
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Further instructions on website development on <code class="highlighter-rouge">apache/beam</code> is
 <a href="https://github.com/apache/beam/blob/master/website">here</a>. Background
@@ -646,17 +637,15 @@ Automation Reliability</a>.</p>
 <h4 id="login-to-dockerhub">Login to DockerHub</h4>
 <p>Run following command manually. It will ask you to input your DockerHub ID and password if 
 authorization info cannot be found from ~/.docker/config.json file.</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>docker login docker.io
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker login docker.io
+</code></pre></div></div>
 <p>After successful login, authorization info will be stored at ~/.docker/config.json file. For example,</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>"https://index.docker.io/v1/": {
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"https://index.docker.io/v1/": {
    "auth": "aGFubmFoamlhbmc6cmtkdGpmZ2hrMTIxMw=="
 }
-</code></pre>
-</div>
+</code></pre></div></div>
 <p>Release managers should have push permission; please ask for help at dev@.</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>From: Release Manager
 To: dev@beam.apache.org
 Subject: DockerHub Push Permission
 
@@ -667,8 +656,7 @@ My docker hub ID is: xxx
 
 Thanks,
 Release Manager
-</code></pre>
-</div>
+</code></pre></div></div>
 <h3 id="create-a-new-version-in-jira">Create a new version in JIRA</h3>
 
 <p>When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:</p>
@@ -697,15 +685,14 @@ Release Manager
     <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh">cut_release_branch.sh</a></p>
   </li>
   <li>Usage
-    <div class="highlighter-rouge"><pre class="highlight"><code># Cut a release branch
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Cut a release branch
 ./beam/release/src/main/scripts/cut_release_branch.sh \
 --release=${RELEASE_VERSION} \
 --next_release=${NEXT_VERSION}
   
 # Show help page
 ./beam/release/src/main/scripts/cut_release_branch.sh -h
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>The script will:
     <ol>
@@ -735,9 +722,8 @@ Release Manager
 
     <p>Check out the version of the codebase from which you start the release. For a new minor or major release, this may be <code class="highlighter-rouge">HEAD</code> of the <code class="highlighter-rouge">master</code> branch. To build a hotfix/incremental release, instead of the <code class="highlighter-rouge">master</code> branch, use the release tag of the release being patched. (Please make sure your cloned repository is up-to-date before starting.)</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>git checkout &lt;master branch OR release tag&gt;
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git checkout &lt;master branch OR release tag&gt;
+</code></pre></div>    </div>
 
     <p><strong>NOTE</strong>: If you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, rather than the master branch.</p>
   </li>
@@ -746,34 +732,31 @@ Release Manager
 
     <p>Set up a few environment variables to simplify Maven commands that follow. (We use <code class="highlighter-rouge">bash</code> Unix syntax in this guide.)</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>RELEASE=2.5.0
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>RELEASE=2.5.0
 NEXT_VERSION_IN_BASE_BRANCH=2.6.0
 BRANCH=release-${RELEASE}
-</code></pre>
-    </div>
+</code></pre></div>    </div>
 
     <p>Version represents the release currently underway, while next version specifies the anticipated next version to be released from that branch. Normally, 1.2.0 is followed by 1.3.0, while 1.2.3 is followed by 1.2.4.</p>
 
     <p><strong>NOTE</strong>: Only if you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, before running the following instructions:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>BASE_RELEASE=2.5.0
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>BASE_RELEASE=2.5.0
 RELEASE=2.5.1
 NEXT_VERSION_IN_BASE_BRANCH=2.6.0
 git checkout tags/${BASE_RELEASE}
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Create release branch locally</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>git branch ${BRANCH}
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git branch ${BRANCH}
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Update version files in the master branch.</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code># Now change the version in existing gradle files, and Python files
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Now change the version in existing gradle files, and Python files
 sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" build_rules.gradle
 sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
 sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
@@ -781,25 +764,22 @@ sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_bea
 # Save changes in master branch
 git add gradle.properties build_rules.gradle sdks/python/apache_beam/version.py
 git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Check out the release branch.</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>git checkout ${BRANCH}
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git checkout ${BRANCH}
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Update version files in release branch</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>DEV=${RELEASE}.dev
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DEV=${RELEASE}.dev
 sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
 sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
 sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ul>
 
@@ -820,9 +800,8 @@ so builds will be broken until a new snapshot is available.</p>
   <li>
     <p>Usage</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/start_snapshot_build.sh
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./beam/release/src/main/scripts/start_snapshot_build.sh
+</code></pre></div>    </div>
   </li>
   <li>The script will:
     <ol>
@@ -865,9 +844,8 @@ There are 2 ways to perform this verification, either running automation script(
 It’ll be used by the script for accessing Github API.</li>
       <li>Update required configurations listed in <code class="highlighter-rouge">RELEASE_BUILD_CONFIGS</code> in <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a></li>
       <li>Then run
-        <div class="highlighter-rouge"><pre class="highlight"><code>cd beam/release/src/main/scripts &amp;&amp; ./verify_release_build.sh
-</code></pre>
-        </div>
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cd beam/release/src/main/scripts &amp;&amp; ./verify_release_build.sh
+</code></pre></div>        </div>
       </li>
       <li>Trigger <code class="highlighter-rouge">beam_Release_Gradle_Build</code> and all PostCommit Jenkins jobs from PR (which is created by previous step).
 To do so, only add one trigger phrase per comment. See <code class="highlighter-rouge">JOB_TRIGGER_PHRASES</code> in <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh#L43">verify_release_build.sh</a>
@@ -911,30 +889,27 @@ projects you’re interested at the moment, e.g. <code class="highlighter-rouge"
       <li>
         <p>Install pip</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code> curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
  python get-pip.py
-</code></pre>
-        </div>
+</code></pre></div>        </div>
       </li>
       <li>
         <p>Install virtualenv</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code> pip install --upgrade virtualenv
-</code></pre>
-        </div>
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> pip install --upgrade virtualenv
+</code></pre></div>        </div>
       </li>
       <li>
         <p>Cython</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code> sudo pip install cython
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> sudo pip install cython
  sudo apt-get install gcc
  sudo apt-get install python-dev
  sudo apt-get install python3-dev
  sudo apt-get install python3.5-dev
  sudo apt-get install python3.6-dev
  sudo apt-get install python3.7-dev
-</code></pre>
-        </div>
+</code></pre></div>        </div>
       </li>
     </ol>
   </li>
@@ -945,20 +920,17 @@ projects you’re interested at the moment, e.g. <code class="highlighter-rouge"
       <li>
         <p>Clean current workspace</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code> git clean -fdx 
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> git clean -fdx 
  ./gradlew clean
-</code></pre>
-        </div>
+</code></pre></div>        </div>
       </li>
       <li>Unlock the secret key
-        <div class="highlighter-rouge"><pre class="highlight"><code> gpg --output ~/doc.sig --sign ~/.bashrc
-</code></pre>
-        </div>
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> gpg --output ~/doc.sig --sign ~/.bashrc
+</code></pre></div>        </div>
       </li>
       <li>Run build command
-        <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
-</code></pre>
-        </div>
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
+</code></pre></div>        </div>
 
         <p>To speed things up locally you might want to omit <code class="highlighter-rouge">--no-parallel</code>. You can also omit <code class="highlighter-rouge">--continue</code>
 if you want build fails after the first error instead of continuing, it may be easier and faster
@@ -1087,9 +1059,8 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
   <li>
     <p>Usage</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/build_release_candidate.sh
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./beam/release/src/main/scripts/build_release_candidate.sh
+</code></pre></div>    </div>
   </li>
   <li>
     <p>The script will:</p>
@@ -1129,30 +1100,26 @@ When prompted for a description, enter “Apache Beam, version X, release candid
 
 <p>Set up a few environment variables to simplify the commands that follow. These identify the release candidate being built, and the branch where you will stage files. Start with <code class="highlighter-rouge">RC_NUM</code> equal to <code class="highlighter-rouge">1</code> and increment it for each candidate.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>RC_NUM=1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>RC_NUM=1
+</code></pre></div></div>
 
 <p>Make sure your git config will maintain your account:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>git config credential.helper store
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git config credential.helper store
+</code></pre></div></div>
 
 <p>Use Gradle release plugin to build the release artifacts, and push code and
 release tag to the origin repository (this would be the Apache Beam repo):</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
               -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
               -Prelease.useAutomaticVersion=true --info --no-daemon
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Use Gradle publish plugin to stage these artifacts on the Apache Nexus repository, as follows:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew publish -PisRelease --no-parallel --no-daemon
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew publish -PisRelease --no-parallel --no-daemon
+</code></pre></div></div>
 
 <p>Review all staged artifacts. They should contain all relevant parts for each module, including <code class="highlighter-rouge">pom.xml</code>, jar, test jar, javadoc, etc. Artifact names should follow <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">the existing format</a> in which artifact name mirrors directory structure, e.g., <code class="highlighter-rouge">beam-sdks-java-io-kafka</code>. Carefully review any new artifacts.</p>
 
@@ -1168,17 +1135,15 @@ release tag to the origin repository (this would be the Apache Beam repo):</p>
   <li>
     <p>If you have not already, check out the Beam section of the <code class="highlighter-rouge">dev</code> repository on <code class="highlighter-rouge">dist.apache.org</code> via Subversion. In a fresh directory:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> svn co https://dist.apache.org/repos/dist/dev/beam
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> svn co https://dist.apache.org/repos/dist/dev/beam
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Make a directory for the new release:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> mkdir beam/${RELEASE}
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> mkdir beam/${RELEASE}
  cd beam/${RELEASE}
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Download source zip from GitHub:</p>
@@ -1189,18 +1154,16 @@ release tag to the origin repository (this would be the Apache Beam repo):</p>
   <li>
     <p>Create hashes and sign the source distribution:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> gpg --armor --detach-sig apache-beam-${RELEASE}-source-release.zip
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> gpg --armor --detach-sig apache-beam-${RELEASE}-source-release.zip
  sha512sum apache-beam-${RELEASE}-source-release.zip &gt; apache-beam-${RELEASE}-source-release.zip.sha512
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Add and commit all the files.</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> svn add beam/${RELEASE}
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> svn add beam/${RELEASE}
  svn commit
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Verify that files are <a href="https://dist.apache.org/repos/dist/dev/beam">present</a>.</p>
@@ -1211,28 +1174,25 @@ release tag to the origin repository (this would be the Apache Beam repo):</p>
 
 <p>Build python binaries in release branch in sdks/python dir.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>python setup.py sdist --format=zip
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python setup.py sdist --format=zip
 cd dist
 cp apache-beam-${RELEASE}.zip staging/apache-beam-${RELEASE}-python.zip
 cd staging
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Create hashes and sign the binaries</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>gpg --armor --detach-sig apache-beam-${RELEASE}-python.zip
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gpg --armor --detach-sig apache-beam-${RELEASE}-python.zip
 sha512sum apache-beam-${RELEASE}-python.zip &gt; apache-beam-${RELEASE}-python.zip.sha512
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Staging binaries</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>svn co https://dist.apache.org/repos/dist/dev/beam
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>svn co https://dist.apache.org/repos/dist/dev/beam
 cd beam/${RELEASE}
 svn add *
 svn commit
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Verify that files are <a href="https://dist.apache.org/repos/dist/dev/beam">present</a>.</p>
 
@@ -1241,40 +1201,36 @@ svn commit
   <li>Build Python images and push to DockerHub.</li>
 </ul>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 for ver in "${PYTHON_VER[@]}"; do
    docker push apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM} &amp;
 done
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <ul>
   <li>Build Java images and push to DockerHub.</li>
 </ul>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+</code></pre></div></div>
 
 <ul>
   <li>Build Go images and push to DockerHub.</li>
 </ul>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+</code></pre></div></div>
 
 <p>Clean up images from local</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>for ver in "${PYTHON_VER[@]}"; do
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>for ver in "${PYTHON_VER[@]}"; do
    docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM}
 done
 docker rmi -f apachebeam/java_sdk:${RELEASE}_rc{RC_NUM}
 docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>How to find images:</p>
 <ol>
@@ -1325,13 +1281,11 @@ the version number has changed, download a new version of the corresponding
 
 <p>Make sure you have <code class="highlighter-rouge">tox</code> installed:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pip install tox
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install tox
+</code></pre></div></div>
 <p>Create the Python SDK documentation using sphinx by running a helper script.</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>cd sdks/python &amp;&amp; tox -e docs
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cd sdks/python &amp;&amp; tox -e docs
+</code></pre></div></div>
 <p>By default the Pydoc is generated in <code class="highlighter-rouge">sdks/python/target/docs/_build</code>. Let <code class="highlighter-rouge">${PYDOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">_build</code>.</p>
 
 <h3 id="propose-pull-requests-for-website-updates">Propose pull requests for website updates</h3>
@@ -1392,7 +1346,7 @@ all major features and bug fixes, and all known issues.</p>
 
 <p>Template:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>    We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
     See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.&lt;!--more--&gt;
     For more information on changes in {$RELEASE_VERSION}, check out the
     [detailed release notes]({$JIRA_RELEASE_NOTES}).
@@ -1437,8 +1391,7 @@ all major features and bug fixes, and all known issues.</p>
     According to git shortlog, the following people contributed to the 2.XX.0 release. Thank you to all contributors!
 
     ${CONTRIBUTORS}
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</h4>
 
@@ -1457,10 +1410,9 @@ all major features and bug fixes, and all known issues.</p>
   <li><code class="highlighter-rouge">grep</code> for legal headers in each file.</li>
   <li>Run all jenkins suites and include links to passing tests in the voting email. (Select “Run with parameters”)</li>
   <li>Pull docker images to make sure they are pullable.
-    <div class="highlighter-rouge"><pre class="highlight"><code>docker pull {image_name}
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker pull {image_name}
 docker pull apachebeam/python3.5_sdk:2.16.0_rc1
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ol>
 
@@ -1472,7 +1424,7 @@ docker pull apachebeam/python3.5_sdk:2.16.0_rc1
 
 <p>Start the review-and-vote thread on the dev@ mailing list. Here’s an email template; please adjust as you see fit.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>From: Release Manager
 To: dev@beam.apache.org
 Subject: [VOTE] Release 1.2.3, release candidate #3
 
@@ -1508,14 +1460,13 @@ Release Manager
 [8] https://github.com/apache/beam/pull/...
 [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
 [10] https://hub.docker.com/u/apachebeam
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the <code class="highlighter-rouge">Fix Issues</code> step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.</p>
 
 <p>If there are no issues, reply on the vote thread to close the voting. Then, tally the votes in a separate email. Here’s an email template; please adjust as you see fit.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>From: Release Manager
 To: dev@beam.apache.org
 Subject: [RESULT] [VOTE] Release 1.2.3, release candidate #3
 
@@ -1530,8 +1481,7 @@ There are XXX approving votes, XXX of which are binding:
 There are no disapproving votes.
 
 Thanks everyone!
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="run-validation-tests">Run validation tests</h3>
 <p>All tests listed in this <a href="https://s.apache.org/beam-release-validation">spreadsheet</a></p>
@@ -1548,9 +1498,8 @@ Thanks everyone!
       <li>First update required configurations listed in <code class="highlighter-rouge">RC_VALIDATE_CONFIGS</code> in 
 <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a></li>
       <li>Then run
-        <div class="highlighter-rouge"><pre class="highlight"><code> cd beam/release/src/main/scripts &amp;&amp; ./run_rc_validation.sh
-</code></pre>
-        </div>
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> cd beam/release/src/main/scripts &amp;&amp; ./run_rc_validation.sh
+</code></pre></div>        </div>
       </li>
     </ol>
   </li>
@@ -1594,37 +1543,32 @@ Thanks everyone!
     <p>Java Quickstart Validation</p>
 
     <p>Direct Runner:</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:direct-java:runQuickstartJavaDirect \
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:direct-java:runQuickstartJavaDirect \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
-</code></pre>
-    </div>
+</code></pre></div>    </div>
     <p>Apex Local Runner</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:apex:runQuickstartJavaApex \
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:apex:runQuickstartJavaApex \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam${KEY} \
 -Pver=${RELEASE_VERSION}
-</code></pre>
-    </div>
+</code></pre></div>    </div>
     <p>Flink Local Runner</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:flink:1.9:runQuickstartJavaFlinkLocal \
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:flink:1.9:runQuickstartJavaFlinkLocal \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
-</code></pre>
-    </div>
+</code></pre></div>    </div>
     <p>Spark Local Runner</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:spark:runQuickstartJavaSpark \
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:spark:runQuickstartJavaSpark \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
-</code></pre>
-    </div>
+</code></pre></div>    </div>
     <p>Dataflow Runner</p>
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION} \
 -PgcpProject=${YOUR_GCP_PROJECT} \
 -PgcsBucket=${YOUR_GCP_BUCKET}
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Java Mobile Game(UserScore, HourlyTeamScore, Leaderboard)</p>
@@ -1632,14 +1576,12 @@ Thanks everyone!
     <p>Pre-request</p>
     <ul>
       <li>Create your own BigQuery dataset
-        <div class="highlighter-rouge"><pre class="highlight"><code>bq mk --project=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
-</code></pre>
-        </div>
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bq mk --project=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
+</code></pre></div>        </div>
       </li>
       <li>Create yout PubSub topic
-        <div class="highlighter-rouge"><pre class="highlight"><code>gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC} 
-</code></pre>
-        </div>
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC} 
+</code></pre></div>        </div>
       </li>
       <li>
         <p>Setup your service account</p>
@@ -1647,19 +1589,17 @@ Thanks everyone!
         <p>Goto IAM console in your project to create a service account as <code class="highlighter-rouge">project owner</code></p>
 
         <p>Run</p>
-        <div class="highlighter-rouge"><pre class="highlight"><code>gcloud iam service-accounts keys create ${YOUR_KEY_JSON} --iam-account ${YOUR_SERVICE_ACCOUNT_NAME}@${YOUR_PROJECT_NAME}
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud iam service-accounts keys create ${YOUR_KEY_JSON} --iam-account ${YOUR_SERVICE_ACCOUNT_NAME}@${YOUR_PROJECT_NAME}
 export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON} 
-</code></pre>
-        </div>
+</code></pre></div>        </div>
         <p>Run</p>
-        <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \ 
  -Pver=${RELEASE_VERSION} \
  -PgcpProject=${YOUR_GCP_PROJECT} \
  -PgcsBucket=${YOUR_GCP_BUCKET} \
  -PbqDataset=${YOUR_DATASET} -PpubsubTopic=${YOUR_PROJECT_PUBSUB_TOPIC}
-</code></pre>
-        </div>
+</code></pre></div>        </div>
       </li>
     </ul>
   </li>
@@ -1677,57 +1617,52 @@ export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON}
       <li>
         <p>Verify the hashes</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code>sha512sum -c apache-beam-2.5.0-python.zip.sha512
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sha512sum -c apache-beam-2.5.0-python.zip.sha512
 sha512sum -c apache-beam-2.5.0-source-release.zip.sha512
-</code></pre>
-        </div>
+</code></pre></div>        </div>
       </li>
       <li>
         <p>Build SDK</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code>sudo apt-get install unzip
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo apt-get install unzip
 unzip apache-beam-2.5.0-source-release.zip
 python setup.py sdist
-</code></pre>
-        </div>
+</code></pre></div>        </div>
       </li>
       <li>
         <p>Setup virtualenv</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code>pip install --upgrade pip
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install --upgrade pip
 pip install --upgrade setuptools
 pip install --upgrade virtualenv
 virtualenv beam_env
  . beam_env/bin/activate
-</code></pre>
-        </div>
+</code></pre></div>        </div>
       </li>
       <li>
         <p>Install SDK</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code>pip install dist/apache-beam-2.5.0.tar.gz
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install dist/apache-beam-2.5.0.tar.gz
 pip install dist/apache-beam-2.5.0.tar.gz[gcp]
-</code></pre>
-        </div>
+</code></pre></div>        </div>
       </li>
       <li>
         <p>Setup GCP</p>
 
         <p>Please repeat following steps for every following test.</p>
 
-        <div class="highlighter-rouge"><pre class="highlight"><code>bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
 bq mk --project=${YOUR_PROJECT} ${USER}_test
 gsutil rm -rf ${YOUR_GS_STORAGE]
 gsutil mb -p ${YOUR_PROJECT} ${YOUR_GS_STORAGE}
 gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
-</code></pre>
-        </div>
+</code></pre></div>        </div>
         <p>Setup your service account as described in <code class="highlighter-rouge">Java Mobile Game</code> section above.</p>
 
         <p>Produce data by using java injector:</p>
         <ul>
           <li>Configure your ~/.m2/settings.xml as following:
-            <div class="highlighter-rouge"><pre class="highlight"><code>&lt;settings&gt;
+            <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;settings&gt;
   &lt;profiles&gt;
     &lt;profile&gt;
       &lt;id&gt;release-repo&lt;/id&gt;
@@ -1744,12 +1679,11 @@ gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
     &lt;/profile&gt;
   &lt;/profiles&gt;
 &lt;/settings&gt;
-</code></pre>
-            </div>
+</code></pre></div>            </div>
             <p><em>Note</em>: You can found the latest  <code class="highlighter-rouge">id</code>, <code class="highlighter-rouge">name</code> and <code class="highlighter-rouge">url</code> for one RC in the vote email thread sent out by Release Manager.</p>
           </li>
           <li>Run
-            <div class="highlighter-rouge"><pre class="highlight"><code>mvn archetype:generate \
+            <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
       -DarchetypeVersion=${RELEASE_VERSION} \
@@ -1762,18 +1696,16 @@ gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
             
 mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
   -Dexec.args="${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC} none"
-</code></pre>
-            </div>
+</code></pre></div>            </div>
           </li>
         </ul>
       </li>
       <li>Run Leaderboard with Direct Runner
-        <div class="highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.leader_board \
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.leader_board \
 --project=${YOUR_PROJECT} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
 --dataset ${USER}_test
-</code></pre>
-        </div>
+</code></pre></div>        </div>
         <p>Inspect results:</p>
         <ul>
           <li>Check whether there is any error messages in console.</li>
@@ -1783,15 +1715,14 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
         </ul>
       </li>
       <li>Run Leaderboard with Dataflow Runner
-        <div class="highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.leader_board \ 
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.leader_board \ 
 --project=${YOUR_PROJECT} \ 
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
 --dataset ${USER}_test \ 
 --runner DataflowRunner \ 
 --temp_location=${YOUR_GS_BUCKET}/temp/ \ 
 --sdk_location dist/*
-</code></pre>
-        </div>
+</code></pre></div>        </div>
         <p>Inspect results:</p>
         <ul>
           <li>Goto your Dataflow job console and check whether there is any error.</li>
@@ -1801,13 +1732,12 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
         </ul>
       </li>
       <li>Run GameStats with Direct Runner
-        <div class="highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.game_stats \
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.game_stats \
 --project=${YOUR_PROJECT} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
 --dataset ${USER}_test \
 --fixed_window_duration ${SOME_SMALL_DURATION}
-</code></pre>
-        </div>
+</code></pre></div>        </div>
         <p>Inspect results:</p>
         <ul>
           <li>Check whether there is any error messages in console.</li>
@@ -1817,7 +1747,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
         </ul>
       </li>
       <li>Run GameStats with Dataflow Runner
-        <div class="highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.game_stats \ 
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.game_stats \ 
 --project=${YOUR_PROJECT} \ 
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
 --dataset ${USER}_test \ 
@@ -1825,8 +1755,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 --temp_location=${YOUR_GS_BUCKET}/temp/ \ 
 --sdk_location dist/* \
 --fixed_window_duration ${SOME_SMALL_DURATION}
-</code></pre>
-        </div>
+</code></pre></div>        </div>
         <p>Inspect results:</p>
         <ul>
           <li>Goto your Dataflow job console and check whether there is any error.</li>
@@ -1892,9 +1821,8 @@ delete the <code class="highlighter-rouge">.asc</code>, <code class="highlighter
 <ul>
   <li>Script: <a href="https://github.com/Hannah-Jiang/beam/blob/release_script_for_containers/release/src/main/scripts/publish_docker_images.sh">publish_docker_images.sh</a></li>
   <li>Usage
-    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/publish_docker_images.sh
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./beam/release/src/main/scripts/publish_docker_images.sh
+</code></pre></div>    </div>
     <p>Verify that:</p>
   </li>
   <li>Images are published at <a href="https://hub.docker.com/u/apachebeam">DockerHub</a> with tags {RELEASE} and <em>latest</em>.</li>
@@ -1909,11 +1837,10 @@ delete the <code class="highlighter-rouge">.asc</code>, <code class="highlighter
 
 <p>Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>VERSION_TAG="v${RELEASE}"
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VERSION_TAG="v${RELEASE}"
 git tag -s "$VERSION_TAG" "$RC_TAG"
 git push github "$VERSION_TAG"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="merge-website-pull-request">Merge website pull request</h3>
 

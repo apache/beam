@@ -326,7 +326,7 @@ returns one scalar value.</li>
 
 <p>Below is an example of UDF and how to use it in DSL:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
  * A example UDF for test.
  */</span>
 <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CubicInteger</span> <span class="kd">implements</span> <span class="n">BeamSqlUdf</span> <span class="o">{</span>
@@ -362,15 +362,14 @@ returns one scalar value.</li>
             <span class="o">.</span><span class="na">query</span><span class="o">(</span><span class="n">sql</span><span class="o">)</span>
             <span class="o">.</span><span class="na">registerUdf</span><span class="o">(</span><span class="s">"cubic1"</span><span class="o">,</span> <span class="n">CubicInteger</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
             <span class="o">.</span><span class="na">registerUdf</span><span class="o">(</span><span class="s">"cubic2"</span><span class="o">,</span> <span class="k">new</span> <span class="n">CubicIntegerFn</span><span class="o">())</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="create-and-specify-a-user-defined-aggregate-function-udaf">Create and specify a User Defined Aggregate Function (UDAF)</h2>
 
 <p>Beam SQL can accept a <code class="highlighter-rouge">CombineFn</code> as UDAF. Registration is similar to the UDF
 example above:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
  * UDAF(CombineFn) for test, which returns the sum of square.
  */</span>
 <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">SquareSum</span> <span class="kd">extends</span> <span class="n">CombineFn</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Integer</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
@@ -415,8 +414,7 @@ example above:</p>
         <span class="n">SqlTransform</span>
             <span class="o">.</span><span class="na">query</span><span class="o">(</span><span class="n">sql</span><span class="o">)</span>
             <span class="o">.</span><span class="na">registerUdaf</span><span class="o">(</span><span class="s">"squaresum"</span><span class="o">,</span> <span class="k">new</span> <span class="n">SquareSum</span><span class="o">()));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 
       </div>

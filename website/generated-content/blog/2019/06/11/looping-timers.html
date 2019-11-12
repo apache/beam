@@ -215,7 +215,7 @@ event, there is nothing to count!</p>
 
 <p>Let’s build a simple pipeline to work with:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>  // We will start our timer at 1 sec from the fixed upper boundary of our
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  // We will start our timer at 1 sec from the fixed upper boundary of our
   // minute window
   Instant now = Instant.parse("2000-01-01T00:00:59Z");
 
@@ -255,16 +255,14 @@ FixedWindows.&lt;Integer&gt;of(Duration.standardMinutes(1))))
        }));
 
   p.run();
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Running that pipeline will result in the following output:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <blockquote>
   <p>Note: The lack of order in the output should be expected, however the
@@ -300,10 +298,9 @@ Beam pipeline.</p>
 
 <p>We can use a generating source to emit the value using this code snippet:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pipeline.apply(GenerateSequence.
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pipeline.apply(GenerateSequence.
             from(0).withRate(1,Duration.standardSeconds(1L)))
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>We can then:</p>
 
@@ -342,7 +339,7 @@ side-input into the FanOut DoFn.</p>
 
 <p>Edit: Looping Timer State changed from Boolean to Long to allow for min value check.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">LoopingStatefulTimer</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">LoopingStatefulTimer</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
 
     <span class="n">Instant</span> <span class="n">stopTimerTime</span><span class="o">;</span>
 
@@ -405,8 +402,7 @@ side-input into the FanOut DoFn.</p>
       <span class="o">}</span>
     <span class="o">}</span>
   <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>There are two data values that the state API needs to keep:</p>
 
@@ -451,7 +447,7 @@ more detail later.</li>
 
 <p>And that’s it, let’s add our transform back into the pipeline:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// Apply a fixed window of duration 1 min and Sum the results</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="c1">// Apply a fixed window of duration 1 min and Sum the results</span>
   <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">timestamped</span><span class="o">(</span><span class="n">time_1</span><span class="o">,</span> <span class="n">time_2</span><span class="o">,</span> <span class="n">time_3</span><span class="o">)).</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">Window</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.&lt;</span><span class="n">Integer</span><span class="o">&gt;</span><span class="n">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
     <span class="c1">// We use a combiner to reduce the number of calls in keyed state</span>
@@ -469,8 +465,7 @@ more detail later.</li>
 
      <span class="o">}</span>
   <span class="o">}));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <ol>
   <li>In the first part of the pipeline we create FixedWindows and reduce the value
@@ -496,7 +491,7 @@ interval. This can reduce the number of reads of the State API during the
 
 <p>Here is the logging output of running our modified pipeline:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>INFO  LoopingTimer  - Timer @ 2000-01-01T00:01:59.999Z fired
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INFO  LoopingTimer  - Timer @ 2000-01-01T00:01:59.999Z fired
 INFO  LoopingTimer  - Timer @ 2000-01-01T00:02:59.999Z fired
 INFO  LoopingTimer  - Timer @ 2000-01-01T00:03:59.999Z fired
 INFO  LoopingTimer  - Timer not being set as exceeded Stop Timer value 2000-01-01T00:04:00.000Z
@@ -504,8 +499,7 @@ INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999
 INFO  LoopingTimer  - Value is KV{Key_A, 0} timestamp is 2000-01-01T00:02:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Yay! We now have output from the time interval [00:01:00, 00:01:59.999), even
 though the source dataset has no elements in that interval.</p>

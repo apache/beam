@@ -508,7 +508,7 @@ When windowing and late data play an important role in streaming pipelines, time
 <a href="https://en.wikipedia.org/wiki/Unix_time">Unix timestamp</a>
 in the form of seconds.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">GetTimestamp</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plant</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">):</span>
@@ -529,18 +529,16 @@ in the form of seconds.</p>
       <span class="o">|</span> <span class="s">'Get timestamp'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">GetTimestamp</span><span class="p">())</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>2020-04-01 00:00:00 - Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2020-04-01 00:00:00 - Strawberry
 2020-06-01 00:00:00 - Carrot
 2020-03-01 00:00:00 - Artichoke
 2020-05-01 00:00:00 - Tomato
 2020-09-01 00:00:00 - Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -605,26 +603,24 @@ to <code class="highlighter-rouge">unix_time</code> you can use
 For more information on time formatting options, see
 <a href="https://docs.python.org/3/library/time.html#time.strftime"><code class="highlighter-rouge">time.strftime</code></a>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>import time
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import time
 
 time_tuple = time.strptime('2020-03-19 20:50:00', '%Y-%m-%d %H:%M:%S')
 unix_time = time.mktime(time_tuple)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>To convert from a
 <a href="https://docs.python.org/3/library/datetime.html#datetime.datetime"><code class="highlighter-rouge">datetime.datetime</code></a>
 to <code class="highlighter-rouge">unix_time</code> you can use convert it to a <code class="highlighter-rouge">time.struct_time</code> first with
 <a href="https://docs.python.org/3/library/datetime.html#datetime.datetime.timetuple"><code class="highlighter-rouge">datetime.timetuple</code></a>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>import time
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import time
 import datetime
 
 now = datetime.datetime.now()
 time_tuple = now.timetuple()
 unix_time = time.mktime(time_tuple)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="example-2-timestamp-by-logical-clock">Example 2: Timestamp by logical clock</h3>
 
@@ -632,7 +628,7 @@ unix_time = time.mktime(time_tuple)
 <a href="https://en.wikipedia.org/wiki/Logical_clock">logical clock</a>.
 These numbers have to be converted to a <em>“seconds”</em> equivalent, which can be especially important depending on your windowing and late data rules.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">GetTimestamp</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plant</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">):</span>
@@ -654,18 +650,16 @@ These numbers have to be converted to a <em>“seconds”</em> equivalent, which
       <span class="o">|</span> <span class="s">'Get timestamp'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">GetTimestamp</span><span class="p">())</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>1 - Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1 - Strawberry
 4 - Carrot
 2 - Artichoke
 3 - Tomato
 5 - Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -731,7 +725,7 @@ Workers might have time deltas, so using this method is not a reliable way to do
 
 <p>By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element <em>enters</em> into the pipeline.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">import</span> <span class="nn">time</span>
 
 <span class="k">class</span> <span class="nc">GetTimestamp</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
@@ -753,18 +747,16 @@ Workers might have time deltas, so using this method is not a reliable way to do
       <span class="o">|</span> <span class="s">'Get timestamp'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">GetTimestamp</span><span class="p">())</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after getting the timestamps:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>2020-03-20 20:12:42.145594 - Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2020-03-20 20:12:42.145594 - Strawberry
 2020-03-20 20:12:42.145827 - Carrot
 2020-03-20 20:12:42.145962 - Artichoke
 2020-03-20 20:12:42.146093 - Tomato
 2020-03-20 20:12:42.146216 - Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

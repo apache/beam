@@ -252,17 +252,15 @@ limitations under the License.
 
 <p>The Beam SDK for Go requires <code class="highlighter-rouge">go</code> version 1.10 or newer. It can be downloaded <a href="https://golang.org/">here</a>. Check that you have version 1.10 by running:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ go version
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ go version
+</code></pre></div></div>
 
 <h2 id="get-the-sdk-and-the-examples">Get the SDK and the examples</h2>
 
 <p>The easiest way to obtain the Apache Beam Go SDK is via <code class="highlighter-rouge">go get</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ go get -u github.com/apache/beam/sdks/go/...
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ go get -u github.com/apache/beam/sdks/go/...
+</code></pre></div></div>
 
 <p>For development of the Go SDK itself, see <a href="https://github.com/apache/beam/blob/master/sdks/go/BUILD.md">BUILD.md</a> for details.</p>
 
@@ -275,12 +273,11 @@ required arguments described in the examples.</p>
 
 <p>For example, to run <code class="highlighter-rouge">wordcount</code>, run:</p>
 
-<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+<div class="runner-direct highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+<div class="runner-dataflow highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -290,12 +287,10 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
             --staging_location gs://&lt;your-gcs-bucket&gt;/binaries/ \
             --worker_harness_container_image=apachebeam/go_sdk:latest
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
-</code></pre>
-</div>
+<div class="runner-nemo highlighter-rouge"><div class="highlight"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre></div></div>
 
 <h2 id="next-steps">Next Steps</h2>
 

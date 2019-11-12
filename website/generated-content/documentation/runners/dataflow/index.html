@@ -277,14 +277,13 @@ Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</li>
 <h3 id="dependency">Specify your dependency</h3>
 
 <p><span class="language-java">When using Java, you must specify your dependency on the Cloud Dataflow Runner in your <code class="highlighter-rouge">pom.xml</code>.</span></p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">google</span><span class="o">-</span><span class="n">cloud</span><span class="o">-</span><span class="n">dataflow</span><span class="o">-</span><span class="n">java</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.16</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><span class="language-py">This section is not applicable to the Beam SDK for Python.</span></p>
 
@@ -294,18 +293,17 @@ Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</li>
 
 <p class="language-java">In some cases, such as starting a pipeline using a scheduler such as <a href="https://airflow.apache.org">Apache AirFlow</a>, you must have a self-contained application. You can pack a self-executing JAR by explicitly adding the following dependency on the Project section of your pom.xml, in addition to the adding existing dependency shown in the previous section.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">google</span><span class="o">-</span><span class="n">cloud</span><span class="o">-</span><span class="n">dataflow</span><span class="o">-</span><span class="n">java</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">beam</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java">Then, add the mainClass name in the Maven JAR plugin.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">plugin</span><span class="o">&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">plugin</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">maven</span><span class="o">.</span><span class="na">plugins</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">maven</span><span class="o">-</span><span class="n">jar</span><span class="o">-</span><span class="n">plugin</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">maven</span><span class="o">-</span><span class="n">jar</span><span class="o">-</span><span class="n">plugin</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
@@ -319,23 +317,20 @@ Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</li>
     <span class="o">&lt;/</span><span class="n">archive</span><span class="o">&gt;</span>
   <span class="o">&lt;/</span><span class="n">configuration</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">plugin</span><span class="o">&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java">After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is <code class="highlighter-rouge">beam-examples</code> and the version is 1.0.0) the following output.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">beam</span><span class="o">-</span><span class="n">examples</span><span class="o">-</span><span class="n">bundled</span><span class="o">-</span><span class="mf">1.0</span><span class="o">.</span><span class="mi">0</span><span class="o">.</span><span class="na">jar</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">beam</span><span class="o">-</span><span class="n">examples</span><span class="o">-</span><span class="n">bundled</span><span class="o">-</span><span class="mf">1.0</span><span class="o">.</span><span class="mi">0</span><span class="o">.</span><span class="na">jar</span>
+</code></pre></div></div>
 
 <p class="language-java">To run the self-executing JAR on Cloud Dataflow, use the following command.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">java</span> <span class="o">-</span><span class="n">jar</span> <span class="n">target</span><span class="o">/</span><span class="n">beam</span><span class="o">-</span><span class="n">examples</span><span class="o">-</span><span class="n">bundled</span><span class="o">-</span><span class="mf">1.0</span><span class="o">.</span><span class="mi">0</span><span class="o">.</span><span class="na">jar</span> <span class="err">\</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">java</span> <span class="o">-</span><span class="n">jar</span> <span class="n">target</span><span class="o">/</span><span class="n">beam</span><span class="o">-</span><span class="n">examples</span><span class="o">-</span><span class="n">bundled</span><span class="o">-</span><span class="mf">1.0</span><span class="o">.</span><span class="mi">0</span><span class="o">.</span><span class="na">jar</span> <span class="err">\</span>
   <span class="o">--</span><span class="n">runner</span><span class="o">=</span><span class="n">DataflowRunner</span> <span class="err">\</span>
   <span class="o">--</span><span class="n">project</span><span class="o">=&lt;</span><span class="n">YOUR_GCP_PROJECT_ID</span><span class="o">&gt;</span> <span class="err">\</span>
   <span class="o">--</span><span class="n">tempLocation</span><span class="o">=</span><span class="nl">gs:</span><span class="c1">//&lt;YOUR_GCS_BUCKET&gt;/temp/</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="pipeline-options">Pipeline options for the Cloud Dataflow Runner</h2>
 

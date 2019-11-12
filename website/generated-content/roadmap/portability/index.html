@@ -436,8 +436,8 @@ This requires docker to be installed on worker nodes. For more information, see
   <li><code class="highlighter-rouge">environment_config</code> configures the environment depending on the value of <code class="highlighter-rouge">environment_type</code>.
     <ul>
       <li>When <code class="highlighter-rouge">environment_type=DOCKER</code>: URL for the Docker container image.</li>
-      <li>When <code class="highlighter-rouge">environment_type=PROCESS</code>: JSON of the form <code class="highlighter-rouge"><span class="p">{</span><span class="nt">"os"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;OS&gt;"</span><span class="p">,</span><span class="w"> </span><span class="nt">"arch"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;ARCHITECTURE&gt;"</span><span class="p">,</span><span class="w">
-</span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;process to execute&gt;"</span><span class="p">,</span><span class="w"> </span><span class="nt">"env"</span><span class="p">:{</span><span class="nt">"&lt;Environment variables 1&gt;"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;ENV_VAL&gt;"</span><span class="p">}</span><span class="w"> </span><span class="p">}</span></code>. All
+      <li>When <code class="highlighter-rouge">environment_type=PROCESS</code>: JSON of the form <code class="highlighter-rouge">{"os": "&lt;OS&gt;", "arch": "&lt;ARCHITECTURE&gt;",
+"command": "&lt;process to execute&gt;", "env":{"&lt;Environment variables 1&gt;": "&lt;ENV_VAL&gt;"} }</code>. All
 fields in the JSON are optional except <code class="highlighter-rouge">command</code>.</li>
     </ul>
   </li>

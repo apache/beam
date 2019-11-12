@@ -499,7 +499,7 @@ an output PCollection.</p>
 <h2 id="examples">Examples</h2>
 <p><strong>Example 1</strong>: Passing side inputs</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// Pass side inputs to your ParDo transform by invoking .withSideInputs.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="c1">// Pass side inputs to your ParDo transform by invoking .withSideInputs.</span>
   <span class="c1">// Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.</span>
 
   <span class="c1">// The input PCollection to ParDo.</span>
@@ -527,12 +527,11 @@ an output PCollection.</p>
           <span class="o">}</span>
       <span class="o">}).</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">maxWordLengthCutOffView</span><span class="o">)</span>
   <span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 2</strong>: Emitting to multiple outputs in your <code class="highlighter-rouge">DoFn</code></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// To emit elements to multiple output PCollections, create a TupleTag object to identify each collection</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// To emit elements to multiple output PCollections, create a TupleTag object to identify each collection</span>
 <span class="c1">// that your ParDo produces. For example, if your ParDo produces three output PCollections (the main output</span>
 <span class="c1">// and two additional outputs), you must create three TupleTags. The following example code shows how to</span>
 <span class="c1">// create TupleTags for a ParDo with three output PCollections.</span>
@@ -577,12 +576,11 @@ an output PCollection.</p>
           <span class="c1">// Specify the tags for the two additional outputs as a TupleTagList.</span>
                           <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">wordLengthsAboveCutOffTag</span><span class="o">)</span>
                                       <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">markedWordsTag</span><span class="o">)));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 3</strong>: Tags for multiple outputs</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the</span>
 <span class="c1">// appropriate TupleTag when you call ProcessContext.output.</span>
 <span class="c1">// After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.</span>
 <span class="c1">// Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.</span>
@@ -603,8 +601,7 @@ an output PCollection.</p>
          <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">markedWordsTag</span><span class="o">,</span> <span class="n">word</span><span class="o">);</span>
        <span class="o">}</span>
      <span class="o">}}));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

@@ -510,7 +510,7 @@ limitations under the License.
 
 <p class="language-java">Use the <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html"><code class="highlighter-rouge">FileIO</code></a> class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded <code class="highlighter-rouge">PCollection&lt;Metadata&gt;</code>, and stops if no new files appear for one hour:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// This produces PCollection&lt;MatchResult.Metadata&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// This produces PCollection&lt;MatchResult.Metadata&gt;</span>
 <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">FileIO</span><span class="o">.</span><span class="na">match</span><span class="o">()</span>
         <span class="o">.</span><span class="na">filepattern</span><span class="o">(</span><span class="s">"..."</span><span class="o">)</span>
@@ -518,12 +518,11 @@ limitations under the License.
             <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">),</span>
             <span class="n">Watch</span><span class="o">.</span><span class="na">Growth</span><span class="o">.</span><span class="na">afterTimeSinceNewOutput</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">1</span><span class="o">))));</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java">The <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html"><code class="highlighter-rouge">TextIO</code></a> class <code class="highlighter-rouge">watchForNewFiles</code> property streams new file matches.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// This produces PCollection&lt;String&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// This produces PCollection&lt;String&gt;</span>
 <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">()</span>
         <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"&lt;path-to-files&gt;/*"</span><span class="o">)</span>
@@ -533,8 +532,7 @@ limitations under the License.
             <span class="c1">// Stop watching the file pattern if no new files appear for an hour.</span>
             <span class="n">Watch</span><span class="o">.</span><span class="na">Growth</span><span class="o">.</span><span class="na">afterTimeSinceNewOutput</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">1</span><span class="o">))));</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java">Some runners may retain file lists during updates, but file lists don’t persist when you restart a pipeline. You can save file lists by:</p>
 
@@ -578,7 +576,7 @@ limitations under the License.
   <li>Pass the file URIs to a <code class="highlighter-rouge">PCollection</code>.</li>
 </ol>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">match</span><span class="o">().</span><span class="na">filepattern</span><span class="o">(</span><span class="s">"hdfs://path/to/*.gz"</span><span class="o">))</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">match</span><span class="o">().</span><span class="na">filepattern</span><span class="o">(</span><span class="s">"hdfs://path/to/*.gz"</span><span class="o">))</span>
     <span class="c1">// The withCompression method is optional. By default, the Beam SDK detects compression from</span>
     <span class="c1">// the filename.</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">readMatches</span><span class="o">().</span><span class="na">withCompression</span><span class="o">(</span><span class="n">Compression</span><span class="o">.</span><span class="na">GZIP</span><span class="o">))</span>
@@ -592,9 +590,8 @@ limitations under the License.
               <span class="o">}</span>
             <span class="o">}));</span>
 
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
   <span class="n">readable_files</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
                     <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">MatchFiles</span><span class="p">(</span><span class="s">'hdfs://path/to/*.txt'</span><span class="p">)</span>
                     <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">ReadMatches</span><span class="p">()</span>
@@ -603,8 +600,7 @@ limitations under the License.
                         <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
                                               <span class="n">x</span><span class="o">.</span><span class="n">read_utf8</span><span class="p">())))</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

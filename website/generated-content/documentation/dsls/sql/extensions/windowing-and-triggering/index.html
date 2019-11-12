@@ -328,31 +328,28 @@ rows.</p>
 <p>Supported windowing functions:</p>
 <ul>
   <li><code class="highlighter-rouge">TUMBLE</code>, or fixed windows. Example of how define a fixed window with duration of 1 hour:
-    <div class="highlighter-rouge"><pre class="highlight"><code>  SELECT f_int, COUNT(*) 
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  SELECT f_int, COUNT(*) 
   FROM PCOLLECTION 
   GROUP BY 
     f_int,
     TUMBLE(f_timestamp, INTERVAL '1' HOUR)
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li><code class="highlighter-rouge">HOP</code>, or sliding windows. Example of how to define a sliding windows for every 30 minutes with 1 hour duration:
-    <div class="highlighter-rouge"><pre class="highlight"><code>  SELECT f_int, COUNT(*)
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  SELECT f_int, COUNT(*)
   FROM PCOLLECTION 
   GROUP BY 
     f_int, 
     HOP(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR)
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li><code class="highlighter-rouge">SESSION</code>, session windows. Example of how to define a session window with 5 minutes gap duration:
-    <div class="highlighter-rouge"><pre class="highlight"><code>  SELECT f_int, COUNT(*) 
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  SELECT f_int, COUNT(*) 
   FROM PCOLLECTION 
   GROUP BY 
     f_int, 
     SESSION(f_timestamp, INTERVAL '5' MINUTE)
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ul>
 

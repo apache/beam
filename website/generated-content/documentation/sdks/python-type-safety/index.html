@@ -343,17 +343,15 @@ limitations under the License.
 
 <p>Consider the following example, in which <code class="highlighter-rouge">numbers</code> is a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">str</code> values:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
 
 numbers = p | beam.Create(['1', '2', '3'])
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The code then applies a <code class="highlighter-rouge">Filter</code> transform to the <code class="highlighter-rouge">numbers</code> collection with a callable that retrieves the even numbers.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>evens = numbers | beam.Filter(lambda x: x % 2 == 0)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>evens = numbers | beam.Filter(lambda x: x % 2 == 0)
+</code></pre></div></div>
 
 <p>When you call <code class="highlighter-rouge">p.run()</code>, this code generates an error because <code class="highlighter-rouge">Filter</code> expects a <code class="highlighter-rouge">PCollection</code> of integers, but is given a <code class="highlighter-rouge">PCollection</code> of strings instead.</p>
 
@@ -367,9 +365,8 @@ numbers = p | beam.Create(['1', '2', '3'])
 
 <p>To specify type hints inline, use the methods <code class="highlighter-rouge">with_input_types</code> and <code class="highlighter-rouge">with_output_types</code>. The following example code declares an input type hint inline:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
+</code></pre></div></div>
 
 <p>When you apply the Filter transform to the numbers collection in the example above, you’ll be able to catch the error during pipeline construction.</p>
 
@@ -379,14 +376,13 @@ numbers = p | beam.Create(['1', '2', '3'])
 
 <p>The following code declares an <code class="highlighter-rouge">int</code> type hint on <code class="highlighter-rouge">FilterEvensDoFn</code>, using the decorator <code class="highlighter-rouge">@with_input_types()</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>@beam.typehints.with_input_types(int)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@beam.typehints.with_input_types(int)
 class FilterEvensDoFn(beam.DoFn):
   def process(self, element):
     if element % 2 == 0:
       yield element
 evens = numbers | beam.ParDo(FilterEvensDoFn())
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Decorators receive an arbitrary number of positional and/or keyword arguments, typically interpreted in the context of the function they’re wrapping. Generally the first argument is a type hint for the main input, and additional arguments are type hints for side inputs.</p>
 
@@ -394,7 +390,7 @@ evens = numbers | beam.ParDo(FilterEvensDoFn())
 
 <p>You can use type hint annotations to define generic types. The following code specifies an input type hint that asserts the generic type <code class="highlighter-rouge">T</code>, and an output type hint that asserts the type <code class="highlighter-rouge">Tuple[int, T]</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>T = typing.TypeVar('T')
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>T = typing.TypeVar('T')
 
 @beam.typehints.with_input_types(T)
 @beam.typehints.with_output_types(typing.Tuple[int, T])
@@ -403,8 +399,7 @@ class MyTransform(beam.PTransform):
     return pcoll | beam.Map(lambda x: (len(x), x))
 
 words_with_lens = words | MyTransform()
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="kinds-of-type-hints">Kinds of Type Hints</h2>
 
@@ -454,16 +449,14 @@ words_with_lens = words | MyTransform()
 
 <p>For example, the following pipeline emits elements of the wrong type. Depending on the runner implementation, its execution may or may not fail at runtime.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+</code></pre></div></div>
 
 <p>However, if you enable runtime type checking, the code is guaranteed to fail at runtime. To enable runtime type checking, set the pipeline option <code class="highlighter-rouge">runtime_type_check</code> to <code class="highlighter-rouge">True</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
 p.run()
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Note that because runtime type checks are done for each <code class="highlighter-rouge">PCollection</code> element, enabling this feature may incur a significant performance penalty. It is therefore recommended that runtime type checks are disabled for production pipelines.</p>
 
@@ -485,7 +478,7 @@ p.run()
 
 <p>The following code shows the example <code class="highlighter-rouge">Player</code> class and how to define a <code class="highlighter-rouge">Coder</code> for it. When you use type hints, Beam infers which <code class="highlighter-rouge">Coder</code>s to use, using <code class="highlighter-rouge">beam.coders.registry</code>. The following code registers <code class="highlighter-rouge">PlayerCoder</code> as a coder for the <code class="highlighter-rouge">Player</code> class. In the example, the input type declared for <code class="highlighter-rouge">CombinePerKey</code> is <code class="highlighter-rouge">Tuple[Player, int]</code>. In this case, Beam infers that the <code class="highlighter-rouge">Coder</code> objects to use are <code class="highlighter-rouge">TupleCoder</code>, <code class="highlighter-rouge">PlayerCoder</code>, and <code class="highlighter-rouge">IntCoder</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>class Player(object):
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class Player(object):
   def __init__(self, team, name):
     self.team = team
     self.name = name
@@ -511,8 +504,7 @@ totals = (
     | beam.Map(parse_player_and_score)
     | beam.CombinePerKey(sum).with_input_types(
         typing.Tuple[Player, int]))
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

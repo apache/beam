@@ -208,68 +208,60 @@ limitations under the License.
 
 <h3 id="java">Java</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">String</span> <span class="n">filename</span> <span class="o">=</span> <span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">String</span> <span class="n">filename</span> <span class="o">=</span> <span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span>
                     <span class="s">"%s-%s-of-%s%s"</span><span class="o">,</span>
                     <span class="n">filenamePrefixForWindow</span><span class="o">(</span><span class="n">intervalWindow</span><span class="o">),</span>
                     <span class="n">shardNumber</span><span class="o">,</span>
                     <span class="n">numShards</span><span class="o">,</span>
                     <span class="n">outputFileHints</span><span class="o">.</span><span class="na">suggestedFilenameSuffix</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="kotlin">Kotlin</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="c1">// String templating</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="c1">// String templating</span>
  <span class="n">val</span> <span class="n">filename</span> <span class="o">=</span> <span class="s">"$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)"</span>  
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="java-1">Java</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">FormatAsTextFn</span> <span class="kd">extends</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">FormatAsTextFn</span> <span class="kd">extends</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
     <span class="nd">@Override</span>
     <span class="kd">public</span> <span class="n">String</span> <span class="nf">apply</span><span class="o">(</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
         <span class="k">return</span> <span class="n">input</span><span class="o">.</span><span class="na">getKey</span><span class="o">()</span> <span class="o">+</span> <span class="s">": "</span> <span class="o">+</span> <span class="n">input</span><span class="o">.</span><span class="na">getValue</span><span class="o">();</span>
     <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="kotlin-1">Kotlin</h2>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">FormatAsTextFn</span> <span class="o">:</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">FormatAsTextFn</span> <span class="o">:</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
     <span class="n">override</span> <span class="n">fun</span> <span class="nf">apply</span><span class="o">(</span><span class="nl">input:</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;)</span> <span class="o">=</span> <span class="s">"${input.key} : ${input.value}"</span>  <span class="c1">//Single line functions</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="java-2">Java</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">if</span><span class="o">(</span><span class="n">tableRow</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">){</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span><span class="o">(</span><span class="n">tableRow</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">){</span>
     <span class="n">formatAndInsert</span><span class="o">(</span><span class="n">tableRow</span><span class="o">);</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="kotlin-2">Kotlin</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">tableRow</span><span class="o">?.</span><span class="na">let</span><span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">tableRow</span><span class="o">?.</span><span class="na">let</span><span class="o">{</span>
     <span class="n">formatAndInsert</span><span class="o">(</span><span class="n">it</span><span class="o">)</span>  <span class="c1">// No need for null checks</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="java-3">Java</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableName</span> <span class="o">=</span> <span class="s">"testTable"</span><span class="o">;</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableName</span> <span class="o">=</span> <span class="s">"testTable"</span><span class="o">;</span>
+</code></pre></div></div>
 
 <h3 id="kotlin-3">Kotlin</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">val</span> <span class="n">tableName</span> <span class="o">=</span> <span class="s">"testTable"</span>  <span class="c1">// Type inferencing</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">val</span> <span class="n">tableName</span> <span class="o">=</span> <span class="s">"testTable"</span>  <span class="c1">// Type inferencing</span>
+</code></pre></div></div>
 
 <h2 id="contributors-welcomed">Contributors Welcomed!</h2>
 

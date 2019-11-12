@@ -331,7 +331,7 @@ Types</a> for more details on supported primitive data types.</p>
 
     <p><strong>Note:</strong> you have to explicitly specify the <code class="highlighter-rouge">Row</code> coder. In this example we’re doing it by calling <code class="highlighter-rouge">Create.of(..)</code>:</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Define the schema for the records.</span>
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Define the schema for the records.</span>
 <span class="n">Schema</span> <span class="n">appSchema</span> <span class="o">=</span> 
     <span class="n">Schema</span>
       <span class="o">.</span><span class="na">builder</span><span class="o">()</span>
@@ -354,11 +354,10 @@ Types</a> for more details on supported primitive data types.</p>
       <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span>
                 <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">row</span><span class="o">)</span>
                 <span class="o">.</span><span class="na">withCoder</span><span class="o">(</span><span class="n">RowCoder</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">appSchema</span><span class="o">)));</span>
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li><strong>From a <code class="highlighter-rouge">PCollection&lt;T&gt;</code> of records of some other type</strong>  (i.e.  <code class="highlighter-rouge">T</code> is not already a <code class="highlighter-rouge">Row</code>), by applying a <code class="highlighter-rouge">ParDo</code> that converts input records to <code class="highlighter-rouge">Row</code> format:
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// An example POJO class.</span>
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// An example POJO class.</span>
 <span class="kd">class</span> <span class="nc">AppPojo</span> <span class="o">{</span>
   <span class="n">Integer</span> <span class="n">appId</span><span class="o">;</span>
   <span class="n">String</span> <span class="n">description</span><span class="o">;</span>
@@ -392,8 +391,7 @@ Types</a> for more details on supported primitive data types.</p>
           <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">appRow</span><span class="o">);</span>
         <span class="o">}</span>
       <span class="o">}));</span>
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li><strong>As an output of another <code class="highlighter-rouge">SqlTransform</code></strong>. Details in the next section.</li>
 </ul>
@@ -409,19 +407,18 @@ to either a single <code class="highlighter-rouge">PCollection</code> or a <code
 
 <ul>
   <li>when applying to a single <code class="highlighter-rouge">PCollection</code> it can be referenced via the table name <code class="highlighter-rouge">PCOLLECTION</code> in the query:
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">filteredNames</span> <span class="o">=</span> <span class="n">testApps</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">filteredNames</span> <span class="o">=</span> <span class="n">testApps</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">SqlTransform</span><span class="o">.</span><span class="na">query</span><span class="o">(</span>
       <span class="s">"SELECT appId, description, rowtime "</span>
         <span class="o">+</span> <span class="s">"FROM PCOLLECTION "</span>
         <span class="o">+</span> <span class="s">"WHERE id=1"</span><span class="o">));</span>
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>when applying to a <code class="highlighter-rouge">PCollectionTuple</code>, the tuple tag for each <code class="highlighter-rouge">PCollection</code> in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific <code class="highlighter-rouge">PCollectionTuple</code>, and thus are only valid in the context of queries applied to it.</p>
 
     <p>For example, you can join two <code class="highlighter-rouge">PCollections</code>:</p>
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Create the schema for reviews</span>
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Create the schema for reviews</span>
 <span class="n">Schema</span> <span class="n">reviewSchema</span> <span class="o">=</span> 
     <span class="n">Schema</span>
       <span class="o">.</span><span class="na">builder</span><span class="o">()</span>
@@ -447,8 +444,7 @@ to either a single <code class="highlighter-rouge">PCollection</code> or a <code
     <span class="n">SqlTransform</span><span class="o">.</span><span class="na">query</span><span class="o">(</span>
         <span class="s">"SELECT Names.appId, COUNT(Reviews.rating), AVG(Reviews.rating)"</span>
             <span class="o">+</span> <span class="s">"FROM Apps INNER JOIN Reviews ON Apps.appId == Reviews.appId"</span><span class="o">));</span>
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ul>
 

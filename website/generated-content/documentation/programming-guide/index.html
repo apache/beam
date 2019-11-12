@@ -650,24 +650,21 @@ your pipeline’s configuration options programatically, but it’s often easier
 set the options ahead of time (or read them from the command line) and pass them
 to the <code class="highlighter-rouge">Pipeline</code> object when you create the object.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Start by defining the options for the pipeline.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Start by defining the options for the pipeline.</span>
 <span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
 
 <span class="c1">// Then create the pipeline.</span>
 <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
 
-</code></pre>
-</div>
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.</span><span class="x">
+</code></pre></div></div>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.</span><span class="x">
 </span><span class="n">p</span><span class="p">,</span><span class="x"> </span><span class="n">s</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">NewPipelineWithRoot</span><span class="p">()</span><span class="x">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <h3 id="configuring-pipeline-options">2.1. Configuring pipeline options</h3>
 
@@ -690,27 +687,23 @@ you can use to set fields in <code class="highlighter-rouge">PipelineOptions</co
 <p>To read options from the command-line, construct your <code class="highlighter-rouge">PipelineOptions</code> object
 as demonstrated in the following example code:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span>
     <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">create</span><span class="o">();</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
 
-</code></pre>
-</div>
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// If beamx or Go flags are used, flags must be parsed first.</span><span class="x">
+</code></pre></div></div>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// If beamx or Go flags are used, flags must be parsed first.</span><span class="x">
 </span><span class="n">flag</span><span class="o">.</span><span class="n">Parse</span><span class="p">()</span><span class="x">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p>This interprets command-line arguments that follow the format:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--&lt;option&gt;=&lt;value&gt;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--&lt;option&gt;=&lt;value&gt;
+</code></pre></div></div>
 
 <blockquote>
   <p><strong>Note:</strong> Appending the method <code class="highlighter-rouge">.withValidation</code> will check for required
@@ -733,37 +726,34 @@ options.</p>
 setter methods for each option, as in the following example for
 adding <code class="highlighter-rouge">input</code> and <code class="highlighter-rouge">output</code> custom options:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
     <span class="n">String</span> <span class="nf">getInput</span><span class="o">();</span>
     <span class="kt">void</span> <span class="nf">setInput</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">);</span>
     
     <span class="n">String</span> <span class="nf">getOutput</span><span class="o">();</span>
     <span class="kt">void</span> <span class="nf">setOutput</span><span class="o">(</span><span class="n">String</span> <span class="n">output</span><span class="o">);</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
 
   <span class="nd">@classmethod</span>
   <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--output'</span><span class="p">)</span>
 
-</code></pre>
-</div>
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
+</code></pre></div></div>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
   </span><span class="n">input</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"input"</span><span class="p">,</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="s">""</span><span class="p">)</span><span class="x">
   </span><span class="n">output</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"output"</span><span class="p">,</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="s">""</span><span class="p">)</span><span class="x">
 </span><span class="p">)</span><span class="x">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p>You can also specify a description, which appears when a user passes <code class="highlighter-rouge">--help</code> as
 a command-line argument, and a default value.</p>
 
 <p>You set the description and default value using annotations, as follows:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
     <span class="nd">@Description</span><span class="o">(</span><span class="s">"Input for the pipeline"</span><span class="o">)</span>
     <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"gs://my-bucket/input"</span><span class="o">)</span>
     <span class="n">String</span> <span class="nf">getInput</span><span class="o">();</span>
@@ -774,9 +764,8 @@ a command-line argument, and a default value.</p>
     <span class="n">String</span> <span class="nf">getOutput</span><span class="o">();</span>
     <span class="kt">void</span> <span class="nf">setOutput</span><span class="o">(</span><span class="n">String</span> <span class="n">output</span><span class="o">);</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
 
   <span class="nd">@classmethod</span>
   <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
@@ -787,14 +776,12 @@ a command-line argument, and a default value.</p>
                         <span class="n">help</span><span class="o">=</span><span class="s">'Output for the pipeline'</span><span class="p">,</span>
                         <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/output'</span><span class="p">)</span>
 
-</code></pre>
-</div>
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
+</code></pre></div></div>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
   </span><span class="n">input</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"input"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://my-bucket/input"</span><span class="p">,</span><span class="x"> </span><span class="s">"Input for the pipeline"</span><span class="p">)</span><span class="x">
   </span><span class="n">output</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"output"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://my-bucket/output"</span><span class="p">,</span><span class="x"> </span><span class="s">"Output for the pipeline"</span><span class="p">)</span><span class="x">
 </span><span class="p">)</span><span class="x">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p class="language-java">It’s recommended that you register your interface with <code class="highlighter-rouge">PipelineOptionsFactory</code>
 and then pass the interface when creating the <code class="highlighter-rouge">PipelineOptions</code> object. When you
@@ -806,12 +793,11 @@ compatible with all other registered options.</p>
 <p class="language-java">The following example code shows how to register your custom options interface
 with <code class="highlighter-rouge">PipelineOptionsFactory</code>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
 <span class="n">MyOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">)</span>
                                                 <span class="o">.</span><span class="na">withValidation</span><span class="o">()</span>
                                                 <span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Now your pipeline can accept <code class="highlighter-rouge">--input=value</code> and <code class="highlighter-rouge">--output=value</code> as command-line arguments.</p>
 
@@ -855,7 +841,7 @@ would apply <span class="language-java"><code class="highlighter-rouge">TextIO.R
 <span class="language-py"><code class="highlighter-rouge">io.TextFileSource</code></span> to your <code class="highlighter-rouge">Pipeline</code> to create
 a <code class="highlighter-rouge">PCollection</code>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Create the pipeline.</span>
     <span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span>
         <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">create</span><span class="o">();</span>
@@ -865,15 +851,12 @@ a <code class="highlighter-rouge">PCollection</code>:</p>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
       <span class="s">"ReadMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadMyFile'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'gs://some/inputData.txt'</span><span class="p">)</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadMyFile'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'gs://some/inputData.txt'</span><span class="p">)</span>
 
-</code></pre>
-</div>
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://some/inputData.txt"</span><span class="p">)</span><span class="x">
-</span></code></pre>
-</div>
+</code></pre></div></div>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://some/inputData.txt"</span><span class="p">)</span><span class="x">
+</span></code></pre></div></div>
 
 <p>See the <a href="#pipeline-io">section on I/O</a> to learn more about how to read from the
 various data sources supported by the Beam SDK.</p>
@@ -895,7 +878,7 @@ itself.</p>
 <p>The following example code shows how to create a <code class="highlighter-rouge">PCollection</code> from an in-memory
 <span class="language-java"><code class="highlighter-rouge">List</code></span><span class="language-py"><code class="highlighter-rouge">list</code></span>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Create a Java Collection, in this case a List of Strings.</span>
     <span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">LINES</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
       <span class="s">"To be, or not to be: that is the question: "</span><span class="o">,</span>
@@ -911,9 +894,8 @@ itself.</p>
     <span class="c1">// Apply Create, passing the list and the coder, to create the PCollection.</span>
     <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">LINES</span><span class="o">)).</span><span class="na">setCoder</span><span class="o">(</span><span class="n">StringUtf8Coder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
 
   <span class="n">lines</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
@@ -922,8 +904,7 @@ itself.</p>
                <span class="s">'The slings and arrows of outrageous fortune, '</span><span class="p">,</span>
                <span class="s">'Or to take arms against a sea of troubles, '</span><span class="p">]))</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="pcollection-characteristics">3.2. PCollection characteristics</h3>
 
@@ -1039,12 +1020,10 @@ slight difference: You apply the transform to the input <code class="highlighter
 the transform itself as an argument, and the operation returns the output
 <code class="highlighter-rouge">PCollection</code>. This takes the general form:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span><span class="o">])</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="p">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Transform</span><span class="p">]</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span><span class="o">])</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Transform</span><span class="p">]</span>
+</code></pre></div></div>
 
 <p>Because Beam uses a generic <code class="highlighter-rouge">apply</code> method for <code class="highlighter-rouge">PCollection</code>, you can both chain
 transforms sequentially and also apply transforms that contain other transforms
@@ -1056,16 +1035,14 @@ pipeline. The best way to think of your pipeline is as a directed acyclic graph,
 where the nodes are <code class="highlighter-rouge">PCollection</code>s and the edges are transforms. For example,
 you can chain transforms to create a sequential pipeline, like this one:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Final</span> <span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Initial</span> <span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">First</span> <span class="n">Transform</span><span class="o">])</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">[</span><span class="n">Final</span> <span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Initial</span> <span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">First</span> <span class="n">Transform</span><span class="o">])</span>
 <span class="o">.</span><span class="na">apply</span><span class="o">([</span><span class="n">Second</span> <span class="n">Transform</span><span class="o">])</span>
 <span class="o">.</span><span class="na">apply</span><span class="o">([</span><span class="n">Third</span> <span class="n">Transform</span><span class="o">])</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="p">[</span><span class="n">Final</span> <span class="n">Output</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">=</span> <span class="p">([</span><span class="n">Initial</span> <span class="n">Input</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">First</span> <span class="n">Transform</span><span class="p">]</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[</span><span class="n">Final</span> <span class="n">Output</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">=</span> <span class="p">([</span><span class="n">Initial</span> <span class="n">Input</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">First</span> <span class="n">Transform</span><span class="p">]</span>
               <span class="o">|</span> <span class="p">[</span><span class="n">Second</span> <span class="n">Transform</span><span class="p">]</span>
               <span class="o">|</span> <span class="p">[</span><span class="n">Third</span> <span class="n">Transform</span><span class="p">])</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The resulting workflow graph of the above pipeline looks like this.</p>
 
@@ -1079,16 +1056,14 @@ collection–remember that a <code class="highlighter-rouge">PCollection</code> 
 that you can apply multiple transforms to the same input <code class="highlighter-rouge">PCollection</code> to create
 a branching pipeline, like so:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Database</span> <span class="n">Table</span> <span class="n">Reader</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Read</span> <span class="n">Transform</span><span class="o">])</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Database</span> <span class="n">Table</span> <span class="n">Reader</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Read</span> <span class="n">Transform</span><span class="o">])</span>
 <span class="o">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="sc">'A'</span> <span class="n">names</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span> <span class="n">A</span><span class="o">])</span>
 <span class="o">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="sc">'B'</span> <span class="n">names</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span> <span class="n">B</span><span class="o">])</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="p">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Database</span> <span class="n">Table</span> <span class="n">Reader</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Read</span> <span class="n">Transform</span><span class="p">]</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Database</span> <span class="n">Table</span> <span class="n">Reader</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Read</span> <span class="n">Transform</span><span class="p">]</span>
 <span class="p">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="s">'A'</span> <span class="n">names</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Transform</span> <span class="n">A</span><span class="p">]</span>
 <span class="p">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="s">'B'</span> <span class="n">names</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Transform</span> <span class="n">B</span><span class="p">]</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The resulting workflow graph from the branching pipeline above looks like this.</p>
 
@@ -1165,7 +1140,7 @@ the <a href="#requirements-for-writing-user-code-for-beam-transforms">Requiremen
 input <code class="highlighter-rouge">PCollection</code> and passing <code class="highlighter-rouge">ParDo</code> as an argument, as shown in the
 following example code:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection of Strings.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// The input PCollection of Strings.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="c1">// The DoFn to perform on each element in the input PCollection.</span>
@@ -1176,9 +1151,8 @@ following example code:</p>
     <span class="n">ParDo</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">ComputeWordLengthFn</span><span class="o">()));</span>        <span class="c1">// The DoFn to perform on each element, which</span>
                                             <span class="c1">// we define above.</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The input PCollection of Strings.</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The input PCollection of Strings.</span>
 <span class="n">words</span> <span class="o">=</span> <span class="o">...</span>
 
 <span class="c"># The DoFn to perform on each element in the input PCollection.</span>
@@ -1188,9 +1162,8 @@ following example code:</p>
 
 <span class="c"># Apply a ParDo to the PCollection "words" to compute lengths for each word.</span>
 <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ComputeWordLengthFn</span><span class="p">())</span>
-</code></pre>
-</div>
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// words is the input PCollection of strings</span><span class="x">
+</code></pre></div></div>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// words is the input PCollection of strings</span><span class="x">
 </span><span class="k">var</span><span class="x"> </span><span class="n">words</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">PCollection</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="o">...</span><span class="x">
 
 </span><span class="k">func</span><span class="x"> </span><span class="n">computeWordLengthFn</span><span class="p">(</span><span class="n">word</span><span class="x"> </span><span class="kt">string</span><span class="p">)</span><span class="x"> </span><span class="kt">int</span><span class="x"> </span><span class="p">{</span><span class="x">
@@ -1198,8 +1171,7 @@ following example code:</p>
 </span><span class="p">}</span><span class="x">
 
 </span><span class="n">wordLengths</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="n">computeWordLengthFn</span><span class="p">,</span><span class="x"> </span><span class="n">words</span><span class="p">)</span><span class="x">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p>In the example, our input <code class="highlighter-rouge">PCollection</code> contains <code class="highlighter-rouge">String</code> values. We apply a
 <code class="highlighter-rouge">ParDo</code> transform that specifies a function (<code class="highlighter-rouge">ComputeWordLengthFn</code>) to compute
@@ -1226,9 +1198,8 @@ the types of the input and output elements. If your <code class="highlighter-rou
 (like our previous example, <code class="highlighter-rouge">ComputeWordLengthFn</code>), your class declaration would
 look like this:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
+</code></pre></div></div>
 
 <p class="language-java">Inside your <code class="highlighter-rouge">DoFn</code> subclass, you’ll write a method annotated with
 <code class="highlighter-rouge">@ProcessElement</code> where you provide the actual processing logic. You don’t need
@@ -1248,21 +1219,19 @@ method should accept an object of type <code class="highlighter-rouge">element</
 output is emitted by using <code class="highlighter-rouge">yield</code> or <code class="highlighter-rouge">return</code> statement inside <code class="highlighter-rouge">process</code>
 method.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="nd">@ProcessElement</span>
   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">word</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">out</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Use OutputReceiver.output to emit the output element.</span>
     <span class="n">out</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">());</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengthFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengthFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)]</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <blockquote class="language-java">
   <p><strong>Note:</strong> If the elements in your input <code class="highlighter-rouge">PCollection</code> are key/value pairs, you
@@ -1302,7 +1271,7 @@ that value in any way.</li>
 <span class="language-java">an anonymous inner class instance</span>
 <span class="language-py">a lambda function</span>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="c1">// Apply a ParDo with an anonymous DoFn to the PCollection words.</span>
@@ -1315,24 +1284,21 @@ that value in any way.</li>
         <span class="n">out</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">());</span>
       <span class="o">}</span>
     <span class="o">}));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The input PCollection of strings.</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The input PCollection of strings.</span>
 <span class="n">words</span> <span class="o">=</span> <span class="o">...</span>
 
 <span class="c"># Apply a lambda function to the PCollection words.</span>
 <span class="c"># Save the result as the PCollection word_lengths.</span>
 <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">word</span><span class="p">:</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)])</span>
-</code></pre>
-</div>
-<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// words is the input PCollection of strings</span><span class="x">
+</code></pre></div></div>
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// words is the input PCollection of strings</span><span class="x">
 </span><span class="k">var</span><span class="x"> </span><span class="n">words</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">PCollection</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="o">...</span><span class="x">
 
 </span><span class="n">lengths</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="x"> </span><span class="p">(</span><span class="n">word</span><span class="x"> </span><span class="kt">string</span><span class="p">)</span><span class="x"> </span><span class="kt">int</span><span class="x"> </span><span class="p">{</span><span class="x">
       </span><span class="k">return</span><span class="x"> </span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span><span class="x">
 </span><span class="p">},</span><span class="x"> </span><span class="n">words</span><span class="p">)</span><span class="x">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p>If your <code class="highlighter-rouge">ParDo</code> performs a one-to-one mapping of input elements to output
 elements–that is, for each input element, it applies a function that produces
@@ -1344,7 +1310,7 @@ Java 8 lambda function for additional brevity.</span></p>
 <p>Here’s the previous example using <span class="language-java"><code class="highlighter-rouge">MapElements</code></span>
 <span class="language-py"><code class="highlighter-rouge">Map</code></span>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="c1">// Apply a MapElements with an anonymous lambda function to the PCollection words.</span>
@@ -1352,16 +1318,14 @@ Java 8 lambda function for additional brevity.</span></p>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">wordLengths</span> <span class="o">=</span> <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
   <span class="n">MapElements</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">integers</span><span class="o">())</span>
              <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">word</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">()));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The input PCollection of string.</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The input PCollection of string.</span>
 <span class="n">words</span> <span class="o">=</span> <span class="o">...</span>
 
 <span class="c"># Apply a Map with a lambda function to the PCollection words.</span>
 <span class="c"># Save the result as the PCollection word_lengths.</span>
 <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <blockquote class="language-java">
   <p><strong>Note:</strong> You can use Java 8 lambda functions with several other Beam
@@ -1404,7 +1368,7 @@ particular word appears.</p>
 the value is a line number in the file where the word appears. Here’s a list of
 the key/value pairs in the input collection:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cat, 1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cat, 1
 dog, 5
 and, 1
 jump, 3
@@ -1415,22 +1379,20 @@ and, 2
 cat, 9
 and, 6
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">GroupByKey</code> gathers up all the values with the same key and outputs a new pair
 consisting of the unique key and a collection of all of the values that were
 associated with that key in the input collection. If we apply <code class="highlighter-rouge">GroupByKey</code> to
 our input collection above, the output collection would look like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cat, [1,5,9]
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cat, [1,5,9]
 dog, [5,2]
 and, [1,2,6]
 jump, [3]
 tree, [2]
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Thus, <code class="highlighter-rouge">GroupByKey</code> represents a transform from a multimap (multiple keys to
 individual values) to a uni-map (unique keys to collections of values).</p>
@@ -1515,7 +1477,7 @@ The first set of data contains names and email addresses. The second set of
 data contains names and phone numbers.
 </span></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">emailsList</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">emailsList</span> <span class="o">=</span>
     <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
         <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"amy"</span><span class="o">,</span> <span class="s">"amy@example.com"</span><span class="o">),</span>
         <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"carl"</span><span class="o">,</span> <span class="s">"carl@example.com"</span><span class="o">),</span>
@@ -1531,9 +1493,8 @@ data contains names and phone numbers.
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">emails</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"CreateEmails"</span><span class="o">,</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">emailsList</span><span class="o">));</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">phones</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"CreatePhones"</span><span class="o">,</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">phonesList</span><span class="o">));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">emails_list</span> <span class="o">=</span> <span class="p">[</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">emails_list</span> <span class="o">=</span> <span class="p">[</span>
     <span class="p">(</span><span class="s">'amy'</span><span class="p">,</span> <span class="s">'amy@example.com'</span><span class="p">),</span>
     <span class="p">(</span><span class="s">'carl'</span><span class="p">,</span> <span class="s">'carl@example.com'</span><span class="p">),</span>
     <span class="p">(</span><span class="s">'julia'</span><span class="p">,</span> <span class="s">'julia@example.com'</span><span class="p">),</span>
@@ -1548,13 +1509,12 @@ data contains names and phone numbers.
 
 <span class="n">emails</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'CreateEmails'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">emails_list</span><span class="p">)</span>
 <span class="n">phones</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'CreatePhones'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">phones_list</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>After <code class="highlighter-rouge">CoGroupByKey</code>, the resulting data contains all data associated with each
 unique key from any of the input collections.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">emailsTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;&gt;();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">emailsTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;&gt;();</span>
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">phonesTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;&gt;();</span>
 
 <span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">CoGbkResult</span><span class="o">&gt;&gt;</span> <span class="n">expectedResults</span> <span class="o">=</span>
@@ -1575,9 +1535,8 @@ unique key from any of the input collections.</p>
             <span class="s">"julia"</span><span class="o">,</span>
             <span class="n">CoGbkResult</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">emailsTag</span><span class="o">,</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="s">"julia@example.com"</span><span class="o">))</span>
                 <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">phonesTag</span><span class="o">,</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">())));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">results</span> <span class="o">=</span> <span class="p">[</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">results</span> <span class="o">=</span> <span class="p">[</span>
     <span class="p">(</span><span class="s">'amy'</span><span class="p">,</span> <span class="p">{</span>
         <span class="s">'emails'</span><span class="p">:</span> <span class="p">[</span><span class="s">'amy@example.com'</span><span class="p">],</span>
         <span class="s">'phones'</span><span class="p">:</span> <span class="p">[</span><span class="s">'111-222-3333'</span><span class="p">,</span> <span class="s">'333-444-5555'</span><span class="p">]}),</span>
@@ -1591,14 +1550,13 @@ unique key from any of the input collections.</p>
         <span class="s">'emails'</span><span class="p">:</span> <span class="p">[</span><span class="s">'julia@example.com'</span><span class="p">],</span>
         <span class="s">'phones'</span><span class="p">:</span> <span class="p">[]}),</span>
 <span class="p">]</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The following code example joins the two <code class="highlighter-rouge">PCollection</code>s with <code class="highlighter-rouge">CoGroupByKey</code>,
 followed by a <code class="highlighter-rouge">ParDo</code> to consume the result. Then, the code uses tags to look up
 and format data from each collection.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">CoGbkResult</span><span class="o">&gt;&gt;</span> <span class="n">results</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">CoGbkResult</span><span class="o">&gt;&gt;</span> <span class="n">results</span> <span class="o">=</span>
     <span class="n">KeyedPCollectionTuple</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">emailsTag</span><span class="o">,</span> <span class="n">emails</span><span class="o">)</span>
         <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">phonesTag</span><span class="o">,</span> <span class="n">phones</span><span class="o">)</span>
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">CoGroupByKey</span><span class="o">.</span><span class="na">create</span><span class="o">());</span>
@@ -1618,9 +1576,8 @@ and format data from each collection.</p>
                 <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">formattedResult</span><span class="o">);</span>
               <span class="o">}</span>
             <span class="o">}));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The result PCollection contains one key-value element for each key in the</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The result PCollection contains one key-value element for each key in the</span>
 <span class="c"># input PCollections. The key of the pair will be the key from the input and</span>
 <span class="c"># the value will be a dictionary with two entries: 'emails' - an iterable of</span>
 <span class="c"># all values for the current key in the emails PCollection and 'phones': an</span>
@@ -1634,27 +1591,24 @@ and format data from each collection.</p>
       <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s">'emails'</span><span class="p">]),</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s">'phones'</span><span class="p">]))</span>
 
 <span class="n">contact_lines</span> <span class="o">=</span> <span class="n">results</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">join_info</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The formatted data looks like this:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">formattedResults</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">formattedResults</span> <span class="o">=</span>
     <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
         <span class="s">"amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']"</span><span class="o">,</span>
         <span class="s">"carl; ['carl@email.com', 'carl@example.com']; ['444-555-6666']"</span><span class="o">,</span>
         <span class="s">"james; []; ['222-333-4444']"</span><span class="o">,</span>
         <span class="s">"julia; ['julia@example.com']; []"</span><span class="o">);</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">formatted_results</span> <span class="o">=</span> <span class="p">[</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">formatted_results</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s">"amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']"</span><span class="p">,</span>
     <span class="s">"carl; ['carl@email.com', 'carl@example.com']; ['444-555-6666']"</span><span class="p">,</span>
     <span class="s">"james; []; ['222-333-4444']"</span><span class="p">,</span>
     <span class="s">"julia; ['julia@example.com']; []"</span><span class="p">,</span>
 <span class="p">]</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="combine">4.2.4. Combine</h4>
 
@@ -1683,7 +1637,7 @@ input/output type.</p>
 
 <p>The following example code shows a simple combine function.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Sum a collection of Integer values. The function SumInts implements the interface SerializableFunction.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Sum a collection of Integer values. The function SumInts implements the interface SerializableFunction.</span>
 <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">SumInts</span> <span class="kd">implements</span> <span class="n">SerializableFunction</span><span class="o">&lt;</span><span class="n">Iterable</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="nd">@Override</span>
   <span class="kd">public</span> <span class="n">Integer</span> <span class="nf">apply</span><span class="o">(</span><span class="n">Iterable</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
@@ -1694,17 +1648,15 @@ input/output type.</p>
     <span class="k">return</span> <span class="n">sum</span><span class="o">;</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
 
 <span class="k">def</span> <span class="nf">bounded_sum</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
   <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">bound</span><span class="p">)</span>
 <span class="n">small_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">)</span>              <span class="c"># [500]</span>
 <span class="n">large_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>  <span class="c"># [1111]</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="advanced-combines">4.2.4.2. Advanced combinations using CombineFn</h5>
 
@@ -1747,7 +1699,7 @@ number of values summed. It is called once on the final, merged accumulator.</p>
 <p>The following example code shows how to define a <code class="highlighter-rouge">CombineFn</code> that computes a
 mean average:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">AverageFn</span> <span class="kd">extends</span> <span class="n">CombineFn</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">AverageFn</span><span class="o">.</span><span class="na">Accum</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">AverageFn</span> <span class="kd">extends</span> <span class="n">CombineFn</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">AverageFn</span><span class="o">.</span><span class="na">Accum</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Accum</span> <span class="o">{</span>
     <span class="kt">int</span> <span class="n">sum</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
     <span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
@@ -1778,9 +1730,8 @@ mean average:</p>
     <span class="k">return</span> <span class="o">((</span><span class="kt">double</span><span class="o">)</span> <span class="n">accum</span><span class="o">.</span><span class="na">sum</span><span class="o">)</span> <span class="o">/</span> <span class="n">accum</span><span class="o">.</span><span class="na">count</span><span class="o">;</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
 <span class="k">class</span> <span class="nc">AverageFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
@@ -1796,8 +1747,7 @@ mean average:</p>
   <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sum_count</span><span class="p">):</span>
     <span class="p">(</span><span class="nb">sum</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span> <span class="o">=</span> <span class="n">sum_count</span>
     <span class="k">return</span> <span class="nb">sum</span> <span class="o">/</span> <span class="n">count</span> <span class="k">if</span> <span class="n">count</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="s">'NaN'</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="combining-pcollection">4.2.4.3. Combining a PCollection into a single value</h5>
 
@@ -1807,20 +1757,18 @@ containing one element. The following example code shows how to apply the Beam
 provided sum combine function to produce a single sum value for a <code class="highlighter-rouge">PCollection</code>
 of integers.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,</span>
 <span class="c1">// contains one value: the sum of all the elements in the input PCollection.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">sum</span> <span class="o">=</span> <span class="n">pc</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
    <span class="n">Combine</span><span class="o">.</span><span class="na">globally</span><span class="o">(</span><span class="k">new</span> <span class="n">Sum</span><span class="o">.</span><span class="na">SumIntegerFn</span><span class="o">()));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># sum combines the elements in the input PCollection.</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># sum combines the elements in the input PCollection.</span>
 <span class="c"># The resulting PCollection, called result, contains one value: the sum of all</span>
 <span class="c"># the elements in the input PCollection.</span>
 <span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
 <span class="n">average</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">AverageFn</span><span class="p">())</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="combine-global-windowing">4.2.4.4. Combine and global windowing</h5>
 
@@ -1835,15 +1783,13 @@ a maximal or infinite value.</p>
 specify <code class="highlighter-rouge">.withoutDefaults</code> when you apply your <code class="highlighter-rouge">Combine</code> transform, as in the
 following code example:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">sum</span> <span class="o">=</span> <span class="n">pc</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
   <span class="n">Combine</span><span class="o">.</span><span class="na">globally</span><span class="o">(</span><span class="k">new</span> <span class="n">Sum</span><span class="o">.</span><span class="na">SumIntegerFn</span><span class="o">()).</span><span class="na">withoutDefaults</span><span class="o">());</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
 <span class="nb">sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="nb">sum</span><span class="p">)</span><span class="o">.</span><span class="n">without_defaults</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="combine-non-global-windowing">4.2.4.5. Combine and non-global windowing</h5>
 
@@ -1867,14 +1813,13 @@ the pipeline.</li>
 transform), a common pattern is to combine the collection of values associated
 with each key into a single, merged value. Drawing on the previous example from
 <code class="highlighter-rouge">GroupByKey</code>, a key-grouped <code class="highlighter-rouge">PCollection</code> called <code class="highlighter-rouge">groupedWords</code> looks like this:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>  cat, [1,5,9]
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  cat, [1,5,9]
   dog, [5,2]
   and, [1,2,6]
   jump, [3]
   tree, [2]
   ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>In the above <code class="highlighter-rouge">PCollection</code>, each element has a string key (for example, “cat”)
 and an iterable of integers for its value (in the first element, containing [1,
@@ -1885,7 +1830,7 @@ create a single, merged value to be paired with each key. This pattern of a
 Beam’s Combine PerKey transform. The combine function you supply to Combine
 PerKey must be an associative reduction function or a subclass of <code class="highlighter-rouge">CombineFn</code>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// PCollection is grouped by key and the Double values associated with each key are combined into a Double.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// PCollection is grouped by key and the Double values associated with each key are combined into a Double.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;&gt;</span> <span class="n">salesRecords</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;&gt;</span> <span class="n">totalSalesPerPerson</span> <span class="o">=</span>
   <span class="n">salesRecords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Combine</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Double</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;</span><span class="n">perKey</span><span class="o">(</span>
@@ -1897,17 +1842,15 @@ PerKey must be an associative reduction function or a subclass of <code class="h
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;&gt;</span> <span class="n">avgAccuracyPerPlayer</span> <span class="o">=</span>
   <span class="n">playerAccuracy</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Combine</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;</span><span class="n">perKey</span><span class="o">(</span>
     <span class="k">new</span> <span class="nf">MeanInts</span><span class="o">())));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># PCollection is grouped by key and the numeric values associated with each key</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># PCollection is grouped by key and the numeric values associated with each key</span>
 <span class="c"># are averaged into a float.</span>
 <span class="n">player_accuracies</span> <span class="o">=</span> <span class="o">...</span>
 <span class="n">avg_accuracy_per_player</span> <span class="o">=</span> <span class="p">(</span><span class="n">player_accuracies</span>
                            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span>
                                <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">()))</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="flatten">4.2.5. Flatten</h4>
 
@@ -1920,7 +1863,7 @@ is a Beam transform for <code class="highlighter-rouge">PCollection</code> objec
 <p>The following example shows how to apply a <code class="highlighter-rouge">Flatten</code> transform to merge multiple
 <code class="highlighter-rouge">PCollection</code> objects.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Flatten takes a PCollectionList of PCollection objects of a given type.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Flatten takes a PCollectionList of PCollection objects of a given type.</span>
 <span class="c1">// Returns a single PCollection that contains all of the elements in the PCollection objects in that list.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">pc1</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">pc2</span> <span class="o">=</span> <span class="o">...;</span>
@@ -1928,18 +1871,16 @@ is a Beam transform for <code class="highlighter-rouge">PCollection</code> objec
 <span class="n">PCollectionList</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">collections</span> <span class="o">=</span> <span class="n">PCollectionList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">pc1</span><span class="o">).</span><span class="na">and</span><span class="o">(</span><span class="n">pc2</span><span class="o">).</span><span class="na">and</span><span class="o">(</span><span class="n">pc3</span><span class="o">);</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">merged</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Flatten</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">pCollections</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Flatten takes a tuple of PCollection objects.</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Flatten takes a tuple of PCollection objects.</span>
 <span class="c"># Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.</span>
 <span class="n">merged</span> <span class="o">=</span> <span class="p">(</span>
     <span class="p">(</span><span class="n">pcoll1</span><span class="p">,</span> <span class="n">pcoll2</span><span class="p">,</span> <span class="n">pcoll3</span><span class="p">)</span>
     <span class="c"># A list of tuples can be "piped" directly into a Flatten transform.</span>
     <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Flatten</span><span class="p">())</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="data-encoding-merged-collections">4.2.5.1. Data encoding in merged collections</h5>
 
@@ -1980,7 +1921,7 @@ for instance).</p>
 
 <p>The following example divides a <code class="highlighter-rouge">PCollection</code> into percentile groups.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Provide an int value with the desired number of result partitions, and a PartitionFn that represents the</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Provide an int value with the desired number of result partitions, and a PartitionFn that represents the</span>
 <span class="c1">// partitioning function. In this example, we define the PartitionFn in-line. Returns a PCollectionList</span>
 <span class="c1">// containing each of the resulting partitions as individual PCollection objects.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Student</span><span class="o">&gt;</span> <span class="n">students</span> <span class="o">=</span> <span class="o">...;</span>
@@ -1994,9 +1935,8 @@ for instance).</p>
 
 <span class="c1">// You can extract each partition from the PCollectionList using the get method, as follows:</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Student</span><span class="o">&gt;</span> <span class="n">fortiethPercentile</span> <span class="o">=</span> <span class="n">studentsByPercentile</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="mi">4</span><span class="o">);</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).</span>
 <span class="c"># Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.</span>
 <span class="n">students</span> <span class="o">=</span> <span class="o">...</span>
 <span class="k">def</span> <span class="nf">partition_fn</span><span class="p">(</span><span class="n">student</span><span class="p">,</span> <span class="n">num_partitions</span><span class="p">):</span>
@@ -2008,8 +1948,7 @@ for instance).</p>
 <span class="c"># You can extract each partition from the tuple of PCollection objects as follows:</span>
 <span class="n">fortieth_percentile</span> <span class="o">=</span> <span class="n">by_decile</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="requirements-for-writing-user-code-for-beam-transforms">4.3. Requirements for writing user code for Beam transforms</h3>
 
@@ -2099,7 +2038,7 @@ determined by the input data, or depend on a different branch of your pipeline.<
 
 <h4 id="side-inputs-pardo">4.4.1. Passing side inputs to ParDo</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// Pass side inputs to your ParDo transform by invoking .withSideInputs.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="c1">// Pass side inputs to your ParDo transform by invoking .withSideInputs.</span>
   <span class="c1">// Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.</span>
 
   <span class="c1">// The input PCollection to ParDo.</span>
@@ -2127,9 +2066,8 @@ determined by the input data, or depend on a different branch of your pipeline.<
           <span class="o">}</span>
       <span class="o">}).</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">maxWordLengthCutOffView</span><span class="o">)</span>
   <span class="o">);</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Side inputs are available as extra arguments in the DoFn's process method or Map / FlatMap's callable.</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Side inputs are available as extra arguments in the DoFn's process method or Map / FlatMap's callable.</span>
 <span class="c"># Optional, positional, and keyword arguments are all supported. Deferred arguments are unwrapped into their</span>
 <span class="c"># actual values. For example, using pvalue.AsIteor(pcoll) at pipeline construction time results in an iterable</span>
 <span class="c"># of the actual elements of pcoll being passed into each process invocation. In this example, side inputs are</span>
@@ -2171,8 +2109,7 @@ determined by the input data, or depend on a different branch of your pipeline.<
 <span class="n">small_words</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterUsingLength</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
 
 <span class="o">...</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="side-inputs-windowing">4.4.2. Side inputs and windowing</h4>
 
@@ -2213,7 +2150,7 @@ together.</p>
 
 <h4 id="output-tags">4.5.1. Tags for multiple outputs</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// To emit elements to multiple output PCollections, create a TupleTag object to identify each collection</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// To emit elements to multiple output PCollections, create a TupleTag object to identify each collection</span>
 <span class="c1">// that your ParDo produces. For example, if your ParDo produces three output PCollections (the main output</span>
 <span class="c1">// and two additional outputs), you must create three TupleTags. The following example code shows how to</span>
 <span class="c1">// create TupleTags for a ParDo with three output PCollections.</span>
@@ -2258,10 +2195,9 @@ together.</p>
           <span class="c1">// Specify the tags for the two additional outputs as a TupleTagList.</span>
                           <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">wordLengthsAboveCutOffTag</span><span class="o">)</span>
                                       <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">markedWordsTag</span><span class="o">)));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># To emit elements to multiple output PCollections, invoke with_outputs() on the ParDo, and specify the</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># To emit elements to multiple output PCollections, invoke with_outputs() on the ParDo, and specify the</span>
 <span class="c"># expected tags for the outputs. with_outputs() returns a DoOutputsTuple object. Tags specified in</span>
 <span class="c"># with_outputs are attributes on the returned DoOutputsTuple object. The tags give access to the</span>
 <span class="c"># corresponding output PCollections.</span>
@@ -2283,12 +2219,11 @@ together.</p>
                         <span class="o">.</span><span class="n">with_outputs</span><span class="p">(</span><span class="s">'above_cutoff_lengths'</span><span class="p">,</span>
                                       <span class="s">'marked strings'</span><span class="p">,</span>
                                       <span class="n">main</span><span class="o">=</span><span class="s">'below_cutoff_strings'</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="multiple-outputs-dofn">4.5.2. Emitting to multiple outputs in your DoFn</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a</span>
 <span class="c1">// MultiOutputReceiver to your process method, and passing in the appropriate TupleTag to obtain an OutputReceiver.</span>
 <span class="c1">// After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.</span>
 <span class="c1">// Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.</span>
@@ -2308,10 +2243,9 @@ together.</p>
          <span class="n">out</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">markedWordsTag</span><span class="o">).</span><span class="na">output</span><span class="o">(</span><span class="n">word</span><span class="o">);</span>
        <span class="o">}</span>
      <span class="o">}}));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Inside your ParDo's DoFn, you can emit an element to a specific output by wrapping the value and the output tag (str).</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Inside your ParDo's DoFn, you can emit an element to a specific output by wrapping the value and the output tag (str).</span>
 <span class="c"># using the pvalue.OutputValue wrapper class.</span>
 <span class="c"># Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.</span>
 
@@ -2343,8 +2277,7 @@ together.</p>
 <span class="n">evens</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">even</span>
 <span class="n">odds</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">odd</span>
 <span class="n">tens</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="bp">None</span><span class="p">]</span>  <span class="c"># the undeclared main output</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="other-dofn-parameters">4.5.3. Accessing additional parameters in your DoFn</h4>
 
@@ -2360,13 +2293,12 @@ To access the timestamp of an input element, add a parameter annotated with <cod
 <p class="language-py"><strong>Timestamp:</strong>
 To access the timestamp of an input element, add a keyword parameter default to <code class="highlighter-rouge">DoFn.TimestampParam</code>. For example:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">word</span><span class="o">,</span> <span class="nd">@Timestamp</span> <span class="n">Instant</span> <span class="n">timestamp</span><span class="o">)</span> <span class="o">{</span>
   <span class="o">}})</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">ProcessRecord</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
 
@@ -2374,8 +2306,7 @@ To access the timestamp of an input element, add a keyword parameter default to 
      <span class="c"># access timestamp of element.</span>
      <span class="k">pass</span>  
   
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java"><strong>Window:</strong>
 To access the window an input element falls into, add a parameter of the type of the window used for the input <code class="highlighter-rouge">PCollection</code>.
@@ -2389,13 +2320,12 @@ To access the window an input element falls into, add a keyword parameter defaul
 If an element falls in multiple windows (for example, this will happen when using <code class="highlighter-rouge">SlidingWindows</code>), then the
 <code class="highlighter-rouge">process</code> method will be invoked multiple time for the element, once for each window.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">word</span><span class="o">,</span> <span class="n">IntervalWindow</span> <span class="n">window</span><span class="o">)</span> <span class="o">{</span>
   <span class="o">}})</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">ProcessRecord</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
 
@@ -2403,8 +2333,7 @@ If an element falls in multiple windows (for example, this will happen when usin
      <span class="c"># access window e.g window.end.micros</span>
      <span class="k">pass</span>  
   
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java"><strong>PaneInfo:</strong>
 When triggers are used, Beam provides a <code class="highlighter-rouge">PaneInfo</code> object that contains information about the current firing. Using <code class="highlighter-rouge">PaneInfo</code>
@@ -2415,13 +2344,12 @@ When triggers are used, Beam provides a <code class="highlighter-rouge">DoFn.Pan
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key. 
 This feature implementation in python sdk is not fully completed, see more at <a href="https://issues.apache.org/jira/browse/BEAM-3759">BEAM-3759</a>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">word</span><span class="o">,</span> <span class="n">PaneInfo</span> <span class="n">paneInfo</span><span class="o">)</span> <span class="o">{</span>
   <span class="o">}})</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">ProcessRecord</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
 
@@ -2429,16 +2357,14 @@ This feature implementation in python sdk is not fully completed, see more at <a
      <span class="c"># access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing</span>
      <span class="k">pass</span>  
   
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java"><strong>PipelineOptions:</strong>
 The <code class="highlighter-rouge">PipelineOptions</code> for the current pipeline can always be accessed in a process method by adding it as a parameter:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">word</span><span class="o">,</span> <span class="n">PipelineOptions</span> <span class="n">options</span><span class="o">)</span> <span class="o">{</span>
   <span class="o">}})</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java"><code class="highlighter-rouge">@OnTimer</code> methods can also access many of these parameters. Timestamp, Window, key, <code class="highlighter-rouge">PipelineOptions</code>, <code class="highlighter-rouge">OutputReceiver</code>, and
 <code class="highlighter-rouge">MultiOutputReceiver</code> parameters can all be accessed in an <code class="highlighter-rouge">@OnTimer</code> method. In addition, an <code class="highlighter-rouge">@OnTimer</code> method can take
@@ -2451,7 +2377,7 @@ In addition to aforementioned parameters, user defined Timer and State parameter
 Timers and States are explained in more detail in the
 <a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam</a> blog post.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 <span class="k">class</span> <span class="nc">StatefulDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="s">"""An example stateful DoFn with state and timer"""</span>
 
@@ -2506,8 +2432,7 @@ Timers and States are explained in more detail in the
       <span class="c"># Some business logic</span>
       <span class="k">return</span> <span class="bp">True</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 <h3 id="composite-transforms">4.6. Composite transforms</h3>
 
 <p>Transforms can have a nested structure, where a complex transform performs
@@ -2548,7 +2473,7 @@ is, by itself, a composite transform.</p>
 input type and final return type for the entire transform, even if the
 transform’s intermediate data changes type multiple times.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CountWords</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CountWords</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span>
       <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
     <span class="nd">@Override</span>
     <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span><span class="o">)</span> <span class="o">{</span>
@@ -2564,10 +2489,9 @@ transform’s intermediate data changes type multiple times.</p>
       <span class="k">return</span> <span class="n">wordCounts</span><span class="o">;</span>
     <span class="o">}</span>
   <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The CountWords Composite Transform inside the WordCount pipeline.</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The CountWords Composite Transform inside the WordCount pipeline.</span>
 <span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
 
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
@@ -2578,8 +2502,7 @@ transform’s intermediate data changes type multiple times.</p>
             <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
             <span class="c"># Format each word and count into a printable string.</span>
             <span class="o">|</span> <span class="s">'FormatCounts'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatCountsFn</span><span class="p">()))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="composite-transform-creation">4.6.2. Creating a composite transform</h4>
 
@@ -2596,19 +2519,17 @@ of the multi-collection types for the relevant type parameter.</p>
 <p>The following code sample shows how to declare a <code class="highlighter-rouge">PTransform</code> that accepts a
 <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">String</code>s for input, and outputs a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">Integer</code>s:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengths</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengths</span>
     <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
     <span class="o">...</span>
   <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengths</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengths</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
     <span class="c"># Transform logic goes here.</span>
     <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Within your <code class="highlighter-rouge">PTransform</code> subclass, you’ll need to override the <code class="highlighter-rouge">expand</code> method.
 The <code class="highlighter-rouge">expand</code> method is where you add the processing logic for the <code class="highlighter-rouge">PTransform</code>.
@@ -2619,7 +2540,7 @@ value.</p>
 <p>The following code sample shows how to override <code class="highlighter-rouge">expand</code> for the
 <code class="highlighter-rouge">ComputeWordLengths</code> class declared in the previous example:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengths</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengths</span>
       <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
     <span class="nd">@Override</span>
     <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;)</span> <span class="o">{</span>
@@ -2627,15 +2548,13 @@ value.</p>
       <span class="c1">// transform logic goes here</span>
       <span class="o">...</span>
     <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengths</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengths</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
     <span class="c"># Transform logic goes here.</span>
     <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>As long as you override the <code class="highlighter-rouge">expand</code> method in your <code class="highlighter-rouge">PTransform</code> subclass to
 accept the appropriate input <code class="highlighter-rouge">PCollection</code>(s) and return the corresponding
@@ -2673,13 +2592,11 @@ representation of the data for use by your pipeline. You can use a read
 transform at any point while constructing your pipeline to create a new
 <code class="highlighter-rouge">PCollection</code>, though it will be most common at the start of your pipeline.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'gs://some/inputData.txt'</span><span class="p">)</span>
-</code></pre>
-</div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'gs://some/inputData.txt'</span><span class="p">)</span>
+</code></pre></div></div>
 
 <h3 id="pipeline-io-writing-data">5.2. Writing output data</h3>
 
@@ -2688,13 +2605,11 @@ You will most often use write transforms at the end of your pipeline to output
 your pipeline’s final results. However, you can use a write transform to output
 a <code class="highlighter-rouge">PCollection</code>’s data at any point in your pipeline.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">output</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData"</span><span class="o">));</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">output</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData"</span><span class="o">));</span>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">output</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s">'gs://some/outputData'</span><span class="p">)</span>
-</code></pre>
-</div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">output</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s">'gs://some/outputData'</span><span class="p">)</span>
+</code></pre></div></div>
 
 <h3 id="file-based-data">5.3. File-based input and output data</h3>
 
@@ -2706,15 +2621,13 @@ filesystem-specific consistency models. The following TextIO example uses a glob
 operator (*) to read all matching input files that have prefix “input-“ and the
 suffix “.csv” in the given location:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ReadFromText"</span><span class="o">,</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ReadFromText"</span><span class="o">,</span>
     <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/input-*.csv"</span><span class="o">));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadFromText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'path/to/input-*.csv'</span><span class="p">)</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadFromText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'path/to/input-*.csv'</span><span class="p">)</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>To read data from disparate sources into a single <code class="highlighter-rouge">PCollection</code>, read each one
 independently and then use the <a href="#flatten">Flatten</a> transform to create a single
@@ -2731,17 +2644,15 @@ You can append a suffix to each output file by specifying a suffix.</p>
 location. Each file has the prefix “numbers”, a numeric tag, and the suffix
 “.csv”.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">records</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"WriteToText"</span><span class="o">,</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">records</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"WriteToText"</span><span class="o">,</span>
     <span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/numbers"</span><span class="o">)</span>
                 <span class="o">.</span><span class="na">withSuffix</span><span class="o">(</span><span class="s">".csv"</span><span class="o">));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">filtered_words</span> <span class="o">|</span> <span class="s">'WriteToText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">filtered_words</span> <span class="o">|</span> <span class="s">'WriteToText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span>
     <span class="s">'/path/to/numbers'</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s">'.csv'</span><span class="p">)</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="provided-io-transforms">5.4. Beam-provided I/O transforms</h3>
 
@@ -2978,17 +2889,15 @@ to register a new <code class="highlighter-rouge">Coder</code> for the target ty
 <span class="language-java">Integer</span><span class="language-py">int</span>
 values for a pipeline.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
 <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
 <span class="n">CoderRegistry</span> <span class="n">cr</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">getCoderRegistry</span><span class="o">();</span>
 <span class="n">cr</span><span class="o">.</span><span class="na">registerCoder</span><span class="o">(</span><span class="n">Integer</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">BigEndianIntegerCoder</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">apache_beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">register_coder</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">BigEndianIntegerCoder</span><span class="p">)</span>
-</code></pre>
-</div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">apache_beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">register_coder</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">BigEndianIntegerCoder</span><span class="p">)</span>
+</code></pre></div></div>
 
 <h4 id="annotating-custom-type-default-coder">6.2.3. Annotating a custom data type with a default coder</h4>
 
@@ -2997,18 +2906,17 @@ values for a pipeline.</p>
 example, let’s say you have a custom data type for which you want to use
 <code class="highlighter-rouge">SerializableCoder</code>. You can use the <code class="highlighter-rouge">@DefaultCoder</code> annotation as follows:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@DefaultCoder</span><span class="o">(</span><span class="n">AvroCoder</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@DefaultCoder</span><span class="o">(</span><span class="n">AvroCoder</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyCustomDataType</span> <span class="o">{</span>
   <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java">If you’ve created a custom coder to match your data type, and you want to use
 the <code class="highlighter-rouge">@DefaultCoder</code> annotation, your coder class must implement a static
 <code class="highlighter-rouge">Coder.of(Class&lt;T&gt;)</code> factory method.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyCustomCoder</span> <span class="kd">implements</span> <span class="n">Coder</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyCustomCoder</span> <span class="kd">implements</span> <span class="n">Coder</span> <span class="o">{</span>
   <span class="kd">public</span> <span class="kd">static</span> <span class="n">Coder</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nf">of</span><span class="o">(</span><span class="n">Class</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">clazz</span><span class="o">)</span> <span class="o">{...}</span>
   <span class="o">...</span>
 <span class="o">}</span>
@@ -3017,8 +2925,7 @@ the <code class="highlighter-rouge">@DefaultCoder</code> annotation, your coder 
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyCustomDataType</span> <span class="o">{</span>
   <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-py">The Beam SDK for Python does not support annotating data types with a default
 coder. If you would like to set a default coder, use the method described in the
@@ -3244,17 +3151,15 @@ for more information.</p>
 <p>The following example code shows how to apply <code class="highlighter-rouge">Window</code> to divide a <code class="highlighter-rouge">PCollection</code>
 into fixed windows, each 60 seconds in length:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">fixedWindowedItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">60</span><span class="o">))));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
 <span class="n">fixed_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">items</span> <span class="o">|</span> <span class="s">'window'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">60</span><span class="p">)))</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="using-sliding-time-windows">7.3.2. Sliding time windows</h4>
 
@@ -3262,17 +3167,15 @@ into fixed windows, each 60 seconds in length:</p>
 into sliding time windows. Each window is 30 seconds in length, and a new window
 begins every five seconds:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">slidingWindowedItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">SlidingWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">every</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5</span><span class="o">))));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
 <span class="n">sliding_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">items</span> <span class="o">|</span> <span class="s">'window'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">SlidingWindows</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">5</span><span class="p">)))</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="using-session-windows">7.3.3. Session windows</h4>
 
@@ -3280,17 +3183,15 @@ begins every five seconds:</p>
 into session windows, where each session must be separated by a time gap of at
 least 10 minutes (600 seconds):</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">sessionWindowedItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">Sessions</span><span class="o">.</span><span class="na">withGapDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">600</span><span class="o">))));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
 <span class="n">session_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">items</span> <span class="o">|</span> <span class="s">'window'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)))</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Note that the sessions are per-key — each key in the collection will have its
 own session groupings depending on the data distribution.</p>
@@ -3301,17 +3202,15 @@ own session groupings depending on the data distribution.</p>
 elements to a single global window. The following example code shows how to set
 a single global window for a <code class="highlighter-rouge">PCollection</code>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">batchItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">()));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
 <span class="n">session_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">items</span> <span class="o">|</span> <span class="s">'window'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="p">()))</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="watermarks-and-late-data">7.4. Watermarks and late data</h3>
 
@@ -3365,12 +3264,11 @@ you set your <code class="highlighter-rouge">PCollection</code>’s windowing st
 demonstrates a windowing strategy that will allow late data up to two days after
 the end of a window.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">fixedWindowedItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
               <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardDays</span><span class="o">(</span><span class="mi">2</span><span class="o">)));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>When you set <code class="highlighter-rouge">.withAllowedLateness</code> on a <code class="highlighter-rouge">PCollection</code>, that allowed lateness
 propagates forward to any subsequent <code class="highlighter-rouge">PCollection</code> derived from the first
@@ -3398,7 +3296,7 @@ records in from a file, the file source doesn’t assign timestamps automaticall
 You can parse the timestamp field from each record and use a <code class="highlighter-rouge">ParDo</code> transform
 with a <code class="highlighter-rouge">DoFn</code> to attach the timestamps to each element in your <code class="highlighter-rouge">PCollection</code>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>      <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">LogEntry</span><span class="o">&gt;</span> <span class="n">unstampedLogs</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>      <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">LogEntry</span><span class="o">&gt;</span> <span class="n">unstampedLogs</span> <span class="o">=</span> <span class="o">...;</span>
       <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">LogEntry</span><span class="o">&gt;</span> <span class="n">stampedLogs</span> <span class="o">=</span>
           <span class="n">unstampedLogs</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">LogEntry</span><span class="o">,</span> <span class="n">LogEntry</span><span class="o">&gt;()</span> <span class="o">{</span>
             <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">LogEntry</span> <span class="n">element</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">LogEntry</span><span class="o">&gt;</span> <span class="n">out</span><span class="o">)</span> <span class="o">{</span>
@@ -3409,9 +3307,8 @@ with a <code class="highlighter-rouge">DoFn</code> to attach the timestamps to e
               <span class="n">out</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">element</span><span class="o">,</span> <span class="n">logTimeStamp</span><span class="o">);</span>
             <span class="o">}</span>
           <span class="o">}));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">AddTimestampDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">AddTimestampDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
 
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
     <span class="c"># Extract the numeric Unix seconds-since-epoch timestamp to be</span>
@@ -3423,8 +3320,7 @@ with a <code class="highlighter-rouge">DoFn</code> to attach the timestamps to e
 
 <span class="n">timestamped_items</span> <span class="o">=</span> <span class="n">items</span> <span class="o">|</span> <span class="s">'timestamp'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">AddTimestampDoFn</span><span class="p">())</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="triggers">8. Triggers</h2>
 
@@ -3505,7 +3401,7 @@ before or after the end of the window.</p>
 <p>The following example shows a billing scenario, and uses both early and late
 firings:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// Create a bill at the end of the month.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="c1">// Create a bill at the end of the month.</span>
   <span class="n">AfterWatermark</span><span class="o">.</span><span class="na">pastEndOfWindow</span><span class="o">()</span>
       <span class="c1">// During the month, get near real-time estimates.</span>
       <span class="o">.</span><span class="na">withEarlyFirings</span><span class="o">(</span>
@@ -3514,13 +3410,11 @@ firings:</p>
               <span class="o">.</span><span class="na">plusDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
       <span class="c1">// Fire on any late data so the bill can be corrected.</span>
       <span class="o">.</span><span class="na">withLateFirings</span><span class="o">(</span><span class="n">AfterPane</span><span class="o">.</span><span class="na">elementCountAtLeast</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">AfterWatermark</span><span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">AfterWatermark</span><span class="p">(</span>
     <span class="n">early</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="n">delay</span><span class="o">=</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
     <span class="n">late</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="default-trigger">8.1.1. Default trigger</h4>
 
@@ -3583,19 +3477,17 @@ trigger for a <code class="highlighter-rouge">PCollection</code>, which emits re
 element in that window has been processed. The <code class="highlighter-rouge">accumulation_mode</code> parameter
 sets the window’s <strong>accumulation mode</strong>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
   <span class="n">pc</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">MINUTES</span><span class="o">))</span>
                                <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()</span>
                                                               <span class="o">.</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
                                <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">());</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
     <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
     <span class="n">trigger</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="window-accumulation-modes">8.4.1. Window accumulation modes</h4>
 
@@ -3638,22 +3530,20 @@ we’ll assume that the events all arrive in the pipeline in order.</p>
 values each time it fires. Keep in mind that the trigger fires every time three
 elements arrive:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>  First trigger firing:  [5, 8, 3]
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  First trigger firing:  [5, 8, 3]
   Second trigger firing: [5, 8, 3, 15, 19, 23]
   Third trigger firing:  [5, 8, 3, 15, 19, 23, 9, 13, 10]
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="discarding-mode">8.4.1.2. Discarding mode</h5>
 
 <p>If our trigger is set to discarding mode, the trigger emits the following values
 on each firing:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>  First trigger firing:  [5, 8, 3]
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  First trigger firing:  [5, 8, 3]
   Second trigger firing:           [15, 19, 23]
   Third trigger firing:                         [9, 13, 10]
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="handling-late-data">8.4.2. Handling late data</h4>
 
@@ -3670,16 +3560,14 @@ results immediately whenever late data arrives.</p>
 <p>You set the allowed lateness by using <code class="highlighter-rouge">.withAllowedLateness()</code> when you set your
 windowing function:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
   <span class="n">pc</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">MINUTES</span><span class="o">))</span>
                               <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()</span>
                                                              <span class="o">.</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
                               <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">30</span><span class="o">));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not currently support allowed lateness.</span>
-</code></pre>
-</div>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not currently support allowed lateness.</span>
+</code></pre></div></div>
 
 <p>This allowed lateness propagates to all <code class="highlighter-rouge">PCollection</code>s derived as a result of
 applying transforms to the original <code class="highlighter-rouge">PCollection</code>. If you want to change the
@@ -3753,7 +3641,7 @@ end of the window)</p>
 trigger stops executing</li>
 </ul>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span>
       <span class="o">.</span><span class="na">configure</span><span class="o">()</span>
       <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">AfterWatermark</span>
            <span class="o">.</span><span class="na">pastEndOfWindow</span><span class="o">()</span>
@@ -3761,15 +3649,13 @@ trigger stops executing</li>
                 <span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()</span>
                 <span class="o">.</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">10</span><span class="o">))))</span>
       <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardDays</span><span class="o">(</span><span class="mi">2</span><span class="o">)));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
     <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
     <span class="n">trigger</span><span class="o">=</span><span class="n">AfterWatermark</span><span class="p">(</span>
         <span class="n">late</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)),</span>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="other-composite-triggers">8.5.3. Other composite triggers</h4>
 
@@ -3777,20 +3663,18 @@ trigger stops executing</li>
 shows a simple composite trigger that fires whenever the pane has at least 100
 elements, or after a minute.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="n">Repeatedly</span><span class="o">.</span><span class="na">forever</span><span class="o">(</span><span class="n">AfterFirst</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">Repeatedly</span><span class="o">.</span><span class="na">forever</span><span class="o">(</span><span class="n">AfterFirst</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
       <span class="n">AfterPane</span><span class="o">.</span><span class="na">elementCountAtLeast</span><span class="o">(</span><span class="mi">100</span><span class="o">),</span>
       <span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">().</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
     <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
     <span class="n">trigger</span><span class="o">=</span><span class="n">Repeatedly</span><span class="p">(</span>
         <span class="n">AfterAny</span><span class="p">(</span>
             <span class="n">AfterCount</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
             <span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">))),</span>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="metrics">9. Metrics</h2>
 <p>In the Beam model, metrics provide some insight into the current state of a user pipeline, 
@@ -3832,7 +3716,7 @@ after jobs have completed.</p>
 
 <p><strong>Counter</strong>: A metric that reports a single long value and can be incremented or decremented.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Counter</span> <span class="n">counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">counter</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"counter1"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Counter</span> <span class="n">counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">counter</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"counter1"</span><span class="o">);</span>
 
 <span class="nd">@ProcessElement</span>
 <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
@@ -3840,12 +3724,11 @@ after jobs have completed.</p>
   <span class="n">counter</span><span class="o">.</span><span class="na">inc</span><span class="o">();</span>
   <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Distribution</strong>: A metric that reports information about the distribution of reported values.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Distribution</span> <span class="n">distribution</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">distribution</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"distribution1"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Distribution</span> <span class="n">distribution</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">distribution</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"distribution1"</span><span class="o">);</span>
 
 <span class="nd">@ProcessElement</span>
 <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
@@ -3854,13 +3737,12 @@ after jobs have completed.</p>
     <span class="n">distribution</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">element</span><span class="o">);</span>
     <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Gauge</strong>: A metric that reports the latest value out of reported values. Since metrics are 
 collected from many workers the value may not be the absolute last, but one of the latest values.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Gauge</span> <span class="n">gauge</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">gauge</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"gauge1"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Gauge</span> <span class="n">gauge</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="na">gauge</span><span class="o">(</span> <span class="s">"namespace"</span><span class="o">,</span> <span class="s">"gauge1"</span><span class="o">);</span>
 
 <span class="nd">@ProcessElement</span>
 <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
@@ -3869,15 +3751,14 @@ collected from many workers the value may not be the absolute last, but one of t
   <span class="n">gauge</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">element</span><span class="o">);</span>
   <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="querying-metrics">9.3 Querying metrics</h3>
 <p><code class="highlighter-rouge">PipelineResult</code> has a method <code class="highlighter-rouge">metrics()</code> which returns a <code class="highlighter-rouge">MetricResults</code> object that allows 
 accessing metrics. The main method available in <code class="highlighter-rouge">MetricResults</code> allows querying for all metrics 
 matching a given filter.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">PipelineResult</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">PipelineResult</span> <span class="o">{</span>
   <span class="n">MetricResults</span> <span class="nf">metrics</span><span class="o">();</span>
 <span class="o">}</span>
 
@@ -3897,13 +3778,12 @@ matching a given filter.</p>
   <span class="n">T</span> <span class="nf">getCommitted</span><span class="o">();</span>
   <span class="n">T</span> <span class="nf">getAttempted</span><span class="o">();</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="using-metrics">9.4 Using metrics in pipeline</h3>
 <p>Below, there is a simple example of how to use a <code class="highlighter-rouge">Counter</code> metric in a user pipeline.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// creating a pipeline with custom metrics DoFn</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// creating a pipeline with custom metrics DoFn</span>
 <span class="n">pipeline</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(...)</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">MyMetricsDoFn</span><span class="o">()));</span>
@@ -3935,8 +3815,7 @@ matching a given filter.</p>
     <span class="n">context</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">context</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

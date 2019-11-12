@@ -531,7 +531,7 @@ limitations under the License.
 <p>In the following example, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of key-value pairs.
 Then, we apply <code class="highlighter-rouge">Values</code> to extract the values and discard the keys.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
@@ -546,18 +546,16 @@ Then, we apply <code class="highlighter-rouge">Values</code> to extract the valu
       <span class="o">|</span> <span class="s">'Values'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Values</span><span class="p">()</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Values</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Strawberry
 Carrot
 Eggplant
 Tomato
 Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

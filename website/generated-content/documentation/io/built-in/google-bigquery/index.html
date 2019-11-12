@@ -536,13 +536,12 @@ to <a href="https://cloud.google.com/bigquery">Google BigQuery</a> tables.</p>
 
 <p class="language-java">To use BigQueryIO, add the Maven artifact dependency to your <code class="highlighter-rouge">pom.xml</code> file.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">sdks</span><span class="o">-</span><span class="n">java</span><span class="o">-</span><span class="n">io</span><span class="o">-</span><span class="n">google</span><span class="o">-</span><span class="n">cloud</span><span class="o">-</span><span class="n">platform</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.16</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java">Additional resources:</p>
 
@@ -600,13 +599,11 @@ object.</p>
 <code class="highlighter-rouge">[project_id]:[dataset_id].[table_id]</code> to specify the fully-qualified BigQuery
 table name.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSpec</span> <span class="o">=</span> <span class="s">"clouddataflow-readonly:samples.weather_stations"</span><span class="o">;</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># project-id:dataset_id.table_id</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSpec</span> <span class="o">=</span> <span class="s">"clouddataflow-readonly:samples.weather_stations"</span><span class="o">;</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># project-id:dataset_id.table_id</span>
 <span class="n">table_spec</span> <span class="o">=</span> <span class="s">'clouddataflow-readonly:samples.weather_stations'</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>You can also omit <code class="highlighter-rouge">project_id</code> and use the <code class="highlighter-rouge">[dataset_id].[table_id]</code> format. If
 you omit the project ID, Beam uses the default project ID from your
@@ -617,34 +614,30 @@ you omit the project ID, Beam uses the default project ID from your
   <a href="https://beam.apache.org/releases/pydoc/2.16.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions">pipeline options</a>.
 </span></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSpec</span> <span class="o">=</span> <span class="s">"samples.weather_stations"</span><span class="o">;</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># dataset_id.table_id</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSpec</span> <span class="o">=</span> <span class="s">"samples.weather_stations"</span><span class="o">;</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># dataset_id.table_id</span>
 <span class="n">table_spec</span> <span class="o">=</span> <span class="s">'samples.weather_stations'</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="using-a-tablereference">Using a TableReference</h4>
 
 <p>To specify a table with a <code class="highlighter-rouge">TableReference</code>, create a new <code class="highlighter-rouge">TableReference</code> using
 the three parts of the BigQuery table name.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TableReference</span> <span class="n">tableSpec</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">TableReference</span> <span class="n">tableSpec</span> <span class="o">=</span>
     <span class="k">new</span> <span class="nf">TableReference</span><span class="o">()</span>
         <span class="o">.</span><span class="na">setProjectId</span><span class="o">(</span><span class="s">"clouddataflow-readonly"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">setDatasetId</span><span class="o">(</span><span class="s">"samples"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">setTableId</span><span class="o">(</span><span class="s">"weather_stations"</span><span class="o">);</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="kn">import</span> <span class="n">bigquery</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="kn">import</span> <span class="n">bigquery</span>
 
 <span class="n">table_spec</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableReference</span><span class="p">(</span>
     <span class="n">projectId</span><span class="o">=</span><span class="s">'clouddataflow-readonly'</span><span class="p">,</span>
     <span class="n">datasetId</span><span class="o">=</span><span class="s">'samples'</span><span class="p">,</span>
     <span class="n">tableId</span><span class="o">=</span><span class="s">'weather_stations'</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!-- Java specific -->
 
@@ -676,7 +669,7 @@ BigQueryIO allows you to use all of these data types. The following example
 shows the correct format for data types used when reading from and writing to
 BigQuery:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TableRow</span> <span class="n">row</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TableRow</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">TableRow</span> <span class="n">row</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TableRow</span><span class="o">();</span>
 <span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"string"</span><span class="o">,</span> <span class="s">"abc"</span><span class="o">);</span>
 <span class="kt">byte</span><span class="o">[]</span> <span class="n">rawbytes</span> <span class="o">=</span> <span class="o">{(</span><span class="kt">byte</span><span class="o">)</span> <span class="mh">0xab</span><span class="o">,</span> <span class="o">(</span><span class="kt">byte</span><span class="o">)</span> <span class="mh">0xac</span><span class="o">};</span>
 <span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"bytes"</span><span class="o">,</span> <span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">Base64</span><span class="o">.</span><span class="na">getEncoder</span><span class="o">().</span><span class="na">encodeToString</span><span class="o">(</span><span class="n">rawbytes</span><span class="o">)));</span>
@@ -689,9 +682,8 @@ BigQuery:</p>
 <span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"time"</span><span class="o">,</span> <span class="s">"12:44:31"</span><span class="o">);</span>
 <span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"datetime"</span><span class="o">,</span> <span class="s">"2019-06-11T14:44:31"</span><span class="o">);</span>
 <span class="n">row</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"geography"</span><span class="o">,</span> <span class="s">"POINT(30 10)"</span><span class="o">);</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">bigquery_data</span> <span class="o">=</span> <span class="p">[{</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">bigquery_data</span> <span class="o">=</span> <span class="p">[{</span>
     <span class="s">'string'</span><span class="p">:</span> <span class="s">'abc'</span><span class="p">,</span>
     <span class="s">'bytes'</span><span class="p">:</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">b</span><span class="s">'</span><span class="se">\xab\xac</span><span class="s">'</span><span class="p">),</span>
     <span class="s">'integer'</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
@@ -704,8 +696,7 @@ BigQuery:</p>
     <span class="s">'datetime'</span><span class="p">:</span> <span class="s">'2018-12-31T12:44:31'</span><span class="p">,</span>
     <span class="s">'geography'</span><span class="p">:</span> <span class="s">'POINT(30 10)'</span>
 <span class="p">}]</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!-- Java specific -->
 
@@ -792,21 +783,19 @@ table name.</p>
 <p>The following code reads an entire table that contains weather station data and
 then extracts the <code class="highlighter-rouge">max_temperature</code> column.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
     <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">BigQueryIO</span><span class="o">.</span><span class="na">readTableRows</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="n">tableSpec</span><span class="o">))</span>
         <span class="c1">// Each row is of type TableRow</span>
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
             <span class="n">MapElements</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">doubles</span><span class="o">())</span>
                 <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">TableRow</span> <span class="n">row</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">Double</span><span class="o">)</span> <span class="n">row</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"max_temperature"</span><span class="o">)));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">p</span>
     <span class="o">|</span> <span class="s">'ReadTable'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span><span class="n">table_spec</span><span class="p">))</span>
     <span class="c"># Each row is a dictionary where the keys are the BigQuery columns</span>
     <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'max_temperature'</span><span class="p">]))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="reading-with-a-query-string">Reading with a query string</h3>
 
@@ -819,29 +808,27 @@ the <code class="highlighter-rouge">fromQuery</code> method. This example uses
 
 <p>The following code uses a SQL query to only read the <code class="highlighter-rouge">max_temperature</code> column.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
     <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">BigQueryIO</span><span class="o">.</span><span class="na">read</span><span class="o">(</span>
                 <span class="o">(</span><span class="n">SchemaAndRecord</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">Double</span><span class="o">)</span> <span class="n">elem</span><span class="o">.</span><span class="na">getRecord</span><span class="o">().</span><span class="na">get</span><span class="o">(</span><span class="s">"max_temperature"</span><span class="o">))</span>
             <span class="o">.</span><span class="na">fromQuery</span><span class="o">(</span>
                 <span class="s">"SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]"</span><span class="o">)</span>
             <span class="o">.</span><span class="na">withCoder</span><span class="o">(</span><span class="n">DoubleCoder</span><span class="o">.</span><span class="na">of</span><span class="o">()));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">p</span>
     <span class="o">|</span> <span class="s">'QueryTable'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span>
         <span class="n">query</span><span class="o">=</span><span class="s">'SELECT max_temperature FROM '</span>\
               <span class="s">'[clouddataflow-readonly:samples.weather_stations]'</span><span class="p">))</span>
     <span class="c"># Each row is a dictionary where the keys are the BigQuery columns</span>
     <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'max_temperature'</span><span class="p">]))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>You can also use BigQuery’s standard SQL dialect with a query string, as shown
 in the following example:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
     <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">BigQueryIO</span><span class="o">.</span><span class="na">read</span><span class="o">(</span>
                 <span class="o">(</span><span class="n">SchemaAndRecord</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">Double</span><span class="o">)</span> <span class="n">elem</span><span class="o">.</span><span class="na">getRecord</span><span class="o">().</span><span class="na">get</span><span class="o">(</span><span class="s">"max_temperature"</span><span class="o">))</span>
@@ -849,9 +836,8 @@ in the following example:</p>
                 <span class="s">"SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`"</span><span class="o">)</span>
             <span class="o">.</span><span class="na">usingStandardSql</span><span class="o">()</span>
             <span class="o">.</span><span class="na">withCoder</span><span class="o">(</span><span class="n">DoubleCoder</span><span class="o">.</span><span class="na">of</span><span class="o">()));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">p</span>
     <span class="o">|</span> <span class="s">'QueryTableStdSQL'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span>
         <span class="n">query</span><span class="o">=</span><span class="s">'SELECT max_temperature FROM '</span>\
@@ -859,8 +845,7 @@ in the following example:</p>
         <span class="n">use_standard_sql</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
     <span class="c"># Each row is a dictionary where the keys are the BigQuery columns</span>
     <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'max_temperature'</span><span class="p">]))</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="storage-api">Using the BigQuery Storage API</h3>
 
@@ -908,7 +893,7 @@ the BigQuery Storage API and column projection to read public samples of weather
 data from a BigQuery table. You can view the <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java">full source code on
 GitHub</a>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>   <span class="n">TableReadOptions</span> <span class="n">tableReadOptions</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>   <span class="n">TableReadOptions</span> <span class="n">tableReadOptions</span> <span class="o">=</span>
        <span class="n">TableReadOptions</span><span class="o">.</span><span class="na">newBuilder</span><span class="o">()</span>
            <span class="o">.</span><span class="na">addAllSelectedFields</span><span class="o">(</span><span class="n">Lists</span><span class="o">.</span><span class="na">newArrayList</span><span class="o">(</span><span class="s">"month"</span><span class="o">,</span> <span class="s">"tornado"</span><span class="o">))</span>
            <span class="o">.</span><span class="na">build</span><span class="o">();</span>
@@ -919,20 +904,16 @@ GitHub</a>.</p>
                <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">())</span>
                <span class="o">.</span><span class="na">withMethod</span><span class="o">(</span><span class="n">Method</span><span class="o">.</span><span class="na">DIRECT_READ</span><span class="o">)</span>
                <span class="o">.</span><span class="na">withReadOptions</span><span class="o">(</span><span class="n">tableReadOptions</span><span class="o">));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The SDK for Python does not support the BigQuery Storage API.</span>
-</code></pre>
-</div>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The SDK for Python does not support the BigQuery Storage API.</span>
+</code></pre></div></div>
 
 <p>The following code snippet reads with a query string.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Snippet not yet available (BEAM-7034).</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The SDK for Python does not support the BigQuery Storage API.</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Snippet not yet available (BEAM-7034).</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The SDK for Python does not support the BigQuery Storage API.</span>
+</code></pre></div></div>
 
 <h2 id="writing-to-bigquery">Writing to BigQuery</h2>
 
@@ -1116,7 +1097,7 @@ a write transform. Set the parameter’s value to the <code class="highlighter-r
 <p>The following example code shows how to create a <code class="highlighter-rouge">TableSchema</code> for a table with
 two fields (source and quote) of type string.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TableSchema</span> <span class="n">tableSchema</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">TableSchema</span> <span class="n">tableSchema</span> <span class="o">=</span>
     <span class="k">new</span> <span class="nf">TableSchema</span><span class="o">()</span>
         <span class="o">.</span><span class="na">setFields</span><span class="o">(</span>
             <span class="n">ImmutableList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
@@ -1128,14 +1109,12 @@ two fields (source and quote) of type string.</p>
                     <span class="o">.</span><span class="na">setName</span><span class="o">(</span><span class="s">"quote"</span><span class="o">)</span>
                     <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">"STRING"</span><span class="o">)</span>
                     <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"REQUIRED"</span><span class="o">)));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">table_schema</span> <span class="o">=</span> <span class="p">{</span><span class="s">'fields'</span><span class="p">:</span> <span class="p">[</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">table_schema</span> <span class="o">=</span> <span class="p">{</span><span class="s">'fields'</span><span class="p">:</span> <span class="p">[</span>
     <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'source'</span><span class="p">,</span> <span class="s">'type'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span> <span class="s">'mode'</span><span class="p">:</span> <span class="s">'NULLABLE'</span><span class="p">},</span>
     <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'quote'</span><span class="p">,</span> <span class="s">'type'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span> <span class="s">'mode'</span><span class="p">:</span> <span class="s">'REQUIRED'</span><span class="p">}</span>
 <span class="p">]}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="using-a-string-1">Using a string</h4>
 
@@ -1175,7 +1154,7 @@ write transform. Set the parameter’s value to the string.</p>
 <p>The following example shows how to use a string to specify the same table schema
 as the previous example.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSchemaJson</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSchemaJson</span> <span class="o">=</span>
     <span class="s">""</span>
         <span class="o">+</span> <span class="s">"{"</span>
         <span class="o">+</span> <span class="s">"  \"fields\": ["</span>
@@ -1191,12 +1170,10 @@ as the previous example.</p>
         <span class="o">+</span> <span class="s">"    }"</span>
         <span class="o">+</span> <span class="s">"  ]"</span>
         <span class="o">+</span> <span class="s">"}"</span><span class="o">;</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># column_name:BIGQUERY_TYPE, ...</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># column_name:BIGQUERY_TYPE, ...</span>
 <span class="n">table_schema</span> <span class="o">=</span> <span class="s">'source:STRING, quote:STRING'</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="setting-the-insertion-method">Setting the insertion method</h3>
 
@@ -1262,7 +1239,7 @@ collection.</p>
 
 <p>The following examples use this <code class="highlighter-rouge">PCollection</code> that contains quotes.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/*
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/*
 @DefaultCoder(AvroCoder.class)
 static class Quote {
   final String source;
@@ -1284,14 +1261,12 @@ static class Quote {
         <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
             <span class="k">new</span> <span class="nf">Quote</span><span class="o">(</span><span class="s">"Mahatma Gandhi"</span><span class="o">,</span> <span class="s">"My life is my message."</span><span class="o">),</span>
             <span class="k">new</span> <span class="nf">Quote</span><span class="o">(</span><span class="s">"Yoda"</span><span class="o">,</span> <span class="s">"Do, or do not. There is no 'try'."</span><span class="o">)));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">quotes</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">quotes</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
     <span class="p">{</span><span class="s">'source'</span><span class="p">:</span> <span class="s">'Mahatma Gandhi'</span><span class="p">,</span> <span class="s">'quote'</span><span class="p">:</span> <span class="s">'My life is my message.'</span><span class="p">},</span>
     <span class="p">{</span><span class="s">'source'</span><span class="p">:</span> <span class="s">'Yoda'</span><span class="p">,</span> <span class="s">'quote'</span><span class="p">:</span> <span class="s">"Do, or do not. There is no 'try'."</span><span class="p">},</span>
 <span class="p">])</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!-- writeTableRows and WriteToBigQuery -->
 
@@ -1305,7 +1280,7 @@ table already exists, it will be replaced.</p>
 write a <code class="highlighter-rouge">PCollection</code> of dictionaries to a BigQuery table. The write operation
 creates a table if needed; if the table already exists, it will be replaced.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">quotes</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">quotes</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">MapElements</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptor</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">TableRow</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
             <span class="o">.</span><span class="na">via</span><span class="o">(</span>
@@ -1317,15 +1292,13 @@ creates a table if needed; if the table already exists, it will be replaced.</p>
             <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">tableSchema</span><span class="o">)</span>
             <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
             <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_TRUNCATE</span><span class="o">));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">quotes</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToBigQuery</span><span class="p">(</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">quotes</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToBigQuery</span><span class="p">(</span>
     <span class="n">table_spec</span><span class="p">,</span>
     <span class="n">schema</span><span class="o">=</span><span class="n">table_schema</span><span class="p">,</span>
     <span class="n">write_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_TRUNCATE</span><span class="p">,</span>
     <span class="n">create_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!-- write -->
 
@@ -1336,7 +1309,7 @@ function that converts each input element in the <code class="highlighter-rouge"
 write operation creates a table if needed; if the table already exists, it will
 be replaced.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">quotes</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">quotes</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">BigQueryIO</span><span class="o">.&lt;</span><span class="n">Quote</span><span class="o">&gt;</span><span class="n">write</span><span class="o">()</span>
         <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="n">tableSpec</span><span class="o">)</span>
         <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">tableSchema</span><span class="o">)</span>
@@ -1345,8 +1318,7 @@ be replaced.</p>
                 <span class="k">new</span> <span class="nf">TableRow</span><span class="o">().</span><span class="na">set</span><span class="o">(</span><span class="s">"source"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">source</span><span class="o">).</span><span class="na">set</span><span class="o">(</span><span class="s">"quote"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">quote</span><span class="o">))</span>
         <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
         <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_TRUNCATE</span><span class="o">));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="language-java">When you use streaming inserts, you can decide what to do with failed records.
 You can either keep retrying, or return the failed records in a separate
@@ -1393,7 +1365,7 @@ destination key.</p>
 uses a <code class="highlighter-rouge">PCollection</code> that contains weather data and writes the data into a
 different table for each year.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/*
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/*
 @DefaultCoder(AvroCoder.class)
 static class WeatherData {
   final long year;
@@ -1485,11 +1457,9 @@ static class WeatherData {
                     <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"maxTemp"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">maxTemp</span><span class="o">))</span>
         <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
         <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_TRUNCATE</span><span class="o">));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The Beam SDK for Python does not currently support dynamic destinations.</span>
-</code></pre>
-</div>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The Beam SDK for Python does not currently support dynamic destinations.</span>
+</code></pre></div></div>
 
 <h3 id="using-time-partitioning">Using time partitioning</h3>
 
@@ -1518,7 +1488,7 @@ only usable if you are writing to a single table.</p>
 
 <p class="language-java">This example generates one partition per day.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">weatherData</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">weatherData</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">BigQueryIO</span><span class="o">.&lt;</span><span class="n">WeatherData</span><span class="o">&gt;</span><span class="n">write</span><span class="o">()</span>
         <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="n">tableSpec</span> <span class="o">+</span> <span class="s">"_partitioning"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">tableSchema</span><span class="o">)</span>
@@ -1533,11 +1503,9 @@ only usable if you are writing to a single table.</p>
         <span class="o">.</span><span class="na">withTimePartitioning</span><span class="o">(</span><span class="k">new</span> <span class="n">TimePartitioning</span><span class="o">().</span><span class="na">setType</span><span class="o">(</span><span class="s">"DAY"</span><span class="o">))</span>
         <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
         <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_TRUNCATE</span><span class="o">));</span>
-</code></pre>
-</div>
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The Beam SDK for Python does not currently support time partitioning.</span>
-</code></pre>
-</div>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The Beam SDK for Python does not currently support time partitioning.</span>
+</code></pre></div></div>
 
 <h2 id="limitations">Limitations</h2>
 

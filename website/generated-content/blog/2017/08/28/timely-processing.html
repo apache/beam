@@ -352,7 +352,7 @@ output all the enriched events.</p>
 comes in, we will write the element to a buffer while tracking the number of
 elements we have buffered. Here are the state cells in code:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
 
   <span class="nd">@StateId</span><span class="o">(</span><span class="s">"buffer"</span><span class="o">)</span>
   <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;&gt;</span> <span class="n">bufferedEvents</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
@@ -362,18 +362,16 @@ elements we have buffered. Here are the state cells in code:</p>
 
   <span class="err">…</span> <span class="n">TBD</span> <span class="err">…</span> 
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StatefulBufferingFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StatefulBufferingFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
 
   <span class="n">BUFFER_STATE</span> <span class="o">=</span> <span class="n">BagStateSpec</span><span class="p">(</span><span class="s">'buffer'</span><span class="p">,</span> <span class="n">EventCoder</span><span class="p">())</span>
 
   <span class="n">COUNT_STATE</span> <span class="o">=</span> <span class="n">CombiningValueStateSpec</span><span class="p">(</span><span class="s">'count'</span><span class="p">,</span>
                                         <span class="n">VarIntCoder</span><span class="p">(),</span>
                                         <span class="n">combiners</span><span class="o">.</span><span class="n">SumCombineFn</span><span class="p">())</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Walking through the code, we have:</p>
 
@@ -387,7 +385,7 @@ method. We will choose a limit on the size of the buffer, <code class="highlight
 our buffer reaches this size, we will perform a single RPC to enrich all the
 events, and output.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
 
   <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">MAX_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">500</span><span class="o">;</span>
 
@@ -419,10 +417,9 @@ events, and output.</p>
 
   <span class="err">…</span> <span class="n">TBD</span> <span class="err">…</span> 
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StatefulBufferingFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StatefulBufferingFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
 
   <span class="n">MAX_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">500</span><span class="p">;</span>
 
@@ -446,8 +443,7 @@ events, and output.</p>
         <span class="k">yield</span> <span class="n">event</span>
       <span class="n">count_state</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
       <span class="n">buffer_state</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Here is an illustration to accompany the code:</p>
 
@@ -488,7 +484,7 @@ completeness for a <code class="highlighter-rouge">PCollection</code> - such as 
 <p>For our example, let us add an event time timer so that when the window expires,
 any events remaining in the buffer are processed.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
   <span class="err">…</span>
 
   <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"expiry"</span><span class="o">)</span>
@@ -519,10 +515,9 @@ any events remaining in the buffer are processed.</p>
     <span class="o">}</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StatefulBufferingFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StatefulBufferingFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="err">…</span>
 
   <span class="n">EXPIRY_TIMER</span> <span class="o">=</span> <span class="n">TimerSpec</span><span class="p">(</span><span class="s">'expiry'</span><span class="p">,</span> <span class="n">TimeDomain</span><span class="o">.</span><span class="n">WATERMARK</span><span class="p">)</span>
@@ -548,8 +543,7 @@ any events remaining in the buffer are processed.</p>
 
     <span class="n">buffer_state</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
     <span class="n">count_state</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Let’s unpack the pieces of this snippet:</p>
 
@@ -608,7 +602,7 @@ timer has not been set, then we set it for the current moment plus
 <code class="highlighter-rouge">MAX_BUFFER_DURATION</code>. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
   <span class="err">…</span>
 
   <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">MAX_BUFFER_DURATION</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">);</span>
@@ -649,10 +643,9 @@ callback will fire and enrich and emit any buffered elements.</p>
 
   <span class="err">…</span> <span class="n">same</span> <span class="n">expiry</span> <span class="n">as</span> <span class="n">above</span> <span class="err">…</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StatefulBufferingFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StatefulBufferingFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="err">…</span>
 
   <span class="n">STALE_TIMER</span> <span class="o">=</span> <span class="n">TimerSpec</span><span class="p">(</span><span class="s">'stale'</span><span class="p">,</span> <span class="n">TimeDomain</span><span class="o">.</span><span class="n">REAL_TIME</span><span class="p">)</span>
@@ -684,8 +677,7 @@ callback will fire and enrich and emit any buffered elements.</p>
     <span class="n">buffer_state</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
     <span class="n">count_state</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Here is an illustration of the final code:</p>
 

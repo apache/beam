@@ -332,13 +332,12 @@ cannot be serialized.</p>
 
 <p>Example usage:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;KV&lt;String, String&gt;&gt; leftPcollection = ...
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PCollection&lt;KV&lt;String, String&gt;&gt; leftPcollection = ...
 PCollection&lt;KV&lt;String, Long&gt;&gt; rightPcollection = ...
 
 PCollection&lt;KV&lt;String, KV&lt;String, Long&gt;&gt;&gt; joinedPcollection =
   Join.innerJoin(leftPcollection, rightPcollection);
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="sorter">Sorter</h2>
 
@@ -359,7 +358,7 @@ PCollection&lt;KV&lt;String, KV&lt;String, Long&gt;&gt;&gt; joinedPcollection =
 
 <h3 id="example-usage-of-sortvalues">Example usage of <code class="highlighter-rouge">SortValues</code></h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;KV&lt;String, KV&lt;String, Integer&gt;&gt;&gt; input = ...
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PCollection&lt;KV&lt;String, KV&lt;String, Integer&gt;&gt;&gt; input = ...
 
 // Group by primary key, bringing &lt;SecondaryKey, Value&gt; pairs for the same key together.
 PCollection&lt;KV&lt;String, Iterable&lt;KV&lt;String, Integer&gt;&gt;&gt;&gt; grouped =
@@ -369,8 +368,7 @@ PCollection&lt;KV&lt;String, Iterable&lt;KV&lt;String, Integer&gt;&gt;&gt;&gt; g
 PCollection&lt;KV&lt;String, Iterable&lt;KV&lt;String, Integer&gt;&gt;&gt;&gt; groupedAndSorted =
     grouped.apply(
         SortValues.&lt;String, String, Integer&gt;create(BufferedExternalSorter.options()));
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

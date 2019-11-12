@@ -327,42 +327,38 @@ limitations under the License.
 
 <p>To use Beam SQL shell, you must first clone the <a href="https://github.com/apache/beam">Beam SDK repository</a>. Then, from the root of the repository clone, execute the following commands to run the shell:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.9,:sdks:java:io:kafka' installDist
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.9,:sdks:java:io:kafka' installDist
 
 ./sdks/java/extensions/sql/shell/build/install/shell/bin/shell
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>After you run the commands,  the SQL shell starts and you can type queries:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>Welcome to Beam SQL 2.6.0-SNAPSHOT (based on sqlline version 1.4.0)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Welcome to Beam SQL 2.6.0-SNAPSHOT (based on sqlline version 1.4.0)
 0: BeamSQL&gt; 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><em>Note: If you haven’t built the project before running the Gradle command, the command will take a few minutes as Gradle must build all dependencies first.</em></p>
 
 <p>The shell converts the queries into Beam pipelines, runs them using <code class="highlighter-rouge">DirectRunner</code>, and returns the results as tables when the pipelines finish:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; SELECT 'foo' AS NAME, 'bar' AS TYPE, 'num' AS NUMBER;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; SELECT 'foo' AS NAME, 'bar' AS TYPE, 'num' AS NUMBER;
 +------+------+--------+
 | NAME | TYPE | NUMBER |
 +------+------+--------+
 | foo  | bar  | num    |
 +------+------+--------+
 1 row selected (0.826 seconds)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="declaring-tables">Declaring Tables</h2>
 
 <p>Before reading data from a source or writing data to a destination, you must declare a virtual table using the <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code> statement. For example, if you have a local CSV file <code class="highlighter-rouge">"test-file.csv"</code> in the current folder, you can create a table with the following statement:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; CREATE EXTERNAL TABLE csv_file (field1 VARCHAR, field2 INTEGER) TYPE text LOCATION 'test-file.csv';
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; CREATE EXTERNAL TABLE csv_file (field1 VARCHAR, field2 INTEGER) TYPE text LOCATION 'test-file.csv';
 
 No rows affected (0.042 seconds)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code> statement registers the CSV file as a table in Beam SQL and specifies the table’s schema. This statement does not directly create a persistent physical table; it only describes the source/sink to Beam SQL so that you can use the table in the queries that read data and write data.</p>
 
@@ -372,7 +368,7 @@ No rows affected (0.042 seconds)
 
 <p>To read data from the local CSV file that you declared in the previous section, execute the following query:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; SELECT field1 AS field FROM csv_file;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; SELECT field1 AS field FROM csv_file;
 +--------+
 | field  |
 +--------+
@@ -382,16 +378,14 @@ No rows affected (0.042 seconds)
 | bar    |
 | foo    |
 +--------+
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><em>For more information about <code class="highlighter-rouge">SELECT</code> syntax, see the <a href="/documentation/dsls/sql/calcite/query-syntax/">Query syntax page</a>.</em></p>
 
 <p>To write data to the CSV file, use the <code class="highlighter-rouge">INSERT INTO … SELECT ...</code> statement:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; INSERT INTO csv_file SELECT 'foo', 'bar';
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; INSERT INTO csv_file SELECT 'foo', 'bar';
+</code></pre></div></div>
 <p>Read and write behavior depends on the type of the table. For example:</p>
 
 <ul>
@@ -403,9 +397,8 @@ No rows affected (0.042 seconds)
 
 <p>When you want to inspect the data from an unbounded source during development, you must specify the <code class="highlighter-rouge">LIMIT x</code> clause at the end of the <code class="highlighter-rouge">SELECT</code> statement to limit the output to <code class="highlighter-rouge">x</code> number of records. Otherwise, the pipeline will never finish.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; SELECT field1 FROM unbounded_source LIMIT 10 ;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; SELECT field1 FROM unbounded_source LIMIT 10 ;
+</code></pre></div></div>
 
 <p>The example queries shown so far are fast queries that execute locally. These queries are helpful when you are investigating the data and iteratively designing the pipeline. Ideally, you want the queries to finish quickly and return output when complete.</p>
 
@@ -419,18 +412,16 @@ No rows affected (0.042 seconds)
   <li>
     <p>Make sure the SQL shell includes the desired runner. Add the corresponding project id to the <code class="highlighter-rouge">-Pbeam.sql.shell.bundled</code> parameter of the Gradle invocation (<a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/shell/build.gradle">source code</a>, <a href="https://github.com/apache/beam/blob/master/settings.gradle">project ids</a>). For example, use the following command to include Flink runner and KafkaIO:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.9,:sdks:java:io:kafka' installDist
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.9,:sdks:java:io:kafka' installDist
+</code></pre></div>    </div>
 
     <p><em>Note: You can bundle multiple runners (using a comma-separated list) or other additional components in the same manner. For example, you can add support for more I/Os.</em></p>
   </li>
   <li>
     <p>Then, specify the runner using the <code class="highlighter-rouge">SET</code> command (<a href="/documentation/dsls/sql/set/">reference page</a>):</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; SET runner='FlinkRunner';
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; SET runner='FlinkRunner';
+</code></pre></div>    </div>
   </li>
 </ol>
 
@@ -440,20 +431,18 @@ No rows affected (0.042 seconds)
 
 <p>To configure the runner, you must specify <code class="highlighter-rouge">PipelineOptions</code> by using the <code class="highlighter-rouge">SET</code> command (<a href="/documentation/dsls/sql/set/">details</a>):</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; SET projectId='gcpProjectId';
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; SET projectId='gcpProjectId';
 0: BeamSQL&gt; SET tempLocation='/tmp/tempDir';
-</code></pre>
-</div>
+</code></pre></div></div>
 <h2 id="packaging-the-sql-shell">Packaging the SQL Shell</h2>
 
 <p>You can also build your own standalone package for SQL shell using <code class="highlighter-rouge">distZip</code> or <code class="highlighter-rouge">distTar</code> tasks. For example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.9,:sdks:java:io:kafka' distZip
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.9,:sdks:java:io:kafka' distZip
 
 ls ./sdks/java/extensions/sql/shell/build/distributions/
 beam-sdks-java-extensions-sql-shell-2.6.0-SNAPSHOT.tar beam-sdks-java-extensions-sql-shell-2.6.0-SNAPSHOT.zip
-</code></pre>
-</div>
+</code></pre></div></div>
 
 
       </div>

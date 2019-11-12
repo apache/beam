@@ -394,7 +394,7 @@ query and join data. The operations supported are a subset of
 
 <h2 id="sql-syntax">SQL Syntax</h2>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>query_statement:
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>query_statement:
     [ WITH with_query_name AS ( query_expr ) [, ...] ]
     query_expr
 
@@ -428,8 +428,7 @@ join:
 
 join_type:
     { INNER | CROSS | FULL [OUTER] | LEFT [OUTER] | RIGHT [OUTER] }
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Notation:</p>
 
@@ -455,11 +454,10 @@ indicates that the preceding item can repeat in a comma-separated list.</li>
 
 <p>Syntax:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT  [{ ALL | DISTINCT }]
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT  [{ ALL | DISTINCT }]
     { [ expression. ]*
     | expression [ [ AS ] alias ] } [, ...]
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">SELECT</code> list defines the columns that the query will return. Expressions in
 the <code class="highlighter-rouge">SELECT</code> list can refer to columns in any of the <code class="highlighter-rouge">from_item</code>s in its
@@ -478,15 +476,14 @@ corresponding <code class="highlighter-rouge">FROM</code> clause.</p>
 <p><code class="highlighter-rouge">SELECT *</code>, often referred to as <em>select star</em>, produces one output column for
 each column that is visible after executing the full query.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM (SELECT 'apple' AS fruit, 'carrot' AS vegetable);
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM (SELECT 'apple' AS fruit, 'carrot' AS vegetable);
 
 +-------+-----------+
 | fruit | vegetable |
 +-------+-----------+
 | apple | carrot    |
 +-------+-----------+
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="select-expression">SELECT <code class="highlighter-rouge">expression</code></h3>
 
@@ -507,7 +504,7 @@ The expression must be a table alias.</p>
 <p>The following query produces one output column for each column in the table
 <code class="highlighter-rouge">groceries</code>, aliased as <code class="highlighter-rouge">g</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>WITH groceries AS
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>WITH groceries AS
   (SELECT 'milk' AS dairy,
    'eggs' AS protein,
    'bread' AS grain)
@@ -519,8 +516,7 @@ FROM groceries AS g;
 +-------+---------+-------+
 | milk  | eggs    | bread |
 +-------+---------+-------+
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="select-modifiers">SELECT modifiers</h3>
 
@@ -554,23 +550,21 @@ processing in the rest of the query.</p>
 
 <h3 id="syntax">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>from_item: {
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>from_item: {
     table_name [ [ AS ] alias ] |
     join |
     ( query_expr ) [ [ AS ] alias ] |
     with_query_name [ [ AS ] alias ]
 }
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="table_name">table_name</h4>
 
 <p>The name (optionally qualified) of an existing table.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM Roster;
 SELECT * FROM beam.Roster;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="join">join</h4>
 
@@ -588,12 +582,11 @@ In the example below, <code class="highlighter-rouge">subQ1</code> and <code cla
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>WITH
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>WITH
   subQ1 AS (SELECT * FROM Roster WHERE SchoolID = 52),
   subQ2 AS (SELECT SchoolID FROM subQ1)
 SELECT DISTINCT * FROM subQ2;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">WITH</code> clause hides any permanent tables with the same name for the duration
 of the query, unless you qualify the table name, e.g. <code class="highlighter-rouge">beam.Roster</code>.</p>
@@ -618,23 +611,21 @@ treats the result of the subquery as a table.</li>
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT AVG ( PointsScored )
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT AVG ( PointsScored )
 FROM
 ( SELECT PointsScored
   FROM Stats
   WHERE SchoolID = 77 )
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Optionally, a table subquery can have an alias.</p>
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT r.LastName
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT r.LastName
 FROM
 ( SELECT * FROM Roster) AS r;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="aliases_1">Aliases</h3>
 
@@ -647,14 +638,13 @@ FROM
 
 <h3 id="syntax_1">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>join:
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>join:
     from_item [ join_type ] JOIN from_item
     [ ON bool_expression | USING ( join_column [, ...] ) ]
 
 join_type:
     { INNER | CROSS | FULL [OUTER] | LEFT [OUTER] | RIGHT [OUTER] }
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">JOIN</code> clause merges two <code class="highlighter-rouge">from_item</code>s so that the <code class="highlighter-rouge">SELECT</code> clause can query
 them as one source. The <code class="highlighter-rouge">join_type</code> and <code class="highlighter-rouge">ON</code> or <code class="highlighter-rouge">USING</code> clause (a “join
@@ -723,10 +713,9 @@ joining two rows) meets the join condition if <code class="highlighter-rouge">bo
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
 ON Roster.LastName = PlayerStats.LastName;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="using-clause">USING clause</h3>
 
@@ -737,27 +726,24 @@ rows meet the join condition if the equality comparison returns TRUE.</p>
 <p>In most cases, a statement with the <code class="highlighter-rouge">USING</code> keyword is equivalent to using the
 <code class="highlighter-rouge">ON</code> keyword. For example, the statement:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT FirstName
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT FirstName
 FROM Roster INNER JOIN PlayerStats
 USING (LastName);
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>is equivalent to:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT FirstName
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT FirstName
 FROM Roster INNER JOIN PlayerStats
 ON Roster.LastName = PlayerStats.LastName;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The results from queries with <code class="highlighter-rouge">USING</code> do differ from queries that use <code class="highlighter-rouge">ON</code> when
 you use <code class="highlighter-rouge">SELECT *</code>. To illustrate this, consider the query:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
 USING (LastName);
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This statement returns the rows from <code class="highlighter-rouge">Roster</code> and <code class="highlighter-rouge">PlayerStats</code> where
 <code class="highlighter-rouge">Roster.LastName</code> is the same as <code class="highlighter-rouge">PlayerStats.LastName</code>. The results include a
@@ -765,10 +751,9 @@ single <code class="highlighter-rouge">LastName</code> column.</p>
 
 <p>By contrast, consider the following query:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
 ON Roster.LastName = PlayerStats.LastName;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This statement returns the rows from <code class="highlighter-rouge">Roster</code> and <code class="highlighter-rouge">PlayerStats</code> where
 <code class="highlighter-rouge">Roster.LastName</code> is the same as <code class="highlighter-rouge">PlayerStats.LastName</code>. The results include two
@@ -780,9 +765,8 @@ ON Roster.LastName = PlayerStats.LastName;
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM a LEFT JOIN b ON TRUE LEFT JOIN c ON TRUE;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM a LEFT JOIN b ON TRUE LEFT JOIN c ON TRUE;
+</code></pre></div></div>
 
 <p>where <code class="highlighter-rouge">a</code>, <code class="highlighter-rouge">b</code>, and <code class="highlighter-rouge">c</code> are any <code class="highlighter-rouge">from_item</code>s. JOINs are bound from left to
 right, but you can insert parentheses to group them in a different order.</p>
@@ -791,9 +775,8 @@ right, but you can insert parentheses to group them in a different order.</p>
 
 <h3 id="syntax_2">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>WHERE bool_expression
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>WHERE bool_expression
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">WHERE</code> clause filters out rows by evaluating each row against
 <code class="highlighter-rouge">bool_expression</code>, and discards all rows that do not return TRUE (that is, rows
@@ -801,19 +784,17 @@ that return FALSE or NULL).</p>
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM Roster
 WHERE SchoolID = 52;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">bool_expression</code> can contain multiple sub-conditions.</p>
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM Roster
 WHERE LastName LIKE 'Mc%' OR LastName LIKE 'Mac%';
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>You cannot reference column aliases from the <code class="highlighter-rouge">SELECT</code> list in the <code class="highlighter-rouge">WHERE</code>
 clause.</p>
@@ -824,17 +805,15 @@ expression using <code class="highlighter-rouge">CROSS JOIN</code> and <code cla
 
 <p>Example - this query:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN TeamMascot
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN TeamMascot
 ON Roster.SchoolID = TeamMascot.SchoolID;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>is equivalent to:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster CROSS JOIN TeamMascot
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT * FROM Roster CROSS JOIN TeamMascot
 WHERE Roster.SchoolID = TeamMascot.SchoolID;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="group-by-clause">GROUP BY clause</h2>
 
@@ -842,9 +821,8 @@ WHERE Roster.SchoolID = TeamMascot.SchoolID;
 
 <h3 id="syntax_3">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>GROUP BY { expression [, ...] | ROLLUP ( expression [, ...] ) }
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GROUP BY { expression [, ...] | ROLLUP ( expression [, ...] ) }
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">GROUP BY</code> clause groups together rows in a table with non-distinct values
 for the <code class="highlighter-rouge">expression</code> in the <code class="highlighter-rouge">GROUP BY</code> clause. For multiple rows in the source
@@ -854,19 +832,17 @@ present in the <code class="highlighter-rouge">SELECT</code> list, or to elimina
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT SUM(PointsScored), LastName
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT SUM(PointsScored), LastName
 FROM PlayerStats
 GROUP BY LastName;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="having-clause">HAVING clause</h2>
 
 <h3 id="syntax_4">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>HAVING bool_expression
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>HAVING bool_expression
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">HAVING</code> clause is similar to the <code class="highlighter-rouge">WHERE</code> clause: it filters out rows that
 do not return TRUE when they are evaluated against the <code class="highlighter-rouge">bool_expression</code>.</p>
@@ -890,20 +866,18 @@ well as <code class="highlighter-rouge">SELECT</code> list aliases. Expressions 
 must either appear in the <code class="highlighter-rouge">GROUP BY</code> clause or they must be the result of an
 aggregate function:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT LastName
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT LastName
 FROM Roster
 GROUP BY LastName
 HAVING SUM(PointsScored) &gt; 15;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="set-operators">Set operators</h2>
 
 <h3 id="syntax_6">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>UNION { ALL | DISTINCT } | INTERSECT DISTINCT | EXCEPT DISTINCT
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>UNION { ALL | DISTINCT } | INTERSECT DISTINCT | EXCEPT DISTINCT
+</code></pre></div></div>
 
 <p>Set operators combine results from two or more input queries into a single
 result set. You must specify <code class="highlighter-rouge">ALL</code> or <code class="highlighter-rouge">DISTINCT</code>; if you specify <code class="highlighter-rouge">ALL</code>, then all
@@ -948,17 +922,15 @@ are not necessary.</li>
 
 <p>Examples:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>query1 UNION ALL (query2 UNION DISTINCT query3)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>query1 UNION ALL (query2 UNION DISTINCT query3)
 query1 UNION ALL query2 UNION ALL query3
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Invalid:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>query1 UNION ALL query2 UNION DISTINCT query3
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>query1 UNION ALL query2 UNION DISTINCT query3
 query1 UNION ALL query2 INTERSECT ALL query3;  // INVALID.
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="union">UNION</h3>
 
@@ -981,9 +953,8 @@ present in the right input query.</p>
 
 <h3 id="syntax_7">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>LIMIT count [ OFFSET skip_rows ]
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>LIMIT count [ OFFSET skip_rows ]
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">LIMIT</code> specifies a non-negative <code class="highlighter-rouge">count</code> of type INTEGER, and no more than <code class="highlighter-rouge">count</code>
 rows will be returned. <code class="highlighter-rouge">LIMIT</code> <code class="highlighter-rouge">0</code> returns 0 rows. If there is a set operation,
@@ -1005,13 +976,12 @@ statements on either side of a set operator, such as <code class="highlighter-ro
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>WITH subQ1 AS (SELECT SchoolID FROM Roster),
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>WITH subQ1 AS (SELECT SchoolID FROM Roster),
      subQ2 AS (SELECT OpponentID FROM PlayerStats)
 SELECT * FROM subQ1
 UNION ALL
 SELECT * FROM subQ2;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="aliases_2">Aliases</h2>
 
@@ -1032,20 +1002,18 @@ keyword is optional.</p>
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT s.FirstName, s2.SongName
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT s.FirstName, s2.SongName
 FROM Singers AS s JOIN Songs AS s2 ON s.SingerID = s2.SingerID;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>You can introduce explicit aliases for any expression in the <code class="highlighter-rouge">SELECT</code> list using
 <code class="highlighter-rouge">[AS] alias</code>. The <code class="highlighter-rouge">AS</code> keyword is optional.</p>
 
 <p>Example:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT s.FirstName AS name, LOWER(s.FirstName) AS lname
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT s.FirstName AS name, LOWER(s.FirstName) AS lname
 FROM Singers s;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="explicit-alias-visibility">Explicit alias visibility</h3>
 
@@ -1068,10 +1036,9 @@ more than one unique object.</p>
 <p>This query contains column names that conflict between tables, since both
 <code class="highlighter-rouge">Singers</code> and <code class="highlighter-rouge">Songs</code> have a column named <code class="highlighter-rouge">SingerID</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT SingerID
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT SingerID
 FROM Singers, Songs;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="implicit-aliases">Implicit aliases</h3>
 

@@ -415,13 +415,12 @@ in your <code class="highlighter-rouge">pom.xml</code> or <code class="highlight
 from the above table. For example:
 </span></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">flink</span><span class="o">-</span><span class="mf">1.6</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.16</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><span class="language-py">
 You will need Docker to be installed in your execution environment. To develop
@@ -430,9 +429,8 @@ install apache_beam</code>. Please refer to the <a href="/documentation/sdks/pyt
 on how to create a Python pipeline.
 </span></p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">pip</span> <span class="n">install</span> <span class="n">apache_beam</span>
-</code></pre>
-</div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pip</span> <span class="n">install</span> <span class="n">apache_beam</span>
+</code></pre></div></div>
 
 <h3 id="executing-a-beam-pipeline-on-a-flink-cluster">Executing a Beam pipeline on a Flink Cluster</h3>
 
@@ -442,9 +440,8 @@ along with all dependencies in a so-called fat jar. How you do this depends on
 your build system but if you follow along the <a href="/get-started/quickstart/">Beam Quickstart</a> this is the command that you have to run:
 </span></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="err">$</span> <span class="n">mvn</span> <span class="kn">package</span> <span class="o">-</span><span class="n">Pflink</span><span class="o">-</span><span class="n">runner</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="err">$</span> <span class="n">mvn</span> <span class="kn">package</span> <span class="o">-</span><span class="n">Pflink</span><span class="o">-</span><span class="n">runner</span>
+</code></pre></div></div>
 <p><span class="language-java">Look for the output JAR of this command in the
 install apache_beam``target` folder.
 <span></span></span></p>
@@ -460,25 +457,23 @@ For running the pipeline the easiest option is to use the <code class="highlight
 is part of Flink:
 </span></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="err">$</span> <span class="n">bin</span><span class="o">/</span><span class="n">flink</span> <span class="n">run</span> <span class="o">-</span><span class="n">c</span> <span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">WordCount</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your</span><span class="o">.</span><span class="na">jar</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="err">$</span> <span class="n">bin</span><span class="o">/</span><span class="n">flink</span> <span class="n">run</span> <span class="o">-</span><span class="n">c</span> <span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">WordCount</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your</span><span class="o">.</span><span class="na">jar</span>
 <span class="o">--</span><span class="n">runner</span><span class="o">=</span><span class="n">FlinkRunner</span> <span class="o">--</span><span class="n">other</span><span class="o">-</span><span class="n">parameters</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><span class="language-java">
 Alternatively you can also use Maven’s exec command. For example, to execute the
 WordCount example:
 </span></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">mvn</span> <span class="nl">exec:</span><span class="n">java</span> <span class="o">-</span><span class="n">Dexec</span><span class="o">.</span><span class="na">mainClass</span><span class="o">=</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">WordCount</span> <span class="err">\</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">mvn</span> <span class="nl">exec:</span><span class="n">java</span> <span class="o">-</span><span class="n">Dexec</span><span class="o">.</span><span class="na">mainClass</span><span class="o">=</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">WordCount</span> <span class="err">\</span>
     <span class="o">-</span><span class="n">Pflink</span><span class="o">-</span><span class="n">runner</span> <span class="err">\</span>
     <span class="o">-</span><span class="n">Dexec</span><span class="o">.</span><span class="na">args</span><span class="o">=</span><span class="s">"--runner=FlinkRunner \
       --inputFile=/path/to/pom.xml \
       --output=/path/to/counts \
       --flinkMaster=&lt;flink master url&gt; \
       --filesToStage=target/word-count-beam-bundled-0.1.jar"</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 <!-- Span implictly ended -->
 
 <p><span class="language-java">
@@ -512,7 +507,7 @@ provided with the Flink JobManager address.
 <p><span class="language-py">2. Submit the Python pipeline to the above endpoint by using the <code class="highlighter-rouge">PortableRunner</code>, <code class="highlighter-rouge">job_endpoint</code> set to <code class="highlighter-rouge">localhost:8099</code> (this is the default address of the JobService), and <code class="highlighter-rouge">environment_type</code> set to <code class="highlighter-rouge">LOOPBACK</code>. For example:
 </span></p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span>
@@ -522,8 +517,7 @@ provided with the Flink JobManager address.
 <span class="p">])</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="o">...</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><span class="language-py">
 To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/tutorials/local_setup.html">Flink cluster</a>:
@@ -544,7 +538,7 @@ See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.
 plus the optional <code class="highlighter-rouge">flink_version</code> and <code class="highlighter-rouge">flink_master_url</code> options if required, i.e.
 </span></p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span>
@@ -555,8 +549,7 @@ plus the optional <code class="highlighter-rouge">flink_version</code> and <code
 <span class="p">])</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="o">...</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="additional-information-and-caveats">Additional information and caveats</h2>
 

@@ -496,7 +496,7 @@ on the natural ordering of the element.</p>
 <h2 id="examples">Examples</h2>
 <p><strong>Example 1</strong>: Filtering with a predicate</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">allStrings</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Hello"</span><span class="o">,</span> <span class="s">"world"</span><span class="o">,</span> <span class="s">"hi"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">allStrings</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Hello"</span><span class="o">,</span> <span class="s">"world"</span><span class="o">,</span> <span class="s">"hi"</span><span class="o">);</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">longStrings</span> <span class="o">=</span> <span class="n">allStrings</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Filter</span><span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="k">new</span> <span class="n">SerializableFunction</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Boolean</span><span class="o">&gt;()</span> <span class="o">{</span>
       <span class="nd">@Override</span>
@@ -504,17 +504,15 @@ on the natural ordering of the element.</p>
         <span class="k">return</span> <span class="n">input</span><span class="o">.</span><span class="na">length</span><span class="o">()</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="o">;</span>
       <span class="o">}</span>
     <span class="o">}));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 <p>The result is a <code class="highlighter-rouge">PCollection</code> containing “Hello” and “world”.</p>
 
 <p><strong>Example 2</strong>: Filtering with an inequality</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">numbers</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1L</span><span class="o">,</span> <span class="mi">2L</span><span class="o">,</span> <span class="mi">3L</span><span class="o">,</span> <span class="mi">4L</span><span class="o">,</span> <span class="mi">5L</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">numbers</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1L</span><span class="o">,</span> <span class="mi">2L</span><span class="o">,</span> <span class="mi">3L</span><span class="o">,</span> <span class="mi">4L</span><span class="o">,</span> <span class="mi">5L</span><span class="o">);</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">bigNumbers</span> <span class="o">=</span> <span class="n">numbers</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Filter</span><span class="o">.</span><span class="na">greaterThan</span><span class="o">(</span><span class="mi">3</span><span class="o">));</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">smallNumbers</span> <span class="o">=</span> <span class="n">numbers</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Filter</span><span class="o">.</span><span class="na">lessThanEq</span><span class="o">(</span><span class="mi">3</span><span class="o">));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 <p>Other variants include <code class="highlighter-rouge">Filter.greaterThanEq</code>, <code class="highlighter-rouge">Filter.lessThan</code> and <code class="highlighter-rouge">Filter.equal</code>.</p>
 
 <h2 id="related-transforms">Related transforms</h2>

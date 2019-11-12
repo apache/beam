@@ -495,10 +495,9 @@ returns the value of each element.</p>
 <h2 id="examples">Examples</h2>
 <p><strong>Example</strong></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">keyValuePairs</span> <span class="o">=</span> <span class="cm">/* ... */</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">keyValuePairs</span> <span class="o">=</span> <span class="cm">/* ... */</span><span class="o">;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">values</span> <span class="o">=</span> <span class="n">keyValuePairs</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Values</span><span class="o">.</span><span class="na">create</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

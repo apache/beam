@@ -507,7 +507,7 @@ other data as the associated values. After the join, you have one data set
 that contains all of the information (email addresses and phone numbers)
 associated with each name.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">UID</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">pt1</span> <span class="o">=</span> <span class="cm">/* ... */</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">UID</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">pt1</span> <span class="o">=</span> <span class="cm">/* ... */</span><span class="o">;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">UID</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">pt2</span> <span class="o">=</span> <span class="cm">/* ... */</span><span class="o">;</span>
 
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">t1</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;&gt;();</span>
@@ -527,8 +527,7 @@ associated with each name.</p>
     <span class="n">String</span> <span class="n">string</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="na">getOnly</span><span class="o">(</span><span class="n">t2</span><span class="o">);</span>
     <span class="o">...</span>
 <span class="o">}));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

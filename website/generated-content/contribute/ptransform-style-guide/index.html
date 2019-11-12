@@ -587,7 +587,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 
 <p>For example:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyTransform</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;...,</span> <span class="n">PCollectionTuple</span><span class="o">&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyTransform</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;...,</span> <span class="n">PCollectionTuple</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="kd">private</span> <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">Moo</span><span class="o">&gt;</span> <span class="n">mooTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">Moo</span><span class="o">&gt;()</span> <span class="o">{};</span>
   <span class="kd">private</span> <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">Blah</span><span class="o">&gt;</span> <span class="n">blahTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">Blah</span><span class="o">&gt;()</span> <span class="o">{};</span>
   <span class="o">...</span>
@@ -608,14 +608,13 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
   <span class="o">}</span>
   <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="fluent-builders-for-configuration">Fluent builders for configuration</h4>
 
 <p>Make the transform class immutable, with methods to produce modified immutable objects. Use <a href="https://github.com/google/auto/tree/master/value">AutoValue</a>. Autovalue can provide a Builder helper class. Use <code class="highlighter-rouge">@Nullable</code> to mark parameters of class type that don’t have a default value or whose default value is null, except for primitive types (e.g. int).</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@AutoValue</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@AutoValue</span>
 <span class="kd">public</span> <span class="kd">abstract</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">MyTransform</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;...&gt;</span> <span class="o">{</span>
   <span class="kt">int</span> <span class="nf">getMoo</span><span class="o">();</span>
   <span class="nd">@Nullable</span> <span class="kd">abstract</span> <span class="n">String</span> <span class="nf">getBlah</span><span class="o">();</span>
@@ -631,14 +630,13 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
   <span class="o">}</span>
   <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="factory-methods">Factory methods</h5>
 
 <p>Provide a single argumentless static factory method, either in the enclosing class (see “Packaging a family of transforms”) or in the transform class itself.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Thumbs</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Thumbs</span> <span class="o">{</span>
   <span class="kd">public</span> <span class="kd">static</span> <span class="n">Twiddle</span> <span class="nf">twiddle</span><span class="o">()</span> <span class="o">{</span>
     <span class="k">return</span> <span class="k">new</span> <span class="n">AutoValue_Thumbs_Twiddle</span><span class="o">.</span><span class="na">Builder</span><span class="o">().</span><span class="na">build</span><span class="o">();</span>
   <span class="o">}</span>
@@ -653,8 +651,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
   <span class="o">}</span>
   <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Exception: when transform has a single overwhelmingly most important parameter, then call the factory method <code class="highlighter-rouge">of</code> and put the parameter into an argument of the factory method: <code class="highlighter-rouge">ParDo.of(DoFn).withAllowedLateness()</code>.</p>
 
@@ -666,7 +663,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 
 <p>Document implications of each <code class="highlighter-rouge">withBlah</code> method: when to use this method at all, what values are allowed, what is the default, what are the implications of changing the value.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
  * Returns a new {@link TwiddleThumbs} transform with moo set
  * to the given value.
  *
@@ -682,21 +679,19 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
       <span class="n">moo</span><span class="o">);</span>
   <span class="k">return</span> <span class="nf">toBuilder</span><span class="o">().</span><span class="na">setMoo</span><span class="o">(</span><span class="n">moo</span><span class="o">).</span><span class="na">build</span><span class="o">();</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="default-values-for-parameters">Default values for parameters</h5>
 
 <p>Specify them in the factory method (factory method returns an object with default values).</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Thumbs</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Thumbs</span> <span class="o">{</span>
   <span class="kd">public</span> <span class="kd">static</span> <span class="n">Twiddle</span> <span class="nf">twiddle</span><span class="o">()</span> <span class="o">{</span>
     <span class="k">return</span> <span class="k">new</span> <span class="n">AutoValue_Thumbs_Twiddle</span><span class="o">.</span><span class="na">Builder</span><span class="o">().</span><span class="na">setMoo</span><span class="o">(</span><span class="mi">42</span><span class="o">).</span><span class="na">build</span><span class="o">();</span>
   <span class="o">}</span>
   <span class="o">...</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="packaging-multiple-parameters-into-a-reusable-object">Packaging multiple parameters into a reusable object</h5>
 
@@ -706,7 +701,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 
 <p>All type parameters should be specified explicitly on factory method. Builder methods (<code class="highlighter-rouge">withBlah()</code>) should not change the types.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Thumbs</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Thumbs</span> <span class="o">{</span>
   <span class="kd">public</span> <span class="kd">static</span> <span class="n">Twiddle</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nf">twiddle</span><span class="o">()</span> <span class="o">{</span>
     <span class="k">return</span> <span class="k">new</span> <span class="n">AutoValue_Thumbs_Twiddle</span><span class="o">.</span><span class="na">Builder</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;().</span><span class="na">build</span><span class="o">();</span>
   <span class="o">}</span>
@@ -734,8 +729,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 <span class="n">Thumbs</span><span class="o">.</span><span class="na">Twiddle</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">twiddle</span> <span class="o">=</span> <span class="n">Thumbs</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">twiddle</span><span class="o">();</span>
 <span class="c1">// Or:</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">bars</span> <span class="o">=</span> <span class="n">foos</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Thumbs</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">twiddle</span><span class="o">()</span> <span class="err">…</span> <span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Exception: when the transform has a single most important parameter and this parameter depends on type T, then prefer to put it right into the factory method: e.g. <code class="highlighter-rouge">Combine.globally(SerializableFunction&lt;Iterable&lt;V&gt;,V&gt;</code>). This improves Java’s type inference and allows the user not to specify type parameters explicitly.</p>
 
@@ -766,7 +760,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 
 <p>Document common stuff at <code class="highlighter-rouge">FooIO</code> level, and each factory method individually.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/** Transforms for clustering data. */</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/** Transforms for clustering data. */</span>
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">Cluster</span> <span class="o">{</span>
   <span class="c1">// Force use of static factory methods.</span>
   <span class="kd">private</span> <span class="nf">Cluster</span><span class="o">()</span> <span class="o">{}</span>
@@ -792,12 +786,11 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
   <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Delete</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;...&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
   <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Mutate</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;...&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>When supporting multiple versions with incompatible APIs, use the version as a namespace-like class too, and put implementations of different API versions in different files.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// FooIO.java</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// FooIO.java</span>
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">FooIO</span> <span class="o">{</span>
   <span class="c1">// Force use of static factory methods.</span>
   <span class="kd">private</span> <span class="nf">FooIO</span><span class="o">()</span> <span class="o">{}</span>
@@ -822,8 +815,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 
   <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Read</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;...&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="behavior">Behavior</h3>
 
@@ -848,7 +840,7 @@ These validations will be executed when the pipeline is already fully constructe
 Most <code class="highlighter-rouge">PTransform</code>s do not use <code class="highlighter-rouge">PipelineOptions</code> and thus don’t need a <code class="highlighter-rouge">validate()</code> method - instead, they should perform their validation via the two other methods above.</li>
 </ul>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@AutoValue</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@AutoValue</span>
 <span class="kd">public</span> <span class="kd">abstract</span> <span class="kd">class</span> <span class="nc">TwiddleThumbs</span>
     <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
   <span class="kd">abstract</span> <span class="kt">int</span> <span class="nf">getMoo</span><span class="o">();</span>
@@ -893,8 +885,7 @@ Most <code class="highlighter-rouge">PTransform</code>s do not use <code class="
     <span class="o">...</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="coders">Coders</h4>
 

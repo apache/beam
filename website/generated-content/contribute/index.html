@@ -349,44 +349,38 @@ ASF Jira Username. For example <a href="https://lists.apache.org/thread.html/e60
   <li>
     <p>Familiarize yourself with gradle and the project structure. At the root of the git repository, run:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew projects
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew projects
+</code></pre></div>    </div>
 
     <p>Examine the available tasks in a project. For the default set of tasks, use:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew tasks
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew tasks
+</code></pre></div>    </div>
 
     <p>For a given module, use:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew -p sdks/java/io/cassandra tasks
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew -p sdks/java/io/cassandra tasks
+</code></pre></div>    </div>
 
     <p>For an exhaustive list of tasks, use:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew tasks --all
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew tasks --all
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Make sure you can build and run tests</p>
 
     <p>Run the entire set of tests with:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew check
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew check
+</code></pre></div>    </div>
 
     <p>You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew -p sdks/go check
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew -p sdks/go check
 $ ./gradlew -p sdks/java/io/cassandra check
 $ ./gradlew -p runners/flink check
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>Now you may want to set up your preferred IDE and other aspects of your development
 environment. See the Developers’ wiki for tips, guides, and FAQs on:
@@ -430,9 +424,8 @@ jobs</a>. If a test fails and appears unrelated to your
 change, you can cause tests to be re-run by adding a single line comment on your
 PR</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> retest this please
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> retest this please
+</code></pre></div>    </div>
 
     <p>Pull request template has a link to a <a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md">catalog of trigger phrases</a>
 that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.</p>

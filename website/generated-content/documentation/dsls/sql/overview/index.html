@@ -354,9 +354,8 @@ functions, syntax, and data types supported by Beam Calcite SQL.</p>
 <p>For more information on the ZetaSQL features in Beam SQL, see the <a href="/documentation/dsls/sql/zetasql/overview">Beam ZetaSQL dialect reference</a>.</p>
 
 <p>To switch to Beam ZetaSQL, configure the <a href="https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html">pipeline options</a> as follows:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner")
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner")
+</code></pre></div></div>
 
 <h2 id="beam-sql-extensions">Beam SQL extensions</h2>
 <p>Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects.</p>

@@ -514,13 +514,12 @@ limitations under the License.
 
 <p>To create a pipeline, declare a <code class="highlighter-rouge">Pipeline</code> object, and pass it some <a href="/documentation/programming-guide#configuring-pipeline-options">configuration options</a>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Start by defining the options for the pipeline.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Start by defining the options for the pipeline.</span>
 <span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
 
 <span class="c1">// Then create the pipeline.</span>
 <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="reading-data-into-your-pipeline">Reading Data Into Your Pipeline</h2>
 
@@ -530,10 +529,9 @@ limitations under the License.
 
 <p>The following example code shows how to <code class="highlighter-rouge">apply</code> a <code class="highlighter-rouge">TextIO.Read</code> root transform to read data from a text file. The transform is applied to a <code class="highlighter-rouge">Pipeline</code> object <code class="highlighter-rouge">p</code>, and returns a pipeline data set in the form of a <code class="highlighter-rouge">PCollection&lt;String&gt;</code>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
   <span class="s">"ReadLines"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="applying-transforms-to-process-pipeline-data">Applying Transforms to Process Pipeline Data</h2>
 
@@ -543,11 +541,10 @@ limitations under the License.
 
 <p>The input is a <code class="highlighter-rouge">PCollection&lt;String&gt;</code> called <code class="highlighter-rouge">words</code>; the code passes an instance of a <code class="highlighter-rouge">PTransform</code> object called <code class="highlighter-rouge">ReverseWords</code> to <code class="highlighter-rouge">apply</code>, and saves the return value as the <code class="highlighter-rouge">PCollection&lt;String&gt;</code> called <code class="highlighter-rouge">reversedWords</code>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">reversedWords</span> <span class="o">=</span> <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">ReverseWords</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="writing-or-outputting-your-final-pipeline-data">Writing or Outputting Your Final Pipeline Data</h2>
 
@@ -555,25 +552,22 @@ limitations under the License.
 
 <p>The following example code shows how to <code class="highlighter-rouge">apply</code> a <code class="highlighter-rouge">TextIO.Write</code> transform to write a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">String</code> to a text file:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">filteredWords</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">filteredWords</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="n">filteredWords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"WriteMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData.txt"</span><span class="o">));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="running-your-pipeline">Running Your Pipeline</h2>
 
 <p>Once you have constructed your pipeline, use the <code class="highlighter-rouge">run</code> method to execute the pipeline. Pipelines are executed asynchronously: the program you create sends a specification for your pipeline to a <strong>pipeline runner</strong>, which then constructs and runs the actual series of pipeline operations.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
+</code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">run</code> method is asynchronous. If you’d like a blocking execution instead, run your pipeline appending the <code class="highlighter-rouge">waitUntilFinish</code> method:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
+</code></pre></div></div>
 
 <h2 id="whats-next">What’s next</h2>
 

@@ -493,15 +493,14 @@ to this, the necessary dependencies must be configured.</p>
 
 <p>When running via Gradle, the following two parameters control the execution:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>-P nexmark.args
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-P nexmark.args
     The command line to pass to the Nexmark main program.
 
 -P nexmark.runner
 The Gradle project name of the runner, such as ":runners:direct-java" or
 ":runners:flink:1.9. The project names can be found in the root
     `settings.gradle`.
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Test data is deterministically synthesized on demand. The test
 data may be synthesized in the same pipeline as the query itself,
@@ -521,36 +520,31 @@ or may be published to Pub/Sub or Kafka.</p>
 
 <p>Decide if batch or streaming:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--streaming=true
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--streaming=true
+</code></pre></div></div>
 
 <p>Number of events generators:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--numEventGenerators=4
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--numEventGenerators=4
+</code></pre></div></div>
 
 <p>Queries can be run by their name or by their number (number is still there for backward compatibility, only the queries 0 to 12 have a number)</p>
 
 <p>Run query <strong>N</strong>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--query=N
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--query=N
+</code></pre></div></div>
 
 <p>Run query called <strong>PASSTHROUGH</strong>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--query=PASSTHROUGH
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--query=PASSTHROUGH
+</code></pre></div></div>
 
 <h3 id="available-suites">Available Suites</h3>
 <p>The suite to run can be chosen using this configuration parameter:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--suite=SUITE
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--suite=SUITE
+</code></pre></div></div>
 
 <p>Available suites are:</p>
 <ul>
@@ -565,13 +559,12 @@ or may be published to Pub/Sub or Kafka.</p>
 
 <h3 id="apex-runner-specific-configuration">Apex runner specific configuration</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=false
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=false
+</code></pre></div></div>
 
 <h3 id="google-cloud-dataflow-runner-specific-configuration">Google Cloud Dataflow runner specific configuration</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
 --enforceEncodability=false --enforceImmutability=false
 --project=&lt;your project&gt; \
 --zone=&lt;your zone&gt; \
@@ -580,62 +573,53 @@ or may be published to Pub/Sub or Kafka.</p>
 --runner=DataflowRunner \
 --tempLocation=gs://&lt;a gs path for temporary files&gt; \
 --filesToStage=target/beam-sdks-java-nexmark-2.16.0.jar
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="direct-runner-specific-configuration">Direct runner specific configuration</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
 --enforceEncodability=false --enforceImmutability=false
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="flink-runner-specific-configuration">Flink runner specific configuration</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
 --flinkMaster=[local] --parallelism=#numcores
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="spark-runner-specific-configuration">Spark runner specific configuration</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
 --sparkMaster=local \
 -Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="kafka-sourcesink-configuration-parameters">Kafka source/sink configuration parameters</h3>
 
 <p>Set Kafka host/ip (for example, “localhost:9092”):</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--bootstrapServers=&lt;kafka host/ip&gt; 
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--bootstrapServers=&lt;kafka host/ip&gt; 
+</code></pre></div></div>
 
 <p>Write results into Kafka topic:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--sinkType=KAFKA
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--sinkType=KAFKA
+</code></pre></div></div>
 
 <p>Set topic name which will be used for benchmark results:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--kafkaResultsTopic=&lt;topic name&gt;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--kafkaResultsTopic=&lt;topic name&gt;
+</code></pre></div></div>
 
 <p>Write or/and read events into/from Kafka topic:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--sourceType=KAFKA
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--sourceType=KAFKA
+</code></pre></div></div>
 
 <p>Set topic name which will be used for benchmark events:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>--kafkaTopic=&lt;topic name&gt;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--kafkaTopic=&lt;topic name&gt;
+</code></pre></div></div>
 
 <h2 id="current-status">Current status</h2>
 
@@ -884,7 +868,7 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.</p>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:direct-java" \
     -Pnexmark.args="
         --runner=DirectRunner
@@ -894,12 +878,11 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.</p>
         --monitorJobs=true
         --enforceEncodability=true
         --enforceImmutability=true"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:direct-java" \
     -Pnexmark.args="
         --runner=DirectRunner
@@ -909,8 +892,7 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.</p>
         --monitorJobs=true
         --enforceEncodability=true
         --enforceImmutability=true"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="running-smoke-suite-on-the-sparkrunner-local">Running SMOKE suite on the SparkRunner (local)</h3>
 
@@ -920,7 +902,7 @@ configure logging.</p>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:spark" \
     -Pnexmark.args="
         --runner=SparkRunner
@@ -929,12 +911,11 @@ configure logging.</p>
         --streaming=false
         --manageResources=false
         --monitorJobs=true"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:spark" \
     -Pnexmark.args="
         --runner=SparkRunner
@@ -943,14 +924,13 @@ configure logging.</p>
         --streaming=true
         --manageResources=false
         --monitorJobs=true"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="running-smoke-suite-on-the-flinkrunner-local">Running SMOKE suite on the FlinkRunner (local)</h3>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:flink:1.9" \
     -Pnexmark.args="
         --runner=FlinkRunner
@@ -960,12 +940,11 @@ configure logging.</p>
         --manageResources=false
         --monitorJobs=true
         --flinkMaster=[local]"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:flink:1.9" \
     -Pnexmark.args="
         --runner=FlinkRunner
@@ -975,14 +954,13 @@ configure logging.</p>
         --manageResources=false
         --monitorJobs=true
         --flinkMaster=[local]"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="running-smoke-suite-on-the-apexrunner-local">Running SMOKE suite on the ApexRunner (local)</h3>
 
 <p>Batch Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:apex" \
     -Pnexmark.args="
         --runner=ApexRunner
@@ -991,12 +969,11 @@ configure logging.</p>
         --streaming=false
         --manageResources=false
         --monitorJobs=true"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Streaming Mode:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:apex" \
     -Pnexmark.args="
         --runner=ApexRunner
@@ -1005,23 +982,21 @@ configure logging.</p>
         --streaming=true
         --manageResources=false
         --monitorJobs=true"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="running-smoke-suite-on-google-cloud-dataflow">Running SMOKE suite on Google Cloud Dataflow</h3>
 
 <p>Set these up first so the below command is valid</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>PROJECT=&lt;your project&gt;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PROJECT=&lt;your project&gt;
 ZONE=&lt;your zone&gt;
 STAGING_LOCATION=gs://&lt;a GCS path for staging&gt;
 PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Launch:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:google-cloud-dataflow-java" \
     -Pnexmark.args="
         --runner=DataflowRunner
@@ -1055,20 +1030,18 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
         --useWallclockEventTime=true
         --usePubsubPublishTime=true
         --experiments=enable_custom_pubsub_sink"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="running-query-0-on-a-spark-cluster-with-apache-hadoop-yarn">Running query 0 on a Spark cluster with Apache Hadoop YARN</h3>
 
 <p>Building package:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:assemble
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:assemble
+</code></pre></div></div>
 
 <p>Submit to the cluster:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>spark-submit \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>spark-submit \
     --class org.apache.beam.sdk.nexmark.Main \
     --master yarn-client \
     --driver-memory 512m \
@@ -1081,8 +1054,7 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
         --streaming=false \
         --manageResources=false \
         --monitorJobs=true"
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="nexmark-dashboards">Nexmark dashboards</h2>
 <p>Below dashboards are used as a CI mechanism to detect no-regression on the Beam components. They are not supposed to be benchmark comparision of the runners or engines. Especially because:</p>

@@ -279,28 +279,24 @@ limitations under the License.
 
 <p>The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>python --version
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python --version
+</code></pre></div></div>
 
 <h3 id="install-pip">Install pip</h3>
 
 <p>Install <a href="https://pip.pypa.io/en/stable/installing/">pip</a>, Python’s package manager. Check that you have version 7.0.0 or newer by running:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pip --version
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip --version
+</code></pre></div></div>
 
 <p>If you do not have <code class="highlighter-rouge">pip</code> version 7.0.0 or newer, run the following command to
 install it. This command might require administrative privileges.</p>
 
-<div class="shell-unix highlighter-rouge"><pre class="highlight"><code>pip install --upgrade pip
-</code></pre>
-</div>
+<div class="shell-unix highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install --upgrade pip
+</code></pre></div></div>
 
-<div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; python -m pip install --upgrade pip
-</code></pre>
-</div>
+<div class="shell-PowerShell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; python -m pip install --upgrade pip
+</code></pre></div></div>
 
 <h3 id="install-python-virtual-environment">Install Python virtual environment</h3>
 
@@ -309,25 +305,21 @@ for initial experiments. If you do not have <code class="highlighter-rouge">virt
 newer, run the following command to install it. This command might require
 administrative privileges.</p>
 
-<div class="shell-unix highlighter-rouge"><pre class="highlight"><code>pip install --upgrade virtualenv
-</code></pre>
-</div>
+<div class="shell-unix highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install --upgrade virtualenv
+</code></pre></div></div>
 
-<div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; python -m pip install --upgrade virtualenv
-</code></pre>
-</div>
+<div class="shell-PowerShell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; python -m pip install --upgrade virtualenv
+</code></pre></div></div>
 
 <p>If you do not want to use a Python virtual environment (not recommended), ensure
 <code class="highlighter-rouge">setuptools</code> is installed on your machine. If you do not have <code class="highlighter-rouge">setuptools</code>
 version 17.1 or newer, run the following command to install it.</p>
 
-<div class="shell-unix highlighter-rouge"><pre class="highlight"><code>pip install --upgrade setuptools
-</code></pre>
-</div>
+<div class="shell-unix highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install --upgrade setuptools
+</code></pre></div></div>
 
-<div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; python -m pip install --upgrade setuptools
-</code></pre>
-</div>
+<div class="shell-PowerShell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; python -m pip install --upgrade setuptools
+</code></pre></div></div>
 
 <h2 id="get-apache-beam">Get Apache Beam</h2>
 
@@ -335,13 +327,11 @@ version 17.1 or newer, run the following command to install it.</p>
 
 <p>A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:</p>
 
-<div class="shell-unix highlighter-rouge"><pre class="highlight"><code>virtualenv /path/to/directory
-</code></pre>
-</div>
+<div class="shell-unix highlighter-rouge"><div class="highlight"><pre class="highlight"><code>virtualenv /path/to/directory
+</code></pre></div></div>
 
-<div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; virtualenv C:\path\to\directory
-</code></pre>
-</div>
+<div class="shell-PowerShell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; virtualenv C:\path\to\directory
+</code></pre></div></div>
 
 <p>A virtual environment needs to be activated for each shell that is to use it.
 Activating it sets some environment variables that point to the virtual
@@ -349,13 +339,11 @@ environment’s directories.</p>
 
 <p>To activate a virtual environment in Bash, run:</p>
 
-<div class="shell-unix highlighter-rouge"><pre class="highlight"><code>. /path/to/directory/bin/activate
-</code></pre>
-</div>
+<div class="shell-unix highlighter-rouge"><div class="highlight"><pre class="highlight"><code>. /path/to/directory/bin/activate
+</code></pre></div></div>
 
-<div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; C:\path\to\directory\Scripts\activate.ps1
-</code></pre>
-</div>
+<div class="shell-PowerShell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; C:\path\to\directory\Scripts\activate.ps1
+</code></pre></div></div>
 
 <p>That is, execute the <code class="highlighter-rouge">activate</code> script under the virtual environment directory you created.</p>
 
@@ -365,13 +353,11 @@ environment’s directories.</p>
 
 <p>Install the latest Python SDK from PyPI:</p>
 
-<div class="shell-unix highlighter-rouge"><pre class="highlight"><code>pip install apache-beam
-</code></pre>
-</div>
+<div class="shell-unix highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install apache-beam
+</code></pre></div></div>
 
-<div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; python -m pip install apache-beam
-</code></pre>
-</div>
+<div class="shell-PowerShell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; python -m pip install apache-beam
+</code></pre></div></div>
 
 <h4 id="extra-requirements">Extra requirements</h4>
 
@@ -411,30 +397,25 @@ environment’s directories.</p>
 
 <p>For example, run <code class="highlighter-rouge">wordcount.py</code> with the following command:</p>
 
-<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
-</code></pre>
-</div>
+<div class="runner-direct highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
+</code></pre></div></div>
 
-<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
-</code></pre>
-</div>
+<div class="runner-apex highlighter-rouge"><div class="highlight"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre></div></div>
 
-<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+<div class="runner-flink-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
 See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+<div class="runner-flink-cluster highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
 See https://beam.apache.org/documentation/runners/flink/ for more information.
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>Currently, running wordcount.py on Spark requires a full download of the Beam source code.
+<div class="runner-spark highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Currently, running wordcount.py on Spark requires a full download of the Beam source code.
 See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
+<div class="runner-dataflow highlighter-rouge"><div class="highlight"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
 # complete the setup steps at /documentation/runners/dataflow/#setup
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -442,12 +423,10 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --runner DataflowRunner \
                                          --project your-gcp-project \
                                          --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
-</code></pre>
-</div>
+<div class="runner-nemo highlighter-rouge"><div class="highlight"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre></div></div>
 
 <p>After the pipeline completes, you can view the output files at your specified
 output path. For example, if you specify <code class="highlighter-rouge">/dir1/counts</code> for the <code class="highlighter-rouge">--output</code>

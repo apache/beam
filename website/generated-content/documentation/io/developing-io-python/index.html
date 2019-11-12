@@ -691,7 +691,7 @@ a wrapper.</li>
 
 <p>The following example, <code class="highlighter-rouge">CountingSource</code>, demonstrates an implementation of <code class="highlighter-rouge">BoundedSource</code> and uses the SDK-provided <code class="highlighter-rouge">RangeTracker</code> called <code class="highlighter-rouge">OffsetRangeTracker</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>class CountingSource(iobase.BoundedSource):
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class CountingSource(iobase.BoundedSource):
 
   def __init__(self, count):
     self.records_read = Metrics.counter(self.__class__, 'recordsRead')
@@ -730,15 +730,13 @@ a wrapper.</li>
                                 start_position=bundle_start,
                                 stop_position=bundle_stop)
       bundle_start = bundle_stop
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>To read data from the source in your pipeline, use the <code class="highlighter-rouge">Read</code> transform:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
   numbers = p | 'ProduceNumbers' &gt;&gt; beam.io.Read(CountingSource(count))
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Note:</strong> When you create a source that end-users are going to use, we
 recommended that you do not expose the code for the source itself as
@@ -816,7 +814,7 @@ that they are not exposed to end-users. For the source, rename <code class="high
 to <code class="highlighter-rouge">_CountingSource</code>. Then, create the wrapper <code class="highlighter-rouge">PTransform</code>, called
 <code class="highlighter-rouge">ReadFromCountingSource</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>class ReadFromCountingSource(PTransform):
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class ReadFromCountingSource(PTransform):
 
   def __init__(self, count):
     super(ReadFromCountingSource, self).__init__()
@@ -824,19 +822,17 @@ to <code class="highlighter-rouge">_CountingSource</code>. Then, create the wrap
 
   def expand(self, pcoll):
     return pcoll | iobase.Read(_CountingSource(self._count))
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Finally, read from the source:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p = beam.Pipeline(options=PipelineOptions())
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p = beam.Pipeline(options=PipelineOptions())
 numbers = p | 'ProduceNumbers' &gt;&gt; ReadFromCountingSource(count)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>For the sink, rename <code class="highlighter-rouge">SimpleKVSink</code> to <code class="highlighter-rouge">_SimpleKVSink</code>. Then, create the wrapper <code class="highlighter-rouge">PTransform</code>, called <code class="highlighter-rouge">WriteToKVSink</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>class WriteToKVSink(PTransform):
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class WriteToKVSink(PTransform):
 
   def __init__(self, simplekv, url, final_table_name):
     self._simplekv = simplekv
@@ -848,17 +844,15 @@ numbers = p | 'ProduceNumbers' &gt;&gt; ReadFromCountingSource(count)
     return pcoll | iobase.Write(_SimpleKVSink(self._simplekv,
                                               self._url,
                                               self._final_table_name))
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Finally, write to the sink:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
   kvs = p | 'CreateKVs' &gt;&gt; beam.core.Create(KVs)
   kvs | 'WriteToSimpleKV' &gt;&gt; WriteToKVSink(
       simplekv, 'http://url_to_simple_kv/', final_table_name)
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

@@ -512,20 +512,19 @@ into a single value, represented in your pipeline as a new <code class="highligh
 one element. The following example code shows how to apply the Beam-provided
 sum combine function to produce a single sum value for a <code class="highlighter-rouge">PCollection</code> of integers.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,</span>
 <span class="c1">// contains one value: the sum of all the elements in the input PCollection.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">pc</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">sum</span> <span class="o">=</span> <span class="n">pc</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
    <span class="n">Combine</span><span class="o">.</span><span class="na">globally</span><span class="o">(</span><span class="k">new</span> <span class="n">Sum</span><span class="o">.</span><span class="na">SumIntegerFn</span><span class="o">()));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 2</strong>: Keyed combine
 Use a keyed combine to to combine all of the values associated with each key
 into a single output value for each key. As with the global combine, the
 function passed to a keyed combine must be associative and commutative.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// PCollection is grouped by key and the Double values associated with each key are combined into a Double.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// PCollection is grouped by key and the Double values associated with each key are combined into a Double.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;&gt;</span> <span class="n">salesRecords</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;&gt;</span> <span class="n">totalSalesPerPerson</span> <span class="o">=</span>
   <span class="n">salesRecords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Combine</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Double</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;</span><span class="n">perKey</span><span class="o">(</span>
@@ -536,8 +535,7 @@ function passed to a keyed combine must be associative and commutative.</p>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;&gt;</span> <span class="n">avgAccuracyPerPlayer</span> <span class="o">=</span>
   <span class="n">playerAccuracy</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Combine</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">,</span> <span class="n">Double</span><span class="o">&gt;</span><span class="n">perKey</span><span class="o">(</span>
     <span class="k">new</span> <span class="nf">MeanInts</span><span class="o">())));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

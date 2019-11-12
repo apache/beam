@@ -495,18 +495,16 @@ values associated with each key in a collection of key-value pairs.</p>
 <h2 id="examples">Examples</h2>
 <p><strong>Example 1</strong>: get the sum of a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">Doubles</code>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">sum</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">doublesGlobally</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Example 2: calculate the sum of the <code class="highlighter-rouge">Integers</code> associated with each unique key (which is of type <code class="highlighter-rouge">String</code>).</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">sumPerKey</span> <span class="o">=</span> <span class="n">input</span>
      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">integersPerKey</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

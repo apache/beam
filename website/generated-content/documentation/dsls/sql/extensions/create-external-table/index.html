@@ -358,7 +358,7 @@ the <code class="highlighter-rouge">SELECT</code>, <code class="highlighter-roug
 
 <h2 id="syntax">Syntax</h2>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE type
 [LOCATION location]
 [TBLPROPERTIES tblProperties]
@@ -368,8 +368,7 @@ simpleType: TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DECIMAL | B
 fieldType: simpleType | MAP&lt;simpleType, fieldType&gt; | ARRAY&lt;fieldType&gt; | ROW&lt;tableElement [, tableElement ]*&gt;
 
 tableElement: columnName fieldType [ NOT NULL ]
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <ul>
   <li><code class="highlighter-rouge">IF NOT EXISTS</code>: Optional. If the table is already registered, Beam SQL
@@ -420,11 +419,10 @@ See the I/O specific sections for <code class="highlighter-rouge">tblProperties<
 
 <h3 id="syntax-1">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
 LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <ul>
   <li><code class="highlighter-rouge">LOCATION:</code>Location of the table in the BigQuery CLI format.
@@ -525,17 +523,16 @@ as follows:</p>
 
 <h3 id="example">Example</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
 TYPE bigquery
 LOCATION 'testing-integration:apache.users'
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="pubsub">Pub/Sub</h2>
 
 <h3 id="syntax-2">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
   (
    event_timestamp TIMESTAMP,
    attributes MAP&lt;VARCHAR, VARCHAR&gt;,
@@ -544,8 +541,7 @@ LOCATION 'testing-integration:apache.users'
 TYPE pubsub
 LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
 TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]"}'
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <ul>
   <li><code class="highlighter-rouge">event_timestamp</code>: The event timestamp associated with the Pub/Sub message
@@ -621,11 +617,10 @@ objects. Beam attempts to parse JSON to match the schema of the
 
 <h3 id="example-1">Example</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes MAP&lt;VARCHAR, VARCHAR&gt;, payload ROW&lt;id INTEGER, location VARCHAR&gt;)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes MAP&lt;VARCHAR, VARCHAR&gt;, payload ROW&lt;id INTEGER, location VARCHAR&gt;)
 TYPE pubsub
 LOCATION 'projects/testing-integration/topics/user-location'
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="kafka">Kafka</h2>
 
@@ -633,12 +628,11 @@ LOCATION 'projects/testing-integration/topics/user-location'
 
 <h3 id="syntax-3">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE kafka
 LOCATION 'kafka://localhost:2181/brokers'
 TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"]}'
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <ul>
   <li><code class="highlighter-rouge">LOCATION</code>: The Kafka topic URL.</li>
@@ -681,12 +675,11 @@ access the same underlying data.</p>
 
 <h3 id="syntax-4">Syntax</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE text
 LOCATION '/home/admin/orders'
 TBLPROPERTIES '{"format: "Excel"}'
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <ul>
   <li><code class="highlighter-rouge">LOCATION</code>: The path to the file for Read Mode. The prefix for Write Mode.</li>
@@ -779,11 +772,10 @@ types specified in the schema using org.apache.commons.csv.</li>
 
 <h3 id="example-2">Example</h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
 TYPE text
 LOCATION '/home/admin/orders'
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

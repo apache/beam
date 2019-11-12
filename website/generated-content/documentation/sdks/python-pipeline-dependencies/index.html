@@ -330,9 +330,8 @@ limitations under the License.
   <li>
     <p>Find out which packages are installed on your machine. Run the following command:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> pip freeze &gt; requirements.txt
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> pip freeze &gt; requirements.txt
+</code></pre></div>    </div>
 
     <p>This command creates a <code class="highlighter-rouge">requirements.txt</code> file that lists all packages that are installed on your machine, regardless of where they were installed from.</p>
   </li>
@@ -342,9 +341,8 @@ limitations under the License.
   <li>
     <p>Run your pipeline with the following command-line option:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> --requirements_file requirements.txt
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> --requirements_file requirements.txt
+</code></pre></div>    </div>
 
     <p>The runner will use the <code class="highlighter-rouge">requirements.txt</code> file to install your additional dependencies onto the remote workers.</p>
   </li>
@@ -360,25 +358,22 @@ limitations under the License.
   <li>
     <p>Identify which packages are installed on your machine and are not public. Run the following command:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> pip freeze
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> pip freeze
+</code></pre></div>    </div>
 
     <p>This command lists all packages that are installed on your machine, regardless of where they were installed from.</p>
   </li>
   <li>
     <p>Run your pipeline with the following command-line option:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> --extra_package /path/to/package/package-name
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> --extra_package /path/to/package/package-name
+</code></pre></div>    </div>
 
     <p>where package-name is the package’s tarball. If you have the <code class="highlighter-rouge">setup.py</code> for that
 package then you can build the tarball with the following command:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> python setup.py sdist
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> python setup.py sdist
+</code></pre></div>    </div>
 
     <p>See the <a href="https://docs.python.org/2/distutils/sourcedist.html">sdist documentation</a> for more details on this command.</p>
   </li>
@@ -392,7 +387,7 @@ package then you can build the tarball with the following command:</p>
   <li>
     <p>Create a <a href="https://pythonhosted.org/an_example_pypi_project/setuptools.html">setup.py</a> file for your project. The following is a very basic <code class="highlighter-rouge">setup.py</code> file.</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> import setuptools
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> import setuptools
 
  setuptools.setup(
     name='PACKAGE-NAME',
@@ -400,27 +395,24 @@ package then you can build the tarball with the following command:</p>
     install_requires=[],
     packages=setuptools.find_packages(),
  )
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Structure your project so that the root directory contains the <code class="highlighter-rouge">setup.py</code> file, the main workflow file, and a directory with the rest of the files.</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> root_dir/
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> root_dir/
    setup.py
    main.py
    other_files_dir/
-</code></pre>
-    </div>
+</code></pre></div>    </div>
 
     <p>See <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset">Juliaset</a> for an example that follows this required project structure.</p>
   </li>
   <li>
     <p>Run your pipeline with the following command-line option:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> --setup_file /path/to/setup.py
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> --setup_file /path/to/setup.py
+</code></pre></div>    </div>
   </li>
 </ol>
 
@@ -442,21 +434,19 @@ package then you can build the tarball with the following command:</p>
   <li>
     <p>Structure your project so that the root directory contains the <code class="highlighter-rouge">setup.py</code> file, the main workflow file, and a directory with the rest of the files.</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> root_dir/
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> root_dir/
    setup.py
    main.py
    other_files_dir/
-</code></pre>
-    </div>
+</code></pre></div>    </div>
 
     <p>See the <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset">Juliaset</a> project for an example that follows this required project structure.</p>
   </li>
   <li>
     <p>Run your pipeline with the following command-line option:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> --setup_file /path/to/setup.py
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> --setup_file /path/to/setup.py
+</code></pre></div>    </div>
   </li>
 </ol>
 

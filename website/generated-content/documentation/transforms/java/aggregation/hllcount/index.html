@@ -504,37 +504,32 @@ The respective transforms to create and merge sketches, and to extract from them
 
 <h2 id="examples">Examples</h2>
 <p><strong>Example 1</strong>: creates a long-type sketch for a <code class="highlighter-rouge">PCollection&lt;Long&gt;</code> with a custom precision:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
  <span class="kt">int</span> <span class="n">p</span> <span class="o">=</span> <span class="o">...;</span>
  <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">sketch</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Init</span><span class="o">.</span><span class="na">forLongs</span><span class="o">().</span><span class="na">withPrecision</span><span class="o">(</span><span class="n">p</span><span class="o">).</span><span class="na">globally</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 2</strong>: creates a bytes-type sketch for a <code class="highlighter-rouge">PCollection&lt;KV&lt;String, byte[]&gt;&gt;</code>:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
  <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]&gt;&gt;</span> <span class="n">sketch</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Init</span><span class="o">.</span><span class="na">forBytes</span><span class="o">().</span><span class="na">perKey</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 3</strong>: merges existing sketches in a <code class="highlighter-rouge">PCollection&lt;byte[]&gt;</code> into a new sketch,
 which summarizes the union of the inputs that were aggregated in the merged sketches:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">sketches</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">sketches</span> <span class="o">=</span> <span class="o">...;</span>
  <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">mergedSketch</span> <span class="o">=</span> <span class="n">sketches</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">MergePartial</span><span class="o">.</span><span class="na">globally</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 4</strong>: estimates the count of distinct elements in a <code class="highlighter-rouge">PCollection&lt;String&gt;</code>:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
  <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">countDistinct</span> <span class="o">=</span>
      <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Init</span><span class="o">.</span><span class="na">forStrings</span><span class="o">().</span><span class="na">globally</span><span class="o">()).</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Extract</span><span class="o">.</span><span class="na">globally</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 5</strong>: extracts the count distinct estimate from an existing sketch:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">sketch</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">PCollection</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">sketch</span> <span class="o">=</span> <span class="o">...;</span>
  <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">countDistinct</span> <span class="o">=</span> <span class="n">sketch</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HllCount</span><span class="o">.</span><span class="na">Extract</span><span class="o">.</span><span class="na">globally</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

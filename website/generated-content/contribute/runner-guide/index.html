@@ -677,14 +677,13 @@ the Python codebase.</p>
 <p>In Java, the <code class="highlighter-rouge">beam-runners-core-java</code> library provides an interface
 <code class="highlighter-rouge">DoFnRunner</code> for bundle processing, with implementations for many situations.</p>
 
-<div class="language-java no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">interface</span> <span class="nc">DoFnRunner</span><span class="o">&lt;</span><span class="n">InputT</span><span class="o">,</span> <span class="n">OutputT</span><span class="o">&gt;</span> <span class="o">{</span>
+<div class="language-java no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">interface</span> <span class="nc">DoFnRunner</span><span class="o">&lt;</span><span class="n">InputT</span><span class="o">,</span> <span class="n">OutputT</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="kt">void</span> <span class="nf">startBundle</span><span class="o">();</span>
   <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">WindowedValue</span><span class="o">&lt;</span><span class="n">InputT</span><span class="o">&gt;</span> <span class="n">elem</span><span class="o">);</span>
   <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span><span class="n">String</span> <span class="n">timerId</span><span class="o">,</span> <span class="n">BoundedWindow</span> <span class="n">window</span><span class="o">,</span> <span class="n">Instant</span> <span class="n">timestamp</span><span class="o">,</span> <span class="n">TimeDomain</span> <span class="n">timeDomain</span><span class="o">);</span>
   <span class="kt">void</span> <span class="nf">finishBundle</span><span class="o">();</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>There are some implementations and variations of this for different scenarios:</p>
 
@@ -1027,7 +1026,7 @@ very easily!  To enable these tests in a Java-based runner using Gradle, you
 scan the dependencies of the SDK for tests with the JUnit category
 <code class="highlighter-rouge">ValidatesRunner</code>.</p>
 
-<div class="no-toggle highlighter-rouge"><pre class="highlight"><code>task validatesRunner(type: Test) {
+<div class="no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code>task validatesRunner(type: Test) {
   group = "Verification"
   description = "Validates the runner"
   def pipelineOptions = JsonOutput.toJson(["--runner=MyRunner", ... misc test options ...])
@@ -1038,8 +1037,7 @@ scan the dependencies of the SDK for tests with the JUnit category
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
   }
 }
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Enabling these tests in other languages is unexplored.</p>
 
@@ -1061,7 +1059,7 @@ what you know, and follow the rules, and <code class="highlighter-rouge">Pipelin
 <p>You must implement a sub-interface for your runner with getters and setters
 with matching names, like so:</p>
 
-<div class="language-java no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyRunnerOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+<div class="language-java no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyRunnerOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
   <span class="nd">@Description</span><span class="o">(</span><span class="s">"The Foo to use with MyRunner"</span><span class="o">)</span>
   <span class="nd">@Required</span>
   <span class="kd">public</span> <span class="n">Foo</span> <span class="nf">getMyRequiredFoo</span><span class="o">();</span>
@@ -1072,8 +1070,7 @@ with matching names, like so:</p>
   <span class="kd">public</span> <span class="n">Boolean</span> <span class="nf">isBazEnabled</span><span class="o">();</span>
   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">setBazEnabled</span><span class="o">(</span><span class="n">Boolean</span> <span class="n">newValue</span><span class="o">);</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>You can set up defaults, etc. See the javadoc for details.  When your runner is
 instantiated with a <code class="highlighter-rouge">PipelineOptions</code> object, you access your interface by
@@ -1082,30 +1079,28 @@ instantiated with a <code class="highlighter-rouge">PipelineOptions</code> objec
 <p>To make these options available on the command line, you register your options
 with a <code class="highlighter-rouge">PipelineOptionsRegistrar</code>. It is easy if you use <code class="highlighter-rouge">@AutoService</code>:</p>
 
-<div class="language-java no-toggle highlighter-rouge"><pre class="highlight"><code><span class="nd">@AutoService</span><span class="o">(</span><span class="n">PipelineOptionsRegistrar</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<div class="language-java no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@AutoService</span><span class="o">(</span><span class="n">PipelineOptionsRegistrar</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
 <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">MyOptionsRegistrar</span> <span class="kd">implements</span> <span class="n">PipelineOptionsRegistrar</span> <span class="o">{</span>
   <span class="nd">@Override</span>
   <span class="kd">public</span> <span class="n">Iterable</span><span class="o">&lt;</span><span class="n">Class</span><span class="o">&lt;?</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span><span class="o">&gt;&gt;</span> <span class="nf">getPipelineOptions</span><span class="o">()</span> <span class="o">{</span>
     <span class="k">return</span> <span class="n">ImmutableList</span><span class="o">.&lt;</span><span class="n">Class</span><span class="o">&lt;?</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span><span class="o">&gt;&gt;</span><span class="n">of</span><span class="o">(</span><span class="n">MyRunnerOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="registering-your-runner-with-sdks-for-command-line-use">Registering your runner with SDKs for command line use</h4>
 
 <p>To make your runner available on the command line, you register your options
 with a <code class="highlighter-rouge">PipelineRunnerRegistrar</code>. It is easy if you use <code class="highlighter-rouge">@AutoService</code>:</p>
 
-<div class="language-java no-toggle highlighter-rouge"><pre class="highlight"><code><span class="nd">@AutoService</span><span class="o">(</span><span class="n">PipelineRunnerRegistrar</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<div class="language-java no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@AutoService</span><span class="o">(</span><span class="n">PipelineRunnerRegistrar</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
 <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">MyRunnerRegistrar</span> <span class="kd">implements</span> <span class="n">PipelineRunnerRegistrar</span> <span class="o">{</span>
   <span class="nd">@Override</span>
   <span class="kd">public</span> <span class="n">Iterable</span><span class="o">&lt;</span><span class="n">Class</span><span class="o">&lt;?</span> <span class="kd">extends</span> <span class="n">PipelineRunner</span><span class="o">&gt;&gt;</span> <span class="nf">getPipelineRunners</span><span class="o">()</span> <span class="o">{</span>
     <span class="k">return</span> <span class="n">ImmutableList</span><span class="o">.&lt;</span><span class="n">Class</span><span class="o">&lt;?</span> <span class="kd">extends</span> <span class="n">PipelineRunner</span><span class="o">&gt;&gt;</span><span class="n">of</span><span class="o">(</span><span class="n">MyRunner</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="integrating-with-the-python-sdk">Integrating with the Python SDK</h3>
 
@@ -1228,12 +1223,11 @@ the higher-level, mostly obvious, record definitions.</p>
 language-independent specification of a function, in the usual programming
 sense that includes side effects, etc.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">FunctionSpec</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">FunctionSpec</span> <span class="p">{</span>
   <span class="kt">string</span> <span class="n">urn</span><span class="p">;</span>
   <span class="n">google.protobuf.Any</span> <span class="n">parameter</span><span class="p">;</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>A <code class="highlighter-rouge">FunctionSpec</code> includes a URN identifying the function as well as an arbitrary
 fixed parameter. For example the (hypothetical) “max” CombineFn might have the
@@ -1259,12 +1253,11 @@ it will be guaranteed to understand it. So in that case, it will always come
 with an environment that can understand and execute the function. This is
 represented by the <code class="highlighter-rouge">SdkFunctionSpec</code>.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">SdkFunctionSpec</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">SdkFunctionSpec</span> <span class="p">{</span>
   <span class="n">FunctionSpec</span> <span class="n">spec</span><span class="p">;</span>
   <span class="kt">bytes</span> <span class="n">environment_id</span><span class="p">;</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>In the Runner API, many objects are stored by reference. Here in the
 <code class="highlighter-rouge">environment_id</code> is a pointer, local to the pipeline and just made up by the
@@ -1290,26 +1283,24 @@ the transform.</p>
 provides language-independent specifications for its other features - side
 inputs, state declarations, timer declarations, etc.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">ParDoPayload</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">ParDoPayload</span> <span class="p">{</span>
   <span class="n">SdkFunctionSpec</span> <span class="n">do_fn</span><span class="p">;</span>
   <span class="n">map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span> <span class="n">SideInput</span><span class="err">&gt;</span> <span class="n">side_inputs</span><span class="p">;</span>
   <span class="n">map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span> <span class="n">StateSpec</span><span class="err">&gt;</span> <span class="n">state_specs</span><span class="p">;</span>
   <span class="n">map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span> <span class="n">TimerSpec</span><span class="err">&gt;</span> <span class="n">timer_specs</span><span class="p">;</span>
   <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="readpayload-proto"><code class="highlighter-rouge">ReadPayload</code> proto</h4>
 
 <p>A <code class="highlighter-rouge">Read</code> transform carries an <code class="highlighter-rouge">SdkFunctionSpec</code> for its <code class="highlighter-rouge">Source</code> UDF.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">ReadPayload</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">ReadPayload</span> <span class="p">{</span>
   <span class="n">SdkFunctionSpec</span> <span class="n">source</span><span class="p">;</span>
   <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="windowintopayload-proto"><code class="highlighter-rouge">WindowIntoPayload</code> proto</h4>
 
@@ -1317,12 +1308,11 @@ inputs, state declarations, timer declarations, etc.</p>
 part of the Fn API that the runner passes this UDF along and tells the SDK
 harness to use it to assign windows (as opposed to merging).</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">WindowIntoPayload</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">WindowIntoPayload</span> <span class="p">{</span>
   <span class="n">SdkFunctionSpec</span> <span class="n">window_fn</span><span class="p">;</span>
   <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="combinepayload-proto"><code class="highlighter-rouge">CombinePayload</code> proto</h4>
 
@@ -1333,13 +1323,12 @@ In order to effectively carry out the optimizations desired, it is also
 necessary to know the coder for intermediate accumulations, so it also carries
 a reference to this coder.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CombinePayload</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CombinePayload</span> <span class="p">{</span>
   <span class="n">SdkFunctionSpec</span> <span class="n">combine_fn</span><span class="p">;</span>
   <span class="kt">string</span> <span class="n">accumulator_coder_id</span><span class="p">;</span>
   <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="ptransform-proto"><code class="highlighter-rouge">PTransform</code> proto</h3>
 
@@ -1348,7 +1337,7 @@ represented in the proto using a FunctionSpec. Note that this is not an
 <code class="highlighter-rouge">SdkFunctionSpec</code>, since it is the runner that observes these. They will never
 be passed back to an SDK harness; they do not represent a UDF.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">PTransform</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">PTransform</span> <span class="p">{</span>
   <span class="n">FunctionSpec</span> <span class="n">spec</span><span class="p">;</span>
   <span class="k">repeated</span> <span class="kt">string</span> <span class="n">subtransforms</span><span class="p">;</span>
 
@@ -1357,8 +1346,7 @@ be passed back to an SDK harness; they do not represent a UDF.</p>
   <span class="n">map</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span> <span class="kt">bytes</span><span class="err">&gt;</span> <span class="n">outputs</span><span class="p">;</span>
   <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>A <code class="highlighter-rouge">PTransform</code> may have subtransforms if it is a composite, in which case the
 <code class="highlighter-rouge">FunctionSpec</code> may be omitted since the subtransforms define its behavior.</p>
@@ -1372,14 +1360,13 @@ serialized UDFs.</p>
 <p>A <code class="highlighter-rouge">PCollection</code> just stores a coder, windowing strategy, and whether or not it
 is bounded.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">PCollection</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">PCollection</span> <span class="p">{</span>
   <span class="kt">string</span> <span class="n">coder_id</span><span class="p">;</span>
   <span class="n">IsBounded</span> <span class="n">is_bounded</span><span class="p">;</span>
   <span class="kt">string</span> <span class="n">windowing_strategy_id</span><span class="p">;</span>
   <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="coder-proto"><code class="highlighter-rouge">Coder</code> proto</h3>
 
@@ -1388,12 +1375,11 @@ only be understood by a particular SDK, hence an <code class="highlighter-rouge"
 may have component coders that fully define it. For example, a <code class="highlighter-rouge">ListCoder</code> is
 only a meta-format, while <code class="highlighter-rouge">ListCoder(VarIntCoder)</code> is a fully specified format.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">Coder</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">Coder</span> <span class="p">{</span>
   <span class="n">SdkFunctionSpec</span> <span class="n">spec</span><span class="p">;</span>
   <span class="k">repeated</span> <span class="kt">string</span> <span class="n">component_coder_ids</span><span class="p">;</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="the-runner-api-rpcs">The Runner API RPCs</h2>
 
@@ -1417,14 +1403,13 @@ rich and convenient API.</p>
 <p>This will take the same form, but <code class="highlighter-rouge">PipelineOptions</code> will have to be serialized
 to JSON (or a proto <code class="highlighter-rouge">Struct</code>) and passed along.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">RunPipelineRequest</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">RunPipelineRequest</span> <span class="p">{</span>
   <span class="n">Pipeline</span> <span class="n">pipeline</span><span class="p">;</span>
   <span class="n">Struct</span> <span class="n">pipeline_options</span><span class="p">;</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">RunPipelineResponse</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">RunPipelineResponse</span> <span class="p">{</span>
   <span class="kt">bytes</span> <span class="n">pipeline_id</span><span class="p">;</span>
 
   <span class="c1">// TODO: protocol for rejecting pipelines that cannot be executed
@@ -1433,8 +1418,7 @@ to JSON (or a proto <code class="highlighter-rouge">Struct</code>) and passed al
   <span class="c1">// totally opaque to the SDK; for the shim to interpret
 </span>  <span class="n">Any</span> <span class="n">contents</span><span class="p">;</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="pipelineresult-aka-job-api"><code class="highlighter-rouge">PipelineResult</code> aka “Job API”</h3>
 
@@ -1444,7 +1428,7 @@ be generalized to support draining a job (stop reading input and let watermarks
 go to infinity). Today, verifying our test framework benefits (but does not
 depend upon wholly) querying metrics over this channel.</p>
 
-<div class="language-proto no-toggle highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CancelPipelineRequest</span> <span class="p">{</span>
+<div class="language-proto no-toggle highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CancelPipelineRequest</span> <span class="p">{</span>
   <span class="kt">bytes</span> <span class="n">pipeline_id</span><span class="p">;</span>
   <span class="o">...</span>
 <span class="p">}</span>
@@ -1462,8 +1446,7 @@ depend upon wholly) querying metrics over this channel.</p>
 <span class="kd">enum</span> <span class="n">JobState</span> <span class="p">{</span>
   <span class="o">...</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

@@ -269,14 +269,13 @@ limitations under the License.
 <h3 id="specify-your-dependency">Specify your dependency</h3>
 
 <p><span class="language-java">When using Java, you must specify your dependency on the Direct Runner in your <code class="highlighter-rouge">pom.xml</code>.</span></p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
    <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
    <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">direct</span><span class="o">-</span><span class="n">java</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
    <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.16</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
    <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><span class="language-py">This section is not applicable to the Beam SDK for Python.</span></p>
 
@@ -309,28 +308,25 @@ interface for defaults and additional pipeline configuration options.</p>
 
 <ul>
   <li>Passing through CLI when executing a pipeline.
-    <div class="highlighter-rouge"><pre class="highlight"><code>python wordcount.py --input xx --output xx --direct_num_workers 2
-</code></pre>
-    </div>
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python wordcount.py --input xx --output xx --direct_num_workers 2
+</code></pre></div>    </div>
   </li>
   <li>Setting with <code class="highlighter-rouge">PipelineOptions</code>.
-    <div class="highlighter-rouge"><pre class="highlight"><code>from apache_beam.options.pipeline_options import PipelineOptions
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>from apache_beam.options.pipeline_options import PipelineOptions
 pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>Adding to existing <code class="highlighter-rouge">PipelineOptions</code>.
-    <div class="highlighter-rouge"><pre class="highlight"><code>from apache_beam.options.pipeline_options import DirectOptions
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>from apache_beam.options.pipeline_options import DirectOptions
 pipeline_options = PipelineOptions(xxx)
 pipeline_options.view_as(DirectOptions).direct_num_workers = 2
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ul>
 
 <h4 id="running-with-multi-threading-mode">Running with multi-threading mode</h4>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>import argparse
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import argparse
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -347,12 +343,11 @@ p = beam.Pipeline(options=pipeline_options,
       runner=fn_api_runner.FnApiRunner(
           default_environment=beam_runner_api_pb2.Environment(
           urn=python_urns.EMBEDDED_PYTHON_GRPC)))
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="running-with-multi-processing-mode">Running with multi-processing mode</h4>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>import argparse
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import argparse
 import sys
 
 import apache_beam as beam
@@ -372,8 +367,7 @@ p = beam.Pipeline(options=pipeline_options,
               urn=python_urns.SUBPROCESS_SDK,
               payload=b'%s -m apache_beam.runners.worker.sdk_worker_main'
                         % sys.executable.encode('ascii'))))
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

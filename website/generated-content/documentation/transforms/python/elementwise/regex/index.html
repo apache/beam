@@ -578,10 +578,10 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 <p>To start matching at any point instead of the beginning of the string, use
 <a href="#example-4-regex-find"><code class="highlighter-rouge">Regex.find(regex)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_matches</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
@@ -597,18 +597,16 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓, Strawberry, perennial
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓, Strawberry, perennial
 🥕, Carrot, biennial
 🍆, Eggplant, perennial
 🍅, Tomato, annual
 🥔, Potato, perennial
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -679,10 +677,10 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 <p>To start matching at any point instead of the beginning of the string, use
 <a href="#example-5-regex-find-all"><code class="highlighter-rouge">Regex.find_all(regex, group=Regex.ALL, outputEmpty=False)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_all_matches</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
@@ -698,18 +696,16 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">all_matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.all_matches</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>['🍓, Strawberry, perennial', '🍓', 'Strawberry', 'perennial']
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>['🍓, Strawberry, perennial', '🍓', 'Strawberry', 'perennial']
 ['🥕, Carrot, biennial', '🥕', 'Carrot', 'biennial']
 ['🍆, Eggplant, perennial', '🍆', 'Eggplant', 'perennial']
 ['🍅, Tomato, annual', '🍅', 'Tomato', 'annual']
 ['🥔, Potato, perennial', '🥔', 'Potato', 'perennial']
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -781,10 +777,10 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 <p>To start matching at any point instead of the beginning of the string, use
 <a href="#example-6-regex-find-as-key-value-pairs"><code class="highlighter-rouge">Regex.find_kv(regex, keyGroup)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_matches_kv</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
@@ -800,18 +796,16 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s">'icon'</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches_kv</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>('🍓', '🍓, Strawberry, perennial')
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>('🍓', '🍓, Strawberry, perennial')
 ('🥕', '🥕, Carrot, biennial')
 ('🍆', '🍆, Eggplant, perennial')
 ('🍅', '🍅, Tomato, annual')
 ('🥔', '🥔, Potato, perennial')
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -883,10 +877,10 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 <p>If you need to match from the start only, consider using
 <a href="#example-1-regex-match"><code class="highlighter-rouge">Regex.matches(regex)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_matches</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
@@ -900,18 +894,16 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓, Strawberry, perennial
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓, Strawberry, perennial
 🥕, Carrot, biennial
 🍆, Eggplant, perennial
 🍅, Tomato, annual
 🥔, Potato, perennial
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -983,10 +975,10 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 <p>If you need to match all groups from the start only, consider using
 <a href="#example-2-regex-match-with-all-groups"><code class="highlighter-rouge">Regex.all_matches(regex)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_find_all</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
@@ -1000,18 +992,16 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_all</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>['🍓, Strawberry, perennial']
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>['🍓, Strawberry, perennial']
 ['🥕, Carrot, biennial']
 ['🍆, Eggplant, perennial', '🍌, Banana, perennial']
 ['🍅, Tomato, annual', '🍉, Watermelon, annual']
 ['🥔, Potato, perennial']
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1084,10 +1074,10 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
 <p>If you need to match as key-value pairs from the start only, consider using
 <a href="#example-3-regex-match-into-key-value-pairs"><code class="highlighter-rouge">Regex.matches_kv(regex)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^</span><span class="err">\</span><span class="s">s,]+), *(</span><span class="err">\</span><span class="s">w+), *(</span><span class="err">\</span><span class="s">w+)'</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_matches_kv</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
@@ -1101,20 +1091,18 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s">'icon'</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_kv</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>('🍓', '🍓, Strawberry, perennial')
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>('🍓', '🍓, Strawberry, perennial')
 ('🥕', '🥕, Carrot, biennial')
 ('🍆', '🍆, Eggplant, perennial')
 ('🍌', '🍌, Banana, perennial')
 ('🍅', '🍅, Tomato, annual')
 ('🍉', '🍉, Watermelon, annual')
 ('🥔', '🥔, Potato, perennial')
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1179,7 +1167,7 @@ You can also use
 <a href="https://docs.python.org/3/library/re.html?highlight=backreference#re.sub">backreferences</a>
 on the <code class="highlighter-rouge">replacement</code>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_replace_all</span> <span class="o">=</span> <span class="p">(</span>
@@ -1191,21 +1179,19 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
           <span class="s">'🍅 : Tomato : annual'</span><span class="p">,</span>
           <span class="s">'🥔 : Potato : perennial'</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'To CSV'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_all</span><span class="p">(</span><span class="s">r'</span><span class="err">\</span><span class="s">s*:</span><span class="err">\</span><span class="s">s*'</span><span class="p">,</span> <span class="s">','</span><span class="p">)</span>
+      <span class="o">|</span> <span class="s">'To CSV'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_all</span><span class="p">(</span><span class="s">r'\s*:\s*'</span><span class="p">,</span> <span class="s">','</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_all</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓,Strawberry,perennial
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓,Strawberry,perennial
 🥕,Carrot,biennial
 🍆,Eggplant,perennial
 🍅,Tomato,annual
 🥔,Potato,perennial
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1270,7 +1256,7 @@ You can also use
 <a href="https://docs.python.org/3/library/re.html?highlight=backreference#re.sub">backreferences</a>
 on the <code class="highlighter-rouge">replacement</code>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_replace_first</span> <span class="o">=</span> <span class="p">(</span>
@@ -1282,21 +1268,19 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
           <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
           <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'As dictionary'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_first</span><span class="p">(</span><span class="s">r'</span><span class="err">\</span><span class="s">s*,</span><span class="err">\</span><span class="s">s*'</span><span class="p">,</span> <span class="s">': '</span><span class="p">)</span>
+      <span class="o">|</span> <span class="s">'As dictionary'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_first</span><span class="p">(</span><span class="s">r'\s*,\s*'</span><span class="p">,</span> <span class="s">': '</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_first</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓: Strawberry, perennial
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓: Strawberry, perennial
 🥕: Carrot, biennial
 🍆: Eggplant, perennial
 🍅: Tomato, annual
 🥔: Potato, perennial
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1359,7 +1343,7 @@ limitations under the License.
 <p><code class="highlighter-rouge">Regex.split</code> returns the list of strings that were delimited by the specified regular expression.
 The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code class="highlighter-rouge">False</code> by default, but can be set to <code class="highlighter-rouge">True</code> to keep empty items in the output list.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_split</span> <span class="o">=</span> <span class="p">(</span>
@@ -1371,21 +1355,19 @@ The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code 
           <span class="s">'🍅 : Tomato : annual'</span><span class="p">,</span>
           <span class="s">'🥔 : Potato : perennial'</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">r'</span><span class="err">\</span><span class="s">s*:</span><span class="err">\</span><span class="s">s*'</span><span class="p">)</span>
+      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">r'\s*:\s*'</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.split</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>['🍓', 'Strawberry', 'perennial']
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>['🍓', 'Strawberry', 'perennial']
 ['🥕', 'Carrot', 'biennial']
 ['🍆', 'Eggplant', 'perennial']
 ['🍅', 'Tomato', 'annual']
 ['🥔', 'Potato', 'perennial']
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

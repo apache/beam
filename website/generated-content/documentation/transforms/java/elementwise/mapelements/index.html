@@ -494,7 +494,7 @@ Applies a simple 1-to-1 mapping function over each element in the collection.</p
 <h2 id="examples">Examples</h2>
 <p><strong>Example 1</strong>: providing the mapping function using a <code class="highlighter-rouge">SimpleFunction</code></p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">,</span> <span class="s">"Beam is fun"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">,</span> <span class="s">"Beam is fun"</span><span class="o">);</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">lineLengths</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">(</span>
     <span class="k">new</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{</span>
       <span class="nd">@Override</span>
@@ -502,19 +502,17 @@ Applies a simple 1-to-1 mapping function over each element in the collection.</p
         <span class="k">return</span> <span class="n">line</span><span class="o">.</span><span class="na">length</span><span class="o">();</span>
       <span class="o">}</span>
     <span class="o">});</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 2</strong>: providing the mapping function using a <code class="highlighter-rouge">SerializableFunction</code>,
 which allows the use of Java 8 lambdas. Due to type erasure, you need
 to provide a hint indicating the desired return type.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">,</span> <span class="s">"Beam is fun"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">,</span> <span class="s">"Beam is fun"</span><span class="o">);</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">lineLengths</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">MapElements</span>
     <span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">integers</span><span class="o">())</span>
     <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">line</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">line</span><span class="o">.</span><span class="na">length</span><span class="o">()));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

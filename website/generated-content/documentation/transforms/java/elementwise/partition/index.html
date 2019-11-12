@@ -498,7 +498,7 @@ Separates elements in a collection into multiple output collections. The partiti
 <h2 id="examples">Examples</h2>
 <p><strong>Example</strong>: dividing a <code class="highlighter-rouge">PCollection</code> into percentile groups</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Provide an int value with the desired number of result partitions, and a PartitionFn that represents the</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Provide an int value with the desired number of result partitions, and a PartitionFn that represents the</span>
 <span class="c1">// partitioning function. In this example, we define the PartitionFn in-line. Returns a PCollectionList</span>
 <span class="c1">// containing each of the resulting partitions as individual PCollection objects.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Student</span><span class="o">&gt;</span> <span class="n">students</span> <span class="o">=</span> <span class="o">...;</span>
@@ -512,8 +512,7 @@ Separates elements in a collection into multiple output collections. The partiti
 
 <span class="c1">// You can extract each partition from the PCollectionList using the get method, as follows:</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Student</span><span class="o">&gt;</span> <span class="n">fortiethPercentile</span> <span class="o">=</span> <span class="n">studentsByPercentile</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="mi">4</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

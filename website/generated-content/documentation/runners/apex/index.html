@@ -243,19 +243,16 @@ For more download options see <a href="http://apex.apache.org/downloads.html">di
 <h2 id="running-wordcount-with-apex">Running wordcount with Apex</h2>
 
 <p>Typically the build environment is separate from the target YARN cluster. In such case, it is necessary to build a fat jar that will include all dependencies. Ensure that <code class="highlighter-rouge">hadoop.version</code> in <code class="highlighter-rouge">pom.xml</code> matches the version of your YARN cluster and then build the jar file:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn package -Papex-runner
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mvn package -Papex-runner
+</code></pre></div></div>
 
 <p>Copy the resulting <code class="highlighter-rouge">target/word-count-beam-bundled-0.1.jar</code> to the cluster and submit the application using:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>java -cp word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount --inputFile=/etc/profile --output=/tmp/counts --embeddedExecution=false --configFile=beam-runners-apex.properties --runner=ApexRunner
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>java -cp word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount --inputFile=/etc/profile --output=/tmp/counts --embeddedExecution=false --configFile=beam-runners-apex.properties --runner=ApexRunner
+</code></pre></div></div>
 
 <p>If the build environment is setup as cluster client, it is possible to run the example directly:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/etc/profile --output=/tmp/counts --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/etc/profile --output=/tmp/counts --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
+</code></pre></div></div>
 
 <p>The application will run asynchronously. Check status with <code class="highlighter-rouge">yarn application -list -appStates ALL</code></p>
 
@@ -263,11 +260,10 @@ For more download options see <a href="http://apex.apache.org/downloads.html">di
 The following example will reduce the number of required containers by collocating the operators into the same container
 and lower the heap memory per operator - suitable for execution in a single node Hadoop sandbox.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>apex.application.*.operator.*.attr.MEMORY_MB=64
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>apex.application.*.operator.*.attr.MEMORY_MB=64
 apex.stream.*.prop.locality=CONTAINER_LOCAL
 apex.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This example uses local files. To use a distributed file system (HDFS, S3 etc.),
 it is necessary to augment the build to include the respective file system provider.</p>
@@ -282,9 +278,8 @@ it is necessary to augment the build to include the respective file system provi
 </ul>
 
 <p>Check the output of the pipeline:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>ls /tmp/counts*
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ls /tmp/counts*
+</code></pre></div></div>
 
       </div>
     </div>

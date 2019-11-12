@@ -274,7 +274,7 @@ and the Python SDK is available on <a href="https://pypi.python.org/pypi/apache-
 <p>For example, if you are developing using Maven and want to use the SDK for Java
 with the <code class="highlighter-rouge">DirectRunner</code>, add the following dependencies to your <code class="highlighter-rouge">pom.xml</code> file:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;dependency&gt;
   &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
   &lt;artifactId&gt;beam-sdks-java-core&lt;/artifactId&gt;
   &lt;version&gt;2.16.0&lt;/version&gt;
@@ -285,15 +285,13 @@ with the <code class="highlighter-rouge">DirectRunner</code>, add the following 
   &lt;version&gt;2.16.0&lt;/version&gt;
   &lt;scope&gt;runtime&lt;/scope&gt;
 &lt;/dependency&gt;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Similarly in Python, if you are using PyPI and want to use the SDK for Python
 with <code class="highlighter-rouge">DirectRunner</code>, add the following requirement to your <code class="highlighter-rouge">setup.py</code> file:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>apache-beam==2.16.0
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>apache-beam==2.16.0
+</code></pre></div></div>
 
 <p>Additionally, you may want to depend on additional SDK modules, such as IO
 connectors or other extensions, and additional runners to execute your pipeline

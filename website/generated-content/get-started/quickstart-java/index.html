@@ -265,7 +265,7 @@ limitations under the License.
 
 <p>The easiest way to get a copy of the WordCount pipeline is to use the following command to generate a simple Maven project that contains Beam’s WordCount examples and builds against the most recent Beam release:</p>
 
-<div class="shell-unix highlighter-rouge"><pre class="highlight"><code>$ mvn archetype:generate \
+<div class="shell-unix highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
       -DarchetypeVersion=2.16.0 \
@@ -274,10 +274,9 @@ limitations under the License.
       -Dversion="0.1" \
       -Dpackage=org.apache.beam.examples \
       -DinteractiveMode=false
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn archetype:generate `
+<div class="shell-PowerShell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn archetype:generate `
  -D archetypeGroupId=org.apache.beam `
  -D archetypeArtifactId=beam-sdks-java-maven-archetypes-examples `
  -D archetypeVersion=2.16.0 `
@@ -286,12 +285,11 @@ limitations under the License.
  -D version="0.1" `
  -D package=org.apache.beam.examples `
  -D interactiveMode=false
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This will create a directory <code class="highlighter-rouge">word-count-beam</code> that contains a simple <code class="highlighter-rouge">pom.xml</code> and a series of example pipelines that count words in text files.</p>
 
-<div class="shell-unix highlighter-rouge"><pre class="highlight"><code>$ cd word-count-beam/
+<div class="shell-unix highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cd word-count-beam/
 
 $ ls
 pom.xml	src
@@ -299,10 +297,9 @@ pom.xml	src
 $ ls src/main/java/org/apache/beam/examples/
 DebuggingWordCount.java	WindowedWordCount.java	common
 MinimalWordCount.java	WordCount.java
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; cd .\word-count-beam
+<div class="shell-PowerShell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; cd .\word-count-beam
 
 PS&gt; dir
 
@@ -325,8 +322,7 @@ d-----        7/19/2018  11:00 PM                subprocess
 -a----        7/19/2018  11:00 PM           5945 MinimalWordCount.java                                       
 -a----        7/19/2018  11:00 PM           9490 WindowedWordCount.java                                      
 -a----        7/19/2018  11:00 PM           7662 WordCount.java
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>For a detailed introduction to the Beam concepts used in these examples, see the <a href="/get-started/wordcount-example">WordCount Example Walkthrough</a>. Here, we’ll just focus on executing <code class="highlighter-rouge">WordCount.java</code>.</p>
 
@@ -350,160 +346,133 @@ d-----        7/19/2018  11:00 PM                subprocess
 
 <p>For Unix shells:</p>
 
-<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+<div class="runner-direct highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+<div class="runner-apex highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+<div class="runner-flink-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+<div class="runner-flink-cluster highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
                   --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+<div class="runner-spark highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
+<div class="runner-dataflow highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
 
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=DataflowRunner --project=&lt;your-gcp-project&gt; \
                   --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
                   --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" \
      -Pdataflow-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+<div class="runner-samza-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>$ mvn package -Pnemo-runner &amp;&amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+<div class="runner-nemo highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn package -Pnemo-runner &amp;&amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-jet highlighter-rouge"><pre class="highlight"><code>$ mvn package -Pjet-runner
+<div class="runner-jet highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn package -Pjet-runner
 $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>For Windows PowerShell:</p>
 
-<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+<div class="runner-direct highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--inputFile=pom.xml --output=counts" -P direct-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+<div class="runner-apex highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -P apex-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+<div class="runner-flink-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -P flink-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+<div class="runner-flink-cluster highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
                --inputFile=C:\path\to\quickstart\pom.xml --output=C:\tmp\counts" -P flink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+<div class="runner-spark highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -P spark-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
+<div class="runner-dataflow highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
 
 PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=DataflowRunner --project=&lt;your-gcp-project&gt; `
                --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp `
                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" `
  -P dataflow-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+<div class="runner-samza-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
      -D exec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn package -P nemo-runner -DskipTests
+<div class="runner-nemo highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn package -P nemo-runner -DskipTests
 PS&gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
       --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-jet highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn package -P jet-runner
+<div class="runner-jet highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PS&gt; mvn package -P jet-runner
 PS&gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
       --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="inspect-the-results">Inspect the results</h2>
 
 <p>Once the pipeline has completed, you can view the output. You’ll notice that there may be multiple output files prefixed by <code class="highlighter-rouge">count</code>. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.</p>
 
-<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ ls counts*
-</code></pre>
-</div>
+<div class="runner-direct highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls counts*
+</code></pre></div></div>
 
-<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ ls counts*
-</code></pre>
-</div>
+<div class="runner-apex highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls counts*
+</code></pre></div></div>
 
-<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ ls counts*
-</code></pre>
-</div>
+<div class="runner-flink-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls counts*
+</code></pre></div></div>
 
-<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ ls /tmp/counts*
-</code></pre>
-</div>
+<div class="runner-flink-cluster highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls /tmp/counts*
+</code></pre></div></div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ ls counts*
-</code></pre>
-</div>
+<div class="runner-spark highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls counts*
+</code></pre></div></div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ gsutil ls gs://&lt;your-gcs-bucket&gt;/counts*
-</code></pre>
-</div>
+<div class="runner-dataflow highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ gsutil ls gs://&lt;your-gcs-bucket&gt;/counts*
+</code></pre></div></div>
 
-<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>$ ls /tmp/counts*
-</code></pre>
-</div>
+<div class="runner-samza-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls /tmp/counts*
+</code></pre></div></div>
 
-<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>$ ls counts*
-</code></pre>
-</div>
+<div class="runner-nemo highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls counts*
+</code></pre></div></div>
 
-<div class="runner-jet highlighter-rouge"><pre class="highlight"><code>$ ls counts*
-</code></pre>
-</div>
+<div class="runner-jet highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls counts*
+</code></pre></div></div>
 
 <p>When you look into the contents of the file, you’ll see that they contain unique words and the number of occurrences of each word. The order of elements within the file may differ because the Beam model does not generally guarantee ordering, again to allow runners to optimize for efficiency.</p>
 
-<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ more counts*
+<div class="runner-direct highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ more counts*
 api: 9
 bundled: 1
 old: 4
@@ -512,20 +481,18 @@ The: 1
 limitations: 1
 Foundation: 1
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ cat counts*
+<div class="runner-apex highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cat counts*
 BEAM: 1
 have: 1
 simple: 1
 skip: 4
 PAssert: 1
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ more counts*
+<div class="runner-flink-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ more counts*
 The: 1
 api: 9
 old: 4
@@ -534,10 +501,9 @@ limitations: 1
 bundled: 1
 Foundation: 1
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ more /tmp/counts*
+<div class="runner-flink-cluster highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ more /tmp/counts*
 The: 1
 api: 9
 old: 4
@@ -546,10 +512,9 @@ limitations: 1
 bundled: 1
 Foundation: 1
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ more counts*
+<div class="runner-spark highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ more counts*
 beam: 27
 SF: 1
 fat: 1
@@ -559,10 +524,9 @@ require: 1
 of: 11
 profile: 10
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ gsutil cat gs://&lt;your-gcs-bucket&gt;/counts*
+<div class="runner-dataflow highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ gsutil cat gs://&lt;your-gcs-bucket&gt;/counts*
 feature: 15
 smother'st: 1
 revelry: 1
@@ -572,10 +536,9 @@ Below: 2
 deserves: 32
 barrenly: 1
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>$ more /tmp/counts*
+<div class="runner-samza-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ more /tmp/counts*
 api: 7
 are: 2
 can: 2
@@ -584,10 +547,9 @@ end: 14
 for: 14
 has: 2
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>$ more counts*
+<div class="runner-nemo highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ more counts*
 cluster: 2
 handler: 1
 plugins: 9
@@ -597,10 +559,9 @@ Adds: 2
 java: 7
 xml: 1
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
-<div class="runner-jet highlighter-rouge"><pre class="highlight"><code>$ more counts*
+<div class="runner-jet highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ more counts*
 FlinkRunner: 1
 cleanupDaemonThreads: 2
 sdks: 4
@@ -612,8 +573,7 @@ governing: 1
 overrides: 1
 YARN: 1
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="next-steps">Next Steps</h2>
 

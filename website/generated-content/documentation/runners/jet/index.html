@@ -261,7 +261,7 @@ supported capabilities of the Jet Runner.</p>
 
 <h3 id="running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</h3>
 <p>Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>    $ mvn package exec:java \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
         -Dexec.args="\
@@ -270,8 +270,7 @@ supported capabilities of the Jet Runner.</p>
             --inputFile=pom.xml \
             --output=counts" \
         -Pjet-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</h3>
 <p>Download latest stable Hazelcast Jet code from <a href="https://jet.hazelcast.org/download/">Hazelcast Website</a> and 
@@ -280,27 +279,24 @@ The simplest way is to start Jet cluster member using the <code class="highlight
 The members use the <a href="https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters">auto discovery feature</a> 
 to form a cluster. Let’s start up a cluster formed by two members:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>    $ cd hazelcast-jet
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    $ cd hazelcast-jet
     $ bin/jet-start.sh &amp;
     $ bin/jet-start.sh &amp;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Check the cluster is up and running:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>    $ ./jet.sh cluster
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    $ ./jet.sh cluster
+</code></pre></div></div>
 
 <p>You should see something like:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>State: ACTIVE
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>State: ACTIVE
 Version: 3.0
 Size: 2
 
 ADDRESS                  UUID               
 [192.168.0.117]:5701     76bea7ba-f032-4c25-ad04-bdef6782f481
 [192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Download <a href="https://docs.hazelcast.org/docs/jet-management-center/3.0/manual/">Jet Management Center</a>
 from the same location and use it to monitor your cluster and later executions.</p>
@@ -310,7 +306,7 @@ Pipeline on the remote Jet cluster.
 Make sure to distribute the input file (file with the words to be counted) to all machines where the
 cluster runs. The word count job won’t be able to read the data otherwise.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>    $ mvn package exec:java \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
         -Dexec.args="\
@@ -320,8 +316,7 @@ cluster runs. The word count job won’t be able to read the data otherwise.</p>
             --inputFile=&lt;INPUT_FILE_AVAILABLE_ON_ALL_CLUSTER_MEMBERS&gt; \
             --output=/tmp/counts" \
         -Pjet-runner
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="pipeline-options-for-the-jet-runner">Pipeline Options for the Jet Runner</h2>
 

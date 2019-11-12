@@ -498,7 +498,7 @@ limitations under the License.
 
 <p>Access the <code class="highlighter-rouge">assignWindows</code> function through <code class="highlighter-rouge">WindowFn.AssignContext.element()</code>. The original, fixed-duration <code class="highlighter-rouge">assignWindows</code> function is:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 <span class="kd">public</span> <span class="n">Collection</span><span class="o">&lt;</span><span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="nf">assignWindows</span><span class="o">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="na">AssignContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
 
   <span class="c1">// Assign each element into a window from its timestamp until gapDuration in the</span>
@@ -507,8 +507,7 @@ limitations under the License.
   <span class="k">return</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="k">new</span> <span class="n">IntervalWindow</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">(),</span> <span class="n">gapDuration</span><span class="o">));</span>
 <span class="o">}</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="creating-data-driven-gaps">Creating data-driven gaps</h3>
 <p>To create data-driven gaps, add the following snippets to the <code class="highlighter-rouge">assignWindows</code> function:</p>
@@ -519,7 +518,7 @@ limitations under the License.
 
 <p>For example, the following function assigns each element to a window between the timestamp and <code class="highlighter-rouge">gapDuration</code>:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@Override</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@Override</span>
 <span class="kd">public</span> <span class="n">Collection</span><span class="o">&lt;</span><span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="nf">assignWindows</span><span class="o">(</span><span class="n">AssignContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
   <span class="c1">// Assign each element into a window from its timestamp until gapDuration in the</span>
   <span class="c1">// future.  Overlapping windows (representing elements within gapDuration of</span>
@@ -535,12 +534,11 @@ limitations under the License.
   <span class="k">return</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="k">new</span> <span class="n">IntervalWindow</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">(),</span> <span class="n">dataDrivenGap</span><span class="o">));</span>
 <span class="o">}</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Then, set the <code class="highlighter-rouge">gapDuration</code> field in a windowing function:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">DynamicSessions</span> <span class="kd">extends</span> <span class="n">WindowFn</span><span class="o">&lt;</span><span class="n">TableRow</span><span class="o">,</span> <span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">DynamicSessions</span> <span class="kd">extends</span> <span class="n">WindowFn</span><span class="o">&lt;</span><span class="n">TableRow</span><span class="o">,</span> <span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="cm">/** Duration of the gaps between sessions. */</span>
   <span class="kd">private</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">gapDuration</span><span class="o">;</span>
 
@@ -550,37 +548,34 @@ limitations under the License.
   <span class="o">}</span>
 
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="windowing-messages-into-sessions">Windowing messages into sessions</h3>
 <p>After creating data-driven gaps, you can window incoming data into the new, custom sessions.</p>
 
 <p>First, set the session length to the gap duration:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */</span>
 <span class="kd">public</span> <span class="kd">static</span> <span class="n">DynamicSessions</span> <span class="nf">withDefaultGapDuration</span><span class="o">(</span><span class="n">Duration</span> <span class="n">gapDuration</span><span class="o">)</span> <span class="o">{</span>
   <span class="k">return</span> <span class="k">new</span> <span class="nf">DynamicSessions</span><span class="o">(</span><span class="n">gapDuration</span><span class="o">);</span>
 <span class="o">}</span>
 
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Lastly, window data into sessions in your pipeline:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="s">"Window into sessions"</span><span class="o">,</span>
     <span class="n">Window</span><span class="o">.&lt;</span><span class="n">TableRow</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span>
         <span class="n">DynamicSessions</span><span class="o">.</span><span class="na">withDefaultGapDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">10</span><span class="o">))));</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="example-data-and-windows">Example data and windows</h3>
 <p>The following test data tallies two users’ scores with and without the <code class="highlighter-rouge">gap</code> attribute:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>.apply("Create data", Create.timestamped(
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.apply("Create data", Create.timestamped(
             TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"12\",\"gap\":\"5\"}", new Instant()),
             TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"4\"}", new Instant()),
             TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"-3\",\"gap\":\"5\"}", new Instant().plus(2000)),
@@ -588,8 +583,7 @@ limitations under the License.
             TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"7\",\"gap\":\"5\"}", new Instant().plus(12000)),
             TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"10\"}", new Instant().plus(12000)))
         .withCoder(StringUtf8Coder.of()))
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The diagram below visualizes the test data:</p>
 
@@ -598,11 +592,10 @@ limitations under the License.
 <h4 id="standard-sessions">Standard sessions</h4>
 
 <p>Standard sessions use the following windows and scores:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>user=user-2, score=4, window=[2019-05-26T13:28:49.122Z..2019-05-26T13:28:59.122Z)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user=user-2, score=4, window=[2019-05-26T13:28:49.122Z..2019-05-26T13:28:59.122Z)
 user=user-1, score=18, window=[2019-05-26T13:28:48.582Z..2019-05-26T13:29:12.774Z)
 user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367Z)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>User #1 sees two events separated by 12 seconds. With standard sessions, the gap defaults to 10 seconds; both scores are in different sessions, so the scores aren’t added.</p>
 
@@ -611,12 +604,11 @@ user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367
 <h4 id="dynamic-sessions">Dynamic sessions</h4>
 <p>The dynamic sessions specify a five-second gap, so they use the following windows and scores:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>user=user-2, score=4, window=[2019-05-26T14:30:22.969Z..2019-05-26T14:30:32.969Z)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user=user-2, score=4, window=[2019-05-26T14:30:22.969Z..2019-05-26T14:30:32.969Z)
 user=user-1, score=9, window=[2019-05-26T14:30:22.429Z..2019-05-26T14:30:30.553Z)
 user=user-1, score=9, window=[2019-05-26T14:30:33.276Z..2019-05-26T14:30:41.849Z)
 user=user-2, score=10, window=[2019-05-26T14:30:37.357Z..2019-05-26T14:30:47.357Z)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it’s grouped into a different session. The large, 18-point session is split into two 9-point sessions.</p>
 

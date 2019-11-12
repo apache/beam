@@ -349,9 +349,8 @@ limitations under the License.
 
 <h2 id="avg">AVG</h2>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>AVG(expression)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>AVG(expression)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -371,7 +370,7 @@ you use this function.</p>
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT AVG(x) as avg
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT AVG(x) as avg
 FROM UNNEST([0, 2, NULL, 4, 4, 5]) as x;
 
 +-----+
@@ -380,8 +379,7 @@ FROM UNNEST([0, 2, NULL, 4, 4, 5]) as x;
 | 3   |
 +-----+
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="count">COUNT</h2>
 
@@ -412,7 +410,7 @@ than <code class="highlighter-rouge">NULL</code>.</li>
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT COUNT(*) AS count_star, COUNT(x) AS count_x
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT COUNT(*) AS count_star, COUNT(x) AS count_x
 FROM UNNEST([1, 4, NULL, 4, 5]) AS x;
 
 +------------+---------+
@@ -422,13 +420,11 @@ FROM UNNEST([1, 4, NULL, 4, 5]) AS x;
 +------------+---------+
 
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="max">MAX</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>MAX(expression)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MAX(expression)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -449,7 +445,7 @@ are zero input rows or <code class="highlighter-rouge">expression</code> evaluat
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT MAX(x) AS max
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT MAX(x) AS max
 FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
 
 +-----+
@@ -459,13 +455,11 @@ FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
 +-----+
 
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="min">MIN</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>MIN(expression)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MIN(expression)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -486,7 +480,7 @@ are zero input rows or <code class="highlighter-rouge">expression</code> evaluat
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT MIN(x) AS min
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT MIN(x) AS min
 FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
 
 +-----+
@@ -496,13 +490,11 @@ FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
 +-----+
 
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="sum">SUM</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>SUM(expression)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SUM(expression)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -526,7 +518,7 @@ value.</li>
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT SUM(x) AS sum
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT SUM(x) AS sum
 FROM UNNEST([1, 2, 3, 4, 5, 4, 3, 2, 1]) AS x;
 
 +-----+
@@ -536,8 +528,7 @@ FROM UNNEST([1, 2, 3, 4, 5, 4, 3, 2, 1]) AS x;
 +-----+
 
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

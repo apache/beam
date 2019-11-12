@@ -245,7 +245,7 @@ When you are running your pipeline with Gearpump Runner you just need to create 
 
 <p>Suppose you are writing a Beam pipeline, you can add a dependency on the latest version of the Gearpump runner by adding to your pom.xml to enable Gearpump runner.
 And your Beam application should also pack Beam SDK explicitly and here is a snippet of example pom.xml:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependencies</span><span class="o">&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependencies</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">gearpump</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
@@ -306,19 +306,16 @@ And your Beam application should also pack Beam SDK explicitly and here is a sni
     <span class="o">&lt;/</span><span class="n">plugin</span><span class="o">&gt;</span>
   <span class="o">&lt;/</span><span class="n">plugins</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">build</span><span class="o">&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>After running <code>mvn package</code>, run <code>ls target</code> and you should see your application jar like:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="err">your_application</span><span class="p">}</span><span class="err">-</span><span class="p">{</span><span class="err">version</span><span class="p">}</span><span class="err">-shaded.jar</span><span class="w">
-</span></code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{your_application}-{version}-shaded.jar
+</code></pre></div></div>
 
 <h2 id="executing-the-pipeline-on-a-gearpump-cluster">Executing the pipeline on a Gearpump cluster</h2>
 <p>To run against a Gearpump cluster simply run:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>gear app -jar /path/to/{your_application}-{version}-shaded.jar com.beam.examples.BeamPipeline --runner=GearpumpRunner ...
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gear app -jar /path/to/{your_application}-{version}-shaded.jar com.beam.examples.BeamPipeline --runner=GearpumpRunner ...
+</code></pre></div></div>
 
 <h2 id="monitoring-your-application">Monitoring your application</h2>
 <p>You can monitor a running Gearpump application using Gearpump’s Dashboard. Please follow the Gearpump <a href="http://gearpump.apache.org/releases/latest/deployment/deployment-standalone/index.html#start-ui">Start UI</a> to start the dashboard.</p>

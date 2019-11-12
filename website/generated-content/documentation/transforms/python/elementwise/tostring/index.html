@@ -544,7 +544,7 @@ expect their input elements to be strings.</p>
 <p>The following example converts a <code class="highlighter-rouge">(key, value)</code> pair into a string delimited by <code class="highlighter-rouge">','</code>.
 You can specify a different delimiter using the <code class="highlighter-rouge">delimiter</code> argument.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
@@ -559,18 +559,16 @@ You can specify a different delimiter using the <code class="highlighter-rouge">
       <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Kvs</span><span class="p">()</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓,Strawberry
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓,Strawberry
 🥕,Carrot
 🍆,Eggplant
 🍅,Tomato
 🥔,Potato
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -633,7 +631,7 @@ limitations under the License.
 <p>The following example converts a dictionary into a string.
 The string output will be equivalent to <code class="highlighter-rouge">str(element)</code>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plant_lists</span> <span class="o">=</span> <span class="p">(</span>
@@ -648,18 +646,16 @@ The string output will be equivalent to <code class="highlighter-rouge">str(elem
       <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Element</span><span class="p">()</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>['🍓', 'Strawberry', 'perennial']
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>['🍓', 'Strawberry', 'perennial']
 ['🥕', 'Carrot', 'biennial']
 ['🍆', 'Eggplant', 'perennial']
 ['🍅', 'Tomato', 'annual']
 ['🥔', 'Potato', 'perennial']
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -724,7 +720,7 @@ into a string delimited by <code class="highlighter-rouge">','</code>.
 You can specify a different delimiter using the <code class="highlighter-rouge">delimiter</code> argument.
 The string output will be equivalent to <code class="highlighter-rouge">iterable.join(delimiter)</code>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_csv</span> <span class="o">=</span> <span class="p">(</span>
@@ -739,18 +735,16 @@ The string output will be equivalent to <code class="highlighter-rouge">iterable
       <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Iterables</span><span class="p">()</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
   <span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><pre class="highlight"><code>🍓,Strawberry,perennial
+<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓,Strawberry,perennial
 🥕,Carrot,biennial
 🍆,Eggplant,perennial
 🍅,Tomato,annual
 🥔,Potato,perennial
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

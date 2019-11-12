@@ -500,18 +500,16 @@ or the mean of the values associated with each key in a collection of key-value 
 <h2 id="examples">Examples</h2>
 <p><strong>Example 1</strong>: get the mean of a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">Longs</code>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">mean</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Mean</span><span class="o">.</span><span class="na">globally</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><strong>Example 2</strong>: calculate the mean of the <code class="highlighter-rouge">Integers</code> associated with each unique key (which is of type <code class="highlighter-rouge">String</code>).</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">meanPerKey</span> <span class="o">=</span>
      <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Mean</span><span class="o">.</span><span class="na">perKey</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>

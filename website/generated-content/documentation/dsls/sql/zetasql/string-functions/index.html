@@ -382,9 +382,8 @@ canonical equivalence.</p>
 
 <h2 id="char_length">CHAR_LENGTH</h2>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CHAR_LENGTH(value)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CHAR_LENGTH(value)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -396,7 +395,7 @@ canonical equivalence.</p>
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 Table example:
 
 +----------------+
@@ -416,12 +415,10 @@ FROM example;
 | абвгд      |                   5 |
 +------------+---------------------+
 
-</code></pre>
-</div>
+</code></pre></div></div>
 <h2 id="character_length">CHARACTER_LENGTH</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>CHARACTER_LENGTH(value)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CHARACTER_LENGTH(value)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -433,7 +430,7 @@ FROM example;
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 Table example:
 
 +----------------+
@@ -453,13 +450,11 @@ FROM example;
 | абвгд      |                   5 |
 +------------+---------------------+
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="concat">CONCAT</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>CONCAT(value1[, ...])
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CONCAT(value1[, ...])
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -472,7 +467,7 @@ result.</p>
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 Table Employees:
 
 +-------------+-----------+
@@ -495,13 +490,11 @@ FROM Employees;
 | Jane Smith          |
 | Joe Jackson         |
 +---------------------+
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="ends_with">ENDS_WITH</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>ENDS_WITH(value1, value2)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ENDS_WITH(value1, value2)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -514,7 +507,7 @@ suffix of the first.</p>
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 Table items:
 
 +----------------+
@@ -537,13 +530,11 @@ FROM items;
 |    True |
 +---------+
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="ltrim">LTRIM</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>LTRIM(value1[, value2])
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>LTRIM(value1[, value2])
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -555,7 +546,7 @@ FROM items;
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 Table items:
 
 +----------------+
@@ -625,13 +616,11 @@ FROM items;
 | orangezzz |
 | pearxyz   |
 +-----------+
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="replace">REPLACE</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>REPLACE(original_value, from_value, to_value)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>REPLACE(original_value, from_value, to_value)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -644,7 +633,7 @@ If <code class="highlighter-rouge">from_value</code> is empty, no replacement is
 
 <p><strong>Examples</strong></p>
 
-<div class="language-sql highlighter-rouge"><pre class="highlight"><code>
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 <span class="o">+</span><span class="c1">--------------------+</span>
 <span class="o">|</span> <span class="n">dessert</span>            <span class="o">|</span>
 <span class="o">+</span><span class="c1">--------------------+</span>
@@ -664,14 +653,12 @@ If <code class="highlighter-rouge">from_value</code> is empty, no replacement is
 <span class="o">|</span> <span class="n">blackberry</span> <span class="n">cobbler</span> <span class="o">|</span>
 <span class="o">|</span> <span class="n">cherry</span> <span class="n">cobbler</span>     <span class="o">|</span>
 <span class="o">+</span><span class="c1">--------------------+</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="reverse">REVERSE</h2>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>REVERSE(value)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>REVERSE(value)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -683,7 +670,7 @@ If <code class="highlighter-rouge">from_value</code> is empty, no replacement is
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>WITH example AS (
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>WITH example AS (
   SELECT "foo" AS sample_string UNION ALL
   SELECT "абвгд" AS sample_string
 )
@@ -698,13 +685,11 @@ FROM example;
 | foo           | oof            |
 | абвгд         | дгвба          |
 +---------------+----------------+
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="rtrim">RTRIM</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>RTRIM(value1[, value2])
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>RTRIM(value1[, value2])
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -716,7 +701,7 @@ FROM example;
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 Table items:
 
 +----------------+
@@ -763,13 +748,11 @@ FROM items;
 | orange  |
 | pear    |
 +---------+
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="starts_with">STARTS_WITH</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>STARTS_WITH(value1, value2)
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>STARTS_WITH(value1, value2)
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -782,7 +765,7 @@ of the first.</p>
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 SELECT
   STARTS_WITH(item, "b") as example
 FROM (
@@ -798,12 +781,10 @@ FROM (
 |    True |
 |    True |
 +---------+
-</code></pre>
-</div>
+</code></pre></div></div>
 <h2 id="substr">SUBSTR</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>SUBSTR(value, position[, length])
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SUBSTR(value, position[, length])
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -829,7 +810,7 @@ from position = 1. If <code class="highlighter-rouge">length</code> exceeds the 
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 Table items:
 
 +----------------+
@@ -897,12 +878,10 @@ FROM items;
 | na      |
 | ge      |
 +---------+
-</code></pre>
-</div>
+</code></pre></div></div>
 <h2 id="trim">TRIM</h2>
-<div class="highlighter-rouge"><pre class="highlight"><code>TRIM(value1[, value2])
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>TRIM(value1[, value2])
+</code></pre></div></div>
 
 <p><strong>Description</strong></p>
 
@@ -919,7 +898,7 @@ or trailing characters contained in <code class="highlighter-rouge">value2</code
 
 <p><strong>Examples</strong></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 Table items:
 
 +----------------+
@@ -989,8 +968,7 @@ FROM items;
 | orange  |
 | pear    |
 +---------+
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </div>
     </div>

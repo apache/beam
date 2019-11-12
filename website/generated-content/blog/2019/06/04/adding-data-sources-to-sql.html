@@ -214,7 +214,7 @@ continuous unbounded stream of integers. It will be based on the
 from the Beam SDK. In the end will be able to define and use the sequence generator
 in SQL like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE                      -- all tables in Beam are external, they are not persisted
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE                      -- all tables in Beam are external, they are not persisted
   sequenceTable                              -- table alias that will be used in queries
   (
          sequence BIGINT,                  -- sequence number
@@ -222,14 +222,12 @@ in SQL like this:</p>
   )
 TYPE sequence                              -- type identifies the table provider
 TBLPROPERTIES '{ elementsPerSecond : 12 }' -- optional rate at which events are generated
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>And we’ll be able to use it in queries like so:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>SELECT sequence FROM sequenceTable;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT sequence FROM sequenceTable;
+</code></pre></div></div>
 
 <p>Let’s dive in!</p>
 
@@ -249,7 +247,7 @@ provider for the
 
 <p>Our table provider looks like this:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@AutoService</span><span class="o">(</span><span class="n">TableProvider</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@AutoService</span><span class="o">(</span><span class="n">TableProvider</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">GenerateSequenceTableProvider</span> <span class="kd">extends</span> <span class="n">InMemoryMetaTableProvider</span> <span class="o">{</span>
 
   <span class="nd">@Override</span>
@@ -262,8 +260,7 @@ provider for the
     <span class="k">return</span> <span class="k">new</span> <span class="nf">GenerateSequenceTable</span><span class="o">(</span><span class="n">table</span><span class="o">);</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>All it does is give a type to the table - and it implements the
 <code class="highlighter-rouge">buildBeamSqlTable</code> method, which simply returns a <code class="highlighter-rouge">BeamSqlTable</code> defined by
@@ -276,7 +273,7 @@ allow users to define the number of elements to be emitted per second. We will
 define a simple table that emits sequential integers in a streaming fashion.
 This looks like so:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">GenerateSequenceTable</span> <span class="kd">extends</span> <span class="n">BaseBeamTable</span> <span class="kd">implements</span> <span class="n">Serializable</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">GenerateSequenceTable</span> <span class="kd">extends</span> <span class="n">BaseBeamTable</span> <span class="kd">implements</span> <span class="n">Serializable</span> <span class="o">{</span>
   <span class="kd">public</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">Schema</span> <span class="n">TABLE_SCHEMA</span> <span class="o">=</span>
       <span class="n">Schema</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"sequence"</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">INT64</span><span class="o">),</span> <span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"event_time"</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">DATETIME</span><span class="o">));</span>
 
@@ -309,8 +306,7 @@ This looks like so:</p>
     <span class="k">throw</span> <span class="k">new</span> <span class="nf">UnsupportedOperationException</span><span class="o">(</span><span class="s">"buildIOWriter unsupported!"</span><span class="o">);</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="the-real-fun">The real fun</h2>
 
@@ -319,18 +315,17 @@ This looks like so:</p>
 <a href="https://beam.apache.org/documentation/dsls/sql/shell/">SQL CLI</a>, we
 can now perform selections on the table:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; CREATE EXTERNAL TABLE input_seq (
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; CREATE EXTERNAL TABLE input_seq (
 . . . . . &gt;   sequence BIGINT COMMENT 'this is the primary key',
 . . . . . &gt;   event_time TIMESTAMP COMMENT 'this is the element timestamp'
 . . . . . &gt; )
 . . . . . &gt; TYPE 'sequence';
 No rows affected (0.005 seconds)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>And let’s select a few rows:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; SELECT * FROM input_seq LIMIT 5;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; SELECT * FROM input_seq LIMIT 5;
 +---------------------+------------+
 |      sequence       | event_time |
 +---------------------+------------+
@@ -341,13 +336,12 @@ No rows affected (0.005 seconds)
 | 4                   | 2019-05-21 00:36:33 |
 +---------------------+------------+
 5 rows selected (1.138 seconds)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Now let’s try something more interesting. Such as grouping. This will also let
 us make sure that we’re providing the timestamp for each row properly:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; SELECT
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0: BeamSQL&gt; SELECT
 . . . . . &gt;   COUNT(sequence) as elements,
 . . . . . &gt;   TUMBLE_START(event_time, INTERVAL '2' SECOND) as window_start
 . . . . . &gt; FROM input_seq
@@ -362,8 +356,7 @@ us make sure that we’re providing the timestamp for each row properly:</p>
 | 10                  | 2019-06-05 00:39:32 |
 +---------------------+--------------+
 5 rows selected (10.142 seconds)
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>And voilà! We can start playing with some interesting streaming queries to our
 sequence generator.</p>

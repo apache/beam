@@ -502,12 +502,11 @@ latest value for each key, according to the implicit timestamp.</li>
 
 <h2 id="examples">Examples</h2>
 <p><strong>Example</strong>: compute the latest value for each session</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PCollection</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">PCollection</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...;</span>
  <span class="n">PCollection</span> <span class="n">sessioned</span> <span class="o">=</span> <span class="n">input</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">Sessions</span><span class="o">.</span><span class="na">withGapDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">5</span><span class="o">)));</span>
  <span class="n">PCollection</span> <span class="n">latestValues</span> <span class="o">=</span> <span class="n">sessioned</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Latest</span><span class="o">.</span><span class="na">globally</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="related-transforms">Related transforms</h2>
 <ul>
