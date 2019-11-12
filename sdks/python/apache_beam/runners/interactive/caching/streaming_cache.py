@@ -17,8 +17,6 @@
 
 from __future__ import absolute_import
 
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import Timestamp
