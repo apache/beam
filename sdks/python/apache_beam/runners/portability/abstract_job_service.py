@@ -23,13 +23,6 @@ from builtins import object
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 
-TERMINAL_STATES = [
-    beam_job_api_pb2.JobState.DONE,
-    beam_job_api_pb2.JobState.STOPPED,
-    beam_job_api_pb2.JobState.FAILED,
-    beam_job_api_pb2.JobState.CANCELLED,
-]
-
 
 class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   """Manages one or more pipelines, possibly concurrently.
@@ -130,6 +123,11 @@ class AbstractBeamJob(object):
 
   def get_pipeline(self):
     return self._pipeline_proto
+
+  @staticmethod
+  def is_terminal_state(state):
+    from apache_beam.runners.portability import portable_runner
+    return state in portable_runner.TERMINAL_STATES
 
   def to_runner_api(self):
     return beam_job_api_pb2.JobInfo(
