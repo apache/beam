@@ -696,7 +696,7 @@ class TriggerDriverTranscriptTest(TranscriptTest):
     self.assertEqual([], output, msg='Unexpected output: %s' % output)
 
 
-class TestStreamTranscriptTest(TranscriptTest):
+class BaseTestStreamTranscriptTest(TranscriptTest):
   """A suite of TestStream-based tests based on trigger transcript entries.
   """
 
@@ -742,12 +742,40 @@ class TestStreamTranscriptTest(TranscriptTest):
 
       The key is ignored, but all items must be on the same key to share state.
       """
+      def __init__(self, allow_out_of_order=True):
+        # Some runners don't support cross-stage TestStream semantics.
+        self.allow_out_of_order = allow_out_of_order
+
       def process(
-          self, element, seen=beam.DoFn.StateParam(
+          self,
+          element,
+          seen=beam.DoFn.StateParam(
               beam.transforms.userstate.BagStateSpec(
                   'seen',
+                  beam.coders.FastPrimitivesCoder())),
+          expected=beam.DoFn.StateParam(
+              beam.transforms.userstate.BagStateSpec(
+                  'expected',
                   beam.coders.FastPrimitivesCoder()))):
         _, (action, data) = element
+
+        if self.allow_out_of_order:
+          if action == 'expect' and not list(seen.read()):
+            if data:
+              expected.add(data)
+            return
+          elif action == 'actual' and list(expected.read()):
+            seen.add(data)
+            all_data = list(seen.read())
+            all_expected = list(expected.read())
+            if len(all_data) == len(all_expected[0]):
+              expected.clear()
+              for expect in all_expected[1:]:
+                expected.add(expect)
+              action, data = 'expect', all_expected[0]
+            else:
+              return
+
         if action == 'actual':
           seen.add(data)
 
@@ -818,7 +846,17 @@ class TestStreamTranscriptTest(TranscriptTest):
       tagged_outputs = (
           outputs | beam.MapTuple(lambda key, value: (key, ('actual', value))))
       # pylint: disable=expression-not-assigned
-      (tagged_expected, tagged_outputs) | beam.Flatten() | beam.ParDo(Check())
+      ([tagged_expected, tagged_outputs]
+       | beam.Flatten()
+       | beam.ParDo(Check(self.allow_out_of_order)))
+
+
+class TestStreamTranscriptTest(BaseTestStreamTranscriptTest):
+  allow_out_of_order = False
+
+
+class WeakTestStreamTranscriptTest(BaseTestStreamTranscriptTest):
+  allow_out_of_order = True
 
 
 TRANSCRIPT_TEST_FILE = os.path.join(
@@ -827,6 +865,7 @@ TRANSCRIPT_TEST_FILE = os.path.join(
 if os.path.exists(TRANSCRIPT_TEST_FILE):
   TriggerDriverTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
   TestStreamTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
+  WeakTestStreamTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
 
 
 if __name__ == '__main__':
