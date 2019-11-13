@@ -60,6 +60,11 @@ class StreamingCache(object):
 
     def _test_stream_events_before_target(self, target_timestamp):
       """Reads the next iteration of elements from each stream.
+
+      Retrieves an element from each stream iff the most recently read timestamp
+      from that stream is less than the target_timestamp. Since the amount of
+      events may not fit into memory, this StreamingCache needs to read each
+      element one at a time.
       """
       records = []
       for tag, r in self._readers.items():
