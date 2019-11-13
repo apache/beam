@@ -499,33 +499,28 @@ class ReshuffleTest(unittest.TestCase):
                         ])
                         | "With timestamp" >> beam.Map(
                             lambda element: beam.window.TimestampedValue(
-                                element, element['timestamp']))
-    )
+                                element, element['timestamp'])))
 
     # Reshuffle the PCollection above and assign the timestamp of an element to
     # that element again.
     after_reshuffle = (before_reshuffle
                        | "Reshuffle" >> beam.Reshuffle()
-                       | "With timestamps again" >> beam.ParDo(AddTimestamp())
-    )
+                       | "With timestamps again" >> beam.ParDo(AddTimestamp()))
 
     # Combine each element in before_reshuffle with its timestamp.
     formatted_before_reshuffle = (before_reshuffle
                                   | "Get before_reshuffle timestamp" >>
-                                        beam.ParDo(GetTimestamp())
-    )
+                                        beam.ParDo(GetTimestamp()))
 
     # Combine each element in after_reshuffle with its timestamp.
     formatted_after_reshuffle = (after_reshuffle
                                  | "Get after_reshuffle timestamp" >>
-                                       beam.ParDo(GetTimestamp())
-    )
+                                       beam.ParDo(GetTimestamp()))
 
     expected_data = ["Timestamp(-9223372036854.775000) - foo",
                      "Timestamp(0) - foo",
                      "Timestamp(33) - bar",
-                     "Timestamp(9223372036854.775000) - bar"
-    ]
+                     "Timestamp(9223372036854.775000) - bar"]
 
     # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
     # directly, because they are deferred PCollections while equal_to only takes

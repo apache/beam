@@ -1680,7 +1680,7 @@ public class ParDoTest implements Serializable {
                       anyOf(
                           equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()),
                           equalTo(GlobalWindow.INSTANCE.maxTimestamp().getMillis()),
-                          equalTo(0L)));
+                          equalTo(1L)));
                 }
                 return null;
               });
