@@ -545,28 +545,10 @@ message TestStreamPayload {
 }
 
 service TestStreamService {
-  rpc Connect(ConnectRequest) returns (ConnectResponse) {}
   // A TestStream will request for events using this RPC.
-  rpc Events(EventsRequest) returns (EventsResponse) {}
+  rpc Events(EventsRequest) returns (stream TestStreamPayload.Event) {}
 }
-
-message ConnectRequest {}
-message ConnectResponse {
-  string session_id = 1;
-}
-
-message EventsRequest {
-  string session_id = 1;
-  string token = 2;
-}
-
-message EventsResponse {
-  // The TestStreamPayloads that will be sent to the TestStream.
-  TestStreamPayload.Event event = 1;
-
-  // The continuation token to send back in the next request.
-  string token = 2;
-}
+message EventsRequest {}
 
 // The first record to be read in an interactive stream. This contains metadata
 // about the stream and how to properly process it.

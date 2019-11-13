@@ -41,56 +41,17 @@ class TestStreamServiceController(TestStreamServiceServicer):
         self, self._server)
     self._streaming_cache = streaming_cache
 
-    self._sessions = {}
-    self._session_id = 0
-
   def start(self):
     self._server.start()
-    self._reader = self._streaming_cache.reader()
 
   def stop(self):
     self._server.stop(0)
     self._server.wait_for_termination()
 
-  def Connect(self, request, context):
-    """Starts a session.
-
-    Callers should use the returned session id in all future requests.
-    """
-    session_id = str(self._session_id)
-    self._session_id += 1
-    self._sessions[session_id] = {
-        'reader': self._streaming_cache.reader().read(),
-        'token': 0
-    }
-    return beam_runner_api_pb2.ConnectResponse(session_id=session_id)
-
   def Events(self, request, context):
-    """Returns the next event from the streaming cache.
+    """Streams back all of the events from the streaming cache."""
 
-    Token behavior: the first request should have a token of "None". Each
-    subsequent request should use the previously received token from the
-    response. The stream ends when the returned token is the empty string.
-    """
-    assert request.session_id in self._sessions, (\
-        'Session "{}" was not found. Did you forget to call Connect ' +
-        'first?').format(request.session_id)
+    reader = self._streaming_cache.reader().read()
+    for e in reader:
+      yield e
 
-    session = self._sessions[request.session_id]
-    reader = session['reader']
-
-    token = int(request.token) if request.token else 0
-    if token:
-      assert token > session['token'], \
-          ('Session token must advance. Did you forget to set the request ' +
-           'token to the previous response token?')
-      session['token'] = token
-
-    next_token = token + 1
-    event = None
-    try:
-      event = next(reader)
-    except StopIteration:
-      next_token = None
-    return beam_runner_api_pb2.EventsResponse(
-        event=event, token=str(next_token) if next_token else None)

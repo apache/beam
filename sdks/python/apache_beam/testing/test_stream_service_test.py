@@ -78,19 +78,8 @@ class TestStreamServiceTest(unittest.TestCase):
     self.controller.stop()
 
   def test_normal_run(self):
-    session_id = self.stub.Connect(
-        beam_runner_api_pb2.ConnectRequest()).session_id
-
-    events = []
-    token = None
-    while True:
-      r = self.stub.Events(
-          beam_runner_api_pb2.EventsRequest(session_id=session_id, token=token))
-      token = r.token
-      if token:
-        events.append(r.event)
-      else:
-        break
+    r = self.stub.Events(beam_runner_api_pb2.EventsRequest())
+    events = [e for e in r]
 
     streaming_cache_reader = StreamingCache(readers=[InMemoryReader()]).reader()
     expected_events = []
@@ -100,34 +89,23 @@ class TestStreamServiceTest(unittest.TestCase):
     self.assertEqual(events, expected_events)
 
   def test_multiple_sessions(self):
-    session_a = self.stub.Connect(
-        beam_runner_api_pb2.ConnectRequest()).session_id
-    session_b = self.stub.Connect(
-        beam_runner_api_pb2.ConnectRequest()).session_id
-
-    self.assertNotEqual(session_a, session_b)
+    resp_a = self.stub.Events(beam_runner_api_pb2.EventsRequest())
+    resp_b = self.stub.Events(beam_runner_api_pb2.EventsRequest())
 
     events_a = []
-    token_a = None
-
     events_b = []
-    token_b = None
-    while True:
-      r = self.stub.Events(
-          beam_runner_api_pb2.EventsRequest(session_id=session_a,
-                                            token=token_a))
-      token_a = r.token
-      if token_a:
-        events_a.append(r.event)
 
-      r = self.stub.Events(
-          beam_runner_api_pb2.EventsRequest(session_id=session_b,
-                                            token=token_b))
-      token_b = r.token
-      if token_b:
-        events_b.append(r.event)
-      elif not token_a and not token_b:
-        break
+    done = False
+    while not done:
+      try:
+        events_a.append(next(resp_a))
+      except:
+        done |= True
+
+      try:
+        events_b.append(next(resp_b))
+      except:
+        done |= True
 
     streaming_cache_reader = StreamingCache(readers=[InMemoryReader()]).reader()
     expected_events = []
