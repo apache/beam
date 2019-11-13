@@ -26,12 +26,17 @@ import unittest
 
 import hamcrest as hc
 from future.builtins import range
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import equal_to_per_window
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
@@ -39,7 +44,9 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.typehints import TypeCheckError
+from apache_beam.utils.timestamp import Timestamp
 
 
 class CombineTest(unittest.TestCase):
@@ -480,6 +487,82 @@ class LatestCombineFnTest(unittest.TestCase):
         pc = p | Create(l_3_tuple)
         _ = pc | beam.CombineGlobally(self.fn)
 
+#
+# Test cases for streaming.
+#
+@attr('ValidatesRunner')
+class TimestampCombinerTest(unittest.TestCase):
+
+  class RecordFn(beam.DoFn):
+    def process(self, elm=beam.DoFn.ElementParam, ts=beam.DoFn.TimestampParam):
+      yield (elm, ts)
+
+  @unittest.skip('BEAM-8657')
+  def test_combiner_earliest(self):
+    """Test TimestampCombiner with EARLIEST."""
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+
+    main_stream = (p
+                   | 'main TestStream' >> TestStream()
+                   .add_elements([window.TimestampedValue(('k', 100), 0)])
+                   .add_elements([window.TimestampedValue(('k', 400), 9)])
+                   .advance_watermark_to_infinity()
+                   | 'main windowInto' >> beam.WindowInto(
+                       window.FixedWindows(10),
+                       timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
+                   | 'Combine' >> beam.CombinePerKey(sum))
+
+    records = (main_stream | beam.ParDo(self.RecordFn()))
+
+    # All the KV pairs are applied GBK using EARLIEST timestamp.
+    expected_window_to_elements = {
+        window.IntervalWindow(0, 10): [
+            (('k', 500), Timestamp(0)),
+        ],
+    }
+
+    assert_that(
+        records,
+        equal_to_per_window(expected_window_to_elements),
+        use_global_window=False,
+        label='assert per window')
+
+    p.run()
+
+  def test_combiner_latest(self):
+    """Test TimestampCombiner with LATEST."""
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+
+    main_stream = (p
+                   | 'main TestStream' >> TestStream()
+                   .add_elements([window.TimestampedValue(('k', 100), 0)])
+                   .add_elements([window.TimestampedValue(('k', 400), 9)])
+                   .advance_watermark_to_infinity()
+                   | 'main windowInto' >> beam.WindowInto(
+                       window.FixedWindows(10),
+                       timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
+                   | 'Combine' >> beam.CombinePerKey(sum))
+
+    records = (main_stream | beam.ParDo(self.RecordFn()))
+
+    # All the KV pairs are applied GBK using LATEST timestamp for the same key.
+    expected_window_to_elements = {
+        window.IntervalWindow(0, 10): [
+            (('k', 500), Timestamp(9)),
+        ],
+    }
+
+    assert_that(
+        records,
+        equal_to_per_window(expected_window_to_elements),
+        use_global_window=False,
+        label='assert per window')
+
+    p.run()
 
 if __name__ == '__main__':
   unittest.main()
