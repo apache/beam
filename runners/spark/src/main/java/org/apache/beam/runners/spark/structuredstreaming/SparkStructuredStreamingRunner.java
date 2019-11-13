@@ -34,6 +34,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.batch.Pipel
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -46,10 +47,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The SparkStructuredStreamingRunner translate operations defined on a pipeline to a representation
- * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run a
- * Beam pipeline with the default options of a single threaded spark instance in local mode, we
- * would do the following:
+ * SparkStructuredStreamingRunner is based on spark structured streaming framework and is no more
+ * based on RDD/DStream API. See
+ * https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html It is still
+ * experimental, its coverage of the Beam model is partial. The SparkStructuredStreamingRunner
+ * translate operations defined on a pipeline to a representation executable by Spark, and then
+ * submitting the job to Spark to be executed. If we wanted to run a Beam pipeline with the default
+ * options of a single threaded spark instance in local mode, we would do the following:
  *
  * <p>{@code Pipeline p = [logic for pipeline creation] SparkStructuredStreamingPipelineResult
  * result = (SparkStructuredStreamingPipelineResult) p.run(); }
@@ -62,6 +66,7 @@ import org.slf4j.LoggerFactory;
  * SparkStructuredStreamingPipelineResult result = (SparkStructuredStreamingPipelineResult) p.run();
  * }
  */
+@Experimental(value = Experimental.Kind.WITH_EXCEPTIONS)
 public final class SparkStructuredStreamingRunner
     extends PipelineRunner<SparkStructuredStreamingPipelineResult> {
 
@@ -129,6 +134,12 @@ public final class SparkStructuredStreamingRunner
   @Override
   public SparkStructuredStreamingPipelineResult run(final Pipeline pipeline) {
     MetricsEnvironment.setMetricsSupported(true);
+
+    LOG.info(
+        "*** SparkStructuredStreamingRunner is based on spark structured streaming framework and is no more \n"
+            + " based on RDD/DStream API. See\n"
+            + " https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html\n"
+            + " It is still experimental, its coverage of the Beam model is partial. ***");
 
     // clear state of Aggregators, Metrics and Watermarks if exists.
     AggregatorsAccumulator.clear();
