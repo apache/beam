@@ -80,7 +80,10 @@ class PipelineInstrument(object):
     # A mapping from PCollection id to python id() value in user defined
     # pipeline instance.
     (self._pcoll_version_map,
-     self._cacheables) = cacheables(self.pcolls_to_pcoll_id)
+     self._cacheables,
+     # A dict from pcoll_id to variable name of the referenced PCollection.
+     # (Dict[str, str])
+     self._cacheable_var_by_pcoll_id) = cacheables(self.pcolls_to_pcoll_id)
 
     # A dict from cache key to PCollection that is read from cache.
     # If exists, caller should reuse the PCollection read. If not, caller
@@ -142,7 +145,6 @@ class PipelineInstrument(object):
     Modifies:
       self._pipeline
     """
-    self._preprocess()
     cacheable_inputs = set()
 
     class InstrumentVisitor(PipelineVisitor):
@@ -169,7 +171,7 @@ class PipelineInstrument(object):
       self._write_cache(cacheable['pcoll'])
     # TODO(BEAM-7760): prune sub graphs that doesn't need to be executed.
 
-  def _preprocess(self):
+  def preprocess(self):
     """Pre-processes the pipeline.
 
     Since the pipeline instance in the class might not be the same instance
@@ -314,10 +316,29 @@ class PipelineInstrument(object):
                        cacheable['producer_version']))
     return ''
 
+  def cacheable_var_by_pcoll_id(self, pcoll_id):
+    """Retrieves the variable name of a PCollection.
+
+    In source code, PCollection variables are defined in the user pipeline. When
+    it's converted to the runner api representation, each PCollection referenced
+    in the user pipeline is assigned a unique-within-pipeline pcoll_id. Given
+    such pcoll_id, retrieves the str variable name defined in user pipeline for
+    that referenced PCollection. If the PCollection is anonymous, return ''.
+    """
+    return self._cacheable_var_by_pcoll_id.get(pcoll_id, '')
+
 
 def pin(pipeline, options=None):
-  """Creates PipelineInstrument for a pipeline and its options with cache."""
+  """Creates PipelineInstrument for a pipeline and its options with cache.
+
+  This is the shorthand for doing 3 steps: 1) compute once for metadata of given
+  runner pipeline and everything watched from user pipelines; 2) associate info
+  between runner pipeline and its corresponding user pipeline, eliminate data
+  from other user pipelines if there are any; 3) mutate runner pipeline to apply
+  interactivity.
+  """
   pi = PipelineInstrument(pipeline, options)
+  pi.preprocess()
   pi.instrument()  # Instruments the pipeline only once.
   return pi
 
@@ -337,6 +358,7 @@ def cacheables(pcolls_to_pcoll_id):
   """
   pcoll_version_map = {}
   cacheables = {}
+  cacheable_var_by_pcoll_id = {}
   for watching in ie.current_env().watching():
     for key, val in watching:
       # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
@@ -353,7 +375,8 @@ def cacheables(pcolls_to_pcoll_id):
         cacheable['producer_version'] = str(id(val.producer))
         cacheables[cacheable_key(val, pcolls_to_pcoll_id)] = cacheable
         pcoll_version_map[cacheable['pcoll_id']] = cacheable['version']
-  return pcoll_version_map, cacheables
+        cacheable_var_by_pcoll_id[cacheable['pcoll_id']] = key
+  return pcoll_version_map, cacheables, cacheable_var_by_pcoll_id
 
 
 def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):

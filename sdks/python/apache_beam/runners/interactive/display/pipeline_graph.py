@@ -31,15 +31,19 @@ import pydot
 
 import apache_beam as beam
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.interactive import pipeline_instrument as inst
+from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
 
 class PipelineGraph(object):
-  """Creates a DOT representation of the pipeline. Thread-safe."""
+  """Creates a DOT representing the pipeline. Thread-safe. Runner agnostic."""
 
   def __init__(self,
                pipeline,
                default_vertex_attrs=None,
-               default_edge_attrs=None):
+               default_edge_attrs=None,
+               render_option=None):
     """Constructor of PipelineGraph.
 
     Examples:
@@ -55,9 +59,17 @@ class PipelineGraph(object):
       pipeline: (Pipeline proto) or (Pipeline) pipeline to be rendered.
       default_vertex_attrs: (Dict[str, str]) a dict of default vertex attributes
       default_edge_attrs: (Dict[str, str]) a dict of default edge attributes
+      render_option: (str) this parameter decides how the pipeline graph is
+          rendered. See display.pipeline_graph_renderer for available options.
     """
     self._lock = threading.Lock()
     self._graph = None
+    self._pin = None
+    if isinstance(pipeline, beam.Pipeline):
+      self._pin = inst.PipelineInstrument(pipeline)
+      # The pre-process links user pipeline to runner pipeline through analysis
+      # but without mutating runner pipeline.
+      self._pin.preprocess()
 
     if isinstance(pipeline, beam_runner_api_pb2.Pipeline):
       self._pipeline_proto = pipeline
@@ -92,8 +104,19 @@ class PipelineGraph(object):
                           default_vertex_attrs,
                           default_edge_attrs)
 
+    self._renderer = pipeline_graph_renderer.get_renderer(render_option)
+
   def get_dot(self):
     return self._get_graph().to_string()
+
+  def display_graph(self):
+    rendered_graph = self._renderer.render_pipeline_graph(self)
+    if ie.current_env().is_in_notebook:
+      try:
+        from IPython.core import display
+        display.display(display.HTML(rendered_graph))
+      except ImportError:  # Unlikely to happen when is_in_notebook.
+        pass
 
   def _top_level_transforms(self):
     """Yields all top level PTransforms (subtransforms of the root PTransform).
@@ -136,14 +159,50 @@ class PipelineGraph(object):
           vertex_dict[invisible_leaf] = {'style': 'invis'}
           self._edge_to_vertex_pairs[pcoll_id].append(
               (transform.unique_name, invisible_leaf))
-          edge_dict[(transform.unique_name, invisible_leaf)] = {}
+          if self._pin:
+            edge_label = {'label':
+                            self._pin.cacheable_var_by_pcoll_id(pcoll_id)}
+            edge_dict[(transform.unique_name, invisible_leaf)] = edge_label
+          else:
+            edge_dict[(transform.unique_name, invisible_leaf)] = {}
+        # For PCollections with more than one consuming PTransform, we also add
+        # an invisible dummy node to diverge the edge in the middle as the
+        # single output is used by multiple down stream PTransforms as inputs
+        # instead of emitting multiple edges.
+        elif len(self._consumers[pcoll_id]) > 1:
+          intermediate_dummy = 'diverge{}'.format(
+              hash(pcoll_id) % 10000)
+          vertex_dict[intermediate_dummy] = {'shape': 'point',
+                                             'width': '0'}
+          for consumer in self._consumers[pcoll_id]:
+            producer_name = transform.unique_name
+            consumer_name = transforms[consumer].unique_name
+            self._edge_to_vertex_pairs[pcoll_id].append(
+                (producer_name, intermediate_dummy))
+            if self._pin:
+              edge_dict[(producer_name, intermediate_dummy)] = {
+                  'arrowhead': 'none',
+                  'label':
+                    self._pin.cacheable_var_by_pcoll_id(pcoll_id)}
+            else:
+              edge_dict[(producer_name, intermediate_dummy)] = {
+                  'arrowhead': 'none'}
+            self._edge_to_vertex_pairs[pcoll_id].append(
+                (intermediate_dummy, consumer_name))
+            edge_dict[(intermediate_dummy, consumer_name)] = {}
         else:
           for consumer in self._consumers[pcoll_id]:
             producer_name = transform.unique_name
             consumer_name = transforms[consumer].unique_name
             self._edge_to_vertex_pairs[pcoll_id].append(
                 (producer_name, consumer_name))
-            edge_dict[(producer_name, consumer_name)] = {}
+            if self._pin:
+              edge_dict[(producer_name, consumer_name)] = {
+                  'label':
+                    self._pin.cacheable_var_by_pcoll_id(pcoll_id)
+              }
+            else:
+              edge_dict[(producer_name, consumer_name)] = {}
 
     return vertex_dict, edge_dict
 
@@ -204,6 +263,7 @@ class PipelineGraph(object):
           Or (Dict[(str, str), Dict[str, str]]) which maps vertex pairs to edge
           attributes
     """
+
     def set_attrs(ref, attrs):
       for attr_name, attr_val in attrs.items():
         ref.set(attr_name, attr_val)
