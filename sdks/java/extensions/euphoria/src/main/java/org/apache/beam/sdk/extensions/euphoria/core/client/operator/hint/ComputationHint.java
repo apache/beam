@@ -21,6 +21,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 
 /** Extra information for runner about Dataset computation. */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public enum ComputationHint implements OutputHint {
 
   /** Dataset is expensive to compute. */

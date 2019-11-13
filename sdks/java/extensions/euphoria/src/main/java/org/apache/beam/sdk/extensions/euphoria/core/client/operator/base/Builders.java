@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
+import org.slf4j.LoggerFactory;
 
 /**
  * Common methods used in operator builders.
@@ -186,10 +187,25 @@ public class Builders {
     /**
      * Finalizes the operator and retrieves its output dataset.
      *
-     * @param outputHints output dataset description
+     * @param outputHint output dataset description
+     * @param outputHints other output dataset descriptions
+     * @return the dataset representing the new operator's output
+     * @deprecated Use {@link #output()} instead.
+     */
+    @Deprecated
+    default PCollection<T> output(OutputHint outputHint, OutputHint... outputHints) {
+      LoggerFactory.getLogger(Output.class)
+          .warn(
+              "OutputHints are deprecated and will be removed in next release. Use Output#output() instead.");
+      return output();
+    }
+
+    /**
+     * Finalizes the operator and retrieves its output dataset.
+     *
      * @return the dataset representing the new operator's output
      */
-    PCollection<T> output(OutputHint... outputHints);
+    PCollection<T> output();
   }
 
   /** Similar to {@link Output}, but it adds method which extracts values from {@link KV}. */
@@ -199,9 +215,25 @@ public class Builders {
      * Finalizes the operator and retrieves its output dataset. Using this output new operator
      * {@link MapElements} is added to the flow to extract values from pairs.
      *
-     * @param outputHints output dataset description
+     * @param outputHint output dataset description
+     * @param outputHints other output dataset descriptions
+     * @return the dataset representing the new operator's output
+     * @deprecated Use {@link #output()} instead.
+     */
+    @Deprecated
+    default PCollection<V> outputValues(OutputHint outputHint, OutputHint... outputHints) {
+      LoggerFactory.getLogger(OutputValues.class)
+          .warn(
+              "OutputHints are deprecated and will be removed in next release. Use OutputValues#outputValues() instead.");
+      return outputValues();
+    }
+
+    /**
+     * Finalizes the operator and retrieves its output dataset. Using this output new operator
+     * {@link MapElements} is added to the flow to extract values from pairs.
+     *
      * @return the dataset representing the new operator's output
      */
-    PCollection<V> outputValues(OutputHint... outputHints);
+    PCollection<V> outputValues();
   }
 }
