@@ -95,41 +95,7 @@ func (s *FixedStream) Read() (*FullValue, error) {
 // to drop the universal type and convert Aggregate types.
 func Convert(v interface{}, to reflect.Type) interface{} {
 	from := reflect.TypeOf(v)
-
-	switch {
-	case from == to:
-		return v
-
-	case typex.IsUniversal(from):
-		// We need to drop T to obtain the underlying type of the value.
-		return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
-		// TODO(herohde) 1/19/2018: reflect.ValueOf(v).Convert(to).Interface() instead?
-
-	case typex.IsList(from) && typex.IsList(to):
-		// Convert []A to []B.
-		return cvtSlice(v, to)
-
-	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
-		// Convert []typex.T to the underlying type []T.
-
-		value := reflect.ValueOf(v)
-		// We don't know the underlying element type of a nil/empty universal-typed slice.
-		// So the best we could do is to return it as is.
-		if value.Len() == 0 {
-			return v
-		}
-		toE := reflectx.UnderlyingType(value.Index(0)).Type()
-		return cvtSlice(v, reflect.SliceOf(toE))
-
-	default:
-		// Arguably this should be:
-		//   reflect.ValueOf(v).Convert(to).Interface()
-		// but this isn't desirable as it would add avoidable overhead to
-		// functions where it applies. A user will have better performance
-		// by explicitly doing the type conversion in their code, which
-		// the error will indicate. Slow Magic vs Fast & Explicit.
-		return v
-	}
+	return ConvertFn(from, to)(v)
 }
 
 // ConvertFn returns a function that converts type of the runtime value to the desired one. It is needed
@@ -158,11 +124,33 @@ func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
 		}
 
 	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
+		fromE := from.Elem()
 		return func(v interface{}) interface{} {
-			return Convert(v, to)
+			// Convert []typex.T to the underlying type []T.
+
+			value := reflect.ValueOf(v)
+			// We don't know the underlying element type of a nil/empty universal-typed slice.
+			// So the best we could do is to return it as is.
+			if value.Len() == 0 {
+				return v
+			}
+
+			toE := reflectx.UnderlyingType(value.Index(0)).Type()
+			cvtFn := ConvertFn(fromE, toE)
+			ret := reflect.New(reflect.SliceOf(toE)).Elem()
+			for i := 0; i < value.Len(); i++ {
+				ret = reflect.Append(ret, reflect.ValueOf(cvtFn(value.Index(i).Interface())))
+			}
+			return ret.Interface()
 		}
 
 	default:
+		// Arguably this should be:
+		//   reflect.ValueOf(v).Convert(to).Interface()
+		// but this isn't desirable as it would add avoidable overhead to
+		// functions where it applies. A user will have better performance
+		// by explicitly doing the type conversion in their code, which
+		// the error will indicate. Slow Magic vs Fast & Explicit.
 		return identity
 	}
 }
@@ -175,16 +163,6 @@ func identity(v interface{}) interface{} {
 // universal drops the universal type and re-interfaces it to the actual one.
 func universal(v interface{}) interface{} {
 	return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
-}
-
-// cvtSlice converts the input slice to a slice of type `to`.
-func cvtSlice(v interface{}, to reflect.Type) interface{} {
-	ret := reflect.New(to).Elem()
-	value := reflect.ValueOf(v)
-	for i := 0; i < value.Len(); i++ {
-		ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), to.Elem())))
-	}
-	return ret.Interface()
 }
 
 // ReadAll read a full restream and returns the result.
