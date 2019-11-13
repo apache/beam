@@ -20,8 +20,8 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam import coders
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamFileRecord
+from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
+from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.utils.timestamp import Timestamp
