@@ -21,7 +21,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import grpc
 
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2_grpc
 from apache_beam.portability.api.beam_runner_api_pb2_grpc import TestStreamServiceServicer
 
@@ -54,4 +53,3 @@ class TestStreamServiceController(TestStreamServiceServicer):
     reader = self._streaming_cache.reader().read()
     for e in reader:
       yield e
-

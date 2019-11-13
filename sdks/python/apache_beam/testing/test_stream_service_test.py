@@ -99,12 +99,12 @@ class TestStreamServiceTest(unittest.TestCase):
     while not done:
       try:
         events_a.append(next(resp_a))
-      except:
+      except StopIteration:
         done |= True
 
       try:
         events_b.append(next(resp_b))
-      except:
+      except StopIteration:
         done |= True
 
     streaming_cache_reader = StreamingCache(readers=[InMemoryReader()]).reader()
