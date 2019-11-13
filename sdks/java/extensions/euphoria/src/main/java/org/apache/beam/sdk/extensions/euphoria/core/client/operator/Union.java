@@ -26,7 +26,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -149,7 +148,7 @@ public class Union<InputT> extends Operator<InputT> {
     }
 
     @Override
-    public PCollection<InputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output() {
       checkArgument(pCollections.size() > 1, "Union needs at least two data sets.");
       return OperatorTransform.apply(
           new Union<>(name, pCollections.get(0).getTypeDescriptor()),

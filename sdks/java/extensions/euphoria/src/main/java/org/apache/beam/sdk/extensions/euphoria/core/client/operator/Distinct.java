@@ -30,7 +30,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.TimestampExtractTransform;
@@ -299,7 +298,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
 
     @Override
     @SuppressWarnings("unchecked")
-    public PCollection<InputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output() {
       if (transform == null) {
         this.transform = (UnaryFunction) UnaryFunction.identity();
       }
