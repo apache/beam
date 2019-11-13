@@ -33,5 +33,4 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.jaxb_api
-  testRuntime library.java.hadoop_client
 }
