@@ -119,13 +119,61 @@ class InteractiveRunner(runners.PipelineRunner):
   def cleanup(self):
     self._cache_manager.cleanup()
 
+  # The notebook/ipython related logic uses apply() interception as a hook
+  # modifying only labels for PTransforms triggering this callback. Please
+  # don't remove.
   def apply(self, transform, pvalueish, options):
-    # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
-    return self._underlying_runner.apply(transform, pvalueish, options)
+    # Track user defined pipeline instances in watched scopes so that later when
+    # tracking applied PTransforms, we only track for those pipeline instances,
+    # excluding any pipeline instances the Beam SDK creates implicitly.
+    ie.current_env().track_user_pipelines()
+
+    prompt = None
+    if ie.current_env().is_interactive_ready and ie.current_env().is_in_ipython:
+      from IPython import get_ipython
+      prompt = get_ipython().execution_count
+    pipeline = _extract_pipeline_of_pvalueish(pvalueish)
+    if not pipeline:
+      _LOGGER.warning('Non-fatal error. Failed to track transforms with '
+                      'prompt. Cannot figure out the pipeline that the given '
+                      'pvalueish %s belongs to.' % pvalueish)
+    is_tracking = (prompt
+                   and pipeline
+                   # We only track for user pipelines at pipeline construction
+                   # time, not pipeline execution time.
+                   and pipeline in ie.current_env().tracked_user_pipelines)
+
+    # Pre-runner-application, only tracks transform application for user
+    # pipelines, not runner pipelines.
+    if is_tracking:
+      # Clean up the label from applied labels of the pipeline if it's there
+      # because no applied transform will be associated to that label anymore.
+      if transform.label in pipeline.applied_labels:
+        pipeline.applied_labels.remove(transform.label)
+      label_with_metadata = 'Cell {}: {}'.format(prompt, transform.label)
+      # Below is unlikely to happen unless the user uses duplicated labels
+      # within a notebook-cell/ipython-prompt, we treat all PTransforms within
+      # a single cell/prompt as different ones and tag them if needed.
+      label_with_metadata = ie.current_env().tagged_name(label_with_metadata)
+      # Note at this moment, the transform intercepted has already been half-way
+      # applied to the stack of AppliedPTransform of the pipeline. We have to
+      # change the full_label for it.
+      pipeline.transforms_stack[-1].full_label = label_with_metadata
+      transform.label = label_with_metadata
+      pipeline.applied_labels.add(transform.label)
+
+    # Runner-application.
+    applied = self._underlying_runner.apply(transform, pvalueish, options)
+
+    # After-runner-application.
+    if is_tracking:
+      # Tracking all AppliedPTransforms after the runner-application is done.
+      ie.current_env().track_transforms_with_prompt(prompt, pipeline)
+
+    return applied
 
   def run_pipeline(self, pipeline, options):
     pipeline_instrument = inst.pin(pipeline, options)
-
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
         pipeline_instrument.instrumented_pipeline_proto(),
         self._underlying_runner,
@@ -141,6 +189,19 @@ class InteractiveRunner(runners.PipelineRunner):
     result.wait_until_finish()
 
     return PipelineResult(result, pipeline_instrument)
+
+
+def _extract_pipeline_of_pvalueish(pvalueish):
+  """Extracts the pipeline that the given pvalueish belongs to."""
+  if isinstance(pvalueish, tuple):
+    pvalue = pvalueish[0]
+  elif isinstance(pvalueish, dict):
+    pvalue = next(iter(pvalueish.values()))
+  else:
+    pvalue = pvalueish
+  if hasattr(pvalue, 'pipeline'):
+    return pvalue.pipeline
+  return None
 
 
 class PipelineResult(beam.runners.runner.PipelineResult):
@@ -161,8 +222,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     self._pipeline_instrument = pipeline_instrument
 
   def wait_until_finish(self):
-    # PipelineResult is not constructed until pipeline execution is finished.
-    return
+    self._underlying_result.wait_until_finish()
 
   def get(self, pcoll):
     key = self._pipeline_instrument.cache_key(pcoll)

@@ -30,6 +30,7 @@ import logging
 import sys
 
 import apache_beam as beam
+from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners import runner
 from apache_beam.runners.utils import is_interactive
 
@@ -37,7 +38,6 @@ from apache_beam.runners.utils import is_interactive
 # there is only one global interactive environment instance that manages
 # implementation that enables interactivity.
 _interactive_beam_env = None
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +84,13 @@ class InteractiveEnvironment(object):
     # InteractiveRunner is responsible for populating this dictionary
     # implicitly.
     self._pipeline_results = {}
+    self._tracked_user_pipelines = set()
+    # Track all AppliedPTransforms with their prompt number here if in ipython.
+    # (Dict[AppliedPTransform, str])
+    self._tracked_transforms = {}
+    # Any potential non-unique names such as PTransform labels and their count.
+    # (Dict[str, int])
+    self._tracked_names = {}
     # Always watch __main__ module.
     self.watch('__main__')
     # Do a warning level logging if current python version is below 3.6.
@@ -221,3 +228,71 @@ class InteractiveEnvironment(object):
     if result:
       return runner.PipelineState.is_terminal(result.state)
     return True
+
+  def track_user_pipelines(self):
+    """Tracks all user pipeline instances defined.
+
+    This is invoked every time a PTransform application callback is invoked in
+    any interactive runner due to the possibility any pipeline can be
+    re-evaluated through notebook cell re-execution.
+    """
+    self._tracked_user_pipelines = set()
+    for watching in self.watching():
+      for _, val in watching:
+        if isinstance(val, beam.pipeline.Pipeline):
+          self._tracked_user_pipelines.add(val)
+
+  @property
+  def tracked_user_pipelines(self):
+    return self._tracked_user_pipelines
+
+  def track_transforms_with_prompt(self, prompt, pipeline):
+    """Tracks newly applied transform with the given prompt.
+
+    This is after-runner-application invoked every time a PTransform
+    application callback is invoked in any interactive runner, doing a simple
+    full pipeline traversal to track every PTransform that is newly applied
+    since last callback.
+    """
+
+    class TrackVisitor(PipelineVisitor):
+
+      def __init__(self, ie):
+        self._ie = ie
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if transform_node not in self._ie._tracked_transforms:
+          self._ie._tracked_transforms[transform_node] = str(prompt)
+
+    v = TrackVisitor(self)
+    pipeline.visit(v)
+
+  @property
+  def tracked_transforms(self):
+    return self._tracked_transforms
+
+  def tagged_name(self, name):
+    """Tag any name if this invoked more than once for a given name.
+
+    A name can be a user-defined or auto-generated label of a PTransform.
+    If this has not been invoked more than once for a name, return the given
+    name. Otherwise, tag incrementally with an integer number.
+
+    Examples::
+
+      # name is 'Cell 1: Create'
+      name = 'Cell 1: Create'
+      # name is 'Cell 1: Create'
+      name = current_env().tagged_name(name)
+      # name is 'Cell 1: Create_2'
+      name = current_env().tagged_name(name)
+      # name is 'Cell 1: Create_3'
+      name = current_env().tagged_name(name)
+    """
+    self._tracked_names[name] = self._tracked_names.get(name, 0) + 1
+    if self._tracked_names[name] > 1:
+      return '{}_{}'.format(name, self._tracked_names[name])
+    return name

@@ -31,6 +31,8 @@ this module in your notebook or application code.
 from __future__ import absolute_import
 
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive import pipeline_fragment as pf
+from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 
 
 def watch(watchable):
@@ -80,7 +82,43 @@ def watch(watchable):
   ie.current_env().watch(watchable)
 
 
-def visualize(pcoll):
-  """Visualizes a PCollection."""
-  # TODO(BEAM-7926)
-  pass
+def show(*pcolls):
+  """Shows given PCollections.
+
+  Ad hoc builds a pipeline fragment including only transforms that are
+  necessary to produce data for given PCollections *pcolls, runs the pipeline
+  fragment to compute data for those *pcolls and then visualizes the data.
+
+  The PCollections given must belong to the same pipeline and be watched by
+  Interactive Beam (PCollections defined in __main__ are automatically watched).
+
+  For example::
+
+    p = beam.Pipeline(InteractiveRunner())
+    init = p | 'Init' >> beam.Create(range(1000))
+    square = init | 'Square' >> beam.Map(lambda x: x * x)
+    cube = init | 'Cube' >> beam.Map(lambda x: x ** 3)
+
+    # Below builds a pipeline fragement from the defined pipline p that
+    # contains only applied transforms of 'Init' and 'Square'. Then the
+    # interactive runner runs the pipeline fragment implicitly to compute data
+    # represented by PCollection square and visualize it.
+    show(square)
+
+    # This is equivalent to show(square) because square depends on init and
+    # init is included in the pipeline fragment and computed anyway.
+    show(init, square)
+
+    # Below is equivalent to running p.run(). It computes data for both
+    # PCollection square and PCollection cube, then visualizes them.
+    show(square, cube)
+
+  The data visualized asynchronously might be dynamically updated as more and
+  more data processed and emitted when the pipeline is being executed.
+  The function is always blocking.
+  """
+  result = pf.PipelineFragment(list(pcolls)).run()
+  ie.current_env().set_pipeline_result(pcolls[0].pipeline, result)
+  for pcoll in pcolls:
+    visualize(pcoll, dynamic_plotting_interval=1)
+  result.wait_until_finish()
