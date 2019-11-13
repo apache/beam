@@ -158,10 +158,17 @@ class TestStreamTest(unittest.TestCase):
     p.run()
 
   def test_multiple_outputs_with_watermark_advancement(self):
-    """Tests that the TestStream can independently output watermarks."""
+    """Tests that the TestStream can independently control output watermarks."""
 
-    # Purposely set the watmerk of numbers to 20 then letters to 5 to test
+    # Purposely set the watermark of numbers to 20 then letters to 5 to test
     # that the watermark advancement is per PCollection.
+    #
+    # This creates two PCollections, (a, b, c) and (1, 2, 3). These will be
+    # emitted at different times so that they will have different windows. The
+    # watermark advancement is checked by checking their windows. If the
+    # watermark does not advance, then the windows will be [-inf, -inf). If the
+    # windows do not advance separately, then the PCollections will both
+    # windowed in [15, 30).
     test_stream = (TestStream()
                    .advance_watermark_to(20, tag='numbers')
                    .advance_watermark_to(5, tag='letters')
@@ -174,6 +181,10 @@ class TestStreamTest(unittest.TestCase):
     p = TestPipeline(options=options)
 
     main = p | test_stream
+
+    # Use an AfterWatermark trigger with an early firing to test that the
+    # watermark is advancing properly and that the element is being emitted in
+    # the corret window.
     letters = (main['letters']
                | 'letter windows' >> beam.WindowInto(
                    FixedWindows(15),
@@ -190,12 +201,20 @@ class TestStreamTest(unittest.TestCase):
                | 'number with key' >> beam.Map(lambda x: ('k', x))
                | 'number gbk' >> beam.GroupByKey())
 
+    # The letters were emitted when the watermark was at 5, thus we expect to
+    # see the elements in the [0, 15) window. We used an early trigger to make
+    # sure that the ON_TIME empty pane was also emitted with a TestStream.
+    # This pane has no data because of the early trigger causes the elements to
+    # fire before the end of the window.
     expected_letters = {
         window.IntervalWindow(0, 15): [
             ('k', ['a', 'b', 'c']),
             ('k', []),
         ],
     }
+
+    # Same here, except the numbers were emitted at watermark = 20, thus they
+    # are in the [15, 30) window.
     expected_numbers = {
         window.IntervalWindow(15, 30): [
             ('k', ['1', '2', '3']),
