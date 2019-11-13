@@ -31,6 +31,13 @@ from apache_beam.runners.interactive.caching.streaming_cache import StreamingCac
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 from apache_beam.utils.timestamp import Timestamp
 
+# Nose automatically detects tests if they match a regex. Here, it mistakens
+# these protos as tests. For more info see the Nose docs at:
+# https://nose.readthedocs.io/en/latest/writing_tests.html
+TestStreamPayload.__test__ = False
+TestStreamFileHeader.__test__ = False
+TestStreamFileRecord.__test__ = False
+
 
 class InMemoryReader(object):
   def __init__(self, tag=None):
