@@ -323,6 +323,7 @@ class SideInputsTest(unittest.TestCase):
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
 
+    """
     main_stream = (p
                    | 'main TestStream' >> TestStream()
                    .advance_watermark_to(3)
@@ -331,8 +332,6 @@ class SideInputsTest(unittest.TestCase):
                    .add_elements(['a2'])
                    | 'main windowInto' >> beam.WindowInto(
                        window.FixedWindows(5),
-                       trigger=trigger.AfterWatermark(
-                           early=trigger.AfterCount(1)),
                        accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
     emit_vals = Map(lambda k_vs: k_vs[1])
@@ -346,8 +345,37 @@ class SideInputsTest(unittest.TestCase):
                        trigger=trigger.AfterWatermark(
                            early=trigger.AfterCount(1)),
                        accumulation_mode=trigger.AccumulationMode.DISCARDING)
-                   | 'GBK' >> beam.GroupByKey()
+                   | 'Sum' >> beam.Combine()
                    | 'Values' >> emit_vals)
+    """
+
+    class ProcessData(beam.DoFn):
+      def process(self, element):
+        print(element)
+        if len(element) == 2:
+          yield beam.pvalue.TaggedOutput('side_input', element)
+        else:
+          yield element
+
+    test_stream = (p
+                   | 'main TestStream' >> TestStream()
+                   .advance_watermark_to(3)
+                   .add_elements(['a1'])
+                   .advance_watermark_to(8)
+                   .add_elements(['a2'])
+                   .add_elements([window.TimestampedValue(('k', 100), 2)])
+                   .add_elements([window.TimestampedValue(('k', 400), 7)])
+                   .advance_watermark_to_infinity()
+                   | 'side windowInto' >> beam.WindowInto(
+                      window.FixedWindows(5),
+                      trigger=trigger.AfterWatermark(
+                          early=trigger.AfterCount(1)),
+                      accumulation_mode=trigger.AccumulationMode.DISCARDING)
+                   | beam.ParDo(ProcessData())
+                     .with_outputs('side_input', main='main_input'))
+
+    main_data = test_stream['main_input']
+    side_data = test_stream['side_input']
 
     class RecordFn(beam.DoFn):
       def process(self,
@@ -356,8 +384,8 @@ class SideInputsTest(unittest.TestCase):
                   side=beam.DoFn.SideInputParam):
         yield (elm, ts, side)
 
-    records = (main_stream
-               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
+    records = (main_data
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_data)))
 
     expected_window_to_elements = {
         window.IntervalWindow(0, 5): [
