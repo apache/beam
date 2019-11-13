@@ -228,7 +228,10 @@ setuptools.setup(
     python_requires=python_requires,
     test_suite='nose.collector',
     setup_requires=['pytest_runner'],
-    tests_require=REQUIRED_TEST_PACKAGES,
+    tests_require= [
+        REQUIRED_TEST_PACKAGES,
+        INTERACTIVE_BEAM,
+    ],
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
