@@ -47,7 +47,7 @@ public class BigQueryFilter implements BeamSqlTableFilter {
       ImmutableSet.<SqlKind>builder()
           .add(COMPARISON.toArray(new SqlKind[0]))
           // TODO: Check what other functions are supported and add support for them (ex: trim).
-          .add(PLUS, MINUS, MOD, DIVIDE, TIMES, LIKE, BETWEEN, CAST)
+          .add(PLUS, MINUS, MOD, DIVIDE, TIMES, LIKE, BETWEEN, CAST, AND, OR)
           .build();
   private List<RexNode> supported;
   private List<RexNode> unsupported;
@@ -117,20 +117,21 @@ public class BigQueryFilter implements BeamSqlTableFilter {
       //  CAST, TRIM? and REVERSE? should be supported as well.
       if (!node.getKind().belongsTo(SUPPORTED_OPS)) {
         isSupported = false;
-      }
-
-      for (RexNode operand : compositeNode.getOperands()) {
-        // All operands must be supported for a parent node to be supported.
-        Pair<Boolean, Integer> childSupported = isSupported(operand);
-        // BigQuery supports complex combinations of both conjunctions (AND) and disjunctions (OR).
-        if (!node.getKind().belongsTo(ImmutableSet.of(AND, OR))) {
+      } else {
+        for (RexNode operand : compositeNode.getOperands()) {
+          // All operands must be supported for a parent node to be supported.
+          Pair<Boolean, Integer> childSupported = isSupported(operand);
+          // BigQuery supports complex combinations of both conjunctions (AND) and disjunctions
+          // (OR).
+          if (!node.getKind().belongsTo(ImmutableSet.of(AND, OR))) {
+            numberOfInputRefs += childSupported.getRight();
+          }
           // Predicate functions, where more than one field is involved are unsupported.
-          numberOfInputRefs += childSupported.getRight();
+          isSupported = numberOfInputRefs < 2 && childSupported.getLeft();
         }
-        isSupported = numberOfInputRefs < 2 && childSupported.getLeft();
       }
     } else if (node instanceof RexInputRef) {
-      numberOfInputRefs++;
+      numberOfInputRefs = 1;
     } else if (node instanceof RexLiteral) {
       // RexLiterals are expected, but no action is needed.
     } else {

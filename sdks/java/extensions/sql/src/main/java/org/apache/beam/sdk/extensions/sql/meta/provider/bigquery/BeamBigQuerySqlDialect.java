@@ -38,9 +38,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-// TODO: BigQuerySqlDialectWithTypeTranslation can be deleted after updating vendor Calcite version.
+// TODO(CALCITE-3381): BeamBigQuerySqlDialect can be deleted after updating vendor Calcite version.
 // Calcite v1_20_0 does not have type translation implemented, but later (unreleased) versions do.
-public class BigQuerySqlDialectWithTypeTranslation extends BigQuerySqlDialect {
+public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
 
   public static final SqlDialect.Context DEFAULT_CONTEXT =
       SqlDialect.EMPTY_CONTEXT
@@ -51,8 +51,7 @@ public class BigQuerySqlDialectWithTypeTranslation extends BigQuerySqlDialect {
           .withQuotedCasing(Casing.UNCHANGED)
           .withCaseSensitive(false);
 
-  public static final SqlDialect DEFAULT =
-      new BigQuerySqlDialectWithTypeTranslation(DEFAULT_CONTEXT);
+  public static final SqlDialect DEFAULT = new BeamBigQuerySqlDialect(DEFAULT_CONTEXT);
 
   /**
    * An unquoted BigQuery identifier must start with a letter and be followed by zero or more
@@ -168,7 +167,7 @@ public class BigQuerySqlDialectWithTypeTranslation extends BigQuerySqlDialect {
               "WITH",
               "WITHIN"));
 
-  public BigQuerySqlDialectWithTypeTranslation(Context context) {
+  public BeamBigQuerySqlDialect(Context context) {
     super(context);
   }
 

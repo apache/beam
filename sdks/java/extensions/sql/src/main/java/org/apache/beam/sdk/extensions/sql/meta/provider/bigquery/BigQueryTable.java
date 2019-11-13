@@ -189,7 +189,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
     // TODO: BigQuerySqlDialectWithTypeTranslation can be replaced with BigQuerySqlDialect after
     // updating vendor Calcite version.
     SqlImplementor.SimpleContext context =
-        new SqlImplementor.SimpleContext(BigQuerySqlDialectWithTypeTranslation.DEFAULT, field);
+        new SqlImplementor.SimpleContext(BeamBigQuerySqlDialect.DEFAULT, field);
 
     // Create a single SqlNode from a list of RexNodes
     SqlNode andSqlNode = null;
@@ -205,7 +205,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
               SqlParserPos.ZERO, ImmutableList.of(andSqlNode, sqlNode));
     }
 
-    return andSqlNode.toSqlString(BigQuerySqlDialectWithTypeTranslation.DEFAULT).getSql();
+    return andSqlNode.toSqlString(BeamBigQuerySqlDialect.DEFAULT).getSql();
   }
 
   private TypedRead<Row> getBigQueryTypedRead(Schema schema) {
