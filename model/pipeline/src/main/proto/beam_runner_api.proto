@@ -318,7 +318,15 @@ message StandardPTransforms {
 
 message StandardSideInputTypes {
   enum Enum {
+    // Represents a view over a PCollection<V>.
+    //
+    // The SDK is limited to perform state get requests using the StateKey.IterableSideInput.
     ITERABLE = 0 [(beam_urn) = "beam:side_input:iterable:v1"];
+
+    // Represents a view over a PCollection<KV<K, V>>.
+    //
+    // The SDK is able to perform state get requests with the StateKey.IterableSideInput and
+    // StateKey.MultimapSideInput
     MULTIMAP = 1 [(beam_urn) = "beam:side_input:multimap:v1"];
   }
 }
