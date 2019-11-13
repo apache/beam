@@ -20,12 +20,17 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.mongodb;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.mongodb.FindQuery;
 import org.apache.beam.sdk.io.mongodb.MongoDbIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -85,10 +90,34 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   }
 
   @Override
+  public PCollection<Row> buildIOReader(
+      PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+    MongoDbIO.Read readBuilder = MongoDbIO.read()
+        .withUri(dbUri)
+        .withDatabase(dbName)
+        .withCollection(dbCollection);
+
+    if (!(filters instanceof DefaultTableFilter)) {
+      throw new RuntimeException("Unimplemented at the moment.");
+    }
+
+    if (!fieldNames.isEmpty()) {
+      readBuilder.withQueryFn(FindQuery.create().withProjection(fieldNames));
+    }
+
+    return readBuilder.expand(begin).apply(DocumentToRow.withSchema(getSchema()));
+  }
+
+  @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     return input
         .apply(new RowToDocument())
         .apply(MongoDbIO.write().withUri(dbUri).withDatabase(dbName).withCollection(dbCollection));
+  }
+
+  @Override
+  public ProjectSupport supportsProjects() {
+    return ProjectSupport.WITHOUT_FIELD_REORDERING;
   }
 
   @Override
