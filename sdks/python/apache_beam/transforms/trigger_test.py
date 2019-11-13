@@ -815,9 +815,11 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
       inputs, expected = (
           p
           | read_test_stream
-          | beam.MapTuple(
-              lambda tag, value: beam.pvalue.TaggedOutput(tag, ('key', value))
-              ).with_outputs('input', 'expect'))
+          | beam.FlatMapTuple(
+              lambda tag, value: [
+                  beam.pvalue.TaggedOutput(tag, ('key1', value)),
+                  beam.pvalue.TaggedOutput(tag, ('key2', value)),
+              ]).with_outputs('input', 'expect'))
       # Process the inputs with the given windowing to produce actual outputs.
       outputs = (
           inputs
