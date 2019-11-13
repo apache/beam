@@ -40,7 +40,8 @@ class PipelineAnalyzer(object):
       pipeline_proto,
       underlying_runner,
       options=None,
-      desired_cache_labels=None):
+      desired_cache_labels=None,
+      preserve_timestamps=False):
     """Constructor of PipelineAnanlyzer.
 
     Args:
@@ -54,6 +55,7 @@ class PipelineAnalyzer(object):
     self._cache_manager = cache_manager
     self._pipeline_proto = pipeline_proto
     self._desired_cache_labels = desired_cache_labels or []
+    self._preserve_timestamps = preserve_timestamps
 
     self._pipeline = beam.pipeline.Pipeline.from_runner_api(
         self._pipeline_proto, runner=underlying_runner, options=options)
@@ -286,8 +288,10 @@ class PipelineAnalyzer(object):
     pcoll = self._context.pcollections.get_by_id(pcoll_id)
 
     if not sample:
-      pdone = pcoll | 'CacheFull%s' % cache_label >> cache.WriteCache(
-          self._cache_manager, cache_label)
+      cache_transform = cache.WriteCache(self._cache_manager, cache_label)
+      if self._preserve_timestamps:
+          cache_transform = cache.CacheWithTimestamp(self._cache_manager, cache_label)
+      pdone = pcoll | 'CacheFull%s' % cache_label >> cache_transform
     else:
       pdone = pcoll | 'CacheSample%s' % cache_label >> cache.WriteCache(
           self._cache_manager, cache_label, sample=True, sample_size=10)

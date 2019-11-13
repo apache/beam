@@ -34,6 +34,7 @@ from apache_beam.io import filesystems
 from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.transforms import combiners
+from apache_beam.runners.interactive.samza_cache_manager import SamzaFileBasedCacheManager
 
 if sys.version_info[0] > 2:
   unquote_to_bytes = urllib.parse.unquote_to_bytes
@@ -220,6 +221,17 @@ class FileBasedCacheManager(CacheManager):
         self.current_timestamp = timestamp
       return self.current_version
 
+class ProcessTimestamp(beam.DoFn):
+  """ A DoFn for providing the runner with accurate timestamp information for a
+  cached element. Preserving the timestamp information allows for deterministic
+  windowing and aggregation, i.e. windows will contain the same elements regardless
+  of which pcollections are cached. Only used by SamzaFileBasedCacheManager.
+  """
+
+  def process(self, timestamped_element):
+    # Meant to be applied to an element after it's read from a cache.
+    element, timestamp = timestamped_element
+    yield beam.window.TimestampedValue(element, timestamp)
 
 class ReadCache(beam.PTransform):
   """A PTransform that reads the PCollections from the cache."""
@@ -229,8 +241,15 @@ class ReadCache(beam.PTransform):
 
   def expand(self, pbegin):
     # pylint: disable=expression-not-assigned
+
+    if self._cache_manager.__class__.__name__ == SamzaFileBasedCacheManager.__class__.__name__:
+      return (pbegin
+              | 'Read' >> beam.io.Read(
+                self._cache_manager.source('full', self._label))
+              | 'ProcessTimestamp' >> beam.ParDo(ProcessTimestamp()))
+
     return pbegin | 'Read' >> beam.io.Read(
-        self._cache_manager.source('full', self._label))
+      self._cache_manager.source('full', self._label))
 
 
 class WriteCache(beam.PTransform):
@@ -264,6 +283,27 @@ class WriteCache(beam.PTransform):
     # pylint: disable=expression-not-assigned
     return pcoll | 'Write' >> beam.io.Write(
         self._cache_manager.sink(prefix, self._label))
+
+
+class CacheWithTimestamp(beam.PTransform):
+  """A caching transform that groups elements together with their corresponding
+  timestamps then writes to disk. This timestamp information is preserved so that
+  the correct timestamps can be added to elements after they're read from cache
+  """
+
+  class InsertTimestamp(beam.DoFn):
+    def process(self, element, timestamp=beam.DoFn.TimestampParam):
+      timestamped_element = element, float(timestamp)
+      yield timestamped_element
+
+  def __init__(self, cache_manager, cache_label):
+    self.cache_manager = cache_manager
+    self.cache_label = cache_label
+
+  def expand(self, pcoll):
+    return (pcoll
+            | beam.ParDo(self.InsertTimestamp())
+            | WriteCache(self.cache_manager, self.cache_label))
 
 
 class SafeFastPrimitivesCoder(coders.Coder):
