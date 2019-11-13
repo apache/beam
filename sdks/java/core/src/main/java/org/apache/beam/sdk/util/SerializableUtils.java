@@ -75,6 +75,19 @@ public class SerializableUtils {
     }
   }
 
+  public static <T extends Serializable> T ensureSerializableRoundTrip(T value) {
+    T copy = ensureSerializable(value);
+
+    checkState(
+        value.equals(copy),
+        "Value not equal to original after serialization, indicating that its type may not "
+            + "implement serialization or equals correctly.  Before: %s, after: %s",
+        value,
+        copy);
+
+    return copy;
+  }
+
   public static <T extends Serializable> T ensureSerializable(T value) {
     return clone(value);
   }

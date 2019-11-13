@@ -29,7 +29,8 @@ from __future__ import absolute_import
 import inspect
 from builtins import object
 
-from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics import cells
+from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
@@ -101,11 +102,7 @@ class Metrics(object):
     def __init__(self, metric_name):
       super(Metrics.DelegatingCounter, self).__init__()
       self.metric_name = metric_name
-
-    def inc(self, n=1):
-      container = MetricsEnvironment.current_container()
-      if container is not None:
-        container.get_counter(self.metric_name).inc(n)
+      self.inc = MetricUpdater(cells.CounterCell, metric_name, default=1)
 
   class DelegatingDistribution(Distribution):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
@@ -113,11 +110,7 @@ class Metrics(object):
     def __init__(self, metric_name):
       super(Metrics.DelegatingDistribution, self).__init__()
       self.metric_name = metric_name
-
-    def update(self, value):
-      container = MetricsEnvironment.current_container()
-      if container is not None:
-        container.get_distribution(self.metric_name).update(value)
+      self.update = MetricUpdater(cells.DistributionCell, metric_name)
 
   class DelegatingGauge(Gauge):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
@@ -125,11 +118,7 @@ class Metrics(object):
     def __init__(self, metric_name):
       super(Metrics.DelegatingGauge, self).__init__()
       self.metric_name = metric_name
-
-    def set(self, value):
-      container = MetricsEnvironment.current_container()
-      if container is not None:
-        container.get_gauge(self.metric_name).set(value)
+      self.set = MetricUpdater(cells.GaugeCell, metric_name)
 
 
 class MetricResults(object):

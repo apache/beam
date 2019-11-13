@@ -44,6 +44,12 @@ public class DefaultTrigger extends Trigger {
     return window.maxTimestamp();
   }
 
+  /** @return false; the default trigger never finishes */
+  @Override
+  public boolean mayFinish() {
+    return false;
+  }
+
   @Override
   public boolean isCompatible(Trigger other) {
     // Semantically, all default triggers are identical

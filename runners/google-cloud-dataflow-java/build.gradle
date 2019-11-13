@@ -216,7 +216,8 @@ task buildAndPushDockerContainer() {
   finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(
           name: "java_sdk",
-          root: "apachebeam")
+          root: "apachebeam",
+          tag: project.version)
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
@@ -267,6 +268,7 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
           files(project(project.path).sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     commonExcludeCategories.each {
       excludeCategories it
     }

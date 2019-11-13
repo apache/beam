@@ -55,7 +55,7 @@ dependencies {
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
-  validatesPortableRunner project(path: ":runners:reference:java", configuration: "testRuntime")
+  validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
 //  TODO: Enable AWS and HDFS file system.
 }
@@ -88,7 +88,7 @@ def portableValidatesRunnerTask(String name) {
     jobServerDriver: "org.apache.beam.runners.spark.SparkJobServerDriver",
     jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
     testClasspathConfiguration: configurations.validatesPortableRunner,
-    numParallelTests: 1,
+    numParallelTests: 4,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     systemProperties: [
       "beam.spark.test.reuseSparkContext": "false",
@@ -114,6 +114,7 @@ def portableValidatesRunnerTask(String name) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     },
   )
 }

@@ -54,6 +54,8 @@ public class ModelCoders {
 
   public static final String WINDOWED_VALUE_CODER_URN = getUrn(StandardCoders.Enum.WINDOWED_VALUE);
 
+  public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
+
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(
           BYTES_CODER_URN,
@@ -67,7 +69,8 @@ public class ModelCoders {
           GLOBAL_WINDOW_CODER_URN,
           INTERVAL_WINDOW_CODER_URN,
           WINDOWED_VALUE_CODER_URN,
-          DOUBLE_CODER_URN);
+          DOUBLE_CODER_URN,
+          ROW_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;

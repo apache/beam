@@ -46,6 +46,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
+from apache_beam.utils import retry
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
@@ -322,11 +323,73 @@ class _Mutate(PTransform):
       self._target_batch_size = self._batch_sizer.get_batch_size(
           time.time() * 1000)
 
-    def add_element_to_batch(self, element):
+    def element_to_client_batch_item(self, element):
       raise NotImplementedError
 
+    def add_to_batch(self, client_batch_item):
+      raise NotImplementedError
+
+    @retry.with_exponential_backoff(num_retries=5,
+                                    retry_filter=helper.retry_on_rpc_error)
+    def write_mutations(self, throttler, rpc_stats_callback, throttle_delay=1):
+      """Writes a batch of mutations to Cloud Datastore.
+
+      If a commit fails, it will be retried up to 5 times. All mutations in the
+      batch will be committed again, even if the commit was partially
+      successful. If the retry limit is exceeded, the last exception from
+      Cloud Datastore will be raised.
+
+      Assumes that the Datastore client library does not perform any retries on
+      commits. It has not been determined how such retries would interact with
+      the retries and throttler used here.
+      See ``google.cloud.datastore_v1.gapic.datastore_client_config`` for
+      retry config.
+
+      Args:
+        rpc_stats_callback: a function to call with arguments `successes` and
+            `failures` and `throttled_secs`; this is called to record successful
+            and failed RPCs to Datastore and time spent waiting for throttling.
+        throttler: (``apache_beam.io.gcp.datastore.v1.adaptive_throttler.
+          AdaptiveThrottler``)
+          Throttler instance used to select requests to be throttled.
+        throttle_delay: (:class:`float`) time in seconds to sleep when
+            throttled.
+
+      Returns:
+        (int) The latency of the successful RPC in milliseconds.
+      """
+      # Client-side throttling.
+      while throttler.throttle_request(time.time() * 1000):
+        logging.info("Delaying request for %ds due to previous failures",
+                     throttle_delay)
+        time.sleep(throttle_delay)
+        rpc_stats_callback(throttled_secs=throttle_delay)
+
+      if self._batch is None:
+        # this will only happen when we re-try previously failed batch
+        self._batch = self._client.batch()
+        self._batch.begin()
+        for element in self._batch_elements:
+          self.add_to_batch(element)
+
+      try:
+        start_time = time.time()
+        self._batch.commit()
+        end_time = time.time()
+
+        rpc_stats_callback(successes=1)
+        throttler.successful_request(start_time * 1000)
+        commit_time_ms = int((end_time-start_time) * 1000)
+        return commit_time_ms
+      except Exception:
+        self._batch = None
+        rpc_stats_callback(errors=1)
+        raise
+
     def process(self, element):
-      self.add_element_to_batch(element)
+      client_element = self.element_to_client_batch_item(element)
+      self._batch_elements.append(client_element)
+      self.add_to_batch(client_element)
       self._batch_bytes_size += self._batch.mutations[-1].ByteSize()
 
       if (len(self._batch.mutations) >= self._target_batch_size or
@@ -334,18 +397,20 @@ class _Mutate(PTransform):
         self._flush_batch()
 
     def finish_bundle(self):
-      if self._batch.mutations:
+      if self._batch_elements:
         self._flush_batch()
 
     def _init_batch(self):
       self._batch_bytes_size = 0
       self._batch = self._client.batch()
       self._batch.begin()
+      self._batch_elements = []
 
     def _flush_batch(self):
       # Flush the current batch of mutations to Cloud Datastore.
-      latency_ms = helper.write_mutations(
-          self._batch, self._throttler, self._update_rpc_stats,
+      latency_ms = self.write_mutations(
+          self._throttler,
+          rpc_stats_callback=self._update_rpc_stats,
           throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS // 1000)
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._batch.mutations), latency_ms)
@@ -380,7 +445,7 @@ class WriteToDatastore(_Mutate):
     super(WriteToDatastore, self).__init__(mutate_fn)
 
   class _DatastoreWriteFn(_Mutate.DatastoreMutateFn):
-    def add_element_to_batch(self, element):
+    def element_to_client_batch_item(self, element):
       if not isinstance(element, types.Entity):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Entity'
                          ' expected, got: %s' % type(element))
@@ -390,6 +455,9 @@ class WriteToDatastore(_Mutate):
       if client_entity.key.is_partial:
         raise ValueError('Entities to be written to Cloud Datastore must '
                          'have complete keys:\n%s' % client_entity)
+      return client_entity
+
+    def add_to_batch(self, client_entity):
       self._batch.put(client_entity)
 
     def display_data(self):
@@ -421,7 +489,7 @@ class DeleteFromDatastore(_Mutate):
     super(DeleteFromDatastore, self).__init__(mutate_fn)
 
   class _DatastoreDeleteFn(_Mutate.DatastoreMutateFn):
-    def add_element_to_batch(self, element):
+    def element_to_client_batch_item(self, element):
       if not isinstance(element, types.Key):
         raise ValueError('apache_beam.io.gcp.datastore.v1new.datastoreio.Key'
                          ' expected, got: %s' % type(element))
@@ -431,6 +499,9 @@ class DeleteFromDatastore(_Mutate):
       if client_key.is_partial:
         raise ValueError('Keys to be deleted from Cloud Datastore must be '
                          'complete:\n%s' % client_key)
+      return client_key
+
+    def add_to_batch(self, client_key):
       self._batch.delete(client_key)
 
     def display_data(self):

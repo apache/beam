@@ -243,8 +243,8 @@ public class BigQueryAvroUtilsTest {
                 Schema.create(Type.NULL),
                 Schema.createRecord(
                     "scion",
-                    "org.apache.beam.sdk.io.gcp.bigquery",
                     "Translated Avro Schema for scion",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
                     false,
                     ImmutableList.of(
                         new Field(
@@ -259,8 +259,8 @@ public class BigQueryAvroUtilsTest {
             Schema.createArray(
                 Schema.createRecord(
                     "associates",
-                    "org.apache.beam.sdk.io.gcp.bigquery",
                     "Translated Avro Schema for associates",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
                     false,
                     ImmutableList.of(
                         new Field(

@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.zetasketch;
 
+import static org.junit.Assert.assertArrayEquals;
+
 import com.google.zetasketch.HyperLogLogPlusPlus;
 import com.google.zetasketch.shaded.com.google.protobuf.ByteString;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -483,5 +486,16 @@ public class HllCountTest {
 
     PAssert.thatSingleton(result).isEqualTo(KV.of("k", 0L));
     p.run();
+  }
+
+  @Test
+  public void testGetSketchFromByteBufferForEmptySketch() {
+    assertArrayEquals(HllCount.getSketchFromByteBuffer(null), EMPTY_SKETCH);
+  }
+
+  @Test
+  public void testGetSketchFromByteBufferForNonEmptySketch() {
+    ByteBuffer bf = ByteBuffer.wrap(INTS1_SKETCH);
+    assertArrayEquals(HllCount.getSketchFromByteBuffer(bf), INTS1_SKETCH);
   }
 }

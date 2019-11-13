@@ -44,7 +44,6 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import metric
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricResult
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -72,10 +71,13 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
+from apache_beam.transforms import environments
 from apache_beam.transforms import trigger
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
+from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -234,7 +236,15 @@ class _GroupingBuffer(object):
     """
     if not self._grouped_output:
       if self._windowing.is_default():
-        globally_window = GlobalWindows.windowed_value(None).with_value
+        globally_window = GlobalWindows.windowed_value(
+            None,
+            timestamp=GlobalWindow().max_timestamp(),
+            pane_info=windowed_value.PaneInfo(
+                is_first=True,
+                is_last=True,
+                timing=windowed_value.PaneInfoTiming.ON_TIME,
+                index=0,
+                nonspeculative_index=0)).with_value
         windowed_key_values = lambda key, values: [
             globally_window((key, values))]
       else:
@@ -334,7 +344,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._last_uid = -1
     self._default_environment = (
         default_environment
-        or beam_runner_api_pb2.Environment(urn=python_urns.EMBEDDED_PYTHON))
+        or environments.EmbeddedPythonEnvironment())
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
@@ -351,7 +361,6 @@ class FnApiRunner(runner.PipelineRunner):
     return str(self._last_uid)
 
   def run_pipeline(self, pipeline, options):
-    MetricsEnvironment.set_metrics_supported(False)
     RuntimeValueProvider.set_runtime_options({})
 
     # Setup "beam_fn_api" experiment options if lacked.

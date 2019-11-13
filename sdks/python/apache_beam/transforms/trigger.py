@@ -45,6 +45,7 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY
@@ -816,7 +817,7 @@ class SimpleState(with_metaclass(ABCMeta, object)):
     pass
 
   def at(self, window, clock):
-    return TriggerContext(self, window, clock)
+    return NestedContext(TriggerContext(self, window, clock), 'trigger')
 
 
 class UnmergedState(SimpleState):
@@ -944,12 +945,12 @@ def create_trigger_driver(windowing,
   # TODO(robertwb): We can do more if we know elements are in timestamp
   # sorted order.
   if windowing.is_default() and is_batch:
-    driver = DiscardingGlobalTriggerDriver()
+    driver = BatchGlobalTriggerDriver()
   elif (windowing.windowfn == GlobalWindows()
         and windowing.triggerfn == AfterCount(1)
-        and windowing.accumulation_mode == AccumulationMode.DISCARDING):
-    # Here we also just pass through all the values every time.
-    driver = DiscardingGlobalTriggerDriver()
+        and is_batch):
+    # Here we also just pass through all the values exactly once.
+    driver = BatchGlobalTriggerDriver()
   else:
     driver = GeneralTriggerDriver(windowing, clock)
 
@@ -1024,16 +1025,23 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
     _UnwindowedValues)
 
 
-class DiscardingGlobalTriggerDriver(TriggerDriver):
+class BatchGlobalTriggerDriver(TriggerDriver):
   """Groups all received values together.
   """
   GLOBAL_WINDOW_TUPLE = (GlobalWindow(),)
+  ONLY_FIRING = windowed_value.PaneInfo(
+      is_first=True,
+      is_last=True,
+      timing=windowed_value.PaneInfoTiming.ON_TIME,
+      index=0,
+      nonspeculative_index=0)
 
   def process_elements(self, state, windowed_values, unused_output_watermark):
     yield WindowedValue(
         _UnwindowedValues(windowed_values),
         MIN_TIMESTAMP,
-        self.GLOBAL_WINDOW_TUPLE)
+        self.GLOBAL_WINDOW_TUPLE,
+        self.ONLY_FIRING)
 
   def process_timer(self, window_id, name, time_domain, timestamp, state):
     raise TypeError('Triggers never set or called for batch default windowing.')
@@ -1066,6 +1074,9 @@ class GeneralTriggerDriver(TriggerDriver):
   """
   ELEMENTS = _ListStateTag('elements')
   TOMBSTONE = _CombiningValueStateTag('tombstone', combiners.CountCombineFn())
+  INDEX = _CombiningValueStateTag('index', combiners.CountCombineFn())
+  NONSPECULATIVE_INDEX = _CombiningValueStateTag(
+      'nonspeculative_index', combiners.CountCombineFn())
 
   def __init__(self, windowing, clock):
     self.clock = clock
@@ -1146,7 +1157,7 @@ class GeneralTriggerDriver(TriggerDriver):
       if self.trigger_fn.should_fire(TimeDomain.WATERMARK, watermark,
                                      window, context):
         finished = self.trigger_fn.on_fire(watermark, window, context)
-        yield self._output(window, finished, state)
+        yield self._output(window, finished, state, output_watermark, False)
 
   def process_timer(self, window_id, unused_name, time_domain, timestamp,
                     state):
@@ -1162,12 +1173,38 @@ class GeneralTriggerDriver(TriggerDriver):
         if self.trigger_fn.should_fire(time_domain, timestamp,
                                        window, context):
           finished = self.trigger_fn.on_fire(timestamp, window, context)
-          yield self._output(window, finished, state)
+          yield self._output(window, finished, state, timestamp,
+                             time_domain == TimeDomain.WATERMARK)
     else:
       raise Exception('Unexpected time domain: %s' % time_domain)
 
-  def _output(self, window, finished, state):
+  def _output(self, window, finished, state, watermark, maybe_ontime):
     """Output window and clean up if appropriate."""
+    index = state.get_state(window, self.INDEX)
+    state.add_state(window, self.INDEX, 1)
+    if watermark <= window.max_timestamp():
+      nonspeculative_index = -1
+      timing = windowed_value.PaneInfoTiming.EARLY
+      if state.get_state(window, self.NONSPECULATIVE_INDEX):
+        nonspeculative_index = state.get_state(
+            window, self.NONSPECULATIVE_INDEX)
+        state.add_state(window, self.NONSPECULATIVE_INDEX, 1)
+        windowed_value.PaneInfoTiming.LATE
+        logging.warning('Watermark moved backwards in time '
+                        'or late data moved window end forward.')
+    else:
+      nonspeculative_index = state.get_state(window, self.NONSPECULATIVE_INDEX)
+      state.add_state(window, self.NONSPECULATIVE_INDEX, 1)
+      timing = (
+          windowed_value.PaneInfoTiming.ON_TIME
+          if maybe_ontime and nonspeculative_index == 0
+          else windowed_value.PaneInfoTiming.LATE)
+    pane_info = windowed_value.PaneInfo(
+        index == 0,
+        finished,
+        timing,
+        index,
+        nonspeculative_index)
 
     values = state.get_state(window, self.ELEMENTS)
     if finished:
@@ -1180,11 +1217,11 @@ class GeneralTriggerDriver(TriggerDriver):
     timestamp = state.get_state(window, self.WATERMARK_HOLD)
     if timestamp is None:
       # If no watermark hold was set, output at end of window.
-      timestamp = window.end
+      timestamp = window.max_timestamp()
     else:
       state.clear_state(window, self.WATERMARK_HOLD)
 
-    return WindowedValue(values, timestamp, (window,))
+    return WindowedValue(values, timestamp, (window,), pane_info)
 
 
 class InMemoryUnmergedState(UnmergedState):

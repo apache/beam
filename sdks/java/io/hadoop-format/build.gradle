@@ -82,7 +82,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   compile library.java.commons_io_2x
 
   delegate.add("sparkRunner", project(":sdks:java:io:hadoop-format"))

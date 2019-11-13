@@ -195,7 +195,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._state = None
     self._state_queues = []
     self._log_queues = []
-    self.state = beam_job_api_pb2.JobState.STARTING
+    self.state = beam_job_api_pb2.JobState.STOPPED
     self.daemon = True
     self.result = None
 
@@ -220,10 +220,12 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     return self._artifact_staging_endpoint
 
   def run(self):
+    self.state = beam_job_api_pb2.JobState.STARTING
     self._run_thread = threading.Thread(target=self._run_job)
     self._run_thread.start()
 
   def _run_job(self):
+    self.state = beam_job_api_pb2.JobState.RUNNING
     with JobLogHandler(self._log_queues):
       try:
         result = fn_api_runner.FnApiRunner(
@@ -239,7 +241,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         raise
 
   def cancel(self):
-    if self.state not in abstract_job_service.TERMINAL_STATES:
+    if not self.is_terminal_state(self.state):
       self.state = beam_job_api_pb2.JobState.CANCELLING
       # TODO(robertwb): Actually cancel...
       self.state = beam_job_api_pb2.JobState.CANCELLED
@@ -253,7 +255,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     while True:
       current_state = state_queue.get(block=True)
       yield current_state
-      if current_state in abstract_job_service.TERMINAL_STATES:
+      if self.is_terminal_state(current_state):
         break
 
   def get_message_stream(self):
@@ -264,7 +266,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
     current_state = self.state
     yield current_state
-    while current_state not in abstract_job_service.TERMINAL_STATES:
+    while not self.is_terminal_state(current_state):
       msg = log_queue.get(block=True)
       yield msg
       if isinstance(msg, int):

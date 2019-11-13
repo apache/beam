@@ -38,5 +38,5 @@ dependencies {
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.2.0"
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:2.1.2"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
