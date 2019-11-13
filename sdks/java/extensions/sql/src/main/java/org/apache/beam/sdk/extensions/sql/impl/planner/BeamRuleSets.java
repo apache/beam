@@ -96,7 +96,8 @@ public class BeamRuleSets {
           ProjectSetOpTransposeRule.INSTANCE,
 
           // aggregation and projection rules
-          AggregateProjectMergeRule.INSTANCE,
+          // try to disable AggregateProjectMergeRule
+          // AggregateProjectMergeRule.INSTANCE,
           // push a projection past a filter or vice versa
           ProjectFilterTransposeRule.INSTANCE,
           FilterProjectTransposeRule.INSTANCE,
