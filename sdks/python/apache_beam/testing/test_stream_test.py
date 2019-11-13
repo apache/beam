@@ -184,7 +184,7 @@ class TestStreamTest(unittest.TestCase):
 
     # Use an AfterWatermark trigger with an early firing to test that the
     # watermark is advancing properly and that the element is being emitted in
-    # the corret window.
+    # the correct window.
     letters = (main['letters']
                | 'letter windows' >> beam.WindowInto(
                    FixedWindows(15),
@@ -205,7 +205,8 @@ class TestStreamTest(unittest.TestCase):
     # see the elements in the [0, 15) window. We used an early trigger to make
     # sure that the ON_TIME empty pane was also emitted with a TestStream.
     # This pane has no data because of the early trigger causes the elements to
-    # fire before the end of the window.
+    # fire before the end of the window and because the accumulation mode
+    # discards any late data.
     expected_letters = {
         window.IntervalWindow(0, 15): [
             ('k', ['a', 'b', 'c']),
