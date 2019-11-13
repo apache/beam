@@ -26,7 +26,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredi
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -121,7 +120,7 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
     }
 
     @Override
-    public PCollection<InputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output() {
       final Filter<InputT> filter = new Filter<>(name, predicate, input.getTypeDescriptor());
       return OperatorTransform.apply(filter, PCollectionList.of(input));
     }
