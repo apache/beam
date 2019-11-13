@@ -515,7 +515,12 @@ class GoogleCloudOptions(PipelineOptions):
       return environment_region
     try:
       cmd = ['gcloud', 'config', 'get-value', 'compute/region']
-      raw_output = processes.check_output(cmd, stderr=subprocess.DEVNULL)
+      # Use subprocess.DEVNULL in Python 3.3+.
+      if hasattr(subprocess, 'DEVNULL'):
+        DEVNULL = subprocess.DEVNULL
+      else:
+        DEVNULL = open(os.devnull, 'ab')
+      raw_output = processes.check_output(cmd, stderr=DEVNULL)
       formatted_output = raw_output.decode('utf-8').strip()
       if formatted_output:
         logging.info('Using default GCP region %s from `%s`',
