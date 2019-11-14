@@ -36,6 +36,9 @@ from apache_beam.runners.portability import portable_stager
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class PortableStagerTest(unittest.TestCase):
 
   def setUp(self):

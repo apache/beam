@@ -50,6 +50,9 @@ try:
 except ImportError:
   _pcoll_visualization_ready = False
 
+
+_LOGGER = logging.getLogger(__name__)
+
 # 1-d types that need additional normalization to be compatible with DataFrame.
 _one_dimension_types = (int, float, str, bool, list, tuple)
 

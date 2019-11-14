@@ -77,6 +77,9 @@ except AttributeError:  # Python 2
 __all__ = ['DataflowRunner']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class DataflowRunner(PipelineRunner):
   """A runner that creates job graphs and submits them for remote execution.
 
@@ -164,7 +167,7 @@ class DataflowRunner(PipelineRunner):
       # an initialized 'currentState' field.
       if response.currentState is not None:
         if response.currentState != last_job_state:
-          logging.info('Job %s is in state %s', job_id, response.currentState)
+          _LOGGER.info('Job %s is in state %s', job_id, response.currentState)
           last_job_state = response.currentState
         if str(response.currentState) != 'JOB_STATE_RUNNING':
           # Stop checking for new messages on timeout, explanatory
@@ -210,7 +213,7 @@ class DataflowRunner(PipelineRunner):
           # Skip empty messages.
           if m.messageImportance is None:
             continue
-          logging.info(message)
+          _LOGGER.info(message)
           if str(m.messageImportance) == 'JOB_MESSAGE_ERROR':
             if rank_error(m.messageText) >= last_error_rank:
               last_error_rank = rank_error(m.messageText)
@@ -221,7 +224,7 @@ class DataflowRunner(PipelineRunner):
       if duration:
         passed_secs = time.time() - start_secs
         if passed_secs > duration_secs:
-          logging.warning('Timing out on waiting for job %s after %d seconds',
+          _LOGGER.warning('Timing out on waiting for job %s after %d seconds',
                           job_id, passed_secs)
           break
 
@@ -453,7 +456,7 @@ class DataflowRunner(PipelineRunner):
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
     if dataflow_worker_jar is not None:
       if not apiclient._use_fnapi(options):
-        logging.warning(
+        _LOGGER.warning(
             'Typical end users should not use this worker jar feature. '
             'It can only be used when FnAPI is enabled.')
       else:
@@ -1031,12 +1034,12 @@ class DataflowRunner(PipelineRunner):
         }
       except error.RuntimeValueProviderError:
         # Size estimation is best effort, and this error is by value provider.
-        logging.info(
+        _LOGGER.info(
             'Could not estimate size of source %r due to ' + \
             'RuntimeValueProviderError', transform.source)
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
-        logging.info(
+        _LOGGER.info(
             'Could not estimate size of source %r due to an exception: %s',
             transform.source, traceback.format_exc())
 
@@ -1446,7 +1449,7 @@ class DataflowPipelineResult(PipelineResult):
     self._update_job()
 
     if self.is_in_terminal_state():
-      logging.warning(
+      _LOGGER.warning(
           'Cancel failed because job %s is already terminated in state %s.',
           self.job_id(), self.state)
     else:
@@ -1455,7 +1458,7 @@ class DataflowPipelineResult(PipelineResult):
         cancel_failed_message = (
             'Failed to cancel job %s, please go to the Developers Console to '
             'cancel it manually.') % self.job_id()
-        logging.error(cancel_failed_message)
+        _LOGGER.error(cancel_failed_message)
         raise DataflowRuntimeException(cancel_failed_message, self)
 
     return self.state

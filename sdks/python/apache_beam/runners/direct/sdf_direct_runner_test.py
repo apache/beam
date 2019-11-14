@@ -42,6 +42,9 @@ from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class ReadFilesProvider(RestrictionProvider):
 
   def initial_restriction(self, element):

@@ -41,6 +41,9 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   """A Job server which submits a self-contained Jar to a Flink cluster.
 
@@ -132,7 +135,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
         url='localhost:%d' % port)
     self._artifact_staging_server.start()
-    logging.info('Artifact server started on port %s', port)
+    _LOGGER.info('Artifact server started on port %s', port)
     return port
 
   def _stop_artifact_service(self):
@@ -181,7 +184,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
             'entryClass': 'org.apache.beam.runners.flink.FlinkPipelineRunner'
         })['jobid']
     os.unlink(self._jar)
-    logging.info('Started Flink job as %s' % self._flink_job_id)
+    _LOGGER.info('Started Flink job as %s' % self._flink_job_id)
 
   def cancel(self):
     self.post('v1/%s/stop' % self._flink_job_id, expected_status=202)
@@ -193,7 +196,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
       try:
         self.delete('v1/jars/%s' % self._flink_jar_id)
       except Exception:
-        logging.info(
+        _LOGGER.info(
             'Error deleting jar %s' % self._flink_jar_id, exc_info=True)
 
   def get_state(self):

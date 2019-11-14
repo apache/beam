@@ -40,6 +40,9 @@ from apache_beam.transforms import ParDo
 # pylint: disable=pointless-statement
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
   def setUp(self):

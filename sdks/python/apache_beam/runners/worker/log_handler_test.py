@@ -30,6 +30,9 @@ from apache_beam.runners.worker import log_handler
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
   def __init__(self):
@@ -66,10 +69,10 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
 
   def _verify_fn_log_handler(self, num_log_entries):
     msg = 'Testing fn logging'
-    logging.debug('Debug Message 1')
+    _LOGGER.debug('Debug Message 1')
     for idx in range(num_log_entries):
-      logging.info('%s: %s', msg, idx)
-    logging.debug('Debug Message 2')
+      _LOGGER.info('%s: %s', msg, idx)
+    _LOGGER.debug('Debug Message 2')
 
     # Wait for logs to be sent to server.
     self.fn_log_handler.close()
