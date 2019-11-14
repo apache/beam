@@ -400,7 +400,7 @@ def has_unbounded_source(pipeline):
   """Checks if a given pipeline has replaceable unbounded sources."""
 
   class CheckUnboundednessVisitor(PipelineVisitor):
-    """Vsitor checks if there is any unbounded read source in the Pipeline.
+    """Visitor checks if there are any unbounded read sources in the Pipeline.
 
     Visitor visits all nodes and checks if it is an instance of
     `REPLACEABLE_UNBOUNDED_SOURCES`.
