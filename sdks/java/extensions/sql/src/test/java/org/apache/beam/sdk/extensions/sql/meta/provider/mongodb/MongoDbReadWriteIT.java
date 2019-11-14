@@ -53,8 +53,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -74,7 +74,6 @@ public class MongoDbReadWriteIT {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbReadWriteIT.class);
   private static final Schema SOURCE_SCHEMA =
       Schema.builder()
-          .addNullableField("_id", STRING)
           .addNullableField("c_bigint", INT64)
           .addNullableField("c_tinyint", BYTE)
           .addNullableField("c_smallint", INT16)
@@ -88,7 +87,6 @@ public class MongoDbReadWriteIT {
   private static final String hostname = "localhost";
   private static final String database = "beam";
   private static final String collection = "collection";
-  private static int port;
 
   @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
 
@@ -105,7 +103,7 @@ public class MongoDbReadWriteIT {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    port = NetworkTestHelper.getAvailableLocalPort();
+    int port = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting MongoDB embedded instance on {}", port);
     IMongodConfig mongodConfig =
         new MongodConfigBuilder()
@@ -143,12 +141,16 @@ public class MongoDbReadWriteIT {
     mongodExecutable.stop();
   }
 
+  @After
+  public void cleanUp() {
+    client.getDatabase(database).drop();
+  }
+
   @Test
   public void testWriteAndRead() {
     Row testRow =
         row(
             SOURCE_SCHEMA,
-            "object_id",
             9223372036854775807L,
             (byte) 127,
             (short) 32767,
@@ -161,7 +163,6 @@ public class MongoDbReadWriteIT {
 
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
-            + "   _id VARCHAR, \n "
             + "   c_bigint BIGINT, \n "
             + "   c_tinyint TINYINT, \n"
             + "   c_smallint SMALLINT, \n"
@@ -180,7 +181,6 @@ public class MongoDbReadWriteIT {
 
     String insertStatement =
         "INSERT INTO TEST VALUES ("
-            + "'object_id', "
             + "9223372036854775807, "
             + "127, "
             + "32767, "
@@ -218,7 +218,6 @@ public class MongoDbReadWriteIT {
 
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
-            + "   _id VARCHAR, \n "
             + "   c_bigint BIGINT, \n "
             + "   c_tinyint TINYINT, \n"
             + "   c_smallint SMALLINT, \n"
@@ -237,7 +236,6 @@ public class MongoDbReadWriteIT {
 
     String insertStatement =
         "INSERT INTO TEST VALUES ("
-            + "'object_id', "
             + "9223372036854775807, "
             + "127, "
             + "32767, "
