@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.bson.Document;
 import org.bson.json.JsonMode;
 import org.bson.json.JsonWriterSettings;
@@ -124,6 +125,11 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public ProjectSupport supportsProjects() {
     return ProjectSupport.WITH_FIELD_REORDERING;
+  }
+
+  @Override
+  public BeamSqlTableFilter constructFilter(List<RexNode> filter) {
+    return new MongoDbFilter(filter);
   }
 
   @Override
