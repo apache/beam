@@ -14,6 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+"""This module defines several file-based implementations of a PCollectionCache.
+
+This module is experimental. No backwards-compatibility guarantees.
+"""
+
 from __future__ import absolute_import
 
 import urllib
