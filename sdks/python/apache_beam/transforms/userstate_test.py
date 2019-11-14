@@ -604,7 +604,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         _, value = element
         set_state.add(value)
 
-        all_elements = [element for element in set_state.read()]
+        all_elements = [state_elm for state_elm in set_state.read()]
 
         if len(all_elements) == 5:
           emit_timer.set(1)

@@ -393,6 +393,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(expected))
 
   def test_pardo_state_timers(self):
+    logging.getLogger().setLevel(logging.DEBUG)
     self._run_pardo_state_timers(False)
 
   def test_windowed_pardo_state_timers(self):
@@ -578,9 +579,9 @@ class FnApiRunnerTest(unittest.TestCase):
         additional = [ord('d')]
       else:
         additional = ['d']
-      res = (p | 'a' >> beam.Create(['a']) | 'ma' >> beam.Map(lambda x: x),
+      res = (p | 'a' >> beam.Create(['a']),
              p | 'bc' >> beam.Create(['b', 'c']),
-             p | 'd' >> beam.Create(additional) | 'md' >> beam.Map(lambda x: x)
+             p | 'd' >> beam.Create(additional)
             ) | beam.Flatten()
       assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
