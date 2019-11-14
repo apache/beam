@@ -191,7 +191,7 @@ The Beam Python SDK allows configuration of the SDK harness to accommodate varyi
     an external service for Python workers by running
     `docker run -p=50000:50000 apachebeam/python3.6_sdk --worker_pool`.
     - `environment_config`: Address for the external service, e.g. `localhost:50000`.
-    - To access a Dockerized worker pool on Mac, set the `BEAM_WORKER_POOL_IN_DOCKER_VM`
+    - To access a Dockerized worker pool on Mac or Windows, set the `BEAM_WORKER_POOL_IN_DOCKER_VM`
       environment variable: `export BEAM_WORKER_POOL_IN_DOCKER_VM=1`.
   - `LOOPBACK`: User code is executed within the same process that submitted the pipeline. This
     option is useful for local testing. However, it is not suitable for a production environment,
