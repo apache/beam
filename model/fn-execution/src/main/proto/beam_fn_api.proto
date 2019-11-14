@@ -637,13 +637,18 @@ message StateKey {
     bytes key = 1;
   }
 
-  // Represents a request for the values associated with a specified user key and window
-  // in a PCollection.
+  // Represents a request for the values associated with a specified user key
+  // and window in a PCollection. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
   //
-  // Can only perform StateGetRequests on side inputs with the URN beam:side_input:multimap:v1.
+  // Can only be used to perform StateGetRequests on side inputs of the URN
+  // beam:side_input:multimap:v1.
   //
-  // For a PCollection<KV<K, V>>, the response data stream will be a concatenation of all V's
-  // associated with the specified key K.
+  // For a PCollection<KV<K, V>>, the response data stream will be a
+  // concatenation of all V's associated with the specified key K. See
+  // https://s.apache.org/beam-fn-api-send-and-receive-data for further
+  // details.
   message MultimapSideInput {
     // (Required) The id of the PTransform containing a side input.
     string transform_id = 1;
@@ -668,12 +673,17 @@ message StateKey {
     bytes key = 4;
   }
 
-  // Represents a request for the values associated with a specified window in a PCollection.
+  // Represents a request for the values associated with a specified window
+  // in a PCollection. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
   //
-  // Can only perform StateGetRequests on side inputs with the URN beam:side_input:iterable:v1 and
-  // beam:side_input:multimap:v1.
+  // Can only be used to perform StateGetRequests on side inputs of the URN
+  // beam:side_input:iterable:v1 and beam:side_input:multimap:v1.
   //
-  // For a PCollection<V>, the response data stream will be a concatenation of all V's.
+  // For a PCollection<V>, the response data stream will be a concatenation
+  // of all V's. See https://s.apache.org/beam-fn-api-send-and-receive-data
+  // for further details.
   message IterableSideInput {
     // (Required) The id of the PTransform containing a side input.
     string transform_id = 1;
