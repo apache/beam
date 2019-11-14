@@ -26,7 +26,7 @@ from apache_beam.portability.api.beam_runner_api_pb2_grpc import TestStreamServi
 
 
 class TestStreamServiceController(TestStreamServiceServicer):
-  def __init__(self, streaming_cache, endpoint=None):
+  def __init__(self, events, endpoint=None):
     self._server = grpc.server(ThreadPoolExecutor(max_workers=10))
 
     if endpoint:
@@ -38,7 +38,7 @@ class TestStreamServiceController(TestStreamServiceServicer):
 
     beam_runner_api_pb2_grpc.add_TestStreamServiceServicer_to_server(
         self, self._server)
-    self._streaming_cache = streaming_cache
+    self._events = events
 
   def start(self):
     self._server.start()
@@ -50,6 +50,6 @@ class TestStreamServiceController(TestStreamServiceServicer):
   def Events(self, request, context):
     """Streams back all of the events from the streaming cache."""
 
-    reader = self._streaming_cache.reader().read()
-    for e in reader:
+    events = self._events()
+    for e in events:
       yield e

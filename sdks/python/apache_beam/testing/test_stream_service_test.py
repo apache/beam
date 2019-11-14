@@ -39,43 +39,16 @@ TestStreamFileHeader.__test__ = False
 TestStreamFileRecord.__test__ = False
 
 
-class InMemoryReader(object):
-  def __init__(self, tag=None):
-    self._header = TestStreamFileHeader(tag=None)
-    self._coder = coders.FastPrimitivesCoder()
-
-  def add_element(self, element, event_time, processing_time):
-    element_payload = TestStreamPayload.TimestampedElement(
-        encoded_element=self._coder.encode(element),
-        timestamp=Timestamp.of(event_time).micros)
-    record = TestStreamFileRecord(
-        element=element_payload,
-        processing_time=Timestamp.of(processing_time).to_proto())
-    self._records.append(record)
-
-  def advance_watermark(self, watermark, processing_time):
-    record = TestStreamFileRecord(
-        watermark=Timestamp.of(watermark).to_proto(),
-        processing_time=Timestamp.of(processing_time).to_proto())
-    self._records.append(record)
-
-  def header(self):
-    return self._header
-
-  def read(self):
-    for i in range(10):
-      element = TestStreamPayload.TimestampedElement(
-          encoded_element=self._coder.encode(i), timestamp=i)
-      record = TestStreamFileRecord(
-          element=element,
-          processing_time=Timestamp.of(i).to_proto())
-      yield record
-
-
 class TestStreamServiceTest(unittest.TestCase):
+  def events(self):
+    for i in range(10):
+      e = TestStreamPayload.Event()
+      e.element_event.elements.append(
+          TestStreamPayload.TimestampedElement(timestamp=i))
+      yield e
+
   def setUp(self):
-    streaming_cache = StreamingCache(readers=[InMemoryReader()])
-    self.controller = TestStreamServiceController(streaming_cache)
+    self.controller = TestStreamServiceController(self.events)
     self.controller.start()
 
     channel = grpc.insecure_channel(self.controller.endpoint)
@@ -87,11 +60,7 @@ class TestStreamServiceTest(unittest.TestCase):
   def test_normal_run(self):
     r = self.stub.Events(beam_runner_api_pb2.EventsRequest())
     events = [e for e in r]
-
-    streaming_cache_reader = StreamingCache(readers=[InMemoryReader()]).reader()
-    expected_events = []
-    for e in streaming_cache_reader.read():
-      expected_events.append(e)
+    expected_events = [e for e in self.events()]
 
     self.assertEqual(events, expected_events)
 
@@ -114,10 +83,7 @@ class TestStreamServiceTest(unittest.TestCase):
       except StopIteration:
         done |= True
 
-    streaming_cache_reader = StreamingCache(readers=[InMemoryReader()]).reader()
-    expected_events = []
-    for e in streaming_cache_reader.read():
-      expected_events.append(e)
+    expected_events = [e for e in self.events()]
 
     self.assertEqual(events_a, expected_events)
     self.assertEqual(events_b, expected_events)
