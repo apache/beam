@@ -71,7 +71,7 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
       **reader_kwargs: Arguments to pass to the underlying reader class.
 
     Returns:
-      A source from which we can read a PCollection.
+      A PTransform which reads a PCollection from cache.
     """
     raise NotImplementedError
 
@@ -80,7 +80,7 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
     """Return a writer PTransform which can write a PCollection to cache.
 
     Returns:
-      A sink to which we can write a PCollection.
+      A PTransform which writes a PCollection to cache.
     """
     raise NotImplementedError
 
