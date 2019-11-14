@@ -124,12 +124,6 @@ class FileBasedCacheTest(unittest.TestCase):
     # cache needs to be kept so that resources are not gc-ed immediately.
     cache = self.cache_class(self.location)  # pylint: disable=unused-variable
 
-    with self.assertRaises(ValueError):
-      _ = self.cache_class(self.location, mode=None)
-
-    with self.assertRaises(ValueError):
-      _ = self.cache_class(self.location, mode="be happy")
-
   def test_overwrite_cache_0(self):
     # cache needs to be kept so that resources are not gc-ed immediately.
     cache = self.cache_class(self.location)  # pylint: disable=unused-variable
@@ -148,8 +142,8 @@ class FileBasedCacheTest(unittest.TestCase):
   def test_overwrite_cache_2(self):
     # cache needs to be kept so that resources are not gc-ed immediately.
     cache = self.cache_class(self.location)  # pylint: disable=unused-variable
-    # OK to overwrite cache when in "overwrite" mode
-    _ = self.cache_class(self.location, mode="overwrite")
+    # OK to overwrite cache when `overwrite=True`
+    _ = self.cache_class(self.location, overwrite=True)
 
   def test_overwrite_cache_3(self):
     cache = self.cache_class(self.location)
@@ -244,7 +238,7 @@ class FileBasedCacheTest(unittest.TestCase):
   def test_reader_arguments(self):
 
     def check_reader_passthrough_kwargs(kwargs, passthrough):
-      cache = self.cache_class(self.location, mode="overwrite", **kwargs)
+      cache = self.cache_class(self.location, overwrite=True, **kwargs)
       cache._reader_passthrough_arguments = passthrough
       cache.reader()
       _, kwargs_out = list(cache._reader_class.call_args)

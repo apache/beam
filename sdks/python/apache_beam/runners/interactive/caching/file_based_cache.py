@@ -57,25 +57,28 @@ __all__ = [
 
 class FileBasedCache(PCollectionCache):
 
-  def __init__(self, cache_spec, mode="error", persist=False, **writer_kwargs):
+  def __init__(self,
+               cache_spec,
+               overwrite=False,
+               persist=False,
+               **writer_kwargs):
     """Initialize a PCollectionCache object.
 
     Args:
       cache_spec (str): A string indicating the location where the cache should
           be stored. Typically, this includes the folder and the filename
           prefix for files that will be created.
-      mode (str): Controls the behavior when one or more files matching location
-          already exit. If "error", an IOError will be raised. If "overwrite",
-          the existing files will be removed.
+      overwrite (bool): Controls the behavior when one or more files matching
+          `cache_spec` already exit. If ``False``, an IOError will be raised.
+          If ``True``, existing files will be removed.
       persist (bool): A flag indicating whether the underlying data should be
           destroyed when the cache instance goes out of scope.
       writer_kwargs (Dict[str, Any]): A dictionary of key-value pairs
           to be passed to the underlying writer objects.
 
     Raises:
-      ~exceptions.ValueError: If the specified mode is not supported.
-      ~exceptions.IOError: If one or more files matching `location` already
-          exist and mode == "error".
+      ~exceptions.IOError: If one or more files matching `cache_spec` already
+          exist and `overwrite` is ``False``.
     """
     self.cache_spec = cache_spec
     self.element_type = None
@@ -85,14 +88,11 @@ class FileBasedCache(PCollectionCache):
     self._persist = persist
     self._finalizer = self._configure_finalizer(persist)
 
-    # TODO(ostrokach): Implement append mode.
-    if mode not in ['error', 'overwrite']:
-      raise ValueError("'mode' must be set to one of: ['error', 'overwrite'].")
     exitsting_files = list(glob_files(self.file_pattern))
-    if mode == "error" and exitsting_files:
-      raise IOError("The following cache files already exist: {}.".format(
-          exitsting_files))
-    if mode == "overwrite":
+    if exitsting_files:
+      if not overwrite:
+        raise IOError("The following cache files already exist: {}.".format(
+            exitsting_files))
       self.truncate()
 
     root, _ = FileSystems.split(self._file_path_prefix)
