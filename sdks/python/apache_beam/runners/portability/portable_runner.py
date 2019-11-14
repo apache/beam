@@ -20,13 +20,11 @@ from __future__ import absolute_import
 import functools
 import itertools
 import logging
-import sys
 import threading
 import time
 
 import grpc
 
-from apache_beam import version as beam_version
 from apache_beam.metrics import metric
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.options.pipeline_options import DebugOptions
@@ -77,22 +75,6 @@ class PortableRunner(runner.PipelineRunner):
   """
   def __init__(self):
     self._dockerized_job_server = None
-
-  @staticmethod
-  def default_docker_image():
-    sdk_version = beam_version.__version__
-    version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
-    logging.warning('Make sure that locally built Python SDK docker image '
-                    'has Python %d.%d interpreter.' % (
-                        sys.version_info[0], sys.version_info[1]))
-
-    image = ('apachebeam/python{version_suffix}_sdk:{tag}'.format(
-        version_suffix=version_suffix, tag=sdk_version))
-    logging.info(
-        'Using Python SDK docker image: %s. If the image is not '
-        'available at local, we will try to pull from hub.docker.com'
-        % (image))
-    return image
 
   @staticmethod
   def _create_environment(options):
