@@ -589,6 +589,13 @@ def lift_combiners(stages, context):
   ... -> PreCombine -> GBK -> MergeAccumulators -> ExtractOutput -> ...
   """
   def is_compatible_with_combiner_lifting(trigger):
+    '''Returns whether this trigger is compatible with combiner lifting.
+
+    Certain triggers, such as those that fire after a certain number of
+    elements, need to observe every element, and as such are incompatible
+    with combiner lifting (which may aggregate several elements into one
+    before they reach the triggering code after shuffle).
+    '''
     if trigger is None:
       return True
     elif trigger.WhichOneof('trigger') in (
