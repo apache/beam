@@ -28,7 +28,6 @@ from builtins import range
 
 from apache_beam.io import filesystemio
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

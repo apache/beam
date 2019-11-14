@@ -26,7 +26,6 @@ from apitools.base.py import exceptions
 from apitools.base.py import http_wrapper
 from apitools.base.py import util
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
