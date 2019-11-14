@@ -39,7 +39,6 @@ except ImportError:
 DEFAULT_TIMEOUT = 5 * 60
 MAX_MESSAGES_IN_ONE_PULL = 50
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
