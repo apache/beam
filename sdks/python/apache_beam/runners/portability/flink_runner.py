@@ -45,17 +45,19 @@ class FlinkRunner(portable_runner.PortableRunner):
     return super(FlinkRunner, self).run_pipeline(pipeline, options)
 
   def default_job_server(self, options):
+    flink_options = options.view_as(FlinkRunnerOptions)
     flink_master = self.add_http_scheme(
-        options.view_as(FlinkRunnerOptions).flink_master)
-    options.view_as(FlinkRunnerOptions).flink_master = flink_master
+        flink_options.flink_master)
+    flink_options.flink_master = flink_master
     if flink_master in MAGIC_HOST_NAMES or sys.version_info < (3, 6):
       return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
     else:
       # This has to be changed [auto], otherwise we will attempt to submit a
       # the pipeline remotely on the Flink JobMaster which will _fail_.
       # DO NOT CHANGE the following line, unless you have tested this.
-      options.view_as(FlinkRunnerOptions).flink_master = '[auto]'
-      return flink_uber_jar_job_server.FlinkUberJarJobServer(flink_master)
+      flink_options.flink_master = '[auto]'
+      return flink_uber_jar_job_server.FlinkUberJarJobServer(
+          flink_master, options)
 
   @staticmethod
   def add_http_scheme(flink_master):
@@ -86,6 +88,9 @@ class FlinkRunnerOptions(pipeline_options.PipelineOptions):
     parser.add_argument('--flink_job_server_jar',
                         help='Path or URL to a flink jobserver jar.')
     parser.add_argument('--artifacts_dir', default=None)
+    parser.add_argument('--artifact_port', default=0,
+                        help='Port to use for artifact staging. 0 to use a '
+                             'dynamic port.')
 
 
 class FlinkJarJobServer(job_server.JavaJarJobServer):
