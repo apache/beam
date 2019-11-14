@@ -63,8 +63,8 @@ class StreamingCache(object):
 
       Retrieves an element from each stream iff the most recently read timestamp
       from that stream is less than the target_timestamp. Since the amount of
-      events may not fit into memory, this StreamingCache needs to read each
-      element one at a time.
+      events may not fit into memory, this StreamingCache reads at most one
+      element from each stream at a time.
       """
       records = []
       for tag, r in self._readers.items():
