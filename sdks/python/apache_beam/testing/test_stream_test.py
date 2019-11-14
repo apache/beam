@@ -208,7 +208,7 @@ class TestStreamTest(unittest.TestCase):
     # sure that the ON_TIME empty pane was also emitted with a TestStream.
     # This pane has no data because of the early trigger causes the elements to
     # fire before the end of the window and because the accumulation mode
-    # discards any late data.
+    # discards any data after the trigger fired.
     expected_letters = {
         window.IntervalWindow(0, 15): [
             ('k', ['a', 'b', 'c']),
