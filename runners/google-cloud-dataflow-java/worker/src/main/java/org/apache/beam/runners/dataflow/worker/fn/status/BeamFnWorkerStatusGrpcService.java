@@ -90,7 +90,7 @@ public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase im
       // If SDK harness connect without proper sdk worker id, generate one with name unknown_sdkXX.
       // TODO: enforce proper worker id.
       workerId = UNKNOW_SDK_ID_PREFIX + idGenerator.getAndIncrement();
-      LOG.warn(
+      LOG.info(
           "No worker_id header provided in status response. Will use generated id: {}", workerId);
     }
 
@@ -119,7 +119,7 @@ public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase im
         Thread.sleep(500);
       }
     } catch (InterruptedException e) {
-      LOG.info("Thread interrupted waiting for status client to connect");
+      LOG.info("Thread interrupted while waiting for status client to connect");
     }
     return Optional.ofNullable(client);
   }

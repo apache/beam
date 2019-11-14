@@ -873,17 +873,23 @@ service BeamFnExternalWorkerPool {
   rpc StopWorker (StopWorkerRequest) returns (StopWorkerResponse) {}
 }
 
+// Request from runner to SDK Harness asking for its status.
 message WorkerStatusRequest {
+  // (Required) Unique ID identifying this request.
   string request_id = 1;
 }
 
+// Response from SDK Harness to runner containing the debug related status info.
 message WorkerStatusResponse {
+  // (Required) Unique ID from the original request.
   string request_id = 1;
+  // (Optional) Error message if exception encountered generating the status response.
   string error = 2;
-  // status debugging info reported by SDK harness worker.
+  // (Optional) Status debugging info reported by SDK harness worker.
   string status_info = 3;
 }
 
+// Fn Api for SDK harness to report its debug-related statuses to runner.
 service BeamFnWorkerStatus {
   rpc WorkerStatus (stream WorkerStatusResponse)
     returns (stream WorkerStatusRequest) {}
