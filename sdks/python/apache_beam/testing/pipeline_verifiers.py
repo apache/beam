@@ -48,7 +48,6 @@ except ImportError:
 
 MAX_RETRIES = 4
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

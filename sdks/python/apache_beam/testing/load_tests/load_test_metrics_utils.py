@@ -72,7 +72,6 @@ SCHEMA = [
     }
 ]
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
