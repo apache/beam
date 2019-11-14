@@ -25,6 +25,9 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT16;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
+import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 
 import com.mongodb.MongoClient;
@@ -40,6 +43,7 @@ import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.runtime.Network;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
@@ -50,6 +54,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -92,6 +97,9 @@ public class MongoDbReadWriteIT {
   private static MongodProcess mongodProcess;
   private static MongoClient client;
 
+  private static final BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new MongoDbTableProvider());
+  private static String mongoSqlUrl;
+
   @Rule public final TestPipeline writePipeline = TestPipeline.create();
   @Rule public final TestPipeline readPipeline = TestPipeline.create();
 
@@ -117,6 +125,14 @@ public class MongoDbReadWriteIT {
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
     client = new MongoClient(hostname, port);
+
+    mongoSqlUrl =
+        String.format(
+            "mongodb://%s:%d/%s/%s",
+            hostname,
+            port,
+            database,
+            collection);
   }
 
   @AfterClass
@@ -129,9 +145,6 @@ public class MongoDbReadWriteIT {
 
   @Test
   public void testWriteAndRead() {
-    final String mongoSqlUrl =
-        String.format("mongodb://%s:%d/%s/%s", hostname, port, database, collection);
-
     Row testRow =
         row(
             SOURCE_SCHEMA,
@@ -163,7 +176,6 @@ public class MongoDbReadWriteIT {
             + "LOCATION '"
             + mongoSqlUrl
             + "'";
-    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new MongoDbTableProvider());
     sqlEnv.executeDdl(createTableStatement);
 
     String insertStatement =
@@ -187,7 +199,70 @@ public class MongoDbReadWriteIT {
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery("select * from TEST"));
 
-    assertEquals(output.getSchema(), SOURCE_SCHEMA);
+    assertEquals(SOURCE_SCHEMA, output.getSchema());
+
+    PAssert.that(output).containsInAnyOrder(testRow);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testProjectPushDown() {
+    final Schema expectedSchema =
+        Schema.builder()
+            .addNullableField("c_varchar", STRING)
+            .addNullableField("c_boolean", BOOLEAN)
+            .addNullableField("c_integer", INT32)
+            .build();
+    Row testRow = row(expectedSchema, "varchar", true, 2147483647);
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   _id VARCHAR, \n "
+            + "   c_bigint BIGINT, \n "
+            + "   c_tinyint TINYINT, \n"
+            + "   c_smallint SMALLINT, \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_double DOUBLE, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_varchar VARCHAR, \n "
+            + "   c_arr ARRAY<VARCHAR> \n"
+            + ") \n"
+            + "TYPE 'mongodb' \n"
+            + "LOCATION '"
+            + mongoSqlUrl
+            + "'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "'object_id', "
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "'varchar', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    BeamRelNode insertRelNode = sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(writePipeline, insertRelNode);
+    writePipeline.run().waitUntilFinish();
+
+    BeamRelNode node = sqlEnv.parseQuery("select c_varchar, c_boolean, c_integer from TEST");
+    // Calc should be dropped, since MongoDb supports project push-down and field reordering.
+    assertThat(node, instanceOf(BeamPushDownIOSourceRel.class));
+    // Only selected fields are projected.
+    assertThat(
+        node.getRowType().getFieldNames(),
+        containsInAnyOrder("c_varchar", "c_boolean", "c_integer"));
+    PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, node);
+
+    assertEquals(expectedSchema, output.getSchema());
 
     PAssert.that(output).containsInAnyOrder(testRow);
 

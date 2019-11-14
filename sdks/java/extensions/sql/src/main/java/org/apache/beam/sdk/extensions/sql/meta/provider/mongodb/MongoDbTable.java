@@ -33,7 +33,9 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.mongodb.FindQuery;
 import org.apache.beam.sdk.io.mongodb.MongoDbIO;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -92,10 +94,14 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
-    MongoDbIO.Read readBuilder = MongoDbIO.read()
-        .withUri(dbUri)
-        .withDatabase(dbName)
-        .withCollection(dbCollection);
+    MongoDbIO.Read readBuilder =
+        MongoDbIO.read().withUri(dbUri).withDatabase(dbName).withCollection(dbCollection);
+
+    final FieldAccessDescriptor resolved =
+        FieldAccessDescriptor.withFieldNames(fieldNames)
+            .withOrderByFieldInsertionOrder()
+            .resolve(getSchema());
+    final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
 
     if (!(filters instanceof DefaultTableFilter)) {
       throw new RuntimeException("Unimplemented at the moment.");
@@ -105,7 +111,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
       readBuilder.withQueryFn(FindQuery.create().withProjection(fieldNames));
     }
 
-    return readBuilder.expand(begin).apply(DocumentToRow.withSchema(getSchema()));
+    return readBuilder.expand(begin).apply(DocumentToRow.withSchema(newSchema));
   }
 
   @Override
@@ -117,7 +123,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public ProjectSupport supportsProjects() {
-    return ProjectSupport.WITHOUT_FIELD_REORDERING;
+    return ProjectSupport.WITH_FIELD_REORDERING;
   }
 
   @Override
