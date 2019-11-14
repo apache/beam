@@ -45,7 +45,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

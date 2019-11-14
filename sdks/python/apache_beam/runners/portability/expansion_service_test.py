@@ -34,7 +34,6 @@ from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 # This script provides an expansion service and example ptransforms for running
 # external transform test cases. See external_test.py for details.
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

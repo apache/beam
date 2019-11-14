@@ -40,7 +40,6 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

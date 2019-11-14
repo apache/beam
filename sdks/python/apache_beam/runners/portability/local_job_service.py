@@ -43,7 +43,6 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

@@ -29,7 +29,6 @@ import grpc
 
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

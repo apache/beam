@@ -41,7 +41,6 @@ from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

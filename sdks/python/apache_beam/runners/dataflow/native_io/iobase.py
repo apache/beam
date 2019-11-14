@@ -30,7 +30,6 @@ from apache_beam.io import iobase
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

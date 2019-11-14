@@ -23,7 +23,6 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metric import MetricName
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

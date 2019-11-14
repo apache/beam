@@ -24,7 +24,6 @@ import time
 
 from apache_beam.runners.portability import local_job_service
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

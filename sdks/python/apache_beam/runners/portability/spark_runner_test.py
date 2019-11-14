@@ -29,7 +29,6 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

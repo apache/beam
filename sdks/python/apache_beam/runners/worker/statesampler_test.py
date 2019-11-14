@@ -31,7 +31,6 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

@@ -29,7 +29,6 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.worker import log_handler
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
