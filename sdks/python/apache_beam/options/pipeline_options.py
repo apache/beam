@@ -23,6 +23,7 @@ import argparse
 import json
 import logging
 import os
+import subprocess
 from builtins import list
 from builtins import object
 
@@ -514,11 +515,17 @@ class GoogleCloudOptions(PipelineOptions):
       return environment_region
     try:
       cmd = ['gcloud', 'config', 'get-value', 'compute/region']
-      output = processes.check_output(cmd).decode('utf-8').strip()
-      if output:
+      # Use subprocess.DEVNULL in Python 3.3+.
+      if hasattr(subprocess, 'DEVNULL'):
+        DEVNULL = subprocess.DEVNULL
+      else:
+        DEVNULL = open(os.devnull, 'ab')
+      raw_output = processes.check_output(cmd, stderr=DEVNULL)
+      formatted_output = raw_output.decode('utf-8').strip()
+      if formatted_output:
         logging.info('Using default GCP region %s from `%s`',
-                     output, ' '.join(cmd))
-        return output
+                     formatted_output, ' '.join(cmd))
+        return formatted_output
     except RuntimeError:
       pass
     logging.warning(
