@@ -36,7 +36,6 @@ from threading import Timer
 
 from apache_beam.io import filesystems
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
