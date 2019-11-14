@@ -58,8 +58,8 @@ from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_provision_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
-from apache_beam.runners.pipeline_context import PipelineContext
 from apache_beam.runners import runner
+from apache_beam.runners.pipeline_context import PipelineContext
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability.fn_api_runner_transforms import PipelineExecutionContext
@@ -414,7 +414,6 @@ class _FnApiRunnerExecution(object):
     raise RuntimeError(
         'No IO transform feeds %s' % transform_id)
 
-
   @staticmethod
   def _store_side_inputs_in_state(worker_handler,
                                   context,
@@ -438,41 +437,6 @@ class _FnApiRunnerExecution(object):
                 key=key))
         worker_handler.state.append_raw(state_key, elements_data)
 
-  # @staticmethod
-  # def _collect_written_timers_and_add_to_deferred_inputs(
-  #     context,
-  #     pipeline_components,
-  #     stage,
-  #     get_buffer_callable,
-  #     deferred_inputs):
-  #
-  #   for transform_id, timer_writes in stage.timer_pcollections:
-  #
-  #     # Queue any set timers as new inputs.
-  #     windowed_timer_coder_impl = context.coders[
-  #       pipeline_components.pcollections[timer_writes].coder_id].get_impl()
-  #     written_timers = get_buffer_callable(
-  #         create_buffer_id(timer_writes, kind='timers'))
-  #     if written_timers:
-  #       # Keep only the "last" timer set per key and window.
-  #       timers_by_key_and_window = {}
-  #       for elements_data in written_timers:
-  #         input_stream = create_InputStream(elements_data)
-  #         while input_stream.size() > 0:
-  #           windowed_key_timer = windowed_timer_coder_impl.decode_from_stream(
-  #               input_stream, True)
-  #           key, _ = windowed_key_timer.value
-  #           # TODO: Explode and merge windows.
-  #           assert len(windowed_key_timer.windows) == 1
-  #           timers_by_key_and_window[
-  #             key, windowed_key_timer.windows[0]] = windowed_key_timer
-  #       out = create_OutputStream()
-  #       for windowed_key_timer in timers_by_key_and_window.values():
-  #         windowed_timer_coder_impl.encode_to_stream(
-  #             windowed_key_timer, out, True)
-  #       deferred_inputs[transform_id] = _ListBuffer([out.get()])
-  #       written_timers[:] = []
-
   @staticmethod
   def _add_residuals_and_channel_splits_to_deferred_inputs(
       process_bundle_descriptor, splits, get_input_coder_callable,
@@ -490,7 +454,7 @@ class _FnApiRunnerExecution(object):
             delayed_application.application.element)
       for channel_split in split.channel_splits:
         coder_impl = get_input_coder_callable(channel_split.transform_id)
-        # TODO(SDF): This requires determanistic ordering of buffer iteration.
+        # TODO(SDF): This requires deterministic ordering of buffer iteration.
         # TODO(SDF): The return split is in terms of indices.  Ideally,
         # a runner could map these back to actual positions to effectively
         # describe the two "halves" of the now-split range.  Even if we have
@@ -761,15 +725,14 @@ class FnApiRunner(runner.PipelineRunner):
         stage_context.components.environments, self._provision_info)
     input_queue_manager = _ProcessingQueueManager()
     pcoll_buffers = collections.defaultdict(_ListBuffer)
-    metrics_by_stage = {}
     monitoring_infos_by_stage = {}
+    metrics_by_stage = {}
 
     execution_context = PipelineExecutionContext(stage_context.components,
                                                  stages)
-    execution_context.show()
+    #execution_context.show()
 
     self._enqueue_all_initial_inputs(stages, input_queue_manager)
-
     try:
       with self.maybe_profile():
         while len(input_queue_manager.ready_inputs) > 0:
@@ -789,6 +752,7 @@ class FnApiRunner(runner.PipelineRunner):
           endpoints_for_execution = (next_ready_elements, data_output)
 
           logging.info('Executing bundle for stage %s', stage.name)
+          logging.debug('Endpoints for execution: %s', endpoints_for_execution)
           stage_results, output_bundles, deferred_inputs = self._execute_bundle(
               execution_context,
               worker_handler_manager.get_worker_handlers,
@@ -797,9 +761,9 @@ class FnApiRunner(runner.PipelineRunner):
               pcoll_buffers,
               stage_context.safe_coders,
               endpoints_for_execution)
-          metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
-          monitoring_infos_by_stage[stage.name] = (
-              stage_results.process_bundle.monitoring_infos)
+          self._merge_metrics_from_stage_execution(monitoring_infos_by_stage,
+                                                   metrics_by_stage,
+                                                   stage_results, stage.name)
 
           output_bundles_with_timestamps = self._update_watermarks(
               execution_context, stage, data_input, output_bundles,
@@ -827,9 +791,26 @@ class FnApiRunner(runner.PipelineRunner):
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
-  def _schedule_newly_ready_bundles(self,
-                                    execution_context,
-                                    input_queue_manager):
+  @staticmethod
+  def _merge_metrics_from_stage_execution(
+      monitoring_infos_by_stage,  # type: Dict[str, List[Any]]
+      metrics_by_stage,  # type: Dict[str, List[beam_fn_api_pb2.Metrics]]
+      stage_results,  # type: beam_fn_api_pb2.InstructionResponse
+      stage_name  # type: str
+  ):
+    # type: (...) -> None
+    stage_minfos = stage_results.process_bundle.monitoring_infos
+    if stage_name in monitoring_infos_by_stage:
+      stage_minfos = monitoring_infos.consolidate(
+          itertools.chain(stage_minfos, monitoring_infos_by_stage[stage_name]))
+
+    monitoring_infos_by_stage[stage_name] = stage_minfos
+
+    # TODO(pabloem): Note that these are not merged.
+    metrics_by_stage[stage_name] = stage_results.process_bundle.metrics
+
+  @staticmethod
+  def _schedule_newly_ready_bundles(execution_context, input_queue_manager):
     # type: (PipelineExecutionContext, _ProcessingQueueManager) -> None
     """Inspect watermark pending bundles, and schedule ready ones.
 
@@ -869,7 +850,6 @@ class FnApiRunner(runner.PipelineRunner):
     It also recomputes the output bundle list to contain consumer and target
     watermark (i.e. the input watermark of the consumer to be scheduled)."""
 
-    # TODO(pabloem): DOCUMENT THIS!
     # Map Timer reading transform to Timer write PCollection
     timer_read_transform_to_written_pcoll_map = {}
     timer_written_pcoll_to_read_pcoll_map = {}
@@ -1028,7 +1008,7 @@ class FnApiRunner(runner.PipelineRunner):
     """Run an individual stage.
 
     Args:
-      pipeline_execution_context (PipelineExecutionContext): Context with
+      execution_context (PipelineExecutionContext): Context with
         execution information for the whole pipeline.
       worker_handler_factory: A ``callable`` that takes in an environment, and
         returns a ``WorkerHandler`` class.
@@ -1132,33 +1112,10 @@ class FnApiRunner(runner.PipelineRunner):
         splits,
         last_sent)
 
-    # TODO(pabloem, MUST): NOTE robertwb comment a few lines below regarding
-    #  DEFERRED INPUTS.
-    """
-    if deferred_inputs:
-      # The worker will be waiting on these inputs as well.
-      for other_input in data_input:
-        if other_input not in deferred_inputs:
-          deferred_inputs[other_input] = _ListBuffer([])
-      # TODO(robertwb): merge results
-      # We cannot split deferred_input until we include residual_roots to
-      # merged results. Without residual_roots, pipeline stops earlier and we
-      # may miss some data.
-      bundle_manager._num_workers = 1
-      bundle_manager._skip_registration = True
-      last_result, splits = bundle_manager.process_bundle(
-          deferred_inputs, data_output)
-      last_sent = deferred_inputs
-      result = beam_fn_api_pb2.InstructionResponse(
-          process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-              monitoring_infos=monitoring_infos.consolidate(
-                  itertools.chain(
-                      result.process_bundle.monitoring_infos,
-                      last_result.process_bundle.monitoring_infos))),
-          error=result.error or last_result.error)
-      else:
-        break
-    """
+    # TODO(pabloem, MUST): NOTE when working with deferred inputs:
+    #  We cannot split deferred_input until we include residual_roots to
+    #  merged results. Without residual_roots, pipeline stops earlier and we
+    #  may miss some data.
 
     return result, output_bundles, deferred_inputs
 
@@ -1215,7 +1172,6 @@ class FnApiRunner(runner.PipelineRunner):
           data_spec.api_service_descriptor.url = (
               data_api_service_descriptor.url)
         transform.spec.payload = data_spec.SerializeToString()
-
 
   # These classes are used to interact with the worker.
 
@@ -2147,8 +2103,7 @@ class ParallelBundleManager(BundleManager):
     part_inputs = [{} for _ in range(self._num_workers)]
     for name, input in inputs.items():
       for ix, part in enumerate(input.partition(self._num_workers)):
-        if part:
-          part_inputs[ix][name] = part
+        part_inputs[ix][name] = part
 
     merged_result = None
     split_result_list = []
