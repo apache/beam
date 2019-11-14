@@ -57,6 +57,7 @@ from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
+from nose.plugins.attrib import attr
 
 
 class FakeClock(object):
@@ -486,6 +487,7 @@ class ReshuffleTest(unittest.TestCase):
                 label='after reshuffle')
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_reshuffle_preserves_timestamps(self):
     pipeline = TestPipeline()
 
@@ -510,12 +512,12 @@ class ReshuffleTest(unittest.TestCase):
     # Combine each element in before_reshuffle with its timestamp.
     formatted_before_reshuffle = (before_reshuffle
                                   | "Get before_reshuffle timestamp" >>
-                                        beam.ParDo(GetTimestamp()))
+                                  beam.ParDo(GetTimestamp()))
 
     # Combine each element in after_reshuffle with its timestamp.
     formatted_after_reshuffle = (after_reshuffle
                                  | "Get after_reshuffle timestamp" >>
-                                       beam.ParDo(GetTimestamp()))
+                                 beam.ParDo(GetTimestamp()))
 
     expected_data = ["Timestamp(-9223372036854.775000) - foo",
                      "Timestamp(0) - foo",
