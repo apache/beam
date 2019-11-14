@@ -67,6 +67,9 @@ __all__ = [
     ]
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class AccumulationMode(object):
   """Controls what to do with data when a trigger fires multiple times."""
   DISCARDING = beam_runner_api_pb2.AccumulationMode.DISCARDING
@@ -1190,7 +1193,7 @@ class GeneralTriggerDriver(TriggerDriver):
             window, self.NONSPECULATIVE_INDEX)
         state.add_state(window, self.NONSPECULATIVE_INDEX, 1)
         windowed_value.PaneInfoTiming.LATE
-        logging.warning('Watermark moved backwards in time '
+        _LOGGER.warning('Watermark moved backwards in time '
                         'or late data moved window end forward.')
     else:
       nonspeculative_index = state.get_state(window, self.NONSPECULATIVE_INDEX)
@@ -1320,7 +1323,7 @@ class InMemoryUnmergedState(UnmergedState):
         elif time_domain == TimeDomain.WATERMARK:
           time_marker = watermark
         else:
-          logging.error(
+          _LOGGER.error(
               'TimeDomain error: No timers defined for time domain %s.',
               time_domain)
         if timestamp <= time_marker:
