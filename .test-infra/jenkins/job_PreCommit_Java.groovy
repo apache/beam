@@ -30,6 +30,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^examples/java/.*$',
       '^examples/kotlin/.*$',
       '^release/.*$',
+    ],
+    excludePathPatterns: [
+      '^sdks/java/extensions/sql/.*$'
     ]
 )
 builder.build {

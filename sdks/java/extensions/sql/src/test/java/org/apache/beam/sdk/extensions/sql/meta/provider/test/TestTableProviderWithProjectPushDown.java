@@ -22,10 +22,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import com.alibaba.fastjson.JSON;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -180,11 +182,72 @@ public class TestTableProviderWithProjectPushDown {
         .containsInAnyOrder(
             row(result.getSchema(), 100, 1, "one", 100),
             row(result.getSchema(), 200, 2, "two", 200));
-    assertThat(beamRelNode, instanceOf(BeamIOSourceRel.class));
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     // If project push-down succeeds new BeamIOSourceRel should not output unused fields
     assertThat(
-        beamRelNode.getRowType().getFieldNames(),
+        beamRelNode.getInput(0).getRowType().getFieldNames(),
         containsInAnyOrder("unused1", "id", "name", "unused2"));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testIOSourceRel_selectOneFieldsMoreThanOnce() {
+    String selectTableStatement = "SELECT id, id, id, id, id FROM TEST";
+
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
+    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    // Calc must not be dropped
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    // Make sure project push-down was done
+    List<String> pushedFields = beamRelNode.getInput(0).getRowType().getFieldNames();
+    assertThat(pushedFields, containsInAnyOrder("id"));
+
+    assertEquals(
+        Schema.builder()
+            .addInt32Field("id")
+            .addInt32Field("id0")
+            .addInt32Field("id1")
+            .addInt32Field("id2")
+            .addInt32Field("id3")
+            .build(),
+        result.getSchema());
+    PAssert.that(result)
+        .containsInAnyOrder(
+            row(result.getSchema(), 1, 1, 1, 1, 1), row(result.getSchema(), 2, 2, 2, 2, 2));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testIOSourceRel_selectOneFieldsMoreThanOnce_withSupportedPredicate() {
+    String selectTableStatement = "SELECT id, id, id, id, id FROM TEST where id=1";
+
+    // Calc must not be dropped
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(selectTableStatement);
+    PCollection<Row> result = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    // Project push-down should leave predicate in a Calc
+    assertNotNull(((BeamCalcRel) beamRelNode).getProgram().getCondition());
+    assertThat(beamRelNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    // Make sure project push-down was done
+    List<String> pushedFields = beamRelNode.getInput(0).getRowType().getFieldNames();
+    assertThat(pushedFields, containsInAnyOrder("id"));
+
+    assertEquals(
+        Schema.builder()
+            .addInt32Field("id")
+            .addInt32Field("id0")
+            .addInt32Field("id1")
+            .addInt32Field("id2")
+            .addInt32Field("id3")
+            .build(),
+        result.getSchema());
+    PAssert.that(result).containsInAnyOrder(row(result.getSchema(), 1, 1, 1, 1, 1));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }

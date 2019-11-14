@@ -27,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
@@ -150,8 +151,10 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   }
 
   @Override
-  public boolean supportsProjects() {
-    return true;
+  public ProjectSupport supportsProjects() {
+    return method.equals(Method.DIRECT_READ)
+        ? ProjectSupport.WITHOUT_FIELD_REORDERING
+        : ProjectSupport.NONE;
   }
 
   private TypedRead<Row> getBigQueryReadBuilder(Schema schema) {

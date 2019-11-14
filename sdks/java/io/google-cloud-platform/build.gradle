@@ -69,6 +69,10 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  // For testing Cross-language transforms
+  testCompile project(":runners:core-construction-java")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit

@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.schemas;
 
-/** A factory for {@link SchemaUserTypeCreator} objects. */
+/**
+ * A factory for creating {@link SchemaUserTypeCreator} objects from a user class and its inferred
+ * schema.
+ */
 public interface UserTypeCreatorFactory extends Factory<SchemaUserTypeCreator> {
   @Override
   SchemaUserTypeCreator create(Class<?> clazz, Schema schema);

@@ -37,7 +37,7 @@ type contextKey string
 
 const instKey contextKey = "beam:inst"
 
-func setInstID(ctx context.Context, id string) context.Context {
+func setInstID(ctx context.Context, id instructionID) context.Context {
 	return context.WithValue(ctx, instKey, id)
 }
 
@@ -46,7 +46,7 @@ func tryGetInstID(ctx context.Context) (string, bool) {
 	if id == nil {
 		return "", false
 	}
-	return id.(string), true
+	return string(id.(instructionID)), true
 }
 
 type logger struct {
@@ -61,7 +61,7 @@ func (l *logger) Log(ctx context.Context, sev log.Severity, calldepth int, msg s
 		Severity:  convertSeverity(sev),
 		Message:   msg,
 	}
-	if _, file, line, ok := runtime.Caller(calldepth); ok {
+	if _, file, line, ok := runtime.Caller(calldepth + 1); ok {
 		entry.LogLocation = fmt.Sprintf("%v:%v", file, line)
 	}
 	if id, ok := tryGetInstID(ctx); ok {

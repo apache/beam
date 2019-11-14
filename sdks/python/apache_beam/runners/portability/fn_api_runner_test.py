@@ -35,23 +35,19 @@ from builtins import range
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 import hamcrest  # pylint: disable=ungrouped-imports
-import mock
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
 from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.io import iobase
 from apache_beam.io import restriction_trackers
-from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.portability import python_urns
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
@@ -61,8 +57,11 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.tools import utils
+from apache_beam.transforms import core
+from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
+from apache_beam.utils import timestamp
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -110,48 +109,6 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Map(lambda e: e * 2)
              | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
-
-  def test_pardo_metrics(self):
-
-    class MyDoFn(beam.DoFn):
-
-      def start_bundle(self):
-        self.count = beam.metrics.Metrics.counter('ns1', 'elements')
-
-      def process(self, element):
-        self.count.inc(element)
-        return [element]
-
-    class MyOtherDoFn(beam.DoFn):
-
-      def start_bundle(self):
-        self.count = beam.metrics.Metrics.counter('ns2', 'elementsplusone')
-
-      def process(self, element):
-        self.count.inc(element + 1)
-        return [element]
-
-    with self.create_pipeline() as p:
-      res = (p | beam.Create([1, 2, 3])
-             | 'mydofn' >> beam.ParDo(MyDoFn())
-             | 'myotherdofn' >> beam.ParDo(MyOtherDoFn()))
-      p.run()
-      if not MetricsEnvironment.METRICS_SUPPORTED:
-        self.skipTest('Metrics are not supported.')
-
-      counter_updates = [{'key': key, 'value': val}
-                         for container in p.runner.metrics_containers()
-                         for key, val in
-                         container.get_updates().counters.items()]
-      counter_values = [update['value'] for update in counter_updates]
-      counter_keys = [update['key'] for update in counter_updates]
-      assert_that(res, equal_to([1, 2, 3]))
-      self.assertEqual(counter_values, [6, 9])
-      self.assertEqual(counter_keys, [
-          MetricKey('mydofn',
-                    MetricName('ns1', 'elements')),
-          MetricKey('myotherdofn',
-                    MetricName('ns2', 'elementsplusone'))])
 
   def test_pardo_side_outputs(self):
     def tee(elem, *tags):
@@ -469,19 +426,66 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, is_buffered_correctly)
 
   def test_sdf(self):
-
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
           self,
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(
               ExpandStringsProvider())):
-        assert isinstance(
-            restriction_tracker,
-            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
-        cur = restriction_tracker.start_position()
+        assert isinstance(restriction_tracker, iobase.RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
           yield element[cur]
+          cur += 1
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (
+          p
+          | beam.Create(data)
+          | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
+  def test_sdf_with_check_done_failed(self):
+    class ExpandingStringsDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              ExpandStringsProvider())):
+        assert isinstance(restriction_tracker, iobase.RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          yield element[cur]
+          cur += 1
+          return
+    with self.assertRaises(Exception):
+      with self.create_pipeline() as p:
+        data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+        _ = (
+            p
+            | beam.Create(data)
+            | beam.ParDo(ExpandingStringsDoFn()))
+
+  def test_sdf_with_watermark_tracking(self):
+
+    class ExpandingStringsDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              ExpandStringsProvider()),
+          watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+              core.WatermarkEstimator())):
+        cur = restriction_tracker.current_restriction().start
+        start = cur
+        while restriction_tracker.try_claim(cur):
+          watermark_estimator.set_watermark(timestamp.Timestamp(micros=cur))
+          assert watermark_estimator.current_watermark().micros == start
+          yield element[cur]
+          if cur % 2 == 1:
+            restriction_tracker.defer_remainder(timestamp.Duration(micros=5))
+            return
           cur += 1
 
     with self.create_pipeline() as p:
@@ -502,10 +506,8 @@ class FnApiRunnerTest(unittest.TestCase):
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(
               ExpandStringsProvider())):
-        assert isinstance(
-            restriction_tracker,
-            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
-        cur = restriction_tracker.start_position()
+        assert isinstance(restriction_tracker, iobase.RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
           counter.inc()
           yield element[cur]
@@ -528,33 +530,6 @@ class FnApiRunnerTest(unittest.TestCase):
       counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
-
-  def _run_sdf_wrapper_pipeline(self, source, expected_value):
-    with self.create_pipeline() as p:
-      experiments = (p._options.view_as(DebugOptions).experiments or [])
-
-      # Setup experiment option to enable using SDFBoundedSourceWrapper
-      if not 'use_sdf_bounded_source' in experiments:
-        experiments.append('use_sdf_bounded_source')
-
-      p._options.view_as(DebugOptions).experiments = experiments
-
-      actual = (
-          p | beam.io.Read(source)
-      )
-    assert_that(actual, equal_to(expected_value))
-
-  @mock.patch('apache_beam.io.iobase._SDFBoundedSourceWrapper.expand')
-  def test_sdf_wrapper_overrides_read(self, sdf_wrapper_mock_expand):
-    def _fake_wrapper_expand(pbegin):
-      return (pbegin
-              | beam.Create(['1']))
-
-    sdf_wrapper_mock_expand.side_effect = _fake_wrapper_expand
-    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), ['1'])
-
-  def test_sdf_wrap_range_source(self):
-    self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
@@ -683,10 +658,6 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_metrics(self):
     p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # This test is inherited by others that may not support the same
-      # internal way of accessing progress metrics.
-      self.skipTest('Metrics not supported.')
 
     counter = beam.metrics.Metrics.counter('ns', 'counter')
     distribution = beam.metrics.Metrics.distribution('ns', 'distribution')
@@ -875,10 +846,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         yield element
 
     p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # This test is inherited by others that may not support the same
-      # internal way of accessing progress metrics.
-      self.skipTest('Metrics not supported.')
 
     # Produce enough elements to make sure byte sampling occurs.
     num_source_elems = 100
@@ -1013,10 +980,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # This test is inherited by others that may not support the same
-      # internal way of accessing progress metrics.
-      self.skipTest('Metrics not supported.')
 
     pcoll = p | beam.Create(['a', 'zzz'])
     # pylint: disable=expression-not-assigned
@@ -1057,11 +1020,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
   @retry(reraise=True, stop=stop_after_attempt(3))
   def test_progress_metrics(self):
     p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # This test is inherited by others that may not support the same
-      # internal way of accessing progress metrics.
-      self.skipTest('Progress metrics not supported.')
-      return
 
     _ = (p
          | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])
@@ -1174,8 +1132,7 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+            default_environment=environments.EmbeddedPythonGrpcEnvironment()))
 
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
@@ -1183,9 +1140,9 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC,
-                payload=b'2,%d' % fn_api_runner.STATE_CACHE_SIZE)))
+            default_environment=environments.EmbeddedPythonGrpcEnvironment(
+                num_workers=2,
+                state_cache_size=fn_api_runner.STATE_CACHE_SIZE)))
 
 
 class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
@@ -1193,10 +1150,8 @@ class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC,
-                # number of workers, state cache size
-                payload=b'2,0')))
+            default_environment=environments.EmbeddedPythonGrpcEnvironment(
+                num_workers=2, state_cache_size=0)))
 
 
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
@@ -1216,6 +1171,9 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
   def test_sdf_with_sdf_initiated_checkpointing(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 
@@ -1223,8 +1181,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment()),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests..
     p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1234,6 +1191,9 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_watermark_tracking(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -1266,6 +1226,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
   def test_sdf_with_sdf_initiated_checkpointing(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerSplitTest(unittest.TestCase):
 
@@ -1274,8 +1237,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     # to the bundle process request.
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+            default_environment=environments.EmbeddedPythonGrpcEnvironment()))
 
   def test_checkpoint(self):
     # This split manager will get re-invoked on each smaller split,
@@ -1435,7 +1397,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(EnumerateProvider())):
         to_emit = []
-        cur = restriction_tracker.start_position()
+        cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
           to_emit.append((element, cur))
           element_counter.increment()
@@ -1579,8 +1541,7 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment()),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests..
     p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1597,8 +1558,7 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC),
+            default_environment=environments.EmbeddedPythonGrpcEnvironment(),
             progress_request_frequency=0.5))
 
   def test_lull_logging(self):

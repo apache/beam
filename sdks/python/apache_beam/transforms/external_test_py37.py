@@ -44,6 +44,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       URN = 'beam:external:fakeurn:v1'
 
       integer_example: int
+      boolean: bool
       string_example: str
       list_of_strings: typing.List[str]
       optional_kv: typing.Optional[typing.Tuple[str, float]] = None
@@ -59,6 +60,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       URN = 'beam:external:fakeurn:v1'
 
       integer_example: int
+      boolean: bool
       string_example: str
       list_of_strings: typehints.List[str]
       optional_kv: typehints.Optional[typehints.KV[str, float]] = None

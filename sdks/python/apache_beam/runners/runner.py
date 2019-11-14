@@ -35,8 +35,10 @@ _ALL_KNOWN_RUNNERS = (
     'apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner',
     'apache_beam.runners.direct.direct_runner.DirectRunner',
     'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
+    'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
     'apache_beam.runners.portability.flink_runner.FlinkRunner',
     'apache_beam.runners.portability.portable_runner.PortableRunner',
+    'apache_beam.runners.portability.spark_runner.SparkRunner',
     'apache_beam.runners.test.TestDirectRunner',
     'apache_beam.runners.test.TestDataflowRunner',
 )
@@ -84,6 +86,10 @@ def create_runner(runner_name):
         raise ImportError(
             'Google Cloud Dataflow runner not available, '
             'please install apache_beam[gcp]')
+      elif 'interactive' in runner_name.lower():
+        raise ImportError(
+            'Interactive runner not available, '
+            'please install apache_beam[interactive]')
       else:
         raise
   else:
@@ -323,7 +329,7 @@ class PipelineState(object):
 
   @classmethod
   def is_terminal(cls, state):
-    return state in [cls.STOPPED, cls.DONE, cls.FAILED, cls.CANCELLED,
+    return state in [cls.DONE, cls.FAILED, cls.CANCELLED,
                      cls.UPDATED, cls.DRAINED]
 
 

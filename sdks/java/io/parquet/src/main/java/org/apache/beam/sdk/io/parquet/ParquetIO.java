@@ -105,7 +105,8 @@ import org.apache.parquet.io.SeekableInputStream;
  *     .<GenericRecord>write()
  *     .via(ParquetIO.sink(SCHEMA)
  *       .withCompressionCodec(CompressionCodecName.SNAPPY))
- *     .to("destination/path"))
+ *     .to("destination/path")
+ *     .withSuffix(".parquet"));
  * }</pre>
  *
  * <p>This IO API is considered experimental and may break or receive backwards-incompatible changes

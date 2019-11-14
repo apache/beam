@@ -1171,7 +1171,8 @@ def is_consistent_with(sub, base):
 def get_yielded_type(type_hint):
   """Obtains the type of elements yielded by an iterable.
 
-  Note that "iterable" here means: can be iterated over in a for loop.
+  Note that "iterable" here means: can be iterated over in a for loop, excluding
+  strings.
 
   Args:
     type_hint: (TypeConstraint) The iterable in question. Must be normalize()-d.

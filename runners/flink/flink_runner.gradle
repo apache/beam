@@ -53,12 +53,26 @@ def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
 }
 compileJava.dependsOn copySourceOverrides
 
+def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
+  it.from main_resources_overrides
+  it.into "${sourceOverridesBase}/main/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copyResourcesOverrides
+
 def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
   it.from test_source_overrides
   it.into "${sourceOverridesBase}/test/java"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
 compileTestJava.dependsOn copyTestSourceOverrides
+
+def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
+  it.from test_resources_overrides
+  it.into "${sourceOverridesBase}/test/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copyTestResourcesOverrides
 
 /*
  * We have to explicitly set all directories here to make sure each
@@ -186,14 +200,12 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
-      // TODO[BEAM-8205]: figure out if we can make the test work on Flink runner, or maybe create a
-      // new category tag and change the following line to: excludeCategories '<category tag>'.
-      exclude '**/AvroSchemaTest.class'
     }
   }
 }

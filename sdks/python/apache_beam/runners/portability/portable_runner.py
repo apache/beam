@@ -19,7 +19,6 @@ from __future__ import absolute_import
 
 import functools
 import itertools
-import json
 import logging
 import sys
 import threading
@@ -28,22 +27,23 @@ import time
 import grpc
 
 from apache_beam import version as beam_version
-from apache_beam import metrics
+from apache_beam.metrics import metric
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import job_server
+from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
+from apache_beam.transforms import environments
 
 __all__ = ['PortableRunner']
 
@@ -58,10 +58,12 @@ MESSAGE_LOG_LEVELS = {
 
 TERMINAL_STATES = [
     beam_job_api_pb2.JobState.DONE,
-    beam_job_api_pb2.JobState.STOPPED,
+    beam_job_api_pb2.JobState.DRAINED,
     beam_job_api_pb2.JobState.FAILED,
     beam_job_api_pb2.JobState.CANCELLED,
 ]
+
+ENV_TYPE_ALIASES = {'LOOPBACK': 'EXTERNAL'}
 
 
 class PortableRunner(runner.PipelineRunner):
@@ -95,65 +97,29 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def _create_environment(options):
     portable_options = options.view_as(PortableOptions)
-    environment_urn = common_urns.environments.DOCKER.urn
-    if portable_options.environment_type == 'DOCKER':
+    # Do not set a Runner. Otherwise this can cause problems in Java's
+    # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
+    # does not exist in the Java SDK. In portability, the entry point is clearly
+    # defined via the JobService.
+    portable_options.view_as(StandardOptions).runner = None
+    environment_type = portable_options.environment_type
+    if not environment_type:
       environment_urn = common_urns.environments.DOCKER.urn
-    elif portable_options.environment_type == 'PROCESS':
-      environment_urn = common_urns.environments.PROCESS.urn
-    elif portable_options.environment_type in ('EXTERNAL', 'LOOPBACK'):
-      environment_urn = common_urns.environments.EXTERNAL.urn
-    elif portable_options.environment_type:
-      if portable_options.environment_type.startswith('beam:env:'):
-        environment_urn = portable_options.environment_type
-      else:
-        raise ValueError(
-            'Unknown environment type: %s' % portable_options.environment_type)
-
-    if environment_urn == common_urns.environments.DOCKER.urn:
-      docker_image = (
-          portable_options.environment_config
-          or PortableRunner.default_docker_image())
-      return beam_runner_api_pb2.Environment(
-          urn=common_urns.environments.DOCKER.urn,
-          payload=beam_runner_api_pb2.DockerPayload(
-              container_image=docker_image
-          ).SerializeToString())
-    elif environment_urn == common_urns.environments.PROCESS.urn:
-      config = json.loads(portable_options.environment_config)
-      return beam_runner_api_pb2.Environment(
-          urn=common_urns.environments.PROCESS.urn,
-          payload=beam_runner_api_pb2.ProcessPayload(
-              os=(config.get('os') or ''),
-              arch=(config.get('arch') or ''),
-              command=config.get('command'),
-              env=(config.get('env') or '')
-          ).SerializeToString())
-    elif environment_urn == common_urns.environments.EXTERNAL.urn:
-      def looks_like_json(environment_config):
-        import re
-        return re.match(r'\s*\{.*\}\s*$', environment_config)
-
-      if looks_like_json(portable_options.environment_config):
-        config = json.loads(portable_options.environment_config)
-        url = config.get('url')
-        if not url:
-          raise ValueError('External environment endpoint must be set.')
-        params = config.get('params')
-      else:
-        url = portable_options.environment_config
-        params = None
-
-      return beam_runner_api_pb2.Environment(
-          urn=common_urns.environments.EXTERNAL.urn,
-          payload=beam_runner_api_pb2.ExternalPayload(
-              endpoint=endpoints_pb2.ApiServiceDescriptor(url=url),
-              params=params
-          ).SerializeToString())
+    elif environment_type.startswith('beam:env:'):
+      environment_urn = environment_type
     else:
-      return beam_runner_api_pb2.Environment(
-          urn=environment_urn,
-          payload=(portable_options.environment_config.encode('ascii')
-                   if portable_options.environment_config else None))
+      # e.g. handle LOOPBACK -> EXTERNAL
+      environment_type = ENV_TYPE_ALIASES.get(environment_type,
+                                              environment_type)
+      try:
+        environment_urn = getattr(common_urns.environments,
+                                  environment_type).urn
+      except AttributeError:
+        raise ValueError(
+            'Unknown environment type: %s' % environment_type)
+
+    env_class = environments.Environment.get_env_cls_from_urn(environment_urn)
+    return env_class.from_options(portable_options)
 
   def default_job_server(self, portable_options):
     # TODO Provide a way to specify a container Docker URL
@@ -212,10 +178,9 @@ class PortableRunner(runner.PipelineRunner):
         del transform_proto.subtransforms[:]
 
     # Preemptively apply combiner lifting, until all runners support it.
-    # Also apply sdf expansion.
     # These optimizations commute and are idempotent.
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
-        'pre_optimize', 'lift_combiners,expand_sdf').lower()
+        'pre_optimize', 'lift_combiners').lower()
     if not options.view_as(StandardOptions).streaming:
       flink_known_urns = frozenset([
           common_urns.composites.RESHUFFLE.urn,
@@ -244,7 +209,7 @@ class PortableRunner(runner.PipelineRunner):
         phases = []
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
-          if phase_name in ('lift_combiners', 'expand_sdf'):
+          if phase_name in 'lift_combiners':
             phases.append(getattr(fn_api_runner_transforms, phase_name))
           else:
             raise ValueError(
@@ -308,10 +273,12 @@ class PortableRunner(runner.PipelineRunner):
                  for k, v in all_options.items()
                  if v is not None}
 
+    prepare_request = beam_job_api_pb2.PrepareJobRequest(
+        job_name='job', pipeline=proto_pipeline,
+        pipeline_options=job_utils.dict_to_struct(p_options))
+    logging.debug('PrepareJobRequest: %s', prepare_request)
     prepare_response = job_service.Prepare(
-        beam_job_api_pb2.PrepareJobRequest(
-            job_name='job', pipeline=proto_pipeline,
-            pipeline_options=job_utils.dict_to_struct(p_options)),
+        prepare_request,
         timeout=portable_options.job_server_timeout)
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
@@ -361,16 +328,30 @@ class PortableRunner(runner.PipelineRunner):
                           state_stream, cleanup_callbacks)
 
 
-class PortableMetrics(metrics.metric.MetricResults):
+class PortableMetrics(metric.MetricResults):
   def __init__(self, job_metrics_response):
-    # TODO(lgajowy): Convert portable metrics to MetricResults
-    # and allow querying them (BEAM-4775)
-    pass
+    metrics = job_metrics_response.metrics
+    self.attempted = portable_metrics.from_monitoring_infos(metrics.attempted)
+    self.committed = portable_metrics.from_monitoring_infos(metrics.committed)
+
+  @staticmethod
+  def _combine(committed, attempted, filter):
+    all_keys = set(committed.keys()) | set(attempted.keys())
+    return [
+        MetricResult(key, committed.get(key), attempted.get(key))
+        for key in all_keys
+        if metric.MetricResults.matches(filter, key)
+    ]
 
   def query(self, filter=None):
-    return {'counters': [],
-            'distributions': [],
-            'gauges': []}
+    counters, distributions, gauges = [
+        self._combine(x, y, filter)
+        for x, y in zip(self.committed, self.attempted)
+    ]
+
+    return {self.COUNTERS: counters,
+            self.DISTRIBUTIONS: distributions,
+            self.GAUGES: gauges}
 
 
 class PipelineResult(runner.PipelineResult):

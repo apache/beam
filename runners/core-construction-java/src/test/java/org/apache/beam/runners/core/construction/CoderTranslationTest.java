@@ -41,10 +41,14 @@ import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.schemas.LogicalTypes;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -60,8 +64,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CoderTranslation}. */
 public class CoderTranslationTest {
-  private static final Set<StructuredCoder<?>> KNOWN_CODERS =
-      ImmutableSet.<StructuredCoder<?>>builder()
+  private static final Set<Coder<?>> KNOWN_CODERS =
+      ImmutableSet.<Coder<?>>builder()
           .add(ByteArrayCoder.of())
           .add(BooleanCoder.of())
           .add(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
@@ -76,6 +80,13 @@ public class CoderTranslationTest {
               FullWindowedValueCoder.of(
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
           .add(DoubleCoder.of())
+          .add(
+              RowCoder.of(
+                  Schema.of(
+                      Field.of("i16", FieldType.INT16),
+                      Field.of("array", FieldType.array(FieldType.STRING)),
+                      Field.of("map", FieldType.map(FieldType.STRING, FieldType.INT32)),
+                      Field.of("bar", FieldType.logicalType(LogicalTypes.FixedBytes.of(123))))))
           .build();
 
   /**

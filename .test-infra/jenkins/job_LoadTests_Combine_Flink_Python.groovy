@@ -33,7 +33,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-1-' + now,
                         project             : 'apache-beam-testing',
-                        publish_to_big_query: false,
+                        publish_to_big_query: true,
                         metrics_dataset     : datasetName,
                         metrics_table       : 'python_flink_batch_combine_1',
                         input_options       : '\'{' +
@@ -54,7 +54,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-4-' + now,
                         project             : 'apache-beam-testing',
-                        publish_to_big_query: false,
+                        publish_to_big_query: true,
                         metrics_dataset     : datasetName,
                         metrics_table       : 'python_flink_batch_combine_4',
                         input_options       : '\'{' +
@@ -76,7 +76,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-5-' + now,
                         project             : 'apache-beam-testing',
-                        publish_to_big_query: false,
+                        publish_to_big_query: true,
                         metrics_dataset     : datasetName,
                         metrics_table       : 'python_flink_batch_combine_5',
                         input_options       : '\'{' +
@@ -105,7 +105,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
     List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
     publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
-    publisher.publish(':runners:flink:1.7:job-server-container:docker', 'flink-job-server')
+    publisher.publish(':runners:flink:1.9:job-server-container:docker', 'flink-job-server')
     def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
     flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
 

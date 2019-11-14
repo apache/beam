@@ -40,5 +40,5 @@ dependencies {
   testCompile "org.apache.derby:derbyclient:10.14.2.0"
   testCompile "org.apache.derby:derbynet:10.14.2.0"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

@@ -24,6 +24,7 @@
 #    JOB_SERVER_IMAGE: Url to job server docker image to pull on dataproc master (optional)
 #    ARTIFACTS_DIR: Url to bucket where artifacts will be stored for staging (optional)
 #    FLINK_DOWNLOAD_URL: Url to Flink .tar archive to be installed on the cluster
+#    HADOOP_DOWNLOAD_URL: Url to a pre-packaged Hadoop jar
 #    FLINK_NUM_WORKERS: Number of Flink workers
 #    FLINK_TASKMANAGER_SLOTS: Number of slots per Flink task manager
 #    DETACHED_MODE: Detached mode: should the SSH tunnel run in detached mode?
@@ -34,7 +35,8 @@
 #    HARNESS_IMAGES_TO_PULL='gcr.io/<IMAGE_REPOSITORY>/python:latest gcr.io/<IMAGE_REPOSITORY>/java:latest' \
 #    JOB_SERVER_IMAGE=gcr.io/<IMAGE_REPOSITORY>/job-server-flink:latest \
 #    ARTIFACTS_DIR=gs://<bucket-for-artifacts> \
-#    FLINK_DOWNLOAD_URL=http://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.12.tgz \
+#    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-1.9.1/flink-1.9.1-bin-scala_2.11.tgz \
+#    HADOOP_DOWNLOAD_URL=https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-7.0/flink-shaded-hadoop-2-uber-2.8.3-7.0.jar \
 #    FLINK_NUM_WORKERS=2 \
 #    FLINK_TASKMANAGER_SLOTS=1 \
 #    DETACHED_MODE=false \
@@ -97,7 +99,7 @@ function get_leader() {
 }
 
 function start_job_server() {
-  gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} --command="sudo --user yarn docker run --detach --publish 8099:8099 --publish 8098:8098 --publish 8097:8097 --volume ~/.config/gcloud:/root/.config/gcloud ${JOB_SERVER_IMAGE} --flink-master-url=${YARN_APPLICATION_MASTER} --artifacts-dir=${ARTIFACTS_DIR}"
+  gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} --command="sudo --user yarn docker run --detach --publish 8099:8099 --publish 8098:8098 --publish 8097:8097 --volume ~/.config/gcloud:/root/.config/gcloud ${JOB_SERVER_IMAGE} --flink-master=${YARN_APPLICATION_MASTER} --artifacts-dir=${ARTIFACTS_DIR}"
 }
 
 function start_tunnel() {
@@ -118,7 +120,8 @@ function start_tunnel() {
 function create_cluster() {
   local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   metadata+="flink-start-yarn-session=true,"
-  metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS}"
+  metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS},"
+  metadata+="hadoop-jar-url=${HADOOP_DOWNLOAD_URL}"
 
   [[ -n "${HARNESS_IMAGES_TO_PULL:=}" ]] && metadata+=",beam-sdk-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
   [[ -n "${JOB_SERVER_IMAGE:=}" ]] && metadata+=",beam-job-server-image=${JOB_SERVER_IMAGE}"
@@ -131,7 +134,7 @@ function create_cluster() {
 
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
-  gcloud dataproc clusters create $CLUSTER_NAME --num-workers=$num_dataproc_workers --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE --quiet
+  gcloud dataproc clusters create $CLUSTER_NAME --region=global --num-workers=$num_dataproc_workers --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE --quiet
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster
@@ -152,7 +155,7 @@ function restart() {
 
 # Deletes a Flink cluster.
 function delete() {
-  gcloud dataproc clusters delete $CLUSTER_NAME --quiet
+  gcloud dataproc clusters delete $CLUSTER_NAME --region=global --quiet
 }
 
 "$@"

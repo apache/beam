@@ -34,6 +34,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
@@ -88,7 +89,8 @@ public class Environments {
    * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
    * container.
    */
-  private static final String JAVA_SDK_HARNESS_CONTAINER_URL = "apachebeam/java_sdk";
+  private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
+      "apachebeam/java_sdk:" + ReleaseInfo.getReleaseInfo().getVersion();
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
@@ -114,6 +116,9 @@ public class Environments {
   }
 
   public static Environment createDockerEnvironment(String dockerImageUrl) {
+    if (Strings.isNullOrEmpty(dockerImageUrl)) {
+      return JAVA_SDK_HARNESS_ENVIRONMENT;
+    }
     return Environment.newBuilder()
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
         .setPayload(

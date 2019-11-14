@@ -34,6 +34,7 @@ const (
 	urnBytesCoder               = "beam:coder:bytes:v1"
 	urnBoolCoder                = "beam:coder:bool:v1"
 	urnVarIntCoder              = "beam:coder:varint:v1"
+	urnDoubleCoder              = "beam:coder:double:v1"
 	urnLengthPrefixCoder        = "beam:coder:length_prefix:v1"
 	urnKVCoder                  = "beam:coder:kv:v1"
 	urnIterableCoder            = "beam:coder:iterable:v1"
@@ -161,6 +162,9 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 
 	case urnVarIntCoder:
 		return coder.NewVarInt(), nil
+
+	case urnDoubleCoder:
+		return coder.NewDouble(), nil
 
 	case urnKVCoder:
 		if len(components) != 2 {
@@ -376,6 +380,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 
 	case coder.VarInt:
 		return b.internBuiltInCoder(urnVarIntCoder)
+
+	case coder.Double:
+		return b.internBuiltInCoder(urnDoubleCoder)
 
 	default:
 		panic(fmt.Sprintf("Failed to marshal custom coder %v, unexpected coder kind: %v", c, c.Kind))

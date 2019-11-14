@@ -20,7 +20,10 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
@@ -39,9 +42,11 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -53,6 +58,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -65,6 +71,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -589,6 +596,7 @@ public class PubsubIO {
         .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
+        .setTypeDescriptor(TypeDescriptor.of(GenericRecord.class))
         .setToRowFn(AvroUtils.getToRowFunction(GenericRecord.class, avroSchema))
         .setFromRowFn(AvroUtils.getFromRowFunction(GenericRecord.class))
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -615,6 +623,7 @@ public class PubsubIO {
         .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
+        .setTypeDescriptor(TypeDescriptor.of(clazz))
         .setToRowFn(AvroUtils.getToRowFunction(clazz, avroSchema))
         .setFromRowFn(AvroUtils.getFromRowFunction(clazz))
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -690,6 +699,9 @@ public class PubsubIO {
     abstract Schema getBeamSchema();
 
     @Nullable
+    abstract TypeDescriptor<T> getTypeDescriptor();
+
+    @Nullable
     abstract SerializableFunction<T, Row> getToRowFn();
 
     @Nullable
@@ -705,7 +717,8 @@ public class PubsubIO {
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T> {
+    abstract static class Builder<T>
+        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<T>> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
 
       abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory clientFactory);
@@ -722,6 +735,8 @@ public class PubsubIO {
 
       abstract Builder<T> setBeamSchema(@Nullable Schema beamSchema);
 
+      abstract Builder<T> setTypeDescriptor(@Nullable TypeDescriptor<T> typeDescriptor);
+
       abstract Builder<T> setToRowFn(@Nullable SerializableFunction<T, Row> toRowFn);
 
       abstract Builder<T> setFromRowFn(@Nullable SerializableFunction<Row, T> fromRowFn);
@@ -733,6 +748,85 @@ public class PubsubIO {
       abstract Builder<T> setClock(@Nullable Clock clock);
 
       abstract Read<T> build();
+
+      @Override
+      public PTransform<PBegin, PCollection<T>> buildExternal(External.Configuration config) {
+        if (config.topic != null) {
+          StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
+          setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()));
+        }
+        if (config.subscription != null) {
+          StaticValueProvider<String> subscription = StaticValueProvider.of(config.subscription);
+          setSubscriptionProvider(
+              NestedValueProvider.of(subscription, new SubscriptionTranslator()));
+        }
+        if (config.idAttribute != null) {
+          setIdAttribute(config.idAttribute);
+        }
+        if (config.timestampAttribute != null) {
+          setTimestampAttribute(config.timestampAttribute);
+        }
+        setPubsubClientFactory(FACTORY);
+        setNeedsAttributes(config.needsAttributes);
+        Coder coder = ByteArrayCoder.of();
+        if (config.needsAttributes) {
+          SimpleFunction<PubsubMessage, T> parseFn =
+              (SimpleFunction<PubsubMessage, T>) new ParsePayloadAsPubsubMessageProto();
+          setParseFn(parseFn);
+          setCoder(coder);
+        } else {
+          setParseFn(new ParsePayloadUsingCoder<>(coder));
+          setCoder(coder);
+        }
+        setNeedsMessageId(false);
+        return build();
+      }
+    }
+
+    /** Exposes {@link PubSubIO.Read} as an external transform for cross-language usage. */
+    @Experimental
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:pubsub:read:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_PubsubIO_Read.Builder.class);
+      }
+
+      /** Parameters class to expose the transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        @Nullable private String topic;
+        @Nullable private String subscription;
+        @Nullable private String idAttribute;
+        @Nullable private String timestampAttribute;
+        private boolean needsAttributes;
+
+        public void setTopic(@Nullable String topic) {
+          this.topic = topic;
+        }
+
+        public void setSubscription(@Nullable String subscription) {
+          this.subscription = subscription;
+        }
+
+        public void setIdLabel(@Nullable String idAttribute) {
+          this.idAttribute = idAttribute;
+        }
+
+        public void setTimestampAttribute(@Nullable String timestampAttribute) {
+          this.timestampAttribute = timestampAttribute;
+        }
+
+        public void setWithAttributes(Boolean needsAttributes) {
+          // we must use Boolean instead of boolean because the external payload system
+          // inspects the native type of each coder urn, and BooleanCoder wants Boolean.
+          this.needsAttributes = needsAttributes;
+        }
+      }
     }
 
     /**
@@ -895,7 +989,7 @@ public class PubsubIO {
               getNeedsMessageId());
       PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
       return (getBeamSchema() != null)
-          ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
+          ? read.setSchema(getBeamSchema(), getTypeDescriptor(), getToRowFn(), getFromRowFn())
           : read.setCoder(getCoder());
     }
 
@@ -955,7 +1049,8 @@ public class PubsubIO {
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T> {
+    abstract static class Builder<T>
+        implements ExternalTransformBuilder<External.Configuration, PCollection<T>, PDone> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
 
       abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory factory);
@@ -971,6 +1066,58 @@ public class PubsubIO {
       abstract Builder<T> setFormatFn(SimpleFunction<T, PubsubMessage> formatFn);
 
       abstract Write<T> build();
+
+      @Override
+      public PTransform<PCollection<T>, PDone> buildExternal(External.Configuration config) {
+        if (config.topic != null) {
+          StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
+          setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()));
+        }
+        if (config.idAttribute != null) {
+          setIdAttribute(config.idAttribute);
+        }
+        if (config.timestampAttribute != null) {
+          setTimestampAttribute(config.timestampAttribute);
+        }
+        SimpleFunction<T, PubsubMessage> parseFn =
+            (SimpleFunction<T, PubsubMessage>) new FormatPayloadFromPubsubMessageProto();
+        setFormatFn(parseFn);
+        return build();
+      }
+    }
+
+    /** Exposes {@link PubSubIO.Write} as an external transform for cross-language usage. */
+    @Experimental
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:pubsub:write:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_PubsubIO_Write.Builder.class);
+      }
+
+      /** Parameters class to expose the transform to an external SDK. */
+      public static class Configuration {
+
+        // All byte arrays are UTF-8 encoded strings
+        private String topic;
+        @Nullable private String idAttribute;
+        @Nullable private String timestampAttribute;
+
+        public void setTopic(String topic) {
+          this.topic = topic;
+        }
+
+        public void setIdLabel(@Nullable String idAttribute) {
+          this.idAttribute = idAttribute;
+        }
+
+        public void setTimestampAttribute(@Nullable String timestampAttribute) {
+          this.timestampAttribute = timestampAttribute;
+        }
+      }
     }
 
     /**
@@ -1213,6 +1360,22 @@ public class PubsubIO {
     }
   }
 
+  private static class ParsePayloadAsPubsubMessageProto
+      extends SimpleFunction<PubsubMessage, byte[]> {
+    @Override
+    public byte[] apply(PubsubMessage input) {
+      Map<String, String> attributes = input.getAttributeMap();
+      com.google.pubsub.v1.PubsubMessage.Builder message =
+          com.google.pubsub.v1.PubsubMessage.newBuilder()
+              .setData(ByteString.copyFrom(input.getPayload()));
+      // TODO(BEAM-8085) this should not be null
+      if (attributes != null) {
+        message.putAllAttributes(attributes);
+      }
+      return message.build().toByteArray();
+    }
+  }
+
   private static class FormatPayloadAsUtf8 extends SimpleFunction<String, PubsubMessage> {
     @Override
     public PubsubMessage apply(String input) {
@@ -1232,6 +1395,20 @@ public class PubsubIO {
       try {
         return new PubsubMessage(CoderUtils.encodeToByteArray(coder, input), ImmutableMap.of());
       } catch (CoderException e) {
+        throw new RuntimeException("Could not decode Pubsub message", e);
+      }
+    }
+  }
+
+  private static class FormatPayloadFromPubsubMessageProto
+      extends SimpleFunction<byte[], PubsubMessage> {
+    @Override
+    public PubsubMessage apply(byte[] input) {
+      try {
+        com.google.pubsub.v1.PubsubMessage message =
+            com.google.pubsub.v1.PubsubMessage.parseFrom(input);
+        return new PubsubMessage(message.getData().toByteArray(), message.getAttributesMap());
+      } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }
     }
