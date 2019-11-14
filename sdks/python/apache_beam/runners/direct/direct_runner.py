@@ -187,7 +187,7 @@ def _get_transform_overrides(pipeline_options):
   class CombinePerKeyOverride(PTransformOverride):
     def matches(self, applied_ptransform):
       if isinstance(applied_ptransform.transform, CombinePerKey):
-        return True
+        return applied_ptransform.inputs[0].windowing.is_default()
 
     def get_replacement_transform(self, transform):
       # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
