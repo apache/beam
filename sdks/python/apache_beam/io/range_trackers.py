@@ -34,6 +34,9 @@ __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class OffsetRangeTracker(iobase.RangeTracker):
   """A 'RangeTracker' for non-negative positions of type 'long'."""
 
@@ -137,27 +140,27 @@ class OffsetRangeTracker(iobase.RangeTracker):
     assert isinstance(split_offset, (int, long))
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
-        logging.debug('refusing to split %r at %d: stop position unspecified',
+        _LOGGER.debug('refusing to split %r at %d: stop position unspecified',
                       self, split_offset)
         return
       if self._last_record_start == -1:
-        logging.debug('Refusing to split %r at %d: unstarted', self,
+        _LOGGER.debug('Refusing to split %r at %d: unstarted', self,
                       split_offset)
         return
 
       if split_offset <= self._last_record_start:
-        logging.debug(
+        _LOGGER.debug(
             'Refusing to split %r at %d: already past proposed stop offset',
             self, split_offset)
         return
       if (split_offset < self.start_position()
           or split_offset >= self.stop_position()):
-        logging.debug(
+        _LOGGER.debug(
             'Refusing to split %r at %d: proposed split position out of range',
             self, split_offset)
         return
 
-      logging.debug('Agreeing to split %r at %d', self, split_offset)
+      _LOGGER.debug('Agreeing to split %r at %d', self, split_offset)
 
       split_fraction = (float(split_offset - self._start_offset) / (
           self._stop_offset - self._start_offset))
