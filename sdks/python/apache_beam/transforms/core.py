@@ -1491,8 +1491,7 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  type_hints = get_type_hints(fn).with_defaults(
-      typehints.decorators.IOTypeHints.from_callable(fn))
+  type_hints = get_type_hints(fn)
   get_type_hints(wrapper).input_types = type_hints.input_types
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
@@ -1562,8 +1561,7 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  type_hints = get_type_hints(fn).with_defaults(
-      typehints.decorators.IOTypeHints.from_callable(fn))
+  type_hints = get_type_hints(fn)
   get_type_hints(wrapper).input_types = type_hints.input_types
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
