@@ -188,9 +188,6 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner(), self.create_options())
 
-  def test_metrics(self):
-    self.skipTest('Metrics not supported.')
-
   def test_pardo_state_with_custom_key_coder(self):
     """Tests that state requests work correctly when the key coder is an
     SDK-specific coder, i.e. non standard coder. This is additionally enforced
