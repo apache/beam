@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.portability.testing;
 
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -40,16 +41,19 @@ public class TestJobService extends JobServiceImplBase {
   private final String preparationId;
   private final String jobId;
   private final JobState.Enum jobState;
+  private JobApi.MetricResults metrics;
 
   public TestJobService(
       ApiServiceDescriptor stagingEndpoint,
       String preparationId,
       String jobId,
-      JobState.Enum jobState) {
+      JobState.Enum jobState,
+      JobApi.MetricResults metrics) {
     this.stagingEndpoint = stagingEndpoint;
     this.preparationId = preparationId;
     this.jobId = jobId;
     this.jobState = jobState;
+    this.metrics = metrics;
   }
 
   @Override
@@ -74,6 +78,14 @@ public class TestJobService extends JobServiceImplBase {
   public void getState(
       GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
     responseObserver.onNext(GetJobStateResponse.newBuilder().setState(jobState).build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void getJobMetrics(
+      JobApi.GetJobMetricsRequest request,
+      StreamObserver<JobApi.GetJobMetricsResponse> responseObserver) {
+    responseObserver.onNext(JobApi.GetJobMetricsResponse.newBuilder().setMetrics(metrics).build());
     responseObserver.onCompleted();
   }
 }

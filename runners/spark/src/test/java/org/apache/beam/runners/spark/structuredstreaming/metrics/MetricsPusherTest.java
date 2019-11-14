@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 public class MetricsPusherTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(MetricsPusherTest.class);
+  private static final String COUNTER_NAME = "counter";
 
   private static Pipeline pipeline;
 
@@ -64,7 +65,7 @@ public class MetricsPusherTest {
   }
 
   private static class CountingDoFn extends DoFn<Integer, Integer> {
-    private final Counter counter = Metrics.counter(MetricsPusherTest.class, "counter");
+    private final Counter counter = Metrics.counter(MetricsPusherTest.class, COUNTER_NAME);
 
     @ProcessElement
     public void processElement(ProcessContext context) {
@@ -86,6 +87,6 @@ public class MetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(6L));
   }
 }
