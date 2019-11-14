@@ -48,18 +48,19 @@ public class MetricsPusherTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsPusherTest.class);
 
   private static final long NUM_ELEMENTS = 1000L;
+  private static final String COUNTER_NAME = "counter";
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Before
   public void init() {
-    TestMetricsSink.clear();
     MetricsOptions options = pipeline.getOptions().as(MetricsOptions.class);
     options.setMetricsSink(TestMetricsSink.class);
   }
 
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   @Test
-  public void test() throws Exception {
+  public void pushesUserMetrics() throws Exception {
+    TestMetricsSink.clear();
     pipeline
         .apply(
             // Use maxReadTime to force unbounded mode.
@@ -69,11 +70,27 @@ public class MetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(NUM_ELEMENTS));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(NUM_ELEMENTS));
+  }
+
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  @Test
+  public void pushesSystemMetrics() throws InterruptedException {
+    TestMetricsSink.clear();
+    pipeline
+        .apply(
+            // Use maxReadTime to force unbounded mode.
+            GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
+        .apply(ParDo.of(new CountingDoFn()));
+    pipeline.run();
+    // give metrics pusher time to push
+    Thread.sleep(
+        (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
+    assertThat(TestMetricsSink.getSystemCounters().isEmpty(), is(false));
   }
 
   private static class CountingDoFn extends DoFn<Long, Long> {
-    private final Counter counter = Metrics.counter(MetricsPusherTest.class, "counter");
+    private final Counter counter = Metrics.counter(MetricsPusherTest.class, COUNTER_NAME);
 
     @ProcessElement
     public void processElement(ProcessContext context) {
