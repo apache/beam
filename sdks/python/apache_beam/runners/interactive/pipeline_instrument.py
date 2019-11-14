@@ -24,12 +24,26 @@ to transform original pipeline into a one-shot pipeline with interactivity.
 from __future__ import absolute_import
 
 import apache_beam as beam
+from apache_beam.io.external.gcp.pubsub import ReadFromPubSub as ExternalReadFromPubSub
+from apache_beam.io.external.kafka import ReadFromKafka
+from apache_beam.io.gcp.pubsub import ReadFromPubSub
+from apache_beam.io.gcp.bigquery_tools import BigQueryReader
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 
 READ_CACHE = "_ReadCache_"
 WRITE_CACHE = "_WriteCache_"
+
+# Use a tuple to define the list of unbounded sources. It is not always feasible
+# to correctly find all the unbounded sources in the SDF world. This is
+# because SDF allows the source to dynamically create sources at runtime.
+REPLACEABLE_UNBOUNDED_SOURCES = (
+    ExternalReadFromPubSub,
+    ReadFromKafka,
+    ReadFromPubSub,
+    BigQueryReader,
+)
 
 
 class PipelineInstrument(object):
@@ -97,13 +111,7 @@ class PipelineInstrument(object):
 
   @property
   def has_unbounded_source(self):
-    """Checks if a given pipeline has any source that is unbounded.
-
-    The function directly checks the source transform definition instead
-    of pvalues in the pipeline. Thus manually setting is_bounded field of
-    a PCollection or switching streaming mode will not affect this
-    function's result. The result is always deterministic when the source
-    code of a pipeline is defined.
+    """Returns whether the pipeline has any `REPLACEABLE_UNBOUNDED_SOURCES`.
     """
     return self._has_unbounded_source
 
@@ -389,15 +397,13 @@ def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):
 
 
 def has_unbounded_source(pipeline):
-  """Checks if a given pipeline has any source that is unbounded."""
+  """Checks if a given pipeline has replaceable unbounded sources."""
 
   class CheckUnboundednessVisitor(PipelineVisitor):
-    """Vsitor checks if there is any unbouned read source in the Pipeline.
+    """Vsitor checks if there is any unbounded read source in the Pipeline.
 
-    Visitor visits all nodes and check is_bounded() for all sources of read
-    PTransform. As long as there is at least 1 source introduces unbounded
-    data, returns True. We don't check the is_bounded field from proto based
-    PCollection since they may not be correctly set with to_runner_api.
+    Visitor visits all nodes and checks if it is an instance of
+    `REPLACEABLE_UNBOUNDED_SOURCES`.
     """
 
     def __init__(self):
@@ -407,11 +413,8 @@ def has_unbounded_source(pipeline):
       self.visit_transform(transform_node)
 
     def visit_transform(self, transform_node):
-      if (not self.has_unbounded_source and
-          isinstance(transform_node, beam.pipeline.AppliedPTransform) and
-          isinstance(transform_node.transform, beam.io.iobase.Read) and
-          not transform_node.transform.source.is_bounded()):
-        self.has_unbounded_source = True
+      self.has_unbounded_source |= isinstance(transform_node.transform,
+                                              REPLACEABLE_UNBOUNDED_SOURCES)
 
   v = CheckUnboundednessVisitor()
   pipeline.visit(v)
