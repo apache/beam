@@ -41,7 +41,6 @@ import threading
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
