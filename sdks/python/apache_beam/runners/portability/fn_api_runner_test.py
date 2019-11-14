@@ -68,7 +68,6 @@ if statesampler.FAST_SAMPLER:
 else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

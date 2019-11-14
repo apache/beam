@@ -31,7 +31,6 @@ from apache_beam.options.pipeline_options import StandardOptions
 
 SLEEP_TIME_SECS = 1
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

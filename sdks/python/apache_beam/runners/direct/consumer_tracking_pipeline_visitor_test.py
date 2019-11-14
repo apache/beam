@@ -39,8 +39,6 @@ from apache_beam.transforms import ParDo
 # pylint: disable=expression-not-assigned
 # pylint: disable=pointless-statement
 
-_LOGGER = logging.getLogger(__name__)
-
 
 class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 

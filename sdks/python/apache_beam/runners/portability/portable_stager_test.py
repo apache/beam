@@ -35,8 +35,6 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.runners.portability import portable_stager
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
-_LOGGER = logging.getLogger(__name__)
-
 
 class PortableStagerTest(unittest.TestCase):
 

@@ -32,7 +32,6 @@ from apache_beam.runners.portability import portable_runner
 PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
 MAGIC_HOST_NAMES = ['[local]', '[auto]']
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

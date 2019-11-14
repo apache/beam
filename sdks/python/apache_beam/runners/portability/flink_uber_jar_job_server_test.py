@@ -34,8 +34,6 @@ from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import flink_uber_jar_job_server
 
-_LOGGER = logging.getLogger(__name__)
-
 
 @contextlib.contextmanager
 def temp_name(*args, **kwargs):

@@ -44,7 +44,6 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 _LOGGER = logging.getLogger(__name__)
 
-
 _DEFAULT_FLUSH_THRESHOLD = 10 << 20  # 10MB
 
 

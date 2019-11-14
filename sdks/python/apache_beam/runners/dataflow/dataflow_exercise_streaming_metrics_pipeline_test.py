@@ -46,7 +46,6 @@ MESSAGES_TO_PUBLISH = ["message a", "message b b", "message c"]
 
 SLEEP_TIME_SECS = 1
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
