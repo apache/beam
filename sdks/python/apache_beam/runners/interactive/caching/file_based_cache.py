@@ -100,8 +100,8 @@ class FileBasedCache(PCollectionCache):
       FileSystems.mkdirs(root)
     except IOError:
       pass
-    # It is possible to read from am empty stream, so it should also be possible
-    # to read from an empty file.
+    # Prevent the reader PTransforms from raising an IOError when reading from
+    # an empty PCollectionCache.
     FileSystems.create(self._file_path_prefix + ".empty").close()
 
   @property
