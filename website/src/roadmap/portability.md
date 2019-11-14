@@ -188,10 +188,11 @@ The Beam Python SDK allows configuration of the SDK harness to accommodate varyi
         Note that the Python bootloader assumes Python and the `apache_beam` module are installed
         on each worker machine.
   - `EXTERNAL`: User code will be dispatched to an external service. For example, one can start
-    an external service for Python workers by running the
-    [Python SDK Docker image](https://hub.docker.com/r/apachebeam/python3.7_sdk)
-    with the `--worker_pool` flag.
+    an external service for Python workers by running
+    `docker run -p=50000:50000 apachebeam/python3.6_sdk --worker_pool`.
     - `environment_config`: Address for the external service, e.g. `localhost:50000`.
+    - To access a Dockerized worker pool on Mac, set the `BEAM_WORKER_POOL_IN_DOCKER_VM`
+      environment variable: `export BEAM_WORKER_POOL_IN_DOCKER_VM=1`.
   - `LOOPBACK`: User code is executed within the same process that submitted the pipeline. This
     option is useful for local testing. However, it is not suitable for a production environment,
     as it requires a connection between the original Python process and the worker nodes, and
