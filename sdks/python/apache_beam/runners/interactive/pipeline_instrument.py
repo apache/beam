@@ -26,8 +26,8 @@ from __future__ import absolute_import
 import apache_beam as beam
 from apache_beam.io.external.gcp.pubsub import ReadFromPubSub as ExternalReadFromPubSub
 from apache_beam.io.external.kafka import ReadFromKafka
-from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.bigquery_tools import BigQueryReader
+from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
