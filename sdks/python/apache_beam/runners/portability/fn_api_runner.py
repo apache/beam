@@ -1383,17 +1383,15 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
     super(EmbeddedGrpcWorkerHandler, self).__init__(state, provision_info,
                                                     grpc_server)
     if payload:
-      num_workers, state_cache_size = payload.decode('ascii').split(',')
-      self._num_threads = int(num_workers)
+      state_cache_size = payload.decode('ascii')
       self._state_cache_size = int(state_cache_size)
     else:
-      self._num_threads = 1
       self._state_cache_size = STATE_CACHE_SIZE
 
   def start_worker(self):
     self.worker = sdk_worker.SdkHarness(
-        self.control_address, worker_count=self._num_threads,
-        state_cache_size=self._state_cache_size, worker_id=self.worker_id)
+        self.control_address, state_cache_size=self._state_cache_size,
+        worker_id=self.worker_id)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
     self.worker_thread.daemon = True

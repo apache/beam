@@ -1135,23 +1135,13 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
             default_environment=environments.EmbeddedPythonGrpcEnvironment()))
 
 
-class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
-
-  def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment(
-                num_workers=2,
-                state_cache_size=fn_api_runner.STATE_CACHE_SIZE)))
-
-
 class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(
-                num_workers=2, state_cache_size=0)))
+                state_cache_size=0)))
 
 
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):

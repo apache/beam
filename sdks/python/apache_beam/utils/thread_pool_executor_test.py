@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import itertools
 import threading
 import time
 import traceback
@@ -100,6 +101,13 @@ class UnboundedThreadPoolExecutorTest(unittest.TestCase):
 
     self.assertIn('footest', message)
     self.assertIn('raise_error', message)
+
+  def test_map(self):
+    with UnboundedThreadPoolExecutor() as executor:
+      executor.map(self.append_and_sleep, itertools.repeat(0.01, 5))
+
+    with self._lock:
+      self.assertEqual(5, len(self._worker_idents))
 
 
 if __name__ == '__main__':
