@@ -377,16 +377,16 @@ class RunnerAPIPTransformHolder(PTransform):
       else:
         env1 = id_to_proto_map[env_id]
         env2 = context.environments[env_id]
-        assert env1.urn == env2.proto.urn, (
+        assert env1.urn == env2.to_runner_api(context).urn, (
             'Expected environments with the same ID to be equal but received '
             'environments with different URNs '
             '%r and %r',
-            env1.urn, env2.proto.urn)
-        assert env1.payload == env2.proto.payload, (
+            env1.urn, env2.to_runner_api(context).urn)
+        assert env1.payload == env2.to_runner_api(context).payload, (
             'Expected environments with the same ID to be equal but received '
             'environments with different payloads '
             '%r and %r',
-            env1.payload, env2.proto.payload)
+            env1.payload, env2.to_runner_api(context).payload)
     return self._proto
 
   def get_restriction_coder(self):
