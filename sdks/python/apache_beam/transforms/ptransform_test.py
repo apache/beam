@@ -520,6 +520,7 @@ class PTransformTest(unittest.TestCase):
     assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_flatten_pcollections(self):
     pipeline = TestPipeline()
     pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -528,6 +529,7 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_flatten_no_pcollections(self):
     pipeline = TestPipeline()
     with self.assertRaises(ValueError):
@@ -536,12 +538,23 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
+  def test_flatten_one_single_pcollection(self):
+    pipeline = TestPipeline()
+    input = [0, 1, 2, 3]
+    pcoll = pipeline | 'Input' >> beam.Create(input)
+    result = (pcoll,)| 'Single Flatten' >> beam.Flatten()
+    assert_that(result, equal_to(input))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
   def test_flatten_same_pcollections(self):
     pipeline = TestPipeline()
     pc = pipeline | beam.Create(['a', 'b'])
     assert_that((pc, pc, pc) | beam.Flatten(), equal_to(['a', 'b'] * 3))
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_flatten_pcollections_in_iterable(self):
     pipeline = TestPipeline()
     pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -550,11 +563,23 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
+  def test_flatten_a_flattened_pcollection(self):
+    pipeline = TestPipeline()
+    pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
+    pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
+    result = ((pcoll_1, pcoll_2) | 'Flatten' >> beam.Flatten(),
+              ) |'Flatten again' >> beam.Flatten()
+    assert_that(result, equal_to([x for x in range(8)]))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
   def test_flatten_input_type_must_be_iterable(self):
     # Inputs to flatten *must* be an iterable.
     with self.assertRaises(ValueError):
       4 | beam.Flatten()
 
+  @attr('ValidatesRunner')
   def test_flatten_input_type_must_be_iterable_of_pcolls(self):
     # Inputs to flatten *must* be an iterable of PCollections.
     with self.assertRaises(TypeError):
