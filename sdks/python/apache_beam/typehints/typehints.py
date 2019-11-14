@@ -96,7 +96,6 @@ __all__ = [
 # to templated (upper-case) versions instead.
 DISALLOWED_PRIMITIVE_TYPES = (list, set, tuple, dict)
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
