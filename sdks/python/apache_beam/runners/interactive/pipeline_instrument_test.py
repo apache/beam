@@ -31,6 +31,7 @@ from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.testing.test_stream import TestStream
 
 # Work around nose tests using Python2 without unittest.mock module.
 try:
@@ -44,10 +45,8 @@ class PipelineInstrumentTest(unittest.TestCase):
   def setUp(self):
     ie.new_env(cache_manager=cache.FileBasedCacheManager())
 
-  def assertPipelineEqual(self, actual_pipeline, expected_pipeline):
-    actual_pipeline_proto = actual_pipeline.to_runner_api(use_fake_coders=True)
-    expected_pipeline_proto = expected_pipeline.to_runner_api(
-        use_fake_coders=True)
+  def assertPipelineProtoEqual(self, actual_pipeline_proto,
+                               expected_pipeline_proto):
     components1 = actual_pipeline_proto.components
     components2 = expected_pipeline_proto.components
     self.assertEqual(len(components1.transforms), len(components2.transforms))
@@ -63,6 +62,13 @@ class PipelineInstrumentTest(unittest.TestCase):
                               actual_pipeline_proto.root_transform_ids[0],
                               expected_pipeline_proto,
                               expected_pipeline_proto.root_transform_ids[0])
+
+  def assertPipelineEqual(self, actual_pipeline, expected_pipeline):
+    actual_pipeline_proto = actual_pipeline.to_runner_api(use_fake_coders=True)
+    expected_pipeline_proto = expected_pipeline.to_runner_api(
+        use_fake_coders=True)
+    self.assertPipelineProtoEqual(actual_pipeline_proto,
+                                  expected_pipeline_proto)
 
   def assertTransformEqual(self, actual_pipeline_proto, actual_transform_id,
                            expected_pipeline_proto, expected_transform_id):
@@ -178,14 +184,47 @@ class PipelineInstrumentTest(unittest.TestCase):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
     _ = p | 'ReadUnboundedSource' >> beam.io.ReadFromPubSub(
         subscription='projects/fake-project/subscriptions/fake_sub')
-    self.assertTrue(instr.has_unbounded_source(p))
+    self.assertTrue(instr.has_unbounded_sources(p))
 
   def test_not_has_unbounded_source(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(b'test')
     _ = p | 'ReadBoundedSource' >> beam.io.ReadFromText(f.name)
-    self.assertFalse(instr.has_unbounded_source(p))
+    self.assertFalse(instr.has_unbounded_sources(p))
+
+  def test_background_caching_pipeline_proto(self):
+    p = beam.Pipeline(interactive_runner.InteractiveRunner())
+
+    # Test that the two ReadFromPubSub are correctly cut out.
+    a = p | 'ReadUnboundedSourceA' >> beam.io.ReadFromPubSub(
+        subscription='projects/fake-project/subscriptions/fake_sub')
+    b = p | 'ReadUnboundedSourceB' >> beam.io.ReadFromPubSub(
+        subscription='projects/fake-project/subscriptions/fake_sub')
+
+    # Add some extra PTransform afterwards to make sure that only the unbounded
+    # sources remain.
+    c = (a, b) | beam.CoGroupByKey()
+    d = c | beam.Map(lambda x: x)
+
+    instrumenter = instr.PipelineInstrument(p)
+    actual_pipeline = instrumenter.background_caching_pipeline_proto()
+
+    # Now recreate the expected pipeline, which should only have the unbounded
+    # sources.
+    p = beam.Pipeline(interactive_runner.InteractiveRunner())
+    a = p | 'ReadUnboundedSourceA' >> beam.io.ReadFromPubSub(
+        subscription='projects/fake-project/subscriptions/fake_sub')
+    instrumenter._write_cache(p, a)
+
+    b = p | 'ReadUnboundedSourceB' >> beam.io.ReadFromPubSub(
+        subscription='projects/fake-project/subscriptions/fake_sub')
+    instrumenter._write_cache(p, b)
+
+    expected_pipeline = p.to_runner_api(return_context=False,
+                                        use_fake_coders=True)
+
+    self.assertPipelineProtoEqual(actual_pipeline, expected_pipeline)
 
   def _example_pipeline(self, watch=True):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
