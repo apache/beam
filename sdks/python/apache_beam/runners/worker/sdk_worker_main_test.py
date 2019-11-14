@@ -57,7 +57,7 @@ class SdkWorkerMainTest(unittest.TestCase):
     wrapped_method_for_test()
 
   def test_work_count_default_value(self):
-    self._check_worker_count('{}', 12)
+    self._check_worker_count('{}', 1000)
 
   def test_parse_pipeline_options(self):
     expected_options = PipelineOptions([])
