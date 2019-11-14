@@ -60,7 +60,6 @@ except ImportError:
 
 _LOGGER = logging.getLogger(__name__)
 
-
 _DESTINATION_ELEMENT_PAIRS = [
     # DESTINATION 1
     ('project1:dataset1.table1', '{"name":"beam", "language":"py"}'),

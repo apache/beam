@@ -64,9 +64,7 @@ except ImportError:
 
 _LOGGER = logging.getLogger(__name__)
 
-
 MAX_RETRIES = 3
-
 
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 
