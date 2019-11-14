@@ -35,13 +35,13 @@ import subprocess
 import sys
 import threading
 import time
-from concurrent import futures
 
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class BeamFnExternalWorkerPoolServicer(
@@ -60,7 +60,7 @@ class BeamFnExternalWorkerPoolServicer(
   @classmethod
   def start(cls, worker_threads=1, use_process=False, port=0,
             state_cache_size=0, container_executable=None):
-    worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    worker_server = grpc.server(UnboundedThreadPoolExecutor())
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
         '[::]:%s' % port)
     worker_pool = cls(worker_threads,
