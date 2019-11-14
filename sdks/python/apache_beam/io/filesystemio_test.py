@@ -29,6 +29,9 @@ from builtins import range
 from apache_beam.io import filesystemio
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class FakeDownloader(filesystemio.Downloader):
 
   def __init__(self, data):
@@ -206,7 +209,7 @@ class TestPipeStream(unittest.TestCase):
 
     for buffer_size in buffer_sizes:
       for target in [self._read_and_verify, self._read_and_seek]:
-        logging.info('buffer_size=%s, target=%s' % (buffer_size, target))
+        _LOGGER.info('buffer_size=%s, target=%s' % (buffer_size, target))
         parent_conn, child_conn = multiprocessing.Pipe()
         stream = filesystemio.PipeStream(child_conn)
         success = [False]
