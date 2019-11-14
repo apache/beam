@@ -32,6 +32,7 @@ from builtins import range
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import WindowInto
@@ -54,10 +55,9 @@ from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
-from nose.plugins.attrib import attr
 
 
 class FakeClock(object):
