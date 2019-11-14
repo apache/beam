@@ -296,7 +296,7 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
 
 class PortableRunnerInternalTest(unittest.TestCase):
   def test__create_default_environment(self):
-    docker_image = PortableRunner.default_docker_image()
+    docker_image = environments.DockerEnvironment.default_docker_image()
     self.assertEqual(
         PortableRunner._create_environment(PipelineOptions.from_dictionary({})),
         environments.DockerEnvironment(container_image=docker_image))
@@ -353,7 +353,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
 
 
 def hasDockerImage():
-  image = PortableRunner.default_docker_image()
+  image = environments.DockerEnvironment.default_docker_image()
   try:
     check_image = subprocess.check_output("docker images -q %s" % image,
                                           shell=True)
