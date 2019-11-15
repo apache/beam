@@ -47,24 +47,22 @@ from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
 
-  def __init__(self, worker_threads,
+  def __init__(self,
                use_process=False,
                container_executable=None,
                state_cache_size=0):
-    self._worker_threads = worker_threads
     self._use_process = use_process
     self._container_executable = container_executable
     self._state_cache_size = state_cache_size
     self._worker_processes = {}
 
   @classmethod
-  def start(cls, worker_threads=1, use_process=False, port=0,
+  def start(cls, use_process=False, port=0,
             state_cache_size=0, container_executable=None):
     worker_server = grpc.server(UnboundedThreadPoolExecutor())
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
         '[::]:%s' % port)
-    worker_pool = cls(worker_threads,
-                      use_process=use_process,
+    worker_pool = cls(use_process=use_process,
                       container_executable=container_executable,
                       state_cache_size=state_cache_size)
     beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
@@ -88,13 +86,11 @@ class BeamFnExternalWorkerPoolServicer(
                    'import SdkHarness; '
                    'SdkHarness('
                    '"%s",'
-                   'worker_count=%d,'
                    'worker_id="%s",'
                    'state_cache_size=%d'
                    ')'
                    '.run()' % (
                        start_worker_request.control_endpoint.url,
-                       self._worker_threads,
                        start_worker_request.worker_id,
                        self._state_cache_size)]
         if self._container_executable:
@@ -120,7 +116,6 @@ class BeamFnExternalWorkerPoolServicer(
       else:
         worker = sdk_worker.SdkHarness(
             start_worker_request.control_endpoint.url,
-            worker_count=self._worker_threads,
             worker_id=start_worker_request.worker_id,
             state_cache_size=self._state_cache_size)
         worker_thread = threading.Thread(
@@ -157,11 +152,6 @@ def main(argv=None):
   """Entry point for worker pool service for external environments."""
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--threads_per_worker',
-                      type=int,
-                      default=argparse.SUPPRESS,
-                      dest='worker_threads',
-                      help='Number of threads per SDK worker.')
   parser.add_argument('--container_executable',
                       type=str,
                       default=None,

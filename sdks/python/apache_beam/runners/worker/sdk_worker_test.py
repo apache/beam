@@ -78,7 +78,7 @@ class SdkWorkerTest(unittest.TestCase):
      tuple of request_count, number of process_bundles per request and workers
      counts to process the request.
     """
-    for (request_count, process_bundles_per_request, worker_count) in args:
+    for (request_count, process_bundles_per_request) in args:
       requests = []
       process_bundle_descriptors = []
 
@@ -100,8 +100,7 @@ class SdkWorkerTest(unittest.TestCase):
       server.start()
 
       harness = sdk_worker.SdkHarness(
-          "localhost:%s" % test_port, worker_count=worker_count,
-          state_cache_size=100)
+          "localhost:%s" % test_port, state_cache_size=100)
       harness.run()
 
       for worker in harness.workers.queue:
@@ -110,7 +109,7 @@ class SdkWorkerTest(unittest.TestCase):
                           for item in process_bundle_descriptors})
 
   def test_fn_registration(self):
-    self._check_fn_registration_multi_request((1, 4, 1), (4, 4, 1), (4, 4, 2))
+    self._check_fn_registration_multi_request((1, 4), (4, 4))
 
 
 if __name__ == "__main__":
