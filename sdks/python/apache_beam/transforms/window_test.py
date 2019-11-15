@@ -306,6 +306,7 @@ class WindowTest(unittest.TestCase):
   def test_custom_windows(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 1, 2, 3, 4, 5, 6)
+      # pylint: disable=abstract-class-instantiated
       result = (pcoll
                 | 'custom window' >> WindowInto(TestCustomWindows())
                 | GroupByKey()
