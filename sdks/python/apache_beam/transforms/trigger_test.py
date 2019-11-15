@@ -41,6 +41,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import ptransform
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.trigger import AccumulationMode
@@ -632,6 +633,54 @@ def _windowed_value_info(windowed_value):
   }
 
 
+def _windowed_value_info_map_fn(
+    k, vs,
+    window=beam.DoFn.WindowParam,
+    t=beam.DoFn.TimestampParam,
+    p=beam.DoFn.PaneInfoParam):
+  return (
+      k,
+      _windowed_value_info(WindowedValue(
+          vs, windows=[window], timestamp=t, pane_info=p)))
+
+
+def _windowed_value_info_check(actual, expected):
+
+  def format(panes):
+    return '\n[%s]\n' % '\n '.join(str(pane) for pane in sorted(
+        panes, key=lambda pane: pane.get('timestamp', None)))
+
+  if len(actual) > len(expected):
+    raise AssertionError(
+        'Unexpected output: expected %s but got %s' % (
+            format(expected), format(actual)))
+  elif len(expected) > len(actual):
+    raise AssertionError(
+        'Unmatched output: expected %s but got %s' % (
+            format(expected), format(actual)))
+  else:
+
+    def diff(actual, expected):
+      for key in sorted(expected.keys(), reverse=True):
+        if key in actual:
+          if actual[key] != expected[key]:
+            return key
+
+    for output in actual:
+      diffs = [diff(output, pane) for pane in expected]
+      if all(diffs):
+        raise AssertionError(
+            'Unmatched output: %s not found in %s (diffs in %s)' % (
+                output, format(expected), diffs))
+
+
+class _ConcatCombineFn(beam.CombineFn):
+  create_accumulator = lambda self: []
+  add_input = lambda self, acc, element: acc.append(element) or acc
+  merge_accumulators = lambda self, accs: sum(accs, [])
+  extract_output = lambda self, acc: acc
+
+
 class TriggerDriverTranscriptTest(TranscriptTest):
 
   def _execute(
@@ -782,42 +831,23 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
         elif action == 'expect':
           actual = list(seen.read())
           seen.clear()
-
-          if len(actual) > len(data):
-            raise AssertionError(
-                'Unexpected output: expected %s but got %s' % (data, actual))
-          elif len(data) > len(actual):
-            raise AssertionError(
-                'Unmatched output: expected %s but got %s' % (data, actual))
-          else:
-
-            def diff(actual, expected):
-              for key in sorted(expected.keys(), reverse=True):
-                if key in actual:
-                  if actual[key] != expected[key]:
-                    return key
-
-            for output in actual:
-              diffs = [diff(output, expected) for expected in data]
-              if all(diffs):
-                raise AssertionError(
-                    'Unmatched output: %s not found in %s (diffs in %s)' % (
-                        output, data, diffs))
+          _windowed_value_info_check(actual, data)
 
         else:
           raise ValueError('Unexpected action: %s' % action)
 
-    with TestPipeline() as p:
-      # TODO(BEAM-8601): Pass this during pipeline construction.
-      p.options.view_as(StandardOptions).streaming = True
+    @ptransform.ptransform_fn
+    def CheckAggregation(inputs_and_expected, aggregation):
       # Split the test stream into a branch of to-be-processed elements, and
       # a branch of expected results.
       inputs, expected = (
-          p
-          | read_test_stream
-          | beam.MapTuple(
-              lambda tag, value: beam.pvalue.TaggedOutput(tag, ('key', value))
-              ).with_outputs('input', 'expect'))
+          inputs_and_expected
+          | beam.FlatMapTuple(
+              lambda tag, value: [
+                  beam.pvalue.TaggedOutput(tag, ('key1', value)),
+                  beam.pvalue.TaggedOutput(tag, ('key2', value)),
+              ]).with_outputs('input', 'expect'))
+
       # Process the inputs with the given windowing to produce actual outputs.
       outputs = (
           inputs
@@ -828,15 +858,8 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
               trigger=trigger_fn,
               accumulation_mode=accumulation_mode,
               timestamp_combiner=timestamp_combiner)
-          | beam.GroupByKey()
-          | beam.MapTuple(
-              lambda k, vs,
-                     window=beam.DoFn.WindowParam,
-                     t=beam.DoFn.TimestampParam,
-                     p=beam.DoFn.PaneInfoParam: (
-                         k,
-                         _windowed_value_info(WindowedValue(
-                             vs, windows=[window], timestamp=t, pane_info=p))))
+          | aggregation
+          | beam.MapTuple(_windowed_value_info_map_fn)
           # Place outputs back into the global window to allow flattening
           # and share a single state in Check.
           | 'Global' >> beam.WindowInto(beam.transforms.window.GlobalWindows()))
@@ -850,6 +873,16 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
        | beam.Flatten()
        | beam.ParDo(Check(self.allow_out_of_order)))
 
+    with TestPipeline() as p:
+      # TODO(BEAM-8601): Pass this during pipeline construction.
+      p.options.view_as(StandardOptions).streaming = True
+
+      # We can have at most one test stream per pipeline, so we share it.
+      inputs_and_expected = p | read_test_stream
+      _ = inputs_and_expected | CheckAggregation(beam.GroupByKey())
+      _ = inputs_and_expected | CheckAggregation(beam.CombinePerKey(
+          _ConcatCombineFn()))
+
 
 class TestStreamTranscriptTest(BaseTestStreamTranscriptTest):
   allow_out_of_order = False
@@ -859,6 +892,83 @@ class WeakTestStreamTranscriptTest(BaseTestStreamTranscriptTest):
   allow_out_of_order = True
 
 
+class BatchTranscriptTest(TranscriptTest):
+
+  def _execute(
+      self, window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
+      transcript, spec):
+    if timestamp_combiner == TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED:
+      self.skipTest(
+          'Non-fnapi timestamp combiner: %s' % spec.get('timestamp_combiner'))
+
+    if accumulation_mode != AccumulationMode.ACCUMULATING:
+      self.skipTest('Batch mode only makes sense for accumulating.')
+
+    watermark = MIN_TIMESTAMP
+    for action, params in transcript:
+      if action == 'watermark':
+        watermark = params
+      elif action == 'input':
+        if any(t <= watermark for t in params):
+          self.skipTest('Batch mode never has late data.')
+
+    inputs = sum([vs for action, vs in transcript if action == 'input'], [])
+    final_panes_by_window = {}
+    for action, params in transcript:
+      if action == 'expect':
+        for expected in params:
+          trimmed = {}
+          for field in ('window', 'values', 'timestamp'):
+            if field in expected:
+              trimmed[field] = expected[field]
+          final_panes_by_window[tuple(expected['window'])] = trimmed
+    final_panes = list(final_panes_by_window.values())
+
+    if window_fn.is_merging():
+      merged_away = set()
+      class MergeContext(WindowFn.MergeContext):
+        def merge(_, to_be_merged, merge_result):
+          for window in to_be_merged:
+            if window != merge_result:
+              merged_away.add(window)
+      all_windows = [IntervalWindow(*pane['window']) for pane in final_panes]
+      window_fn.merge(MergeContext(all_windows))
+      final_panes = [
+          pane for pane in final_panes
+          if IntervalWindow(*pane['window']) not in merged_away]
+
+    with TestPipeline() as p:
+      input_pc = (
+          p
+          | beam.Create(inputs)
+          | beam.Map(lambda t: TimestampedValue(('key', t), t))
+          | beam.WindowInto(
+              window_fn,
+              trigger=trigger_fn,
+              accumulation_mode=accumulation_mode,
+              timestamp_combiner=timestamp_combiner))
+
+      grouped = input_pc | 'Grouped' >> (
+          beam.GroupByKey()
+          | beam.MapTuple(_windowed_value_info_map_fn)
+          | beam.MapTuple(lambda _, value: value))
+
+      combined = input_pc | 'Combined' >> (
+          beam.CombinePerKey(_ConcatCombineFn())
+          | beam.MapTuple(_windowed_value_info_map_fn)
+          | beam.MapTuple(lambda _, value: value))
+
+      assert_that(
+          grouped,
+          lambda actual: _windowed_value_info_check(actual, final_panes),
+          label='CheckGrouped')
+
+      assert_that(
+          combined,
+          lambda actual: _windowed_value_info_check(actual, final_panes),
+          label='CheckCombined')
+
+
 TRANSCRIPT_TEST_FILE = os.path.join(
     os.path.dirname(__file__), '..', 'testing', 'data',
     'trigger_transcripts.yaml')
@@ -866,6 +976,7 @@ if os.path.exists(TRANSCRIPT_TEST_FILE):
   TriggerDriverTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
   TestStreamTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
   WeakTestStreamTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
+  BatchTranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
 
 
 if __name__ == '__main__':
