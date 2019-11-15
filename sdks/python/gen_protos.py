@@ -39,6 +39,7 @@ BEAM_PROTO_PATHS = [
     os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
     os.path.join('..', '..', 'model', 'job-management', 'src', 'main', 'proto'),
     os.path.join('..', '..', 'model', 'fn-execution', 'src', 'main', 'proto'),
+    os.path.join('..', '..', 'model', 'interactive', 'src', 'main', 'proto'),
 ]
 
 PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
