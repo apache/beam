@@ -26,6 +26,7 @@ from builtins import object
 from builtins import range
 
 import mock
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -641,6 +642,26 @@ class DoFnTest(unittest.TestCase):
     assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
+  def test_element_param(self):
+    pipeline = TestPipeline()
+    input = [1, 2]
+    pcoll = (pipeline
+             | 'Create' >> Create(input)
+             | 'Ele param' >> Map(lambda element=DoFn.ElementParam: element))
+    assert_that(pcoll, equal_to(input))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_key_param(self):
+    pipeline = TestPipeline()
+    pcoll = (pipeline
+             | 'Create' >> Create([('a', 1), ('b', 2)])
+             | 'Key param' >> Map(lambda _, key=DoFn.KeyParam: key))
+    assert_that(pcoll, equal_to(['a', 'b']))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
   def test_window_param(self):
     class TestDoFn(DoFn):
       def process(self, element, window=DoFn.WindowParam):
@@ -663,6 +684,7 @@ class DoFnTest(unittest.TestCase):
         label='doubled windows')
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_timestamp_param(self):
     class TestDoFn(DoFn):
       def process(self, element, timestamp=DoFn.TimestampParam):
@@ -679,6 +701,7 @@ class DoFnTest(unittest.TestCase):
           p | Create([1, 2]) | beam.Map(lambda _, t=DoFn.TimestampParam: t),
           equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
 
+  @attr('ValidatesRunner')
   def test_pane_info_param(self):
     with TestPipeline() as p:
       pc = p | Create([(None, None)])
