@@ -364,16 +364,6 @@ class DataflowRunner(PipelineRunner):
 
   def run_pipeline(self, pipeline, options):
     """Remotely executes entire pipeline or parts reachable from node."""
-    # Label goog-dataflow-notebook if pipeline is initiated from interactive
-    # runner.
-    if pipeline.interactive:
-      notebook_version = ('goog-dataflow-notebook=' +
-                          beam.version.__version__.replace('.', '_'))
-      if options.view_as(GoogleCloudOptions).labels:
-        options.view_as(GoogleCloudOptions).labels.append(notebook_version)
-      else:
-        options.view_as(GoogleCloudOptions).labels = [notebook_version]
-
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
