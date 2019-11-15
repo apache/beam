@@ -31,8 +31,8 @@ import pydot
 
 import apache_beam as beam
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
 
