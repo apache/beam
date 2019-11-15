@@ -229,6 +229,18 @@ logging.getLogger('dill').setLevel(logging.WARN)
 def dumps(o, enable_trace=True):
   """For internal use only; no backwards-compatibility guarantees."""
 
+  if sys.version_info >= (3,):
+    # TODO(BEAM-8651): Pickling is sometimes flaky on Python 3.
+    num_tries = 0
+    while num_tries < 1000:
+      try:
+        s = dill.dumps(o)
+        c = zlib.compress(s, 9)
+        del s
+        return base64.b64encode(c)
+      except Exception:          # pylint: disable=broad-except
+        num_tries+=1
+
   try:
     s = dill.dumps(o)
   except Exception:      # pylint: disable=broad-except
@@ -257,7 +269,7 @@ def loads(encoded, enable_trace=True):
   s = zlib.decompress(c)
   del c  # Free up some possibly large and no-longer-needed memory.
   if sys.version_info >= (3,):
-    # TODO(BEAM-8651): Unpickling is flaky on Python 3.
+    # TODO(BEAM-8651): Pickling is sometimes flaky on Python 3.
     num_tries = 0
     while num_tries < 1000:
       try:
