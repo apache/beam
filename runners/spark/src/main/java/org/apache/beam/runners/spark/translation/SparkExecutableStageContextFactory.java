@@ -19,16 +19,14 @@ package org.apache.beam.runners.spark.translation;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext.MultiInstanceFactory;
+import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableStageContextFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
- * Singleton class that contains one {@link MultiInstanceFactory} per job. Assumes it is safe to
- * release the backing environment asynchronously.
+ * Singleton class that contains one {@link ExecutableStageContext.Factory} per job. Assumes it is
+ * safe to release the backing environment asynchronously.
  */
 public class SparkExecutableStageContextFactory implements ExecutableStageContext.Factory {
 
@@ -38,7 +36,7 @@ public class SparkExecutableStageContextFactory implements ExecutableStageContex
   // classloader and therefore its own instance of SparkExecutableStageContextFactory. This
   // code supports multiple JobInfos in order to provide a sensible implementation of
   // Factory.get(JobInfo), which in theory could be called with different JobInfos.
-  private static final ConcurrentMap<String, MultiInstanceFactory> jobFactories =
+  private static final ConcurrentMap<String, ExecutableStageContext.Factory> jobFactories =
       new ConcurrentHashMap<>();
 
   private SparkExecutableStageContextFactory() {}
@@ -49,21 +47,15 @@ public class SparkExecutableStageContextFactory implements ExecutableStageContex
 
   @Override
   public ExecutableStageContext get(JobInfo jobInfo) {
-    MultiInstanceFactory jobFactory =
+    ExecutableStageContext.Factory jobFactory =
         jobFactories.computeIfAbsent(
             jobInfo.jobId(),
             k -> {
-              PortablePipelineOptions portableOptions =
-                  PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
-                      .as(PortablePipelineOptions.class);
-
-              return new MultiInstanceFactory(
-                  MoreObjects.firstNonNull(portableOptions.getSdkWorkerParallelism(), 1L)
-                      .intValue(),
+              return ReferenceCountingExecutableStageContextFactory.create(
+                  DefaultExecutableStageContext::create,
                   // Always release environment asynchronously.
                   (caller) -> false);
             });
-
     return jobFactory.get(jobInfo);
   }
 }
