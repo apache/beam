@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -131,7 +130,7 @@ class BatchLoads<DestinationT, ElementT>
   private ValueProvider<String> customGcsTempLocation;
   private ValueProvider<String> loadJobProjectId;
   private final Coder<ElementT> elementCoder;
-  private final SerializableFunction<ElementT, TableRow> toRowFunction;
+  private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private String kmsKey;
 
   // The maximum number of times to retry failed load or copy jobs.
@@ -147,7 +146,7 @@ class BatchLoads<DestinationT, ElementT>
       @Nullable ValueProvider<String> loadJobProjectId,
       boolean ignoreUnknownValues,
       Coder<ElementT> elementCoder,
-      SerializableFunction<ElementT, TableRow> toRowFunction,
+      RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
       @Nullable String kmsKey) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
@@ -165,8 +164,8 @@ class BatchLoads<DestinationT, ElementT>
     this.loadJobProjectId = loadJobProjectId;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.elementCoder = elementCoder;
-    this.toRowFunction = toRowFunction;
     this.kmsKey = kmsKey;
+    this.rowWriterFactory = rowWriterFactory;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -305,7 +304,8 @@ class BatchLoads<DestinationT, ElementT>
                             maxFilesPerPartition,
                             maxBytesPerPartition,
                             multiPartitionsTag,
-                            singlePartitionTag))
+                            singlePartitionTag,
+                            rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
@@ -375,7 +375,8 @@ class BatchLoads<DestinationT, ElementT>
                             maxFilesPerPartition,
                             maxBytesPerPartition,
                             multiPartitionsTag,
-                            singlePartitionTag))
+                            singlePartitionTag,
+                            rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
@@ -466,7 +467,7 @@ class BatchLoads<DestinationT, ElementT>
                         unwrittedRecordsTag,
                         maxNumWritersPerBundle,
                         maxFileSize,
-                        toRowFunction))
+                        rowWriterFactory))
                 .withSideInputs(tempFilePrefix)
                 .withOutputTags(writtenFilesTag, TupleTagList.of(unwrittedRecordsTag)));
     PCollection<WriteBundlesToFiles.Result<DestinationT>> writtenFiles =
@@ -535,7 +536,7 @@ class BatchLoads<DestinationT, ElementT>
             "WriteGroupedRecords",
             ParDo.of(
                     new WriteGroupedRecordsToFiles<DestinationT, ElementT>(
-                        tempFilePrefix, maxFileSize, toRowFunction))
+                        tempFilePrefix, maxFileSize, rowWriterFactory))
                 .withSideInputs(tempFilePrefix))
         .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
   }
@@ -585,7 +586,8 @@ class BatchLoads<DestinationT, ElementT>
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
-                kmsKey));
+                kmsKey,
+                rowWriterFactory.getSourceFormat()));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -618,7 +620,8 @@ class BatchLoads<DestinationT, ElementT>
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
-                kmsKey));
+                kmsKey,
+                rowWriterFactory.getSourceFormat()));
   }
 
   private WriteResult writeResult(Pipeline p) {

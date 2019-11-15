@@ -41,9 +41,6 @@ test.dependsOn testPy37Gcp
 toxTask "testPy37Cython", "py37-cython"
 test.dependsOn testPy37Cython
 
-toxTask "testPy37Interactive", "py37-interactive"
-test.dependsOn testPy37Interactive
-
 // Ensure that testPy37Cython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
@@ -60,7 +57,6 @@ testPy37CythonPytest.mustRunAfter testPython37Pytest, testPy37GcpPytest
 task preCommitPy37() {
     dependsOn "testPy37Gcp"
     dependsOn "testPy37Cython"
-    dependsOn "testPy37Interactive"
 }
 
 task preCommitPy37Pytest {

@@ -1932,8 +1932,8 @@ operator (\*) to read all matching input files that have prefix "input-" and the
 suffix ".csv" in the given location:
 
 ```java
-p.apply(“ReadFromText”,
-    TextIO.read().from("protocol://my_bucket/path/to/input-*.csv");
+p.apply("ReadFromText",
+    TextIO.read().from("protocol://my_bucket/path/to/input-*.csv"));
 ```
 
 ```py

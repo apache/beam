@@ -39,6 +39,8 @@ except ImportError:
 DEFAULT_TIMEOUT = 5 * 60
 MAX_MESSAGES_IN_ONE_PULL = 50
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class PubSubMessageMatcher(BaseMatcher):
   """Matcher that verifies messages from given subscription.
@@ -123,7 +125,7 @@ class PubSubMessageMatcher(BaseMatcher):
       time.sleep(1)
 
     if time.time() - start_time > timeout:
-      logging.error('Timeout after %d sec. Received %d messages from %s.',
+      _LOGGER.error('Timeout after %d sec. Received %d messages from %s.',
                     timeout, len(total_messages), self.sub_name)
     return total_messages
 

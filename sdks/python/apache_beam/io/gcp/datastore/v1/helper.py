@@ -54,6 +54,9 @@ except ImportError:
 # pylint: enable=ungrouped-imports
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 def key_comparator(k1, k2):
   """A comparator for Datastore keys.
 
@@ -216,7 +219,7 @@ def write_mutations(datastore, project, mutations, throttler,
   def commit(request):
     # Client-side throttling.
     while throttler.throttle_request(time.time()*1000):
-      logging.info("Delaying request for %ds due to previous failures",
+      _LOGGER.info("Delaying request for %ds due to previous failures",
                    throttle_delay)
       time.sleep(throttle_delay)
       rpc_stats_callback(throttled_secs=throttle_delay)

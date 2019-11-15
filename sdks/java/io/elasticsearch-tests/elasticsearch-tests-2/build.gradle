@@ -48,5 +48,5 @@ dependencies {
   testCompile library.java.vendored_guava_26_0_jre
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

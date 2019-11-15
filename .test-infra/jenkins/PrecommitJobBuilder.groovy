@@ -38,6 +38,9 @@ class PrecommitJobBuilder {
   /** If defined, set of path expressions used to trigger the job on commit. */
   List<String> triggerPathPatterns = []
 
+  /** If defined, set of path expressions to not trigger the job on commit. */
+  List<String> excludePathPatterns = []
+
   /** Whether to trigger on new PR commits. Useful to set to false when testing new jobs. */
   boolean commitTriggering = true
 
@@ -86,7 +89,8 @@ class PrecommitJobBuilder {
         githubUiHint(),
         '',
         false,
-        triggerPathPatterns)
+        triggerPathPatterns,
+        excludePathPatterns)
     }
     job.with additionalCustomization
   }

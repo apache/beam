@@ -46,6 +46,8 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 
+_LOGGER = logging.getLogger(__name__)
+
 ONE_TERABYTE = (1 << 40)
 
 # The maximum file size for imports is 5TB. We keep our files under that.
@@ -320,7 +322,7 @@ class TriggerCopyJobs(beam.DoFn):
                                copy_to_reference.datasetId,
                                copy_to_reference.tableId)))
 
-    logging.info("Triggering copy job from %s to %s",
+    _LOGGER.info("Triggering copy job from %s to %s",
                  copy_from_reference, copy_to_reference)
     job_reference = self.bq_wrapper._insert_copy_job(
         copy_to_reference.projectId,
@@ -407,7 +409,7 @@ class TriggerLoadJobs(beam.DoFn):
     uid = _bq_uuid()
     job_name = '%s_%s_%s' % (
         load_job_name_prefix, destination_hash, uid)
-    logging.debug('Load job has %s files. Job name is %s.',
+    _LOGGER.debug('Load job has %s files. Job name is %s.',
                   len(files), job_name)
 
     if self.temporary_tables:
@@ -415,7 +417,7 @@ class TriggerLoadJobs(beam.DoFn):
       table_reference.tableId = job_name
       yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
 
-    logging.info('Triggering job %s to load data to BigQuery table %s.'
+    _LOGGER.info('Triggering job %s to load data to BigQuery table %s.'
                  'Schema: %s. Additional parameters: %s',
                  job_name, table_reference,
                  schema, additional_parameters)
@@ -519,9 +521,9 @@ class WaitForBQJobs(beam.DoFn):
                                     ref.jobId,
                                     ref.location)
 
-      logging.info("Job status: %s", job.status)
+      _LOGGER.info("Job status: %s", job.status)
       if job.status.state == 'DONE' and job.status.errorResult:
-        logging.warning("Job %s seems to have failed. Error Result: %s",
+        _LOGGER.warning("Job %s seems to have failed. Error Result: %s",
                         ref.jobId, job.status.errorResult)
         self._latest_error = job.status
         return WaitForBQJobs.FAILED
@@ -541,7 +543,7 @@ class DeleteTablesFn(beam.DoFn):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
 
   def process(self, table_reference):
-    logging.info("Deleting table %s", table_reference)
+    _LOGGER.info("Deleting table %s", table_reference)
     table_reference = bigquery_tools.parse_table_reference(table_reference)
     self.bq_wrapper._delete_table(
         table_reference.projectId,

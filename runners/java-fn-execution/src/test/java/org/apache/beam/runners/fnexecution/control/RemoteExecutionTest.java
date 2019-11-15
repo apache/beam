@@ -18,10 +18,10 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -946,8 +946,6 @@ public class RemoteExecutionTest implements Serializable {
   @Test
   public void testExecutionWithTimer() throws Exception {
     Pipeline p = Pipeline.create();
-    final String timerId = "foo";
-    final String timerId2 = "foo2";
 
     p.apply("impulse", Impulse.create())
         .apply(

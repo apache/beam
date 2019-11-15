@@ -50,11 +50,20 @@ class GreedyPCollectionFusers {
               PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
               GreedyPCollectionFusers::canFuseParDo)
           .put(
+              PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN,
+              GreedyPCollectionFusers::canFuseParDo)
+          .put(
+              PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
+              GreedyPCollectionFusers::cannotFuse)
+          .put(
+              PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN,
+              GreedyPCollectionFusers::cannotFuse)
+          .put(
               PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN,
               GreedyPCollectionFusers::canFuseParDo)
           .put(
               PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN,
-              GreedyPCollectionFusers::canFuseParDo)
+              GreedyPCollectionFusers::cannotFuse)
           .put(
               PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
               GreedyPCollectionFusers::canFuseCompatibleEnvironment)

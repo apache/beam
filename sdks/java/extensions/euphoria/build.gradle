@@ -30,7 +30,7 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 
 test {

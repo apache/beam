@@ -23,7 +23,6 @@ from __future__ import print_function
 import logging
 import unittest
 from builtins import range
-from concurrent import futures
 
 import grpc
 
@@ -31,6 +30,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
@@ -78,7 +78,7 @@ class SdkWorkerTest(unittest.TestCase):
      tuple of request_count, number of process_bundles per request and workers
      counts to process the request.
     """
-    for (request_count, process_bundles_per_request, worker_count) in args:
+    for (request_count, process_bundles_per_request) in args:
       requests = []
       process_bundle_descriptors = []
 
@@ -93,15 +93,14 @@ class SdkWorkerTest(unittest.TestCase):
 
       test_controller = BeamFnControlServicer(requests)
 
-      server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      server = grpc.server(UnboundedThreadPoolExecutor())
       beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
           test_controller, server)
       test_port = server.add_insecure_port("[::]:0")
       server.start()
 
       harness = sdk_worker.SdkHarness(
-          "localhost:%s" % test_port, worker_count=worker_count,
-          state_cache_size=100)
+          "localhost:%s" % test_port, state_cache_size=100)
       harness.run()
 
       for worker in harness.workers.queue:
@@ -110,7 +109,7 @@ class SdkWorkerTest(unittest.TestCase):
                           for item in process_bundle_descriptors})
 
   def test_fn_registration(self):
-    self._check_fn_registration_multi_request((1, 4, 1), (4, 4, 1), (4, 4, 2))
+    self._check_fn_registration_multi_request((1, 4), (4, 4))
 
 
 if __name__ == "__main__":

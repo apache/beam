@@ -56,7 +56,9 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -79,12 +81,14 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for GroupByKey. */
 @SuppressWarnings({"rawtypes", "unchecked"})
+@RunWith(Enclosed.class)
 public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
@@ -193,6 +197,104 @@ public class GroupByKeyTest implements Serializable {
 
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage("must be deterministic");
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterPane.elementCountAtLeast(1) is not OK
+    @Test
+    public void testGroupByKeyFinishingTriggerRejected() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(AfterPane.elementCountAtLeast(1)));
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Unsafe trigger");
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow() is OK with 0 allowed lateness
+    @Test
+    public void testGroupByKeyFinishingEndOfWindowTriggerOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(AfterWatermark.pastEndOfWindow())
+                      .withAllowedLateness(Duration.ZERO));
+
+      // OK
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow().withEarlyFirings() is OK with 0 allowed lateness
+    @Test
+    public void testGroupByKeyFinishingEndOfWindowEarlyFiringsTriggerOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(
+                          AfterWatermark.pastEndOfWindow()
+                              .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
+                      .withAllowedLateness(Duration.ZERO));
+
+      // OK
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow() is not OK with > 0 allowed lateness
+    @Test
+    public void testGroupByKeyFinishingEndOfWindowTriggerNotOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(AfterWatermark.pastEndOfWindow())
+                      .withAllowedLateness(Duration.millis(10)));
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Unsafe trigger");
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow().withEarlyFirings() is not OK with > 0 allowed lateness
+    @Test
+    public void testGroupByKeyFinishingEndOfWindowEarlyFiringsTriggerNotOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(
+                          AfterWatermark.pastEndOfWindow()
+                              .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
+                      .withAllowedLateness(Duration.millis(10)));
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Unsafe trigger");
+      input.apply(GroupByKey.create());
+    }
+
+    // AfterWatermark.pastEndOfWindow().withLateFirings() is always OK
+    @Test
+    public void testGroupByKeyEndOfWindowLateFiringsOk() {
+      PCollection<KV<String, String>> input =
+          p.apply(Create.of(KV.of("hello", "goodbye")))
+              .apply(
+                  Window.<KV<String, String>>configure()
+                      .discardingFiredPanes()
+                      .triggering(
+                          AfterWatermark.pastEndOfWindow()
+                              .withLateFirings(AfterPane.elementCountAtLeast(1)))
+                      .withAllowedLateness(Duration.millis(10)));
+
+      // OK
       input.apply(GroupByKey.create());
     }
 

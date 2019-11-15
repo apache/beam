@@ -25,9 +25,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
+import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
+import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
@@ -58,8 +61,16 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     SparkBatchPortablePipelineTranslator translator = new SparkBatchPortablePipelineTranslator();
 
+    // Expand any splittable DoFns within the graph to enable sizing and splitting of bundles.
+    Pipeline pipelineWithSdfExpanded =
+        ProtoOverrides.updateTransform(
+            PTransformTranslation.PAR_DO_TRANSFORM_URN,
+            pipeline,
+            SplittableParDoExpander.createSizedReplacement());
+
     // Don't let the fuser fuse any subcomponents of native transforms.
-    Pipeline trimmedPipeline = PipelineTrimmer.trim(pipeline, translator.knownUrns());
+    Pipeline trimmedPipeline =
+        PipelineTrimmer.trim(pipelineWithSdfExpanded, translator.knownUrns());
 
     // Fused pipeline proto.
     // TODO: Consider supporting partially-fused graphs.

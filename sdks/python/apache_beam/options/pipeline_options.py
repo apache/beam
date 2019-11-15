@@ -23,6 +23,7 @@ import argparse
 import json
 import logging
 import os
+import subprocess
 from builtins import list
 from builtins import object
 
@@ -45,6 +46,9 @@ __all__ = [
     'SetupOptions',
     'TestOptions',
     ]
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _static_value_provider_of(value_type):
@@ -261,7 +265,7 @@ class PipelineOptions(HasDisplayData):
       add_extra_args_fn(parser)
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if unknown_args:
-      logging.warning("Discarding unparseable args: %s", unknown_args)
+      _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
     result = vars(known_args)
 
     # Apply the overrides if any
@@ -509,19 +513,25 @@ class GoogleCloudOptions(PipelineOptions):
     """
     environment_region = os.environ.get('CLOUDSDK_COMPUTE_REGION')
     if environment_region:
-      logging.info('Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
+      _LOGGER.info('Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
                    environment_region)
       return environment_region
     try:
       cmd = ['gcloud', 'config', 'get-value', 'compute/region']
-      output = processes.check_output(cmd).decode('utf-8').strip()
-      if output:
-        logging.info('Using default GCP region %s from `%s`',
-                     output, ' '.join(cmd))
-        return output
+      # Use subprocess.DEVNULL in Python 3.3+.
+      if hasattr(subprocess, 'DEVNULL'):
+        DEVNULL = subprocess.DEVNULL
+      else:
+        DEVNULL = open(os.devnull, 'ab')
+      raw_output = processes.check_output(cmd, stderr=DEVNULL)
+      formatted_output = raw_output.decode('utf-8').strip()
+      if formatted_output:
+        _LOGGER.info('Using default GCP region %s from `%s`',
+                     formatted_output, ' '.join(cmd))
+        return formatted_output
     except RuntimeError:
       pass
-    logging.warning(
+    _LOGGER.warning(
         '--region not set; will default to us-central1. Future releases of '
         'Beam will require the user to set --region explicitly, or else have a '
         'default set via the gcloud tool. '
@@ -865,8 +875,13 @@ class PortableOptions(PipelineOptions):
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--job_endpoint', default=None,
-        help=('Job service endpoint to use. Should be in the form of address '
-              'and port, e.g. localhost:3000'))
+        help=('Job service endpoint to use. Should be in the form of host '
+              'and port, e.g. localhost:8099.'))
+    parser.add_argument(
+        '--artifact_endpoint', default=None,
+        help=('Artifact staging endpoint to use. Should be in the form of host '
+              'and port, e.g. localhost:8098. If none is specified, the '
+              'artifact endpoint sent from the job server is used.'))
     parser.add_argument(
         '--job-server-timeout', default=60, type=int,
         help=('Job service request timeout in seconds. The timeout '
