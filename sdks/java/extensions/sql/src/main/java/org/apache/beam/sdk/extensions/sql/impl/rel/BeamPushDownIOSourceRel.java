@@ -119,7 +119,7 @@ public class BeamPushDownIOSourceRel extends BeamIOSourceRel {
     // Total totalBenefit of having push-down.
     double totalBenefit = projectBenefit + filterBenefit;
     // Normalize totalBenefit to be between 0.00 and 1.00.
-    double normalizedBenefit = totalBenefit / Math.max(totalBenefit, parentCost.getCpu() + 1);
+    double normalizedBenefit = totalBenefit / (Math.max(totalBenefit, parentCost.getCpu()) + 1);
     BeamCostModel minus = BeamCostModel.FACTORY.makeTinyCost().multiplyBy(normalizedBenefit);
     return parentCost.minus(minus);
   }
