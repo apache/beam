@@ -72,6 +72,8 @@ SCHEMA = [
     }
 ]
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def parse_step(step_name):
   """Replaces white spaces and removes 'Step:' label
@@ -330,13 +332,13 @@ class ConsoleMetricsPublisher(object):
     if len(results) > 0:
       log = "Load test results for test: %s and timestamp: %s:" \
             % (results[0][ID_LABEL], results[0][SUBMIT_TIMESTAMP_LABEL])
-      logging.info(log)
+      _LOGGER.info(log)
       for result in results:
         log = "Metric: %s Value: %d" \
               % (result[METRICS_TYPE_LABEL], result[VALUE_LABEL])
-        logging.info(log)
+        _LOGGER.info(log)
     else:
-      logging.info("No test results were collected.")
+      _LOGGER.info("No test results were collected.")
 
 
 class BigQueryMetricsPublisher(object):
@@ -351,7 +353,7 @@ class BigQueryMetricsPublisher(object):
       for output in outputs:
         errors = output['errors']
         for err in errors:
-          logging.error(err['message'])
+          _LOGGER.error(err['message'])
           raise ValueError(
               'Unable save rows in BigQuery: {}'.format(err['message']))
 
