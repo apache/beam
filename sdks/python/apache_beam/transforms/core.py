@@ -101,6 +101,8 @@ T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class DoFnContext(object):
   """A context available to all methods of DoFn instance."""
@@ -502,7 +504,7 @@ class _BundleFinalizerParam(_DoFnParam):
       try:
         callback()
       except Exception as e:
-        logging.warning("Got exception from finalization call: %s", e)
+        _LOGGER.warning("Got exception from finalization call: %s", e)
 
   def has_callbacks(self):
     return len(self._callbacks) > 0
@@ -747,7 +749,7 @@ class CallableWrapperDoFn(DoFn):
       type_hints = type_hints.strip_iterable()
     except ValueError as e:
       # TODO(BEAM-8466): Raise exception here if using stricter type checking.
-      logging.warning('%s: %s', self.display_data()['fn'].value, e)
+      _LOGGER.warning('%s: %s', self.display_data()['fn'].value, e)
     return type_hints
 
   def infer_output_type(self, input_type):
@@ -1218,7 +1220,7 @@ class ParDo(PTransformWithSideInputs):
         key_coder = coders.registry.get_coder(typehints.Any)
 
       if not key_coder.is_deterministic():
-        logging.warning(
+        _LOGGER.warning(
             'Key coder %s for transform %s with stateful DoFn may not '
             'be deterministic. This may cause incorrect behavior for complex '
             'key types. Consider adding an input type hint for this transform.',

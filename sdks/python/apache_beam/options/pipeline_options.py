@@ -48,6 +48,9 @@ __all__ = [
     ]
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 def _static_value_provider_of(value_type):
   """"Helper function to plug a ValueProvider into argparse.
 
@@ -262,7 +265,7 @@ class PipelineOptions(HasDisplayData):
       add_extra_args_fn(parser)
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if unknown_args:
-      logging.warning("Discarding unparseable args: %s", unknown_args)
+      _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
     result = vars(known_args)
 
     # Apply the overrides if any
@@ -510,7 +513,7 @@ class GoogleCloudOptions(PipelineOptions):
     """
     environment_region = os.environ.get('CLOUDSDK_COMPUTE_REGION')
     if environment_region:
-      logging.info('Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
+      _LOGGER.info('Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
                    environment_region)
       return environment_region
     try:
@@ -523,12 +526,12 @@ class GoogleCloudOptions(PipelineOptions):
       raw_output = processes.check_output(cmd, stderr=DEVNULL)
       formatted_output = raw_output.decode('utf-8').strip()
       if formatted_output:
-        logging.info('Using default GCP region %s from `%s`',
+        _LOGGER.info('Using default GCP region %s from `%s`',
                      formatted_output, ' '.join(cmd))
         return formatted_output
     except RuntimeError:
       pass
-    logging.warning(
+    _LOGGER.warning(
         '--region not set; will default to us-central1. Future releases of '
         'Beam will require the user to set --region explicitly, or else have a '
         'default set via the gcloud tool. '
