@@ -201,8 +201,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     PortablePipelineOptions pipelineOptions =
         PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
             .as(PortablePipelineOptions.class);
-    int maxEnvironments =
-        MoreObjects.firstNonNull(pipelineOptions.getSdkWorkerParallelism(), 1L).intValue();
+    int maxEnvironments = MoreObjects.firstNonNull(pipelineOptions.getSdkWorkerParallelism(), 1);
     Preconditions.checkArgument(maxEnvironments >= 0, "sdk_worker_parallelism must be >= 0");
     if (maxEnvironments == 0) {
       // if this is 0, use the auto behavior of num_cores - 1 so that we leave some resources
