@@ -324,8 +324,15 @@ class PortableRunner(runner.PipelineRunner):
           beam_job_api_pb2.JobMessagesRequest(
               job_id=run_response.job_id))
 
-    return PipelineResult(job_service, run_response.job_id, message_stream,
-                          state_stream, cleanup_callbacks)
+    result = PipelineResult(job_service, run_response.job_id, message_stream,
+                            state_stream, cleanup_callbacks)
+    if cleanup_callbacks:
+      # We wait here to ensure that we run the cleanup callbacks.
+      logging.info('Waiting until the pipeline has finished because the '
+                   'environment "%s" has started a component necessary for the '
+                   'execution.', portable_options.environment_type)
+      result.wait_until_finish()
+    return result
 
 
 class PortableMetrics(metric.MetricResults):
