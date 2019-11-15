@@ -308,13 +308,11 @@ class EmbeddedPythonEnvironment(Environment):
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedPythonGrpcEnvironment(Environment):
 
-  def __init__(self, num_workers=None, state_cache_size=None):
-    self.num_workers = num_workers
+  def __init__(self, state_cache_size=None):
     self.state_cache_size = state_cache_size
 
   def __eq__(self, other):
     return self.__class__ == other.__class__ \
-           and self.num_workers == other.num_workers \
            and self.state_cache_size == other.state_cache_size
 
   def __ne__(self, other):
@@ -322,34 +320,26 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     return not self == other
 
   def __hash__(self):
-    return hash((self.__class__, self.num_workers, self.state_cache_size))
+    return hash((self.__class__, self.state_cache_size))
 
   def __repr__(self):
     repr_parts = []
-    if not self.num_workers is None:
-      repr_parts.append('num_workers=%d' % self.num_workers)
     if not self.state_cache_size is None:
       repr_parts.append('state_cache_size=%d' % self.state_cache_size)
     return 'EmbeddedPythonGrpcEnvironment(%s)' % ','.join(repr_parts)
 
   def to_runner_api_parameter(self, context):
-    if self.num_workers is None and self.state_cache_size is None:
+    if self.state_cache_size is None:
       payload = b''
-    elif self.num_workers is not None and self.state_cache_size is not None:
-      payload = b'%d,%d' % (self.num_workers, self.state_cache_size)
     else:
-      # We want to make sure that the environment stays the same through the
-      # roundtrip to runner api, so here we don't want to set default for the
-      # other if only one of num workers or state cache size is set
-      raise ValueError('Must provide worker num and state cache size.')
+      payload = b'%d' % self.state_cache_size
     return python_urns.EMBEDDED_PYTHON_GRPC, payload
 
   @staticmethod
   def from_runner_api_parameter(payload, context):
     if payload:
-      num_workers, state_cache_size = payload.decode('utf-8').split(',')
+      state_cache_size = payload.decode('utf-8')
       return EmbeddedPythonGrpcEnvironment(
-          num_workers=int(num_workers),
           state_cache_size=int(state_cache_size))
     else:
       return EmbeddedPythonGrpcEnvironment()
@@ -357,8 +347,8 @@ class EmbeddedPythonGrpcEnvironment(Environment):
   @classmethod
   def from_options(cls, options):
     if options.environment_config:
-      num_workers, state_cache_size = options.environment_config.split(',')
-      return cls(num_workers=num_workers, state_cache_size=state_cache_size)
+      state_cache_size = options.environment_config
+      return cls(state_cache_size=state_cache_size)
     else:
       return cls()
 
