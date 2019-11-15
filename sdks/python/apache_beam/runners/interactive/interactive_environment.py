@@ -24,6 +24,7 @@ application code or notebook.
 """
 from __future__ import absolute_import
 
+import atexit
 import importlib
 import logging
 import sys
@@ -32,6 +33,9 @@ import apache_beam as beam
 from apache_beam.runners import runner
 from apache_beam.runners.utils import is_interactive
 
+# Interactive Beam user flow is data-centric rather than pipeline-centric, so
+# there is only one global interactive environment instance that manages
+# implementation that enables interactivity.
 _interactive_beam_env = None
 
 
@@ -46,6 +50,8 @@ def current_env(cache_manager=None):
 def new_env(cache_manager=None):
   """Creates a new Interactive Beam environment to replace current one."""
   global _interactive_beam_env
+  if _interactive_beam_env:
+    _interactive_beam_env.cleanup()
   _interactive_beam_env = None
   return current_env(cache_manager)
 
@@ -63,6 +69,9 @@ class InteractiveEnvironment(object):
 
   def __init__(self, cache_manager=None):
     self._cache_manager = cache_manager
+    # Register a cleanup routine when kernel is restarted or terminated.
+    if cache_manager:
+      atexit.register(self.cleanup)
     # Holds class instances, module object, string of module names.
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
@@ -74,10 +83,10 @@ class InteractiveEnvironment(object):
     self._pipeline_results = {}
     # Always watch __main__ module.
     self.watch('__main__')
-    # Do a warning level logging if current python version is below 3.5.3.
-    if sys.version_info < (3, 5, 3):
+    # Do a warning level logging if current python version is below 3.6.
+    if sys.version_info < (3, 6):
       self._is_py_version_ready = False
-      logging.warning('Interactive Beam requires Python 3.5.3+.')
+      logging.warning('Interactive Beam requires Python 3.6+.')
     else:
       self._is_py_version_ready = True
     # Check if [interactive] dependencies are installed.
@@ -127,6 +136,11 @@ class InteractiveEnvironment(object):
     """
     return self._is_in_notebook
 
+  def cleanup(self):
+    # Utilizes cache manager to clean up cache from everywhere.
+    if self.cache_manager():
+      self.cache_manager().cleanup()
+
   def watch(self, watchable):
     """Watches a watchable.
 
@@ -163,7 +177,18 @@ class InteractiveEnvironment(object):
 
   def set_cache_manager(self, cache_manager):
     """Sets the cache manager held by current Interactive Environment."""
+    if self._cache_manager is cache_manager:
+      # NOOP if setting to the same cache_manager.
+      return
+    if self._cache_manager:
+      # Invoke cleanup routine when a new cache_manager is forcefully set and
+      # current cache_manager is not None.
+      self.cleanup()
+      atexit.unregister(self.cleanup)
     self._cache_manager = cache_manager
+    if self._cache_manager:
+      # Re-register cleanup routine for the new cache_manager if it's not None.
+      atexit.register(self.cleanup)
 
   def cache_manager(self):
     """Gets the cache manager held by current Interactive Environment."""
