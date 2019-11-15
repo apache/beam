@@ -173,7 +173,7 @@ class _GrpcDataChannel(DataChannel):
 
   def __init__(self):
     self._to_send = queue.Queue()
-    self._received = collections.defaultdict(queue.Queue)
+    self._received = collections.defaultdict(lambda: queue.Queue(maxsize=5))
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
@@ -267,7 +267,6 @@ class _GrpcDataChannel(DataChannel):
         yield beam_fn_api_pb2.Elements(data=data)
 
   def _read_inputs(self, elements_iterator):
-    # TODO(robertwb): Pushback/throttling to avoid unbounded buffering.
     try:
       for elements in elements_iterator:
         for data in elements.data:
