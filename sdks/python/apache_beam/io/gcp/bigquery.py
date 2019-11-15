@@ -273,6 +273,9 @@ __all__ = [
     ]
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
 def _parse_table_reference(table, dataset=None, project=None):
   return bigquery_tools.parse_table_reference(table, dataset, project)
@@ -787,7 +790,7 @@ class BigQueryWriteFn(DoFn):
       # and avoid the get-or-create step.
       return
 
-    logging.debug('Creating or getting table %s with schema %s.',
+    _LOGGER.debug('Creating or getting table %s with schema %s.',
                   table_reference, schema)
 
     table_schema = self.get_table_schema(schema)
@@ -833,7 +836,7 @@ class BigQueryWriteFn(DoFn):
     return self._flush_all_batches()
 
   def _flush_all_batches(self):
-    logging.debug('Attempting to flush to all destinations. Total buffered: %s',
+    _LOGGER.debug('Attempting to flush to all destinations. Total buffered: %s',
                   self._total_buffered_rows)
 
     return itertools.chain(*[self._flush_batch(destination)
@@ -850,7 +853,7 @@ class BigQueryWriteFn(DoFn):
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
 
-    logging.debug('Flushing data to %s. Total %s rows.',
+    _LOGGER.debug('Flushing data to %s. Total %s rows.',
                   destination, len(rows_and_insert_ids))
 
     rows = [r[0] for r in rows_and_insert_ids]
@@ -865,7 +868,7 @@ class BigQueryWriteFn(DoFn):
           insert_ids=insert_ids,
           skip_invalid_rows=True)
 
-      logging.debug("Passed: %s. Errors are %s", passed, errors)
+      _LOGGER.debug("Passed: %s. Errors are %s", passed, errors)
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
           bigquery_tools.RetryStrategy.should_retry(
@@ -877,7 +880,7 @@ class BigQueryWriteFn(DoFn):
         break
       else:
         retry_backoff = next(self._backoff_calculator)
-        logging.info('Sleeping %s seconds before retrying insertion.',
+        _LOGGER.info('Sleeping %s seconds before retrying insertion.',
                      retry_backoff)
         time.sleep(retry_backoff)
 

@@ -61,6 +61,9 @@ __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 # Encapsulates information about a bundle of a source generated when method
 # BoundedSource.split() is invoked.
 # This is a named 4-tuple that has following fields.
@@ -1075,7 +1078,7 @@ def _finalize_write(unused_element, sink, init_result, write_results,
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
-    logging.debug(
+    _LOGGER.debug(
         'Creating %s empty shard(s).', min_shards - len(write_results))
     for _ in range(min_shards - len(write_results)):
       writer = sink.open_writer(init_result, str(uuid.uuid4()))
