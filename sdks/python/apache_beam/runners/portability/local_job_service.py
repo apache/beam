@@ -26,7 +26,6 @@ import threading
 import time
 import traceback
 from builtins import object
-from concurrent import futures
 
 import grpc
 from google.protobuf import text_format
@@ -42,6 +41,7 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner
+from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
@@ -92,7 +92,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
         self._artifact_staging_endpoint)
 
   def start_grpc_server(self, port=0):
-    self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
+    self._server = grpc.server(UnboundedThreadPoolExecutor())
     port = self._server.add_insecure_port('localhost:%d' % port)
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
@@ -139,7 +139,7 @@ class SubprocessSdkWorker(object):
     self._worker_id = worker_id
 
   def run(self):
-    logging_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    logging_server = grpc.server(UnboundedThreadPoolExecutor())
     logging_port = logging_server.add_insecure_port('[::]:0')
     logging_server.start()
     logging_servicer = BeamFnLoggingServicer()
@@ -195,7 +195,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._state = None
     self._state_queues = []
     self._log_queues = []
-    self.state = beam_job_api_pb2.JobState.STARTING
+    self.state = beam_job_api_pb2.JobState.STOPPED
     self.daemon = True
     self.result = None
 
@@ -220,10 +220,12 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     return self._artifact_staging_endpoint
 
   def run(self):
+    self.state = beam_job_api_pb2.JobState.STARTING
     self._run_thread = threading.Thread(target=self._run_job)
     self._run_thread.start()
 
   def _run_job(self):
+    self.state = beam_job_api_pb2.JobState.RUNNING
     with JobLogHandler(self._log_queues):
       try:
         result = fn_api_runner.FnApiRunner(
@@ -239,7 +241,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         raise
 
   def cancel(self):
-    if self.state not in abstract_job_service.TERMINAL_STATES:
+    if not self.is_terminal_state(self.state):
       self.state = beam_job_api_pb2.JobState.CANCELLING
       # TODO(robertwb): Actually cancel...
       self.state = beam_job_api_pb2.JobState.CANCELLED
@@ -253,7 +255,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     while True:
       current_state = state_queue.get(block=True)
       yield current_state
-      if current_state in abstract_job_service.TERMINAL_STATES:
+      if self.is_terminal_state(current_state):
         break
 
   def get_message_stream(self):
@@ -264,7 +266,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
     current_state = self.state
     yield current_state
-    while current_state not in abstract_job_service.TERMINAL_STATES:
+    while not self.is_terminal_state(current_state):
       msg = log_queue.get(block=True)
       yield msg
       if isinstance(msg, int):

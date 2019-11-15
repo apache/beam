@@ -213,17 +213,40 @@ message JobMessagesResponse {
 // without needing to pass through STARTING.
 message JobState {
   enum Enum {
+    // The job state reported by a runner cannot be interpreted by the SDK.
     UNSPECIFIED = 0;
+
+    // The job has not yet started.
     STOPPED = 1;
+
+    // The job is currently running.
     RUNNING = 2;
+
+    // The job has successfully completed. (terminal)
     DONE = 3;
+
+    // The job has failed. (terminal)
     FAILED = 4;
+
+    // The job has been explicitly cancelled. (terminal)
     CANCELLED = 5;
+
+    // The job has been updated. (terminal)
     UPDATED = 6;
+
+    // The job is draining its data. (optional)
     DRAINING = 7;
+
+    // The job has completed draining its data. (terminal)
     DRAINED = 8;
+
+    // The job is starting up.
     STARTING = 9;
+
+    // The job is cancelling. (optional)
     CANCELLING = 10;
+
+    // The job is in the process of being updated. (optional)
     UPDATING = 11;
   }
 }

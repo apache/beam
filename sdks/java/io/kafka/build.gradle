@@ -46,5 +46,5 @@ dependencies {
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

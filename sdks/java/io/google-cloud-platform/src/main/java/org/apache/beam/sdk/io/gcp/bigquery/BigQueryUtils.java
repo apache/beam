@@ -388,6 +388,11 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
+  public static TableRow convertGenericRecordToTableRow(
+      GenericRecord record, TableSchema tableSchema) {
+    return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
+  }
+
   /** Convert a BigQuery TableRow to a Beam Row. */
   public static TableRow toTableRow(Row row) {
     TableRow output = new TableRow();

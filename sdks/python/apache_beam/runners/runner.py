@@ -38,6 +38,7 @@ _ALL_KNOWN_RUNNERS = (
     'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
     'apache_beam.runners.portability.flink_runner.FlinkRunner',
     'apache_beam.runners.portability.portable_runner.PortableRunner',
+    'apache_beam.runners.portability.spark_runner.SparkRunner',
     'apache_beam.runners.test.TestDirectRunner',
     'apache_beam.runners.test.TestDataflowRunner',
 )
@@ -328,7 +329,7 @@ class PipelineState(object):
 
   @classmethod
   def is_terminal(cls, state):
-    return state in [cls.STOPPED, cls.DONE, cls.FAILED, cls.CANCELLED,
+    return state in [cls.DONE, cls.FAILED, cls.CANCELLED,
                      cls.UPDATED, cls.DRAINED]
 
 

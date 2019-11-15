@@ -40,6 +40,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -481,7 +482,14 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamRelNode relNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
 
-    assertThat(relNode, instanceOf(BeamIOSourceRel.class));
+    // Calc is not dropped because BigQuery does not support field reordering yet.
+    assertThat(relNode, instanceOf(BeamCalcRel.class));
+    assertThat(relNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    // IO projects fields in the same order they are defined in the schema.
+    assertThat(
+        relNode.getInput(0).getRowType().getFieldNames(),
+        containsInAnyOrder("c_tinyint", "c_integer", "c_varchar"));
+    // Field reordering is done in a Calc
     assertThat(
         output.getSchema(),
         equalTo(

@@ -247,14 +247,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           "Missing required values: " + Joiner.on(',').join(missing));
     }
 
-    if (dataflowOptions.getRegion() == null) {
-      dataflowOptions.setRegion("us-central1");
-      LOG.warn(
-          "--region not set; will default to us-central1. Future releases of Beam will "
-              + "require the user to set the region explicitly. "
-              + "https://cloud.google.com/compute/docs/regions-zones/regions-zones");
-    }
-
     validateWorkerSettings(PipelineOptionsValidator.validate(GcpOptions.class, options));
 
     PathValidator validator = dataflowOptions.getPathValidator();
@@ -1461,7 +1453,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class ImpulseTranslator implements TransformTranslator<Impulse> {
     @Override
     public void translate(Impulse transform, TranslationContext context) {
-      if (context.getPipelineOptions().isStreaming() && !context.isFnApi()) {
+      if (context.getPipelineOptions().isStreaming()
+          && (!context.isFnApi() || !context.isStreamingEngine())) {
         StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
         stepContext.addInput(PropertyNames.FORMAT, "pubsub");
         stepContext.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, "_starting_signal/");

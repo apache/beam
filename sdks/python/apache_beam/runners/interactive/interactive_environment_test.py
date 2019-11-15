@@ -126,7 +126,6 @@ class InteractiveEnvironmentTest(unittest.TestCase):
 
   def test_determine_terminal_state(self):
     for state in (runner.PipelineState.DONE,
-                  runner.PipelineState.STOPPED,
                   runner.PipelineState.FAILED,
                   runner.PipelineState.CANCELLED,
                   runner.PipelineState.UPDATED,
@@ -136,7 +135,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
       self.assertTrue(ie.current_env().is_terminated(self._p))
     for state in (runner.PipelineState.UNKNOWN,
                   runner.PipelineState.STARTING,
-
+                  runner.PipelineState.STOPPED,
                   runner.PipelineState.RUNNING,
                   runner.PipelineState.DRAINING,
                   runner.PipelineState.PENDING,
