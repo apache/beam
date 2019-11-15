@@ -256,6 +256,14 @@ def loads(encoded, enable_trace=True):
 
   s = zlib.decompress(c)
   del c  # Free up some possibly large and no-longer-needed memory.
+  if sys.version_info >= (3,):
+    # TODO(BEAM-8651): Unpickling is flaky on Python 3.
+    num_tries = 0
+    while num_tries < 1000:
+      try:
+        return dill.loads(s)
+      except Exception:          # pylint: disable=broad-except
+        num_tries+=1
 
   try:
     return dill.loads(s)
