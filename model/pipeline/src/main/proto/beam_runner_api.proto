@@ -493,8 +493,8 @@ message TestStreamPayload {
   // (Optional) If specified, the TestStream will replay these events.
   repeated Event events = 2;
 
-  // (Optional) If specified, the TestStream will use the InteractiveService
-  // protocol found in beam_interactive_api.proto to retrieve events.
+  // (Optional) If specified, points to a TestStreamService to be
+  // used to retrieve events.
   ApiServiceDescriptor endpoint = 3;
 
   message Event {
