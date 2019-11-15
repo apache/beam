@@ -94,7 +94,7 @@ class SdkHarness(object):
     self.workers = queue.Queue()
     self._worker_thread_pool = UnboundedThreadPoolExecutor()
     self._responses = queue.Queue()
-    _LOGGER.info('Initializing SDKHarness with %s workers.', self._worker_count)
+    _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')
 
   def run(self):
     control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
