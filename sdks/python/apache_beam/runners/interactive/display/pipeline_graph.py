@@ -160,8 +160,9 @@ class PipelineGraph(object):
           self._edge_to_vertex_pairs[pcoll_id].append(
               (transform.unique_name, invisible_leaf))
           if self._pin:
-            edge_label = {'label':
-                            self._pin.cacheable_var_by_pcoll_id(pcoll_id)}
+            edge_label = {
+                'label': self._pin.cacheable_var_by_pcoll_id(pcoll_id)
+            }
             edge_dict[(transform.unique_name, invisible_leaf)] = edge_label
           else:
             edge_dict[(transform.unique_name, invisible_leaf)] = {}
@@ -182,8 +183,7 @@ class PipelineGraph(object):
             if self._pin:
               edge_dict[(producer_name, intermediate_dummy)] = {
                   'arrowhead': 'none',
-                  'label':
-                    self._pin.cacheable_var_by_pcoll_id(pcoll_id)}
+                  'label': self._pin.cacheable_var_by_pcoll_id(pcoll_id)}
             else:
               edge_dict[(producer_name, intermediate_dummy)] = {
                   'arrowhead': 'none'}
@@ -198,8 +198,7 @@ class PipelineGraph(object):
                 (producer_name, consumer_name))
             if self._pin:
               edge_dict[(producer_name, consumer_name)] = {
-                  'label':
-                    self._pin.cacheable_var_by_pcoll_id(pcoll_id)
+                  'label': self._pin.cacheable_var_by_pcoll_id(pcoll_id)
               }
             else:
               edge_dict[(producer_name, consumer_name)] = {}
