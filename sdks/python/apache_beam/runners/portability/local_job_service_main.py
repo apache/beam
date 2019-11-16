@@ -24,6 +24,8 @@ import time
 
 from apache_beam.runners.portability import local_job_service
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def run(argv):
   if argv[0] == __file__:
@@ -38,7 +40,7 @@ def run(argv):
   port = job_servicer.start_grpc_server(options.port)
   try:
     while True:
-      logging.info("Listening for jobs at %d", port)
+      _LOGGER.info("Listening for jobs at %d", port)
       time.sleep(300)
   finally:
     job_servicer.stop()

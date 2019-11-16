@@ -43,6 +43,8 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
@@ -109,7 +111,7 @@ class BeamFnExternalWorkerPoolServicer(
                      % start_worker_request.control_endpoint.url,
                     ]
 
-        logging.warning("Starting worker with command %s" % command)
+        _LOGGER.warning("Starting worker with command %s" % command)
         worker_process = subprocess.Popen(command, stdout=subprocess.PIPE,
                                           close_fds=True)
         self._worker_processes[start_worker_request.worker_id] = worker_process
@@ -140,7 +142,7 @@ class BeamFnExternalWorkerPoolServicer(
         except OSError:
           # ignore already terminated process
           return
-      logging.info("Stopping worker %s" % stop_worker_request.worker_id)
+      _LOGGER.info("Stopping worker %s" % stop_worker_request.worker_id)
       # communicate is necessary to avoid zombie process
       # time box communicate (it has no timeout parameter in Py2)
       threading.Timer(1, kill_worker_process).start()
@@ -168,7 +170,7 @@ def main(argv=None):
   address, server = (BeamFnExternalWorkerPoolServicer.start(use_process=True,
                                                             **vars(args)))
   logging.getLogger().setLevel(logging.INFO)
-  logging.info('Started worker pool servicer at port: %s with executable: %s',
+  _LOGGER.info('Started worker pool servicer at port: %s with executable: %s',
                address, args.container_executable)
   try:
     while True:

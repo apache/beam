@@ -23,6 +23,8 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metric import MetricName
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def from_monitoring_infos(monitoring_info_list, user_metrics_only=False):
   """Groups MonitoringInfo objects into counters, distributions and gauges.
@@ -46,7 +48,7 @@ def from_monitoring_infos(monitoring_info_list, user_metrics_only=False):
     try:
       key = _create_metric_key(mi)
     except ValueError as e:
-      logging.debug(str(e))
+      _LOGGER.debug(str(e))
       continue
     metric_result = (monitoring_infos.extract_metric_result_map_value(mi))
 

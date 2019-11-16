@@ -63,6 +63,8 @@ TERMINAL_STATES = [
 
 ENV_TYPE_ALIASES = {'LOOPBACK': 'EXTERNAL'}
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class PortableRunner(runner.PipelineRunner):
   """
@@ -245,7 +247,7 @@ class PortableRunner(runner.PipelineRunner):
           # only in this case is duplicate not treated as error
           if 'conflicting option string' not in str(e):
             raise
-          logging.debug("Runner option '%s' was already added" % option.name)
+          _LOGGER.debug("Runner option '%s' was already added" % option.name)
 
     all_options = options.get_all_options(add_extra_args_fn=add_runner_options)
     # TODO: Define URNs for options.
@@ -257,7 +259,7 @@ class PortableRunner(runner.PipelineRunner):
     prepare_request = beam_job_api_pb2.PrepareJobRequest(
         job_name='job', pipeline=proto_pipeline,
         pipeline_options=job_utils.dict_to_struct(p_options))
-    logging.debug('PrepareJobRequest: %s', prepare_request)
+    _LOGGER.debug('PrepareJobRequest: %s', prepare_request)
     prepare_response = job_service.Prepare(
         prepare_request,
         timeout=portable_options.job_server_timeout)
@@ -405,7 +407,7 @@ class PipelineResult(runner.PipelineResult):
               "%s",
               message.message_response.message_text)
         else:
-          logging.info(
+          _LOGGER.info(
               "Job state changed to %s",
               self._runner_api_state_to_pipeline_state(
                   message.state_response.state))

@@ -45,6 +45,9 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 
+_LOGGER = logging.getLogger(__name__)
+
+
 if __name__ == '__main__':
   # Run as
   #
@@ -85,7 +88,7 @@ if __name__ == '__main__':
     @classmethod
     def tearDownClass(cls):
       if cls.conf_dir and exists(cls.conf_dir):
-        logging.info("removing conf dir: %s" % cls.conf_dir)
+        _LOGGER.info("removing conf dir: %s" % cls.conf_dir)
         rmtree(cls.conf_dir)
       super(FlinkRunnerTest, cls).tearDownClass()
 
@@ -232,7 +235,7 @@ if __name__ == '__main__':
       class DoFn(beam.DoFn):
         def __init__(self):
           self.counter = Metrics.counter(self.__class__, counter_name)
-          logging.info('counter: %s' % self.counter.metric_name)
+          _LOGGER.info('counter: %s' % self.counter.metric_name)
 
         def process(self, kv, state=beam.DoFn.StateParam(state_spec)):
           # Trigger materialization
