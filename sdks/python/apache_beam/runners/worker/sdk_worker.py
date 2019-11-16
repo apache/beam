@@ -88,8 +88,6 @@ class SdkHarness(object):
         state_handler_factory=self._state_handler_factory,
         data_channel_factory=self._data_channel_factory,
         fns=self._fns)
-    # workers for process/finalize bundle.
-    self.workers = queue.Queue()
     self._worker_thread_pool = UnboundedThreadPoolExecutor()
     self._responses = queue.Queue()
     logging.info('Initializing SDKHarness with unbounded number of workers.')
@@ -128,6 +126,7 @@ class SdkHarness(object):
     # Stop all the workers and clean all the associated resources
     self._data_channel_factory.close()
     self._state_handler_factory.close()
+    self._bundle_processor_cache.shutdown()
     logging.info('Done consuming work.')
 
   def _execute(self, task, request):
@@ -149,12 +148,8 @@ class SdkHarness(object):
   def _request_process_bundle(self, request):
 
     def task():
-      worker = self._get_or_create_worker()
-      try:
-        self._execute(lambda: worker.do_instruction(request), request)
-      finally:
-        # Put the worker back in the free worker pool
-        self.workers.put(worker)
+      self._execute(
+          lambda: self.create_worker().do_instruction(request), request)
     self._worker_thread_pool.submit(task)
     logging.debug(
         "Currently using %s threads." % len(self._worker_thread_pool._workers))
@@ -173,12 +168,8 @@ class SdkHarness(object):
       # only process progress/split request when a bundle is in processing.
       if (instruction_id in
           self._bundle_processor_cache.active_bundle_processors):
-        worker = self._get_or_create_worker()
-        try:
-          self._execute(lambda: worker.do_instruction(request), request)
-        finally:
-          # Put the worker back in the free worker pool
-          self.workers.put(worker)
+        self._execute(
+            lambda: self.create_worker().do_instruction(request), request)
       else:
         self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
             instruction_id=request.instruction_id, error=(
@@ -193,24 +184,16 @@ class SdkHarness(object):
   def _request_execute(self, request):
 
     def task():
-      # Get one available worker.
-      worker = self._get_or_create_worker()
-      try:
-        self._execute(lambda: worker.do_instruction(request), request)
-      finally:
-        # Put the worker back in the free worker pool.
-        self.workers.put(worker)
+      self._execute(
+          lambda: self.create_worker().do_instruction(request), request)
 
     self._worker_thread_pool.submit(task)
 
-  def _get_or_create_worker(self):
-    try:
-      return self.workers.get_nowait()
-    except queue.Empty:
-      return SdkWorker(self._bundle_processor_cache,
-                       state_cache_metrics_fn=
-                       self._state_cache.get_monitoring_infos,
-                       profiler_factory=self._profiler_factory)
+  def create_worker(self):
+    return SdkWorker(
+        self._bundle_processor_cache,
+        state_cache_metrics_fn=self._state_cache.get_monitoring_infos,
+        profiler_factory=self._profiler_factory)
 
 
 class BundleProcessorCache(object):
@@ -407,9 +390,6 @@ class SdkWorker(object):
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           error='Instruction not running: %s' % instruction_id)
-
-  def stop(self):
-    self.bundle_processor_cache.shutdown()
 
   @contextlib.contextmanager
   def maybe_profile(self, instruction_id):
