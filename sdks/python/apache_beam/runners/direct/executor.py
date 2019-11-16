@@ -37,6 +37,8 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class _ExecutorService(object):
   """Thread pool for executing tasks in parallel."""
@@ -344,11 +346,11 @@ class TransformExecutor(_ExecutorService.CallableTask):
         break
       except Exception as e:
         self._retry_count += 1
-        logging.error(
+        _LOGGER.error(
             'Exception at bundle %r, due to an exception.\n %s',
             self._input_bundle, traceback.format_exc())
         if self._retry_count == self._max_retries_per_bundle:
-          logging.error('Giving up after %s attempts.',
+          _LOGGER.error('Giving up after %s attempts.',
                         self._max_retries_per_bundle)
           self._completion_callback.handle_exception(self, e)
 
@@ -566,7 +568,7 @@ class _ExecutorServiceParallelExecutor(object):
                 update.unprocessed_bundle)
           else:
             assert update.exception
-            logging.warning('A task failed with exception: %s',
+            _LOGGER.warning('A task failed with exception: %s',
                             update.exception)
             self._executor.visible_updates.offer(
                 _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(
@@ -576,7 +578,7 @@ class _ExecutorServiceParallelExecutor(object):
             self._executor.executor_service)
         self._add_work_if_necessary(self._fire_timers())
       except Exception as e:  # pylint: disable=broad-except
-        logging.error('Monitor task died due to exception.\n %s', e)
+        _LOGGER.error('Monitor task died due to exception.\n %s', e)
         self._executor.visible_updates.offer(
             _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(
                 sys.exc_info()))

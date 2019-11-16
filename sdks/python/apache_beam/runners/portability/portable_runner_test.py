@@ -50,6 +50,8 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
@@ -108,13 +110,13 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     # communicate it back...
     # pylint: disable=unbalanced-tuple-unpacking
     job_port, expansion_port = cls._pick_unused_ports(num_ports=2)
-    logging.info('Starting server on port %d.', job_port)
+    _LOGGER.info('Starting server on port %d.', job_port)
     cls._subprocess = subprocess.Popen(
         cls._subprocess_command(job_port, expansion_port))
     address = 'localhost:%d' % job_port
     job_service = beam_job_api_pb2_grpc.JobServiceStub(
         GRPCChannelFactory.insecure_channel(address))
-    logging.info('Waiting for server to be ready...')
+    _LOGGER.info('Waiting for server to be ready...')
     start = time.time()
     timeout = 30
     while True:
@@ -135,7 +137,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
           if exn.code() != grpc.StatusCode.UNAVAILABLE:
             # We were able to contact the service for our fake state request.
             break
-    logging.info('Server ready.')
+    _LOGGER.info('Server ready.')
     return address
 
   @classmethod
