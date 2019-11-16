@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -191,6 +193,76 @@ public class DefaultJobBundleFactoryTest {
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
       verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentA);
       verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentAA);
+    }
+  }
+
+  @Test
+  public void createsMultipleEnvironmentsWithSdkWorkerParallelism() throws Exception {
+    ServerFactory serverFactory = ServerFactory.createDefault();
+    Environment environmentA =
+        Environment.newBuilder()
+            .setUrn("env:urn:a")
+            .setPayload(ByteString.copyFrom(new byte[1]))
+            .build();
+    EnvironmentFactory envFactoryA = mock(EnvironmentFactory.class);
+    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
+    EnvironmentFactory.Provider environmentProviderFactoryA =
+        mock(EnvironmentFactory.Provider.class);
+    when(environmentProviderFactoryA.createEnvironmentFactory(
+            any(), any(), any(), any(), any(), any()))
+        .thenReturn(envFactoryA);
+    when(environmentProviderFactoryA.getServerFactory()).thenReturn(serverFactory);
+
+    Map<String, Provider> environmentFactoryProviderMap =
+        ImmutableMap.of(environmentA.getUrn(), environmentProviderFactoryA);
+
+    PortablePipelineOptions portableOptions =
+        PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    portableOptions.setSdkWorkerParallelism(2);
+    Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
+
+    try (DefaultJobBundleFactory bundleFactory =
+        new DefaultJobBundleFactory(
+            JobInfo.create("testJob", "testJob", "token", pipelineOptions),
+            environmentFactoryProviderMap,
+            stageIdGenerator,
+            serverInfo)) {
+      bundleFactory.forStage(getExecutableStage(environmentA));
+      verify(environmentProviderFactoryA, Mockito.times(1))
+          .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
+      verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentA);
+
+      bundleFactory.forStage(getExecutableStage(environmentA));
+      verify(environmentProviderFactoryA, Mockito.times(2))
+          .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
+      verify(envFactoryA, Mockito.times(2)).createEnvironment(environmentA);
+
+      // round robin, no new environment created
+      bundleFactory.forStage(getExecutableStage(environmentA));
+      verify(environmentProviderFactoryA, Mockito.times(2))
+          .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
+      verify(envFactoryA, Mockito.times(2)).createEnvironment(environmentA);
+    }
+
+    portableOptions.setSdkWorkerParallelism(0);
+    pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
+    Mockito.reset(envFactoryA);
+    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
+    int expectedParallelism = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+    try (DefaultJobBundleFactory bundleFactory =
+        new DefaultJobBundleFactory(
+            JobInfo.create("testJob", "testJob", "token", pipelineOptions),
+            environmentFactoryProviderMap,
+            stageIdGenerator,
+            serverInfo)) {
+      HashSet<StageBundleFactory> stageBundleFactorySet = new HashSet<>();
+      // more factories than parallelism for round-robin
+      int numStageBundleFactories = expectedParallelism + 5;
+      for (int i = 0; i < numStageBundleFactories; i++) {
+        stageBundleFactorySet.add(bundleFactory.forStage(getExecutableStage(environmentA)));
+      }
+      verify(envFactoryA, Mockito.times(expectedParallelism)).createEnvironment(environmentA);
+      Assert.assertEquals(numStageBundleFactories, stageBundleFactorySet.size());
     }
   }
 
