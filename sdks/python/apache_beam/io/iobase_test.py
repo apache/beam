@@ -68,9 +68,9 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
     expected_start = 1
     expected_stop = 3
     source_bundle = SourceBundle(expected_stop - expected_start,
-                               RangeSource(1, 3),
-                               expected_start,
-                               expected_stop)
+                                 RangeSource(1, 3),
+                                 expected_start,
+                                 expected_stop)
     restriction_tracker = (
         self.sdf_restriction_provider.create_tracker(
             iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(

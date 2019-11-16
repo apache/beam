@@ -1442,10 +1442,10 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       stop_pos = self._delegate_range_tracker.stop_position()
       return _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
           SourceBundle(
-            self._weight,
-            self._source,
-            start_pos,
-            stop_pos), self._delegate_range_tracker)
+              self._weight,
+              self._source,
+              start_pos,
+              stop_pos), self._delegate_range_tracker)
 
     def start_pos(self):
       return self._delegate_range_tracker.start_position()
