@@ -37,6 +37,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -520,7 +521,18 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           Materializations.MULTIMAP_MATERIALIZATION_URN,
           view.getViewFn().getMaterialization().getUrn());
       return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
-          .apply(o -> Collections.emptyList());
+          .apply(
+              new MultimapView() {
+                @Override
+                public Iterable get() {
+                  return Collections.emptyList();
+                }
+
+                @Override
+                public Iterable get(@Nullable Object o) {
+                  return Collections.emptyList();
+                }
+              });
     }
 
     @Override
