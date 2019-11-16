@@ -1402,6 +1402,18 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
   NOTE: This transform can only be used with beam_fn_api enabled.
   """
+
+  class _SDFBoundedSourceRestriction(object):
+    """ A restriction wraps SourceBundle and RangeTracker. """
+    def __init__(self, source_bundle, range_tracker=None):
+      self.source_bundle = source_bundle
+      self.range_tracker = range_tracker
+
+    def __reduce__(self):
+      # The instance of RangeTracker shouldn't be serialized.
+      return (self.__class__, (self.source_bundle, ))
+
+
   class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     """An `iobase.RestrictionTracker` implementations for wrapping BoundedSource
     with SDF. The tracked restriction is a (SourceBundle, RangeTracker) pair.
@@ -1411,14 +1423,15 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     Delegated RangeTracker guarantees synchronization safety.
     """
     def __init__(self, restriction):
-      source_bundle, _ = restriction
-      if not isinstance(source_bundle, SourceBundle):
+      if not isinstance(restriction,
+                        _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction):
         raise ValueError('Initializing SDFBoundedSourceRestrictionTracker'
-                         ' requires a SourceBundle')
-      self._delegate_range_tracker = source_bundle.source.get_range_tracker(
-          source_bundle.start_position, source_bundle.stop_position)
-      self._source = source_bundle.source
-      self._weight = source_bundle.weight
+                         ' requires a _SDFBoundedSourceRestriction')
+      self._source = restriction.source_bundle.source
+      self._weight = restriction.source_bundle.weight
+      self._delegate_range_tracker = self._source.get_range_tracker(
+          restriction.source_bundle.start_position,
+          restriction.source_bundle.stop_position)
 
     def current_progress(self):
       return RestrictionProgress(
@@ -1427,11 +1440,12 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     def current_restriction(self):
       start_pos = self._delegate_range_tracker.start_position()
       stop_pos = self._delegate_range_tracker.stop_position()
-      return (SourceBundle(
-          self._weight,
-          self._source,
-          start_pos,
-          stop_pos), self._delegate_range_tracker)
+      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+          SourceBundle(
+            self._weight,
+            self._source,
+            start_pos,
+            stop_pos), self._delegate_range_tracker)
 
     def start_pos(self):
       return self._delegate_range_tracker.start_position()
@@ -1459,16 +1473,17 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
         residual_weight = self._weight - primary_weight
         # Update self._weight to primary weight
         self._weight = primary_weight
-        return ((SourceBundle(primary_weight,
-                              self._source,
-                              start_pos,
-                              split_pos),
-                 None),
-                (SourceBundle(residual_weight,
-                              self._source,
-                              split_pos,
-                              stop_pos),
-                 None))
+        return (
+            _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+                SourceBundle(primary_weight,
+                             self._source,
+                             start_pos,
+                             split_pos)),
+            _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+                SourceBundle(residual_weight,
+                             self._source,
+                             split_pos,
+                             stop_pos)))
 
     def check_done(self):
       return self._delegate_range_tracker.fraction_consumed() >= 1.0
@@ -1483,11 +1498,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     def initial_restriction(self, element):
       # Get initial range_tracker from source
       range_tracker = self._source.get_range_tracker(None, None)
-      return (SourceBundle(None,
-                           self._source,
-                           range_tracker.start_position(),
-                           range_tracker.stop_position()),
-              None)
+      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+          SourceBundle(None,
+                       self._source,
+                       range_tracker.start_position(),
+                       range_tracker.stop_position()))
 
     def create_tracker(self, restriction):
       return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
@@ -1497,10 +1512,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       # Invoke source.split to get initial splitting results.
       source_bundles = self._source.split(self._desired_chunk_size)
       for source_bundle in source_bundles:
-        yield (source_bundle, None)
+        yield _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+            source_bundle)
 
     def restriction_size(self, element, restriction):
-      return restriction[0].weight
+      return restriction.source_bundle.weight
 
     def restriction_coder(self):
       return coders.DillCoder()
@@ -1525,11 +1541,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
           restriction_tracker=core.DoFn.RestrictionParam(
               _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
                   source, chunk_size))):
-        current_restriction, range_tracker = (
-            restriction_tracker.current_restriction())
-        assert isinstance(current_restriction, SourceBundle)
-        assert isinstance(range_tracker, RangeTracker)
-        return current_restriction.source.read(range_tracker)
+        current_restriction = restriction_tracker.current_restriction()
+        assert isinstance(current_restriction.source_bundle, SourceBundle)
+        assert isinstance(current_restriction.range_tracker, RangeTracker)
+        return current_restriction.source_bundle.source.read(
+            current_restriction.range_tracker)
 
     return SDFBoundedSourceDoFn(self.source)
 
