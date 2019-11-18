@@ -40,18 +40,21 @@ public abstract class JobServerDriver implements Runnable {
 
   private final ServerFactory jobServerFactory;
   private final ServerFactory artifactServerFactory;
+  private final JobInvokerFactory jobInvokerFactory;
 
   private volatile GrpcFnServer<InMemoryJobService> jobServer;
   private volatile GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
   private volatile ExpansionServer expansionServer;
 
-  protected abstract JobInvoker createJobInvoker();
+  public interface JobInvokerFactory {
+    JobInvoker create();
+  }
 
   protected InMemoryJobService createJobService() throws IOException {
     artifactStagingServer = createArtifactStagingService();
     expansionServer = createExpansionService();
 
-    JobInvoker invoker = createJobInvoker();
+    JobInvoker invoker = jobInvokerFactory.create();
     return InMemoryJobService.create(
         artifactStagingServer.getApiServiceDescriptor(),
         this::createSessionToken,
@@ -130,10 +133,17 @@ public abstract class JobServerDriver implements Runnable {
   protected JobServerDriver(
       ServerConfiguration configuration,
       ServerFactory jobServerFactory,
-      ServerFactory artifactServerFactory) {
+      ServerFactory artifactServerFactory,
+      JobInvokerFactory jobInvokerFactory) {
     this.configuration = configuration;
     this.jobServerFactory = jobServerFactory;
     this.artifactServerFactory = artifactServerFactory;
+    this.jobInvokerFactory = jobInvokerFactory;
+  }
+
+  // Can be used to discover the address of the job server, and if it is ready
+  public String getJobServerUrl() {
+    return (jobServer != null) ? jobServer.getApiServiceDescriptor().getUrl() : null;
   }
 
   // This method is executed by TestPortableRunner via Reflection

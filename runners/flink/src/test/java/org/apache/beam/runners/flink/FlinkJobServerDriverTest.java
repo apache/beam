@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -50,8 +51,8 @@ public class FlinkJobServerDriverTest {
 
   @Test
   public void testConfigurationFromArgs() {
-    FlinkJobServerDriver driver =
-        FlinkJobServerDriver.fromParams(
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        FlinkJobServerDriver.parseArgs(
             new String[] {
               "--job-host=test",
               "--job-port",
@@ -63,8 +64,6 @@ public class FlinkJobServerDriverTest {
               "--flink-master-url=jobmanager",
               "--clean-artifacts-per-job=false",
             });
-    FlinkJobServerDriver.FlinkServerConfiguration config =
-        (FlinkJobServerDriver.FlinkServerConfiguration) driver.configuration;
     assertThat(config.getHost(), is("test"));
     assertThat(config.getPort(), is(42));
     assertThat(config.getArtifactPort(), is(43));
@@ -107,6 +106,8 @@ public class FlinkJobServerDriverTest {
           Thread.sleep(100);
         }
       }
+      assertThat(driver.getJobServerUrl(), is(not(nullValue())));
+      assertThat(baos.toString(Charsets.UTF_8.name()), containsString(driver.getJobServerUrl()));
       assertThat(driverThread.isAlive(), is(true));
     } catch (Throwable t) {
       // restore to print exception
