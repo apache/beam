@@ -111,30 +111,29 @@ def construct_pipeline(renames):
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  p = beam.Pipeline(options=PipelineOptions())
-  # [END pipelines_constructing_creating]
+  with beam.Pipeline(options=PipelineOptions()) as p:
+    # [END pipelines_constructing_creating]
 
-  p = TestPipeline() # Use TestPipeline for testing.
+    p = TestPipeline() # Use TestPipeline for testing.
 
-  # [START pipelines_constructing_reading]
-  lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
-  # [END pipelines_constructing_reading]
+    # [START pipelines_constructing_reading]
+    lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
+    # [END pipelines_constructing_reading]
 
-  # [START pipelines_constructing_applying]
-  words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-  reversed_words = words | ReverseWords()
-  # [END pipelines_constructing_applying]
+    # [START pipelines_constructing_applying]
+    words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+    reversed_words = words | ReverseWords()
+    # [END pipelines_constructing_applying]
 
-  # [START pipelines_constructing_writing]
-  filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
-  filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
-      'gs://some/outputData.txt')
-  # [END pipelines_constructing_writing]
+    # [START pipelines_constructing_writing]
+    filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
+    filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
+        'gs://some/outputData.txt')
+    # [END pipelines_constructing_writing]
 
-  p.visit(SnippetUtils.RenameFiles(renames))
+    p.visit(SnippetUtils.RenameFiles(renames))
 
-  # [START pipelines_constructing_running]
-  p.run()
+    # [START pipelines_constructing_running]
   # [END pipelines_constructing_running]
 
 
@@ -242,19 +241,18 @@ def pipeline_options_remote(argv):
   options.view_as(StandardOptions).runner = 'DataflowRunner'
 
   # Create the Pipeline with the specified options.
-  p = Pipeline(options=options)
-  # [END pipeline_options_dataflow_service]
+  with Pipeline(options=options) as p:
+    # [END pipeline_options_dataflow_service]
 
-  my_options = options.view_as(MyOptions)
-  my_input = my_options.input
-  my_output = my_options.output
+    my_options = options.view_as(MyOptions)
+    my_input = my_options.input
+    my_output = my_options.output
 
-  p = TestPipeline()  # Use TestPipeline for testing.
+    p = TestPipeline()  # Use TestPipeline for testing.
 
-  lines = p | beam.io.ReadFromText(my_input)
-  lines | beam.io.WriteToText(my_output)
+    lines = p | beam.io.ReadFromText(my_input)
+    lines | beam.io.WriteToText(my_output)
 
-  p.run()
 
 
 def pipeline_options_local(argv):
@@ -286,13 +284,12 @@ def pipeline_options_local(argv):
   # [START pipeline_options_local]
   # Create and set your Pipeline Options.
   options = PipelineOptions()
-  p = Pipeline(options=options)
-  # [END pipeline_options_local]
+  with Pipeline(options=options) as p:
+    # [END pipeline_options_local]
 
-  p = TestPipeline()  # Use TestPipeline for testing.
-  lines = p | beam.io.ReadFromText(my_input)
-  lines | beam.io.WriteToText(my_output)
-  p.run()
+    p = TestPipeline()  # Use TestPipeline for testing.
+    lines = p | beam.io.ReadFromText(my_input)
+    lines | beam.io.WriteToText(my_output)
 
 
 def pipeline_options_command_line(argv):
@@ -835,16 +832,15 @@ def model_custom_source(count):
             ['line ' + str(number) for number in range(0, count)]))
 
   # [START model_custom_source_use_ptransform]
-  p = beam.Pipeline(options=PipelineOptions())
-  numbers = p | 'ProduceNumbers' >> ReadFromCountingSource(count)
-  # [END model_custom_source_use_ptransform]
+  with beam.Pipeline(options=PipelineOptions()) as p:
+    numbers = p | 'ProduceNumbers' >> ReadFromCountingSource(count)
+    # [END model_custom_source_use_ptransform]
 
-  lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  assert_that(
-      lines, equal_to(
-          ['line ' + str(number) for number in range(0, count)]))
+    lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
+    assert_that(
+        lines, equal_to(
+            ['line ' + str(number) for number in range(0, count)]))
 
-  p.run().wait_until_finish()
 
 
 # Defining the new sink.
@@ -1402,20 +1398,19 @@ def accessing_valueprovider_info_after_run():
 
   pipeline_options = PipelineOptions()
   # Create pipeline.
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  my_options = pipeline_options.view_as(MyOptions)
-  # Add a branch for logging the ValueProvider value.
-  _ = (p
-       | beam.Create([None])
-       | 'LogValueProvs' >> beam.ParDo(
-           LogValueProvidersFn(my_options.string_value)))
+    my_options = pipeline_options.view_as(MyOptions)
+    # Add a branch for logging the ValueProvider value.
+    _ = (p
+         | beam.Create([None])
+         | 'LogValueProvs' >> beam.ParDo(
+             LogValueProvidersFn(my_options.string_value)))
 
-  # The main pipeline.
-  result_pc = (p
-               | "main_pc" >> beam.Create([1, 2, 3])
-               | beam.combiners.Sum.Globally())
+    # The main pipeline.
+    result_pc = (p
+                 | "main_pc" >> beam.Create([1, 2, 3])
+                 | beam.combiners.Sum.Globally())
 
-  p.run().wait_until_finish()
 
   # [END AccessingValueProviderInfoAfterRunSnip1]

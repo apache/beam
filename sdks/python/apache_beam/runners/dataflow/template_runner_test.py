@@ -65,8 +65,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                             '--template_location=' + dummy_file_name,
                             '--no_auth']))
 
-    pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
-    pipeline.run().wait_until_finish()
+      pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
     with open(dummy_file_name) as template_file:
       saved_job_dict = json.load(template_file)
       self.assertEqual(
