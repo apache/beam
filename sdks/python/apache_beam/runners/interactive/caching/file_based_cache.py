@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """This module defines several file-based implementations of a PCollectionCache.
 
 This module is experimental. No backwards-compatibility guarantees.
@@ -38,7 +37,6 @@ try:
 except ImportError:
   # weakref.finalize is not available in Python 2
   finalize = None
-
 
 try:  # Python 3
   unquote_to_bytes = urllib.parse.unquote_to_bytes
@@ -85,7 +83,7 @@ class FileBasedCache(PCollectionCache):
           `reader_class` and `writer_class` PTransforms take `coder` as an
           argument.
       coder (bool): The coder to pass the underlying `reader_class` and
-          `writer_class` PTransforms in cases where `requires_coder` is 
+          `writer_class` PTransforms in cases where `requires_coder` is
           ``True``. If coder is set to ``False``, it will be inferred from
           the data that is written to cache.
 
