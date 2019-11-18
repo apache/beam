@@ -223,7 +223,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
         'RUNNING': beam_job_api_pb2.JobState.RUNNING,
         'FAILING': beam_job_api_pb2.JobState.RUNNING,
         'FAILED': beam_job_api_pb2.JobState.FAILED,
-        'CANCELLING': beam_job_api_pb2.JobState.RUNNING,
+        'CANCELLING': beam_job_api_pb2.JobState.CANCELLING,
         'CANCELED': beam_job_api_pb2.JobState.CANCELLED,
         'FINISHED': beam_job_api_pb2.JobState.DONE,
         'RESTARTING': beam_job_api_pb2.JobState.RUNNING,
