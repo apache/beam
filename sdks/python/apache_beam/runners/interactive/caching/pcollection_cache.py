@@ -31,7 +31,7 @@ from future.utils import with_metaclass
 class PCollectionCache(with_metaclass(abc.ABCMeta)):
 
   @abc.abstractmethod
-  def __init__(self, cache_spec, overwrite, persist, **writer_kwargs):
+  def __init__(self, cache_spec, overwrite, persist, **kwargs):
     """Initialize PCollectionCache.
 
     Args:
@@ -41,7 +41,8 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
           instead.
       persist (bool): A flag indicating whether the underlying data should be
           destroyed when the cache instance goes out of scope.
-      **writer_kwargs: Arguments to pass to the underlying writer class.
+      kwargs (Dict[str, Any]): Arguments to be passed to the underlying writer
+          and reader PTransforms.
     """
     raise NotImplementedError
 
@@ -73,7 +74,8 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
     """Return a reader PTransform which can read a PCollection from cache.
 
     Args:
-      **reader_kwargs: Arguments to pass to the underlying reader class.
+      reader_kwargs (Dict[str, Any]): Arguments to be passed to the
+          underlying reader PTransform.
 
     Returns:
       A PTransform which reads a PCollection from cache.
@@ -81,8 +83,12 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def writer(self):
+  def writer(self, **writer_kwargs):
     """Return a writer PTransform which can write a PCollection to cache.
+
+    Args:
+      writer_kwargs (Dict[str, Any]): Arguments to be passed to the
+          underlying writer PTransform.
 
     Returns:
       A PTransform which writes a PCollection to cache.
@@ -90,12 +96,12 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def read(self, limit=None, **reader_kwargs):
+  def read(self, **reader_kwargs):
     """Return a list of elements inside the cache.
 
     Args:
-      limit: Maximum number of elements that should be returned.
-      **reader_kwargs: Arguments to pass to the underlying reader class.
+      reader_kwargs (Dict[str, Any]): Arguments to be passed to the
+          underlying reader PTransform.
 
     Returns:
       List[Any]: A list of elements in the PCollections.
@@ -103,7 +109,14 @@ class PCollectionCache(with_metaclass(abc.ABCMeta)):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def write(self):
+  def write(self, elements, **writer_kwargs):
+    """Writes a collection of elements into the cache.
+
+    Args:
+      elements (Iterable[Any]): A collection of elements to be written to cache.
+      writer_kwargs (Dict[str, Any]): Arguments to be passed to the
+          underlying writer PTransform.
+    """
     raise NotImplementedError
 
   @abc.abstractmethod

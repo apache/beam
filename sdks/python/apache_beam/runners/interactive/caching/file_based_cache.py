@@ -152,23 +152,23 @@ class FileBasedCache(PCollectionCache):
       self._timestamp = max(self._timestamp, FileSystems.last_updated(path))
     return self._timestamp
 
-  def reader(self, **kwargs):
+  def reader(self, **reader_kwargs):
     """Returns a reader ``PTransform`` to be used for reading the contents of
     the cache into a Beam Pipeline.
 
     Args:
-      kwargs (Dict[str, Any]): Arguments to be passed to the underlying reader
-          class.
+      reader_kwargs (Dict[str, Any]): Arguments to be passed to the underlying
+          reader class.
     """
-    if self.requires_coder and "coder" not in kwargs:
-      kwargs["coder"] = self.coder
-    reader = self._reader_class(self.file_pattern, **kwargs)
+    if self.requires_coder and "coder" not in reader_kwargs:
+      reader_kwargs["coder"] = self.coder
+    reader = self._reader_class(self.file_pattern, **reader_kwargs)
     # Keep a reference to the parent object so that cache does not get garbage
     # collected while the pipeline is running.
     reader._cache = self
     return reader
 
-  def writer(self):
+  def writer(self, **writer_kwargs):
     """Returns a writer object to be used for writing the contents of a
     PCollection from a Beam Pipeline into the cache.
     """
@@ -176,45 +176,43 @@ class FileBasedCache(PCollectionCache):
 
     if self.element_type is None:
       # Use PatchedWriter in order to infer the element_type
-      return PatchedWriter(
-          self,
-          self._writer_class,
-          (self._file_path_prefix,),
-      )
+      return PatchedWriter(self, self._writer_class, (self._file_path_prefix,),
+                           writer_kwargs)
 
-    if self.requires_coder:
-      kwargs = {"coder": self.coder}
-    else:
-      kwargs = {}
-    writer = self._writer_class(self._file_path_prefix, **kwargs)
+    if self.requires_coder and "coder" not in writer_kwargs:
+      writer_kwargs["coder"] = self.coder
+
+    writer = self._writer_class(self._file_path_prefix, **writer_kwargs)
     # Keep a reference to the parent object so that cache does not get garbage
     # collected while the pipeline is running.
     writer._cache = self
     return writer
 
-  def read(self, **kwargs):
+  def read(self, **reader_kwargs):
     """Returns an iterator over the contents of the cache.
 
     Args:
-      kwargs (Dict[str, Any]): Arguments to be passed to the underlying reader
-          class.
+      reader_kwargs (Dict[str, Any]): Arguments to be passed to the
+          underlying reader PTransform.
 
     Returns:
       An iterator over the elements in the cache.
     """
-    if self.requires_coder and "coder" not in kwargs:
-      kwargs["coder"] = self.coder
+    if self.requires_coder and "coder" not in reader_kwargs:
+      reader_kwargs["coder"] = self.coder
 
-    source = self.reader(**kwargs)._source
+    source = self.reader(**reader_kwargs)._source
     range_tracker = source.get_range_tracker(None, None)
     for element in source.read(range_tracker):
       yield element
 
-  def write(self, elements):
+  def write(self, elements, **writer_kwargs):
     """Writes a collection of elements into the cache.
 
     Args:
       elements (Iterable[Any]): A collection of elements to be written to cache.
+      writer_kwargs (Dict[str, Any]): Arguments to be passed to the
+          underlying writer PTransform.
     """
     self._num_writes += 1
     if self.element_type is None:
@@ -222,7 +220,7 @@ class FileBasedCache(PCollectionCache):
       # N elements, rather than reading the entire iterator.
       elements = list(elements)
       self.element_type = datatype_inference.infer_element_type(elements)
-    sink = self.writer()._sink
+    sink = self.writer(**writer_kwargs)._sink
     handle = sink.open(self._file_path_prefix)
     try:
       for element in elements:
