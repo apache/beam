@@ -28,6 +28,7 @@ import pytz
 
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
+from google.protobuf import timestamp_pb2
 
 
 class TimestampTest(unittest.TestCase):
@@ -164,6 +165,21 @@ class TimestampTest(unittest.TestCase):
   def test_now(self):
     now = Timestamp.now()
     self.assertTrue(isinstance(now, Timestamp))
+
+  def test_from_proto(self):
+    ts_proto = timestamp_pb2.Timestamp(seconds=1234, nanos=56789)
+    actual_ts = Timestamp.from_proto(ts_proto)
+
+    # Micros is 56 instead of 56.789 because we use an integer representation
+    # that truncates extra precision.
+    expected_ts = Timestamp(seconds=1234, micros=56)
+    self.assertEqual(actual_ts, expected_ts)
+
+  def test_to_proto(self):
+    ts = Timestamp(seconds=1234, micros=56)
+    actual_ts_proto = Timestamp.to_proto(ts)
+    expected_ts_proto = timestamp_pb2.Timestamp(seconds=1234, nanos=56000)
+    self.assertEqual(actual_ts_proto, expected_ts_proto)
 
 
 class DurationTest(unittest.TestCase):
