@@ -354,12 +354,11 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                              None, None, with_attributes=True))
-    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub('projects/fakeprj/topics/a_topic',
+                                None, None, with_attributes=True))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -378,12 +377,11 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
-                                     None, None))
-    assert_that(pcoll, equal_to(expected_elements))
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
+                                       None, None))
+      assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -400,11 +398,10 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
-    assert_that(pcoll, equal_to(expected_elements))
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
+      assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -431,13 +428,12 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub(
-                 'projects/fakeprj/topics/a_topic', None, None,
-                 with_attributes=True, timestamp_attribute='time'))
-    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub(
+                   'projects/fakeprj/topics/a_topic', None, None,
+                   with_attributes=True, timestamp_attribute='time'))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -464,13 +460,12 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub(
-                 'projects/fakeprj/topics/a_topic', None, None,
-                 with_attributes=True, timestamp_attribute='time'))
-    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub(
+                   'projects/fakeprj/topics/a_topic', None, None,
+                   with_attributes=True, timestamp_attribute='time'))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -498,13 +493,12 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub(
-                 'projects/fakeprj/topics/a_topic', None, None,
-                 with_attributes=True, timestamp_attribute='nonexistent'))
-    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub(
+                   'projects/fakeprj/topics/a_topic', None, None,
+                   with_attributes=True, timestamp_attribute='nonexistent'))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -558,12 +552,11 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         with_attributes=False))
-    p.run()
+    with TestPipeline(options=options) as p:
+      _ = (p
+           | Create(payloads)
+           | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                           with_attributes=False))
     mock_pubsub.return_value.publish.assert_has_calls([
         mock.call(mock.ANY, data)])
 
@@ -573,11 +566,10 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
-    p.run()
+    with TestPipeline(options=options) as p:
+      _ = (p
+           | Create(payloads)
+           | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
     mock_pubsub.return_value.publish.assert_has_calls([
         mock.call(mock.ANY, data)])
 
@@ -588,12 +580,11 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         with_attributes=True))
-    p.run()
+    with TestPipeline(options=options) as p:
+      _ = (p
+           | Create(payloads)
+           | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                           with_attributes=True))
     mock_pubsub.return_value.publish.assert_has_calls([
         mock.call(mock.ANY, data, **attributes)])
 

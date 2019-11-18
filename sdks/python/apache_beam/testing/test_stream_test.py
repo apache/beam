@@ -114,20 +114,19 @@ class TestStreamTest(unittest.TestCase):
 
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    my_record_fn = RecordFn()
-    records = p | test_stream | beam.ParDo(my_record_fn)
+    with TestPipeline(options=options) as p:
+      my_record_fn = RecordFn()
+      records = p | test_stream | beam.ParDo(my_record_fn)
 
-    assert_that(records, equal_to([
-        ('a', timestamp.Timestamp(10)),
-        ('b', timestamp.Timestamp(10)),
-        ('c', timestamp.Timestamp(10)),
-        ('d', timestamp.Timestamp(20)),
-        ('e', timestamp.Timestamp(20)),
-        ('late', timestamp.Timestamp(12)),
-        ('last', timestamp.Timestamp(310)),]))
+      assert_that(records, equal_to([
+          ('a', timestamp.Timestamp(10)),
+          ('b', timestamp.Timestamp(10)),
+          ('c', timestamp.Timestamp(10)),
+          ('d', timestamp.Timestamp(20)),
+          ('e', timestamp.Timestamp(20)),
+          ('late', timestamp.Timestamp(12)),
+          ('last', timestamp.Timestamp(310)),]))
 
-    p.run()
 
   def test_multiple_outputs(self):
     """Tests that the TestStream supports emitting to multiple PCollections."""
@@ -418,33 +417,31 @@ class TestStreamTest(unittest.TestCase):
   def test_basic_execution_sideinputs(self):
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
+    with TestPipeline(options=options) as p:
 
-    main_stream = (p
-                   | 'main TestStream' >> TestStream()
-                   .advance_watermark_to(10)
-                   .add_elements(['e']))
-    side_stream = (p
-                   | 'side TestStream' >> TestStream()
-                   .add_elements([window.TimestampedValue(2, 2)])
-                   .add_elements([window.TimestampedValue(1, 1)])
-                   .add_elements([window.TimestampedValue(7, 7)])
-                   .add_elements([window.TimestampedValue(4, 4)])
-                  )
+      main_stream = (p
+                     | 'main TestStream' >> TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['e']))
+      side_stream = (p
+                     | 'side TestStream' >> TestStream()
+                     .add_elements([window.TimestampedValue(2, 2)])
+                     .add_elements([window.TimestampedValue(1, 1)])
+                     .add_elements([window.TimestampedValue(7, 7)])
+                     .add_elements([window.TimestampedValue(4, 4)])
+                    )
 
-    class RecordFn(beam.DoFn):
-      def process(self,
-                  elm=beam.DoFn.ElementParam,
-                  ts=beam.DoFn.TimestampParam,
-                  side=beam.DoFn.SideInputParam):
-        yield (elm, ts, side)
+      class RecordFn(beam.DoFn):
+        def process(self,
+                    elm=beam.DoFn.ElementParam,
+                    ts=beam.DoFn.TimestampParam,
+                    side=beam.DoFn.SideInputParam):
+          yield (elm, ts, side)
 
-    records = (main_stream        # pylint: disable=unused-variable
-               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
+      records = (main_stream        # pylint: disable=unused-variable
+                 | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
 
-    assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 7, 4])]))
-
-    p.run()
+      assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 7, 4])]))
 
   def test_basic_execution_batch_sideinputs_fixed_windows(self):
     options = PipelineOptions()

@@ -62,18 +62,17 @@ def run(argv=None):
                             'Must be in the range [0, 100)'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = TestPipeline(options=PipelineOptions(pipeline_args))
+  with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
 
-  # pylint: disable=expression-not-assigned
-  count = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-      known_args.input_table))
-           | 'row to string' >> beam.ParDo(RowToStringWithSlowDown(),
-                                           num_slow=known_args.num_slow)
-           | 'count' >> beam.combiners.Count.Globally())
+    # pylint: disable=expression-not-assigned
+    count = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
+        known_args.input_table))
+             | 'row to string' >> beam.ParDo(RowToStringWithSlowDown(),
+                                             num_slow=known_args.num_slow)
+             | 'count' >> beam.combiners.Count.Globally())
 
-  assert_that(count, equal_to([known_args.num_records]))
+    assert_that(count, equal_to([known_args.num_records]))
 
-  p.run()
 
 
 if __name__ == '__main__':
