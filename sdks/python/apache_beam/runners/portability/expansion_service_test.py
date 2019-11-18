@@ -34,6 +34,8 @@ from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 # This script provides an expansion service and example ptransforms for running
 # external transform test cases. See external_test.py for details.
 
+_LOGGER = logging.getLogger(__name__)
+
 
 @ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
 class CountPerElementTransform(ptransform.PTransform):
@@ -152,7 +154,7 @@ server = None
 
 
 def cleanup(unused_signum, unused_frame):
-  logging.info('Shutting down expansion service.')
+  _LOGGER.info('Shutting down expansion service.')
   server.stop(None)
 
 
@@ -169,7 +171,7 @@ def main(unused_argv):
   )
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()
-  logging.info('Listening for expansion requests at %d', options.port)
+  _LOGGER.info('Listening for expansion requests at %d', options.port)
 
   signal.signal(signal.SIGTERM, cleanup)
   signal.signal(signal.SIGINT, cleanup)

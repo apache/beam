@@ -43,6 +43,8 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
   """Manages one or more pipelines, possibly concurrently.
@@ -100,7 +102,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
         url='localhost:%d' % port)
     self._server.start()
-    logging.info('Grpc server started on port %s', port)
+    _LOGGER.info('Grpc server started on port %s', port)
     return port
 
   def stop(self, timeout=1):
@@ -231,12 +233,12 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         result = fn_api_runner.FnApiRunner(
             provision_info=self._provision_info).run_via_runner_api(
                 self._pipeline_proto)
-        logging.info('Successfully completed job.')
+        _LOGGER.info('Successfully completed job.')
         self.state = beam_job_api_pb2.JobState.DONE
         self.result = result
       except:  # pylint: disable=bare-except
-        logging.exception('Error running pipeline.')
-        logging.exception(traceback)
+        _LOGGER.exception('Error running pipeline.')
+        _LOGGER.exception(traceback)
         self.state = beam_job_api_pb2.JobState.FAILED
         raise
 
@@ -278,7 +280,7 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
-        logging.info('Worker: %s', str(log_entry).replace('\n', ' '))
+        _LOGGER.info('Worker: %s', str(log_entry).replace('\n', ' '))
     return iter([])
 
 

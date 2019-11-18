@@ -42,6 +42,7 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+_LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_FLUSH_THRESHOLD = 10 << 20  # 10MB
 
@@ -273,7 +274,7 @@ class _GrpcDataChannel(DataChannel):
           self._receiving_queue(data.instruction_id).put(data)
     except:  # pylint: disable=bare-except
       if not self._closed:
-        logging.exception('Failed to read inputs in the data plane.')
+        _LOGGER.exception('Failed to read inputs in the data plane.')
         self._exc_info = sys.exc_info()
         raise
     finally:
@@ -342,7 +343,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
     self._credentials = None
     self._worker_id = worker_id
     if credentials is not None:
-      logging.info('Using secure channel creds.')
+      _LOGGER.info('Using secure channel creds.')
       self._credentials = credentials
 
   def create_data_channel(self, remote_grpc_port):
@@ -350,7 +351,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
     if url not in self._data_channel_cache:
       with self._lock:
         if url not in self._data_channel_cache:
-          logging.info('Creating client data channel for %s', url)
+          _LOGGER.info('Creating client data channel for %s', url)
           # Options to have no limits (-1) on the size of the messages
           # received or sent over the data plane. The actual buffer size
           # is controlled in a layer above.
@@ -372,7 +373,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
     return self._data_channel_cache[url]
 
   def close(self):
-    logging.info('Closing all cached grpc data channels.')
+    _LOGGER.info('Closing all cached grpc data channels.')
     for _, channel in self._data_channel_cache.items():
       channel.close()
     self._data_channel_cache.clear()

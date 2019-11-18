@@ -32,6 +32,8 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
@@ -43,10 +45,10 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
   def Control(self, response_iterator, context):
     for request in self.requests:
-      logging.info("Sending request %s", request)
+      _LOGGER.info("Sending request %s", request)
       yield request
     for response in response_iterator:
-      logging.info("Got response %s", response)
+      _LOGGER.info("Got response %s", response)
       if response.instruction_id != -1:
         assert response.instruction_id in self.instruction_ids
         assert response.instruction_id not in self.responses
@@ -54,7 +56,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
         if self.raise_errors and response.error:
           raise RuntimeError(response.error)
         elif len(self.responses) == len(self.requests):
-          logging.info("All %s instructions finished.", len(self.requests))
+          _LOGGER.info("All %s instructions finished.", len(self.requests))
           return
     raise RuntimeError("Missing responses: %s" %
                        (self.instruction_ids - set(self.responses.keys())))
@@ -78,7 +80,7 @@ class SdkWorkerTest(unittest.TestCase):
      tuple of request_count, number of process_bundles per request and workers
      counts to process the request.
     """
-    for (request_count, process_bundles_per_request, worker_count) in args:
+    for (request_count, process_bundles_per_request) in args:
       requests = []
       process_bundle_descriptors = []
 
@@ -100,8 +102,7 @@ class SdkWorkerTest(unittest.TestCase):
       server.start()
 
       harness = sdk_worker.SdkHarness(
-          "localhost:%s" % test_port, worker_count=worker_count,
-          state_cache_size=100)
+          "localhost:%s" % test_port, state_cache_size=100)
       harness.run()
 
       for worker in harness.workers.queue:
@@ -110,7 +111,7 @@ class SdkWorkerTest(unittest.TestCase):
                           for item in process_bundle_descriptors})
 
   def test_fn_registration(self):
-    self._check_fn_registration_multi_request((1, 4, 1), (4, 4, 1), (4, 4, 2))
+    self._check_fn_registration_multi_request((1, 4), (4, 4))
 
 
 if __name__ == "__main__":

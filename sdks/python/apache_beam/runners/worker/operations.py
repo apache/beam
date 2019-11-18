@@ -67,6 +67,9 @@ _globally_windowed_value = GlobalWindows.windowed_value(None)
 _global_window_type = type(_globally_windowed_value.windows[0])
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class ConsumerSet(Receiver):
   """A ConsumerSet represents a graph edge between two Operation nodes.
 
@@ -441,7 +444,7 @@ class InMemoryWriteOperation(Operation):
   def process(self, o):
     with self.scoped_process_state:
       if self.debug_logging_enabled:
-        logging.debug('Processing [%s] in %s', o, self)
+        _LOGGER.debug('Processing [%s] in %s', o, self)
       self.spec.output_buffer.append(
           o if self.spec.write_windowed_values else o.value)
 
@@ -752,13 +755,13 @@ class CombineOperation(Operation):
   def process(self, o):
     with self.scoped_process_state:
       if self.debug_logging_enabled:
-        logging.debug('Processing [%s] in %s', o, self)
+        _LOGGER.debug('Processing [%s] in %s', o, self)
       key, values = o.value
       self.output(
           o.with_value((key, self.phased_combine_fn.apply(values))))
 
   def finish(self):
-    logging.debug('Finishing %s', self)
+    _LOGGER.debug('Finishing %s', self)
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -900,7 +903,7 @@ class FlattenOperation(Operation):
   def process(self, o):
     with self.scoped_process_state:
       if self.debug_logging_enabled:
-        logging.debug('Processing [%s] in %s', o, self)
+        _LOGGER.debug('Processing [%s] in %s', o, self)
       self.output(o)
 
 
@@ -1040,7 +1043,7 @@ class SimpleMapTaskExecutor(object):
           self._ops[producer].add_receiver(op, output_index)
 
     for ix, op in reversed(list(enumerate(self._ops))):
-      logging.debug('Starting op %d %s', ix, op)
+      _LOGGER.debug('Starting op %d %s', ix, op)
       op.start()
     for op in self._ops:
       op.finish()
