@@ -23,6 +23,8 @@ from builtins import object
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   """Manages one or more pipelines, possibly concurrently.
@@ -37,7 +39,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     raise NotImplementedError(type(self))
 
   def Prepare(self, request, context=None, timeout=None):
-    logging.debug('Got Prepare request.')
+    _LOGGER.debug('Got Prepare request.')
     preparation_id = '%s-%s' % (request.job_name, uuid.uuid4())
     self._jobs[preparation_id] = self.create_beam_job(
         preparation_id,
@@ -45,7 +47,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         request.pipeline,
         request.pipeline_options)
     self._jobs[preparation_id].prepare()
-    logging.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
+    _LOGGER.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
     return beam_job_api_pb2.PrepareJobResponse(
         preparation_id=preparation_id,
         artifact_staging_endpoint=self._jobs[
@@ -55,7 +57,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   def Run(self, request, context=None, timeout=None):
     # For now, just use the preparation id as the job id.
     job_id = request.preparation_id
-    logging.info("Running job '%s'", job_id)
+    _LOGGER.info("Running job '%s'", job_id)
     self._jobs[job_id].run()
     return beam_job_api_pb2.RunJobResponse(job_id=job_id)
 

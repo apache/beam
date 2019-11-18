@@ -70,6 +70,8 @@ OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'beam:source:java:0.1'
 URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
                                  monitoring_infos.SAMPLED_BYTE_SIZE_URN])
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
@@ -650,7 +652,7 @@ class BundleProcessor(object):
       self.state_sampler.start()
       # Start all operations.
       for op in reversed(self.ops.values()):
-        logging.debug('start %s', op)
+        _LOGGER.debug('start %s', op)
         op.execution_context = execution_context
         op.start()
 
@@ -669,7 +671,7 @@ class BundleProcessor(object):
 
       # Finish all operations.
       for op in self.ops.values():
-        logging.debug('finish %s', op)
+        _LOGGER.debug('finish %s', op)
         op.finish()
 
       return ([self.delayed_bundle_application(op, residual)
@@ -880,7 +882,7 @@ class BeamTransformFactory(object):
   def create_operation(self, transform_id, consumers):
     transform_proto = self.descriptor.transforms[transform_id]
     if not transform_proto.unique_name:
-      logging.debug("No unique name set for transform %s" % transform_id)
+      _LOGGER.debug("No unique name set for transform %s" % transform_id)
       transform_proto.unique_name = transform_id
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
     payload = proto_utils.parse_Bytes(
@@ -965,7 +967,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
-    logging.info(
+    _LOGGER.info(
         'Missing required coder_id on grpc_port for %s; '
         'using deprecated fallback.',
         transform_id)
@@ -987,7 +989,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
-    logging.info(
+    _LOGGER.info(
         'Missing required coder_id on grpc_port for %s; '
         'using deprecated fallback.',
         transform_id)

@@ -60,6 +60,9 @@ __all__ = ['BundleBasedDirectRunner',
            'SwitchingDirectRunner']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class SwitchingDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine.
 
@@ -376,7 +379,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     pipeline.visit(visitor)
     clock = TestClock() if visitor.uses_test_stream else RealClock()
 
-    logging.info('Running pipeline with DirectRunner.')
+    _LOGGER.info('Running pipeline with DirectRunner.')
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(self.consumer_tracking_visitor)
 
@@ -418,7 +421,7 @@ class DirectPipelineResult(PipelineResult):
 
   def __del__(self):
     if self._state == PipelineState.RUNNING:
-      logging.warning(
+      _LOGGER.warning(
           'The DirectPipelineResult is being garbage-collected while the '
           'DirectRunner is still running the corresponding pipeline. This may '
           'lead to incomplete execution of the pipeline if the main thread '

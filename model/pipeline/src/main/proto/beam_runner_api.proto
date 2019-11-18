@@ -32,6 +32,7 @@ option java_outer_classname = "RunnerApi";
 import "endpoints.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
 
 message BeamConstants {
   enum Constants {
@@ -498,7 +499,12 @@ message TestStreamPayload {
   // (Required) the coder for elements in the TestStream events
   string coder_id = 1;
 
+  // (Optional) If specified, the TestStream will replay these events.
   repeated Event events = 2;
+
+  // (Optional) If specified, points to a TestStreamService to be
+  // used to retrieve events.
+  ApiServiceDescriptor endpoint = 3;
 
   message Event {
     oneof event {
@@ -507,24 +513,52 @@ message TestStreamPayload {
       AddElements element_event = 3;
     }
 
+    // Advances the watermark to the specified timestamp.
     message AdvanceWatermark {
+      // (Required) The watermark to advance to.
       int64 new_watermark = 1;
+
+      // (Optional) The output watermark tag for a PCollection. If unspecified
+      // or with an empty string, this will default to the Main PCollection
+      // Output
+      string tag = 2;
     }
 
+    // Advances the processing time clock by the specified amount.
     message AdvanceProcessingTime {
+      // (Required) The duration to advance by.
       int64 advance_duration = 1;
     }
 
+    // Adds elements to the stream to be emitted.
     message AddElements {
+      // (Required) The elements to add to the TestStream.
       repeated TimestampedElement elements = 1;
+
+      // (Optional) The output PCollection tag to add these elements to. If
+      // unspecified or with an empty string, this will default to the Main
+      // PCollection Output.
+      string tag = 3;
     }
   }
 
+  // A single element inside of the TestStream.
   message TimestampedElement {
+    // (Required) The element encoded. Currently the TestStream only supports
+    // encoding primitives.
     bytes encoded_element = 1;
+
+    // (Required) The event timestamp of this element.
     int64 timestamp = 2;
   }
 }
+
+service TestStreamService {
+  // A TestStream will request for events using this RPC.
+  rpc Events(EventsRequest) returns (stream TestStreamPayload.Event) {}
+}
+message EventsRequest {}
+
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
 

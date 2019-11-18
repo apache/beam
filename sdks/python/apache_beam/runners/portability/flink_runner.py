@@ -32,6 +32,8 @@ from apache_beam.runners.portability import portable_runner
 PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
 MAGIC_HOST_NAMES = ['[local]', '[auto]']
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class FlinkRunner(portable_runner.PortableRunner):
   def run_pipeline(self, pipeline, options):
@@ -61,7 +63,7 @@ class FlinkRunner(portable_runner.PortableRunner):
     flink_master = flink_master.strip()
     if not flink_master in MAGIC_HOST_NAMES and \
           not re.search('^http[s]?://', flink_master):
-      logging.info('Adding HTTP protocol scheme to flink_master parameter: '
+      _LOGGER.info('Adding HTTP protocol scheme to flink_master parameter: '
                    'http://%s', flink_master)
       flink_master = 'http://' + flink_master
     return flink_master

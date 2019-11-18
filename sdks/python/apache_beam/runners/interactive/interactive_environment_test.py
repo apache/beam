@@ -19,16 +19,27 @@
 from __future__ import absolute_import
 
 import importlib
+import sys
 import unittest
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
+
+# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
+# unittest.mock module.
+try:
+  from unittest.mock import call, patch
+except ImportError:
+  from mock import call, patch
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
 
 
+@unittest.skipIf(sys.version_info < (3, 6),
+                 'The tests require at least Python 3.6 to work.')
 class InteractiveEnvironmentTest(unittest.TestCase):
 
   def setUp(self):
@@ -152,10 +163,90 @@ class InteractiveEnvironmentTest(unittest.TestCase):
                   pipeline_result)
     self.assertIs(ie.current_env().pipeline_result(self._p), None)
 
-  def test_is_none_when_pipeline_absent(self):
+  def test_pipeline_result_is_none_when_pipeline_absent(self):
     self.assertIs(ie.current_env().pipeline_result(self._p), None)
     self.assertIs(ie.current_env().is_terminated(self._p), True)
     self.assertIs(ie.current_env().evict_pipeline_result(self._p), None)
+
+  @patch('atexit.register')
+  def test_no_cleanup_when_cm_none(self,
+                                   mocked_atexit):
+    ie.new_env(None)
+    mocked_atexit.assert_not_called()
+
+  @patch('atexit.register')
+  def test_cleanup_when_cm_not_none(self,
+                                    mocked_atexit):
+    ie.new_env(cache.FileBasedCacheManager())
+    mocked_atexit.assert_called_once()
+
+  @patch('atexit.register')
+  @patch('atexit.unregister')
+  def test_cleanup_unregistered_when_not_none_cm_cleared(self,
+                                                         mocked_unreg,
+                                                         mocked_reg):
+    ie.new_env(cache.FileBasedCacheManager())
+    mocked_reg.assert_called_once()
+    mocked_unreg.assert_not_called()
+    ie.current_env().set_cache_manager(None)
+    mocked_reg.assert_called_once()
+    mocked_unreg.assert_called_once()
+
+  @patch('atexit.register')
+  @patch('atexit.unregister')
+  def test_cleanup_reregistered_when_cm_changed(self,
+                                                mocked_unreg,
+                                                mocked_reg):
+    ie.new_env(cache.FileBasedCacheManager())
+    mocked_unreg.assert_not_called()
+    ie.current_env().set_cache_manager(cache.FileBasedCacheManager())
+    mocked_unreg.assert_called_once()
+    mocked_reg.assert_has_calls([call(ie.current_env().cleanup),
+                                 call(ie.current_env().cleanup)])
+
+  @patch('apache_beam.runners.interactive.interactive_environment'
+         '.InteractiveEnvironment.cleanup')
+  def test_cleanup_invoked_when_new_env_replace_not_none_env(self,
+                                                             mocked_cleanup):
+    ie._interactive_beam_env = None
+    ie.new_env(cache.FileBasedCacheManager())
+    mocked_cleanup.assert_not_called()
+    ie.new_env(cache.FileBasedCacheManager())
+    mocked_cleanup.assert_called_once()
+
+  @patch('apache_beam.runners.interactive.interactive_environment'
+         '.InteractiveEnvironment.cleanup')
+  def test_cleanup_invoked_when_cm_changed(self,
+                                           mocked_cleanup):
+    ie._interactive_beam_env = None
+    ie.new_env(cache.FileBasedCacheManager())
+    ie.current_env().set_cache_manager(cache.FileBasedCacheManager())
+    mocked_cleanup.assert_called_once()
+
+  @patch('atexit.register')
+  @patch('atexit.unregister')
+  def test_cleanup_registered_when_none_cm_changed(self,
+                                                   mocked_unreg,
+                                                   mocked_reg):
+    ie.new_env(None)
+    mocked_reg.assert_not_called()
+    mocked_unreg.assert_not_called()
+    ie.current_env().set_cache_manager(cache.FileBasedCacheManager())
+    mocked_reg.assert_called_once()
+    mocked_unreg.assert_not_called()
+
+  @patch('atexit.register')
+  @patch('atexit.unregister')
+  def test_noop_when_cm_is_not_changed(self,
+                                       mocked_unreg,
+                                       mocked_reg):
+    cache_manager = cache.FileBasedCacheManager()
+    ie.new_env(cache_manager)
+    mocked_unreg.assert_not_called()
+    mocked_reg.assert_called_once()
+    ie.current_env().set_cache_manager(cache_manager)
+    mocked_unreg.assert_not_called()
+    mocked_reg.assert_called_once()
 
 
 if __name__ == '__main__':
