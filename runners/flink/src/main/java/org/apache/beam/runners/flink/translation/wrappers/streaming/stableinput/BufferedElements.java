@@ -69,18 +69,20 @@ class BufferedElements {
     private final String timerId;
     private final BoundedWindow window;
     private final Instant timestamp;
+    private final Instant outputTimestamp;
     private final TimeDomain timeDomain;
 
-    Timer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+    Timer(String timerId, BoundedWindow window, Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
       this.timerId = timerId;
       this.window = window;
       this.timestamp = timestamp;
+      this.outputTimestamp = outputTimestamp;
       this.timeDomain = timeDomain;
     }
 
     @Override
     public void processWith(DoFnRunner doFnRunner) {
-      doFnRunner.onTimer(timerId, window, timestamp, timestamp, timeDomain);
+      doFnRunner.onTimer(timerId, window, timestamp, outputTimestamp, timeDomain);
     }
 
     @Override
@@ -132,6 +134,7 @@ class BufferedElements {
         STRING_CODER.encode(timer.timerId, outStream);
         windowCoder.encode(timer.window, outStream);
         INSTANT_CODER.encode(timer.timestamp, outStream);
+        INSTANT_CODER.encode(timer.outputTimestamp, outStream);
         outStream.write(timer.timeDomain.ordinal());
       } else {
         throw new IllegalStateException("Unexpected element " + value);
@@ -149,6 +152,7 @@ class BufferedElements {
               STRING_CODER.decode(inStream),
               windowCoder.decode(inStream),
               INSTANT_CODER.decode(inStream),
+                  INSTANT_CODER.decode(inStream),
               TimeDomain.values()[inStream.read()]);
         default:
           throw new IllegalStateException(

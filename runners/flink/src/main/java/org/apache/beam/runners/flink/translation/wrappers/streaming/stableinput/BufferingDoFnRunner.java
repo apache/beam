@@ -123,7 +123,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     currentBufferingElementsHandler.buffer(
-        new BufferedElements.Timer(timerId, window, timestamp, timeDomain));
+        new BufferedElements.Timer(timerId, window, timestamp, outputTimestamp, timeDomain));
   }
 
   @Override
