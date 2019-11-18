@@ -128,6 +128,8 @@ class SdkHarness(object):
     # control to its caller.
     self._responses.put(no_more_work)
     # Stop all the workers and clean all the associated resources
+    for worker in self.workers.queue:
+      worker.stop()
     self._data_channel_factory.close()
     self._state_handler_factory.close()
     _LOGGER.info('Done consuming work.')

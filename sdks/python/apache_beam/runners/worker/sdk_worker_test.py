@@ -29,7 +29,10 @@ import grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
+from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,8 +54,10 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       _LOGGER.info("Got response %s", response)
       if response.instruction_id != -1:
         assert response.instruction_id in self.instruction_ids
-        assert response.instruction_id not in self.responses
-        self.responses[response.instruction_id] = response
+        assert (response.WhichOneof('response'), response.instruction_id) \
+               not in self.responses
+        self.responses[(response.WhichOneof('response'),
+                        response.instruction_id)] = response
         if self.raise_errors and response.error:
           raise RuntimeError(response.error)
         elif len(self.responses) == len(self.requests):
@@ -62,19 +67,48 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
                        (self.instruction_ids - set(self.responses.keys())))
 
 
+class TestOperation(Operation):
+
+  teardown_called = False
+
+  def __init__(self, factory, name, spec):
+    super(TestOperation, self).__init__(
+        name, spec, factory.counter_factory, factory.state_sampler)
+
+  def teardown(self):
+    TestOperation.teardown_called = True
+
+
+@BeamTransformFactory.register_urn("test_op", None)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  from apache_beam.runners.worker import operation_specs
+  spec = operation_specs.WorkerDoFn(
+      serialized_fn=transform_proto,
+      output_tags=None,
+      input=None,
+      side_inputs=None,
+      output_coders=None)
+  return TestOperation(factory, transform_id, spec)
+
+
 class SdkWorkerTest(unittest.TestCase):
 
-  def _get_process_bundles(self, prefix, size):
+  def _get_process_bundles(self, prefix, size, state_service_url):
     return [
         beam_fn_api_pb2.ProcessBundleDescriptor(
             id=str(str(prefix) + "-" + str(ix)),
             transforms={
-                str(ix): beam_runner_api_pb2.PTransform(unique_name=str(ix))
-            }) for ix in range(size)
+                str(ix): beam_runner_api_pb2.PTransform(
+                    unique_name=str(ix),
+                    spec=beam_runner_api_pb2.FunctionSpec(urn=str("test_op")))
+            },
+            state_api_service_descriptor=endpoints_pb2.ApiServiceDescriptor(
+                url=state_service_url)
+        ) for ix in range(size)
     ]
 
-  def _check_fn_registration_multi_request(self, *args):
-    """Check the function registration calls to the sdk_harness.
+  def _check_fn_registration_and_teardown_multi_request(self, *args):
+    """Check the function registration calls and teardown to the sdk_harness.
 
     Args:
      tuple of request_count, number of process_bundles per request and workers
@@ -83,9 +117,14 @@ class SdkWorkerTest(unittest.TestCase):
     for (request_count, process_bundles_per_request) in args:
       requests = []
       process_bundle_descriptors = []
+      test_control_server = grpc.server(UnboundedThreadPoolExecutor())
+      test_control_port = test_control_server.add_insecure_port("[::]:0")
+      test_state_server = grpc.server(UnboundedThreadPoolExecutor())
+      test_state_port = test_state_server.add_insecure_port('[::]:0')
 
       for i in range(request_count):
-        pbd = self._get_process_bundles(i, process_bundles_per_request)
+        pbd = self._get_process_bundles(
+            i, process_bundles_per_request, "localhost:%s" % test_state_port)
         process_bundle_descriptors.extend(pbd)
         requests.append(
             beam_fn_api_pb2.InstructionRequest(
@@ -93,16 +132,23 @@ class SdkWorkerTest(unittest.TestCase):
                 register=beam_fn_api_pb2.RegisterRequest(
                     process_bundle_descriptor=process_bundle_descriptors)))
 
-      test_controller = BeamFnControlServicer(requests)
+        requests.append(
+            beam_fn_api_pb2.InstructionRequest(
+                instruction_id=str(i),
+                process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
+                    process_bundle_descriptor_id=pbd[0].id)))
 
-      server = grpc.server(UnboundedThreadPoolExecutor())
+      test_control_service = BeamFnControlServicer(requests)
+      test_state_service = beam_fn_api_pb2_grpc.BeamFnStateServicer()
+
       beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
-          test_controller, server)
-      test_port = server.add_insecure_port("[::]:0")
-      server.start()
+          test_control_service, test_control_server)
+      beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
+          test_state_service, test_state_server)
+      test_control_server.start()
 
       harness = sdk_worker.SdkHarness(
-          "localhost:%s" % test_port, state_cache_size=100)
+          "localhost:%s" % test_control_port, state_cache_size=100)
       harness.run()
 
       for worker in harness.workers.queue:
@@ -110,8 +156,10 @@ class SdkWorkerTest(unittest.TestCase):
                          {item.id: item
                           for item in process_bundle_descriptors})
 
-  def test_fn_registration(self):
-    self._check_fn_registration_multi_request((1, 4), (4, 4))
+      self.assertTrue(TestOperation.teardown_called)
+
+  def test_fn_registration_and_teardown(self):
+    self._check_fn_registration_and_teardown_multi_request((1, 4), (4, 4))
 
 
 if __name__ == "__main__":
