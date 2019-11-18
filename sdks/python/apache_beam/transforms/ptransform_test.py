@@ -48,8 +48,8 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms import window
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms import window
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
@@ -58,8 +58,8 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
-from apache_beam.utils.windowed_value import WindowedValue
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
