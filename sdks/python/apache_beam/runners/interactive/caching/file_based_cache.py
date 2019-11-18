@@ -187,7 +187,7 @@ class FileBasedCache(PCollectionCache):
     """
     self._num_writes += 1
     if self.element_type is None:
-      # TODO(ostrokach): We might want to infer the element type from the first
+      # TODO(BEAM-8734): We might want to infer the element type from the first
       # N elements, rather than reading the entire iterator.
       elements = list(elements)
       self.element_type = datatype_inference.infer_element_type(elements)
