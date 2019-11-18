@@ -31,11 +31,16 @@ from future.utils import with_metaclass
 class PCollectionCache(with_metaclass(abc.ABCMeta)):
 
   @abc.abstractmethod
-  def __init__(self, cache_spec, **writer_kwargs):
+  def __init__(self, cache_spec, overwrite, persist, **writer_kwargs):
     """Initialize PCollectionCache.
 
     Args:
       cache_spec (str): Location where the cache data should be stored.
+      overwrite (bool): If ``True``, raise an IOError if data matching
+          `cache_spec` already exist. If ``False``, remove existing data
+          instead.
+      persist (bool): A flag indicating whether the underlying data should be
+          destroyed when the cache instance goes out of scope.
       **writer_kwargs: Arguments to pass to the underlying writer class.
     """
     raise NotImplementedError

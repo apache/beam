@@ -24,6 +24,7 @@ This module is experimental. No backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+import functools
 import gc
 import itertools
 import logging
@@ -93,16 +94,33 @@ def write_through_pipeline(cache, data_in, timeout=None):
                  'PCollectionCache is not supported on Python 2.')
 class FileBasedCacheTest(unittest.TestCase):
 
-  def cache_class(self, location, *args, **kwargs):
+  def cache_class(self,
+                  cache_spec,
+                  overwrite=False,
+                  persist=False,
+                  reader_passthrough_args=(),
+                  requires_coder=False,
+                  **writer_kwargs):
+    coder = writer_kwargs.pop("coder", None)
 
-    class MockedFileBasedCache(file_based_cache.FileBasedCache):
+    reader_kwargs = {
+        k: v for k, v in writer_kwargs.items() if k in reader_passthrough_args
+    }
+    reader_class = mock.MagicMock()
+    reader_class._mock_call = functools.partial(reader_class._mock_call,
+                                                **reader_kwargs)
+    writer_class = mock.MagicMock()
+    writer_class._mock_call = functools.partial(writer_class._mock_call,
+                                                **writer_kwargs)
 
-      _reader_class = mock.MagicMock()
-      _writer_class = mock.MagicMock()
-      _reader_passthrough_arguments = {}
-      requires_coder = False
-
-    return MockedFileBasedCache(location, *args, **kwargs)
+    return file_based_cache.FileBasedCache(
+        reader_class,
+        writer_class,
+        cache_spec,
+        overwrite=overwrite,
+        persist=persist,
+        requires_coder=requires_coder,
+        coder=coder)
 
   def setUp(self):
     self.temp_dir = tempfile.mkdtemp()
@@ -241,15 +259,19 @@ class FileBasedCacheTest(unittest.TestCase):
 
   def test_reader_arguments(self):
 
-    def check_reader_passthrough_kwargs(kwargs, passthrough):
-      cache = self.cache_class(self.location, overwrite=True, **kwargs)
-      cache._reader_passthrough_arguments = passthrough
-      cache.reader()
+    def check_reader_passthrough_kwargs(reader_passthrough_args, writer_kwargs):
+      cache = self.cache_class(
+          self.location,
+          overwrite=True,
+          reader_passthrough_args=reader_passthrough_args,
+          **writer_kwargs)
+      _ = cache.reader()
       _, kwargs_out = list(cache._reader_class.call_args)
-      self.assertEqual(kwargs_out, {k: kwargs[k] for k in passthrough})
+      self.assertEqual({k: writer_kwargs[k] for k in reader_passthrough_args},
+                       kwargs_out)
 
-    check_reader_passthrough_kwargs({"a": 10, "b": "hello world"}, {})
-    check_reader_passthrough_kwargs({"a": 10, "b": "hello world"}, {"b"})
+    check_reader_passthrough_kwargs((), {"a": 10, "b": "hello world"})
+    check_reader_passthrough_kwargs(("b",), {"a": 10, "b": "hello world"})
 
   def test_infer_element_type_with_write(self):
     cache = self.cache_class(self.location)
@@ -273,8 +295,10 @@ class FileBasedCacheTest(unittest.TestCase):
 
   def test_default_coder(self):
     cache = self.cache_class(
-        self.location, coder=file_based_cache.SafeFastPrimitivesCoder)
-    cache._reader_passthrough_arguments = {"coder"}
+        self.location,
+        coder=file_based_cache.SafeFastPrimitivesCoder,
+        reader_passthrough_args=("coder",),
+        requires_coder=True)
     for element_type in GENERIC_ELEMENT_TYPES:
       cache.truncate()
       cache.element_type = element_type
@@ -284,8 +308,8 @@ class FileBasedCacheTest(unittest.TestCase):
           kwargs_out.get("coder"), file_based_cache.SafeFastPrimitivesCoder)
 
   def test_inferred_coder(self):
-    cache = self.cache_class(self.location)
-    cache._reader_passthrough_arguments = {"coder"}
+    cache = self.cache_class(
+        self.location, reader_passthrough_args=("coder",), requires_coder=True)
     for element_type in GENERIC_ELEMENT_TYPES:
       cache.truncate()
       cache.element_type = element_type

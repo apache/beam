@@ -172,16 +172,15 @@ class RoundtripTestBase(object):
     """Make sure that data can be correctly written using the write_fn function
     and read using the validate_fn function.
     """
-    cache = self.cache_class(self.location, **self.get_writer_kwargs(None))
     for data in dataset:
-      cache._writer_kwargs.update(self.get_writer_kwargs(data))
+      cache = self.cache_class(self.location, **self.get_writer_kwargs(None))
       write_fn(cache, data)
       validate_fn(cache, data)
       write_fn(cache, data)
       validate_fn(cache, data * 2)
       cache.truncate()
       validate_fn(cache, [])
-    cache.delete()
+      cache.delete()
 
 
 class FileRoundtripTestBase(RoundtripTestBase):
