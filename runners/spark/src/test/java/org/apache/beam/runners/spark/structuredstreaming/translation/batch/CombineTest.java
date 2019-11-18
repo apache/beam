@@ -170,13 +170,17 @@ public class CombineTest implements Serializable {
                     TimestampedValue.of("a", new Instant(1)),
                     TimestampedValue.of("a", new Instant(2)),
                     TimestampedValue.of("b", new Instant(3)),
-                    TimestampedValue.of("b", new Instant(4)),
-                    TimestampedValue.of("c", new Instant(5)),
-                    TimestampedValue.of("c", new Instant(6))))
-            .apply(Window.into(SlidingWindows.of(Duration.millis(4)).every(Duration.millis(2))));
+                    TimestampedValue.of("b", new Instant(4))))
+            .apply(Window.into(SlidingWindows.of(Duration.millis(2)).every(Duration.millis(1))));
     PCollection<KV<String, Long>> output = input.apply(Count.perElement());
     PAssert.that(output)
-        .containsInAnyOrder(KV.of("a", 2L), KV.of("a", 2L), KV.of("b", 2L), KV.of("b", 2L),
-            KV.of("c", 2L), KV.of("c", 2L));
+        .containsInAnyOrder(
+            KV.of("a", 1L),
+            KV.of("a", 2L),
+            KV.of("a", 1L),
+            KV.of("b", 1L),
+            KV.of("b", 2L),
+            KV.of("b", 1L));
     pipeline.run();
-  }}
+  }
+}
