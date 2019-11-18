@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas;
 
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -30,14 +31,55 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental(Kind.SCHEMAS)
 public abstract class GetterBasedSchemaProvider implements SchemaProvider {
-  /** Implementing class should override to return a getter factory. */
-  abstract FieldValueGetterFactory fieldValueGetterFactory();
+  /** Implementing class should override to return FieldValueGetters. */
+  abstract List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema);
 
-  /** Implementing class should override to return a type-information factory. */
-  abstract FieldValueTypeInformationFactory fieldValueTypeInformationFactory();
+  /** Implementing class should override to return a list of type-informations. */
+  abstract List<FieldValueTypeInformation> fieldValueTypeInformations(
+      Class<?> targetClass, Schema schema);
 
-  /** Implementing class should override to return a constructor factory. */
-  abstract UserTypeCreatorFactory schemaTypeCreatorFactory();
+  /** Implementing class should override to return a constructor. */
+  abstract SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema);
+
+  private class ToRowWithValueGetters<T> implements SerializableFunction<T, Row> {
+    private final Schema schema;
+    private final Factory<List<FieldValueGetter>> getterFactory;
+
+    public ToRowWithValueGetters(Schema schema) {
+      this.schema = schema;
+      // Since we know that this factory is always called from inside the lambda with the same
+      // schema,
+      // return a caching factory that caches the first value seen for each class. This prevents
+      // having to lookup the getter list each time createGetters is called.
+      this.getterFactory = new CachingFactory<>(GetterBasedSchemaProvider.this::fieldValueGetters);
+    }
+
+    @Override
+    public Row apply(T input) {
+      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input).build();
+    }
+
+    private GetterBasedSchemaProvider getOuter() {
+      return GetterBasedSchemaProvider.this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ToRowWithValueGetters<?> that = (ToRowWithValueGetters<?>) o;
+      return getOuter().equals(that.getOuter()) && schema.equals(that.schema);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(GetterBasedSchemaProvider.this, schema);
+    }
+  }
 
   @Override
   public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
@@ -49,18 +91,23 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     // workers would see different versions of the schema.
     Schema schema = schemaFor(typeDescriptor);
 
-    // Since we know that this factory is always called from inside the lambda with the same schema,
-    // return a caching factory that caches the first value seen for each class. This prevents
-    // having to lookup the getter list each time createGetters is called.
-    Factory<List<FieldValueGetter>> getterFactory = new CachingFactory<>(fieldValueGetterFactory());
-    return o -> Row.withSchema(schema).withFieldValueGetters(getterFactory, o).build();
+    return new ToRowWithValueGetters<>(schema);
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
     Class<T> clazz = (Class<T>) typeDescriptor.getType();
-    return new FromRowUsingCreator<>(
-        clazz, schemaTypeCreatorFactory(), fieldValueTypeInformationFactory());
+    return new FromRowUsingCreator<>(clazz, this);
+  }
+
+  @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj != null && this.getClass() == obj.getClass();
   }
 }

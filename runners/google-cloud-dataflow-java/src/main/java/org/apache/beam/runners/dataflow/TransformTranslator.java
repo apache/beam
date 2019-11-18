@@ -25,6 +25,7 @@ import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -50,6 +51,13 @@ public interface TransformTranslator<TransformT extends PTransform> {
     default boolean isFnApi() {
       List<String> experiments = getPipelineOptions().getExperiments();
       return experiments != null && experiments.contains("beam_fn_api");
+    }
+
+    default boolean isStreamingEngine() {
+      List<String> experiments = getPipelineOptions().getExperiments();
+      return experiments != null
+          && experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+          && experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
     }
 
     /** Returns the configured pipeline options. */

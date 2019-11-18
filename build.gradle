@@ -143,6 +143,11 @@ task javaPreCommit() {
   dependsOn ":runners:direct-java:needsRunnerTests"
 }
 
+task sqlPreCommit() {
+  dependsOn ":sdks:java:extensions:sql:build"
+  dependsOn ":sdks:java:extensions:sql:buildDependents"
+}
+
 task javaPreCommitBeamZetaSQL() {
   dependsOn ":sdks:java:extensions:sql:zetasql:test"
 }
@@ -197,6 +202,7 @@ task goIntegrationTests() {
 }
 
 task pythonPreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:pycommon:preCommitPyCommon"
   dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
@@ -206,6 +212,14 @@ task pythonPreCommit() {
   // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
   // We can reconsider if we ever see an issue that these suites would
   // have caught. Note that the same tests will still run in postcommit.
+}
+
+// TODO(BEAM-3713): Temporary task for testing pytest.
+task pythonPreCommitPytest() {
+  dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2Pytest"
+  dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35Pytest"
+  dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36Pytest"
+  dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37Pytest"
 }
 
 task pythonLintPreCommit() {
@@ -219,22 +233,26 @@ task python2PostCommit() {
   dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
   dependsOn ":sdks:python:test-suites:direct:py2:hdfsIntegrationTest"
   dependsOn ":sdks:python:test-suites:direct:py2:mongodbioIT"
+  dependsOn ":sdks:python:test-suites:portable:py2:postCommitPy2"
 }
 
 task python35PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py35:postCommitIT"
+  dependsOn ":sdks:python:test-suites:portable:py35:postCommitPy35"
 }
 
 task python36PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py36:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py36:postCommitIT"
+  dependsOn ":sdks:python:test-suites:portable:py36:postCommitPy36"
 }
 
 task python37PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:hdfsIntegrationTest"
+  dependsOn ":sdks:python:test-suites:portable:py37:postCommitPy37"
 }
 
 task portablePythonPreCommit() {

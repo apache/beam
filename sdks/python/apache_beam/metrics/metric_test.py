@@ -130,31 +130,36 @@ class MetricsTest(unittest.TestCase):
     statesampler.set_current_tracker(sampler)
     state1 = sampler.scoped_state('mystep', 'myState',
                                   metrics_container=MetricsContainer('mystep'))
-    sampler.start()
-    with state1:
-      counter_ns = 'aCounterNamespace'
-      distro_ns = 'aDistributionNamespace'
-      name = 'a_name'
-      counter = Metrics.counter(counter_ns, name)
-      distro = Metrics.distribution(distro_ns, name)
-      counter.inc(10)
-      counter.dec(3)
-      distro.update(10)
-      distro.update(2)
-      self.assertTrue(isinstance(counter, Metrics.DelegatingCounter))
-      self.assertTrue(isinstance(distro, Metrics.DelegatingDistribution))
 
-      del distro
-      del counter
+    try:
+      sampler.start()
+      with state1:
+        counter_ns = 'aCounterNamespace'
+        distro_ns = 'aDistributionNamespace'
+        name = 'a_name'
+        counter = Metrics.counter(counter_ns, name)
+        distro = Metrics.distribution(distro_ns, name)
+        counter.inc(10)
+        counter.dec(3)
+        distro.update(10)
+        distro.update(2)
+        self.assertTrue(isinstance(counter, Metrics.DelegatingCounter))
+        self.assertTrue(isinstance(distro, Metrics.DelegatingDistribution))
 
-      container = MetricsEnvironment.current_container()
-      self.assertEqual(
-          container.counters[MetricName(counter_ns, name)].get_cumulative(),
-          7)
-      self.assertEqual(
-          container.distributions[MetricName(distro_ns, name)].get_cumulative(),
-          DistributionData(12, 2, 2, 10))
-    sampler.stop()
+        del distro
+        del counter
+
+        container = MetricsEnvironment.current_container()
+        self.assertEqual(
+            container.get_counter(
+                MetricName(counter_ns, name)).get_cumulative(),
+            7)
+        self.assertEqual(
+            container.get_distribution(
+                MetricName(distro_ns, name)).get_cumulative(),
+            DistributionData(12, 2, 2, 10))
+    finally:
+      sampler.stop()
 
 
 if __name__ == '__main__':

@@ -66,12 +66,11 @@ class PipelineVerifiersTest(unittest.TestCase):
 
   def test_pipeline_state_matcher_fails(self):
     """Test PipelineStateMatcher fails when using default expected state
-    and job actually finished in CANCELLED/DRAINED/FAILED/STOPPED/UNKNOWN
+    and job actually finished in CANCELLED/DRAINED/FAILED/UNKNOWN
     """
     failed_state = [PipelineState.CANCELLED,
                     PipelineState.DRAINED,
                     PipelineState.FAILED,
-                    PipelineState.STOPPED,
                     PipelineState.UNKNOWN]
 
     for state in failed_state:

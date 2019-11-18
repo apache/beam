@@ -34,7 +34,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.CachingRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
@@ -170,11 +169,6 @@ public class ZetaSQLPlannerImpl implements Planner {
   @Override
   public RelNode transform(int i, RelTraitSet relTraitSet, RelNode relNode)
       throws RelConversionException {
-    relNode
-        .getCluster()
-        .setMetadataProvider(
-            new CachingRelMetadataProvider(
-                relNode.getCluster().getMetadataProvider(), relNode.getCluster().getPlanner()));
     Program program = programs.get(i);
     return program.run(planner, relNode, relTraitSet, ImmutableList.of(), ImmutableList.of());
   }

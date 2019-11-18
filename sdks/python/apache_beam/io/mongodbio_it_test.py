@@ -27,6 +27,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def run(argv=None):
   default_db = 'beam_mongodbio_it_db'
@@ -54,7 +56,7 @@ def run(argv=None):
   # Test Write to MongoDB
   with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
     start_time = time.time()
-    logging.info('Writing %d documents to mongodb' % known_args.num_documents)
+    _LOGGER.info('Writing %d documents to mongodb' % known_args.num_documents)
     docs = [{
         'number': x,
         'number_mod_2': x % 2,
@@ -67,13 +69,13 @@ def run(argv=None):
                                                        known_args.mongo_coll,
                                                        known_args.batch_size)
   elapsed = time.time() - start_time
-  logging.info('Writing %d documents to mongodb finished in %.3f seconds' %
+  _LOGGER.info('Writing %d documents to mongodb finished in %.3f seconds' %
                (known_args.num_documents, elapsed))
 
   # Test Read from MongoDB
   with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
     start_time = time.time()
-    logging.info('Reading from mongodb %s:%s' %
+    _LOGGER.info('Reading from mongodb %s:%s' %
                  (known_args.mongo_db, known_args.mongo_coll))
     r = p | 'ReadFromMongoDB' >> \
                 beam.io.ReadFromMongoDB(known_args.mongo_uri,
@@ -85,7 +87,7 @@ def run(argv=None):
         r, equal_to([number for number in range(known_args.num_documents)]))
 
   elapsed = time.time() - start_time
-  logging.info('Read %d documents from mongodb finished in %.3f seconds' %
+  _LOGGER.info('Read %d documents from mongodb finished in %.3f seconds' %
                (known_args.num_documents, elapsed))
 
 

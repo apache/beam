@@ -1592,7 +1592,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
       def name = config.name
       def beamTestPipelineOptions = [
-        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--runner=org.apache.beam.runners.portability.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
         "--environmentCacheMillis=10000"
       ]
@@ -1649,7 +1649,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
         dependsOn ':sdks:java:container:docker'
-        dependsOn ':sdks:python:container:buildAll'
+        dependsOn ':sdks:python:container:py2:docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
         // setup test env
@@ -1671,7 +1671,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Task for running testcases in Java SDK
       def beamJavaTestPipelineOptions = [
-        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--runner=org.apache.beam.runners.portability.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
         "--environmentCacheMillis=10000"
       ]
@@ -1899,11 +1899,13 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      def addPortableWordCountTask = { boolean isStreaming ->
-        project.task('portableWordCount' + (isStreaming ? 'Streaming' : 'Batch')) {
+      def addPortableWordCountTask = { boolean isStreaming, String runner ->
+        project.task('portableWordCount' + (runner.equals("PortableRunner") ? "" : runner) + (isStreaming ? 'Streaming' : 'Batch')) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ':runners:flink:1.9:job-server-container:docker',
+            ':runners:flink:1.9:job-server:shadowJar',
+            ':runners:spark:job-server:shadowJar',
             ':sdks:python:container:py2:docker',
             ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',
@@ -1914,7 +1916,7 @@ class BeamModulePlugin implements Plugin<Project> {
             def options = [
               "--input=/etc/profile",
               "--output=/tmp/py-wordcount-direct",
-              "--runner=PortableRunner",
+              "--runner=${runner}",
               "--experiments=worker_threads=100",
               "--parallelism=2",
               "--shutdown_sources_on_final_watermark",
@@ -1953,8 +1955,11 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.ext.addPortableWordCountTasks = {
         ->
-        addPortableWordCountTask(false)
-        addPortableWordCountTask(true)
+        addPortableWordCountTask(false, "PortableRunner")
+        addPortableWordCountTask(true, "PortableRunner")
+        addPortableWordCountTask(false, "FlinkRunner")
+        addPortableWordCountTask(true, "FlinkRunner")
+        addPortableWordCountTask(false, "SparkRunner")
       }
     }
   }

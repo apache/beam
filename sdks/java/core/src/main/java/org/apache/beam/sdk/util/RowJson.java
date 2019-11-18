@@ -137,6 +137,14 @@ public class RowJson {
         return jsonArrayToList(fieldValue);
       }
 
+      if (fieldValue.typeName().isLogicalType()) {
+        return extractJsonNodeValue(
+            FieldValue.of(
+                fieldValue.name(),
+                fieldValue.type().getLogicalType().getBaseType(),
+                fieldValue.jsonValue()));
+      }
+
       return extractJsonPrimitiveValue(fieldValue);
     }
 
@@ -350,6 +358,9 @@ public class RowJson {
           break;
         case ROW:
           writeRow((Row) value, type.getRowSchema(), gen);
+          break;
+        case LOGICAL_TYPE:
+          writeValue(gen, type.getLogicalType().getBaseType(), value);
           break;
         default:
           throw new IllegalArgumentException("Unsupported field type: " + type);

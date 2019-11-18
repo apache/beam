@@ -65,6 +65,8 @@ from apache_beam.utils import counters
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class TransformEvaluatorRegistry(object):
   """For internal use only; no backwards-compatibility guarantees.
@@ -606,7 +608,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
   def process_timer(self, timer_firing):
     if timer_firing.name not in self.user_timer_map:
-      logging.warning('Unknown timer fired: %s', timer_firing)
+      _LOGGER.warning('Unknown timer fired: %s', timer_firing)
     timer_spec = self.user_timer_map[timer_firing.name]
     self.runner.process_user_timer(
         timer_spec, self.key_coder.decode(timer_firing.encoded_key),
@@ -814,8 +816,10 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
           timer_firing.window, timer_firing.name, timer_firing.time_domain,
           timer_firing.timestamp, state):
         self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
+    watermark = self._evaluation_context._watermark_manager.get_watermarks(
+        self._applied_ptransform).output_watermark
     if vs:
-      for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
+      for wvalue in self.driver.process_elements(state, vs, watermark):
         self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
 
     self.keyed_holds[encoded_k] = state.get_earliest_hold()

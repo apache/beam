@@ -66,6 +66,9 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
 from apache_beam.utils.annotations import experimental
 
+_LOGGER = logging.getLogger(__name__)
+
+
 try:
   # Mongodb has its own bundled bson, which is not compatible with bson pakcage.
   # (https://github.com/py-bson/bson/issues/82). Try to import objectid and if
@@ -80,7 +83,7 @@ try:
   from pymongo import ReplaceOne
 except ImportError:
   objectid = None
-  logging.warning("Could not find a compatible bson package.")
+  _LOGGER.warning("Could not find a compatible bson package.")
 
 __all__ = ['ReadFromMongoDB', 'WriteToMongoDB']
 
@@ -497,7 +500,7 @@ class _MongoSink(object):
                      replacement=doc,
                      upsert=True))
     resp = self.client[self.db][self.coll].bulk_write(requests)
-    logging.debug('BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, '
+    _LOGGER.debug('BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, '
                   'nMatched:%d, Errors:%s' %
                   (resp.modified_count, resp.upserted_count, resp.matched_count,
                    resp.bulk_api_result.get('writeErrors')))

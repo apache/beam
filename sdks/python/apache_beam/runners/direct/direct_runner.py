@@ -60,6 +60,9 @@ __all__ = ['BundleBasedDirectRunner',
            'SwitchingDirectRunner']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class SwitchingDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine.
 
@@ -187,7 +190,7 @@ def _get_transform_overrides(pipeline_options):
   class CombinePerKeyOverride(PTransformOverride):
     def matches(self, applied_ptransform):
       if isinstance(applied_ptransform.transform, CombinePerKey):
-        return True
+        return applied_ptransform.inputs[0].windowing.is_default()
 
     def get_replacement_transform(self, transform):
       # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
@@ -376,10 +379,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     pipeline.visit(visitor)
     clock = TestClock() if visitor.uses_test_stream else RealClock()
 
-    # TODO(BEAM-4274): Circular import runners-metrics. Requires refactoring.
-    from apache_beam.metrics.execution import MetricsEnvironment
-    MetricsEnvironment.set_metrics_supported(True)
-    logging.info('Running pipeline with DirectRunner.')
+    _LOGGER.info('Running pipeline with DirectRunner.')
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(self.consumer_tracking_visitor)
 
@@ -421,7 +421,7 @@ class DirectPipelineResult(PipelineResult):
 
   def __del__(self):
     if self._state == PipelineState.RUNNING:
-      logging.warning(
+      _LOGGER.warning(
           'The DirectPipelineResult is being garbage-collected while the '
           'DirectRunner is still running the corresponding pipeline. This may '
           'lead to incomplete execution of the pipeline if the main thread '

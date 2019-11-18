@@ -32,9 +32,11 @@ import yaml
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.typehints import schemas
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 
@@ -63,6 +65,42 @@ def parse_float(s):
     # For the purpose of this test, we just need consistency.
     x = abs(x)
   return x
+
+
+def value_parser_from_schema(schema):
+  def attribute_parser_from_type(type_):
+    # TODO: This should be exhaustive
+    type_info = type_.WhichOneof("type_info")
+    if type_info == "atomic_type":
+      return schemas.ATOMIC_TYPE_TO_PRIMITIVE[type_.atomic_type]
+    elif type_info == "array_type":
+      element_parser = attribute_parser_from_type(type_.array_type.element_type)
+      return lambda x: list(map(element_parser, x))
+    elif type_info == "map_type":
+      key_parser = attribute_parser_from_type(type_.array_type.key_type)
+      value_parser = attribute_parser_from_type(type_.array_type.value_type)
+      return lambda x: dict((key_parser(k), value_parser(v))
+                            for k, v in x.items())
+
+  parsers = [(field.name, attribute_parser_from_type(field.type))
+             for field in schema.fields]
+
+  constructor = schemas.named_tuple_from_schema(schema)
+
+  def value_parser(x):
+    result = []
+    for name, parser in parsers:
+      value = x.pop(name)
+      result.append(None if value is None else parser(value))
+
+    if len(x):
+      raise ValueError(
+          "Test data contains attributes that don't exist in the schema: {}"
+          .format(', '.join(x.keys())))
+
+    return constructor(*result)
+
+  return value_parser
 
 
 class StandardCodersTest(unittest.TestCase):
@@ -134,11 +172,17 @@ class StandardCodersTest(unittest.TestCase):
                      for c in spec.get('components', ())]
     context.coders.put_proto(coder_id, beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.FunctionSpec(
-            urn=spec['urn'], payload=spec.get('payload')),
+            urn=spec['urn'], payload=spec.get('payload', '').encode('latin1')),
         component_coder_ids=component_ids))
     return context.coders.get_by_id(coder_id)
 
   def json_value_parser(self, coder_spec):
+    # TODO: integrate this with the logic for the other parsers
+    if coder_spec['urn'] == 'beam:coder:row:v1':
+      schema = schema_pb2.Schema.FromString(
+          coder_spec['payload'].encode('latin1'))
+      return value_parser_from_schema(schema)
+
     component_parsers = [
         self.json_value_parser(c) for c in coder_spec.get('components', ())]
     return lambda x: self._urn_to_json_value_parser[coder_spec['urn']](

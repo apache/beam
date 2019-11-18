@@ -101,7 +101,8 @@ class CommonJobProperties {
                                          String commitStatusContext,
                                          String prTriggerPhrase = '',
                                          boolean onlyTriggerPhraseToggle = true,
-                                         List<String> triggerPathPatterns = []) {
+                                         List<String> triggerPathPatterns = [],
+                                         List<String> excludePathPatterns = []) {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -122,6 +123,9 @@ class CommonJobProperties {
         }
         if (!triggerPathPatterns.isEmpty()) {
           includedRegions(triggerPathPatterns.join('\n'))
+        }
+        if (!excludePathPatterns.isEmpty()) {
+          excludedRegions(excludePathPatterns)
         }
 
         extensions {
@@ -206,9 +210,13 @@ class CommonJobProperties {
           notifyAddress,
           /* _do_ notify every unstable build */ false,
           /* do not email individuals */ false)
-      if (emailIndividuals){
-        extendedEmail {
-          triggers {
+
+      extendedEmail {
+        triggers {
+          aborted {
+            recipientList(notifyAddress)
+          }
+          if (emailIndividuals) {
             firstFailure {
               sendTo {
                 firstFailingBuildSuspects()
@@ -323,6 +331,22 @@ class CommonJobProperties {
     List<String> pipelineArgList = []
     pipelineOptions.each({
       key, value -> pipelineArgList.add("\"--$key=$value\"")
+    })
+    return "[" + pipelineArgList.join(',') + "]"
+  }
+
+  /**
+   * Transforms pipeline options to a string of format like below:
+   * ["--pipelineOption=123", "--pipelineOption2=abc", ...]
+   *
+   * Use this variant when some options values contain json as string.
+   *
+   * @param pipelineOptions A map of pipeline options.
+   */
+  static String joinOptionsWithNestedJsonValues(Map pipelineOptions) {
+    List<String> pipelineArgList = []
+    pipelineOptions.each({
+      key, value -> pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
     })
     return "[" + pipelineArgList.join(',') + "]"
   }

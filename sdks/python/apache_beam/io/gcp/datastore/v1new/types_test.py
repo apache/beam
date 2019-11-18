@@ -40,6 +40,9 @@ except (ImportError, TypeError):
   client = None
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')
 class TypesTest(unittest.TestCase):
   _PROJECT = 'project'
@@ -168,7 +171,7 @@ class TypesTest(unittest.TestCase):
     self.assertEqual(order, cq.order)
     self.assertEqual(distinct_on, cq.distinct_on)
 
-    logging.info('query: %s', q)  # Test __repr__()
+    _LOGGER.info('query: %s', q)  # Test __repr__()
 
   def testValueProviderFilters(self):
     self.vp_filters = [
@@ -193,7 +196,7 @@ class TypesTest(unittest.TestCase):
       cq = q._to_client_query(self._test_client)
       self.assertEqual(exp_filter, cq.filters)
 
-      logging.info('query: %s', q)  # Test __repr__()
+      _LOGGER.info('query: %s', q)  # Test __repr__()
 
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.

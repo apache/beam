@@ -40,6 +40,8 @@ from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   """A Job server which submits a self-contained Jar to a Flink cluster.
@@ -132,7 +134,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
         url='localhost:%d' % port)
     self._artifact_staging_server.start()
-    logging.info('Artifact server started on port %s', port)
+    _LOGGER.info('Artifact server started on port %s', port)
     return port
 
   def _stop_artifact_service(self):
@@ -181,7 +183,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
             'entryClass': 'org.apache.beam.runners.flink.FlinkPipelineRunner'
         })['jobid']
     os.unlink(self._jar)
-    logging.info('Started Flink job as %s' % self._flink_job_id)
+    _LOGGER.info('Started Flink job as %s' % self._flink_job_id)
 
   def cancel(self):
     self.post('v1/%s/stop' % self._flink_job_id, expected_status=202)
@@ -193,7 +195,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
       try:
         self.delete('v1/jars/%s' % self._flink_jar_id)
       except Exception:
-        logging.info(
+        _LOGGER.info(
             'Error deleting jar %s' % self._flink_jar_id, exc_info=True)
 
   def get_state(self):
@@ -216,7 +218,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
         'IN_PROGRESS': beam_job_api_pb2.JobState.RUNNING,
         'COMPLETED': beam_job_api_pb2.JobState.DONE,
     }.get(flink_status, beam_job_api_pb2.JobState.UNSPECIFIED)
-    if beam_state in abstract_job_service.TERMINAL_STATES:
+    if self.is_terminal_state(beam_state):
       self.delete_jar()
     return beam_state
 
@@ -224,7 +226,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
     sleep_secs = 1.0
     current_state = self.get_state()
     yield current_state
-    while current_state not in abstract_job_service.TERMINAL_STATES:
+    while not self.is_terminal_state(current_state):
       sleep_secs = min(60, sleep_secs * 1.2)
       time.sleep(sleep_secs)
       previous_state, current_state = current_state, self.get_state()
@@ -233,7 +235,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
 
   def get_message_stream(self):
     for state in self.get_state_stream():
-      if state in abstract_job_service.TERMINAL_STATES:
+      if self.is_terminal_state(state):
         response = self.get('v1/jobs/%s/exceptions' % self._flink_job_id)
         for ix, exc in enumerate(response['all-exceptions']):
           yield beam_job_api_pb2.JobMessage(

@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * Class representing a Pub/Sub message. Each message contains a single message payload, a map of
@@ -65,5 +66,14 @@ public class PubsubMessage {
   @Nullable
   public String getMessageId() {
     return messageId;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("message", message)
+        .add("attributes", attributes)
+        .add("messageId", messageId)
+        .toString();
   }
 }
