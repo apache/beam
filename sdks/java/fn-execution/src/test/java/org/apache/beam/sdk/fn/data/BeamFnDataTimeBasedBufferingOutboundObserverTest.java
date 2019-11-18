@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -98,7 +97,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
     // Test that it emits when time passed the time limit
     consumer.accept(valueInGlobalWindow(new byte[1]));
     // wait the flush thread to flush the buffer
-    while (consumer.flushException.get() == null) {
+    while (!consumer.flushFuture.isDone()) {
       Thread.sleep(1);
     }
     try {
@@ -106,7 +105,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
       // the main thread when processing the next element
       consumer.accept(valueInGlobalWindow(new byte[1]));
       fail();
-    } catch (IOException e) {
+    } catch (Exception e) {
       // expected
     }
 
@@ -124,7 +123,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
                     .build());
     consumer.accept(valueInGlobalWindow(new byte[1]));
     // wait the flush thread to flush the buffer
-    while (consumer.flushException.get() == null) {
+    while (!consumer.flushFuture.isDone()) {
       Thread.sleep(1);
     }
     try {
@@ -132,7 +131,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
       // the main thread when closing
       consumer.close();
       fail();
-    } catch (IOException e) {
+    } catch (Exception e) {
       // expected
     }
   }

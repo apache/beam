@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
@@ -37,9 +36,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
     extends BeamFnDataSizeBasedBufferingOutboundObserver<T> {
 
-  private final Object lock;
-  private final ScheduledFuture<?> flushFuture;
-  @VisibleForTesting final AtomicReference<IOException> flushException;
+  private final Object flushLock;
+  @VisibleForTesting final ScheduledFuture<?> flushFuture;
 
   BeamFnDataTimeBasedBufferingOutboundObserver(
       int sizeLimit,
@@ -48,7 +46,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
       Coder<T> coder,
       StreamObserver<BeamFnApi.Elements> outboundObserver) {
     super(sizeLimit, outputLocation, coder, outboundObserver);
-    this.lock = new Object();
+    this.flushLock = new Object();
     this.flushFuture =
         Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder()
@@ -56,17 +54,19 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
                     .setNameFormat("DataBufferOutboundFlusher-thread")
                     .build())
             .scheduleAtFixedRate(this::periodicFlush, timeLimit, timeLimit, TimeUnit.MILLISECONDS);
-    this.flushException = new AtomicReference<>(null);
   }
 
   @Override
   public void close() throws Exception {
     checkFlushThreadException();
-    synchronized (lock) {
+    synchronized (flushLock) {
       flushFuture.cancel(true);
       try {
         flushFuture.get();
-      } catch (CancellationException | ExecutionException | InterruptedException exn) {
+      } catch (ExecutionException ee) {
+        // the cause of ExecutionException is always RuntimeException
+        throw (RuntimeException) ee.getCause();
+      } catch (CancellationException ce) {
         // expected
       }
     }
@@ -75,7 +75,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
 
   @Override
   public void flush() throws IOException {
-    synchronized (lock) {
+    synchronized (flushLock) {
       super.flush();
     }
   }
@@ -90,20 +90,27 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
     try {
       flush();
     } catch (Throwable t) {
-      if (t instanceof IOException) {
-        flushException.set((IOException) t);
-      } else {
-        flushException.set(new IOException(t));
-      }
       throw new RuntimeException(t);
     }
   }
 
   /** Check if the flush thread failed with an exception. */
   private void checkFlushThreadException() throws IOException {
-    IOException e = flushException.get();
-    if (e != null) {
-      throw e;
+    if (flushFuture.isDone()) {
+      try {
+        flushFuture.get();
+        throw new IOException("Periodic flushing thread finished unexpectedly.");
+      } catch (ExecutionException ee) {
+        // the cause of ExecutionException is always RuntimeException
+        RuntimeException re = (RuntimeException) ee.getCause();
+        if (re.getCause() instanceof IOException) {
+          throw (IOException) re.getCause();
+        }
+        throw re;
+      } catch (InterruptedException | CancellationException e) {
+        // Should never happen
+        throw new RuntimeException(e);
+      }
     }
   }
 }
