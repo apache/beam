@@ -323,9 +323,9 @@ class PipelineInstrument(object):
     it's converted to the runner api representation, each PCollection referenced
     in the user pipeline is assigned a unique-within-pipeline pcoll_id. Given
     such pcoll_id, retrieves the str variable name defined in user pipeline for
-    that referenced PCollection. If the PCollection is anonymous, return ''.
+    that referenced PCollection. If the PCollection is not watched, return None.
     """
-    return self._cacheable_var_by_pcoll_id.get(pcoll_id, '')
+    return self._cacheable_var_by_pcoll_id.get(pcoll_id, None)
 
 
 def pin(pipeline, options=None):

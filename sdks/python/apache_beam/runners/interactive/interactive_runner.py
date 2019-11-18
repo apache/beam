@@ -80,6 +80,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
   def set_render_option(self, render_option):
     """Sets the rendering option.
+
     Args:
       render_option: (str) this parameter decides how the pipeline graph is
           rendered. See display.pipeline_graph_renderer for available options.

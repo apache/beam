@@ -41,7 +41,7 @@ class PipelineGraph(object):
 
   def __init__(self,
                pipeline,
-               default_vertex_attrs=None,
+               default_vertex_attrs={'shape': 'box'},
                default_edge_attrs=None,
                render_option=None):
     """Constructor of PipelineGraph.
@@ -130,6 +130,16 @@ class PipelineGraph(object):
         top_level_transform_proto = transforms[top_level_transform_id]
         yield top_level_transform_id, top_level_transform_proto
 
+  def _decorate(self, value):
+    """Decorates label-ish values used for rendering in dot language.
+
+    Escapes special characters in the given str value for dot language. '"' is
+    the only character cannot be escaped. Please escape all PTransform unique
+    names when building dot representation. Otherwise, special characters will
+    break the graph rendered.
+    """
+    return '"{}"'.format(value)
+
   def _generate_graph_dicts(self):
     """From pipeline_proto and other info, generate the graph.
 
@@ -149,59 +159,39 @@ class PipelineGraph(object):
     self._edge_to_vertex_pairs = collections.defaultdict(list)
 
     for _, transform in self._top_level_transforms():
-      vertex_dict[transform.unique_name] = {}
+      vertex_dict[self._decorate(transform.unique_name)] = {}
 
       for pcoll_id in transform.outputs.values():
-        # For PCollections without consuming PTransforms, we add an invisible
-        # PTransform node as the consumer.
+        pcoll_node = None
+        if self._pin:
+          pcoll_node = self._pin.cacheable_var_by_pcoll_id(pcoll_id)
+        # If no PipelineInstrument is available or the PCollection is not
+        # watched.
+        if not pcoll_node:
+          pcoll_node = 'pcoll%s' % (hash(pcoll_id) % 10000)
+          vertex_dict[pcoll_node] = {
+              'shape': 'circle',
+              'label': '',  # The pcoll node has no name.
+          }
+        # There is PipelineInstrument and the PCollection is watched with an
+        # assigned variable.
+        else:
+          vertex_dict[pcoll_node] = {'shape': 'circle'}
         if pcoll_id not in self._consumers:
-          invisible_leaf = 'leaf%s' % (hash(pcoll_id) % 10000)
-          vertex_dict[invisible_leaf] = {'style': 'invis'}
           self._edge_to_vertex_pairs[pcoll_id].append(
-              (transform.unique_name, invisible_leaf))
-          if self._pin:
-            edge_label = {
-                'label': self._pin.cacheable_var_by_pcoll_id(pcoll_id)
-            }
-            edge_dict[(transform.unique_name, invisible_leaf)] = edge_label
-          else:
-            edge_dict[(transform.unique_name, invisible_leaf)] = {}
-        # For PCollections with more than one consuming PTransform, we also add
-        # an invisible dummy node to diverge the edge in the middle as the
-        # single output is used by multiple down stream PTransforms as inputs
-        # instead of emitting multiple edges.
-        elif len(self._consumers[pcoll_id]) > 1:
-          intermediate_dummy = 'diverge{}'.format(
-              hash(pcoll_id) % 10000)
-          vertex_dict[intermediate_dummy] = {'shape': 'point',
-                                             'width': '0'}
-          for consumer in self._consumers[pcoll_id]:
-            producer_name = transform.unique_name
-            consumer_name = transforms[consumer].unique_name
-            self._edge_to_vertex_pairs[pcoll_id].append(
-                (producer_name, intermediate_dummy))
-            if self._pin:
-              edge_dict[(producer_name, intermediate_dummy)] = {
-                  'arrowhead': 'none',
-                  'label': self._pin.cacheable_var_by_pcoll_id(pcoll_id)}
-            else:
-              edge_dict[(producer_name, intermediate_dummy)] = {
-                  'arrowhead': 'none'}
-            self._edge_to_vertex_pairs[pcoll_id].append(
-                (intermediate_dummy, consumer_name))
-            edge_dict[(intermediate_dummy, consumer_name)] = {}
+              (self._decorate(transform.unique_name), pcoll_node))
+          edge_dict[(self._decorate(transform.unique_name),
+                     pcoll_node)] = {}
         else:
           for consumer in self._consumers[pcoll_id]:
-            producer_name = transform.unique_name
-            consumer_name = transforms[consumer].unique_name
+            producer_name = self._decorate(transform.unique_name)
+            consumer_name = self._decorate(transforms[consumer].unique_name)
             self._edge_to_vertex_pairs[pcoll_id].append(
-                (producer_name, consumer_name))
-            if self._pin:
-              edge_dict[(producer_name, consumer_name)] = {
-                  'label': self._pin.cacheable_var_by_pcoll_id(pcoll_id)
-              }
-            else:
-              edge_dict[(producer_name, consumer_name)] = {}
+                (producer_name, pcoll_node))
+            edge_dict[(producer_name, pcoll_node)] = {}
+            self._edge_to_vertex_pairs[pcoll_id].append(
+                (pcoll_node, consumer_name))
+            edge_dict[(pcoll_node, consumer_name)] = {}
 
     return vertex_dict, edge_dict
 
