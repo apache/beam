@@ -30,6 +30,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.Enc
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -41,6 +42,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.expressions.Aggregator;
+import org.joda.time.Instant;
+import scala.Tuple2;
 
 /** An {@link Aggregator} for the Spark Batch Runner.
  * The accumulator is a {@code Iterable<WindowedValue<AccumT>> because an {@code InputT} can be in multiple windows. So, when accumulating {@code InputT} values, we create one accumulator per input window.
@@ -81,6 +84,7 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
   }
 
   private Iterable<WindowedValue<AccumT>> createAccumulator(WindowedValue<KV<K, InputT>> inputWv) {
+    // need to create an accumulator because combineFn can modify its input accumulator.
     AccumT accumulator = combineFn.createAccumulator();
     AccumT accumT = combineFn.addInput(accumulator, inputWv.getValue().getValue());
     return Lists.newArrayList(
@@ -109,37 +113,42 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     }
 
     // group accumulators by their merged window
-    Map<W, List<WindowedValue<AccumT>>> mergedWindowToAccumulators = new HashMap<>();
-    for (WindowedValue<AccumT> accumulator : accumulators) {
-      for (BoundedWindow accumulatorWindow : accumulator.getWindows()) {
+    Map<W, List<Tuple2<AccumT, Instant>>> mergedWindowToAccumulators = new HashMap<>();
+    for (WindowedValue<AccumT> accumulatorWv : accumulators) {
+      for (BoundedWindow accumulatorWindow : accumulatorWv.getWindows()) {
         W mergedWindowForAccumulator = windowToMergeResult.get(accumulatorWindow);
         mergedWindowForAccumulator =
             (mergedWindowForAccumulator == null)
                 ? (W) accumulatorWindow
                 : mergedWindowForAccumulator;
 
+        // we need only the timestamp and the AccumT, we create a tuple
+        Tuple2<AccumT, Instant> accumAndInstant = new Tuple2<>(accumulatorWv.getValue(),
+            accumulatorWv.getTimestamp());
         if (mergedWindowToAccumulators.get(mergedWindowForAccumulator) == null) {
           mergedWindowToAccumulators.put(
-              mergedWindowForAccumulator, Lists.newArrayList(accumulator));
+              mergedWindowForAccumulator, Lists.newArrayList(accumAndInstant));
         } else {
-          mergedWindowToAccumulators.get(mergedWindowForAccumulator).add(accumulator);
+          mergedWindowToAccumulators.get(mergedWindowForAccumulator).add(accumAndInstant);
         }
       }
     }
     // merge the accumulators for each mergedWindow
     List<WindowedValue<AccumT>> result = new ArrayList<>();
-    for (Map.Entry<W, List<WindowedValue<AccumT>>> entry : mergedWindowToAccumulators.entrySet()) {
+    for (Map.Entry<W, List<Tuple2<AccumT, Instant>>> entry : mergedWindowToAccumulators.entrySet()) {
       W mergedWindow = entry.getKey();
-      List<WindowedValue<AccumT>> accumulatorsForMergedWindow = entry.getValue();
+      List<Tuple2<AccumT, Instant>> accumsAndInstantsForMergedWindow = entry.getValue();
+
+      // we need to create the first accumulator because combineFn.mergerAccumulators can modify the first accumulator
+      AccumT first = combineFn.createAccumulator();
+      Iterable<AccumT> accumulatorsToMerge = Iterables.concat(Collections.singleton(first),
+          accumsAndInstantsForMergedWindow.stream().map(x -> x._1()).collect(Collectors.toList()));
       result.add(
           WindowedValue.of(
-              combineFn.mergeAccumulators(
-                  accumulatorsForMergedWindow.stream()
-                      .map(x -> x.getValue())
-                      .collect(Collectors.toList())),
+              combineFn.mergeAccumulators(accumulatorsToMerge),
               timestampCombiner.combine(
-                  accumulatorsForMergedWindow.stream()
-                      .map(x -> x.getTimestamp())
+                  accumsAndInstantsForMergedWindow.stream()
+                      .map(x -> x._2())
                       .collect(Collectors.toList())),
               mergedWindow,
               PaneInfo.NO_FIRING));
