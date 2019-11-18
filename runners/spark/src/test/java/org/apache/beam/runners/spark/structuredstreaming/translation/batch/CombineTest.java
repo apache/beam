@@ -26,6 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.Sum;
@@ -49,8 +50,8 @@ public class CombineTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() {
-    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
-        .as(SparkStructuredStreamingPipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options =
+        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setTestMode(true);
     pipeline = Pipeline.create(options);
@@ -68,7 +69,8 @@ public class CombineTest implements Serializable {
   @Test
   public void testCombineGloballyPreservesWindowing() {
     PCollection<Integer> input =
-        pipeline.apply(
+        pipeline
+            .apply(
                 Create.timestamped(
                     TimestampedValue.of(1, new Instant(1)),
                     TimestampedValue.of(2, new Instant(2)),
@@ -91,7 +93,8 @@ public class CombineTest implements Serializable {
     elems.add(KV.of(2, 4));
     elems.add(KV.of(2, 6));
 
-    PCollection<KV<Integer, Integer>> input = pipeline.apply(Create.of(elems)).apply(Sum.integersPerKey());
+    PCollection<KV<Integer, Integer>> input =
+        pipeline.apply(Create.of(elems)).apply(Sum.integersPerKey());
     PAssert.that(input).containsInAnyOrder(KV.of(1, 9), KV.of(2, 12));
     pipeline.run();
   }
@@ -99,7 +102,8 @@ public class CombineTest implements Serializable {
   @Test
   public void testCombinePerKeyPreservesWindowing() {
     PCollection<KV<Integer, Integer>> input =
-        pipeline.apply(
+        pipeline
+            .apply(
                 Create.timestamped(
                     TimestampedValue.of(KV.of(1, 1), new Instant(1)),
                     TimestampedValue.of(KV.of(1, 3), new Instant(2)),
@@ -116,35 +120,44 @@ public class CombineTest implements Serializable {
   @Test
   public void testCombinePerKeyWithSlidingWindows() {
     PCollection<KV<Integer, Integer>> input =
-        pipeline.apply(
-            Create.timestamped(
-                TimestampedValue.of(KV.of(1, 1), new Instant(1)),
-                TimestampedValue.of(KV.of(1, 3), new Instant(2)),
-                TimestampedValue.of(KV.of(1, 5), new Instant(3)),
-                TimestampedValue.of(KV.of(1, 2), new Instant(1)),
-                TimestampedValue.of(KV.of(1, 4), new Instant(2)),
-                TimestampedValue.of(KV.of(1, 6), new Instant(3))))
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(KV.of(1, 1), new Instant(1)),
+                    TimestampedValue.of(KV.of(1, 3), new Instant(2)),
+                    TimestampedValue.of(KV.of(1, 5), new Instant(3)),
+                    TimestampedValue.of(KV.of(1, 2), new Instant(1)),
+                    TimestampedValue.of(KV.of(1, 4), new Instant(2)),
+                    TimestampedValue.of(KV.of(1, 6), new Instant(3))))
             .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1))))
             .apply(Sum.integersPerKey());
-    PAssert.that(input).containsInAnyOrder(KV.of(1, 1 + 2), KV.of(1, 1 + 2 + 3 + 4),
-        KV.of(1, 1 + 3 + 5 + 2 + 4 + 6), KV.of(1, 3 + 4 + 5 + 6), KV.of(1, 5 + 6));
+    PAssert.that(input)
+        .containsInAnyOrder(
+            KV.of(1, 1 + 2),
+            KV.of(1, 1 + 2 + 3 + 4),
+            KV.of(1, 1 + 3 + 5 + 2 + 4 + 6),
+            KV.of(1, 3 + 4 + 5 + 6),
+            KV.of(1, 5 + 6));
     pipeline.run();
   }
 
   @Test
-  public void testBinaryCombineWithSlidingWindows(){
+  public void testBinaryCombineWithSlidingWindows() {
     PCollection<Integer> input =
-        pipeline.apply(
-            Create.timestamped(
-                TimestampedValue.of(1, new Instant(1)),
-                TimestampedValue.of(3, new Instant(2)),
-                TimestampedValue.of(5, new Instant(3))))
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(1, new Instant(1)),
+                    TimestampedValue.of(3, new Instant(2)),
+                    TimestampedValue.of(5, new Instant(3))))
             .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1))))
-            .apply(Combine.globally(Combine.BinaryCombineFn.of(
-                (SerializableBiFunction<Integer, Integer, Integer>) (integer1, integer2) ->
-                    integer1 > integer2 ? integer1 : integer2)).withoutDefaults());
+            .apply(
+                Combine.globally(
+                        Combine.BinaryCombineFn.of(
+                            (SerializableBiFunction<Integer, Integer, Integer>)
+                                (integer1, integer2) -> integer1 > integer2 ? integer1 : integer2))
+                    .withoutDefaults());
     PAssert.that(input).containsInAnyOrder(1, 3, 5, 5, 5);
     pipeline.run();
-
   }
 }

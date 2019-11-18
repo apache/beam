@@ -32,7 +32,6 @@ import org.apache.beam.sdk.testing.UsesMetricsPusher;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -55,15 +54,14 @@ public class MetricsPusherTest {
 
   @BeforeClass
   public static void beforeClass() {
-    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create().as(
-        SparkStructuredStreamingPipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options =
+        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setTestMode(true);
     MetricsOptions options1 = options.as(MetricsOptions.class);
     options1.setMetricsSink(TestMetricsSink.class);
     pipeline = Pipeline.create(options1);
   }
-
 
   private static class CountingDoFn extends DoFn<Integer, Integer> {
     private final Counter counter = Metrics.counter(MetricsPusherTest.class, "counter");
