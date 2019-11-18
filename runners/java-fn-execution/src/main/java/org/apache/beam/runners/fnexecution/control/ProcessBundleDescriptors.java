@@ -164,10 +164,10 @@ public class ProcessBundleDescriptors {
   }
 
   /**
-   * Patches the input coder of a stateful Executable transform to ensure that the byte
-   * representation of a key used to partition the input element at the Runner, matches the key byte
-   * representation received for state requests and timers from the SDK Harness. Stateful transforms
-   * always have a KvCoder as input.
+   * Patches the input coder of a stateful transform to ensure that the byte representation of a key
+   * used to partition the input element at the Runner, matches the key byte representation received
+   * for state requests and timers from the SDK Harness. Stateful transforms always have a KvCoder
+   * as input.
    */
   private static void lengthPrefixKeyCoder(
       String inputColId, Components.Builder componentsBuilder) {

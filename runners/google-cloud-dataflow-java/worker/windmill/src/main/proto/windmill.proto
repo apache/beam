@@ -272,12 +272,15 @@ message GlobalDataRequest {
   optional string state_family = 3;
 }
 
-// next id: 19
+// next id: 24
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
   optional fixed64 sharding_key = 15;
   optional fixed64 cache_token = 16;
+
+  optional bool exceeds_max_work_item_commit_bytes = 20;
+  optional int64 estimated_work_item_commit_bytes = 21;
 
   repeated OutputMessageBundle output_messages = 3;
   repeated PubSubMessageBundle pubsub_messages = 7;
@@ -290,12 +293,14 @@ message WorkItemCommitRequest {
   optional SourceState source_state_updates = 12;
   optional int64 source_watermark = 13 [default=-0x8000000000000000];
   optional int64 source_backlog_bytes = 17 [default=-1];
+  optional int64 source_bytes_processed = 22;
+
   repeated WatermarkHold watermark_holds = 14;
 
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
 
-  reserved 6;
+  reserved 6, 19, 23;
 }
 
 message ComputationCommitWorkRequest {

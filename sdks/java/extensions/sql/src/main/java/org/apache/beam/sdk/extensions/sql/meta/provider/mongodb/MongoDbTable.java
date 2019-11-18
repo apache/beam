@@ -31,8 +31,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.JsonToRow;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -83,7 +86,9 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
-    throw new UnsupportedOperationException("Writing to a MongoDB is not supported");
+    return input
+        .apply(new RowToDocument())
+        .apply(MongoDbIO.write().withUri(dbUri).withDatabase(dbName).withCollection(dbCollection));
   }
 
   @Override
@@ -137,6 +142,31 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
             context
                 .element()
                 .toJson(JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build()));
+      }
+    }
+  }
+
+  public static class RowToDocument extends PTransform<PCollection<Row>, PCollection<Document>> {
+
+    private RowToDocument() {}
+
+    public static RowToDocument convert() {
+      return new RowToDocument();
+    }
+
+    @Override
+    public PCollection<Document> expand(PCollection<Row> input) {
+      return input
+          // TODO(BEAM-8498): figure out a way convert Row directly to Document.
+          .apply("Transform Rows to JSON", ToJson.of())
+          .apply("Produce documents from JSON", MapElements.via(new ObjectToDocumentFn()));
+    }
+
+    @VisibleForTesting
+    static class ObjectToDocumentFn extends SimpleFunction<String, Document> {
+      @Override
+      public Document apply(String input) {
+        return Document.parse(input);
       }
     }
   }

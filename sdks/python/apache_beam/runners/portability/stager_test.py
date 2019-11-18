@@ -36,6 +36,8 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability import stager
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class StagerTest(unittest.TestCase):
 
@@ -76,9 +78,9 @@ class StagerTest(unittest.TestCase):
       if os.path.isdir(to_path):
         to_path = os.path.join(to_path, from_name)
       self.create_temp_file(to_path, 'nothing')
-      logging.info('Fake copied remote file: %s to %s', from_path, to_path)
+      _LOGGER.info('Fake copied remote file: %s to %s', from_path, to_path)
     elif self.is_remote_path(to_path):
-      logging.info('Faking upload_file(%s, %s)', from_path, to_path)
+      _LOGGER.info('Faking upload_file(%s, %s)', from_path, to_path)
     else:
       shutil.copyfile(from_path, to_path)
 
@@ -616,7 +618,7 @@ class StagerTest(unittest.TestCase):
 class TestStager(stager.Stager):
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
-    logging.info('File copy from %s to %s.', local_path_to_artifact,
+    _LOGGER.info('File copy from %s to %s.', local_path_to_artifact,
                  artifact_name)
     shutil.copyfile(local_path_to_artifact, artifact_name)
 

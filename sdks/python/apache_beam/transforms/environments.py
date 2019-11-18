@@ -22,6 +22,8 @@ For internal use only. No backwards compatibility guarantees."""
 from __future__ import absolute_import
 
 import json
+import logging
+import sys
 
 from google.protobuf import message
 
@@ -119,12 +121,10 @@ class Environment(object):
 class DockerEnvironment(Environment):
 
   def __init__(self, container_image=None):
-    from apache_beam.runners.portability.portable_runner import PortableRunner
-
     if container_image:
       self.container_image = container_image
     else:
-      self.container_image = PortableRunner.default_docker_image()
+      self.container_image = self.default_docker_image()
 
   def __eq__(self, other):
     return self.__class__ == other.__class__ \
@@ -152,6 +152,24 @@ class DockerEnvironment(Environment):
   @classmethod
   def from_options(cls, options):
     return cls(container_image=options.environment_config)
+
+  @staticmethod
+  def default_docker_image():
+    from apache_beam import version as beam_version
+
+    sdk_version = beam_version.__version__
+    version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
+    logging.warning('Make sure that locally built Python SDK docker image '
+                    'has Python %d.%d interpreter.' % (
+                        sys.version_info[0], sys.version_info[1]))
+
+    image = ('apachebeam/python{version_suffix}_sdk:{tag}'.format(
+        version_suffix=version_suffix, tag=sdk_version))
+    logging.info(
+        'Using Python SDK docker image: %s. If the image is not '
+        'available at local, we will try to pull from hub.docker.com'
+        % (image))
+    return image
 
 
 @Environment.register_urn(common_urns.environments.PROCESS.urn,
@@ -290,13 +308,11 @@ class EmbeddedPythonEnvironment(Environment):
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedPythonGrpcEnvironment(Environment):
 
-  def __init__(self, num_workers=None, state_cache_size=None):
-    self.num_workers = num_workers
+  def __init__(self, state_cache_size=None):
     self.state_cache_size = state_cache_size
 
   def __eq__(self, other):
     return self.__class__ == other.__class__ \
-           and self.num_workers == other.num_workers \
            and self.state_cache_size == other.state_cache_size
 
   def __ne__(self, other):
@@ -304,34 +320,26 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     return not self == other
 
   def __hash__(self):
-    return hash((self.__class__, self.num_workers, self.state_cache_size))
+    return hash((self.__class__, self.state_cache_size))
 
   def __repr__(self):
     repr_parts = []
-    if not self.num_workers is None:
-      repr_parts.append('num_workers=%d' % self.num_workers)
     if not self.state_cache_size is None:
       repr_parts.append('state_cache_size=%d' % self.state_cache_size)
     return 'EmbeddedPythonGrpcEnvironment(%s)' % ','.join(repr_parts)
 
   def to_runner_api_parameter(self, context):
-    if self.num_workers is None and self.state_cache_size is None:
+    if self.state_cache_size is None:
       payload = b''
-    elif self.num_workers is not None and self.state_cache_size is not None:
-      payload = b'%d,%d' % (self.num_workers, self.state_cache_size)
     else:
-      # We want to make sure that the environment stays the same through the
-      # roundtrip to runner api, so here we don't want to set default for the
-      # other if only one of num workers or state cache size is set
-      raise ValueError('Must provide worker num and state cache size.')
+      payload = b'%d' % self.state_cache_size
     return python_urns.EMBEDDED_PYTHON_GRPC, payload
 
   @staticmethod
   def from_runner_api_parameter(payload, context):
     if payload:
-      num_workers, state_cache_size = payload.decode('utf-8').split(',')
+      state_cache_size = payload.decode('utf-8')
       return EmbeddedPythonGrpcEnvironment(
-          num_workers=int(num_workers),
           state_cache_size=int(state_cache_size))
     else:
       return EmbeddedPythonGrpcEnvironment()
@@ -339,8 +347,8 @@ class EmbeddedPythonGrpcEnvironment(Environment):
   @classmethod
   def from_options(cls, options):
     if options.environment_config:
-      num_workers, state_cache_size = options.environment_config.split(',')
-      return cls(num_workers=num_workers, state_cache_size=state_cache_size)
+      state_cache_size = options.environment_config
+      return cls(state_cache_size=state_cache_size)
     else:
       return cls()
 

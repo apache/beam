@@ -27,7 +27,9 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbTable.DocumentToRow;
+import org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbTable.RowToDocument;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
@@ -53,7 +55,7 @@ public class MongoDbTableTest {
           .addNullableField("bool", BOOLEAN)
           .addNullableField("double", DOUBLE)
           .addNullableField("float", FLOAT)
-          .addNullableField("string", STRING)
+          .addNullableField("string", CalciteUtils.CHAR)
           .addRowField("nested", Schema.builder().addNullableField("int32", INT32).build())
           .addNullableField("arr", FieldType.array(STRING))
           .build();
@@ -78,7 +80,7 @@ public class MongoDbTableTest {
     PCollection<Row> output =
         pipeline
             .apply("Create document from JSON", Create.<Document>of(Document.parse(JSON_ROW)))
-            .apply("CConvert document to Row", DocumentToRow.withSchema(SCHEMA));
+            .apply("Convert document to Row", DocumentToRow.withSchema(SCHEMA));
 
     // Make sure proper rows are constructed from JSON.
     PAssert.that(output)
@@ -95,6 +97,35 @@ public class MongoDbTableTest {
                 "string",
                 row(Schema.builder().addNullableField("int32", INT32).build(), 2147483645),
                 Arrays.asList("str1", "str2", "str3")));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testRowToDocumentConverter() {
+    PCollection<Document> output =
+        pipeline
+            .apply(
+                "Create a row",
+                Create.of(
+                        row(
+                            SCHEMA,
+                            9223372036854775807L,
+                            2147483647,
+                            (short) 32767,
+                            (byte) 127,
+                            true,
+                            1.0,
+                            (float) 1.0,
+                            "string",
+                            row(
+                                Schema.builder().addNullableField("int32", INT32).build(),
+                                2147483645),
+                            Arrays.asList("str1", "str2", "str3")))
+                    .withRowSchema(SCHEMA))
+            .apply("Convert row to document", RowToDocument.convert());
+
+    PAssert.that(output).containsInAnyOrder(Document.parse(JSON_ROW));
 
     pipeline.run().waitUntilFinish();
   }
