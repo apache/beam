@@ -50,6 +50,10 @@ class StateSampler(object):
     return ScopedState(
         self, counter_name, name_context, output_counter, metrics_container)
 
+  def update_metric(self, typed_metric_name, value):
+    self.current_state().metrics_container.get_metric_cell(
+        typed_metric_name).update(value)
+
   def _enter_state(self, state):
     self.state_transition_count += 1
     self._state_stack.append(state)

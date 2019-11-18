@@ -114,6 +114,9 @@ __all__ = ['EmptyMatchTreatment',
            'ReadMatches']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class EmptyMatchTreatment(object):
   """How to treat empty matches in ``MatchAll`` and ``MatchFiles`` transforms.
 
@@ -209,21 +212,29 @@ class _ReadMatchesFn(beam.DoFn):
           'Found %s.' % metadata.path)
 
     # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
-    yield ReadableFile(metadata)
+    yield ReadableFile(metadata, self._compression)
 
 
 class ReadableFile(object):
   """A utility class for accessing files."""
 
-  def __init__(self, metadata):
+  def __init__(self, metadata, compression=None):
     self.metadata = metadata
+    self._compression = compression
 
-  def open(self, mime_type='text/plain'):
+  def open(self,
+           mime_type='text/plain',
+           compression_type=None):
+    compression = (
+        compression_type or
+        self._compression or
+        filesystems.CompressionTypes.AUTO)
     return filesystems.FileSystems.open(self.metadata.path,
-                                        mime_type=mime_type)
+                                        mime_type=mime_type,
+                                        compression_type=compression)
 
-  def read(self):
-    return self.open('application/octet-stream').read()
+  def read(self, mime_type='application/octet-stream'):
+    return self.open(mime_type).read()
 
   def read_utf8(self):
     return self.open().read().decode('utf-8')
@@ -471,7 +482,7 @@ class WriteToFiles(beam.PTransform):
           str,
           filesystems.FileSystems.join(temp_location,
                                        '.temp%s' % dir_uid))
-      logging.info('Added temporary directory %s', self._temp_directory.get())
+      _LOGGER.info('Added temporary directory %s', self._temp_directory.get())
 
     output = (pcoll
               | beam.ParDo(_WriteUnshardedRecordsFn(
@@ -549,7 +560,7 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
                                             '',
                                             destination)
 
-      logging.info('Moving temporary file %s to dir: %s as %s. Res: %s',
+      _LOGGER.info('Moving temporary file %s to dir: %s as %s. Res: %s',
                    r.file_name, self.path.get(), final_file_name, r)
 
       final_full_path = filesystems.FileSystems.join(self.path.get(),
@@ -562,7 +573,7 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       except BeamIOError:
         # This error is not serious, because it may happen on a retry of the
         # bundle. We simply log it.
-        logging.debug('File %s failed to be copied. This may be due to a bundle'
+        _LOGGER.debug('File %s failed to be copied. This may be due to a bundle'
                       ' being retried.', r.file_name)
 
       yield FileResult(final_file_name,
@@ -572,7 +583,7 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
                        r.pane,
                        destination)
 
-    logging.info('Cautiously removing temporary files for'
+    _LOGGER.info('Cautiously removing temporary files for'
                  ' destination %s and window %s', destination, w)
     writer_key = (destination, w)
     self._remove_temporary_files(writer_key)
@@ -584,10 +595,10 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       match_result = filesystems.FileSystems.match(['%s*' % prefix])
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
-      logging.debug('Deleting orphaned files: %s', orphaned_files)
+      _LOGGER.debug('Deleting orphaned files: %s', orphaned_files)
       filesystems.FileSystems.delete(orphaned_files)
     except BeamIOError as e:
-      logging.debug('Exceptions when deleting files: %s', e)
+      _LOGGER.debug('Exceptions when deleting files: %s', e)
 
 
 class _WriteShardedRecordsFn(beam.DoFn):
@@ -617,7 +628,7 @@ class _WriteShardedRecordsFn(beam.DoFn):
     sink.flush()
     writer.close()
 
-    logging.info('Writing file %s for destination %s and shard %s',
+    _LOGGER.info('Writing file %s for destination %s and shard %s',
                  full_file_name, destination, repr(shard))
 
     yield FileResult(full_file_name,

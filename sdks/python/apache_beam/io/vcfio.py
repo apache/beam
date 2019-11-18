@@ -51,6 +51,9 @@ else:
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',
            'MalformedVcfRecord']
 
+
+_LOGGER = logging.getLogger(__name__)
+
 # Stores data about variant INFO fields. The type of 'data' is specified in the
 # VCF headers. 'field_count' is a string that specifies the number of fields
 # that the data type contains. Its value can either be a number representing a
@@ -346,7 +349,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
                                                self._vcf_reader.formats)
       except (LookupError, ValueError):
         if self._allow_malformed_records:
-          logging.warning(
+          _LOGGER.warning(
               'An exception was raised when reading record from VCF file '
               '%s. Invalid record was %s: %s',
               self._file_name, self._last_record, traceback.format_exc())

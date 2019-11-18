@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.joda.time.Seconds.secondsBetween;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest.Rows;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -30,6 +33,7 @@ import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -193,6 +197,22 @@ public class TestBigQuery implements TestRule {
     return table.getTableReference();
   }
 
+  public TableDataInsertAllResponse insertRows(Schema rowSchema, Row... rows) throws IOException {
+    List<Rows> bqRows =
+        Arrays.stream(rows)
+            .map(row -> new Rows().setJson(BigQueryUtils.toTableRow(row)))
+            .collect(ImmutableList.toImmutableList());
+    Bigquery bq = newBigQueryClient(pipelineOptions);
+
+    return bq.tabledata()
+        .insertAll(
+            pipelineOptions.getProject(),
+            pipelineOptions.getTargetDataset(),
+            table.getTableReference().getTableId(),
+            new TableDataInsertAllRequest().setRows(bqRows))
+        .execute();
+  }
+
   /**
    * Loads rows from BigQuery into {@link Row Rows} with given {@link Schema}.
    *
@@ -205,7 +225,7 @@ public class TestBigQuery implements TestRule {
   }
 
   public RowsAssertion assertThatAllRows(Schema rowSchema) {
-    return matcher -> duration -> pollAndAssert(rowSchema, matcher, duration);
+    return new RowsAssertion(rowSchema);
   }
 
   private void pollAndAssert(
@@ -214,7 +234,7 @@ public class TestBigQuery implements TestRule {
     DateTime start = DateTime.now();
     while (true) {
       try {
-        assertThat(getFlatJsonRows(rowSchema), matcher);
+        doAssert(rowSchema, matcher);
         break;
       } catch (AssertionError assertionError) {
         if (secondsBetween(start, DateTime.now()).isGreaterThan(duration.toStandardSeconds())) {
@@ -223,6 +243,10 @@ public class TestBigQuery implements TestRule {
         sleep(15_000);
       }
     }
+  }
+
+  private void doAssert(Schema rowSchema, Matcher<Iterable<? extends Row>> matcher) {
+    assertThat(getFlatJsonRows(rowSchema), matcher);
   }
 
   private List<Row> bqRowsToBeamRows(
@@ -234,6 +258,14 @@ public class TestBigQuery implements TestRule {
     return bqRows.stream()
         .map(bqRow -> BigQueryUtils.toBeamRow(rowSchema, bqSchema, bqRow))
         .collect(Collectors.toList());
+  }
+
+  private List<TableRow> beamRowsToBqRows(List<Row> bqRows) {
+    if (bqRows == null) {
+      return Collections.emptyList();
+    }
+
+    return bqRows.stream().map(BigQueryUtils::toTableRow).collect(Collectors.toList());
   }
 
   private TableSchema getSchema(Bigquery bq) {
@@ -298,8 +330,20 @@ public class TestBigQuery implements TestRule {
   }
 
   /** Interface for creating a polling eventual assertion. */
-  public interface RowsAssertion {
-    PollingAssertion eventually(Matcher<Iterable<? extends Row>> matcher);
+  public class RowsAssertion {
+    private final Schema rowSchema;
+
+    private RowsAssertion(Schema rowSchema) {
+      this.rowSchema = rowSchema;
+    }
+
+    public PollingAssertion eventually(Matcher<Iterable<? extends Row>> matcher) {
+      return duration -> pollAndAssert(rowSchema, matcher, duration);
+    }
+
+    public void now(Matcher<Iterable<? extends Row>> matcher) {
+      doAssert(rowSchema, matcher);
+    }
   }
 
   /** Interface to implement a polling assertion. */

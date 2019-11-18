@@ -32,6 +32,7 @@ option java_outer_classname = "RunnerApi";
 import "endpoints.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
 
 message BeamConstants {
   enum Constants {
@@ -318,7 +319,16 @@ message StandardPTransforms {
 
 message StandardSideInputTypes {
   enum Enum {
+    // Represents a view over a PCollection<V>.
+    //
+    // StateGetRequests performed on this side input must use
+    // StateKey.IterableSideInput.
     ITERABLE = 0 [(beam_urn) = "beam:side_input:iterable:v1"];
+
+    // Represents a view over a PCollection<KV<K, V>>.
+    //
+    // StateGetRequests performed on this side input must use
+    // StateKey.IterableSideInput or StateKey.MultimapSideInput.
     MULTIMAP = 1 [(beam_urn) = "beam:side_input:multimap:v1"];
   }
 }
@@ -489,7 +499,12 @@ message TestStreamPayload {
   // (Required) the coder for elements in the TestStream events
   string coder_id = 1;
 
+  // (Optional) If specified, the TestStream will replay these events.
   repeated Event events = 2;
+
+  // (Optional) If specified, points to a TestStreamService to be
+  // used to retrieve events.
+  ApiServiceDescriptor endpoint = 3;
 
   message Event {
     oneof event {
@@ -498,24 +513,52 @@ message TestStreamPayload {
       AddElements element_event = 3;
     }
 
+    // Advances the watermark to the specified timestamp.
     message AdvanceWatermark {
+      // (Required) The watermark to advance to.
       int64 new_watermark = 1;
+
+      // (Optional) The output watermark tag for a PCollection. If unspecified
+      // or with an empty string, this will default to the Main PCollection
+      // Output
+      string tag = 2;
     }
 
+    // Advances the processing time clock by the specified amount.
     message AdvanceProcessingTime {
+      // (Required) The duration to advance by.
       int64 advance_duration = 1;
     }
 
+    // Adds elements to the stream to be emitted.
     message AddElements {
+      // (Required) The elements to add to the TestStream.
       repeated TimestampedElement elements = 1;
+
+      // (Optional) The output PCollection tag to add these elements to. If
+      // unspecified or with an empty string, this will default to the Main
+      // PCollection Output.
+      string tag = 3;
     }
   }
 
+  // A single element inside of the TestStream.
   message TimestampedElement {
+    // (Required) The element encoded. Currently the TestStream only supports
+    // encoding primitives.
     bytes encoded_element = 1;
+
+    // (Required) The event timestamp of this element.
     int64 timestamp = 2;
   }
 }
+
+service TestStreamService {
+  // A TestStream will request for events using this RPC.
+  rpc Events(EventsRequest) returns (stream TestStreamPayload.Event) {}
+}
+message EventsRequest {}
+
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
 
@@ -645,6 +688,50 @@ message StandardCoders {
     // Components: Coder for a single element.
     // Experimental.
     STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
+
+    // Additional Standard Coders
+    // --------------------------
+    // The following coders are not required to be implemented for an SDK or
+    // runner to support the Beam model, but enable users to take advantage of
+    // schema-aware transforms.
+
+    // Encodes a "row", an element with a known schema, defined by an
+    // instance of Schema from schema.proto.
+    //
+    // A row is encoded as the concatenation of:
+    //   - The number of attributes in the schema, encoded with
+    //     beam:coder:varint:v1. This makes it possible to detect certain
+    //     allowed schema changes (appending or removing columns) in
+    //     long-running streaming pipelines.
+    //   - A byte array representing a packed bitset indicating null fields (a
+    //     1 indicating a null) encoded with beam:coder:bytes:v1. The unused
+    //     bits in the last byte must be set to 0. If there are no nulls an
+    //     empty byte array is encoded.
+    //     The two-byte bitset (not including the lenghth-prefix) for the row
+    //     [NULL, 0, 0, 0, NULL, 0, 0, NULL, 0, NULL] would be
+    //     [0b10010001, 0b00000010]
+    //   - An encoding for each non-null field, concatenated together.
+    //
+    // Schema types are mapped to coders as follows:
+    //   AtomicType:
+    //     BYTE:      not yet a standard coder (BEAM-7996)
+    //     INT16:     not yet a standard coder (BEAM-7996)
+    //     INT32:     beam:coder:varint:v1
+    //     INT64:     beam:coder:varint:v1
+    //     FLOAT:     not yet a standard coder (BEAM-7996)
+    //     DOUBLE:    beam:coder:double:v1
+    //     STRING:    beam:coder:string_utf8:v1
+    //     BOOLEAN:   beam:coder:bool:v1
+    //     BYTES:     beam:coder:bytes:v1
+    //   ArrayType:   beam:coder:iterable:v1 (always has a known length)
+    //   MapType:     not yet a standard coder (BEAM-7996)
+    //   RowType:     beam:coder:row:v1
+    //   LogicalType: Uses the coder for its representation.
+    //
+    // The payload for RowCoder is an instance of Schema.
+    // Components: None
+    // Experimental.
+    ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
   }
 }
 

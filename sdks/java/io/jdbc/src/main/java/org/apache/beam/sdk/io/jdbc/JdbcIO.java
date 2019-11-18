@@ -828,7 +828,10 @@ public class JdbcIO {
         SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
         Schema schema = registry.getSchema(typeDesc);
         output.setSchema(
-            schema, registry.getToRowFunction(typeDesc), registry.getFromRowFunction(typeDesc));
+            schema,
+            typeDesc,
+            registry.getToRowFunction(typeDesc),
+            registry.getFromRowFunction(typeDesc));
       } catch (NoSuchSchemaException e) {
         // ignore
       }

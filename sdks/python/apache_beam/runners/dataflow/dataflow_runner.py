@@ -58,6 +58,7 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.runners.utils import is_interactive
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
@@ -74,6 +75,9 @@ except AttributeError:  # Python 2
 
 
 __all__ = ['DataflowRunner']
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class DataflowRunner(PipelineRunner):
@@ -163,7 +167,7 @@ class DataflowRunner(PipelineRunner):
       # an initialized 'currentState' field.
       if response.currentState is not None:
         if response.currentState != last_job_state:
-          logging.info('Job %s is in state %s', job_id, response.currentState)
+          _LOGGER.info('Job %s is in state %s', job_id, response.currentState)
           last_job_state = response.currentState
         if str(response.currentState) != 'JOB_STATE_RUNNING':
           # Stop checking for new messages on timeout, explanatory
@@ -209,7 +213,7 @@ class DataflowRunner(PipelineRunner):
           # Skip empty messages.
           if m.messageImportance is None:
             continue
-          logging.info(message)
+          _LOGGER.info(message)
           if str(m.messageImportance) == 'JOB_MESSAGE_ERROR':
             if rank_error(m.messageText) >= last_error_rank:
               last_error_rank = rank_error(m.messageText)
@@ -220,7 +224,7 @@ class DataflowRunner(PipelineRunner):
       if duration:
         passed_secs = time.time() - start_secs
         if passed_secs > duration_secs:
-          logging.warning('Timing out on waiting for job %s after %d seconds',
+          _LOGGER.warning('Timing out on waiting for job %s after %d seconds',
                           job_id, passed_secs)
           break
 
@@ -364,6 +368,16 @@ class DataflowRunner(PipelineRunner):
 
   def run_pipeline(self, pipeline, options):
     """Remotely executes entire pipeline or parts reachable from node."""
+    # Label goog-dataflow-notebook if job is started from notebook.
+    _, is_in_notebook = is_interactive()
+    if is_in_notebook:
+      notebook_version = ('goog-dataflow-notebook=' +
+                          beam.version.__version__.replace('.', '_'))
+      if options.view_as(GoogleCloudOptions).labels:
+        options.view_as(GoogleCloudOptions).labels.append(notebook_version)
+      else:
+        options.view_as(GoogleCloudOptions).labels = [notebook_version]
+
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
@@ -385,12 +399,9 @@ class DataflowRunner(PipelineRunner):
       pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
     use_fnapi = apiclient._use_fnapi(options)
-    from apache_beam.portability.api import beam_runner_api_pb2
-    default_environment = beam_runner_api_pb2.Environment(
-        urn=common_urns.environments.DOCKER.urn,
-        payload=beam_runner_api_pb2.DockerPayload(
-            container_image=apiclient.get_container_image_from_options(options)
-            ).SerializeToString())
+    from apache_beam.transforms import environments
+    default_environment = environments.DockerEnvironment(
+        container_image=apiclient.get_container_image_from_options(options))
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
@@ -445,7 +456,7 @@ class DataflowRunner(PipelineRunner):
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
     if dataflow_worker_jar is not None:
       if not apiclient._use_fnapi(options):
-        logging.warning(
+        _LOGGER.warning(
             'Typical end users should not use this worker jar feature. '
             'It can only be used when FnAPI is enabled.')
       else:
@@ -625,9 +636,15 @@ class DataflowRunner(PipelineRunner):
     debug_options = options.view_as(DebugOptions)
     use_fn_api = (debug_options.experiments and
                   'beam_fn_api' in debug_options.experiments)
+    use_streaming_engine = (
+        debug_options.experiments and
+        'enable_streaming_engine' in debug_options.experiments and
+        'enable_windmill_service' in debug_options.experiments)
+
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
-    if standard_options.streaming and not use_fn_api:
+    if (standard_options.streaming and
+        (not use_fn_api or not use_streaming_engine)):
       step.add_property(PropertyNames.FORMAT, 'pubsub')
       step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
     else:
@@ -1017,12 +1034,12 @@ class DataflowRunner(PipelineRunner):
         }
       except error.RuntimeValueProviderError:
         # Size estimation is best effort, and this error is by value provider.
-        logging.info(
+        _LOGGER.info(
             'Could not estimate size of source %r due to ' + \
             'RuntimeValueProviderError', transform.source)
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
-        logging.info(
+        _LOGGER.info(
             'Could not estimate size of source %r due to an exception: %s',
             transform.source, traceback.format_exc())
 
@@ -1197,6 +1214,52 @@ class DataflowRunner(PipelineRunner):
         {'@type': 'OutputReference',
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
+
+  def run_TestStream(self, transform_node, options):
+    from apache_beam.portability.api import beam_runner_api_pb2
+    from apache_beam.testing.test_stream import ElementEvent
+    from apache_beam.testing.test_stream import ProcessingTimeEvent
+    from apache_beam.testing.test_stream import WatermarkEvent
+    standard_options = options.view_as(StandardOptions)
+    if not standard_options.streaming:
+      raise ValueError('TestStream is currently available for use '
+                       'only in streaming pipelines.')
+
+    transform = transform_node.transform
+    step = self._add_step(TransformNames.READ, transform_node.full_label,
+                          transform_node)
+    step.add_property(PropertyNames.FORMAT, 'test_stream')
+    test_stream_payload = beam_runner_api_pb2.TestStreamPayload()
+    # TestStream source doesn't do any decoding of elements,
+    # so we won't set test_stream_payload.coder_id.
+    output_coder = transform._infer_output_coder()  # pylint: disable=protected-access
+    for event in transform.events:
+      new_event = test_stream_payload.events.add()
+      if isinstance(event, ElementEvent):
+        for tv in event.timestamped_values:
+          element = new_event.element_event.elements.add()
+          element.encoded_element = output_coder.encode(tv.value)
+          element.timestamp = tv.timestamp.micros
+      elif isinstance(event, ProcessingTimeEvent):
+        new_event.processing_time_event.advance_duration = (
+            event.advance_by.micros)
+      elif isinstance(event, WatermarkEvent):
+        new_event.watermark_event.new_watermark = event.new_watermark.micros
+    serialized_payload = self.byte_array_to_json_string(
+        test_stream_payload.SerializeToString())
+    step.add_property(PropertyNames.SERIALIZED_TEST_STREAM, serialized_payload)
+
+    step.encoding = self._get_encoded_output_coder(transform_node)
+    step.add_property(PropertyNames.OUTPUT_INFO, [{
+        PropertyNames.USER_NAME:
+            ('%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
+        PropertyNames.ENCODING: step.encoding,
+        PropertyNames.OUTPUT_NAME: PropertyNames.OUT
+    }])
+
+  # We must mark this method as not a test or else its name is a matcher for
+  # nosetest tests.
+  run_TestStream.__test__ = False
 
   @classmethod
   def serialize_windowing_strategy(cls, windowing):
@@ -1386,7 +1449,7 @@ class DataflowPipelineResult(PipelineResult):
     self._update_job()
 
     if self.is_in_terminal_state():
-      logging.warning(
+      _LOGGER.warning(
           'Cancel failed because job %s is already terminated in state %s.',
           self.job_id(), self.state)
     else:
@@ -1395,7 +1458,7 @@ class DataflowPipelineResult(PipelineResult):
         cancel_failed_message = (
             'Failed to cancel job %s, please go to the Developers Console to '
             'cancel it manually.') % self.job_id()
-        logging.error(cancel_failed_message)
+        _LOGGER.error(cancel_failed_message)
         raise DataflowRuntimeException(cancel_failed_message, self)
 
     return self.state

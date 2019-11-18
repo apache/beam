@@ -70,7 +70,8 @@ public class KinesisReaderTest {
         kinesisSource,
         WatermarkPolicyFactory.withArrivalTimePolicy(),
         Duration.ZERO,
-        backlogBytesCheckThreshold) {
+        backlogBytesCheckThreshold,
+        ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD) {
       @Override
       ShardReadersPool createShardReadersPool() {
         return shardReadersPool;

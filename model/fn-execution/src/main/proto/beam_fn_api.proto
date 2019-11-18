@@ -42,6 +42,7 @@ import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "google/protobuf/wrappers.proto";
 import "metrics.proto";
 
@@ -203,13 +204,21 @@ message BundleApplication {
 }
 
 // An Application should be scheduled for execution after a delay.
+// Either an absolute timestamp or a relative timestamp can represent a
+// scheduled execution time.
 message DelayedBundleApplication {
   // Recommended time at which the application should be scheduled to execute
   // by the runner. Times in the past may be scheduled to execute immediately.
+  // TODO(BEAM-8536): Migrate usage of absolute time to requested_time_delay.
   google.protobuf.Timestamp requested_execution_time = 1;
 
   // (Required) The application that should be scheduled.
   BundleApplication application = 2;
+
+  // Recommended time delay at which the application should be scheduled to
+  // execute by the runner. Time delay that equals 0 may be scheduled to execute
+  // immediately. The unit of time delay should be microsecond.
+  google.protobuf.Duration requested_time_delay = 3;
 }
 
 // A request to process a given bundle.
@@ -628,6 +637,18 @@ message StateKey {
     bytes key = 1;
   }
 
+  // Represents a request for the values associated with a specified user key
+  // and window in a PCollection. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // Can only be used to perform StateGetRequests on side inputs of the URN
+  // beam:side_input:multimap:v1.
+  //
+  // For a PCollection<KV<K, V>>, the response data stream will be a
+  // concatenation of all V's associated with the specified key K. See
+  // https://s.apache.org/beam-fn-api-send-and-receive-data for further
+  // details.
   message MultimapSideInput {
     // (Required) The id of the PTransform containing a side input.
     string transform_id = 1;
@@ -652,11 +673,33 @@ message StateKey {
     bytes key = 4;
   }
 
+  // Represents a request for the values associated with a specified window
+  // in a PCollection. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // Can only be used to perform StateGetRequests on side inputs of the URN
+  // beam:side_input:iterable:v1 and beam:side_input:multimap:v1.
+  //
+  // For a PCollection<V>, the response data stream will be a concatenation
+  // of all V's. See https://s.apache.org/beam-fn-api-send-and-receive-data
+  // for further details.
+  message IterableSideInput {
+    // (Required) The id of the PTransform containing a side input.
+    string transform_id = 1;
+    // (Required) The id of the side input.
+    string side_input_id = 2;
+    // (Required) The window (after mapping the currently executing elements
+    // window into the side input windows domain) encoded in a nested context.
+    bytes window = 3;
+  }
+
   // (Required) One of the following state keys must be set.
   oneof type {
     Runner runner = 1;
     MultimapSideInput multimap_side_input = 2;
     BagUserState bag_user_state = 3;
+    IterableSideInput iterable_side_input = 4;
     // TODO: represent a state key for user map state
   }
 }
