@@ -226,6 +226,10 @@ class FileBasedCacheTest(unittest.TestCase):
     _ = self.create_dummy_file(self.location)
     timestamp1 = cache.timestamp
     self.assertGreater(timestamp1, timestamp0)
+    cache.truncate()
+    time.sleep(0.1)
+    timestamp2 = cache.timestamp
+    self.assertGreaterEqual(timestamp2, timestamp0)
 
   def test_writer_arguments(self):
     kwargs = {"a": 10, "b": "hello"}

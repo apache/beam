@@ -87,6 +87,7 @@ class FileBasedCache(PCollectionCache):
     self._num_writes = 0
     self._persist = persist
     self._finalizer = self._configure_finalizer(persist)
+    self._timestamp = 0
 
     exitsting_files = list(glob_files(self.file_pattern))
     if exitsting_files:
@@ -119,10 +120,9 @@ class FileBasedCache(PCollectionCache):
 
   @property
   def timestamp(self):
-    timestamp = 0
     for path in glob_files(self.file_pattern):
-      timestamp = max(timestamp, FileSystems.last_updated(path))
-    return timestamp
+      self._timestamp = max(self._timestamp, FileSystems.last_updated(path))
+    return self._timestamp
 
   def reader(self, **kwargs):
     """Returns a reader ``PTransform`` to be used for reading the contents of
