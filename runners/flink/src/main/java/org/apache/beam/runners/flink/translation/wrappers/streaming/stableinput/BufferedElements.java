@@ -72,7 +72,12 @@ class BufferedElements {
     private final Instant outputTimestamp;
     private final TimeDomain timeDomain;
 
-    Timer(String timerId, BoundedWindow window, Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
+    Timer(
+        String timerId,
+        BoundedWindow window,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
       this.timerId = timerId;
       this.window = window;
       this.timestamp = timestamp;
@@ -152,7 +157,7 @@ class BufferedElements {
               STRING_CODER.decode(inStream),
               windowCoder.decode(inStream),
               INSTANT_CODER.decode(inStream),
-                  INSTANT_CODER.decode(inStream),
+              INSTANT_CODER.decode(inStream),
               TimeDomain.values()[inStream.read()]);
         default:
           throw new IllegalStateException(
