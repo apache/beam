@@ -164,7 +164,10 @@ public class RemoteExecutionTest implements Serializable {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(serverExecutor, OutboundObserverFactory.serverDirect()),
+            GrpcDataService.create(
+                PipelineOptionsFactory.create(),
+                serverExecutor,
+                OutboundObserverFactory.serverDirect()),
             serverFactory);
     loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
