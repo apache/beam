@@ -25,10 +25,10 @@ import unittest
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 import pytz
+from google.protobuf import timestamp_pb2
 
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
-from google.protobuf import timestamp_pb2
 
 
 class TimestampTest(unittest.TestCase):
