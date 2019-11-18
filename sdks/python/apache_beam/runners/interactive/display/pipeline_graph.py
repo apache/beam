@@ -91,8 +91,7 @@ class PipelineGraph(object):
       for pcoll_id in transform_proto.outputs.values():
         self._producers[pcoll_id] = transform_id
 
-    # Set the default vertex color to blue.
-    default_vertex_attrs = default_vertex_attrs or {}
+    default_vertex_attrs = default_vertex_attrs or {'shape': 'box'}
     if 'color' not in default_vertex_attrs:
       default_vertex_attrs['color'] = 'blue'
     if 'fontcolor' not in default_vertex_attrs:
