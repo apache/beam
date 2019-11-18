@@ -299,7 +299,8 @@ compile group: 'org.eclipse.jetty', name: 'jetty-http', version: '9.4.15.v201902
 //zookeeper:
 compile group: 'org.apache.zookeeper', name: 'zookeeper', version: '3.5.6'
 
-
+//avro
+compile group: 'org.apache.avro', name: 'avro', version: '1.9.1'
 
 
 

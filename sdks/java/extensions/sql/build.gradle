@@ -21,6 +21,7 @@ import groovy.json.JsonOutput
 plugins {
   id 'org.apache.beam.module'
   id 'ca.coglinc.javacc'
+  id 'java'
 }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
@@ -38,6 +39,14 @@ configurations {
   fmppTemplates
 }
 
+repositories {
+	
+	mavenCentral()
+}
+// to use:
+    // dependencies {
+    //   compile library.java.slf4j_api
+
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
@@ -54,6 +63,7 @@ dependencies {
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
   provided project(":sdks:java:io:parquet")
+  provided project(":sdks:java:io:avro")
   provided library.java.kafka_clients
   testCompile library.java.vendored_calcite_1_20_0
   testCompile library.java.vendored_guava_26_0_jre
@@ -63,8 +73,15 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
   testRuntimeClasspath library.java.slf4j_jdk14
+  
+  //avro
+  compile group: 'org.apache.avro', name: 'avro', version: '1.9.1'
 }
 
+jar {
+	
+	from configurations.compile.collect {zipTree it}
+}
 // Copy Calcite templates and our own template into the build directory
 // so we have one location for the FMPP task to parse.
 task copyFmppTemplatesFromSrc(type: Copy) {
