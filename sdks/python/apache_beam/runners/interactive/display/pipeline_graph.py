@@ -36,6 +36,9 @@ from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
 
+# pylint does not understand context
+# pylint:disable=dangerous-default-value
+
 class PipelineGraph(object):
   """Creates a DOT representing the pipeline. Thread-safe. Runner agnostic."""
 
