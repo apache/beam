@@ -285,11 +285,9 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         BoundedWindow timerWindow = windowNamespace.getWindow();
         delegateEvaluator.onTimer(timer, timerWindow);
 
-        StateTag<WatermarkHoldState> timerTag =
-                StateTags.makeSystemTagInternal(
-                        StateTags.watermarkStateInternal(
-                                "timer-" + timer.getTimerId(), TimestampCombiner.EARLIEST));
-        stepContext.stateInternals().state(timer.getNamespace(), timerTag).clear();
+        StateTag<WatermarkHoldState> timerWatermarkHoldTag =  setTimerTag(timer);
+
+        stepContext.stateInternals().state(timer.getNamespace(), timerWatermarkHoldTag).clear();
         stepContext.stateInternals().commit();
 
         if (timerInternals.containsUpdateForTimeBefore(currentInputWatermark)) {
@@ -305,14 +303,11 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       TransformResult<KV<K, InputT>> delegateResult = delegateEvaluator.finishBundle();
       Boolean isTimerDeclared = false;
       for (TimerData timerData : delegateResult.getTimerUpdate().getSetTimers()) {
-        StateTag<WatermarkHoldState> timerTag =
-                StateTags.makeSystemTagInternal(
-                        StateTags.watermarkStateInternal(
-                                "timer-" + timerData.getTimerId(), TimestampCombiner.EARLIEST));
+        StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timerData);
 
         stepContext
                 .stateInternals()
-                .state(timerData.getNamespace(), timerTag)
+                .state(timerData.getNamespace(), timerWatermarkHoldTag)
                 .add(timerData.getOutputTimestamp());
         isTimerDeclared = true;
       }
@@ -357,5 +352,12 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
       return regroupedResult.build();
     }
+  }
+
+  private static StateTag<WatermarkHoldState> setTimerTag(TimerData timerData) {
+    return  StateTags.makeSystemTagInternal(
+                    StateTags.watermarkStateInternal(
+                            "timer-" + timerData.getTimerId(), TimestampCombiner.EARLIEST));
+
   }
 }
