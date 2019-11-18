@@ -129,11 +129,21 @@ class TestStreamTest(unittest.TestCase):
 
   def test_multiple_outputs(self):
     """Tests that the TestStream supports emitting to multiple PCollections."""
+    letters_elements = [
+        TimestampedValue('a', 6),
+        TimestampedValue('b', 7),
+        TimestampedValue('c', 8),
+    ]
+    numbers_elements = [
+        TimestampedValue('a', 11),
+        TimestampedValue('b', 12),
+        TimestampedValue('c', 13),
+    ]
     test_stream = (TestStream()
                    .advance_watermark_to(5, tag='letters')
-                   .add_elements(['a', 'b', 'c'], tag='letters')
+                   .add_elements(letters_elements, tag='letters')
                    .advance_watermark_to(10, tag='numbers')
-                   .add_elements(['1', '2', '3'], tag='numbers'))
+                   .add_elements(numbers_elements, tag='numbers'))
 
     class RecordFn(beam.DoFn):
       def process(self, element=beam.DoFn.ElementParam,
@@ -148,14 +158,14 @@ class TestStreamTest(unittest.TestCase):
     numbers = main['numbers'] | 'record numbers' >> beam.ParDo(RecordFn())
 
     assert_that(letters, equal_to([
-        ('a', Timestamp(5)),
-        ('b', Timestamp(5)),
-        ('c', Timestamp(5))]), label='assert letters')
+        ('a', Timestamp(6)),
+        ('b', Timestamp(7)),
+        ('c', Timestamp(8))]), label='assert letters')
 
     assert_that(numbers, equal_to([
-        ('1', Timestamp(10)),
-        ('2', Timestamp(10)),
-        ('3', Timestamp(10))]), label='assert numbers')
+        ('1', Timestamp(11)),
+        ('2', Timestamp(12)),
+        ('3', Timestamp(13))]), label='assert numbers')
 
     p.run()
 
@@ -171,12 +181,22 @@ class TestStreamTest(unittest.TestCase):
     # watermark does not advance, then the windows will be [-inf, -inf). If the
     # windows do not advance separately, then the PCollections will both
     # windowed in [15, 30).
+    letters_elements = [
+        TimestampedValue('a', 6),
+        TimestampedValue('b', 7),
+        TimestampedValue('c', 8),
+    ]
+    numbers_elements = [
+        TimestampedValue('a', 11),
+        TimestampedValue('b', 12),
+        TimestampedValue('c', 13),
+    ]
     test_stream = (TestStream()
                    .advance_watermark_to(20, tag='numbers')
                    .advance_watermark_to(5, tag='letters')
-                   .add_elements(['a', 'b', 'c'], tag='letters')
+                   .add_elements(letters_elements, tag='letters')
                    .advance_watermark_to(10, tag='letters')
-                   .add_elements(['1', '2', '3'], tag='numbers')
+                   .add_elements(numbers_elements, tag='numbers')
                    .advance_watermark_to(30, tag='numbers'))
 
     options = StandardOptions(streaming=True)
