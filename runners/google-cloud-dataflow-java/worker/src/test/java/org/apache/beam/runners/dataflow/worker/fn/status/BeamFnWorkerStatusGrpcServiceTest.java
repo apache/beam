@@ -18,8 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.fn.status;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 
 import com.google.common.collect.Sets;
 import java.util.Set;
@@ -72,6 +70,7 @@ public class BeamFnWorkerStatusGrpcServiceTest {
         BeamFnWorkerStatusGrpc.newStub(channel)
             .withInterceptors(AddHarnessIdInterceptor.create("id"));
     grpcCleanup.register(server.getServer());
+    grpcCleanup.register(channel);
   }
 
   @After
@@ -111,6 +110,19 @@ public class BeamFnWorkerStatusGrpcServiceTest {
   }
 
   @Test
+  public void testSendRequest() throws Exception {
+    final String requestId = "requestId";
+    StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
+        stub.workerStatus(mockObserver);
+    FnApiWorkerStatusClient client = service.getStatusClient("id", 5000).get();
+    CompletableFuture<WorkerStatusResponse> workerStatus =
+        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setRequestId(requestId).build());
+    workerStatusResponseStreamObserver.onNext(
+        WorkerStatusResponse.newBuilder().setRequestId(requestId).setStatusInfo("status").build());
+    assertEquals("status", workerStatus.get(5, TimeUnit.SECONDS).getStatusInfo());
+  }
+
+  @Test
   public void testGetConnectedSdkIds() throws Exception {
     Set<String> ids = Sets.newHashSet("id0", "id3", "id11", "id12", "id21");
     for (String id : ids) {
@@ -124,27 +136,5 @@ public class BeamFnWorkerStatusGrpcServiceTest {
     Thread.sleep(2000);
     Set<String> connectedSdkIds = service.getConnectedSdkIds();
     assertEquals(ids, connectedSdkIds);
-  }
-
-  @Test
-  public void testSendRequest() throws Exception {
-    final String requestId = "requestId";
-    StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
-        stub.workerStatus(mockObserver);
-    doAnswer(
-            (answer) -> {
-              workerStatusResponseStreamObserver.onNext(
-                  WorkerStatusResponse.newBuilder()
-                      .setRequestId(requestId)
-                      .setStatusInfo("status")
-                      .build());
-              return null;
-            })
-        .when(mockObserver)
-        .onNext(any(WorkerStatusRequest.class));
-    FnApiWorkerStatusClient client = service.getStatusClient("id", 5000).get();
-    CompletableFuture<WorkerStatusResponse> workerStatus =
-        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setRequestId(requestId).build());
-    assertEquals("status", workerStatus.get(30, TimeUnit.SECONDS).getStatusInfo());
   }
 }

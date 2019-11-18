@@ -44,7 +44,7 @@ public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase im
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnWorkerStatusGrpcService.class);
   private static final String UNKNOW_SDK_ID_PREFIX = "unknown_sdk";
-  private static final AtomicLong idGenerator = new AtomicLong();
+  private final AtomicLong idGenerator = new AtomicLong();
   private final HeaderAccessor headerAccessor;
   private final Map<String, FnApiWorkerStatusClient> connectedClient = new ConcurrentHashMap<>();
 
@@ -79,6 +79,7 @@ public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase im
     for (FnApiWorkerStatusClient client : this.connectedClient.values()) {
       client.close();
     }
+    this.connectedClient.clear();
   }
 
   @Override
