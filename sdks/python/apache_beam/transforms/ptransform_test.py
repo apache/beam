@@ -474,19 +474,19 @@ class PTransformTest(unittest.TestCase):
   def test_group_by_key_reiteration(self):
     class MyDoFn(beam.DoFn):
       def process(self, gbk_result):
-        value_list = gbk_result[1]
+        key, value_list = gbk_result
         sum_val = 0
         # Iterate the GBK result for multiple times.
         for _ in range(0, 17):
           sum_val += sum(value_list)
-        return (gbk_result[0], sum_val)
+        return [(key, sum_val)]
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'start' >> beam.Create(
         [(1, 1), (1, 2), (1, 3), (1, 4)])
     result = (pcoll | 'Group' >> beam.GroupByKey()
               | 'Reiteration-Sum' >> beam.ParDo(MyDoFn()))
-    assert_that(result, equal_to([1, 170]))
+    assert_that(result, equal_to([(1, 170)]))
     pipeline.run()
 
   def test_partition_with_partition_fn(self):
