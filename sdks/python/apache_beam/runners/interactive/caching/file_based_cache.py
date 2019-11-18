@@ -248,7 +248,12 @@ class FileBasedCache(PCollectionCache):
     return not self._finalizer.alive
 
   def __del__(self):
-    self.delete()
+    try:
+      self.delete()
+    except AttributeError:
+      # Sometimes the destructor can be called before the finalizer is
+      # configured.
+      pass
 
   @property
   def file_pattern(self):
