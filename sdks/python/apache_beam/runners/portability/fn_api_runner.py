@@ -711,6 +711,8 @@ class FnApiRunner(runner.PipelineRunner):
                       stage.name)
         input_queue_manager.ready_inputs.enque((stage.name, data_inputs))
       elif data_inputs and not ready_to_schedule:
+        logging.debug('Enqueuing stage pending watermark. Stage name: %s',
+                      stage.name)
         input_queue_manager.watermark_pending_inputs.enque(
             ((stage.name, timestamp.MAX_TIMESTAMP), data_inputs))
 
@@ -730,7 +732,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     execution_context = PipelineExecutionContext(stage_context.components,
                                                  stages)
-    #execution_context.show()
+    execution_context.show()
 
     self._enqueue_all_initial_inputs(stages, input_queue_manager)
     try:
@@ -950,7 +952,7 @@ class FnApiRunner(runner.PipelineRunner):
                               output_bundles,
                               input_queue_manager):
     """TODO(pabloem)"""
-
+    logging.debug('Processing output bundles: %s', output_bundles)
     for (bundle_watermark, buffer_id), data in output_bundles:
       consumer_stage = execution_context.get_consuming_stage(buffer_id)
       consumer_transform = execution_context.get_consuming_transform(buffer_id)
@@ -958,24 +960,33 @@ class FnApiRunner(runner.PipelineRunner):
       consuming_stage_name = (consumer_stage.name if consumer_stage else None)
       consuming_transform_name = (consumer_transform.unique_name
                                   if consumer_transform else None)
-
+      kind, _ = split_buffer_id(buffer_id)
       if not consuming_stage_name or not consuming_transform_name:
         # This means that the PCollection is not consumed by any transforms,
         # and we can discard the elements.
         continue
-      if data:
-        stage_watermark_mgr = execution_context.watermark_manager.get_node(
-            consuming_stage_name)
-        stage_input_watermark = stage_watermark_mgr.input_watermark()
-        if stage_input_watermark >= bundle_watermark:
-          logging.debug('Enqueuing bundle output after execution, '
-                        'to be consumed by stage: %s', consuming_stage_name)
-          input_queue_manager.ready_inputs.enque(
-              (consuming_stage_name, {consuming_transform_name: data}))
-        else:
-          input_queue_manager.watermark_pending_inputs.enque(
-              ((consuming_stage_name, bundle_watermark),
-               {consuming_transform_name: data}))
+
+      if not data and kind == 'timers':
+        # Empty timer collections should not be rescheduled.
+        continue
+
+      # In this case, `data` may be an empty buffer, but we still schedule it
+      # for execution (unless it's a timer pcollection) because otherwise the
+      # watermark for the consumer will not be pushed forward later.
+      # As mentioned above, empty timer bundles are not scheduled again,
+      # because they hold back the pipeline.
+      stage_watermark_mgr = execution_context.watermark_manager.get_node(
+          consuming_stage_name)
+      stage_input_watermark = stage_watermark_mgr.input_watermark()
+      if stage_input_watermark >= bundle_watermark:
+        logging.debug('Enqueuing bundle output after execution, '
+                      'to be consumed by stage: %s', consuming_stage_name)
+        input_queue_manager.ready_inputs.enque(
+            (consuming_stage_name, {consuming_transform_name: data}))
+      else:
+        input_queue_manager.watermark_pending_inputs.enque(
+            ((consuming_stage_name, bundle_watermark),
+             {consuming_transform_name: data}))
 
   def _run_bundle_multiple_times_for_testing(
       self, worker_handler_list, process_bundle_descriptor, data_input,

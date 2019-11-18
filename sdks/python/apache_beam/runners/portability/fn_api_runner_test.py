@@ -407,6 +407,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(expected))
 
   def test_pardo_state_timers(self):
+    logging.getLogger().setLevel(logging.DEBUG)
     self._run_pardo_state_timers(False)
 
   def test_windowed_pardo_state_timers(self):
