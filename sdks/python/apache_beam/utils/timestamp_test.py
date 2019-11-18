@@ -25,6 +25,7 @@ import unittest
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 import pytz
+from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
 from apache_beam.utils.timestamp import Duration
@@ -167,13 +168,16 @@ class TimestampTest(unittest.TestCase):
     self.assertTrue(isinstance(now, Timestamp))
 
   def test_from_proto(self):
-    ts_proto = timestamp_pb2.Timestamp(seconds=1234, nanos=56789)
+    ts_proto = timestamp_pb2.Timestamp(seconds=1234, nanos=56000)
     actual_ts = Timestamp.from_proto(ts_proto)
-
-    # Micros is 56 instead of 56.789 because we use an integer representation
-    # that truncates extra precision.
     expected_ts = Timestamp(seconds=1234, micros=56)
     self.assertEqual(actual_ts, expected_ts)
+
+  def test_from_proto_fails_with_truncation(self):
+    # TODO(BEAM-8738): Better define timestamps.
+    with self.assertRaises(ValueError):
+      ts_proto = timestamp_pb2.Timestamp(seconds=1234, nanos=56789)
+      actual_ts = Timestamp.from_proto(ts_proto)
 
   def test_to_proto(self):
     ts = Timestamp(seconds=1234, micros=56)
@@ -224,6 +228,23 @@ class DurationTest(unittest.TestCase):
                      str(Duration(999999999)))
     self.assertEqual('Duration(-999999999)',
                      str(Duration(-999999999)))
+
+  def test_from_proto(self):
+    dur_proto = duration_pb2.Duration(seconds=1234, nanos=56000)
+    actual_dur = Duration.from_proto(dur_proto)
+    expected_dur = Duration(seconds=1234, micros=56)
+    self.assertEqual(actual_dur, expected_dur)
+
+  def test_from_proto_fails_with_truncation(self):
+    # TODO(BEAM-8738): Better define durations.
+    with self.assertRaises(ValueError):
+      Duration.from_proto(duration_pb2.Duration(seconds=1234, nanos=56789))
+
+  def test_to_proto(self):
+    dur = Duration(seconds=1234, micros=56)
+    actual_dur_proto = Duration.to_proto(dur)
+    expected_dur_proto = duration_pb2.Duration(seconds=1234, nanos=56000)
+    self.assertEqual(actual_dur_proto, expected_dur_proto)
 
 
 if __name__ == '__main__':
