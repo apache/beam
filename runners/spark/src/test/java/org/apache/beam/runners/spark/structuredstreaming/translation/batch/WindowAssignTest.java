@@ -43,8 +43,8 @@ public class WindowAssignTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() {
-    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
-        .as(SparkStructuredStreamingPipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options =
+        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setTestMode(true);
     pipeline = Pipeline.create(options);
@@ -53,7 +53,8 @@ public class WindowAssignTest implements Serializable {
   @Test
   public void testWindowAssign() {
     PCollection<Integer> input =
-        pipeline.apply(
+        pipeline
+            .apply(
                 Create.timestamped(
                     TimestampedValue.of(1, new Instant(1)),
                     TimestampedValue.of(2, new Instant(2)),

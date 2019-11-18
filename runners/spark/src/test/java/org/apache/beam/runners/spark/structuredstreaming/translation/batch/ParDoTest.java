@@ -44,8 +44,8 @@ public class ParDoTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() {
-    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
-        .as(SparkStructuredStreamingPipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options =
+        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setTestMode(true);
     pipeline = Pipeline.create(options);
@@ -62,7 +62,8 @@ public class ParDoTest implements Serializable {
   @Test
   public void testTwoPardoInRow() {
     PCollection<Integer> input =
-        pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        pipeline
+            .apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
             .apply(ParDo.of(PLUS_ONE_DOFN))
             .apply(ParDo.of(PLUS_ONE_DOFN));
     PAssert.that(input).containsInAnyOrder(3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
@@ -74,7 +75,8 @@ public class ParDoTest implements Serializable {
     PCollectionView<List<Integer>> sideInputView =
         pipeline.apply("Create sideInput", Create.of(1, 2, 3)).apply(View.asList());
     PCollection<Integer> input =
-        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        pipeline
+            .apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
             .apply(
                 ParDo.of(
                         new DoFn<Integer, Integer>() {
@@ -97,7 +99,8 @@ public class ParDoTest implements Serializable {
         pipeline.apply("Create sideInput", Create.of(1)).apply(View.asSingleton());
 
     PCollection<Integer> input =
-        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        pipeline
+            .apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
             .apply(
                 ParDo.of(
                         new DoFn<Integer, Integer>() {
@@ -118,10 +121,12 @@ public class ParDoTest implements Serializable {
   @Test
   public void testSideInputAsMap() {
     PCollectionView<Map<String, Integer>> sideInputView =
-        pipeline.apply("Create sideInput", Create.of(KV.of("key1", 1), KV.of("key2", 2)))
+        pipeline
+            .apply("Create sideInput", Create.of(KV.of("key1", 1), KV.of("key2", 2)))
             .apply(View.asMap());
     PCollection<Integer> input =
-        pipeline.apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        pipeline
+            .apply("Create input", Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
             .apply(
                 ParDo.of(
                         new DoFn<Integer, Integer>() {

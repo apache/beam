@@ -39,8 +39,8 @@ public class FlattenTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() {
-    SparkStructuredStreamingPipelineOptions options = PipelineOptionsFactory.create()
-        .as(SparkStructuredStreamingPipelineOptions.class);
+    SparkStructuredStreamingPipelineOptions options =
+        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setTestMode(true);
     pipeline = Pipeline.create(options);
