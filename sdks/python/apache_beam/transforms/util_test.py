@@ -333,14 +333,6 @@ class IdentityWindowTest(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
       pipeline.run()
 
-class AddTimestamp(beam.DoFn):
-  def process(self, element, timestamp=beam.DoFn.TimestampParam):
-    yield beam.window.TimestampedValue(element, timestamp)
-
-class GetTimestamp(beam.DoFn):
-  def process(self, element, timestamp=beam.DoFn.TimestampParam):
-    yield '{} - {}'.format(timestamp, element['name'])
-
 class ReshuffleTest(unittest.TestCase):
 
   def test_reshuffle_contents_unchanged(self):
@@ -503,26 +495,43 @@ class ReshuffleTest(unittest.TestCase):
                             lambda element: beam.window.TimestampedValue(
                                 element, element['timestamp'])))
 
+    # For each element in a PCollection, gets the current timestamp of the
+    # element and reassigns the timestamp to the element.
+    class AddTimestamp(beam.DoFn):
+      def process(self, element, timestamp=beam.DoFn.TimestampParam):
+        yield beam.window.TimestampedValue(element, timestamp)
+
     # Reshuffle the PCollection above and assign the timestamp of an element to
     # that element again.
     after_reshuffle = (before_reshuffle
                        | "Reshuffle" >> beam.Reshuffle()
                        | "With timestamps again" >> beam.ParDo(AddTimestamp()))
 
+    # Given an element, emits a string which contains the timestamp and the name
+    # field of the element.
+    class FormatWithTimestamp(beam.DoFn):
+      def process(self, element, timestamp=beam.DoFn.TimestampParam):
+        t = str(timestamp)
+        if timestamp == MIN_TIMESTAMP:
+          t = "MIN_TIMESTAMP"
+        elif timestamp == MAX_TIMESTAMP:
+          t = "MAX_TIMESTAMP"
+        yield '{} - {}'.format(t, element['name'])
+
     # Combine each element in before_reshuffle with its timestamp.
     formatted_before_reshuffle = (before_reshuffle
                                   | "Get before_reshuffle timestamp" >>
-                                  beam.ParDo(GetTimestamp()))
+                                  beam.ParDo(FormatWithTimestamp()))
 
     # Combine each element in after_reshuffle with its timestamp.
     formatted_after_reshuffle = (after_reshuffle
                                  | "Get after_reshuffle timestamp" >>
-                                 beam.ParDo(GetTimestamp()))
+                                 beam.ParDo(FormatWithTimestamp()))
 
-    expected_data = ["Timestamp(-9223372036854.775000) - foo",
+    expected_data = ["MIN_TIMESTAMP - foo",
                      "Timestamp(0) - foo",
                      "Timestamp(33) - bar",
-                     "Timestamp(9223372036854.775000) - bar"]
+                     "MAX_TIMESTAMP - bar"]
 
     # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
     # directly, because they are deferred PCollections while equal_to only takes
