@@ -202,9 +202,11 @@ public class TestPubsub implements TestRule {
   public List<PubsubMessage> pull(int maxBatchSize) throws IOException {
     List<PubsubClient.IncomingMessage> messages =
         pubsub.pull(0, subscriptionPath, maxBatchSize, true);
-    pubsub.acknowledge(
-        subscriptionPath,
-        messages.stream().map(msg -> msg.ackId).collect(ImmutableList.toImmutableList()));
+    if (!messages.isEmpty()) {
+      pubsub.acknowledge(
+          subscriptionPath,
+          messages.stream().map(msg -> msg.ackId).collect(ImmutableList.toImmutableList()));
+    }
 
     return messages.stream()
         .map(msg -> new PubsubMessage(msg.elementBytes, msg.attributes, msg.recordId))
