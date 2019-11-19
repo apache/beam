@@ -844,6 +844,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
 
+    newJob.getEnvironment().setWorkerRegion(options.getWorkerRegion());
+    newJob.getEnvironment().setWorkerZone(options.getWorkerZone());
+
     if (options.getFlexRSGoal()
         == DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED) {
       newJob.getEnvironment().setFlexResourceSchedulingGoal("FLEXRS_COST_OPTIMIZED");
