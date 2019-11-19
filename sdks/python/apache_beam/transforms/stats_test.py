@@ -142,8 +142,8 @@ class ApproximateUniqueTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         _ = (pipeline
              | 'create' >> beam.Create(test_input)
-             | 'get_estimate'
-             >> beam.ApproximateUnique.Globally(size=sample_size, error=est_err))
+             | 'get_estimate' >> beam.ApproximateUnique.Globally(
+                 size=sample_size, error=est_err))
 
     expected_msg = beam.ApproximateUnique._MULTI_VALUE_ERR_MSG % (
         sample_size, est_err)

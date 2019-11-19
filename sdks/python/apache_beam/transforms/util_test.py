@@ -367,8 +367,8 @@ class ReshuffleTest(unittest.TestCase):
       before_reshuffle = (pipeline
                           | 'start' >> beam.Create(data)
                           | 'add_timestamp' >> beam.Map(
-                              lambda v: beam.window.TimestampedValue(v,
-                                                                     timestamp)))
+                              lambda v: beam.window.TimestampedValue(
+                                  v, timestamp)))
       assert_that(before_reshuffle, equal_to(expected_result),
                   label='before_reshuffle', reify_windows=True)
       after_reshuffle = before_reshuffle | beam.Reshuffle()
@@ -396,6 +396,7 @@ class ReshuffleTest(unittest.TestCase):
                   label='after reshuffle', reify_windows=True)
 
   def test_reshuffle_window_fn_preserved(self):
+    any_order = contains_in_any_order
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
       expected_windows = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
@@ -407,8 +408,8 @@ class ReshuffleTest(unittest.TestCase):
           ((1, 4), 4.0, IntervalWindow(4.0, 6.0))]]
       expected_merged_windows = [
           TestWindowedValue(v, t - .001, [w]) for (v, t, w) in [
-              ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
-              ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+              ((1, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+              ((2, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
               ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
               ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
       before_reshuffle = (pipeline
@@ -587,6 +588,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
                   equal_to([int(math.ceil(GroupIntoBatchesTest.NUM_ELEMENTS /
                                           GroupIntoBatchesTest.BATCH_SIZE))]))
 
+  @unittest.skip('BEAM-8748')
   def test_in_streaming_mode(self):
     timestamp_interval = 1
     offset = itertools.count(0)

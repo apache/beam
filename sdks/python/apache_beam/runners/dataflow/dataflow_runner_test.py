@@ -210,8 +210,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiments=beam_fn_api')
     self.default_properties.append('--worker_harness_container_image=FOO')
     remote_runner = DataflowRunner()
-    with Pipeline(remote_runner, as p:
-                   options=PipelineOptions(self.default_properties))
+    with Pipeline(
+        remote_runner,
+        options=PipelineOptions(self.default_properties)) as p:
       (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
        | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
        | ptransform.GroupByKey())
@@ -224,8 +225,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
-    with Pipeline(remote_runner, as p:
-                   options=PipelineOptions(self.default_properties))
+    with Pipeline(
+        remote_runner,
+        options=PipelineOptions(self.default_properties)) as p:
 
       (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
        | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
@@ -251,7 +253,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append("--streaming")
     with self.assertRaisesRegex(ValueError,
                                 r'source is not currently available'):
-      with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      with Pipeline(
+          remote_runner,
+          PipelineOptions(self.default_properties)) as p:
         _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
   # TODO(BEAM-8095): Segfaults in Python 3.7 with xdist.

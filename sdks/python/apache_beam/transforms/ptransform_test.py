@@ -130,7 +130,7 @@ class PTransformTest(unittest.TestCase):
         pass
 
     with self.assertRaises(ValueError):
-      with TestPipeline() as p:
+      with TestPipeline() as pipeline:
         pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
         pcoll | 'Do' >> beam.ParDo(MyDoFn)  # Note the lack of ()'s
 
@@ -163,8 +163,8 @@ class PTransformTest(unittest.TestCase):
         pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
         pcoll | 'Do' >> beam.FlatMap(lambda x: x + '1')
 
-        # Since the DoFn directly returns a string we should get an error warning
-        # us.
+        # Since the DoFn directly returns a string we should get an
+        # error warning us when the pipeliene runs.
 
     expected_error_prefix = ('Returning a str from a ParDo or FlatMap '
                              'is discouraged.')
@@ -178,7 +178,7 @@ class PTransformTest(unittest.TestCase):
         pcoll | 'Do' >> beam.FlatMap(lambda x: {x: '1'})
 
         # Since the DoFn directly returns a dict we should get an error warning
-        # us.
+        # us when the pipeliene runs.
 
     expected_error_prefix = ('Returning a dict from a ParDo or FlatMap '
                              'is discouraged.')
@@ -383,8 +383,8 @@ class PTransformTest(unittest.TestCase):
         pass
 
     with self.assertRaises(RuntimeError):
-      with TestPipeline() as pipeline:
-        pipeline | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
+      with TestPipeline() as p:
+        p | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
 
   def test_filter(self):
     with TestPipeline() as pipeline:

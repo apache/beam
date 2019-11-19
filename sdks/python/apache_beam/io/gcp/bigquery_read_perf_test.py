@@ -120,7 +120,8 @@ class BigQueryReadPerfTest(LoadTest):
     with TestPipeline() as p:
       # pylint: disable=expression-not-assigned
       (p
-       | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
+       | 'Produce rows' >> Read(SyntheticSource(
+           self.parseTestPipelineOptions()))
        | 'Format' >> Map(format_record)
        | 'Write to BigQuery' >> WriteToBigQuery(
            dataset=self.input_dataset, table=self.input_table,
