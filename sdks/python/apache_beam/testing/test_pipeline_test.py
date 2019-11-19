@@ -107,8 +107,8 @@ class TestPipelineTest(unittest.TestCase):
 
   def test_skip_IT(self):
     with TestPipeline(is_integration_test=True) as test_pipeline:
-    # Note that this will never be reached since it should be skipped above.
-    self.fail()
+      # Note that this will never be reached since it should be skipped above.
+      self.fail()
 
   @mock.patch('apache_beam.testing.test_pipeline.Pipeline.run', autospec=True)
   def test_not_use_test_runner_api(self, mock_run):

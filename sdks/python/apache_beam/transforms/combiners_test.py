@@ -160,8 +160,8 @@ class CombineTest(unittest.TestCase):
           lambda a, b, names: len(names[a]) < len(names[b]),
           names,  # Note parameter passed to comparator.
           reverse=True)
-      assert_that(result_cmp, equal_to([[9, 6, 6, 5, 3, 2]]), label='assert:cmp')
-      assert_that(result_cmp_rev, equal_to([[0, 1, 1]]), label='assert:cmp_rev')
+      assert_that(result_cmp, equal_to([[9, 6, 6, 5, 3, 2]]), label='CheckCmp')
+      assert_that(result_cmp_rev, equal_to([[0, 1, 1]]), label='CheckCmpRev')
 
       # Again for per-key combines.
       pcoll = pipeline | 'start-perkye' >> Create(
@@ -278,11 +278,12 @@ class CombineTest(unittest.TestCase):
 
       pcoll = pipeline | 'start-perkey' >> Create(
           [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
-      result_ktop = pcoll | 'top-perkey' >> beam.CombinePerKey(combine.Largest(5))
+      result_ktop = pcoll | 'top-perkey' >> beam.CombinePerKey(
+          combine.Largest(5))
       result_kbot = pcoll | 'bot-perkey' >> beam.CombinePerKey(
           combine.Smallest(4))
-      assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='k:top')
-      assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
+      assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='ktop')
+      assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='kbot')
 
   def test_top_no_compact(self):
 
@@ -306,8 +307,8 @@ class CombineTest(unittest.TestCase):
           TopCombineFnNoCompact(5, key=lambda x: x))
       result_kbot = pcoll | 'Bot-PerKey' >> beam.CombinePerKey(
           TopCombineFnNoCompact(4, reverse=True))
-      assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='K:Top')
-      assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='K:Bot')
+      assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='KTop')
+      assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='KBot')
 
   def test_global_sample(self):
     def is_good_sample(actual):

@@ -168,8 +168,8 @@ def run(argv=None):
         ],
     }
 
-    # To make it pass, publish numbers in [150-155) or [210-215) with no repeats.
-    # To make it fail, publish a repeated number in the range above range.
+    # To pass, publish numbers in [150-155) or [210-215) with no repeats.
+    # To fail, publish a repeated number in the range above range.
     # For example: '210 213 151 213'
     assert_that(
         output,

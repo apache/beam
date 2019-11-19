@@ -194,7 +194,8 @@ class PipelineTest(unittest.TestCase):
       assert_that(pcoll | 'StaticSides' >> beam.core.MapTuple(fn, 's1', 's2'),
                   equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
                   label='StaticSidesCheck')
-      assert_that(pcoll | 'DynamicSides' >> beam.core.MapTuple(fn, side1, side2),
+      assert_that(pcoll | 'DynamicSides' >> beam.core.MapTuple(
+          fn, side1, side2),
                   equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
                   label='DynamicSidesCheck')
       assert_that(pcoll | 'MixedSides' >> beam.core.MapTuple(fn, s2=side2),
@@ -214,7 +215,8 @@ class PipelineTest(unittest.TestCase):
       assert_that(pcoll | 'NoSides' >> beam.core.FlatMapTuple(fn),
                   equal_to(['e1', 'e2', MIN_TIMESTAMP, None, None]),
                   label='NoSidesCheck')
-      assert_that(pcoll | 'StaticSides' >> beam.core.FlatMapTuple(fn, 's1', 's2'),
+      assert_that(pcoll | 'StaticSides' >> beam.core.FlatMapTuple(
+          fn, 's1', 's2'),
                   equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
                   label='StaticSidesCheck')
       assert_that(pcoll
@@ -471,10 +473,11 @@ class PipelineTest(unittest.TestCase):
       letters = multi.letters | 'MyLetters' >> beam.Map(lambda x: x)
       numbers = multi.numbers | 'MyNumbers' >> beam.Map(lambda x: x)
 
-      # Assert that the PCollection replacement worked correctly and that elements
-      # are flowing through. The replacement transform first multiples by 2 then
-      # the leaf nodes inside the composite multiply by an additional 3 and 5. Use
-      # prime numbers to ensure that each transform is getting executed once.
+      # Assert that the PCollection replacement worked correctly and that
+      # elements are flowing through. The replacement transform first
+      # multiples by 2 then the leaf nodes inside the composite multiply by
+      # an additional 3 and 5. Use prime numbers to ensure that each
+      # transform is getting executed once.
       assert_that(letters,
                   equal_to(['a'*2*3, 'b'*2*3, 'c'*2*3]),
                   label='assert letters')

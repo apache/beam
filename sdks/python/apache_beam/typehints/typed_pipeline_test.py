@@ -144,9 +144,9 @@ class MainInputTest(unittest.TestCase):
       self.assertIsNotNone(even.element_type)
       self.assertIsNotNone(odd.element_type)
       res_even = (even
-                  | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+                  | 'IdEven' >> beam.ParDo(lambda e: [e]).with_input_types(int))
       res_odd = (odd
-                 | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+                 | 'IdOdd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
       assert_that(res_even, equal_to([2]), label='even_check')
       assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 

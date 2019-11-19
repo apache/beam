@@ -114,26 +114,27 @@ def construct_pipeline(renames):
   with beam.Pipeline(options=PipelineOptions()) as p:
     # [END pipelines_constructing_creating]
 
-    p = TestPipeline() # Use TestPipeline for testing.
+    with TestPipeline() as p:  # Use TestPipeline for testing.
+      # pylint: disable=line-too-long
 
-    # [START pipelines_constructing_reading]
-    lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
-    # [END pipelines_constructing_reading]
+      # [START pipelines_constructing_reading]
+      lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
+      # [END pipelines_constructing_reading]
 
-    # [START pipelines_constructing_applying]
-    words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-    reversed_words = words | ReverseWords()
-    # [END pipelines_constructing_applying]
+      # [START pipelines_constructing_applying]
+      words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+      reversed_words = words | ReverseWords()
+      # [END pipelines_constructing_applying]
 
-    # [START pipelines_constructing_writing]
-    filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
-    filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
-        'gs://some/outputData.txt')
-    # [END pipelines_constructing_writing]
+      # [START pipelines_constructing_writing]
+      filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
+      filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
+          'gs://some/outputData.txt')
+      # [END pipelines_constructing_writing]
 
-    p.visit(SnippetUtils.RenameFiles(renames))
+      p.visit(SnippetUtils.RenameFiles(renames))
 
-    # [START pipelines_constructing_running]
+      # [START pipelines_constructing_running]
   # [END pipelines_constructing_running]
 
 
@@ -241,18 +242,17 @@ def pipeline_options_remote(argv):
   options.view_as(StandardOptions).runner = 'DataflowRunner'
 
   # Create the Pipeline with the specified options.
-  with Pipeline(options=options) as p:
-    # [END pipeline_options_dataflow_service]
+  p = Pipeline(options=options)
+  # [END pipeline_options_dataflow_service]
 
-    my_options = options.view_as(MyOptions)
-    my_input = my_options.input
-    my_output = my_options.output
+  my_options = options.view_as(MyOptions)
+  my_input = my_options.input
+  my_output = my_options.output
 
-    p = TestPipeline()  # Use TestPipeline for testing.
+  with TestPipeline() as p:  # Use TestPipeline for testing.
 
     lines = p | beam.io.ReadFromText(my_input)
     lines | beam.io.WriteToText(my_output)
-
 
 
 def pipeline_options_local(argv):
@@ -287,9 +287,9 @@ def pipeline_options_local(argv):
   with Pipeline(options=options) as p:
     # [END pipeline_options_local]
 
-    p = TestPipeline()  # Use TestPipeline for testing.
-    lines = p | beam.io.ReadFromText(my_input)
-    lines | beam.io.WriteToText(my_output)
+    with TestPipeline() as p:  # Use TestPipeline for testing.
+      lines = p | beam.io.ReadFromText(my_input)
+      lines | beam.io.WriteToText(my_output)
 
 
 def pipeline_options_command_line(argv):
