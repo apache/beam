@@ -3731,62 +3731,85 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesTimersInParDo.class,
-      UsesTestStream.class
+            ValidatesRunner.class,
+            UsesStatefulParDo.class,
+            UsesTimersInParDo.class,
+            UsesTestStream.class
     })
-    public void testValueStateSimple() {
+    public void testValueStateSimpleCopy() {
       final String stateId = "foo";
       final String timerId = "bar";
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
 
-            @TimerId(timerId)
-            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+      DoFn<KV<String, Integer>, KV<String, Integer>> doFn1 =
+              new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
-            @ProcessElement
-            public void processElement(ProcessContext c, @TimerId(timerId) Timer timer) {
-              timer.withOutputTimestamp(new Instant(5)).set(new Instant(8));
-            }
+                @TimerId(timerId)
+                private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-            @OnTimer(timerId)
-            public void onTimer(OnTimerContext c, BoundedWindow w) {
-              c.output(100);
-            }
-          };
+                @StateId(stateId)
+                private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
 
-      DoFn<Integer, Instant> fn1 =
-          new DoFn<Integer, Instant>() {
+                @ProcessElement
+                public void processElement(ProcessContext c, @TimerId(timerId) Timer timer,@StateId(stateId) ValueState<Integer> countState) {
+                  System.out.println("doFn1 process Element : " + c.timestamp() + "\n\n\n");
+                  timer.withOutputTimestamp(new Instant(5)).set(new Instant(100));
+                  c.output(KV.of("key",1));
+                }
 
-            @ProcessElement
-            public void processElement(ProcessContext c) {
-              c.output(c.timestamp());
-            }
-          };
+                @OnTimer(timerId)
+                public void onTimer( OnTimerContext c, BoundedWindow w, @StateId(stateId) ValueState<Integer> countState) {
+                  System.out.println("doFn1 OnTimer: " + c.timestamp() + "\n\n\n");
+                  int count = MoreObjects.firstNonNull(countState.read(), 0) + 1;
+                  countState.write(count);
+                }
+              };
+
+      DoFn<KV<String, Integer>, Integer> doFn2 =
+              new DoFn<KV<String, Integer>, Integer>() {
+
+                @TimerId(timerId)
+                private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                @StateId(stateId)
+                private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
+
+                @ProcessElement
+                public void processElement(ProcessContext c, @TimerId(timerId) Timer timer, @StateId(stateId) ValueState<Integer> countState) {
+                  System.out.println("doFn2 process Element : " + c.timestamp() + "\n\n\n");
+                  timer.set(new Instant(50));
+
+                }
+
+                @OnTimer(timerId)
+                public void onTimer(OnTimerContext c, BoundedWindow w, @StateId(stateId) ValueState<Integer> countState) {
+                  System.out.println("doFn2 On Timer : " + c.timestamp() + "\n\n\n");
+                  int count = MoreObjects.firstNonNull(countState.read(), 0) + 1;
+                  countState.write(count );
+                  c.output(count);
+                }
+              };
 
       Instant base = new Instant(0);
 
       TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("key", 1))
-              .advanceWatermarkTo(new Instant(100))
-              .advanceWatermarkToInfinity();
+              TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+                      .advanceWatermarkTo(new Instant(70))
+                      .addElements(KV.of("key", 1))
+                      .advanceWatermarkToInfinity();
 
       PCollection<Integer> output =
-          pipeline
-              .apply(stream)
-              .apply(
-                  Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))) // window
-                      .withAllowedLateness(Duration.millis(10)) // lateness
-                      .discardingFiredPanes())
-              .apply("first", ParDo.of(fn));
-      // .apply("second", ParDo.of(fn1));
+              pipeline
+                      .apply(stream)
+                      .apply(
+                              Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(150))) // window
+                                      .discardingFiredPanes())
+                      .apply("first", ParDo.of(doFn1))
+                      .apply("second", ParDo.of(doFn2));
 
       PAssert.that(output)
-          .inWindow(new IntervalWindow(base, base.plus(Duration.millis(10)))) // interval window
-          .containsInAnyOrder(100); // result output
+              .inWindow(new IntervalWindow(base, base.plus(Duration.millis(150)))) // interval window
+              .containsInAnyOrder(1); // result output
+
       pipeline.run();
     }
 
