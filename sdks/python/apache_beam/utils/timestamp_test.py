@@ -176,8 +176,7 @@ class TimestampTest(unittest.TestCase):
   def test_from_proto_fails_with_truncation(self):
     # TODO(BEAM-8738): Better define timestamps.
     with self.assertRaises(ValueError):
-      ts_proto = timestamp_pb2.Timestamp(seconds=1234, nanos=56789)
-      actual_ts = Timestamp.from_proto(ts_proto)
+      Timestamp.from_proto(timestamp_pb2.Timestamp(seconds=1234, nanos=56789))
 
   def test_to_proto(self):
     ts = Timestamp(seconds=1234, micros=56)

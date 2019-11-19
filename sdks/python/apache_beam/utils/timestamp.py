@@ -280,7 +280,7 @@ class Duration(object):
                        "See [BEAM-8738] for more information.")
 
     return Duration(seconds=duration_proto.seconds,
-                     micros=duration_proto.nanos // 1000)
+                    micros=duration_proto.nanos // 1000)
 
   def __repr__(self):
     micros = self.micros
