@@ -30,6 +30,7 @@ name: fixed_default_late_data
 window_fn: FixedWindows(10)
 trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_EOW
+allowed_lateness: 100
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
@@ -40,6 +41,26 @@ transcript:
   - input: [7]
   - expect:
       - {window: [0, 9], values: [1, 2, 3, 7], timestamp: 9, late: true}
+
+---
+name: fixed_drop_late_data_after_allowed_lateness
+window_fn: FixedWindows(10)
+trigger_fn: AfterWatermark(early=AfterCount(3), late=AfterCount(1))
+timestamp_combiner: OUTPUT_AT_EOW
+allowed_lateness: 20
+accumulation_mode: accumulating
+transcript:
+  - input: [1, 2, 10, 11, 80, 81]
+  - watermark: 100
+  - expect:
+      - {window: [0, 9], values: [1, 2], timestamp: 9, final: false}
+      - {window: [10, 19], values: [10, 11], timestamp: 19}
+      - {window: [80, 89], values: [80, 81], timestamp: 89, late: false}
+  - input: [7, 8] # no output
+  - input: [17, 18] # no output
+  - input: [82]
+  - expect:
+      - {window: [80, 89], values: [80, 81, 82], timestamp: 89, late: true}
 
 ---
 name: timestamp_combiner_earliest
@@ -118,6 +139,7 @@ broken_on:
   - SwitchingDirectRunner
 window_fn: Sessions(10)
 trigger_fn: AfterWatermark(early=AfterCount(2), late=AfterCount(3))
+allowed_lateness: 100
 timestamp_combiner: OUTPUT_AT_EOW
 transcript:
     - input: [1, 2, 3]
