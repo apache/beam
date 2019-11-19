@@ -109,6 +109,7 @@ public class JdbcUtil {
       Schema.FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         return (element, ps, i, fieldWithIndex) -> {
           ps.setArray(
               i + 1,

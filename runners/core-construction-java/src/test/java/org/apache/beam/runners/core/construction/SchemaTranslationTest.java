@@ -65,6 +65,11 @@ public class SchemaTranslationTest {
                       FieldType.array(FieldType.array(FieldType.INT64.withNullable(true))))))
           .add(
               Schema.of(
+                  Field.of(
+                      "iter(iter(int64)))",
+                      FieldType.iterable(FieldType.iterable(FieldType.INT64.withNullable(true))))))
+          .add(
+              Schema.of(
                   Field.of("nullable", FieldType.STRING.withNullable(true)),
                   Field.of("non_nullable", FieldType.STRING.withNullable(false))))
           .add(

@@ -194,6 +194,7 @@ public class CalciteUtils {
       case ROW:
         return SqlTypeName.ROW;
       case ARRAY:
+      case ITERABLE:
         return SqlTypeName.ARRAY;
       case MAP:
         return SqlTypeName.MAP;
@@ -264,6 +265,7 @@ public class CalciteUtils {
   public static RelDataType toRelDataType(RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         return dataTypeFactory.createArrayType(
             toRelDataType(dataTypeFactory, fieldType.getCollectionElementType()),
             UNLIMITED_ARRAY_SIZE);

@@ -37,6 +37,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.FloatCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -123,6 +124,8 @@ public class SchemaCoder<T> extends CustomCoder<T> {
         return (Coder<T>) SchemaCoder.of(fieldType.getRowSchema());
       case ARRAY:
         return (Coder<T>) ListCoder.of(coderForFieldType(fieldType.getCollectionElementType()));
+      case ITERABLE:
+        return (Coder<T>) IterableCoder.of(coderForFieldType(fieldType.getCollectionElementType()));
       case MAP:
         return (Coder<T>)
             MapCoder.of(
@@ -224,6 +227,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
         return;
 
       case ARRAY:
+      case ITERABLE:;
         setSchemaIds(fieldType.getCollectionElementType());
         return;
 
