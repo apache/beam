@@ -158,14 +158,13 @@ class PTransformTest(unittest.TestCase):
 
   def test_do_with_do_fn_returning_string_raises_warning(self):
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pipeline = TestPipeline()
-      pipeline._options.view_as(TypeOptions).runtime_type_check = True
-      pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
-      pcoll | 'Do' >> beam.FlatMap(lambda x: x + '1')
+      with TestPipeline() as pipeline:
+        pipeline._options.view_as(TypeOptions).runtime_type_check = True
+        pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
+        pcoll | 'Do' >> beam.FlatMap(lambda x: x + '1')
 
-      # Since the DoFn directly returns a string we should get an error warning
-      # us.
-      pipeline.run()
+        # Since the DoFn directly returns a string we should get an error warning
+        # us.
 
     expected_error_prefix = ('Returning a str from a ParDo or FlatMap '
                              'is discouraged.')
@@ -173,14 +172,13 @@ class PTransformTest(unittest.TestCase):
 
   def test_do_with_do_fn_returning_dict_raises_warning(self):
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pipeline = TestPipeline()
-      pipeline._options.view_as(TypeOptions).runtime_type_check = True
-      pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
-      pcoll | 'Do' >> beam.FlatMap(lambda x: {x: '1'})
+      with TestPipeline() as pipeline:
+        pipeline._options.view_as(TypeOptions).runtime_type_check = True
+        pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
+        pcoll | 'Do' >> beam.FlatMap(lambda x: {x: '1'})
 
-      # Since the DoFn directly returns a dict we should get an error warning
-      # us.
-      pipeline.run()
+        # Since the DoFn directly returns a dict we should get an error warning
+        # us.
 
     expected_error_prefix = ('Returning a dict from a ParDo or FlatMap '
                              'is discouraged.')
@@ -294,13 +292,12 @@ class PTransformTest(unittest.TestCase):
     def incorrect_par_do_fn(x):
       return x + 5
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pipeline = TestPipeline()
-      pipeline._options.view_as(TypeOptions).runtime_type_check = True
-      pcoll = pipeline | 'Start' >> beam.Create([2, 9, 3])
-      pcoll | 'Do' >> beam.FlatMap(incorrect_par_do_fn)
-      # It's a requirement that all user-defined functions to a ParDo return
-      # an iterable.
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pipeline._options.view_as(TypeOptions).runtime_type_check = True
+        pcoll = pipeline | 'Start' >> beam.Create([2, 9, 3])
+        pcoll | 'Do' >> beam.FlatMap(incorrect_par_do_fn)
+        # It's a requirement that all user-defined functions to a ParDo return
+        # an iterable.
 
     expected_error_prefix = 'FlatMap and ParDo must return an iterable.'
     self.assertStartswith(cm.exception.args[0], expected_error_prefix)
@@ -386,9 +383,8 @@ class PTransformTest(unittest.TestCase):
         pass
 
     with self.assertRaises(RuntimeError):
-      pipeline = TestPipeline()
-      pipeline | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pipeline | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
 
   def test_filter(self):
     with TestPipeline() as pipeline:
@@ -519,10 +515,9 @@ class PTransformTest(unittest.TestCase):
     # Check that a bad partition label will yield an error. For the
     # DirectRunner, this error manifests as an exception.
     with self.assertRaises(ValueError):
-      pipeline = TestPipeline()
-      pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
-      partitions = pcoll | beam.Partition(SomePartitionFn(), 4, 10000)
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
+        partitions = pcoll | beam.Partition(SomePartitionFn(), 4, 10000)
 
   def test_partition_with_callable(self):
     with TestPipeline() as pipeline:
@@ -665,10 +660,9 @@ class PTransformTest(unittest.TestCase):
 
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
-      pipeline = TestPipeline()
-      pcolls = pipeline | 'A' >> beam.Create([1, 2, 3, 4, 5])
-      pcolls | 'D' >> beam.GroupByKey()
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pcolls = pipeline | 'A' >> beam.Create([1, 2, 3, 4, 5])
+        pcolls | 'D' >> beam.GroupByKey()
 
     self.assertStartswith(
         e.exception.args[0],
@@ -677,10 +671,9 @@ class PTransformTest(unittest.TestCase):
 
   def test_group_by_key_only_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pipeline = TestPipeline()
-      pcolls = pipeline | 'A' >> beam.Create(['a', 'b', 'f'])
-      pcolls | 'D' >> _GroupByKeyOnly()
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pcolls = pipeline | 'A' >> beam.Create(['a', 'b', 'f'])
+        pcolls | 'D' >> _GroupByKeyOnly()
 
     expected_error_prefix = ('Input type hint violation at D: expected '
                              'Tuple[TypeVariable[K], TypeVariable[V]]')

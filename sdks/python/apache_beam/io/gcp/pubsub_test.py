@@ -537,10 +537,9 @@ class TestReadFromPubSub(unittest.TestCase):
     options.view_as(StandardOptions).streaming = True
     with self.assertRaisesRegex(NotImplementedError,
                                 r'id_label is not supported'):
-      p = TestPipeline(options=options)
-      _ = (p | ReadFromPubSub(
-          'projects/fakeprj/topics/a_topic', None, 'a_label'))
-      p.run()
+      with TestPipeline(options=options) as p:
+        _ = (p | ReadFromPubSub(
+            'projects/fakeprj/topics/a_topic', None, 'a_label'))
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
@@ -598,12 +597,11 @@ class TestWriteToPubSub(unittest.TestCase):
     options.view_as(StandardOptions).streaming = True
     with self.assertRaisesRegex(AttributeError,
                                 r'str.*has no attribute.*data'):
-      p = TestPipeline(options=options)
-      _ = (p
-           | Create(payloads)
-           | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                           with_attributes=True))
-      p.run()
+      with TestPipeline(options=options) as p:
+        _ = (p
+             | Create(payloads)
+             | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                             with_attributes=True))
 
   def test_write_messages_unsupported_features(self, mock_pubsub):
     data = b'data'
