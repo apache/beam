@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.net.URI;
+import java.util.Collections;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
@@ -30,9 +31,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 /**
@@ -63,15 +67,15 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
  *
  * <h3>Additional Configuration</h3>
  *
- * <p>Additional configuration can be provided via {@link AwsOptions} from command line args or in
+ * <p>Additional configuration can be provided via {@link AwsCredentialsProvider} in
  * code. For example, if you wanted to provide a secret access key via code:
  *
  * <pre>{@code
- * PipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).withValidation().create();
- * AwsOptions awsOptions = pipelineOptions.as(AwsOptions.class);
- * BasicAWSCredentials awsCreds = new BasicAWSCredentials("accesskey", "secretkey");
- * awsOptions.setAwsCredentialsProvider(new AWSStaticCredentialsProvider(awsCreds));
- * Pipeline pipeline = Pipeline.create(options);
+ * AwsCredentialsProvider provider = StaticCredentialsProvider.create(
+ *    AwsBasicCredentials.create(ACCESS_KEY_ID, SECRET_ACCESS_KEY));
+ * pipeline
+ *   .apply(...) // returns PCollection<SendMessageRequest>
+ *   .apply(SqsIO.write().withSqsClientProvider(provider))
  * }</pre>
  *
  * <p>For more information on the available options see {@link AwsOptions}.

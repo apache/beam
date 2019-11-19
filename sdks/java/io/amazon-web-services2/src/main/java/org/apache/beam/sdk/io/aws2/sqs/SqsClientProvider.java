@@ -21,7 +21,7 @@ import java.io.Serializable;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 /**
- * Provides instances of DynamoDB clients.
+ * Provides instances of Sqs clients.
  *
  * <p>Please note, that any instance of {@link SqsClientProvider} must be {@link Serializable} to
  * ensure it can be sent to worker machines.
