@@ -56,13 +56,13 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
         isinstance(
             restriction,
             iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestriction))
-    self.assertTrue(isinstance(restriction.source_bundle, SourceBundle))
+    self.assertTrue(isinstance(restriction._source_bundle, SourceBundle))
     self.assertEqual(self.initial_range_start,
-                     restriction.source_bundle.start_position)
+                     restriction._source_bundle.start_position)
     self.assertEqual(self.initial_range_stop,
-                     restriction.source_bundle.stop_position)
-    self.assertTrue(isinstance(restriction.source_bundle.source, RangeSource))
-    self.assertEqual(restriction.range_tracker, None)
+                     restriction._source_bundle.stop_position)
+    self.assertTrue(isinstance(restriction._source_bundle.source, RangeSource))
+    self.assertEqual(restriction._range_tracker, None)
 
   def test_create_tracker(self):
     expected_start = 1
@@ -92,11 +92,11 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
                                                              restriction))
     self.assertTrue(all(
         [isinstance(
-            bundle.source_bundle, SourceBundle) for bundle in split_bundles]))
+            bundle._source_bundle, SourceBundle) for bundle in split_bundles]))
 
     splits = (
-        [(bundle.source_bundle.start_position,
-          bundle.source_bundle.stop_position) for bundle in split_bundles])
+        [(bundle._source_bundle.start_position,
+          bundle._source_bundle.stop_position) for bundle in split_bundles])
     self.assertEqual(expect_splits, list(splits))
 
   def test_concat_source_split(self):
@@ -113,11 +113,11 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
                                                                restriction))
     self.assertTrue(
         all(
-            [isinstance(bundle.source_bundle,
+            [isinstance(bundle._source_bundle,
                         SourceBundle) for bundle in split_bundles]))
     splits = ([(
-        bundle.source_bundle.start_position,
-        bundle.source_bundle.stop_position) for bundle in split_bundles])
+        bundle._source_bundle.start_position,
+        bundle._source_bundle.stop_position) for bundle in split_bundles])
     self.assertEqual(expect_splits, list(splits))
 
   def test_restriction_size(self):
@@ -153,13 +153,13 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
     current_restriction = (
         self.sdf_restriction_tracker.current_restriction())
     self.assertEqual(self.initial_start_pos,
-                     current_restriction.source_bundle.start_position)
+                     current_restriction._source_bundle.start_position)
     self.assertEqual(self.initial_stop_pos,
-                     current_restriction.source_bundle.stop_position)
+                     current_restriction._source_bundle.stop_position)
     self.assertEqual(self.initial_start_pos,
-                     current_restriction.range_tracker.start_position())
+                     current_restriction._range_tracker.start_position())
     self.assertEqual(self.initial_stop_pos,
-                     current_restriction.range_tracker.stop_position())
+                     current_restriction._range_tracker.stop_position())
 
   def test_current_restriction_after_split(self):
     fraction_of_remainder = 0.5
@@ -167,10 +167,9 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
     expected_restriction, _ = (
         self.sdf_restriction_tracker.try_split(fraction_of_remainder))
     current_restriction = self.sdf_restriction_tracker.current_restriction()
-    self.assertEqual(expected_restriction.source_bundle,
-                     current_restriction.source_bundle)
-    self.assertEqual(expected_restriction.range_tracker, None)
-    self.assertTrue(current_restriction.range_tracker)
+    self.assertEqual(expected_restriction._source_bundle,
+                     current_restriction._source_bundle)
+    self.assertTrue(current_restriction._range_tracker)
 
   def test_try_split_at_remainder(self):
     fraction_of_remainder = 0.4
@@ -180,15 +179,16 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
     actual_primary, actual_residual = (
         self.sdf_restriction_tracker.try_split(fraction_of_remainder))
     self.assertEqual(expected_primary,
-                     (actual_primary.source_bundle.start_position,
-                      actual_primary.source_bundle.stop_position,
-                      actual_primary.source_bundle.weight))
+                     (actual_primary._source_bundle.start_position,
+                      actual_primary._source_bundle.stop_position,
+                      actual_primary._source_bundle.weight))
     self.assertEqual(expected_residual,
-                     (actual_residual.source_bundle.start_position,
-                      actual_residual.source_bundle.stop_position,
-                      actual_residual.source_bundle.weight))
-    self.assertEqual(actual_primary.source_bundle.weight,
-                     self.sdf_restriction_tracker._weight)
+                     (actual_residual._source_bundle.start_position,
+                      actual_residual._source_bundle.stop_position,
+                      actual_residual._source_bundle.weight))
+    self.assertEqual(
+        actual_primary._source_bundle.weight,
+        self.sdf_restriction_tracker.current_restriction().weight())
 
 
 class UseSdfBoundedSourcesTests(unittest.TestCase):
