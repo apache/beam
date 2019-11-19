@@ -3731,84 +3731,95 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({
-            ValidatesRunner.class,
-            UsesStatefulParDo.class,
-            UsesTimersInParDo.class,
-            UsesTestStream.class
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class
     })
     public void testValueStateSimpleCopy() {
       final String stateId = "foo";
       final String timerId = "bar";
 
       DoFn<KV<String, Integer>, KV<String, Integer>> doFn1 =
-              new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+          new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
-                @TimerId(timerId)
-                private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-                @StateId(stateId)
-                private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
+            @StateId(stateId)
+            private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
 
-                @ProcessElement
-                public void processElement(ProcessContext c, @TimerId(timerId) Timer timer,@StateId(stateId) ValueState<Integer> countState) {
-                  System.out.println("doFn1 process Element : " + c.timestamp() + "\n\n\n");
-                  timer.withOutputTimestamp(new Instant(5)).set(new Instant(100));
-                  c.output(KV.of("key",1));
-                }
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @TimerId(timerId) Timer timer,
+                @StateId(stateId) ValueState<Integer> countState) {
+              System.out.println("doFn1 process Element : " + c.timestamp() + "\n\n\n");
+              timer.withOutputTimestamp(new Instant(5)).set(new Instant(100));
+              c.output(KV.of("key", 1));
+            }
 
-                @OnTimer(timerId)
-                public void onTimer( OnTimerContext c, BoundedWindow w, @StateId(stateId) ValueState<Integer> countState) {
-                  System.out.println("doFn1 OnTimer: " + c.timestamp() + "\n\n\n");
-                  int count = MoreObjects.firstNonNull(countState.read(), 0) + 1;
-                  countState.write(count);
-                }
-              };
+            @OnTimer(timerId)
+            public void onTimer(
+                OnTimerContext c,
+                BoundedWindow w,
+                @StateId(stateId) ValueState<Integer> countState) {
+              System.out.println("doFn1 OnTimer: " + c.timestamp() + "\n\n\n");
+              int count = MoreObjects.firstNonNull(countState.read(), 0) + 1;
+              countState.write(count);
+            }
+          };
 
       DoFn<KV<String, Integer>, Integer> doFn2 =
-              new DoFn<KV<String, Integer>, Integer>() {
+          new DoFn<KV<String, Integer>, Integer>() {
 
-                @TimerId(timerId)
-                private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-                @StateId(stateId)
-                private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
+            @StateId(stateId)
+            private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
 
-                @ProcessElement
-                public void processElement(ProcessContext c, @TimerId(timerId) Timer timer, @StateId(stateId) ValueState<Integer> countState) {
-                  System.out.println("doFn2 process Element : " + c.timestamp() + "\n\n\n");
-                  timer.set(new Instant(50));
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @TimerId(timerId) Timer timer,
+                @StateId(stateId) ValueState<Integer> countState) {
+              System.out.println("doFn2 process Element : " + c.timestamp() + "\n\n\n");
+              timer.set(new Instant(50));
+            }
 
-                }
-
-                @OnTimer(timerId)
-                public void onTimer(OnTimerContext c, BoundedWindow w, @StateId(stateId) ValueState<Integer> countState) {
-                  System.out.println("doFn2 On Timer : " + c.timestamp() + "\n\n\n");
-                  int count = MoreObjects.firstNonNull(countState.read(), 0) + 1;
-                  countState.write(count );
-                  c.output(count);
-                }
-              };
+            @OnTimer(timerId)
+            public void onTimer(
+                OnTimerContext c,
+                BoundedWindow w,
+                @StateId(stateId) ValueState<Integer> countState) {
+              System.out.println("doFn2 On Timer : " + c.timestamp() + "\n\n\n");
+              int count = MoreObjects.firstNonNull(countState.read(), 0) + 1;
+              countState.write(count);
+              c.output(count);
+            }
+          };
 
       Instant base = new Instant(0);
 
       TestStream<KV<String, Integer>> stream =
-              TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-                      .advanceWatermarkTo(new Instant(70))
-                      .addElements(KV.of("key", 1))
-                      .advanceWatermarkToInfinity();
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .advanceWatermarkTo(new Instant(70))
+              .addElements(KV.of("key", 1))
+              .advanceWatermarkToInfinity();
 
       PCollection<Integer> output =
-              pipeline
-                      .apply(stream)
-                      .apply(
-                              Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(150))) // window
-                                      .discardingFiredPanes())
-                      .apply("first", ParDo.of(doFn1))
-                      .apply("second", ParDo.of(doFn2));
+          pipeline
+              .apply(stream)
+              .apply(
+                  Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(150))) // window
+                      .discardingFiredPanes())
+              .apply("first", ParDo.of(doFn1))
+              .apply("second", ParDo.of(doFn2));
 
       PAssert.that(output)
-              .inWindow(new IntervalWindow(base, base.plus(Duration.millis(150)))) // interval window
-              .containsInAnyOrder(1); // result output
+          .inWindow(new IntervalWindow(base, base.plus(Duration.millis(150)))) // interval window
+          .containsInAnyOrder(1); // result output
 
       pipeline.run();
     }
