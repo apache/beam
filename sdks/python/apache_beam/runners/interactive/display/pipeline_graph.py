@@ -25,6 +25,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import logging
 import threading
 
 import pydot
@@ -35,9 +36,9 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
-
 # pylint does not understand context
 # pylint:disable=dangerous-default-value
+
 
 class PipelineGraph(object):
   """Creates a DOT representing the pipeline. Thread-safe. Runner agnostic."""
@@ -118,7 +119,9 @@ class PipelineGraph(object):
         from IPython.core import display
         display.display(display.HTML(rendered_graph))
       except ImportError:  # Unlikely to happen when is_in_notebook.
-        pass
+        logging.warning('Failed to import IPython display module when current '
+                        'environment is in a notebook. Cannot display the '
+                        'pipeline graph.')
 
   def _top_level_transforms(self):
     """Yields all top level PTransforms (subtransforms of the root PTransform).
@@ -254,7 +257,6 @@ class PipelineGraph(object):
           Or (Dict[(str, str), Dict[str, str]]) which maps vertex pairs to edge
           attributes
     """
-
     def set_attrs(ref, attrs):
       for attr_name, attr_val in attrs.items():
         ref.set(attr_name, attr_val)

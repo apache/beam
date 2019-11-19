@@ -129,9 +129,10 @@ class InteractiveRunner(runners.PipelineRunner):
         options)
 
     if not self._skip_display:
-      pg = pipeline_graph.PipelineGraph(pin.original_pipeline,
-                                        render_option=self._render_option)
-      pg.display_graph()
+      a_pipeline_graph = pipeline_graph.PipelineGraph(
+          pin.original_pipeline,
+          render_option=self._render_option)
+      a_pipeline_graph.display_graph()
 
     result = pipeline_to_execute.run()
     result.wait_until_finish()
@@ -143,6 +144,15 @@ class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
 
   def __init__(self, underlying_result, pin):
+    """Constructor of PipelineResult.
+
+    Args:
+      underlying_result: (PipelineResult) the result returned by the underlying
+          runner running the pipeline.
+      pin: (PipelineInstrument) pipeline instrument describing the pipeline
+          being executed with interactivity applied and related metadata
+          including where the interactivity-backing cache lies.
+    """
     super(PipelineResult, self).__init__(underlying_result.state)
     self._underlying_result = underlying_result
     self._pin = pin

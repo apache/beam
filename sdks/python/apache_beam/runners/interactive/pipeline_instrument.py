@@ -112,10 +112,10 @@ class PipelineInstrument(object):
     """Finds cacheable PCollections from the pipeline.
 
     The function only treats the result as cacheables since there is no
-    guarantee whether the cache desired PCollection has been cached or
-    not. A PCollection desires caching when it's bound to a user defined
-    variable in source code. Otherwise, the PCollection is not reusale
-    nor introspectable which nullifying the need of cache.
+    guarantee whether PCollections that need to be cached have been cached or
+    not. A PCollection needs to be cached when it's bound to a user defined
+    variable in the source code. Otherwise, the PCollection is not reusable
+    nor introspectable which nullifies the need of cache.
     """
     return self._cacheables
 
@@ -331,11 +331,11 @@ class PipelineInstrument(object):
 def pin(pipeline, options=None):
   """Creates PipelineInstrument for a pipeline and its options with cache.
 
-  This is the shorthand for doing 3 steps: 1) compute once for metadata of given
-  runner pipeline and everything watched from user pipelines; 2) associate info
-  between runner pipeline and its corresponding user pipeline, eliminate data
-  from other user pipelines if there are any; 3) mutate runner pipeline to apply
-  interactivity.
+  This is the shorthand for doing 3 steps: 1) compute once for metadata of the
+  given runner pipeline and everything watched from user pipelines; 2) associate
+  info between the runner pipeline and its corresponding user pipeline,
+  eliminate data from other user pipelines if there are any; 3) mutate the
+  runner pipeline to apply interactivity.
   """
   pi = PipelineInstrument(pipeline, options)
   pi.preprocess()
@@ -344,17 +344,16 @@ def pin(pipeline, options=None):
 
 
 def cacheables(pcolls_to_pcoll_id):
-  """Finds cache desired PCollections from the instrumented pipeline.
+  """Finds PCollections that need to be cached for analyzed PCollections.
 
-  The function only treats the result as cacheables since whether the cache
-  desired PCollection has been cached depends on whether the pipeline has been
-  executed in current interactive environment. A PCollection desires caching
-  when it's bound to a user defined variable in source code. Otherwise, the
-  PCollection is not reusable nor introspectable which nullifies the need of
-  cache. There might be multiple pipelines defined and watched, this will
-  return for PCollections from the ones with pcolls_to_pcoll_id analyzed. The
-  check is not strict because pcoll_id is not unique across multiple pipelines.
-  Additional check needs to be done during instrument.
+  The function only treats the result as cacheables since there is no guarantee
+  whether PCollections that need to be cached have been cached or not. A
+  PCollection needs to be cached when it's bound to a user defined variable in
+  the source code. Otherwise, the PCollection is not reusable nor introspectable
+  which nullifies the need of cache. There might be multiple pipelines defined
+  and watched, this will only return for PCollections with pcolls_to_pcoll_id
+  analyzed. The check is not strict because pcoll_id is not unique across
+  multiple pipelines. Additional check needs to be done during instrument.
   """
   pcoll_version_map = {}
   cacheables = {}
