@@ -419,6 +419,7 @@ public class GroupTest implements Serializable {
             .addArrayField("field1_top", FieldType.INT64)
             .build();
     Row expectedRow = Row.withSchema(aggregateSchema).addValues(10L, 14).addArray(4L).build();
+
     PAssert.that(aggregate).containsInAnyOrder(expectedRow);
 
     pipeline.run();

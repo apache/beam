@@ -508,7 +508,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   private static Schema getFieldSchema(FieldType type) {
     if (TypeName.ROW.equals(type.getTypeName())) {
       return type.getRowSchema();
-    } else if (TypeName.ARRAY.equals(type.getTypeName())
+    } else if (type.getTypeName().isCollectionType()
         && TypeName.ROW.equals(type.getCollectionElementType().getTypeName())) {
       return type.getCollectionElementType().getRowSchema();
     } else if (TypeName.MAP.equals(type.getTypeName())
@@ -538,7 +538,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
       switch (qualifier.getKind()) {
         case LIST:
           checkArgument(qualifier.getList().equals(ListQualifier.ALL));
-          checkArgument(fieldType.getTypeName().equals(TypeName.ARRAY));
+          checkArgument(fieldType.getTypeName().isCollectionType());
           fieldType = fieldType.getCollectionElementType();
           break;
         case MAP:
