@@ -76,6 +76,7 @@ def extract_single_dep(dep):
     raise InvalidFormatError("Failed to extract the dependency information: {}".format(dep))
   return match.group(1).strip(), match.group(2).strip(), match.group(3).strip()
 
+
 def prioritize_dependencies(deps, sdk_type):
   """
   Extracts and analyze dependency versions and release dates.
