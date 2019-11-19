@@ -591,12 +591,11 @@ class TextSourceTest(unittest.TestCase):
         f.write(b'corrupt')
 
       with self.assertRaises(Exception):
-        pipeline = TestPipeline()
-        pcoll = pipeline | 'Read' >> ReadFromText(
-            file_name,
-            compression_type=CompressionTypes.BZIP2)
-        assert_that(pcoll, equal_to(lines))
-        pipeline.run()
+        with TestPipeline() as pipeline:
+          pcoll = pipeline | 'Read' >> ReadFromText(
+              file_name,
+              compression_type=CompressionTypes.BZIP2)
+          assert_that(pcoll, equal_to(lines))
 
   def test_read_bzip2_concat(self):
     with TempDir() as tempdir:
@@ -664,13 +663,12 @@ class TextSourceTest(unittest.TestCase):
         f.write(b'corrupt')
 
       with self.assertRaises(Exception):
-        pipeline = TestPipeline()
-        pcoll = pipeline | 'Read' >> ReadFromText(
-            file_name,
-            0, CompressionTypes.DEFLATE,
-            True, coders.StrUtf8Coder())
-        assert_that(pcoll, equal_to(lines))
-        pipeline.run()
+        with TestPipeline() as pipeline:
+          pcoll = pipeline | 'Read' >> ReadFromText(
+              file_name,
+              0, CompressionTypes.DEFLATE,
+              True, coders.StrUtf8Coder())
+          assert_that(pcoll, equal_to(lines))
 
   def test_read_deflate_concat(self):
     with TempDir() as tempdir:
@@ -705,14 +703,13 @@ class TextSourceTest(unittest.TestCase):
               open(final_deflate_file, 'ab') as dst:
         dst.writelines(src.readlines())
 
-      pipeline = TestPipeline()
-      lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
-          final_deflate_file,
-          compression_type=beam.io.filesystem.CompressionTypes.DEFLATE)
+      with TestPipeline() as pipeline:
+        lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+            final_deflate_file,
+            compression_type=beam.io.filesystem.CompressionTypes.DEFLATE)
 
-      expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
-      assert_that(lines, equal_to(expected))
-      pipeline.run()
+        expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+        assert_that(lines, equal_to(expected))
 
   def test_read_gzip(self):
     _, lines = write_data(15)
@@ -739,13 +736,12 @@ class TextSourceTest(unittest.TestCase):
         f.write(b'corrupt')
 
       with self.assertRaises(Exception):
-        pipeline = TestPipeline()
-        pcoll = pipeline | 'Read' >> ReadFromText(
-            file_name,
-            0, CompressionTypes.GZIP,
-            True, coders.StrUtf8Coder())
-        assert_that(pcoll, equal_to(lines))
-        pipeline.run()
+        with TestPipeline() as pipeline:
+          pcoll = pipeline | 'Read' >> ReadFromText(
+              file_name,
+              0, CompressionTypes.GZIP,
+              True, coders.StrUtf8Coder())
+          assert_that(pcoll, equal_to(lines))
 
   def test_read_gzip_concat(self):
     with TempDir() as tempdir:
@@ -780,14 +776,13 @@ class TextSourceTest(unittest.TestCase):
            open(final_gzip_file, 'ab') as dst:
         dst.writelines(src.readlines())
 
-      pipeline = TestPipeline()
-      lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
-          final_gzip_file,
-          compression_type=beam.io.filesystem.CompressionTypes.GZIP)
+      with TestPipeline() as pipeline:
+        lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+            final_gzip_file,
+            compression_type=beam.io.filesystem.CompressionTypes.GZIP)
 
-      expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
-      assert_that(lines, equal_to(expected))
-      pipeline.run()
+        expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+        assert_that(lines, equal_to(expected))
 
   def test_read_all_gzip(self):
     _, lines = write_data(100)

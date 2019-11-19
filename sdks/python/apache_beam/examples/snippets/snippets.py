@@ -538,29 +538,28 @@ def examples_wordcount_templated(renames):
           required=True,
           help='Output file to write results to.')
   pipeline_options = PipelineOptions(['--output', 'some/output_path'])
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
-  lines = p | 'Read' >> ReadFromText(wordcount_options.input)
-  # [END example_wordcount_templated]
+    wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
+    lines = p | 'Read' >> ReadFromText(wordcount_options.input)
+    # [END example_wordcount_templated]
 
-  def format_result(word_count):
-    (word, count) = word_count
-    return '%s: %s' % (word, count)
+    def format_result(word_count):
+      (word, count) = word_count
+      return '%s: %s' % (word, count)
 
-  (
-      lines
-      | 'ExtractWords' >> beam.FlatMap(
-          lambda x: re.findall(r'[A-Za-z\']+', x))
-      | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
-      | 'Group' >> beam.GroupByKey()
-      | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
-      | 'Format' >> beam.Map(format_result)
-      | 'Write' >> WriteToText(wordcount_options.output)
-  )
+    (
+        lines
+        | 'ExtractWords' >> beam.FlatMap(
+            lambda x: re.findall(r'[A-Za-z\']+', x))
+        | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
+        | 'Group' >> beam.GroupByKey()
+        | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
+        | 'Format' >> beam.Map(format_result)
+        | 'Write' >> WriteToText(wordcount_options.output)
+    )
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+    p.visit(SnippetUtils.RenameFiles(renames))
 
 
 def examples_wordcount_debugging(renames):
@@ -709,24 +708,23 @@ def examples_ptransforms_templated(renames):
       yield self.templated_int.get() + an_int
 
   pipeline_options = PipelineOptions()
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  user_options = pipeline_options.view_as(TemplatedUserOptions)
-  my_sum_fn = MySumFn(user_options.templated_int)
-  sum = (p
-         | 'ReadCollection' >> beam.io.ReadFromText(
-             'gs://some/integer_collection')
-         | 'StringToInt' >> beam.Map(lambda w: int(w))
-         | 'AddGivenInt' >> beam.ParDo(my_sum_fn)
-         | 'WriteResultingCollection' >> WriteToText('some/output_path'))
-  # [END examples_ptransforms_templated]
+    user_options = pipeline_options.view_as(TemplatedUserOptions)
+    my_sum_fn = MySumFn(user_options.templated_int)
+    sum = (p
+           | 'ReadCollection' >> beam.io.ReadFromText(
+               'gs://some/integer_collection')
+           | 'StringToInt' >> beam.Map(lambda w: int(w))
+           | 'AddGivenInt' >> beam.ParDo(my_sum_fn)
+           | 'WriteResultingCollection' >> WriteToText('some/output_path'))
+    # [END examples_ptransforms_templated]
 
-  # Templates are not supported by DirectRunner (only by DataflowRunner)
-  # so a value must be provided at graph-construction time
-  my_sum_fn.templated_int = StaticValueProvider(int, 10)
+    # Templates are not supported by DirectRunner (only by DataflowRunner)
+    # so a value must be provided at graph-construction time
+    my_sum_fn.templated_int = StaticValueProvider(int, 10)
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+    p.visit(SnippetUtils.RenameFiles(renames))
 
 
 # Defining a new source.

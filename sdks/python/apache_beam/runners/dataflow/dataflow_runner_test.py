@@ -251,9 +251,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append("--streaming")
     with self.assertRaisesRegex(ValueError,
                                 r'source is not currently available'):
-      p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-      _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
-      p.run()
+      with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+        _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
   # TODO(BEAM-8095): Segfaults in Python 3.7 with xdist.
   @pytest.mark.no_xdist
