@@ -104,7 +104,7 @@ def prioritize_dependencies(deps, sdk_type):
   for dep in deps:
     try:
       if re.match(r'https?://', dep.lstrip()):
-        # Gralde-version-plugin's output contains URLs of the libraries
+        # Gradle-version-plugin's output contains URLs of the libraries
         continue
       logging.info("\n\nStart processing: " + dep)
       dep_name, curr_ver, latest_ver = extract_single_dep(dep)
