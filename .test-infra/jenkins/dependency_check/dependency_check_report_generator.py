@@ -32,6 +32,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 
+
 logging.getLogger().setLevel(logging.INFO)
 
 class InvalidFormatError(Exception):
@@ -75,7 +76,6 @@ def extract_single_dep(dep):
   if match is None:
     raise InvalidFormatError("Failed to extract the dependency information: {}".format(dep))
   return match.group(1).strip(), match.group(2).strip(), match.group(3).strip()
-
 
 def prioritize_dependencies(deps, sdk_type):
   """
