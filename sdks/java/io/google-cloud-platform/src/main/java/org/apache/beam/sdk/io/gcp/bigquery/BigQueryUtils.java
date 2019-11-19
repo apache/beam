@@ -148,6 +148,7 @@ public class BigQueryUtils {
           .put(TypeName.DECIMAL, StandardSQLTypeName.NUMERIC)
           .put(TypeName.BOOLEAN, StandardSQLTypeName.BOOL)
           .put(TypeName.ARRAY, StandardSQLTypeName.ARRAY)
+          .put(TypeName.ITERABLE, StandardSQLTypeName.ARRAY)
           .put(TypeName.ROW, StandardSQLTypeName.STRUCT)
           .put(TypeName.DATETIME, StandardSQLTypeName.TIMESTAMP)
           .put(TypeName.STRING, StandardSQLTypeName.STRING)

@@ -399,7 +399,10 @@ public abstract class Row implements Serializable {
         return deepEquals(a, b, fieldType.getLogicalType().getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
-      } else if (fieldType.getTypeName().isCollectionType()) {
+      } else if (fieldType.getTypeName() == TypeName.ARRAY) {
+        return deepEqualsForList(
+            (List<Object>) a, (List<Object>) b, fieldType.getCollectionElementType());
+      } else if (fieldType.getTypeName() == TypeName.ITERABLE) {
         return deepEqualsForIterable(
             (Iterable<Object>) a, (Iterable<Object>) b, fieldType.getCollectionElementType());
       } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
@@ -467,6 +470,18 @@ public abstract class Row implements Serializable {
       }
 
       return h;
+    }
+
+    static boolean deepEqualsForList(List<Object> a, List<Object> b, Schema.FieldType elementType) {
+      if (a == b) {
+        return true;
+      }
+
+      if (a.size() != b.size()) {
+        return false;
+      }
+
+      return deepEqualsForIterable(a, b, elementType);
     }
 
     static boolean deepEqualsForIterable(
