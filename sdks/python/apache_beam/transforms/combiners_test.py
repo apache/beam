@@ -31,7 +31,6 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -500,69 +499,63 @@ class TimestampCombinerTest(unittest.TestCase):
   @unittest.skip('BEAM-8657')
   def test_combiner_earliest(self):
     """Test TimestampCombiner with EARLIEST."""
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
+    options = PipelineOptions(streaming=True)
+    with TestPipeline(options=options) as p:
+      result = (p
+                | 'main TestStream' >> TestStream()
+                .add_elements([window.TimestampedValue(('k', 100), 2)])
+                .add_elements([window.TimestampedValue(('k', 400), 7)])
+                .advance_watermark_to_infinity()
+                | 'main windowInto' >> beam.WindowInto(
+                    window.FixedWindows(10),
+                    timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
+                | 'Combine' >> beam.CombinePerKey(sum))
 
-    main_stream = (p
-                   | 'main TestStream' >> TestStream()
-                   .add_elements([window.TimestampedValue(('k', 100), 0)])
-                   .add_elements([window.TimestampedValue(('k', 400), 9)])
-                   .advance_watermark_to_infinity()
-                   | 'main windowInto' >> beam.WindowInto(
-                       window.FixedWindows(10),
-                       timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
-                   | 'Combine' >> beam.CombinePerKey(sum))
+      records = (result | beam.ParDo(self.RecordFn()))
 
-    records = (main_stream | beam.ParDo(self.RecordFn()))
+      # All the KV pairs are applied GBK using EARLIEST timestamp for the same
+      # key.
+      expected_window_to_elements = {
+          window.IntervalWindow(0, 10): [
+              (('k', 500), Timestamp(2)),
+          ],
+      }
 
-    # All the KV pairs are applied GBK using EARLIEST timestamp.
-    expected_window_to_elements = {
-        window.IntervalWindow(0, 10): [
-            (('k', 500), Timestamp(0)),
-        ],
-    }
-
-    assert_that(
-        records,
-        equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
-        label='assert per window')
-
-    p.run()
+      assert_that(
+          records,
+          equal_to_per_window(expected_window_to_elements),
+          use_global_window=False,
+          label='assert per window')
 
   def test_combiner_latest(self):
     """Test TimestampCombiner with LATEST."""
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
+    options = PipelineOptions(streaming=True)
+    with TestPipeline(options=options) as p:
+      result = (p
+                | 'main TestStream' >> TestStream()
+                .add_elements([window.TimestampedValue(('k', 100), 2)])
+                .add_elements([window.TimestampedValue(('k', 400), 7)])
+                .advance_watermark_to_infinity()
+                | 'main windowInto' >> beam.WindowInto(
+                    window.FixedWindows(10),
+                    timestamp_combiner=TimestampCombiner.OUTPUT_AT_LATEST)
+                | 'Combine' >> beam.CombinePerKey(sum))
 
-    main_stream = (p
-                   | 'main TestStream' >> TestStream()
-                   .add_elements([window.TimestampedValue(('k', 100), 0)])
-                   .add_elements([window.TimestampedValue(('k', 400), 9)])
-                   .advance_watermark_to_infinity()
-                   | 'main windowInto' >> beam.WindowInto(
-                       window.FixedWindows(10),
-                       timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
-                   | 'Combine' >> beam.CombinePerKey(sum))
+      records = (result | beam.ParDo(self.RecordFn()))
 
-    records = (main_stream | beam.ParDo(self.RecordFn()))
+      # All the KV pairs are applied GBK using LATEST timestamp for
+      # the same key.
+      expected_window_to_elements = {
+          window.IntervalWindow(0, 10): [
+              (('k', 500), Timestamp(7)),
+          ],
+      }
 
-    # All the KV pairs are applied GBK using LATEST timestamp for the same key.
-    expected_window_to_elements = {
-        window.IntervalWindow(0, 10): [
-            (('k', 500), Timestamp(9)),
-        ],
-    }
-
-    assert_that(
-        records,
-        equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
-        label='assert per window')
-
-    p.run()
+      assert_that(
+          records,
+          equal_to_per_window(expected_window_to_elements),
+          use_global_window=False,
+          label='assert per window')
 
 if __name__ == '__main__':
   unittest.main()
