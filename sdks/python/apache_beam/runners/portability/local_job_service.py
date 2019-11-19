@@ -16,7 +16,6 @@
 #
 from __future__ import absolute_import
 
-import itertools
 import logging
 import os
 import queue
@@ -48,10 +47,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _iter_queue(q):
-  def iter_queue():
-    while True:
-      yield q.get(block=True)
-  return iter_queue()
+  while True:
+    yield q.get(block=True)
 
 
 class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
@@ -202,31 +199,18 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         job_id, provision_info.provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
-    self._state_history = []
     self._state_queues = []
     self._log_queues = []
-    self.state = beam_job_api_pb2.JobState.STOPPED
     self.daemon = True
     self.result = None
 
-  @property
-  def state(self):
-    """Get the latest state enum"""
-    return self.get_state()[0]
-
-  @state.setter
-  def state(self, new_state):
-    """Set the latest state as an int enum"""
-    # Inform consumers of the new state.
-    timestamp = time.time()
-    for queue in self._state_queues:
-      queue.put((new_state, timestamp))
-    self._state_history.append((new_state, timestamp))
-
-  def get_state(self):
-    """Get a tuple of the latest state and its timestamp"""
-    # this is safe: initial state is set in __init__
-    return self._state_history[-1]
+  def set_state(self, new_state):
+    """Set the latest state as an int enum and notify consumers"""
+    timestamp = super(BeamJob, self).set_state(new_state)
+    if timestamp is not None:
+      # Inform consumers of the new state.
+      for queue in self._state_queues:
+        queue.put((new_state, timestamp))
 
   def prepare(self):
     pass
@@ -235,41 +219,40 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     return self._artifact_staging_endpoint
 
   def run(self):
-    self.state = beam_job_api_pb2.JobState.STARTING
+    self.set_state(beam_job_api_pb2.JobState.STARTING)
     self._run_thread = threading.Thread(target=self._run_job)
     self._run_thread.start()
 
   def _run_job(self):
-    self.state = beam_job_api_pb2.JobState.RUNNING
+    self.set_state(beam_job_api_pb2.JobState.RUNNING)
     with JobLogHandler(self._log_queues):
       try:
         result = fn_api_runner.FnApiRunner(
             provision_info=self._provision_info).run_via_runner_api(
                 self._pipeline_proto)
         _LOGGER.info('Successfully completed job.')
-        self.state = beam_job_api_pb2.JobState.DONE
+        self.set_state(beam_job_api_pb2.JobState.DONE)
         self.result = result
       except:  # pylint: disable=bare-except
         _LOGGER.exception('Error running pipeline.')
         _LOGGER.exception(traceback)
-        self.state = beam_job_api_pb2.JobState.FAILED
+        self.set_state(beam_job_api_pb2.JobState.FAILED)
         raise
 
   def cancel(self):
     if not self.is_terminal_state(self.state):
-      self.state = beam_job_api_pb2.JobState.CANCELLING
+      self.set_state(beam_job_api_pb2.JobState.CANCELLING)
       # TODO(robertwb): Actually cancel...
-      self.state = beam_job_api_pb2.JobState.CANCELLED
+      self.set_state(beam_job_api_pb2.JobState.CANCELLED)
 
   def get_state_stream(self):
     # Register for any new state changes.
     state_queue = queue.Queue()
     self._state_queues.append(state_queue)
 
-    for current_state, timestamp in itertools.chain(
-        self._state_history, _iter_queue(state_queue)):
-      yield current_state, timestamp
-      if self.is_terminal_state(current_state):
+    for state, timestamp in self.with_state_history(_iter_queue(state_queue)):
+      yield state, timestamp
+      if self.is_terminal_state(state):
         break
 
   def get_message_stream(self):
@@ -278,11 +261,11 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._log_queues.append(log_queue)
     self._state_queues.append(log_queue)
 
-    for msg in _iter_queue(log_queue):
+    for msg in self.with_state_history(_iter_queue(log_queue)):
       if isinstance(msg, tuple):
         assert len(msg) == 2 and isinstance(msg[0], int)
         current_state = msg[0]
-        yield current_state
+        yield msg
         if self.is_terminal_state(current_state):
           break
       else:
