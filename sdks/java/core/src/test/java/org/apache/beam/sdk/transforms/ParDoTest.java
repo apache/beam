@@ -3736,7 +3736,7 @@ public class ParDoTest implements Serializable {
       UsesTimersInParDo.class,
       UsesTestStream.class
     })
-    public void testValueStateSimpleCopy() {
+    public void testValueStateSimple() {
       final String stateId = "foo";
       final String timerId = "bar";
 
