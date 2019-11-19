@@ -513,9 +513,9 @@ class ReshuffleTest(unittest.TestCase):
       def process(self, element, timestamp=beam.DoFn.TimestampParam):
         t = str(timestamp)
         if timestamp == MIN_TIMESTAMP:
-          t = "MIN_TIMESTAMP"
+          t = 'MIN_TIMESTAMP'
         elif timestamp == MAX_TIMESTAMP:
-          t = "MAX_TIMESTAMP"
+          t = 'MAX_TIMESTAMP'
         yield '{} - {}'.format(t, element['name'])
 
     # Combine each element in before_reshuffle with its timestamp.
@@ -528,10 +528,10 @@ class ReshuffleTest(unittest.TestCase):
                                  | "Get after_reshuffle timestamp" >>
                                  beam.ParDo(FormatWithTimestamp()))
 
-    expected_data = ["MIN_TIMESTAMP - foo",
-                     "Timestamp(0) - foo",
-                     "Timestamp(33) - bar",
-                     "MAX_TIMESTAMP - bar"]
+    expected_data = ['MIN_TIMESTAMP - foo',
+                     'Timestamp(0) - foo',
+                     'Timestamp(33) - bar',
+                     'MAX_TIMESTAMP - bar']
 
     # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
     # directly, because they are deferred PCollections while equal_to only takes
