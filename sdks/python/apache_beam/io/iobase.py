@@ -1440,7 +1440,7 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
         split_pos, split_fraction = split_result
         primary_weight = self._source_bundle.weight * split_fraction
         residual_weight = self._source_bundle.weight - primary_weight
-        # Update self._weight to primary weight
+        # Update self to primary weight and end position.
         self._source_bundle = SourceBundle(primary_weight,
                                            self._source_bundle.source,
                                            self._source_bundle.start_position,
