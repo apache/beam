@@ -131,6 +131,34 @@ public class SchemaTest {
   }
 
   @Test
+  public void testIterableSchema() {
+    FieldType iterableType = FieldType.iterable(FieldType.STRING);
+    Schema schema = Schema.of(Field.of("f_iter", iterableType));
+    Field field = schema.getField("f_iter");
+    assertEquals("f_iter", field.getName());
+    assertEquals(iterableType, field.getType());
+  }
+
+  @Test
+  public void testIterableOfRowSchema() {
+    Schema nestedSchema = Schema.of(Field.of("f1_str", FieldType.STRING));
+    FieldType iterableType = FieldType.iterable(FieldType.row(nestedSchema));
+    Schema schema = Schema.of(Field.of("f_iter", iterableType));
+    Field field = schema.getField("f_iter");
+    assertEquals("f_iter", field.getName());
+    assertEquals(iterableType, field.getType());
+  }
+
+  @Test
+  public void testNestedIterableSchema() {
+    FieldType iterableType = FieldType.iterable(FieldType.iterable(FieldType.STRING));
+    Schema schema = Schema.of(Field.of("f_iter", iterableType));
+    Field field = schema.getField("f_iter");
+    assertEquals("f_iter", field.getName());
+    assertEquals(iterableType, field.getType());
+  }
+
+  @Test
   public void testWrongName() {
     Schema schema = Schema.of(Field.of("f_byte", FieldType.BYTE));
     thrown.expect(IllegalArgumentException.class);

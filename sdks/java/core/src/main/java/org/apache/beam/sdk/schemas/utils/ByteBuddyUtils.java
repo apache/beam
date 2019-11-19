@@ -154,8 +154,6 @@ class ByteBuddyUtils {
           && !typeDescriptor.getComponentType().getRawType().equals(byte.class)) {
         // Byte arrays are special, so leave those alone.
         return convertArray(typeDescriptor);
-      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
-        return convertCollection(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
         return convertMap(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
@@ -173,12 +171,20 @@ class ByteBuddyUtils {
         return convertPrimitive(typeDescriptor);
       } else if (typeDescriptor.getRawType().isEnum()) {
         return convertEnum(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
+        if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
+          return convertCollection(typeDescriptor);
+        } else {
+          return convertIterable(typeDescriptor);
+        }
       } else {
         return convertDefault(typeDescriptor);
       }
     }
 
     protected abstract T convertArray(TypeDescriptor<?> type);
+
+    protected abstract T convertIterable(TypeDescriptor<?> type);
 
     protected abstract T convertCollection(TypeDescriptor<?> type);
 
@@ -233,6 +239,11 @@ class ByteBuddyUtils {
     @Override
     protected Type convertCollection(TypeDescriptor<?> type) {
       return Collection.class;
+    }
+
+    @Override
+    protected Type convertIterable(TypeDescriptor<?> type) {
+      return Iterable.class;
     }
 
     @Override
@@ -330,6 +341,11 @@ class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(ElementMatchers.isStatic().and(ElementMatchers.named("asList")))
                   .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertIterable(TypeDescriptor<?> type) {
+      return readValue;
     }
 
     @Override
@@ -558,6 +574,11 @@ class ByteBuddyUtils {
                         .getOnly()));
       }
       return stackManipulation;
+    }
+
+    @Override
+    protected StackManipulation convertIterable(TypeDescriptor<?> type) {
+      return readValue;
     }
 
     @Override
