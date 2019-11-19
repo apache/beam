@@ -316,10 +316,10 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       CopyOnAccessInMemoryStateInternals state;
       Instant watermarkHold;
 
-      if (isTimerDeclared && delegateResult.getState() != null) {  // For both State and Timer Holds
+      if (isTimerDeclared && delegateResult.getState() != null) { // For both State and Timer Holds
         state = delegateResult.getState();
         watermarkHold = stepContext.commitState().getEarliestWatermarkHold();
-      } else if (isTimerDeclared) {  // For only Timer holds
+      } else if (isTimerDeclared) { // For only Timer holds
         state = stepContext.commitState();
         watermarkHold = state.getEarliestWatermarkHold();
       } else { // For only State ( non Timer ) holds
