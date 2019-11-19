@@ -44,6 +44,8 @@ from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
+_LOGGER = logging.getLogger(__name__)
+
 # This SDK harness will (by default), log a "lull" in processing if it sees no
 # transitions in over 5 minutes.
 # 5 minutes * 60 seconds * 1020 millis * 1000 micros * 1000 nanoseconds
@@ -65,15 +67,15 @@ class SdkHarness(object):
     self._worker_id = worker_id
     self._state_cache = StateCache(state_cache_size)
     if credentials is None:
-      logging.info('Creating insecure control channel for %s.', control_address)
+      _LOGGER.info('Creating insecure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.insecure_channel(
           control_address)
     else:
-      logging.info('Creating secure control channel for %s.', control_address)
+      _LOGGER.info('Creating secure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.secure_channel(
           control_address, credentials)
     grpc.channel_ready_future(self._control_channel).result(timeout=60)
-    logging.info('Control channel established.')
+    _LOGGER.info('Control channel established.')
 
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor(self._worker_id))
@@ -90,7 +92,7 @@ class SdkHarness(object):
         fns=self._fns)
     self._worker_thread_pool = UnboundedThreadPoolExecutor()
     self._responses = queue.Queue()
-    logging.info('Initializing SDKHarness with unbounded number of workers.')
+    _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')
 
   def run(self):
     control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
@@ -107,7 +109,7 @@ class SdkHarness(object):
 
     try:
       for work_request in control_stub.Control(get_responses()):
-        logging.debug('Got work %s', work_request.instruction_id)
+        _LOGGER.debug('Got work %s', work_request.instruction_id)
         request_type = work_request.WhichOneof('request')
         # Name spacing the request method with 'request_'. The called method
         # will be like self.request_register(request)
@@ -116,8 +118,8 @@ class SdkHarness(object):
     finally:
       self._alive = False
 
-    logging.info('No more requests from control plane')
-    logging.info('SDK Harness waiting for in-flight requests to complete')
+    _LOGGER.info('No more requests from control plane')
+    _LOGGER.info('SDK Harness waiting for in-flight requests to complete')
     # Wait until existing requests are processed.
     self._worker_thread_pool.shutdown()
     # get_responses may be blocked on responses.get(), but we need to return
@@ -127,7 +129,7 @@ class SdkHarness(object):
     self._data_channel_factory.close()
     self._state_handler_factory.close()
     self._bundle_processor_cache.shutdown()
-    logging.info('Done consuming work.')
+    _LOGGER.info('Done consuming work.')
 
   def _execute(self, task, request):
     try:
@@ -135,7 +137,7 @@ class SdkHarness(object):
     except Exception:  # pylint: disable=broad-except
       traceback_string = traceback.format_exc()
       print(traceback_string, file=sys.stderr)
-      logging.error(
+      _LOGGER.error(
           'Error processing instruction %s. Original traceback is\n%s\n',
           request.instruction_id, traceback_string)
       response = beam_fn_api_pb2.InstructionResponse(
@@ -151,7 +153,7 @@ class SdkHarness(object):
       self._execute(
           lambda: self.create_worker().do_instruction(request), request)
     self._worker_thread_pool.submit(task)
-    logging.debug(
+    _LOGGER.debug(
         "Currently using %s threads." % len(self._worker_thread_pool._workers))
 
   def _request_process_bundle_split(self, request):
@@ -359,7 +361,7 @@ class SdkWorker(object):
       else:
         stack_trace = '-NOT AVAILABLE-'
 
-      logging.warning(
+      _LOGGER.warning(
           '%s%s. Traceback:\n%s', state_lull_log, step_name_log, stack_trace)
 
   def process_bundle_progress(self, request, instruction_id):
@@ -444,14 +446,14 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           options = [('grpc.max_receive_message_length', -1),
                      ('grpc.max_send_message_length', -1)]
           if self._credentials is None:
-            logging.info('Creating insecure state channel for %s.', url)
+            _LOGGER.info('Creating insecure state channel for %s.', url)
             grpc_channel = GRPCChannelFactory.insecure_channel(
                 url, options=options)
           else:
-            logging.info('Creating secure state channel for %s.', url)
+            _LOGGER.info('Creating secure state channel for %s.', url)
             grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=options)
-          logging.info('State channel established.')
+          _LOGGER.info('State channel established.')
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,
                                                 WorkerIdInterceptor())
@@ -462,7 +464,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     return self._state_handler_cache[url]
 
   def close(self):
-    logging.info('Closing all cached gRPC state handlers.')
+    _LOGGER.info('Closing all cached gRPC state handlers.')
     for _, state_handler in self._state_handler_cache.items():
       state_handler.done()
     self._state_handler_cache.clear()

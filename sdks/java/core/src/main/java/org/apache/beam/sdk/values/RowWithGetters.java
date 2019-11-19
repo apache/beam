@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,6 +45,7 @@ public class RowWithGetters extends Row {
   private final List<FieldValueGetter> getters;
 
   private final Map<Integer, List> cachedLists = Maps.newHashMap();
+  private final Map<Integer, Iterable> cachedIterables = Maps.newHashMap();
   private final Map<Integer, Map> cachedMaps = Maps.newHashMap();
 
   RowWithGetters(
@@ -76,6 +78,29 @@ public class RowWithGetters extends Row {
     return list;
   }
 
+  private Iterable getIterableValue(FieldType elementType, Object fieldValue) {
+    Iterable iterable = (Iterable) fieldValue;
+    // Wrap the iterable to avoid having to materialize the entire collection.
+    return new Iterable() {
+      @Override
+      public Iterator iterator() {
+        return new Iterator() {
+          Iterator iterator = iterable.iterator();
+
+          @Override
+          public boolean hasNext() {
+            return iterator.hasNext();
+          }
+
+          @Override
+          public Object next() {
+            return getValue(elementType, iterator.next(), null);
+          }
+        };
+      }
+    };
+  }
+
   private Map<?, ?> getMapValue(FieldType keyType, FieldType valueType, Map<?, ?> fieldValue) {
     Map returnMap = Maps.newHashMap();
     for (Map.Entry<?, ?> entry : fieldValue.entrySet()) {
@@ -95,6 +120,12 @@ public class RowWithGetters extends Row {
               cachedLists.computeIfAbsent(
                   cacheKey, i -> getListValue(type.getCollectionElementType(), fieldValue))
           : (T) getListValue(type.getCollectionElementType(), fieldValue);
+    } else if (type.getTypeName().equals(TypeName.ITERABLE)) {
+      return cacheKey != null
+          ? (T)
+              cachedIterables.computeIfAbsent(
+                  cacheKey, i -> getIterableValue(type.getCollectionElementType(), fieldValue))
+          : (T) getIterableValue(type.getCollectionElementType(), fieldValue);
     } else if (type.getTypeName().equals(TypeName.MAP)) {
       Map map = (Map) fieldValue;
       return cacheKey != null

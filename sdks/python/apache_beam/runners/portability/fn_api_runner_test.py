@@ -68,6 +68,8 @@ if statesampler.FAST_SAMPLER:
 else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def _matcher_or_equal_to(value_or_matcher):
   """Pass-thru for matchers, and wraps value inputs in an equal_to matcher."""
@@ -1363,7 +1365,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
       elements = [r.randrange(5, 10) for _ in range(5)]
       self.run_sdf_split_pipeline(split_manager, elements, element_counter)
     except Exception:
-      logging.error('test_split_crazy_sdf.seed = %s', seed)
+      _LOGGER.error('test_split_crazy_sdf.seed = %s', seed)
       raise
 
   def run_sdf_split_pipeline(
