@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.net.URI;
-import java.util.Collections;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
@@ -31,12 +30,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 /**
@@ -67,8 +63,8 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
  *
  * <h3>Additional Configuration</h3>
  *
- * <p>Additional configuration can be provided via {@link AwsCredentialsProvider} in
- * code. For example, if you wanted to provide a secret access key via code:
+ * <p>Additional configuration can be provided via {@link AwsCredentialsProvider} in code. For
+ * example, if you wanted to provide a secret access key via code:
  *
  * <pre>{@code
  * AwsCredentialsProvider provider = StaticCredentialsProvider.create(
@@ -196,7 +192,7 @@ public class SqsIO {
       return input.getPipeline().apply(transform);
     }
   }
-
+  // TODO: Add write batch api to improve performance
   /**
    * A {@link PTransform} to send messages to SQS. See {@link SqsIO} for more information on usage
    * and configuration.
