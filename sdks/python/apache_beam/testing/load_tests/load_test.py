@@ -72,15 +72,15 @@ class LoadTest(unittest.TestCase):
     self.metrics_monitor.publish_metrics(result)
 
   def get_option_or_default(self, opt_name, default=0):
-    """Returns a pipeline option or a default value if it was not provided.
+    """Returns a testing option or a default value if it was not provided.
 
-    The returned value is converted to an integer.
+    The returned value is cast to the type of the default value.
     """
     option = self.pipeline.get_option(opt_name)
-    try:
-      return int(option)
-    except TypeError:
+    if option is None:
       return default
+    try:
+      return type(default)(option)
     except ValueError as exc:
       self.fail(str(exc))
 

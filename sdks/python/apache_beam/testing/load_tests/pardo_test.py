@@ -31,6 +31,8 @@ will be stored,
 * metrics_table (optional) - name of BigQuery table where metrics
 will be stored,
 * input_options - options for Synthetic Sources.
+* stateful - When true, this will use a stateful DoFn
+* state_cache - When true, this will enable the Python state cache
 
 Example test run on DirectRunner:
 
@@ -56,21 +58,23 @@ python setup.py nosetests \
 or:
 
 ./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
+    --publish_to_big_query=false
+    --project=project_name
     --metrics_dataset=python_load_tests
     --metrics_table=pardo
-    --input_options=\'
-      {"num_records": 1,
+    --input_options='"'"'
+      {
+      "num_records": 1,
       "key_size": 1,
-      "value_size":1,
+      "value_size": 1,
       "bundle_size_distribution_type": "const",
       "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
+      "force_initial_num_bundles": 1
+      }
+      '"'"'
     --runner=DirectRunner' \
 -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
-
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 
 To run test on other runner (ex. Dataflow):
 
@@ -114,7 +118,29 @@ or:
       "force_initial_num_bundles": 1}\'
     --runner=TestDataflowRunner' \
 -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
--Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+-Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load_tests:run
+
+With the FlinkRunner:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=false
+    --project=project_name
+    --metrics_dataset=python_load_tests
+    --metrics_table=pardo
+    --input_options='"'"'
+      {
+      "num_records": 1,
+      "key_size": 1,
+      "value_size": 1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1,
+      "stateful": "True",
+      "state_cache": "True"}
+      '"'"'
+    --runner=FlinkRunner --parallelism=1' \
+-PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
 from __future__ import absolute_import
@@ -125,9 +151,11 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.transforms import userstate
 
 load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
@@ -138,10 +166,15 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 class ParDoTest(LoadTest):
   def setUp(self):
     super(ParDoTest, self).setUp()
-    self.iterations = self.get_option_or_default('iterations')
-    self.number_of_counters = self.get_option_or_default('number_of_counters')
+    self.iterations = self.get_option_or_default('iterations', 1)
     self.number_of_operations = self.get_option_or_default(
-        'number_of_counter_operations')
+        'number_of_counter_operations', 1)
+    self.number_of_counters = self.get_option_or_default(
+        'number_of_counters', 1)
+    self.stateful = self.get_option_or_default('stateful', True)
+    if self.get_option_or_default('state_cache', False):
+      self.pipeline.options.view_as(DebugOptions).add_experiment(
+          'state_cache_size=1000')
 
   def testParDo(self):
     class CounterOperation(beam.DoFn):
@@ -152,10 +185,18 @@ class ParDoTest(LoadTest):
           self.counters.append(Metrics.counter('do-not-publish',
                                                'name-{}'.format(i)))
 
-      def process(self, element):
+      state_param = beam.DoFn.StateParam(
+          userstate.CombiningValueStateSpec(
+              'count',
+              beam.coders.IterableCoder(beam.coders.VarIntCoder()),
+              sum)) if self.stateful else None
+
+      def process(self, element, state=state_param):
         for _ in range(self.number_of_operations):
           for counter in self.counters:
             counter.inc()
+          if state:
+            state.add(1)
         yield element
 
     pc = (self.pipeline
