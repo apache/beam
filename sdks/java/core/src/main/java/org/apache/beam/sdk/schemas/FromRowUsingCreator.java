@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.lang.reflect.Type;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -107,7 +108,12 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
       return (ValueT)
           fromListValue(type.getCollectionElementType(), (List) value, elementType, typeFactory);
-    } else if (TypeName.MAP.equals(type.getTypeName())) {
+    } else if (TypeName.ITERABLE.equals(type.getTypeName())) {
+      return (ValueT)
+          fromIterableValue(
+              type.getCollectionElementType(), (Iterable) value, elementType, typeFactory);
+    }
+    if (TypeName.MAP.equals(type.getTypeName())) {
       return (ValueT)
           fromMapValue(
               type.getMapKeyType(),
@@ -140,6 +146,40 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
               typeFactory));
     }
     return list;
+  }
+
+  @SuppressWarnings("unchecked")
+  private <ElementT> Iterable fromIterableValue(
+      FieldType elementType,
+      Iterable<ElementT> rowIterable,
+      FieldValueTypeInformation elementTypeInformation,
+      Factory<List<FieldValueTypeInformation>> typeFactory) {
+    return new Iterable<ElementT>() {
+      @Override
+      public Iterator<ElementT> iterator() {
+        return new Iterator<ElementT>() {
+          Iterator<ElementT> innerIter = rowIterable.iterator();
+
+          @Override
+          public boolean hasNext() {
+            return innerIter.hasNext();
+          }
+
+          @Override
+          public ElementT next() {
+            ElementT element = innerIter.next();
+            return fromValue(
+                elementType,
+                element,
+                elementTypeInformation.getType().getType(),
+                elementTypeInformation.getElementType(),
+                elementTypeInformation.getMapKeyType(),
+                elementTypeInformation.getMapValueType(),
+                typeFactory);
+          }
+        };
+      }
+    };
   }
 
   @SuppressWarnings("unchecked")

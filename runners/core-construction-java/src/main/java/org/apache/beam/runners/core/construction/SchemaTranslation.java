@@ -74,6 +74,12 @@ public class SchemaTranslation {
                 .setElementType(fieldTypeToProto(fieldType.getCollectionElementType())));
         break;
 
+      case ITERABLE:
+        builder.setIterableType(
+            SchemaApi.IterableType.newBuilder()
+                .setElementType(fieldTypeToProto(fieldType.getCollectionElementType())));
+        break;
+
       case MAP:
         builder.setMapType(
             SchemaApi.MapType.newBuilder()
@@ -207,6 +213,9 @@ public class SchemaTranslation {
         return FieldType.row(fromProto(protoFieldType.getRowType().getSchema()));
       case ARRAY_TYPE:
         return FieldType.array(fieldTypeFromProto(protoFieldType.getArrayType().getElementType()));
+      case ITERABLE_TYPE:
+        return FieldType.iterable(
+            fieldTypeFromProto(protoFieldType.getIterableType().getElementType()));
       case MAP_TYPE:
         return FieldType.map(
             fieldTypeFromProto(protoFieldType.getMapType().getKeyType()),
