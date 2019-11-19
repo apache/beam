@@ -404,7 +404,8 @@ class DistributionData(object):
     else:
       self.sum = self.count = 0
       self.min = 2**63 - 1
-      self.max = -2**63
+      # Avoid Wimplicitly-unsigned-literal caused by -2**63.
+      self.max = -self.min - 1
 
   def __eq__(self, other):
     return (self.sum == other.sum and

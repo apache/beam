@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
@@ -47,6 +48,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,7 +121,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    return begin.apply("Read Input BQ Rows", getBigQueryReadBuilder(getSchema()));
+    return begin.apply("Read Input BQ Rows", getBigQueryTypedRead(getSchema()));
   }
 
   @Override
@@ -128,17 +136,24 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
         FieldAccessDescriptor.withFieldNames(fieldNames).resolve(getSchema());
     final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
 
-    TypedRead<Row> builder = getBigQueryReadBuilder(newSchema);
+    TypedRead<Row> typedRead = getBigQueryTypedRead(newSchema);
 
     if (!(filters instanceof DefaultTableFilter)) {
-      throw new RuntimeException("Unimplemented at the moment.");
+      BigQueryFilter bigQueryFilter = (BigQueryFilter) filters;
+      if (!bigQueryFilter.getSupported().isEmpty()) {
+        String rowRestriction = generateRowRestrictions(getSchema(), bigQueryFilter.getSupported());
+        if (!rowRestriction.isEmpty()) {
+          LOGGER.info("Pushing down the following filter: " + rowRestriction);
+          typedRead = typedRead.withRowRestriction(rowRestriction);
+        }
+      }
     }
 
     if (!fieldNames.isEmpty()) {
-      builder.withSelectedFields(fieldNames);
+      typedRead = typedRead.withSelectedFields(fieldNames);
     }
 
-    return begin.apply("Read Input BQ Rows with push-down", builder);
+    return begin.apply("Read Input BQ Rows with push-down", typedRead);
   }
 
   @Override
@@ -157,7 +172,43 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
         : ProjectSupport.NONE;
   }
 
-  private TypedRead<Row> getBigQueryReadBuilder(Schema schema) {
+  @Override
+  public BeamSqlTableFilter constructFilter(List<RexNode> filter) {
+    if (method.equals(Method.DIRECT_READ)) {
+      return new BigQueryFilter(filter);
+    }
+
+    return super.constructFilter(filter);
+  }
+
+  private String generateRowRestrictions(Schema schema, List<RexNode> supported) {
+    assert !supported.isEmpty();
+    final IntFunction<SqlNode> field =
+        i -> new SqlIdentifier(schema.getField(i).getName(), SqlParserPos.ZERO);
+
+    // TODO: BigQuerySqlDialectWithTypeTranslation can be replaced with BigQuerySqlDialect after
+    // updating vendor Calcite version.
+    SqlImplementor.SimpleContext context =
+        new SqlImplementor.SimpleContext(BeamBigQuerySqlDialect.DEFAULT, field);
+
+    // Create a single SqlNode from a list of RexNodes
+    SqlNode andSqlNode = null;
+    for (RexNode node : supported) {
+      SqlNode sqlNode = context.toSql(null, node);
+      if (andSqlNode == null) {
+        andSqlNode = sqlNode;
+        continue;
+      }
+      // AND operator must have exactly 2 operands.
+      andSqlNode =
+          SqlStdOperatorTable.AND.createCall(
+              SqlParserPos.ZERO, ImmutableList.of(andSqlNode, sqlNode));
+    }
+
+    return andSqlNode.toSqlString(BeamBigQuerySqlDialect.DEFAULT).getSql();
+  }
+
+  private TypedRead<Row> getBigQueryTypedRead(Schema schema) {
     return BigQueryIO.read(
             record -> BigQueryUtils.toBeamRow(record.getRecord(), schema, conversionOptions))
         .withMethod(method)

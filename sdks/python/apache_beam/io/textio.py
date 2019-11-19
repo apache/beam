@@ -42,6 +42,9 @@ __all__ = ['ReadFromText', 'ReadFromTextWithFilename', 'ReadAllFromText',
            'WriteToText']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class _TextSource(filebasedsource.FileBasedSource):
   r"""A source for reading text files.
 
@@ -127,7 +130,7 @@ class _TextSource(filebasedsource.FileBasedSource):
       raise ValueError('Cannot skip negative number of header lines: %d'
                        % skip_header_lines)
     elif skip_header_lines > 10:
-      logging.warning(
+      _LOGGER.warning(
           'Skipping %d header lines. Skipping large number of header '
           'lines might significantly slow down processing.')
     self._skip_header_lines = skip_header_lines

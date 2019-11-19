@@ -62,6 +62,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Days;
@@ -615,6 +616,7 @@ public class AvroUtils {
         break;
 
       case ARRAY:
+      case ITERABLE:
         baseType =
             org.apache.avro.Schema.createArray(
                 getFieldSchema(fieldType.getCollectionElementType(), fieldName, namespace));
@@ -704,10 +706,11 @@ public class AvroUtils {
             "Unknown logical type " + fieldType.getLogicalType().getIdentifier());
 
       case ARRAY:
-        List array = (List) value;
-        List<Object> translatedArray = Lists.newArrayListWithExpectedSize(array.size());
+      case ITERABLE:
+        Iterable iterable = (Iterable) value;
+        List<Object> translatedArray = Lists.newArrayListWithExpectedSize(Iterables.size(iterable));
 
-        for (Object arrayElement : array) {
+        for (Object arrayElement : iterable) {
           translatedArray.add(
               genericFromBeamField(
                   fieldType.getCollectionElementType(),
