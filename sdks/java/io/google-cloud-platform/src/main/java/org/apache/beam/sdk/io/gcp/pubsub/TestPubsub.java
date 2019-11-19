@@ -225,7 +225,7 @@ public class TestPubsub implements TestRule {
     receivedMessages.addAll(pull(n - receivedMessages.size()));
 
     while (receivedMessages.size() < n
-        && Seconds.secondsBetween(new DateTime(), startTime).getSeconds() < timeoutSeconds) {
+        && Seconds.secondsBetween(startTime, new DateTime()).getSeconds() < timeoutSeconds) {
       Thread.sleep(1000);
       receivedMessages.addAll(pull(n - receivedMessages.size()));
     }
