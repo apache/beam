@@ -535,10 +535,11 @@ class TestReadFromPubSub(unittest.TestCase):
     # id_label is unsupported in DirectRunner.
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label'))
     with self.assertRaisesRegex(NotImplementedError,
                                 r'id_label is not supported'):
+      p = TestPipeline(options=options)
+      _ = (p | ReadFromPubSub(
+          'projects/fakeprj/topics/a_topic', None, 'a_label'))
       p.run()
 
 
@@ -595,13 +596,13 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         with_attributes=True))
     with self.assertRaisesRegex(AttributeError,
                                 r'str.*has no attribute.*data'):
+      p = TestPipeline(options=options)
+      _ = (p
+           | Create(payloads)
+           | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                           with_attributes=True))
       p.run()
 
   def test_write_messages_unsupported_features(self, mock_pubsub):
@@ -621,13 +622,13 @@ class TestWriteToPubSub(unittest.TestCase):
       p.run()
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         timestamp_attribute='timestamp'))
     with self.assertRaisesRegex(NotImplementedError,
                                 r'timestamp_attribute is not supported'):
+      p = TestPipeline(options=options)
+      _ = (p
+           | Create(payloads)
+           | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                           timestamp_attribute='timestamp'))
       p.run()
 
 

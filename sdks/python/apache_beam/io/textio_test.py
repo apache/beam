@@ -590,12 +590,12 @@ class TextSourceTest(unittest.TestCase):
       with open(file_name, 'wb') as f:
         f.write(b'corrupt')
 
-      pipeline = TestPipeline()
-      pcoll = pipeline | 'Read' >> ReadFromText(
-          file_name,
-          compression_type=CompressionTypes.BZIP2)
-      assert_that(pcoll, equal_to(lines))
       with self.assertRaises(Exception):
+        pipeline = TestPipeline()
+        pcoll = pipeline | 'Read' >> ReadFromText(
+            file_name,
+            compression_type=CompressionTypes.BZIP2)
+        assert_that(pcoll, equal_to(lines))
         pipeline.run()
 
   def test_read_bzip2_concat(self):
@@ -663,14 +663,13 @@ class TextSourceTest(unittest.TestCase):
       with open(file_name, 'wb') as f:
         f.write(b'corrupt')
 
-      pipeline = TestPipeline()
-      pcoll = pipeline | 'Read' >> ReadFromText(
-          file_name,
-          0, CompressionTypes.DEFLATE,
-          True, coders.StrUtf8Coder())
-      assert_that(pcoll, equal_to(lines))
-
       with self.assertRaises(Exception):
+        pipeline = TestPipeline()
+        pcoll = pipeline | 'Read' >> ReadFromText(
+            file_name,
+            0, CompressionTypes.DEFLATE,
+            True, coders.StrUtf8Coder())
+        assert_that(pcoll, equal_to(lines))
         pipeline.run()
 
   def test_read_deflate_concat(self):
@@ -713,6 +712,7 @@ class TextSourceTest(unittest.TestCase):
 
       expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
       assert_that(lines, equal_to(expected))
+      pipeline.run()
 
   def test_read_gzip(self):
     _, lines = write_data(15)
@@ -738,14 +738,13 @@ class TextSourceTest(unittest.TestCase):
       with open(file_name, 'wb') as f:
         f.write(b'corrupt')
 
-      pipeline = TestPipeline()
-      pcoll = pipeline | 'Read' >> ReadFromText(
-          file_name,
-          0, CompressionTypes.GZIP,
-          True, coders.StrUtf8Coder())
-      assert_that(pcoll, equal_to(lines))
-
       with self.assertRaises(Exception):
+        pipeline = TestPipeline()
+        pcoll = pipeline | 'Read' >> ReadFromText(
+            file_name,
+            0, CompressionTypes.GZIP,
+            True, coders.StrUtf8Coder())
+        assert_that(pcoll, equal_to(lines))
         pipeline.run()
 
   def test_read_gzip_concat(self):
@@ -788,6 +787,7 @@ class TextSourceTest(unittest.TestCase):
 
       expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
       assert_that(lines, equal_to(expected))
+      pipeline.run()
 
   def test_read_all_gzip(self):
     _, lines = write_data(100)

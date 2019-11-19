@@ -100,8 +100,7 @@ def run(argv=None, save_main_session=True):
   # pylint: disable=expression-not-assigned
   output | beam.io.WriteToPubSub(known_args.output_topic)
 
-  result = p.run()
-  result.wait_until_finish()
+  p.run()
 
 
 if __name__ == '__main__':
