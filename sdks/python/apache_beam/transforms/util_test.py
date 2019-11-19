@@ -310,28 +310,28 @@ class IdentityWindowTest(unittest.TestCase):
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
-    pipeline = TestPipeline()
-    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    expected_windows = [
-        TestWindowedValue(kv, expected_timestamp, [expected_window])
-        for kv in data]
-    before_identity = (pipeline
-                       | 'start' >> beam.Create(data)
-                       | 'add_timestamps' >> beam.ParDo(AddTimestampDoFn()))
-    assert_that(before_identity, equal_to(expected_windows),
-                label='before_identity', reify_windows=True)
-    after_identity = (before_identity
-                      | 'window' >> beam.WindowInto(
-                          beam.transforms.util._IdentityWindowFn(
-                              coders.GlobalWindowCoder()))
-                      # This DoFn will return TimestampedValues, making
-                      # WindowFn.AssignContext passed to IdentityWindowFn
-                      # contain a window of None. IdentityWindowFn should
-                      # raise an exception.
-                      | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
-    assert_that(after_identity, equal_to(expected_windows),
-                label='after_identity', reify_windows=True)
     with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
+      pipeline = TestPipeline()
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+      expected_windows = [
+          TestWindowedValue(kv, expected_timestamp, [expected_window])
+          for kv in data]
+      before_identity = (pipeline
+                         | 'start' >> beam.Create(data)
+                         | 'add_timestamps' >> beam.ParDo(AddTimestampDoFn()))
+      assert_that(before_identity, equal_to(expected_windows),
+                  label='before_identity', reify_windows=True)
+      after_identity = (before_identity
+                        | 'window' >> beam.WindowInto(
+                            beam.transforms.util._IdentityWindowFn(
+                                coders.GlobalWindowCoder()))
+                        # This DoFn will return TimestampedValues, making
+                        # WindowFn.AssignContext passed to IdentityWindowFn
+                        # contain a window of None. IdentityWindowFn should
+                        # raise an exception.
+                        | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
+      assert_that(after_identity, equal_to(expected_windows),
+                  label='after_identity', reify_windows=True)
       pipeline.run()
 
 class ReshuffleTest(unittest.TestCase):
@@ -618,11 +618,9 @@ class GroupIntoBatchesTest(unittest.TestCase):
                  | WindowInto(FixedWindows(window_duration)) \
                  | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
     num_elements_in_batches = collection | beam.Map(len)
-
-    result = pipeline.run()
-    result.wait_until_finish()
     assert_that(num_elements_in_batches,
                 equal_to([expected_0, expected_1, expected_2]))
+    pipeline.run()
 
 
 class ToStringTest(unittest.TestCase):

@@ -529,8 +529,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
     assert_that(actual_values, equal_to([1, 3, 6, 10, 10]))
 
-    result = p.run()
-    result.wait_until_finish()
+    p.run()
 
   def test_stateful_set_state_clean_portably(self):
 
@@ -570,8 +569,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
     assert_that(actual_values, equal_to([[100]]))
 
-    result = p.run()
-    result.wait_until_finish()
+    p.run()
 
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()

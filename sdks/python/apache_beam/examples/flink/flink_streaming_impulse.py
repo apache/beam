@@ -91,8 +91,7 @@ def run(argv=None):
        | 'count' >> beam.Map(count)
        | 'log' >> beam.Map(lambda x: logging.info("%d" % x[1])))
 
-  result = p.run()
-  result.wait_until_finish()
+  p.run()
 
 
 if __name__ == '__main__':

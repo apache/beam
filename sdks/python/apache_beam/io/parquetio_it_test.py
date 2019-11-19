@@ -72,8 +72,7 @@ class TestParquetIT(unittest.TestCase):
     pcol = self._generate_data(
         p, file_prefix, init_size, data_size)
     self._verify_data(pcol, init_size, data_size)
-    result = p.run()
-    result.wait_until_finish()
+    p.run()
 
   @staticmethod
   def _sum_verifier(init_size, data_size, x):

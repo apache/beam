@@ -560,8 +560,7 @@ def examples_wordcount_templated(renames):
   )
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  result = p.run()
-  result.wait_until_finish()
+  p.run()
 
 
 def examples_wordcount_debugging(renames):
@@ -727,8 +726,7 @@ def examples_ptransforms_templated(renames):
   my_sum_fn.templated_int = StaticValueProvider(int, 10)
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  result = p.run()
-  result.wait_until_finish()
+  p.run()
 
 
 # Defining a new source.

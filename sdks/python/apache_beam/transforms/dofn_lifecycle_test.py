@@ -82,8 +82,7 @@ class DoFnLifecycleTest(unittest.TestCase):
     _ = (p
          | 'Start' >> beam.Create([1, 2, 3])
          | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
-    result = p.run()
-    result.wait_until_finish()
+    p.run()
     # Assumes that the worker is run in the same process as the test.
 
 

@@ -64,7 +64,7 @@ class WordExtractingDoFn(beam.DoFn):
     return words
 
 
-def run(p, input_file, output_file):
+def build_pipeline(p, input_file, output_file):
   # Read the text file[pattern] into a PCollection.
   lines = p | 'read' >> ReadFromText(input_file)
 
@@ -84,9 +84,6 @@ def run(p, input_file, output_file):
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
   output | 'write' >> WriteToText(output_file)
-
-  result = p.run()
-  result.wait_until_finish()
 
 
 def main():
@@ -117,10 +114,6 @@ def main():
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
-  p = beam.Pipeline(options=pipeline_options)
-  # Preemptively start due to BEAM-6666.
-  p.runner.create_job_service(pipeline_options)
-
   try:
     server = subprocess.Popen([
         'java', '-jar', known_args.expansion_service_jar,
@@ -129,7 +122,11 @@ def main():
     with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
       grpc.channel_ready_future(channel).result()
 
-    run(p, known_args.input, known_args.output)
+    with beam.Pipeline(options=pipeline_options) as p:
+      # Preemptively start due to BEAM-6666.
+      p.runner.create_job_service(pipeline_options)
+
+      build_pipeline(p, known_args.input, known_args.output)
 
   finally:
     server.kill()

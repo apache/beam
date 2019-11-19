@@ -177,8 +177,7 @@ def run(argv=None):
       use_global_window=False,
       label='Assert correct streaming windowing.')
 
-  result = p.run()
-  result.wait_until_finish()
+  p.run()
 
 
 if __name__ == '__main__':
