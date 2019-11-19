@@ -55,6 +55,8 @@ _FILE_STATUS_TYPE = 'type'
 _FILE_STATUS_TYPE_DIRECTORY = 'DIRECTORY'
 _FILE_STATUS_TYPE_FILE = 'FILE'
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class HdfsDownloader(filesystemio.Downloader):
 
@@ -196,7 +198,7 @@ class HadoopFileSystem(FileSystem):
   @staticmethod
   def _add_compression(stream, path, mime_type, compression_type):
     if mime_type != 'application/octet-stream':
-      logging.warning('Mime types are not supported. Got non-default mime_type:'
+      _LOGGER.warning('Mime types are not supported. Got non-default mime_type:'
                       ' %s', mime_type)
     if compression_type == CompressionTypes.AUTO:
       compression_type = CompressionTypes.detect_compression_type(path)

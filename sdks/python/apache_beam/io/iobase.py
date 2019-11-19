@@ -61,6 +61,9 @@ __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 # Encapsulates information about a bundle of a source generated when method
 # BoundedSource.split() is invoked.
 # This is a named 4-tuple that has following fields.
@@ -1075,7 +1078,7 @@ def _finalize_write(unused_element, sink, init_result, write_results,
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
-    logging.debug(
+    _LOGGER.debug(
         'Creating %s empty shard(s).', min_shards - len(write_results))
     for _ in range(min_shards - len(write_results)):
       writer = sink.open_writer(init_result, str(uuid.uuid4()))
@@ -1402,67 +1405,93 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
   NOTE: This transform can only be used with beam_fn_api enabled.
   """
+
+  class _SDFBoundedSourceRestriction(object):
+    """ A restriction wraps SourceBundle and RangeTracker. """
+    def __init__(self, source_bundle, range_tracker=None):
+      self._source_bundle = source_bundle
+      self._range_tracker = range_tracker
+
+    def __reduce__(self):
+      # The instance of RangeTracker shouldn't be serialized.
+      return (self.__class__, (self._source_bundle, ))
+
+    def range_tracker(self):
+      if not self._range_tracker:
+        self._range_tracker = self._source_bundle.source.get_range_tracker(
+            self._source_bundle.start_position,
+            self._source_bundle.stop_position)
+      return self._range_tracker
+
+    def weight(self):
+      return self._source_bundle.weight
+
+    def source(self):
+      return self._source_bundle.source
+
+    def try_split(self, fraction_of_remainder):
+      consumed_fraction = self.range_tracker().fraction_consumed()
+      fraction = (consumed_fraction +
+                  (1 - consumed_fraction) * fraction_of_remainder)
+      position = self.range_tracker().position_at_fraction(fraction)
+      # Need to stash current stop_pos before splitting since
+      # range_tracker.split will update its stop_pos if splits
+      # successfully.
+      stop_pos = self._source_bundle.stop_position
+      split_result = self.range_tracker().try_split(position)
+      if split_result:
+        split_pos, split_fraction = split_result
+        primary_weight = self._source_bundle.weight * split_fraction
+        residual_weight = self._source_bundle.weight - primary_weight
+        # Update self to primary weight and end position.
+        self._source_bundle = SourceBundle(primary_weight,
+                                           self._source_bundle.source,
+                                           self._source_bundle.start_position,
+                                           split_pos)
+        return (self, _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+            SourceBundle(residual_weight,
+                         self._source_bundle.source,
+                         split_pos,
+                         stop_pos)))
+
+
   class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     """An `iobase.RestrictionTracker` implementations for wrapping BoundedSource
-    with SDF.
+    with SDF. The tracked restriction is a _SDFBoundedSourceRestriction, which
+    wraps SourceBundle and RangeTracker.
 
     Delegated RangeTracker guarantees synchronization safety.
     """
     def __init__(self, restriction):
-      if not isinstance(restriction, SourceBundle):
+      if not isinstance(restriction,
+                        _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction):
         raise ValueError('Initializing SDFBoundedSourceRestrictionTracker'
-                         'requires a SourceBundle')
-      self._delegate_range_tracker = restriction.source.get_range_tracker(
-          restriction.start_position, restriction.stop_position)
-      self._source = restriction.source
-      self._weight = restriction.weight
+                         ' requires a _SDFBoundedSourceRestriction')
+      self.restriction = restriction
 
     def current_progress(self):
       return RestrictionProgress(
-          fraction=self._delegate_range_tracker.fraction_consumed())
+          fraction=self.restriction.range_tracker().fraction_consumed())
 
     def current_restriction(self):
-      start_pos = self._delegate_range_tracker.start_position()
-      stop_pos = self._delegate_range_tracker.stop_position()
-      return SourceBundle(
-          self._weight,
-          self._source,
-          start_pos,
-          stop_pos)
+      self.restriction.range_tracker()
+      return self.restriction
 
     def start_pos(self):
-      return self._delegate_range_tracker.start_position()
+      return self.restriction.range_tracker().start_position()
 
     def stop_pos(self):
-      return self._delegate_range_tracker.stop_position()
+      return self.restriction.range_tracker().stop_position()
 
     def try_claim(self, position):
-      return self._delegate_range_tracker.try_claim(position)
+      return self.restriction.range_tracker().try_claim(position)
 
     def try_split(self, fraction_of_remainder):
-      consumed_fraction = self._delegate_range_tracker.fraction_consumed()
-      fraction = (consumed_fraction +
-                  (1 - consumed_fraction) * fraction_of_remainder)
-      position = self._delegate_range_tracker.position_at_fraction(fraction)
-      # Need to stash current stop_pos before splitting since
-      # range_tracker.split will update its stop_pos if splits
-      # successfully.
-      start_pos = self.start_pos()
-      stop_pos = self.stop_pos()
-      split_result = self._delegate_range_tracker.try_split(position)
-      if split_result:
-        split_pos, split_fraction = split_result
-        primary_weight = self._weight * split_fraction
-        residual_weight = self._weight - primary_weight
-        # Update self._weight to primary weight
-        self._weight = primary_weight
-        return (SourceBundle(primary_weight, self._source, start_pos,
-                             split_pos),
-                SourceBundle(residual_weight, self._source, split_pos,
-                             stop_pos))
+      return self.restriction.try_split(fraction_of_remainder)
 
     def check_done(self):
-      return self._delegate_range_tracker.fraction_consumed() >= 1.0
+      return self.restriction.range_tracker().fraction_consumed() >= 1.0
+
 
   class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""
@@ -1474,10 +1503,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     def initial_restriction(self, element):
       # Get initial range_tracker from source
       range_tracker = self._source.get_range_tracker(None, None)
-      return SourceBundle(None,
-                          self._source,
-                          range_tracker.start_position(),
-                          range_tracker.stop_position())
+      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+          SourceBundle(None,
+                       self._source,
+                       range_tracker.start_position(),
+                       range_tracker.stop_position()))
 
     def create_tracker(self, restriction):
       return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
@@ -1487,10 +1517,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       # Invoke source.split to get initial splitting results.
       source_bundles = self._source.split(self._desired_chunk_size)
       for source_bundle in source_bundles:
-        yield source_bundle
+        yield _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+            source_bundle)
 
     def restriction_size(self, element, restriction):
-      return restriction.weight
+      return restriction.weight()
 
     def restriction_coder(self):
       return coders.DillCoder()
@@ -1516,12 +1547,10 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
               _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
                   source, chunk_size))):
         current_restriction = restriction_tracker.current_restriction()
-        assert isinstance(current_restriction, SourceBundle)
-        tracking_source = current_restriction.source
-        start = current_restriction.start_position
-        stop = current_restriction.stop_position
-        return tracking_source.read(tracking_source.get_range_tracker(start,
-                                                                      stop))
+        assert isinstance(current_restriction,
+                          _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction)
+        return current_restriction.source().read(
+            current_restriction.range_tracker())
 
     return SDFBoundedSourceDoFn(self.source)
 

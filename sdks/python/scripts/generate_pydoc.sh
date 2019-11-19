@@ -187,6 +187,7 @@ ignore_identifiers = [
 
   # Sphinx cannot find this py:class reference target
   'typing.Generic',
+  'concurrent.futures._base.Executor',
 ]
 
 # When inferring a base class it will use ':py:class'; if inferring a function

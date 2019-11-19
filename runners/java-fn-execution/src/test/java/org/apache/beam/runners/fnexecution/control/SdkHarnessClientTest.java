@@ -627,8 +627,6 @@ public class SdkHarnessClientTest {
 
   @Test
   public void testBundleCheckpointCallback() throws Exception {
-    Exception testException = new Exception();
-
     InboundDataClient mockOutputReceiver = mock(InboundDataClient.class);
     CloseableFnDataReceiver mockInputSender = mock(CloseableFnDataReceiver.class);
 
@@ -658,8 +656,6 @@ public class SdkHarnessClientTest {
         ProcessBundleResponse.newBuilder()
             .addResidualRoots(DelayedBundleApplication.getDefaultInstance())
             .build();
-    ArrayList<ProcessBundleResponse> checkpoints = new ArrayList<>();
-
     try (ActiveBundle activeBundle =
         processor.newBundle(
             ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
@@ -680,8 +676,6 @@ public class SdkHarnessClientTest {
 
   @Test
   public void testBundleFinalizationCallback() throws Exception {
-    Exception testException = new Exception();
-
     InboundDataClient mockOutputReceiver = mock(InboundDataClient.class);
     CloseableFnDataReceiver mockInputSender = mock(CloseableFnDataReceiver.class);
 
@@ -709,8 +703,7 @@ public class SdkHarnessClientTest {
 
     ProcessBundleResponse response =
         ProcessBundleResponse.newBuilder().setRequiresFinalization(true).build();
-    ArrayList<ProcessBundleResponse> checkpoints = new ArrayList<>();
-
+    String bundleId;
     try (ActiveBundle activeBundle =
         processor.newBundle(
             ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
@@ -720,12 +713,13 @@ public class SdkHarnessClientTest {
             mockProgressHandler,
             mockCheckpointHandler,
             mockFinalizationHandler)) {
+      bundleId = activeBundle.getId();
       processBundleResponseFuture.complete(
           InstructionResponse.newBuilder().setProcessBundle(response).build());
     }
 
     verify(mockProgressHandler).onCompleted(response);
-    verify(mockFinalizationHandler).requestsFinalization(response);
+    verify(mockFinalizationHandler).requestsFinalization(bundleId);
     verifyZeroInteractions(mockCheckpointHandler);
   }
 

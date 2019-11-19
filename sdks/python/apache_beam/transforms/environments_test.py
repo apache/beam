@@ -46,7 +46,7 @@ class RunnerApiTest(unittest.TestCase):
         ExternalEnvironment('localhost:8080', params={'k1': 'v1'}),
         EmbeddedPythonEnvironment(),
         EmbeddedPythonGrpcEnvironment(),
-        EmbeddedPythonGrpcEnvironment(num_workers=2, state_cache_size=0),
+        EmbeddedPythonGrpcEnvironment(state_cache_size=0),
         SubprocessSDKEnvironment(command_string=u'foö')):
       context = pipeline_context.PipelineContext()
       self.assertEqual(
@@ -54,13 +54,6 @@ class RunnerApiTest(unittest.TestCase):
           Environment.from_runner_api(
               environment.to_runner_api(context), context)
       )
-
-    with self.assertRaises(ValueError) as ctx:
-      EmbeddedPythonGrpcEnvironment(num_workers=2).to_runner_api(
-          pipeline_context.PipelineContext()
-      )
-    self.assertIn('Must provide worker num and state cache size.',
-                  ctx.exception.args)
 
 
 if __name__ == '__main__':

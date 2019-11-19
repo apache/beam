@@ -36,6 +36,8 @@ from threading import Timer
 
 from apache_beam.io import filesystems
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class Profile(object):
   """cProfile wrapper context for saving and logging profiler results."""
@@ -53,14 +55,14 @@ class Profile(object):
     self.profile_output = None
 
   def __enter__(self):
-    logging.info('Start profiling: %s', self.profile_id)
+    _LOGGER.info('Start profiling: %s', self.profile_id)
     self.profile = cProfile.Profile()
     self.profile.enable()
     return self
 
   def __exit__(self, *args):
     self.profile.disable()
-    logging.info('Stop profiling: %s', self.profile_id)
+    _LOGGER.info('Stop profiling: %s', self.profile_id)
 
     if self.profile_location:
       dump_location = os.path.join(
@@ -70,7 +72,7 @@ class Profile(object):
       try:
         os.close(fd)
         self.profile.dump_stats(filename)
-        logging.info('Copying profiler data to: [%s]', dump_location)
+        _LOGGER.info('Copying profiler data to: [%s]', dump_location)
         self.file_copy_fn(filename, dump_location)
       finally:
         os.remove(filename)
@@ -81,7 +83,7 @@ class Profile(object):
       self.stats = pstats.Stats(
           self.profile, stream=s).sort_stats(Profile.SORTBY)
       self.stats.print_stats()
-      logging.info('Profiler data: [%s]', s.getvalue())
+      _LOGGER.info('Profiler data: [%s]', s.getvalue())
 
   @staticmethod
   def default_file_copy_fn(src, dest):
@@ -176,5 +178,5 @@ class MemoryReporter(object):
       return
     report_start_time = time.time()
     heap_profile = self._hpy().heap()
-    logging.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
+    _LOGGER.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
                  heap_profile, time.time() - report_start_time)

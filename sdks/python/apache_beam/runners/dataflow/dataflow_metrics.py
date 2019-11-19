@@ -40,6 +40,8 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def _get_match(proto, filter_fn):
   """Finds and returns the first element that matches a query.
@@ -280,10 +282,10 @@ def main(argv):
   dataflow_client = apiclient.DataflowApplicationClient(options)
   df_metrics = DataflowMetrics(dataflow_client)
   all_metrics = df_metrics.all_metrics(job_id=flags.job_id)
-  logging.info('Printing all MetricResults for %s in %s',
+  _LOGGER.info('Printing all MetricResults for %s in %s',
                flags.job_id, flags.project)
   for metric_result in all_metrics:
-    logging.info(metric_result)
+    _LOGGER.info(metric_result)
 
 
 if __name__ == '__main__':

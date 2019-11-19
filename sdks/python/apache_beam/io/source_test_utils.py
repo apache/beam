@@ -68,6 +68,9 @@ __all__ = ['read_from_source',
            'assert_split_at_fraction_succeeds_and_consistent']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class ExpectedSplitOutcome(object):
   MUST_SUCCEED_AND_BE_CONSISTENT = 1
   MUST_FAIL = 2
@@ -588,7 +591,7 @@ def assert_split_at_fraction_exhaustive(
         num_trials += 1
         if (num_trials >
             MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM):
-          logging.warning(
+          _LOGGER.warning(
               'After %d concurrent splitting trials at item #%d, observed '
               'only %s, giving up on this item',
               num_trials,
@@ -604,7 +607,7 @@ def assert_split_at_fraction_exhaustive(
           have_failure = True
 
         if have_success and have_failure:
-          logging.info('%d trials to observe both success and failure of '
+          _LOGGER.info('%d trials to observe both success and failure of '
                        'concurrent splitting at item #%d', num_trials, i)
           break
     finally:
@@ -613,11 +616,11 @@ def assert_split_at_fraction_exhaustive(
     num_total_trials += num_trials
 
     if num_total_trials > MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL:
-      logging.warning('After %d total concurrent splitting trials, considered '
+      _LOGGER.warning('After %d total concurrent splitting trials, considered '
                       'only %d items, giving up.', num_total_trials, i)
       break
 
-  logging.info('%d total concurrent splitting trials for %d items',
+  _LOGGER.info('%d total concurrent splitting trials for %d items',
                num_total_trials, len(expected_items))
 
 

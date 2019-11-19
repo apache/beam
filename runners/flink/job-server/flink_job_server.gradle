@@ -153,6 +153,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       if (streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }

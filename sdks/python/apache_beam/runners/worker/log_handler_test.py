@@ -20,7 +20,6 @@ from __future__ import absolute_import
 import logging
 import unittest
 from builtins import range
-from concurrent import futures
 
 import grpc
 
@@ -28,6 +27,9 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.worker import log_handler
+from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
@@ -47,7 +49,7 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
 
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
-    self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    self.server = grpc.server(UnboundedThreadPoolExecutor())
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         self.test_logging_service, self.server)
     self.test_port = self.server.add_insecure_port('[::]:0')
@@ -66,10 +68,10 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
 
   def _verify_fn_log_handler(self, num_log_entries):
     msg = 'Testing fn logging'
-    logging.debug('Debug Message 1')
+    _LOGGER.debug('Debug Message 1')
     for idx in range(num_log_entries):
-      logging.info('%s: %s', msg, idx)
-    logging.debug('Debug Message 2')
+      _LOGGER.info('%s: %s', msg, idx)
+    _LOGGER.debug('Debug Message 2')
 
     # Wait for logs to be sent to server.
     self.fn_log_handler.close()

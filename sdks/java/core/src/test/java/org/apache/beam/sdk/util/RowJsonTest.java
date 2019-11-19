@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
+import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
@@ -66,6 +67,7 @@ public class RowJsonTest {
     public static Collection<Object[]> data() {
       return ImmutableList.of(
           makeFlatRowTestCase(),
+          makeLogicalTypeTestCase(),
           makeArrayFieldTestCase(),
           makeArrayOfArraysTestCase(),
           makeNestedRowTestCase(),
@@ -115,6 +117,22 @@ public class RowJsonTest {
               .build();
 
       return new Object[] {"Flat row", schema, rowString, expectedRow};
+    }
+
+    private static Object[] makeLogicalTypeTestCase() {
+      Schema schema =
+          Schema.builder()
+              .addLogicalTypeField(
+                  "f_passThroughString",
+                  new LogicalTypes.PassThroughLogicalType<String>(
+                      "SqlCharType", "", FieldType.STRING) {})
+              .build();
+
+      String rowString = "{\n" + "\"f_passThroughString\" : \"hello\"\n" + "}";
+
+      Row expectedRow = Row.withSchema(schema).addValues("hello").build();
+
+      return new Object[] {"Logical Types", schema, rowString, expectedRow};
     }
 
     private static Object[] makeArrayFieldTestCase() {

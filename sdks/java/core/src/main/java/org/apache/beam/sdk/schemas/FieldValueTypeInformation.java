@@ -98,7 +98,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setType(type)
         .setRawType(type.getRawType())
         .setField(field)
-        .setElementType(getArrayComponentType(field))
+        .setElementType(getIterableComponentType(field))
         .setMapKeyType(getMapKeyType(field))
         .setMapValueType(getMapValueType(field))
         .build();
@@ -122,7 +122,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setType(type)
         .setRawType(type.getRawType())
         .setMethod(method)
-        .setElementType(getArrayComponentType(type))
+        .setElementType(getIterableComponentType(type))
         .setMapKeyType(getMapKeyType(type))
         .setMapValueType(getMapValueType(type))
         .build();
@@ -147,7 +147,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setType(type)
         .setRawType(type.getRawType())
         .setMethod(method)
-        .setElementType(getArrayComponentType(type))
+        .setElementType(getIterableComponentType(type))
         .setMapKeyType(getMapKeyType(type))
         .setMapValueType(getMapValueType(type))
         .build();
@@ -157,12 +157,12 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return toBuilder().setName(name).build();
   }
 
-  private static FieldValueTypeInformation getArrayComponentType(Field field) {
-    return getArrayComponentType(TypeDescriptor.of(field.getGenericType()));
+  private static FieldValueTypeInformation getIterableComponentType(Field field) {
+    return getIterableComponentType(TypeDescriptor.of(field.getGenericType()));
   }
 
   @Nullable
-  private static FieldValueTypeInformation getArrayComponentType(TypeDescriptor valueType) {
+  private static FieldValueTypeInformation getIterableComponentType(TypeDescriptor valueType) {
     // TODO: Figure out nullable elements.
     TypeDescriptor componentType = null;
     if (valueType.isArray()) {
@@ -170,8 +170,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
       if (!component.equals(byte.class)) {
         componentType = TypeDescriptor.of(component);
       }
-    } else if (valueType.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
-      TypeDescriptor<Collection<?>> collection = valueType.getSupertype(Collection.class);
+    } else if (valueType.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
+      TypeDescriptor<Iterable<?>> collection = valueType.getSupertype(Iterable.class);
       if (collection.getType() instanceof ParameterizedType) {
         ParameterizedType ptype = (ParameterizedType) collection.getType();
         java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
@@ -190,7 +190,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setNullable(false)
         .setType(componentType)
         .setRawType(componentType.getRawType())
-        .setElementType(getArrayComponentType(componentType))
+        .setElementType(getIterableComponentType(componentType))
         .setMapKeyType(getMapKeyType(componentType))
         .setMapValueType(getMapValueType(componentType))
         .build();
@@ -242,7 +242,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setNullable(false)
         .setType(mapType)
         .setRawType(mapType.getRawType())
-        .setElementType(getArrayComponentType(mapType))
+        .setElementType(getIterableComponentType(mapType))
         .setMapKeyType(getMapKeyType(mapType))
         .setMapValueType(getMapValueType(mapType))
         .build();

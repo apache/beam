@@ -29,23 +29,17 @@ import static org.junit.Assert.assertEquals;
 
 import com.mongodb.MongoClient;
 import java.util.Arrays;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.io.mongodb.MongoDBIOIT.MongoDBPipelineOptions;
-import org.apache.beam.sdk.io.mongodb.MongoDbIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.bson.Document;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -115,8 +109,6 @@ public class MongoDbReadWriteIT {
 
   @Test
   public void testWriteAndRead() {
-    final String mongoUrl =
-        String.format("mongodb://%s:%d", options.getMongoDBHostName(), options.getMongoDBPort());
     final String mongoSqlUrl =
         String.format(
             "mongodb://%s:%d/%s/%s",
@@ -139,20 +131,6 @@ public class MongoDbReadWriteIT {
             "varchar",
             Arrays.asList("123", "456"));
 
-    writePipeline
-        .apply(Create.of(testRow))
-        .setRowSchema(SOURCE_SCHEMA)
-        .apply("Transform Rows to JSON", ToJson.of())
-        .apply("Produce documents from JSON", MapElements.via(new ObjectToDocumentFn()))
-        .apply(
-            "Write documents to MongoDB",
-            MongoDbIO.write()
-                .withUri(mongoUrl)
-                .withDatabase(options.getMongoDBDatabaseName())
-                .withCollection(collection));
-    PipelineResult writeResult = writePipeline.run();
-    writeResult.waitUntilFinish();
-
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
             + "   _id VARCHAR, \n "
@@ -170,9 +148,26 @@ public class MongoDbReadWriteIT {
             + "LOCATION '"
             + mongoSqlUrl
             + "'";
-
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new MongoDbTableProvider());
     sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "'object_id', "
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "'varchar', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    BeamRelNode insertRelNode = sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(writePipeline, insertRelNode);
+    writePipeline.run().waitUntilFinish();
 
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery("select * from TEST"));
@@ -182,13 +177,6 @@ public class MongoDbReadWriteIT {
     PAssert.that(output).containsInAnyOrder(testRow);
 
     readPipeline.run().waitUntilFinish();
-  }
-
-  private static class ObjectToDocumentFn extends SimpleFunction<String, Document> {
-    @Override
-    public Document apply(String input) {
-      return Document.parse(input);
-    }
   }
 
   private Row row(Schema schema, Object... values) {

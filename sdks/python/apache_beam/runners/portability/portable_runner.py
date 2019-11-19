@@ -20,13 +20,11 @@ from __future__ import absolute_import
 import functools
 import itertools
 import logging
-import sys
 import threading
 import time
 
 import grpc
 
-from apache_beam import version as beam_version
 from apache_beam.metrics import metric
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.options.pipeline_options import DebugOptions
@@ -65,6 +63,8 @@ TERMINAL_STATES = [
 
 ENV_TYPE_ALIASES = {'LOOPBACK': 'EXTERNAL'}
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class PortableRunner(runner.PipelineRunner):
   """
@@ -77,22 +77,6 @@ class PortableRunner(runner.PipelineRunner):
   """
   def __init__(self):
     self._dockerized_job_server = None
-
-  @staticmethod
-  def default_docker_image():
-    sdk_version = beam_version.__version__
-    version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
-    logging.warning('Make sure that locally built Python SDK docker image '
-                    'has Python %d.%d interpreter.' % (
-                        sys.version_info[0], sys.version_info[1]))
-
-    image = ('apachebeam/python{version_suffix}_sdk:{tag}'.format(
-        version_suffix=version_suffix, tag=sdk_version))
-    logging.info(
-        'Using Python SDK docker image: %s. If the image is not '
-        'available at local, we will try to pull from hub.docker.com'
-        % (image))
-    return image
 
   @staticmethod
   def _create_environment(options):
@@ -157,7 +141,6 @@ class PortableRunner(runner.PipelineRunner):
               'use_loopback_process_worker', False)
       portable_options.environment_config, server = (
           worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
-              sdk_worker_main._get_worker_count(options),
               state_cache_size=sdk_worker_main._get_state_cache_size(options),
               use_process=use_loopback_process_worker))
       cleanup_callbacks = [functools.partial(server.stop, 1)]
@@ -264,7 +247,7 @@ class PortableRunner(runner.PipelineRunner):
           # only in this case is duplicate not treated as error
           if 'conflicting option string' not in str(e):
             raise
-          logging.debug("Runner option '%s' was already added" % option.name)
+          _LOGGER.debug("Runner option '%s' was already added" % option.name)
 
     all_options = options.get_all_options(add_extra_args_fn=add_runner_options)
     # TODO: Define URNs for options.
@@ -276,13 +259,16 @@ class PortableRunner(runner.PipelineRunner):
     prepare_request = beam_job_api_pb2.PrepareJobRequest(
         job_name='job', pipeline=proto_pipeline,
         pipeline_options=job_utils.dict_to_struct(p_options))
-    logging.debug('PrepareJobRequest: %s', prepare_request)
+    _LOGGER.debug('PrepareJobRequest: %s', prepare_request)
     prepare_response = job_service.Prepare(
         prepare_request,
         timeout=portable_options.job_server_timeout)
-    if prepare_response.artifact_staging_endpoint.url:
+    artifact_endpoint = (portable_options.artifact_endpoint
+                         if portable_options.artifact_endpoint
+                         else prepare_response.artifact_staging_endpoint.url)
+    if artifact_endpoint:
       stager = portable_stager.PortableStager(
-          grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
+          grpc.insecure_channel(artifact_endpoint),
           prepare_response.staging_session_token)
       retrieval_token, _ = stager.stage_job_resources(
           options,
@@ -324,8 +310,15 @@ class PortableRunner(runner.PipelineRunner):
           beam_job_api_pb2.JobMessagesRequest(
               job_id=run_response.job_id))
 
-    return PipelineResult(job_service, run_response.job_id, message_stream,
-                          state_stream, cleanup_callbacks)
+    result = PipelineResult(job_service, run_response.job_id, message_stream,
+                            state_stream, cleanup_callbacks)
+    if cleanup_callbacks:
+      # We wait here to ensure that we run the cleanup callbacks.
+      logging.info('Waiting until the pipeline has finished because the '
+                   'environment "%s" has started a component necessary for the '
+                   'execution.', portable_options.environment_type)
+      result.wait_until_finish()
+    return result
 
 
 class PortableMetrics(metric.MetricResults):
@@ -421,7 +414,7 @@ class PipelineResult(runner.PipelineResult):
               "%s",
               message.message_response.message_text)
         else:
-          logging.info(
+          _LOGGER.info(
               "Job state changed to %s",
               self._runner_api_state_to_pipeline_state(
                   message.state_response.state))
