@@ -44,6 +44,10 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.window import TimestampCombiner
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
 
