@@ -498,6 +498,19 @@ public class DataflowPipelineJob implements PipelineResult {
     }
   }
 
+  /**
+   * Attempts to start draining the pipeline. waitUntilFinish can be used to wait for the pipeline
+   * to complete draining.
+   */
+  public boolean startDrain() throws IOException {
+    Job content = new Job();
+    content.setProjectId(getProjectId());
+    content.setId(getJobId());
+    content.setRequestedState("JOB_STATE_DRAINING");
+    Job response = dataflowClient.updateJob(getJobId(), content);
+    return response.getCurrentState().equals("JOB_STATE_DRAINING");
+  }
+
   @Override
   public State getState() {
     if (terminalState != null) {

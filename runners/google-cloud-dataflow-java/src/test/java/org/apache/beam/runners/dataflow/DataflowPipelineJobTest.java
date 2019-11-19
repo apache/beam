@@ -509,6 +509,46 @@ public class DataflowPipelineJobTest {
     verifyNoMoreInteractions(mockJobs);
   }
 
+  @Test
+  public void testDrainUnterminatedJobThatSucceeds() throws IOException {
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
+    when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
+        .thenReturn(update);
+    when(update.execute()).thenReturn(new Job().setCurrentState("JOB_STATE_DRAINING"));
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
+
+    assertEquals(true, job.startDrain());
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_DRAINING");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), eq(content));
+    verifyNoMoreInteractions(mockJobs);
+  }
+
+  @Test
+  public void testDrainUnterminatedJobThatFails() throws IOException {
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
+    when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
+        .thenReturn(update);
+    when(update.execute()).thenReturn(new Job().setCurrentState("JOB_STATE_CANCELLED"));
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
+
+    assertEquals(false, job.startDrain());
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_DRAINING");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), eq(content));
+    verifyNoMoreInteractions(mockJobs);
+  }
+
   /** Tests that a {@link DataflowPipelineJob} does not duplicate messages. */
   @Test
   public void testWaitUntilFinishNoRepeatedLogs() throws Exception {
