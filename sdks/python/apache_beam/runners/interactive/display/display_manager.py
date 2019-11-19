@@ -47,6 +47,11 @@ except ImportError:
   IPython = None
   _display_progress = print
 
+try:
+  unicode
+except NameError:
+  unicode = lambda s: str(s, 'utf-8')  # pylint: disable=redefined-builtin
+
 
 class DisplayManager(object):
   """Manages displaying pipeline graph and execution status on the frontend."""
@@ -87,7 +92,7 @@ class DisplayManager(object):
             len(pipeline_proto.components.transforms[
                 pipeline_proto.root_transform_ids[0]].subtransforms))
     self._text_to_print.update({
-        pcoll_id: "" for pcoll_id
+        pcoll_id: '' for pcoll_id
         in self._analyzer.tl_referenced_pcoll_ids()})
 
     # _pcollection_stats maps pcoll_id to
@@ -147,13 +152,13 @@ class DisplayManager(object):
         if IPython:
           from IPython.core import display
           display.clear_output(True)
-          rendered_graph = self._renderer.render_pipeline_graph(
-              self._pipeline_graph)
+          rendered_graph = unicode(self._renderer.render_pipeline_graph(
+              self._pipeline_graph))
           display.display(display.HTML(rendered_graph))
 
         _display_progress('Running...')
         for text in self._text_to_print.values():
-          if text != "":
+          if text:
             _display_progress(text)
 
   def start_periodic_update(self):
