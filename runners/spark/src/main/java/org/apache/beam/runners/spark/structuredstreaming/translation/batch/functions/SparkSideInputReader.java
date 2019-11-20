@@ -34,6 +34,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.Sid
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -46,7 +47,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 public class SparkSideInputReader implements SideInputReader {
   /** A {@link Materializations.MultimapView} which always returns an empty iterable. */
   private static final Materializations.MultimapView EMPTY_MULTIMAP_VIEW =
-      o -> Collections.EMPTY_LIST;
+      new MultimapView() {
+        @Override
+        public Iterable get() {
+          return Collections.EMPTY_LIST;
+        }
+
+        @Override
+        public Iterable get(@Nullable Object o) {
+          return Collections.EMPTY_LIST;
+        }
+      };
 
   private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
   private final SideInputBroadcast broadcastStateData;
