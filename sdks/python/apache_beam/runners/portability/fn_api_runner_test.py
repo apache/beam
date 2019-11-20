@@ -1586,21 +1586,17 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(use_state_iterables=True))
 
-  def test_state_backed_coder(self):
-    class MyDoFn(beam.DoFn):
-      def process(self, gbk_result):
-        value_list = gbk_result[1]
-        return (gbk_result[0], sum(value_list))
-
+  def test_gbk_many_values(self):
     with self.create_pipeline() as p:
       # The number of integers could be a knob to test against
       # different runners' default settings on page size.
-      main = (p | 'main' >> beam.Create([('a', 1) for _ in range(0, 20000)])
-              | 'GBK' >> beam.GroupByKey()
-              | 'Sum' >> beam.ParDo(MyDoFn()))
+      main = (p
+              | beam.Create([None])
+              | beam.FlatMap(lambda x: ((x, 1) for _ in range(20000)))
+              | beam.GroupByKey()
+              | 'Sum' >> beam.MapTuple(lambda key, values: sum(values)))
 
     assert_that(main, equal_to(['a', 20000]))
-    p.run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
