@@ -18,8 +18,9 @@
 """Tests for apache_beam.runners.interactive.display.pipeline_graph."""
 from __future__ import absolute_import
 
-import apache_beam as beam
 import unittest
+
+import apache_beam as beam
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
