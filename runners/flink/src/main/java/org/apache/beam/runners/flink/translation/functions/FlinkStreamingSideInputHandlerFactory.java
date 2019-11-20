@@ -20,18 +20,16 @@ package org.apache.beam.runners.flink.translation.functions;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.SideInputReference;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.IterableSideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -87,77 +85,75 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
   }
 
   @Override
-  public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
-      String transformId,
-      String sideInputId,
-      RunnerApi.FunctionSpec accessPattern,
-      Coder<T> elementCoder,
-      Coder<W> windowCoder) {
+  public <V, W extends BoundedWindow> IterableSideInputHandler<V, W> forIterableSideInput(
+      String transformId, String sideInputId, Coder<V> elementCoder, Coder<W> windowCoder) {
 
     PCollectionView collectionNode =
         sideInputToCollection.get(
             SideInputId.newBuilder().setTransformId(transformId).setLocalName(sideInputId).build());
     checkArgument(collectionNode != null, "No side input for %s/%s", transformId, sideInputId);
 
-    if (PTransformTranslation.ITERABLE_SIDE_INPUT.equals(accessPattern.getUrn())) {
-      @SuppressWarnings("unchecked") // T == V
-      Coder<V> outputCoder = (Coder<V>) elementCoder;
-      return forIterableSideInput(collectionNode, outputCoder);
-    } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())) {
-      @SuppressWarnings("unchecked") // T == KV<?, V>
-      KvCoder<?, V> kvCoder = (KvCoder<?, V>) elementCoder;
-      return forMultimapSideInput(collectionNode, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
-    } else {
-      throw new IllegalArgumentException(
-          String.format("Unknown side input access pattern: %s", accessPattern));
-    }
-  }
-
-  private <T, W extends BoundedWindow> SideInputHandler<T, W> forIterableSideInput(
-      PCollectionView<?> collection, Coder<T> elementCoder) {
-
-    return new SideInputHandler<T, W>() {
+    return new IterableSideInputHandler<V, W>() {
       @Override
-      public Iterable<T> get(byte[] key, W window) {
+      public Iterable<V> get(W window) {
         return checkNotNull(
-            (Iterable<T>) runnerHandler.getIterable(collection, window),
+            (Iterable<V>) runnerHandler.getIterable(collectionNode, window),
             "Element processed by SDK before side input is ready");
       }
 
       @Override
-      public Coder<T> resultCoder() {
+      public Coder<V> elementCoder() {
         return elementCoder;
       }
     };
   }
 
-  private <K, V, W extends BoundedWindow> SideInputHandler<V, W> forMultimapSideInput(
-      PCollectionView<?> collection, Coder<K> keyCoder, Coder<V> valueCoder) {
+  @Override
+  public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forMultimapSideInput(
+      String transformId, String sideInputId, KvCoder<K, V> elementCoder, Coder<W> windowCoder) {
 
-    return new SideInputHandler<V, W>() {
+    PCollectionView collectionNode =
+        sideInputToCollection.get(
+            SideInputId.newBuilder().setTransformId(transformId).setLocalName(sideInputId).build());
+    checkArgument(collectionNode != null, "No side input for %s/%s", transformId, sideInputId);
+
+    return new MultimapSideInputHandler<K, V, W>() {
       @Override
-      public Iterable<V> get(byte[] key, W window) {
+      public Iterable<V> get(K key, W window) {
         Iterable<KV<K, V>> values =
-            (Iterable<KV<K, V>>) runnerHandler.getIterable(collection, window);
+            (Iterable<KV<K, V>>) runnerHandler.getIterable(collectionNode, window);
+        Object structuralK = keyCoder().structuralValue(key);
         ArrayList<V> result = new ArrayList<>();
         // find values for the given key
         for (KV<K, V> kv : values) {
-          ByteArrayOutputStream bos = new ByteArrayOutputStream();
-          try {
-            keyCoder.encode(kv.getKey(), bos);
-            if (Arrays.equals(key, bos.toByteArray())) {
-              result.add(kv.getValue());
-            }
-          } catch (IOException ex) {
-            throw new RuntimeException(ex);
+          if (structuralK.equals(keyCoder().structuralValue(kv.getKey()))) {
+            result.add(kv.getValue());
           }
         }
-        return result;
+        return Collections.unmodifiableList(result);
       }
 
       @Override
-      public Coder<V> resultCoder() {
-        return valueCoder;
+      public Iterable<K> get(W window) {
+        Iterable<KV<K, V>> values =
+            (Iterable<KV<K, V>>) runnerHandler.getIterable(collectionNode, window);
+
+        Map<Object, K> result = new HashMap<>();
+        // find all keys
+        for (KV<K, V> kv : values) {
+          result.putIfAbsent(keyCoder().structuralValue(kv.getKey()), kv.getKey());
+        }
+        return Collections.unmodifiableCollection(result.values());
+      }
+
+      @Override
+      public Coder<K> keyCoder() {
+        return elementCoder.getKeyCoder();
+      }
+
+      @Override
+      public Coder<V> valueCoder() {
+        return elementCoder.getValueCoder();
       }
     };
   }
