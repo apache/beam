@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.planner;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregateProjectMergeRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
@@ -41,7 +42,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateProjectMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateUnionAggregateRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
@@ -96,7 +96,7 @@ public class BeamRuleSets {
           ProjectSetOpTransposeRule.INSTANCE,
 
           // aggregation and projection rules
-          AggregateProjectMergeRule.INSTANCE,
+          BeamAggregateProjectMergeRule.INSTANCE,
           // push a projection past a filter or vice versa
           ProjectFilterTransposeRule.INSTANCE,
           FilterProjectTransposeRule.INSTANCE,
