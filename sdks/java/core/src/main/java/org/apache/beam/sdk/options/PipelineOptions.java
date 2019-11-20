@@ -58,6 +58,9 @@ import org.joda.time.format.DateTimeFormatter;
  * {@link PipelineOptions#as(Class)} and can be accessed from within a {@link DoFn} by invoking
  * {@code getPipelineOptions()} on the input {@link DoFn.ProcessContext Context} object.
  *
+ * <p>Please don't implement {@link PipelineOptions}, it implies that it is backwards-incompatible
+ * to add new options. User-implemented {@link PipelineOptions} is not accepted by {@link Pipeline}.
+ *
  * <p>For example:
  *
  * <pre>{@code
