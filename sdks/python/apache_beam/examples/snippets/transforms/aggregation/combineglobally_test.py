@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import sys
 import unittest
 
 import mock
@@ -64,21 +65,37 @@ def check_percentages(actual):
     str)
 # pylint: enable=line-too-long
 class CombineGloballyTest(unittest.TestCase):
+  # TODO: Remove this after Python 2 deprecation.
+  # https://issues.apache.org/jira/browse/BEAM-8124
+  @unittest.skipIf(sys.version_info[0] == 2,
+                   'Python 2 renders sets in a non-compatible way')
   def test_combineglobally_function(self):
     combineglobally.combineglobally_function(check_common_items)
 
+  # TODO: Remove this after Python 2 deprecation.
+  # https://issues.apache.org/jira/browse/BEAM-8124
+  @unittest.skipIf(sys.version_info[0] == 2,
+                   'Python 2 renders sets in a non-compatible way')
   def test_combineglobally_lambda(self):
     combineglobally.combineglobally_lambda(check_common_items)
 
+  # TODO: Remove this after Python 2 deprecation.
+  # https://issues.apache.org/jira/browse/BEAM-8124
+  @unittest.skipIf(sys.version_info[0] == 2,
+                   'Python 2 renders sets in a non-compatible way')
   def test_combineglobally_multiple_arguments(self):
     combineglobally.combineglobally_multiple_arguments(
         check_common_items_with_exceptions)
 
+  # TODO: Remove this after Python 2 deprecation.
+  # https://issues.apache.org/jira/browse/BEAM-8124
+  @unittest.skipIf(sys.version_info[0] == 2,
+                   'Python 2 renders sets in a non-compatible way')
   def test_combineglobally_side_inputs_singleton(self):
     combineglobally.combineglobally_side_inputs_singleton(
         check_common_items_with_exceptions)
 
-  # TODO (dcavazos): enable side inputs tests after [BEAM-8400] is fixed.
+  # TODO: enable side inputs tests after [BEAM-8400] is fixed.
   # https://issues.apache.org/jira/browse/BEAM-8400
   # def test_combineglobally_side_inputs_iter(self):
   #   combineglobally.combineglobally_side_inputs_iter(
@@ -88,6 +105,10 @@ class CombineGloballyTest(unittest.TestCase):
   #   combineglobally.combineglobally_side_inputs_dict(
   #       check_custom_common_items)
 
+  # TODO: Remove this after Python 2 deprecation.
+  # https://issues.apache.org/jira/browse/BEAM-8124
+  @unittest.skipIf(sys.version_info[0] == 2,
+                   'Python 2 renders sets in a non-compatible way')
   def test_combineglobally_combinefn(self):
     combineglobally.combineglobally_combinefn(check_percentages)
 
