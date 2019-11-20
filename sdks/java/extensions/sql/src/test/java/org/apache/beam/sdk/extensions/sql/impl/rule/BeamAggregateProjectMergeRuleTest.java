@@ -25,6 +25,7 @@ import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import com.alibaba.fastjson.JSON;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamAggregationRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -76,6 +77,22 @@ public class BeamAggregateProjectMergeRuleTest {
     // Make sure project push-down took place.
     assertThat(ioSourceRel, instanceOf(BeamPushDownIOSourceRel.class));
     assertThat(ioSourceRel.getRowType().getFieldNames(), containsInAnyOrder("name", "id"));
+  }
+
+  @Test
+  public void testBeamAggregateProjectMergeRule_withProjectTable_withPredicate() {
+    // When an IO supports project push-down, Projects should be merged with an IO.
+    String sqlQuery = "select SUM(id) as id_sum from TEST_PROJECT where unused1=1 group by name";
+    BeamRelNode beamRel = sqlEnv.parseQuery(sqlQuery);
+
+    BeamAggregationRel aggregate = (BeamAggregationRel) beamRel.getInput(0);
+    BeamCalcRel calc = (BeamCalcRel) aggregate.getInput();
+    BeamIOSourceRel ioSourceRel = (BeamIOSourceRel) calc.getInput();
+
+    // Make sure project push-down took place.
+    assertThat(ioSourceRel, instanceOf(BeamPushDownIOSourceRel.class));
+    assertThat(
+        ioSourceRel.getRowType().getFieldNames(), containsInAnyOrder("name", "id", "unused1"));
   }
 
   @Test
