@@ -50,7 +50,7 @@ class PipelineGraphTest(unittest.TestCase):
     self.assertEqual(
         ('digraph G {\n'
          'node [color=blue, fontcolor=blue, shape=box];\n'
-         # The py string literal from `\\\\\\"` is `\\\"` in dot and will be 
+         # The py string literal from `\\\\\\"` is `\\\"` in dot and will be
          # rendered as `\"` because they are enclosed by `"`.
          '"\\"Cell 1\\": \\"Create\\\\\\"";\n'
          'pcoll [shape=circle];\n'
