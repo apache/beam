@@ -106,7 +106,7 @@ class TestPipelineTest(unittest.TestCase):
     self.assertEqual(test_pipeline.get_option(name), value)
 
   def test_skip_IT(self):
-    with TestPipeline(is_integration_test=True) as test_pipeline:
+    with TestPipeline(is_integration_test=True) as _:
       # Note that this will never be reached since it should be skipped above.
       pass
     self.fail()
