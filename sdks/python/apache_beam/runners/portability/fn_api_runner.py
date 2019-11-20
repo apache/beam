@@ -285,11 +285,11 @@ class _WindowGroupingBuffer(object):
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
     if access_pattern.urn == common_urns.side_inputs.ITERABLE.urn:
-      self._kv_extrator = lambda value: ('', value)
+      self._kv_extractor = lambda value: ('', value)
       self._key_coder = coders.SingletonCoder('')
       self._value_coder = coder.wrapped_value_coder
     elif access_pattern.urn == common_urns.side_inputs.MULTIMAP.urn:
-      self._kv_extrator = lambda value: value
+      self._kv_extractor = lambda value: value
       self._key_coder = coder.wrapped_value_coder.key_coder()
       self._value_coder = (
           coder.wrapped_value_coder.value_coder())
@@ -305,7 +305,7 @@ class _WindowGroupingBuffer(object):
     while input_stream.size() > 0:
       windowed_value = self._windowed_value_coder.get_impl(
           ).decode_from_stream(input_stream, True)
-      key, value = self._kv_extrator(windowed_value.value)
+      key, value = self._kv_extractor(windowed_value.value)
       for window in windowed_value.windows:
         self._values_by_window[key, window].append(value)
 
@@ -501,14 +501,27 @@ class FnApiRunner(runner.PipelineRunner):
       elements_by_window = _WindowGroupingBuffer(si, value_coder)
       for element_data in pcoll_buffers[buffer_id]:
         elements_by_window.append(element_data)
-      for key, window, elements_data in elements_by_window.encoded_items():
-        state_key = beam_fn_api_pb2.StateKey(
-            multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-                transform_id=transform_id,
-                side_input_id=tag,
-                window=window,
-                key=key))
-        worker_handler.state.append_raw(state_key, elements_data)
+
+      if si.urn == common_urns.side_inputs.ITERABLE.urn:
+        for _, window, elements_data in elements_by_window.encoded_items():
+          state_key = beam_fn_api_pb2.StateKey(
+              iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
+                  transform_id=transform_id,
+                  side_input_id=tag,
+                  window=window))
+          worker_handler.state.append_raw(state_key, elements_data)
+      elif si.urn == common_urns.side_inputs.MULTIMAP.urn:
+        for key, window, elements_data in elements_by_window.encoded_items():
+          state_key = beam_fn_api_pb2.StateKey(
+              multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
+                  transform_id=transform_id,
+                  side_input_id=tag,
+                  window=window,
+                  key=key))
+          worker_handler.state.append_raw(state_key, elements_data)
+      else:
+        raise ValueError(
+            "Unknown access pattern: '%s'" % si.urn)
 
   def _run_bundle_multiple_times_for_testing(
       self, worker_handler_list, process_bundle_descriptor, data_input,
