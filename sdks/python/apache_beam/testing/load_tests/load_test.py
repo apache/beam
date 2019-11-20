@@ -47,9 +47,10 @@ class LoadTest(unittest.TestCase):
         )
     }
 
-  def setUp(self):
-    self.pipeline = TestPipeline()
-    self.input_options = json.loads(self.pipeline.get_option('input_options'))
+  def setUp(self, pipeline_options=None):
+    self.pipeline = TestPipeline(pipeline_options)
+    input = self.pipeline.get_option('input_options') or '{}'
+    self.input_options = json.loads(input)
     self.project_id = self.pipeline.get_option('project')
 
     self.metrics_dataset = self.pipeline.get_option('metrics_dataset')
@@ -66,10 +67,12 @@ class LoadTest(unittest.TestCase):
     )
 
   def tearDown(self):
-    result = self.pipeline.run()
-    result.wait_until_finish()
+    if not hasattr(self, 'result'):
+      self.result = self.pipeline.run()
+      self.result.wait_until_finish()
 
-    self.metrics_monitor.publish_metrics(result)
+    if self.metrics_monitor:
+      self.metrics_monitor.publish_metrics(self.result)
 
   def get_option_or_default(self, opt_name, default=0):
     """Returns a pipeline option or a default value if it was not provided.
