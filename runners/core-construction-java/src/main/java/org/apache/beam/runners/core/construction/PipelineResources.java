@@ -29,37 +29,58 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hasher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for working with classpath resources for pipelines. */
 public class PipelineResources {
 
+  private static final Logger LOG = LoggerFactory.getLogger(PipelineResources.class);
+
   /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse to
-   * class loader parents stopping it from pulling in resources from the system class loader.
+   * Attempts to detect all the resources using either URLClassLoader (if it is available) or via
+   * the "java.class.path" system property. URLClassLoader is not available for Java 9 and above,
+   * hence the alternative approach was introduced.
    *
-   * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one of
-   *     the resources the class loader exposes is not a file resource.
+   * @param classLoader The URLClassLoader to use to detect resources to stage (optional).
+   * @throws IllegalArgumentException If one of the resources the class loader exposes is not a file
+   *     resource.
    * @return A list of absolute paths to the resources the class loader uses.
    */
   public static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
     if (!(classLoader instanceof URLClassLoader)) {
-      String message =
-          String.format(
-              "Unable to use ClassLoader to detect classpath elements. "
-                  + "Current ClassLoader is %s, only URLClassLoaders are supported.",
-              classLoader);
-      throw new IllegalArgumentException(message);
+      return scanClasspathForResourcesToStage();
+    } else {
+      LOG.info("Using URLClassLoader to detect classpath resources.");
+      return scanClasspathForResourcesToStage((URLClassLoader) classLoader);
     }
+  }
+
+  private static List<String> scanClasspathForResourcesToStage() {
+    LOG.info("Scanning classpath for resources to stage via the java.class.path system property.");
+
+    Iterable<String> classpathEntries =
+        Splitter.on(File.pathSeparator).split(System.getProperty("java.class.path"));
+
+    return StreamSupport.stream(classpathEntries.spliterator(), false)
+        .map(File::new)
+        .map(File::getAbsolutePath)
+        .collect(Collectors.toList());
+  }
+
+  private static List<String> scanClasspathForResourcesToStage(URLClassLoader classLoader) {
+    LOG.info("Scanning classpath for resources to stage via the URLClassLoader.");
 
     List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
+    for (URL url : classLoader.getURLs()) {
       try {
         files.add(new File(url.toURI()).getAbsolutePath());
       } catch (IllegalArgumentException | URISyntaxException e) {
