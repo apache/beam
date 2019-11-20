@@ -28,7 +28,7 @@ def combinevalues_simple(test=None):
   with beam.Pipeline() as pipeline:
     total = (
         pipeline
-        | 'Create plant counts' >> beam.Create([
+        | 'Create produce counts' >> beam.Create([
             ('🥕', [3, 2]),
             ('🍆', [1]),
             ('🍅', [4, 5, 3]),
@@ -208,39 +208,49 @@ def combinevalues_combinefn(test=None):
 
   class AverageFn(beam.CombineFn):
     def create_accumulator(self):
-      sum = 0.0
-      count = 0
-      accumulator = sum, count
-      return accumulator
+      return {}
 
     def add_input(self, accumulator, input):
-      sum, count = accumulator
-      return sum + input, count + 1
+      # accumulator == {}
+      # input == '🥕'
+      if input not in accumulator:
+        accumulator[input] = 0  # {'🥕': 0}
+      accumulator[input] += 1   # {'🥕': 1}
+      return accumulator
 
     def merge_accumulators(self, accumulators):
-      # accumulators = [(sum1, count1), (sum2, count2), (sum3, count3), ...]
-      sums, counts = zip(*accumulators)
-      # sums = [sum1, sum2, sum3, ...]
-      # counts = [count1, count2, count3, ...]
-      return sum(sums), sum(counts)
+      # accumulators == [
+      #     {'🥕': 1, '🍅': 1},
+      #     {'🥕': 1, '🍅': 1, '🍆': 1},
+      # ]
+      merged = {}
+      for accum in accumulators:
+        for item, count in accum.items():
+          if item not in merged:
+            merged[item] = 0
+          merged[item] += count
+      # merged == {'🥕': 2, '🍅': 2, '🍆': 1}
+      return merged
 
     def extract_output(self, accumulator):
-      sum, count = accumulator
-      if count == 0:
-        return float('NaN')
-      return sum / count
+      # accumulator == {'🥕': 2, '🍅': 2, '🍆': 1}
+      total = sum(accumulator.values())  # 5
+      percentages = {item: count / total for item, count in accumulator.items()}
+      # percentages == {'🥕': 0.4, '🍅': 0.4, '🍆': 0.2}
+      return percentages
 
   with beam.Pipeline() as pipeline:
-    average = (
+    percentages_per_season = (
         pipeline
-        | 'Create plant counts' >> beam.Create([
-            ('🥕', [3, 2]),
-            ('🍆', [1]),
-            ('🍅', [4, 5, 3]),
+        | 'Create produce' >> beam.Create([
+            ('spring', ['🥕', '🍅', '🥕', '🍅', '🍆']),
+            ('summer', ['🥕', '🍅', '🌽', '🍅', '🍅']),
+            ('fall', ['🥕', '🥕', '🍅', '🍅']),
+            ('winter', ['🍆', '🍆']),
         ])
         | 'Average' >> beam.CombineValues(AverageFn())
         | beam.Map(print)
     )
     # [END combinevalues_combinefn]
     if test:
-      test(average)
+      test(percentages_per_season)

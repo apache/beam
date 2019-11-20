@@ -56,12 +56,13 @@ def check_bounded_total(actual):
   assert_matches_stdout(actual, expected)
 
 
-def check_average(actual):
-  expected = '''[START average]
-('🥕', 2.5)
-('🍆', 1.0)
-('🍅', 4.0)
-[END average]'''.splitlines()[1:-1]
+def check_percentages_per_season(actual):
+  expected = '''[START percentages_per_season]
+('spring', {'🥕': 0.4, '🍅': 0.4, '🍆': 0.2})
+('summer', {'🥕': 0.2, '🍅': 0.6, '🌽': 0.2})
+('fall', {'🥕': 0.5, '🍅': 0.5})
+('winter', {'🍆': 1.0})
+[END percentages_per_season]'''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
 
@@ -70,9 +71,6 @@ def check_average(actual):
     'apache_beam.examples.snippets.transforms.aggregation.combinevalues.print',
     str)
 class CombineValuesTest(unittest.TestCase):
-  def test_combinevalues_simple(self):
-    combinevalues.combinevalues_simple(check_total)
-
   def test_combinevalues_function(self):
     combinevalues.combinevalues_function(check_saturated_total)
 
@@ -92,7 +90,7 @@ class CombineValuesTest(unittest.TestCase):
     combinevalues.combinevalues_side_inputs_dict(check_bounded_total)
 
   def test_combinevalues_combinefn(self):
-    combinevalues.combinevalues_combinefn(check_average)
+    combinevalues.combinevalues_combinefn(check_percentages_per_season)
 
 
 if __name__ == '__main__':
