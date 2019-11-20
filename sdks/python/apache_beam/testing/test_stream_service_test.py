@@ -21,15 +21,12 @@ import unittest
 
 import grpc
 
-from apache_beam import coders
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2_grpc
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
-from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.testing.test_stream_service import TestStreamServiceController
-from apache_beam.utils.timestamp import Timestamp
 
 # Nose automatically detects tests if they match a regex. Here, it mistakens
 # these protos as tests. For more info see the Nose docs at:
