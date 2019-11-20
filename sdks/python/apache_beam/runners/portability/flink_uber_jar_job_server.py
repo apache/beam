@@ -33,12 +33,12 @@ import grpc
 import requests
 from google.protobuf import json_format
 
+from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
-from apache_beam.runners.portability import flink_runner
 from apache_beam.runners.portability import job_server
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   def __init__(self, master_url, options):
     super(FlinkUberJarJobServer, self).__init__()
     self._master_url = master_url
-    flink_options = options.view_as(flink_runner.FlinkRunnerOptions)
+    flink_options = options.view_as(pipeline_options.FlinkRunnerOptions)
     self._executable_jar = flink_options.flink_job_server_jar
     self._artifact_port = flink_options.artifact_port
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-flink')

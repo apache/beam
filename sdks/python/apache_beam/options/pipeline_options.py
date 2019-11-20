@@ -919,6 +919,31 @@ class PortableOptions(PipelineOptions):
               'the pipeline.'))
 
 
+class FlinkRunnerOptions(PipelineOptions):
+
+  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--flink_master',
+                        default='[auto]',
+                        help='Flink master address (http://host:port)'
+                             ' Use "[local]" to start a local cluster'
+                             ' for the execution. Use "[auto]" if you'
+                             ' plan to either execute locally or let the'
+                             ' Flink job server infer the cluster address.')
+    parser.add_argument('--flink_version',
+                        default=cls.PUBLISHED_FLINK_VERSIONS[-1],
+                        choices=cls.PUBLISHED_FLINK_VERSIONS,
+                        help='Flink version to use.')
+    parser.add_argument('--flink_job_server_jar',
+                        help='Path or URL to a flink jobserver jar.')
+    parser.add_argument('--artifacts_dir', default=None)
+    parser.add_argument('--artifact_port', default=0,
+                        help='Port to use for artifact staging. 0 to use a '
+                             'dynamic port.')
+
+
 class TestOptions(PipelineOptions):
 
   @classmethod

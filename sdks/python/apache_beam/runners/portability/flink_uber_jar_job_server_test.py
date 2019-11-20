@@ -28,11 +28,11 @@ import zipfile
 import grpc
 import requests_mock
 
+from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.portability import flink_runner
 from apache_beam.runners.portability import flink_uber_jar_job_server
 
 
@@ -52,7 +52,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
   def test_flink_version(self, http_mock):
     http_mock.get('http://flink/v1/config', json={'flink-version': '3.1.4.1'})
     job_server = flink_uber_jar_job_server.FlinkUberJarJobServer(
-        'http://flink', flink_runner.FlinkRunnerOptions())
+        'http://flink', pipeline_options.FlinkRunnerOptions())
     self.assertEqual(job_server.flink_version(), "3.1")
 
   @requests_mock.mock()
@@ -63,7 +63,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
         with zip.open('FakeClass.class', 'w') as fout:
           fout.write(b'[original_contents]')
 
-      options = flink_runner.FlinkRunnerOptions()
+      options = pipeline_options.FlinkRunnerOptions()
       options.flink_job_server_jar = fake_jar
       job_server = flink_uber_jar_job_server.FlinkUberJarJobServer(
           'http://flink', options)
