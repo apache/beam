@@ -386,6 +386,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.6.0"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.4"
+    def spark_structured_streaming_version = "2.4.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -516,6 +517,7 @@ class BeamModulePlugin implements Plugin<Project> {
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
+        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
         vendored_bytebuddy_1_9_3                    : "org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1",
