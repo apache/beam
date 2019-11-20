@@ -21,21 +21,27 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;
-import org.apache.samza.operators.functions.FlatMapFunction;
+import org.apache.samza.operators.functions.AsyncFlatMapFunction;
 import org.apache.samza.operators.functions.ScheduledFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Adaptor class that runs a Samza {@link Op} for BEAM in the Samza {@link FlatMapFunction}. */
+/**
+ * Adaptor class that runs a Samza {@link Op} for BEAM in the Samza {@link AsyncFlatMapFunction}.
+ */
 public class OpAdapter<InT, OutT, K>
-    implements FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
+    implements AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
         WatermarkFunction<OpMessage<OutT>>,
         ScheduledFunction<KeyedTimerData<K>, OpMessage<OutT>>,
         Serializable {
@@ -43,12 +49,13 @@ public class OpAdapter<InT, OutT, K>
 
   private final Op<InT, OutT, K> op;
   private transient List<OpMessage<OutT>> outputList;
+  private transient List<CompletionStage<OpMessage<OutT>>> outputFutures;
   private transient Instant outputWatermark;
   private transient OpEmitter<OutT> emitter;
   private transient Config config;
   private transient Context context;
 
-  public static <InT, OutT, K> FlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
+  public static <InT, OutT, K> AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
       Op<InT, OutT, K> op) {
     return new OpAdapter<>(op);
   }
@@ -59,6 +66,7 @@ public class OpAdapter<InT, OutT, K>
 
   @Override
   public final void init(Context context) {
+    this.outputFutures = new ArrayList<>();
     this.outputList = new ArrayList<>();
     this.emitter = new OpEmitterImpl();
     this.config = context.getJobContext().getConfig();
@@ -73,8 +81,9 @@ public class OpAdapter<InT, OutT, K>
   }
 
   @Override
-  public Collection<OpMessage<OutT>> apply(OpMessage<InT> message) {
+  public CompletionStage<Collection<OpMessage<OutT>>> apply(OpMessage<InT> message) {
     assert outputList.isEmpty();
+    assert outputFutures.isEmpty();
 
     try {
       switch (message.getType()) {
@@ -97,8 +106,28 @@ public class OpAdapter<InT, OutT, K>
     }
 
     final List<OpMessage<OutT>> results = new ArrayList<>(outputList);
+    final CompletionStage<Collection<OpMessage<OutT>>> resultFuture =
+        flattenOutputFutures()
+            .thenApply(
+                futureResults -> {
+                  futureResults.addAll(results);
+                  return futureResults;
+                });
+    outputFutures.clear();
     outputList.clear();
-    return results;
+    return resultFuture;
+  }
+
+  private CompletionStage<Collection<OpMessage<OutT>>> flattenOutputFutures() {
+    CompletableFuture<OpMessage<OutT>>[] futures = outputFutures.toArray(new CompletableFuture[0]);
+
+    return CompletableFuture.allOf(futures)
+        .thenApply(
+            ignored -> {
+              final List<OpMessage<OutT>> result =
+                  Stream.of(futures).map(CompletableFuture::join).collect(Collectors.toList());
+              return result;
+            });
   }
 
   @Override
@@ -148,6 +177,11 @@ public class OpAdapter<InT, OutT, K>
     @Override
     public void emitElement(WindowedValue<OutT> element) {
       outputList.add(OpMessage.ofElement(element));
+    }
+
+    @Override
+    public void emitFuture(CompletionStage<WindowedValue<OutT>> futureElement) {
+      outputFutures.add(futureElement.thenApply(OpMessage::ofElement));
     }
 
     @Override

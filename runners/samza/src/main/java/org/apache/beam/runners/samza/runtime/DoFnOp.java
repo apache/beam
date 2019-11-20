@@ -26,8 +26,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -490,6 +492,19 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
   }
 
+  static <T, OutT> CompletionStage<WindowedValue<OutT>> createOutputFuture(
+      WindowedValue<T> windowedValue,
+      CompletionStage<T> valueFuture,
+      Function<T, OutT> valueMapper) {
+    return valueFuture.thenApply(
+        res ->
+            WindowedValue.of(
+                valueMapper.apply(res),
+                windowedValue.getTimestamp(),
+                windowedValue.getWindows(),
+                windowedValue.getPane()));
+  }
+
   /**
    * Factory class to create an {@link org.apache.beam.runners.core.DoFnRunners.OutputManager} that
    * emits values to the main output only, which is a single {@link
@@ -502,11 +517,17 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     public DoFnRunners.OutputManager create(OpEmitter<OutT> emitter) {
       return new DoFnRunners.OutputManager() {
         @Override
+        @SuppressWarnings("unchecked")
         public <T> void output(TupleTag<T> tupleTag, WindowedValue<T> windowedValue) {
           // With only one input we know that T is of type OutT.
-          @SuppressWarnings("unchecked")
-          final WindowedValue<OutT> retypedWindowedValue = (WindowedValue<OutT>) windowedValue;
-          emitter.emitElement(retypedWindowedValue);
+          if (windowedValue.getValue() instanceof CompletionStage) {
+            CompletionStage<T> valueFuture = (CompletionStage<T>) windowedValue.getValue();
+            emitter.emitFuture(
+                createOutputFuture(windowedValue, valueFuture, value -> (OutT) value));
+          } else {
+            final WindowedValue<OutT> retypedWindowedValue = (WindowedValue<OutT>) windowedValue;
+            emitter.emitElement(retypedWindowedValue);
+          }
         }
       };
     }
@@ -528,11 +549,19 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     public DoFnRunners.OutputManager create(OpEmitter<RawUnionValue> emitter) {
       return new DoFnRunners.OutputManager() {
         @Override
+        @SuppressWarnings("unchecked")
         public <T> void output(TupleTag<T> tupleTag, WindowedValue<T> windowedValue) {
           final int index = tagToIndexMap.get(tupleTag);
           final T rawValue = windowedValue.getValue();
-          final RawUnionValue rawUnionValue = new RawUnionValue(index, rawValue);
-          emitter.emitElement(windowedValue.withValue(rawUnionValue));
+          if (rawValue instanceof CompletionStage) {
+            CompletionStage<T> valueFuture = (CompletionStage<T>) rawValue;
+            emitter.emitFuture(
+                createOutputFuture(
+                    windowedValue, valueFuture, res -> new RawUnionValue(index, res)));
+          } else {
+            final RawUnionValue rawUnionValue = new RawUnionValue(index, rawValue);
+            emitter.emitElement(windowedValue.withValue(rawUnionValue));
+          }
         }
       };
     }

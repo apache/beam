@@ -37,6 +37,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -1131,14 +1132,18 @@ public class DoFnSignatures {
       boolean schemaRowReceiver =
           paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)))
               && !outputT.equals(TypeDescriptor.of(Row.class));
-      if (!schemaRowReceiver) {
+
+      boolean async = outputReceiverTypeOf(completionStageTypeOf(outputT)).equals(paramT);
+
+      if (!schemaRowReceiver && !async) {
         TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
+
         paramErrors.checkArgument(
             paramT.equals(expectedReceiverT),
             "OutputReceiver should be parameterized by %s",
             outputT);
       }
-      return Parameter.outputReceiverParameter(schemaRowReceiver);
+      return Parameter.outputReceiverParameter(schemaRowReceiver, async);
     } else if (rawType.equals(MultiOutputReceiver.class)) {
       return Parameter.taggedOutputReceiverParameter();
     } else if (PipelineOptions.class.equals(rawType)) {
@@ -1427,6 +1432,15 @@ public class DoFnSignatures {
 
     return DoFnSignature.GetInitialRestrictionMethod.create(
         m, fnT.resolveType(m.getGenericReturnType()), windowT, methodContext.extraParameters);
+  }
+
+  /**
+   * Generates a {@link TypeDescriptor} for {@code CompletionStage<OutputT>} given {@code OutputT}.
+   */
+  private static <OutputT> TypeDescriptor<CompletionStage<OutputT>> completionStageTypeOf(
+      TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<CompletionStage<OutputT>>() {}.where(
+        new TypeParameter<OutputT>() {}, outputT);
   }
 
   /**
