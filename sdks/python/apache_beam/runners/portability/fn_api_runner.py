@@ -1145,13 +1145,15 @@ class EmbeddedWorkerHandler(WorkerHandler):
     self.control_conn = self
     self.data_conn = self.data_plane_handler
     state_cache = StateCache(STATE_CACHE_SIZE)
+    self.bundle_processor_cache = sdk_worker.BundleProcessorCache(
+        FnApiRunner.SingletonStateHandlerFactory(
+            sdk_worker.CachingStateHandler(state_cache, state)),
+        data_plane.InMemoryDataChannelFactory(
+            self.data_plane_handler.inverse()),
+        {})
     self.worker = sdk_worker.SdkWorker(
-        sdk_worker.BundleProcessorCache(
-            FnApiRunner.SingletonStateHandlerFactory(
-                sdk_worker.CachingStateHandler(state_cache, state)),
-            data_plane.InMemoryDataChannelFactory(
-                self.data_plane_handler.inverse()),
-            {}), state_cache_metrics_fn=state_cache.get_monitoring_infos)
+        self.bundle_processor_cache,
+        state_cache_metrics_fn=state_cache.get_monitoring_infos)
     self._uid_counter = 0
 
   def push(self, request):
@@ -1165,7 +1167,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     pass
 
   def stop_worker(self):
-    self.worker.stop()
+    self.bundle_processor_cache.shutdown()
 
   def done(self):
     pass

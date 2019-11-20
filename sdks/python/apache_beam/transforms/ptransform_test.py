@@ -471,6 +471,24 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
     pipeline.run()
 
+  def test_group_by_key_reiteration(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, gbk_result):
+        key, value_list = gbk_result
+        sum_val = 0
+        # Iterate the GBK result for multiple times.
+        for _ in range(0, 17):
+          sum_val += sum(value_list)
+        return [(key, sum_val)]
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'start' >> beam.Create(
+        [(1, 1), (1, 2), (1, 3), (1, 4)])
+    result = (pcoll | 'Group' >> beam.GroupByKey()
+              | 'Reiteration-Sum' >> beam.ParDo(MyDoFn()))
+    assert_that(result, equal_to([(1, 170)]))
+    pipeline.run()
+
   def test_partition_with_partition_fn(self):
 
     class SomePartitionFn(beam.PartitionFn):
@@ -520,6 +538,7 @@ class PTransformTest(unittest.TestCase):
     assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_flatten_pcollections(self):
     pipeline = TestPipeline()
     pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -528,6 +547,7 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_flatten_no_pcollections(self):
     pipeline = TestPipeline()
     with self.assertRaises(ValueError):
@@ -536,6 +556,16 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
+  def test_flatten_one_single_pcollection(self):
+    pipeline = TestPipeline()
+    input = [0, 1, 2, 3]
+    pcoll = pipeline | 'Input' >> beam.Create(input)
+    result = (pcoll,)| 'Single Flatten' >> beam.Flatten()
+    assert_that(result, equal_to(input))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
   def test_flatten_same_pcollections(self):
     pipeline = TestPipeline()
     pc = pipeline | beam.Create(['a', 'b'])
@@ -548,6 +578,17 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
     result = [pcoll for pcoll in (pcoll_1, pcoll_2)] | beam.Flatten()
     assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_flatten_a_flattened_pcollection(self):
+    pipeline = TestPipeline()
+    pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
+    pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
+    pcoll_3 = pipeline | 'Start 3' >> beam.Create([8, 9])
+    pcoll_12 = (pcoll_1, pcoll_2) | 'Flatten' >> beam.Flatten()
+    pcoll_123 = (pcoll_12, pcoll_3) | 'Flatten again' >> beam.Flatten()
+    assert_that(pcoll_123, equal_to([x for x in range(10)]))
     pipeline.run()
 
   def test_flatten_input_type_must_be_iterable(self):
