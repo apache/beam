@@ -33,12 +33,16 @@ from __future__ import absolute_import
 import base64
 import logging
 import sys
+import threading
 import traceback
 import types
 import zlib
 
 import dill
 
+# Pickling, especially unpickling, can cause broken module imports
+# if executed concurrently, see: BEAM-8651.
+pickle_lock = threading.Lock()
 # Dill 0.28.0 renamed dill.dill to dill._dill:
 # https://github.com/uqfoundation/dill/commit/f0972ecc7a41d0b8acada6042d557068cac69baa
 # TODO: Remove this once Beam depends on dill >= 0.2.8
@@ -228,17 +232,17 @@ logging.getLogger('dill').setLevel(logging.WARN)
 # encoding.  This should be cleaned up.
 def dumps(o, enable_trace=True):
   """For internal use only; no backwards-compatibility guarantees."""
-
-  try:
-    s = dill.dumps(o)
-  except Exception:      # pylint: disable=broad-except
-    if enable_trace:
-      dill.dill._trace(True)  # pylint: disable=protected-access
+  with pickle_lock:
+    try:
       s = dill.dumps(o)
-    else:
-      raise
-  finally:
-    dill.dill._trace(False)  # pylint: disable=protected-access
+    except Exception:      # pylint: disable=broad-except
+      if enable_trace:
+        dill.dill._trace(True)  # pylint: disable=protected-access
+        s = dill.dumps(o)
+      else:
+        raise
+    finally:
+      dill.dill._trace(False)  # pylint: disable=protected-access
 
   # Compress as compactly as possible to decrease peak memory usage (of multiple
   # in-memory copies) and free up some possibly large and no-longer-needed
@@ -257,16 +261,17 @@ def loads(encoded, enable_trace=True):
   s = zlib.decompress(c)
   del c  # Free up some possibly large and no-longer-needed memory.
 
-  try:
-    return dill.loads(s)
-  except Exception:          # pylint: disable=broad-except
-    if enable_trace:
-      dill.dill._trace(True)   # pylint: disable=protected-access
+  with pickle_lock:
+    try:
       return dill.loads(s)
-    else:
-      raise
-  finally:
-    dill.dill._trace(False)  # pylint: disable=protected-access
+    except Exception:          # pylint: disable=broad-except
+      if enable_trace:
+        dill.dill._trace(True)   # pylint: disable=protected-access
+        return dill.loads(s)
+      else:
+        raise
+    finally:
+      dill.dill._trace(False)  # pylint: disable=protected-access
 
 
 def dump_session(file_path):
@@ -278,10 +283,12 @@ def dump_session(file_path):
   create and load the dump twice to have consistent results in the worker and
   the running session. Check: https://github.com/uqfoundation/dill/issues/195
   """
-  dill.dump_session(file_path)
-  dill.load_session(file_path)
-  return dill.dump_session(file_path)
+  with pickle_lock:
+    dill.dump_session(file_path)
+    dill.load_session(file_path)
+    return dill.dump_session(file_path)
 
 
 def load_session(file_path):
-  return dill.load_session(file_path)
+  with pickle_lock:
+    return dill.load_session(file_path)
