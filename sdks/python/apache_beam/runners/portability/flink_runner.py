@@ -101,6 +101,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
     self._master_url = options.flink_master
     self._flink_version = options.flink_version
     self._artifacts_dir = options.artifacts_dir
+    self._artifact_port = options.artifact_port
 
   def path_to_jar(self):
     if self._jar:
@@ -115,6 +116,6 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
         '--artifacts-dir', (self._artifacts_dir
                             if self._artifacts_dir else artifacts_dir),
         '--job-port', job_port,
-        '--artifact-port', 0,
+        '--artifact-port', self._artifact_port,
         '--expansion-port', 0
     ]
