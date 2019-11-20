@@ -1377,6 +1377,9 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     pass
 
   def host_from_worker(self):
+    # TODO(BEAM-8646): Reconcile the behavior on Windows platform.
+    if sys.platform == 'win32':
+      return 'localhost'
     import socket
     return socket.getfqdn()
 
