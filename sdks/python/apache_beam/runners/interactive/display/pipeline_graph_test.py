@@ -25,10 +25,16 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.display import pipeline_graph
 
-# Disable pylint for pipelines built for testing.
-# pylint: disable=range-builtin-not-iterating, unused-argument
+# pylint: disable=range-builtin-not-iterating,unused-variable,possibly-unused-variable
+# Reason:
+#   Disable pylint for pipelines built for testing. Not all PCollections are
+#   used but they need to be assigned to variables so that we can test how
+#   interactive beam applies the magic around user-defined variables.
 
 
+# The tests need graphviz to work.
+@unittest.skipIf(not ie.current_env().is_interactive_ready,
+                 '[interactive] dependency is not installed.')
 class PipelineGraphTest(unittest.TestCase):
 
   def setUp(self):
@@ -36,15 +42,19 @@ class PipelineGraphTest(unittest.TestCase):
 
   def test_decoration(self):
     p = beam.Pipeline(ir.InteractiveRunner())
-    pcoll = p | '"Cell 1": "Create"' >> beam.Create(range(1000))
+    # We are examining if literal `"` and trailing literal `\` are decorated
+    # correctly.
+    pcoll = p | '"Cell 1": "Create\\"' >> beam.Create(range(1000))
     ib.watch(locals())
 
     self.assertEqual(
         ('digraph G {\n'
          'node [color=blue, fontcolor=blue, shape=box];\n'
-         '"\\"Cell 1\\": \\"Create\\"";\n'
+         # The py string literal from `\\\\\\"` is `\\\"` in dot and will be 
+         # rendered as `\"` because they are enclosed by `"`.
+         '"\\"Cell 1\\": \\"Create\\\\\\"";\n'
          'pcoll [shape=circle];\n'
-         '"\\"Cell 1\\": \\"Create\\"" -> pcoll;\n'
+         '"\\"Cell 1\\": \\"Create\\\\\\"" -> pcoll;\n'
          '}\n'),
         pipeline_graph.PipelineGraph(p).get_dot())
 

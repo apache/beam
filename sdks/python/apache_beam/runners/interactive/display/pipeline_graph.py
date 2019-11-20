@@ -68,12 +68,12 @@ class PipelineGraph(object):
     """
     self._lock = threading.Lock()
     self._graph = None
-    self._pin = None
+    self._pipeline_instrument = None
     if isinstance(pipeline, beam.Pipeline):
-      self._pin = inst.PipelineInstrument(pipeline)
+      self._pipeline_instrument = inst.PipelineInstrument(pipeline)
       # The pre-process links user pipeline to runner pipeline through analysis
       # but without mutating runner pipeline.
-      self._pin.preprocess()
+      self._pipeline_instrument.preprocess()
 
     if isinstance(pipeline, beam_runner_api_pb2.Pipeline):
       self._pipeline_proto = pipeline
@@ -138,13 +138,16 @@ class PipelineGraph(object):
   def _decorate(self, value):
     """Decorates label-ish values used for rendering in dot language.
 
-    Escapes special characters in the given str value for dot language. Please
-    escape all PTransform unique names when building dot representation.
-    Otherwise, special characters will break the graph rendered.
+    Escapes special characters in the given str value for dot language. All
+    PTransform unique names are escaped implicitly in this module when building
+    dot representation. Otherwise, special characters will break the graph
+    rendered or cause runtime errors.
     """
-    # Replace `"` with `\\"` so that the dot generated will be `\"` and be
+    # Replace py str literal `\\` which is `\` in dot with py str literal
+    # `\\\\` which is `\\` in dot so that dot `\\` can be rendered as `\`. Then
+    # replace `"` with `\\"` so that the dot generated will be `\"` and be
     # rendered as `"`.
-    return '"{}"'.format(value.replace('"', '\\"'))
+    return '"{}"'.format(value.replace('\\', '\\\\').replace('"', '\\"'))
 
   def _generate_graph_dicts(self):
     """From pipeline_proto and other info, generate the graph.
@@ -169,8 +172,9 @@ class PipelineGraph(object):
 
       for pcoll_id in transform.outputs.values():
         pcoll_node = None
-        if self._pin:
-          pcoll_node = self._pin.cacheable_var_by_pcoll_id(pcoll_id)
+        if self._pipeline_instrument:
+          pcoll_node = self._pipeline_instrument.cacheable_var_by_pcoll_id(
+              pcoll_id)
         # If no PipelineInstrument is available or the PCollection is not
         # watched.
         if not pcoll_node:
