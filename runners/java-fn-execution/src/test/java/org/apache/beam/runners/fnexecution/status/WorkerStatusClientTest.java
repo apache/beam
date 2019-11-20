@@ -36,35 +36,34 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
-public class FnApiWorkerStatusClientTest {
+public class WorkerStatusClientTest {
 
   @Mock public StreamObserver<BeamFnApi.WorkerStatusRequest> mockObserver;
-  private FnApiWorkerStatusClient client;
+  private WorkerStatusClient client;
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    client = FnApiWorkerStatusClient.forRequestObserver("ID", mockObserver);
+    client = WorkerStatusClient.forRequestObserver("ID", mockObserver);
   }
 
   @Test
   public void testGetWorkerStatusSuccess() throws Exception {
     CompletableFuture<WorkerStatusResponse> workerStatus =
-        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setRequestId("123").build());
+        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setId("123").build());
     client
         .getResponseObserver()
-        .onNext(
-            WorkerStatusResponse.newBuilder().setRequestId("123").setStatusInfo("status").build());
+        .onNext(WorkerStatusResponse.newBuilder().setId("123").setStatusInfo("status").build());
     Assert.assertEquals("status", workerStatus.get().getStatusInfo());
   }
 
   @Test
   public void testGetWorkerStatusError() throws Exception {
     CompletableFuture<WorkerStatusResponse> workerStatus =
-        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setRequestId("123").build());
+        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setId("123").build());
     client
         .getResponseObserver()
-        .onNext(WorkerStatusResponse.newBuilder().setRequestId("123").setError("error").build());
+        .onNext(WorkerStatusResponse.newBuilder().setId("123").setError("error").build());
     Assert.assertEquals("error", workerStatus.get().getError());
   }
 
@@ -79,11 +78,7 @@ public class FnApiWorkerStatusClientTest {
     CompletableFuture<WorkerStatusResponse> workerStatus = client.getWorkerStatus();
     client
         .getResponseObserver()
-        .onNext(
-            WorkerStatusResponse.newBuilder()
-                .setRequestId("unknown")
-                .setStatusInfo("status")
-                .build());
+        .onNext(WorkerStatusResponse.newBuilder().setId("unknown").setStatusInfo("status").build());
     Assert.assertFalse(workerStatus.isDone());
   }
 
