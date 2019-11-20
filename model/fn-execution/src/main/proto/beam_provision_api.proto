@@ -73,9 +73,10 @@ message ProvisionInfo {
     // ArtifactStagingService.CommitManifestResponse.
     string retrieval_token = 6;
 
-    // (optional) The endpoint for runner to use for hosting the worker status
-    // api server, specify this field only if the runner supports the sdk worker
-    // status report.
+    // (optional) The endpoint that the runner is hosting for the SDK to submit
+    // status reports to during pipeline execution. This field will only be
+    // populated if the runner supports SDK status reports. For more details see
+    // https://docs.google.com/document/d/1W77buQtdSEIPUKd9zemAM38fb-x3CvOoaTF4P2mSxmI/edit#.
     org.apache.beam.model.pipeline.v1.ApiServiceDescriptor status_endpoint = 7;
 }
 
