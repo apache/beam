@@ -21,40 +21,32 @@ from __future__ import division
 from __future__ import print_function
 
 
-def combineglobally_simple(test=None):
-  # [START combineglobally_simple]
-  import apache_beam as beam
-
-  with beam.Pipeline() as pipeline:
-    total = (
-        pipeline
-        | 'Create numbers' >> beam.Create([1, 2, 3, 4])
-        | 'Sum' >> beam.CombineGlobally(sum)
-        | beam.Map(print)
-    )
-    # [END combineglobally_simple]
-    if test:
-      test(total)
-
-
 def combineglobally_function(test=None):
   # [START combineglobally_function]
   import apache_beam as beam
 
-  def saturated_sum(values):
-    max_value = 8
-    return min(sum(values), max_value)
+  def get_common_items(sets):
+    # set.intersection() takes multiple sets as separete arguments.
+    # We unpack the `sets` list into multiple arguments with the * operator.
+    # The combine transform might give us an empty list of `sets`,
+    # so we use a list with an empty set as a default value.
+    return set.intersection(*(sets or [set()]))
 
   with beam.Pipeline() as pipeline:
-    bounded_total = (
+    common_items = (
         pipeline
-        | 'Create numbers' >> beam.Create([1, 2, 3, 4])
-        | 'Saturated sum' >> beam.CombineGlobally(saturated_sum)
+        | 'Create produce' >> beam.Create([
+            {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+            {'🍇', '🥕', '🥝', '🍅', '🥔'},
+            {'🍉', '🥕', '🍆', '🍅', '🍍'},
+            {'🥑', '🥕', '🌽', '🍅', '🥥'},
+        ])
+        | 'Get common items' >> beam.CombineGlobally(get_common_items)
         | beam.Map(print)
     )
     # [END combineglobally_function]
     if test:
-      test(bounded_total)
+      test(common_items)
 
 
 def combineglobally_lambda(test=None):
@@ -62,16 +54,21 @@ def combineglobally_lambda(test=None):
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
-    bounded_total = (
+    common_items = (
         pipeline
-        | 'Create numbers' >> beam.Create([1, 2, 3, 4])
-        | 'Saturated sum' >> beam.CombineGlobally(
-            lambda values: min(sum(values), 8))
+        | 'Create produce' >> beam.Create([
+            {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+            {'🍇', '🥕', '🥝', '🍅', '🥔'},
+            {'🍉', '🥕', '🍆', '🍅', '🍍'},
+            {'🥑', '🥕', '🌽', '🍅', '🥥'},
+        ])
+        | 'Get common items' >> beam.CombineGlobally(
+            lambda sets: set.intersection(*(sets or [set()])))
         | beam.Map(print)
     )
     # [END combineglobally_lambda]
     if test:
-      test(bounded_total)
+      test(common_items)
 
 
 def combineglobally_multiple_arguments(test=None):
@@ -79,17 +76,23 @@ def combineglobally_multiple_arguments(test=None):
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
-    bounded_total = (
+    common_items_with_exceptions = (
         pipeline
-        | 'Create numbers' >> beam.Create([1, 2, 3, 4])
-        | 'Saturated sum' >> beam.CombineGlobally(
-            lambda values, max_value: min(sum(values), max_value),
-            max_value=8)
+        | 'Create produce' >> beam.Create([
+            {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+            {'🍇', '🥕', '🥝', '🍅', '🥔'},
+            {'🍉', '🥕', '🍆', '🍅', '🍍'},
+            {'🥑', '🥕', '🌽', '🍅', '🥥'},
+        ])
+        | 'Get common items with exceptions' >> beam.CombineGlobally(
+            lambda sets, exclude: \
+                set.intersection(*(sets or [set()])) - exclude,
+            exclude={'🥕'})
         | beam.Map(print)
     )
     # [END combineglobally_multiple_arguments]
     if test:
-      test(bounded_total)
+      test(common_items_with_exceptions)
 
 
 def combineglobally_side_inputs_singleton(test=None):
@@ -97,118 +100,134 @@ def combineglobally_side_inputs_singleton(test=None):
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
-    max_value = pipeline | 'Create max_value' >> beam.Create([8])
+    single_exclude = pipeline | 'Create single_exclude' >> beam.Create(['🥕'])
 
-    bounded_total = (
+    common_items_with_exceptions = (
         pipeline
-        | 'Create numbers' >> beam.Create([1, 2, 3, 4])
-        | 'Saturated sum' >> beam.CombineGlobally(
-            lambda values, max_value: min(sum(values), max_value),
-            max_value=beam.pvalue.AsSingleton(max_value))
+        | 'Create produce' >> beam.Create([
+            {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+            {'🍇', '🥕', '🥝', '🍅', '🥔'},
+            {'🍉', '🥕', '🍆', '🍅', '🍍'},
+            {'🥑', '🥕', '🌽', '🍅', '🥥'},
+        ])
+        | 'Get common items with exceptions' >> beam.CombineGlobally(
+            lambda sets, single_exclude: \
+                set.intersection(*(sets or [set()])) - {single_exclude},
+            single_exclude=beam.pvalue.AsSingleton(single_exclude))
         | beam.Map(print)
     )
     # [END combineglobally_side_inputs_singleton]
     if test:
-      test(bounded_total)
+      test(common_items_with_exceptions)
 
 
 def combineglobally_side_inputs_iter(test=None):
   # [START combineglobally_side_inputs_iter]
   import apache_beam as beam
 
-  def bounded_sum(values, data_range):
-    min_value = min(data_range)
-    result = sum(values)
-    if result < min_value:
-      return min_value
-    max_value = max(data_range)
-    if result > max_value:
-      return max_value
-    return result
-
   with beam.Pipeline() as pipeline:
-    data_range = pipeline | 'Create data_range' >> beam.Create([2, 4, 8])
+    exclude = pipeline | 'Create exclude' >> beam.Create(['🥕'])
 
-    bounded_total = (
+    common_items_with_exceptions = (
         pipeline
-        | 'Create numbers' >> beam.Create([1, 2, 3, 4])
-        | 'Bounded sum' >> beam.CombineGlobally(
-            bounded_sum,
-            data_range=beam.pvalue.AsIter(data_range))
+        | 'Create produce' >> beam.Create([
+            {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+            {'🍇', '🥕', '🥝', '🍅', '🥔'},
+            {'🍉', '🥕', '🍆', '🍅', '🍍'},
+            {'🥑', '🥕', '🌽', '🍅', '🥥'},
+        ])
+        | 'Get common items with exceptions' >> beam.CombineGlobally(
+            lambda sets, exclude: \
+                set.intersection(*(sets or [set()])) - set(exclude),
+            exclude=beam.pvalue.AsIter(exclude))
         | beam.Map(print)
     )
     # [END combineglobally_side_inputs_iter]
     if test:
-      test(bounded_total)
+      test(common_items_with_exceptions)
 
 
 def combineglobally_side_inputs_dict(test=None):
   # [START combineglobally_side_inputs_dict]
   import apache_beam as beam
 
-  def bounded_sum(values, data_range):
-    min_value = data_range['min']
-    result = sum(values)
-    if result < min_value:
-      return min_value
-    max_value = data_range['max']
-    if result > max_value:
-      return max_value
-    return result
+  def get_custom_common_items(sets, options):
+    sets = sets or [set()]
+    common_items = set.intersection(*sets)
+    common_items |= options['include']  # union
+    common_items &= options['exclude']  # intersection
+    return common_items
 
   with beam.Pipeline() as pipeline:
-    data_range = pipeline | 'Create data_range' >> beam.Create([
-        ('min', 2),
-        ('max', 8),
+    options = pipeline | 'Create options' >> beam.Create([
+        ('exclude', {'🥕'}),
+        ('include', {'🍇', '🌽'}),
     ])
 
-    bounded_total = (
+    custom_common_items = (
         pipeline
-        | 'Create numbers' >> beam.Create([1, 2, 3, 4])
-        | 'Bounded sum' >> beam.CombineGlobally(
-            bounded_sum,
-            data_range=beam.pvalue.AsDict(data_range))
+        | 'Create produce' >> beam.Create([
+            {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+            {'🍇', '🥕', '🥝', '🍅', '🥔'},
+            {'🍉', '🥕', '🍆', '🍅', '🍍'},
+            {'🥑', '🥕', '🌽', '🍅', '🥥'},
+        ])
+        | 'Get common items' >> beam.CombineGlobally(
+            get_custom_common_items,
+            options=beam.pvalue.AsDict(options))
         | beam.Map(print)
     )
     # [END combineglobally_side_inputs_dict]
     if test:
-      test(bounded_total)
+      test(custom_common_items)
+
 
 def combineglobally_combinefn(test=None):
   # [START combineglobally_combinefn]
   import apache_beam as beam
 
-  class AverageFn(beam.CombineFn):
+  class PercentagesFn(beam.CombineFn):
     def create_accumulator(self):
-      sum = 0.0
-      count = 0
-      accumulator = sum, count
-      return accumulator
+      return {}
 
     def add_input(self, accumulator, input):
-      sum, count = accumulator
-      return sum + input, count + 1
+      # accumulator == {}
+      # input == '🥕'
+      if input not in accumulator:
+        accumulator[input] = 0  # {'🥕': 0}
+      accumulator[input] += 1   # {'🥕': 1}
+      return accumulator
 
     def merge_accumulators(self, accumulators):
-      # accumulators = [(sum1, count1), (sum2, count2), (sum3, count3), ...]
-      sums, counts = zip(*accumulators)
-      # sums = [sum1, sum2, sum3, ...]
-      # counts = [count1, count2, count3, ...]
-      return sum(sums), sum(counts)
+      # accumulators == [
+      #     {'🥕': 1, '🍅': 2},
+      #     {'🥕': 1, '🍅': 1, '🍆': 1},
+      #     {'🥕': 1, '🍅': 3},
+      # ]
+      merged = {}
+      for accum in accumulators:
+        for item, count in accum.items():
+          if item not in merged:
+            merged[item] = 0
+          merged[item] += count
+      # merged == {'🥕': 3, '🍅': 6, '🍆': 1}
+      return merged
 
     def extract_output(self, accumulator):
-      sum, count = accumulator
-      if count == 0:
-        return float('NaN')
-      return sum / count
+      # accumulator == {'🥕': 3, '🍅': 6, '🍆': 1}
+      total = sum(accumulator.values())  # 10
+      percentages = {item: count / total for item, count in accumulator.items()}
+      # percentages == {'🥕': 0.3, '🍅': 0.6, '🍆': 0.1}
+      return percentages
 
   with beam.Pipeline() as pipeline:
-    average = (
+    percentages = (
         pipeline
-        | 'Create numbers' >> beam.Create([1, 2, 3, 4])
-        | 'Average' >> beam.CombineGlobally(AverageFn())
+        | 'Create produce' >> beam.Create([
+            '🥕', '🍅', '🍅', '🥕', '🍆', '🍅', '🍅', '🍅', '🥕', '🍅'])
+        | 'Get percentages' >> beam.CombineGlobally(PercentagesFn())
         | beam.Map(print)
     )
     # [END combineglobally_combinefn]
     if test:
-      test(average)
+      test(percentages)

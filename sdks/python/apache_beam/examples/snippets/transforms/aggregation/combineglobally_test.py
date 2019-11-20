@@ -29,24 +29,31 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from . import combineglobally
 
 
-def check_total(actual):
-  expected = '''[START total]
-10
-[END total]'''.splitlines()[1:-1]
+def check_common_items(actual):
+  expected = '''[START common_items]
+{'🍅', '🥕'}
+[END common_items]'''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
 
-def check_bounded_total(actual):
-  expected = '''[START bounded_total]
-8
-[END bounded_total]'''.splitlines()[1:-1]
+def check_common_items_with_exceptions(actual):
+  expected = '''[START common_items_with_exceptions]
+{'🍅'}
+[END common_items_with_exceptions]'''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
 
-def check_average(actual):
-  expected = '''[START average]
-2.5
-[END average]'''.splitlines()[1:-1]
+def check_custom_common_items(actual):
+  expected = '''[START custom_common_items]
+{'🍅', '🍇', '🌽'}
+[END custom_common_items]'''.splitlines()[1:-1]
+  assert_matches_stdout(actual, expected)
+
+
+def check_percentages(actual):
+  expected = '''[START percentages]
+{'🥕': 0.3, '🍅': 0.6, '🍆': 0.1}
+[END percentages]'''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
 
@@ -57,31 +64,32 @@ def check_average(actual):
     str)
 # pylint: enable=line-too-long
 class CombineGloballyTest(unittest.TestCase):
-  def test_combineglobally_simple(self):
-    combineglobally.combineglobally_simple(check_total)
-
   def test_combineglobally_function(self):
-    combineglobally.combineglobally_function(check_bounded_total)
+    combineglobally.combineglobally_function(check_common_items)
 
   def test_combineglobally_lambda(self):
-    combineglobally.combineglobally_lambda(check_bounded_total)
+    combineglobally.combineglobally_lambda(check_common_items)
 
   def test_combineglobally_multiple_arguments(self):
-    combineglobally.combineglobally_multiple_arguments(check_bounded_total)
+    combineglobally.combineglobally_multiple_arguments(
+        check_common_items_with_exceptions)
+
+  def test_combineglobally_side_inputs_singleton(self):
+    combineglobally.combineglobally_side_inputs_singleton(
+        check_common_items_with_exceptions)
 
   # TODO (dcavazos): enable side inputs tests after [BEAM-8400] is fixed.
   # https://issues.apache.org/jira/browse/BEAM-8400
-  # def test_combineglobally_side_inputs_singleton(self):
-  #   combineglobally.combineglobally_side_inputs_singleton(check_bounded_total)
-
   # def test_combineglobally_side_inputs_iter(self):
-  #   combineglobally.combineglobally_side_inputs_iter(check_bounded_total)
+  #   combineglobally.combineglobally_side_inputs_iter(
+  #       check_common_items_with_exceptions)
 
   # def test_combineglobally_side_inputs_dict(self):
-  #   combineglobally.combineglobally_side_inputs_dict(check_bounded_total)
+  #   combineglobally.combineglobally_side_inputs_dict(
+  #       check_custom_common_items)
 
   def test_combineglobally_combinefn(self):
-    combineglobally.combineglobally_combinefn(check_average)
+    combineglobally.combineglobally_combinefn(check_percentages)
 
 
 if __name__ == '__main__':
