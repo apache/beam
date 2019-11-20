@@ -138,12 +138,13 @@ class PipelineGraph(object):
   def _decorate(self, value):
     """Decorates label-ish values used for rendering in dot language.
 
-    Escapes special characters in the given str value for dot language. '"' is
-    the only character cannot be escaped. Please escape all PTransform unique
-    names when building dot representation. Otherwise, special characters will
-    break the graph rendered.
+    Escapes special characters in the given str value for dot language. Please
+    escape all PTransform unique names when building dot representation.
+    Otherwise, special characters will break the graph rendered.
     """
-    return '"{}"'.format(value)
+    # Replace `"` with `\\"` so that the dot generated will be `\"` and be
+    # rendered as `"`.
+    return '"{}"'.format(value.replace('"', '\\"'))
 
   def _generate_graph_dicts(self):
     """From pipeline_proto and other info, generate the graph.

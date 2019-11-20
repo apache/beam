@@ -121,48 +121,48 @@ class InteractiveRunner(runners.PipelineRunner):
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
-    pin = inst.pin(pipeline, options)
+    pipeline_instrument = inst.pin(pipeline, options)
 
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
-        pin.instrumented_pipeline_proto(),
+        pipeline_instrument.instrumented_pipeline_proto(),
         self._underlying_runner,
         options)
 
     if not self._skip_display:
       a_pipeline_graph = pipeline_graph.PipelineGraph(
-          pin.original_pipeline,
+          pipeline_instrument.original_pipeline,
           render_option=self._render_option)
       a_pipeline_graph.display_graph()
 
     result = pipeline_to_execute.run()
     result.wait_until_finish()
 
-    return PipelineResult(result, pin)
+    return PipelineResult(result, pipeline_instrument)
 
 
 class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
 
-  def __init__(self, underlying_result, pin):
+  def __init__(self, underlying_result, pipeline_instrument):
     """Constructor of PipelineResult.
 
     Args:
       underlying_result: (PipelineResult) the result returned by the underlying
           runner running the pipeline.
-      pin: (PipelineInstrument) pipeline instrument describing the pipeline
-          being executed with interactivity applied and related metadata
-          including where the interactivity-backing cache lies.
+      pipeline_instrument: (PipelineInstrument) pipeline instrument describing
+          the pipeline being executed with interactivity applied and related
+          metadata including where the interactivity-backing cache lies.
     """
     super(PipelineResult, self).__init__(underlying_result.state)
     self._underlying_result = underlying_result
-    self._pin = pin
+    self._pipeline_instrument = pipeline_instrument
 
   def wait_until_finish(self):
     # PipelineResult is not constructed until pipeline execution is finished.
     return
 
   def get(self, pcoll):
-    key = self._pin.cache_key(pcoll)
+    key = self._pipeline_instrument.cache_key(pcoll)
     if ie.current_env().cache_manager().exists('full', key):
       pcoll_list, _ = ie.current_env().cache_manager().read('full', key)
       return pcoll_list
