@@ -31,11 +31,12 @@ class EmbeddedSqsServer {
   private static SQSRestServer sqsRestServer;
   private static SqsClient client;
   private static String queueUrl;
-  private static String endPoint = "http://localhost:9324";
+  private static int port = 9234;
+  private static String endPoint = String.format("http://localhost:%d", port);
   private static String queueName = "test";
 
   static void start() {
-    sqsRestServer = SQSRestServerBuilder.start();
+    sqsRestServer = SQSRestServerBuilder.withPort(port).start();
 
     client =
         SqsClient.builder()
