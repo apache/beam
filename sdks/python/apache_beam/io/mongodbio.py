@@ -193,8 +193,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     with MongoClient(self.uri, **self.spec) as client:
       all_filters = self._merge_id_filter(range_tracker)
       docs_cursor = client[self.db][self.coll].find(filter=all_filters).sort([
-        ('_id', ASCENDING),
-      ])
+          [('_id', ASCENDING)])
       for doc in docs_cursor:
         if not range_tracker.try_claim(doc['_id']):
           return
