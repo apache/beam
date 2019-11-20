@@ -18,6 +18,9 @@
 package org.apache.beam.runners.core.construction;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
@@ -28,6 +31,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,7 +39,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 /** Tests for PipelineResources. */
 @RunWith(JUnit4.class)
@@ -43,6 +46,7 @@ public class PipelineResourcesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient RestoreSystemProperties systemProperties = new RestoreSystemProperties();
 
   @Test
   public void detectClassPathResourceWithFileResources() throws Exception {
@@ -57,15 +61,6 @@ public class PipelineResourcesTest {
   }
 
   @Test
-  public void detectClassPathResourcesWithUnsupportedClassLoader() {
-    ClassLoader mockClassLoader = Mockito.mock(ClassLoader.class);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unable to use ClassLoader to detect classpath elements.");
-
-    PipelineResources.detectClassPathResourcesToStage(mockClassLoader);
-  }
-
-  @Test
   public void detectClassPathResourceWithNonFileResources() throws Exception {
     String url = "http://www.google.com/all-the-secrets.jar";
     URLClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
@@ -73,6 +68,19 @@ public class PipelineResourcesTest {
     thrown.expectMessage("Unable to convert url (" + url + ") to file.");
 
     PipelineResources.detectClassPathResourcesToStage(classLoader);
+  }
+
+  @Test
+  public void detectClassPathResourceWithoutURLClassLoader() throws IOException {
+    String path = tmpFolder.newFile("file").getAbsolutePath();
+    String path2 = tmpFolder.newFile("file2").getAbsolutePath();
+    String classpath = String.join(File.pathSeparator, path, path2);
+    System.setProperty("java.class.path", classpath);
+
+    List<String> resources = PipelineResources.detectClassPathResourcesToStage(null);
+
+    assertThat(resources, hasItems(path, path2));
+    assertThat(resources, hasSize(2));
   }
 
   @Test
