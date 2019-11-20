@@ -19,10 +19,16 @@ limitations under the License.
 -->
 # Beam Twitter handle 
 ## What is it and what are the goals?
-Apache Beam community thrives to be inclusive to everyone. As part of this effort, we want to enable any community member to share anything interesting and fun related to Beam via its [official twitter handle](https://twitter.com/ApacheBeam). To do so, please follow the instructions below:
+Apache Beam community thrives to be inclusive to everyone. As part of this effort, we want to enable any community member to share anything interesting and fun related to Beam via its [official twitter handle](https://twitter.com/ApacheBeam).
+
+The Twitter feed found here is owned by the Apache Beam PMC, and the process of adding new tweets into the feed is documented below.
+
+<a class="twitter-timeline" href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+## Process to propose new tweets for the Apache Beam Twitter
 
 - Compose a tweet with the news you want to share. It can be anything that is relevant to Apache Beam. For example, it can be a tweet to welcome new committers, announce new Beam features, share and recognize contributors publicly, promote events and meetups, share trending articles around batch and stream processing big data, etc.
-- Go to https://s.apache.org/beam-tweets and request “Edit” access.
+- Go to [s.apache.org/beam-tweets](https://s.apache.org/beam-tweets) and request “Edit” access.
 - After you are able to edit the document, fill out the necessary fields:
 	- Date - the date when you are filling out the document
 	- Author - your name
