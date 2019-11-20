@@ -106,10 +106,9 @@ public class WindmillStateCache implements StatusDataProvider {
     public void invalidate(ByteString processingKey) {
       synchronized (this) {
         ComputationKey key = new ComputationKey(computation, processingKey);
-        for (StateId id : keyIndex.get(key)) {
+        for (StateId id : keyIndex.removeAll(key)) {
           stateCache.invalidate(id);
         }
-        keyIndex.removeAll(key);
       }
     }
 
