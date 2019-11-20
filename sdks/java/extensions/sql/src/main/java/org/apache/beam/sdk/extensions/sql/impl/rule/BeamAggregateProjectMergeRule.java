@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import java.util.HashSet;
@@ -17,11 +34,13 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilde
 
 /**
  * This rule is essentially a wrapper around Calcite's {@code AggregateProjectMergeRule}. In the
- * case when an underlying IO supports project push-down it is more efficient to not merge
- * {@code Project} with an {@code Aggregate}, leaving it for the {@code BeamIOPUshDownRule}.
+ * case when an underlying IO supports project push-down it is more efficient to not merge {@code
+ * Project} with an {@code Aggregate}, leaving it for the {@code BeamIOPUshDownRule}.
  */
 public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
-  public static final AggregateProjectMergeRule INSTANCE = new BeamAggregateProjectMergeRule(Aggregate.class, Project.class, RelFactories.LOGICAL_BUILDER);
+  public static final AggregateProjectMergeRule INSTANCE =
+      new BeamAggregateProjectMergeRule(
+          Aggregate.class, Project.class, RelFactories.LOGICAL_BUILDER);
   private Set<RelNode> visitedNodes = new HashSet<>();
 
   public BeamAggregateProjectMergeRule(
@@ -36,20 +55,23 @@ public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
     final Project project = call.rel(1);
     BeamIOSourceRel io = getUnderlyingIO(project);
 
-    // Only perform AggregateProjectMergeRule when IO is not present or project push-down is not supported.
+    // Only perform AggregateProjectMergeRule when IO is not present or project push-down is not
+    // supported.
     if (io == null || !io.getBeamSqlTable().supportsProjects().isSupported()) {
       super.onMatch(call);
     }
   }
 
   /**
-   * Following scenarios are possible:
-   * 1) Aggregate <- Project <- IO.
-   * 2) Aggregate <- Project <- Chain of Project/Filter <- IO.
-   * 3) Aggregate <- Project <- Something else.
+   * Following scenarios are possible:<br>
+   * 1) Aggregate <- Project <- IO.<br>
+   * 2) Aggregate <- Project <- Chain of Project/Filter <- IO.<br>
+   * 3) Aggregate <- Project <- Something else.<br>
    * 4) Aggregate <- Project <- Chain of Project/Filter <- Something else.
+   *
    * @param parent project that matched this rule.
-   * @return {@code BeamIOSourceRel} when it is present or null when some other {@code RelNode} is present.
+   * @return {@code BeamIOSourceRel} when it is present or null when some other {@code RelNode} is
+   *     present.
    */
   private BeamIOSourceRel getUnderlyingIO(SingleRel parent) {
     // No need to look at the same node more than once.
