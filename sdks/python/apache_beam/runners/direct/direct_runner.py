@@ -183,9 +183,9 @@ def _get_transform_overrides(pipeline_options):
 
   # Importing following locally to avoid a circular dependency.
   from apache_beam.pipeline import PTransformOverride
-  from apache_beam.runners.sdf_common import SplittableParDoOverride
   from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
+  from apache_beam.runners.direct.sdf_direct_runner import SplittableParDoOverride
 
   class CombinePerKeyOverride(PTransformOverride):
     def matches(self, applied_ptransform):
