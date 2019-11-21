@@ -82,7 +82,11 @@ public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
 
     for (RelNode node : nodes) {
       if (node instanceof Filter || node instanceof Project) {
-        return getUnderlyingIO(visitedNodes, (SingleRel) node);
+        // Search node inputs for an IO.
+        BeamIOSourceRel child = getUnderlyingIO(visitedNodes, (SingleRel) node);
+        if (child != null) {
+          return child;
+        }
       } else if (node instanceof BeamIOSourceRel) {
         return (BeamIOSourceRel) node;
       }
