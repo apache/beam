@@ -547,9 +547,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
                    .advance_watermark_to(start_time +
                                          GroupIntoBatchesTest.NUM_ELEMENTS)
                    .advance_watermark_to_infinity())
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
-    pipeline = TestPipeline(options=options)
+    pipeline = TestPipeline(options=StandardOptions(streaming=True))
     #  window duration is 6 and batch size is 5, so output batch size should be
     #  5 (flush because of batchSize reached)
     expected_0 = 5
