@@ -298,7 +298,7 @@ release {
 // Reports linkage errors across multiple Apache Beam artifact ids.
 //
 // To use (from the root of project):
-//    ./gradlew -Ppublishing -PjavaLinkageArtifacts=artifactId1,artifactId2,... :checkJavaLinkage
+//    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=artifactId1,artifactId2,... :checkJavaLinkage
 //
 // For example:
 //    ./gradlew -Ppublishing -PjavaLinkageArtifacts=beam-sdks-java-core,beam-sdks-java-io-jdbc :checkJavaLinkage
