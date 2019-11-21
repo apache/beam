@@ -41,7 +41,6 @@ public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
   public static final AggregateProjectMergeRule INSTANCE =
       new BeamAggregateProjectMergeRule(
           Aggregate.class, Project.class, RelFactories.LOGICAL_BUILDER);
-  private Set<RelNode> visitedNodes = new HashSet<>();
 
   public BeamAggregateProjectMergeRule(
       Class<? extends Aggregate> aggregateClass,
@@ -53,7 +52,7 @@ public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final Project project = call.rel(1);
-    BeamIOSourceRel io = getUnderlyingIO(project);
+    BeamIOSourceRel io = getUnderlyingIO(new HashSet<>(), project);
 
     // Only perform AggregateProjectMergeRule when IO is not present or project push-down is not
     // supported.
@@ -73,7 +72,7 @@ public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
    * @return {@code BeamIOSourceRel} when it is present or null when some other {@code RelNode} is
    *     present.
    */
-  private BeamIOSourceRel getUnderlyingIO(SingleRel parent) {
+  private BeamIOSourceRel getUnderlyingIO(Set<RelNode> visitedNodes, SingleRel parent) {
     // No need to look at the same node more than once.
     if (visitedNodes.contains(parent)) {
       return null;
@@ -83,7 +82,7 @@ public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
 
     for (RelNode node : nodes) {
       if (node instanceof Filter || node instanceof Project) {
-        return getUnderlyingIO((SingleRel) node);
+        return getUnderlyingIO(visitedNodes, (SingleRel) node);
       } else if (node instanceof BeamIOSourceRel) {
         return (BeamIOSourceRel) node;
       }
