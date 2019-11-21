@@ -36,7 +36,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
     extends BeamFnDataSizeBasedBufferingOutboundObserver<T> {
 
-  private final Object flushLock;
   @VisibleForTesting final ScheduledFuture<?> flushFuture;
 
   BeamFnDataTimeBasedBufferingOutboundObserver(
@@ -46,7 +45,6 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
       Coder<T> coder,
       StreamObserver<BeamFnApi.Elements> outboundObserver) {
     super(sizeLimit, outputLocation, coder, outboundObserver);
-    this.flushLock = new Object();
     this.flushFuture =
         Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder()
@@ -59,25 +57,15 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
   @Override
   public void close() throws Exception {
     checkFlushThreadException();
-    synchronized (flushLock) {
-      flushFuture.cancel(true);
-      try {
-        flushFuture.get();
-      } catch (ExecutionException ee) {
-        // the cause of ExecutionException is always RuntimeException
-        throw (RuntimeException) ee.getCause();
-      } catch (CancellationException ce) {
-        // expected
-      }
+    flushFuture.cancel(false);
+    try {
+      flushFuture.get();
+    } catch (ExecutionException ee) {
+      unwrapExecutionException(ee);
+    } catch (CancellationException ce) {
+      // expected
     }
     super.close();
-  }
-
-  @Override
-  public void flush() throws IOException {
-    synchronized (flushLock) {
-      super.flush();
-    }
   }
 
   @Override
@@ -101,16 +89,23 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
         flushFuture.get();
         throw new IOException("Periodic flushing thread finished unexpectedly.");
       } catch (ExecutionException ee) {
-        // the cause of ExecutionException is always RuntimeException
-        RuntimeException re = (RuntimeException) ee.getCause();
-        if (re.getCause() instanceof IOException) {
-          throw (IOException) re.getCause();
-        }
-        throw re;
-      } catch (InterruptedException | CancellationException e) {
-        // Should never happen
-        throw new RuntimeException(e);
+        unwrapExecutionException(ee);
+      } catch (CancellationException ce) {
+        throw new IOException(ce);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+        throw new IOException(ie);
       }
+    }
+  }
+
+  private void unwrapExecutionException(ExecutionException ee) throws IOException {
+    // the cause is always RuntimeException
+    RuntimeException re = (RuntimeException) ee.getCause();
+    if (re.getCause() instanceof IOException) {
+      throw (IOException) re.getCause();
+    } else {
+      throw new IOException(re.getCause());
     }
   }
 }
