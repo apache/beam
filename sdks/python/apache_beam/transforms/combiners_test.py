@@ -492,26 +492,23 @@ class LatestCombineFnTest(unittest.TestCase):
 @attr('ValidatesRunner')
 class TimestampCombinerTest(unittest.TestCase):
 
-  class RecordFn(beam.DoFn):
-    def process(self, elm=beam.DoFn.ElementParam, ts=beam.DoFn.TimestampParam):
-      yield (elm, ts)
-
   @unittest.skip('BEAM-8657')
   def test_combiner_earliest(self):
     """Test TimestampCombiner with EARLIEST."""
     options = PipelineOptions(streaming=True)
     with TestPipeline(options=options) as p:
       result = (p
-                | 'main TestStream' >> TestStream()
+                | TestStream()
                 .add_elements([window.TimestampedValue(('k', 100), 2)])
                 .add_elements([window.TimestampedValue(('k', 400), 7)])
                 .advance_watermark_to_infinity()
-                | 'main windowInto' >> beam.WindowInto(
+                | beam.WindowInto(
                     window.FixedWindows(10),
                     timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
-                | 'Combine' >> beam.CombinePerKey(sum))
+                | beam.CombinePerKey(sum))
 
-      records = (result | beam.ParDo(self.RecordFn()))
+      records = (result
+                 | beam.Map(lambda e, ts=beam.DoFn.TimestampParam: (e, ts)))
 
       # All the KV pairs are applied GBK using EARLIEST timestamp for the same
       # key.
@@ -532,16 +529,17 @@ class TimestampCombinerTest(unittest.TestCase):
     options = PipelineOptions(streaming=True)
     with TestPipeline(options=options) as p:
       result = (p
-                | 'main TestStream' >> TestStream()
+                | TestStream()
                 .add_elements([window.TimestampedValue(('k', 100), 2)])
                 .add_elements([window.TimestampedValue(('k', 400), 7)])
                 .advance_watermark_to_infinity()
-                | 'main windowInto' >> beam.WindowInto(
+                | beam.WindowInto(
                     window.FixedWindows(10),
                     timestamp_combiner=TimestampCombiner.OUTPUT_AT_LATEST)
-                | 'Combine' >> beam.CombinePerKey(sum))
+                | beam.CombinePerKey(sum))
 
-      records = (result | beam.ParDo(self.RecordFn()))
+      records = (result
+                 | beam.Map(lambda e, ts=beam.DoFn.TimestampParam: (e, ts)))
 
       # All the KV pairs are applied GBK using LATEST timestamp for
       # the same key.
