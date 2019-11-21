@@ -1280,8 +1280,8 @@ def create(*args):
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
-  serialized_fn = parameter.do_fn.spec.payload
+  assert parameter.do_fn.urn == python_urns.PICKLED_DOFN_INFO
+  serialized_fn = parameter.do_fn.payload
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       serialized_fn, parameter,
@@ -1292,7 +1292,7 @@ def _create_sdf_operation(
     proxy_dofn,
     factory, transform_id, transform_proto, parameter, consumers):
 
-  dofn_data = pickler.loads(parameter.do_fn.spec.payload)
+  dofn_data = pickler.loads(parameter.do_fn.payload)
   dofn = dofn_data[0]
   restriction_provider = common.DoFnSignature(dofn).get_restriction_provider()
   serialized_fn = pickler.dumps(
@@ -1305,8 +1305,8 @@ def _create_sdf_operation(
 @BeamTransformFactory.register_urn(
     common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
-  serialized_fn = parameter.do_fn.spec.payload
+  assert parameter.do_fn.urn == python_urns.PICKLED_DOFN_INFO
+  serialized_fn = parameter.do_fn.payload
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       serialized_fn, parameter)
@@ -1550,10 +1550,10 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
 
 @BeamTransformFactory.register_urn(
     common_urns.primitives.MAP_WINDOWS.urn,
-    beam_runner_api_pb2.SdkFunctionSpec)
+    beam_runner_api_pb2.FunctionSpec)
 def create(factory, transform_id, transform_proto, mapping_fn_spec, consumers):
-  assert mapping_fn_spec.spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
-  window_mapping_fn = pickler.loads(mapping_fn_spec.spec.payload)
+  assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
+  window_mapping_fn = pickler.loads(mapping_fn_spec.payload)
 
   class MapWindows(beam.DoFn):
 
