@@ -83,6 +83,22 @@ class CounterIncrememtingCombineFn(beam.CombineFn):
     return acc
 
 
+class ConcatIntCombineFn(beam.CombineFn):
+  """ CombineFn for concatenating string representations of integers. """
+
+  def create_accumulator(self):
+    return ''
+
+  def add_input(self, acc, element):
+    return acc + str(element)
+
+  def merge_accumulators(self, accs):
+    return ''.join(accs)
+
+  def extract_output(self, acc):
+    return acc
+
+
 class CombineTest(unittest.TestCase):
 
   def test_builtin_combines(self):
@@ -611,6 +627,7 @@ class CombineTest(unittest.TestCase):
     if query_result['gauges']:
       last_word_len = query_result['gauges'][0]
       self.assertEqual(last_word_len.result.value, 0)
+
 
 class LatestTest(unittest.TestCase):
 
