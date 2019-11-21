@@ -111,6 +111,57 @@ public class PubsubToBigqueryIT implements Serializable {
         .pollFor(Duration.standardMinutes(5));
   }
 
+  @Test
+  public void testSimpleInsertFlat() throws Exception {
+    BeamSqlEnv sqlEnv =
+        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
+
+    String createTableString =
+        "CREATE EXTERNAL TABLE pubsub_topic (\n"
+            + "event_timestamp TIMESTAMP, \n"
+            + "id INTEGER, \n"
+            + "name VARCHAR \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + pubsub.topicPath()
+            + "' \n"
+            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
+    sqlEnv.executeDdl(createTableString);
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE bq_table( \n"
+            + "   id BIGINT, \n"
+            + "   name VARCHAR \n "
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQuery.tableSpec()
+            + "'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO bq_table \n" + "SELECT \n" + "  id, \n" + "  name \n" + "FROM pubsub_topic";
+
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
+
+    pipeline.run();
+
+    List<PubsubMessage> messages =
+        ImmutableList.of(
+            message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
+    pubsub.publish(messages);
+
+    bigQuery
+        .assertThatAllRows(SOURCE_SCHEMA)
+        .eventually(
+            containsInAnyOrder(
+                row(SOURCE_SCHEMA, 3L, "foo"),
+                row(SOURCE_SCHEMA, 5L, "bar"),
+                row(SOURCE_SCHEMA, 7L, "baz")))
+        .pollFor(Duration.standardMinutes(5));
+  }
+
   private Row row(Schema schema, Object... values) {
     return Row.withSchema(schema).addValues(values).build();
   }
