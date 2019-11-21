@@ -301,7 +301,7 @@ release {
 //    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=artifactId1,artifactId2,... :checkJavaLinkage
 //
 // For example:
-//    ./gradlew -Ppublishing -PjavaLinkageArtifacts=beam-sdks-java-core,beam-sdks-java-io-jdbc :checkJavaLinkage
+//    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=beam-sdks-java-core,beam-sdks-java-io-jdbc :checkJavaLinkage
 //
 // Note that this task publishes artifacts into your local Maven repository.
 if (project.hasProperty('javaLinkageArtifactIds')) {
