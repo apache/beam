@@ -119,7 +119,6 @@ public class TimerReceiver {
         String timerId = timerSpec.timerId();
 
         TimerInternals timerInternals = stepContext.namespacedToUser().timerInternals();
-        TimerInternals.TimerData timerData = stepContext.getNextFiredTimer(windowCoder);
         timerInternals.setTimer(
             namespace, timerId, timer.getTimestamp(), timer.getTimestamp(), timeDomain);
 
