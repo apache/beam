@@ -371,7 +371,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_core_version = "1.61.0"
     def google_cloud_spanner_version = "1.6.0"
-    def grpc_version = "1.17.1"
+    def grpc_version = "1.23.1"
     def guava_version = "20.0"
     def hadoop_version = "2.7.3"
     def hamcrest_version = "2.1"
@@ -432,7 +432,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
-        gax_grpc                                    : "com.google.api:gax-grpc:1.38.0",
+        gax_grpc                                    : "com.google.api:gax-grpc:1.48.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
@@ -446,7 +446,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:$google_clients_version",
-        google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.79.0-alpha",
+        google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.111.0-beta",
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.12.1",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
