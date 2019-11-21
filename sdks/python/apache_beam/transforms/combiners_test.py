@@ -50,6 +50,22 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
 
 
+class ConcatIntCombineFn(beam.CombineFn):
+  """ CombineFn for concatenating string representations of integers. """
+
+  def create_accumulator(self):
+    return ''
+
+  def add_input(self, acc, element):
+    return acc + str(element)
+
+  def merge_accumulators(self, accs):
+    return ''.join(accs)
+
+  def extract_output(self, acc):
+    return acc
+
+
 class CombineTest(unittest.TestCase):
 
   def test_builtin_combines(self):
@@ -484,6 +500,46 @@ class CombineTest(unittest.TestCase):
       assert_that(sum_per_key,
                   equal_to([('c', 3), ('c', 10), ('d', 5), ('d', 17)]),
                   label='sum per key')
+
+  # Test that CombinePerKey works with the customized ConcatIntCombineFn.
+  def test_simple_combine(self):
+    with TestPipeline() as p:
+      input = (p
+               | beam.Create([('a', 1),
+                              ('a', 1),
+                              ('a', 4),
+                              ('b', 1),
+                              ('b', 13)]))
+
+      # The sum of all values regardless of key.
+      global_sum = (input
+                    | beam.Values()
+                    | beam.CombineGlobally(sum))
+
+      # The (key, concatenated_int_to_string) pairs for all keys.
+      concat_per_key = (input | beam.CombinePerKey(ConcatIntCombineFn()))
+
+      expected_concat_per_key = [('a', '114'), ('b', '113')]
+      assert_that(global_sum, equal_to([20]), label='global sum')
+      assert_that(concat_per_key, equal_to(expected_concat_per_key),
+                  label='concat per key')
+
+  # Test that CombinePerKey works with the customized ConcatIntCombineFn
+  # when the PCollection is empty.
+  def test_simple_combine_empty(self):
+    with TestPipeline() as p:
+      input = (p | beam.Create([]))
+
+      # The sum of all values regardless of key.
+      global_sum = (input
+                    | beam.Values()
+                    | beam.CombineGlobally(sum))
+
+      # The (key, concatenated_int_to_string) pairs for all keys.
+      concat_per_key = (input | beam.CombinePerKey(ConcatIntCombineFn()))
+
+      assert_that(global_sum, equal_to([0]), label='global sum')
+      assert_that(concat_per_key, equal_to([]), label='concat per key')
 
 
 class LatestTest(unittest.TestCase):
