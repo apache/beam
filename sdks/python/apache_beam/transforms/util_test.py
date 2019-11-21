@@ -495,12 +495,12 @@ class ReshuffleTest(unittest.TestCase):
                               lambda element: beam.window.TimestampedValue(
                                   element, element['timestamp'])))
 
-      # Reshuffle the PCollection above and assign the timestamp of an element to
-      # that element again.
+      # Reshuffle the PCollection above and assign the timestamp of an element
+      # to that element again.
       after_reshuffle = before_reshuffle | beam.Reshuffle()
 
-      # Given an element, emits a string which contains the timestamp and the name
-      # field of the element.
+      # Given an element, emits a string which contains the timestamp and the
+      # name field of the element.
       class FormatWithTimestamp(beam.DoFn):
         def process(self, element, timestamp=beam.DoFn.TimestampParam):
           t = str(timestamp)
@@ -526,8 +526,8 @@ class ReshuffleTest(unittest.TestCase):
                        'MAX_TIMESTAMP - bar']
 
       # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
-      # directly, because they are deferred PCollections while equal_to only takes
-      # a concrete argument.
+      # directly, because they are deferred PCollections while equal_to only
+      # takes a concrete argument.
       assert_that(formatted_before_reshuffle, equal_to(expected_data),
                   label="formatted_before_reshuffle")
       assert_that(formatted_after_reshuffle, equal_to(expected_data),
