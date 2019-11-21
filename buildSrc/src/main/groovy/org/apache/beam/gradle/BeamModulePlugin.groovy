@@ -367,7 +367,9 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.75.0"
     def generated_grpc_dc_beta_version = "0.27.0-alpha"
     def google_auth_version = "0.12.0"
-    def google_clients_version = "1.28.0"
+    def google_http_clients_version = "1.32.0"
+    def google_oauth_clients_version = "1.30.2"
+    def google_api_client_version = "1.30.3"
     def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_core_version = "1.91.1"
     def google_cloud_spanner_version = "1.38.0"
@@ -434,19 +436,19 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
         gax_grpc                                    : "com.google.api:gax-grpc:1.48.0",
-        google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
-        google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
-        google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
+        google_api_client                           : "com.google.api-client:google-api-client:$google_api_client_version",
+        google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_api_client_version",
+        google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_api_client_version",
         google_api_common                           : "com.google.api:api-common:1.7.0",
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20181221-$google_clients_version",
-        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20181114-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190927-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181213-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181109-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20190907-$google_api_client_version",
+        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20191003-$google_api_client_version",
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20191018-$google_api_client_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190927-$google_api_client_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20191001-$google_api_client_version",
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20190910-$google_api_client_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
-        google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:$google_clients_version",
+        google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.93.0",
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.111.0-beta",
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.12.1",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
@@ -454,12 +456,12 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
-        google_http_client                          : "com.google.http-client:google-http-client:$google_clients_version",
-        google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:$google_clients_version",
-        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_clients_version",
-        google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_clients_version",
-        google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_clients_version",
-        google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_clients_version",
+        google_http_client                          : "com.google.http-client:google-http-client:$google_http_clients_version",
+        google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
+        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_http_clients_version",
+        google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",
+        google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
+        google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
