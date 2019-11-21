@@ -38,8 +38,11 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Splittabl
 import org.apache.beam.runners.core.construction.ExternalTranslation.ExternalTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.PCollection;
@@ -48,6 +51,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -278,7 +282,7 @@ public class PTransformTranslation {
       if (spec != null) {
         transformBuilder.setSpec(spec);
       }
-
+      transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
       return transformBuilder.build();
     }
   }
@@ -291,6 +295,9 @@ public class PTransformTranslation {
       implements TransformTranslator<T> {
     private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
         KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
+
+    private static List<String> knownSDKTransforms =
+        ImmutableList.of(PAR_DO_TRANSFORM_URN, COMBINE_PER_KEY_TRANSFORM_URN);
 
     private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
         loadTransformPayloadTranslators() {
@@ -342,6 +349,9 @@ public class PTransformTranslation {
               .translate(appliedPTransform, components);
       if (spec != null) {
         transformBuilder.setSpec(spec);
+      }
+      if (knownSDKTransforms.contains(spec.getUrn())) {
+        transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
       }
       return transformBuilder.build();
     }

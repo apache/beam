@@ -1285,11 +1285,7 @@ class ParDo(PTransformWithSideInputs):
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
-            do_fn=beam_runner_api_pb2.SdkFunctionSpec(
-                environment_id=context.default_environment_id(),
-                spec=beam_runner_api_pb2.FunctionSpec(
-                    urn=python_urns.PICKLED_DOFN_INFO,
-                    payload=picked_pardo_fn_data)),
+            do_fn=beam_runner_api_pb2.FunctionSpec(urn=python_urns.PICKLED_DOFN_INFO, payload=picked_pardo_fn_data),
             splittable=is_splittable,
             restriction_coder_id=restriction_coder_id,
             state_specs={spec.name: spec.to_runner_api(context)
@@ -1308,9 +1304,9 @@ class ParDo(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
-    assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
+    assert pardo_payload.do_fn.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
-        pardo_payload.do_fn.spec.payload)
+        pardo_payload.do_fn.payload)
     if si_tags_and_types:
       raise NotImplementedError('explicit side input data')
     elif windowing:

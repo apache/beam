@@ -58,7 +58,7 @@ public class ImmutableExecutableStageTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(RunnerApi.SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
+                            .setDoFn(RunnerApi.FunctionSpec.newBuilder())
                             .putSideInputs("side_input", RunnerApi.SideInput.getDefaultInstance())
                             .putStateSpecs("user_state", RunnerApi.StateSpec.getDefaultInstance())
                             .putTimerSpecs("timer", RunnerApi.TimerSpec.getDefaultInstance())

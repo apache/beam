@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import abc
 import inspect
+import logging
 from builtins import object
 
 from google.protobuf import message
@@ -35,7 +36,7 @@ class RunnerApiFn(object):
 
   A class that inherits from this class will get a registration-based
   from_runner_api and to_runner_api method that convert to and from
-  beam_runner_api_pb2.SdkFunctionSpec.
+  beam_runner_api_pb2.FunctionSpec.
 
   Additionally, register_pickle_urn can be called from the body of a class
   to register serialization via pickling.
@@ -90,27 +91,25 @@ class RunnerApiFn(object):
         lambda proto, unused_context: pickler.loads(proto.value))
 
   def to_runner_api(self, context):
-    """Returns an SdkFunctionSpec encoding this Fn.
+    """Returns an FunctionSpec encoding this Fn.
 
     Prefer overriding self.to_runner_api_parameter.
     """
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
-    return beam_runner_api_pb2.SdkFunctionSpec(
-        environment_id=context.default_environment_id(),
-        spec=beam_runner_api_pb2.FunctionSpec(
+    return beam_runner_api_pb2.FunctionSpec(
             urn=urn,
             payload=typed_param.SerializeToString()
             if isinstance(typed_param, message.Message)
-            else typed_param))
+            else typed_param)
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
-    """Converts from an SdkFunctionSpec to a Fn object.
+    """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.
     """
-    parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
+    parameter_type, constructor = cls._known_urns[fn_proto.urn]
     return constructor(
-        proto_utils.parse_Bytes(fn_proto.spec.payload, parameter_type),
+        proto_utils.parse_Bytes(fn_proto.payload, parameter_type),
         context)

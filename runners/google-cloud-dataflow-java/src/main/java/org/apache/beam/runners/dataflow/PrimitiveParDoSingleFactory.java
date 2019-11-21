@@ -193,7 +193,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       return ParDoTranslation.payloadForParDoLike(
           new ParDoTranslation.ParDoLike() {
             @Override
-            public RunnerApi.SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
+            public RunnerApi.FunctionSpec translateDoFn(SdkComponents newComponents) {
               return ParDoTranslation.translateDoFn(
                   parDo.getFn(),
                   parDo.getMainOutputTag(),

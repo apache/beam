@@ -132,7 +132,7 @@ public class InsertFetchAndFilterStreamingSideInputNodes {
       }
 
       // Gather all the side input window mapping fns which we need to request the SDK to map
-      ImmutableMap.Builder<PCollectionView<?>, RunnerApi.SdkFunctionSpec>
+      ImmutableMap.Builder<PCollectionView<?>, RunnerApi.FunctionSpec>
           pCollectionViewsToWindowMapingsFns = ImmutableMap.builder();
       parDoPayload
           .getSideInputsMap()

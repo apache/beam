@@ -1139,6 +1139,7 @@ class WorkerHandler(object):
 
   @classmethod
   def create(cls, environment, state, provision_info, grpc_server):
+    logging.error('************* xyz123 registered envs: %r  key: %r', cls._registered_environments, environment.urn)
     constructor, payload_type = cls._registered_environments[environment.urn]
     return constructor(
         proto_utils.parse_Bytes(environment.payload, payload_type),

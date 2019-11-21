@@ -72,12 +72,12 @@ public class PCollectionViewTranslation {
   }
 
   /**
-   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into a {@link
+   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec} into a {@link
    * ViewFn} using the URN.
    */
-  public static ViewFn<?, ?> viewFnFromProto(RunnerApi.SdkFunctionSpec viewFn)
+  public static ViewFn<?, ?> viewFnFromProto(RunnerApi.FunctionSpec viewFn)
       throws InvalidProtocolBufferException {
-    RunnerApi.FunctionSpec spec = viewFn.getSpec();
+    RunnerApi.FunctionSpec spec = viewFn;
     checkArgument(
         spec.getUrn().equals(ParDoTranslation.CUSTOM_JAVA_VIEW_FN_URN),
         "Can't deserialize unknown %s type %s",
@@ -89,12 +89,12 @@ public class PCollectionViewTranslation {
   }
 
   /**
-   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into a {@link
+   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec} into a {@link
    * WindowMappingFn} using the URN.
    */
-  public static WindowMappingFn<?> windowMappingFnFromProto(
-      RunnerApi.SdkFunctionSpec windowMappingFn) throws InvalidProtocolBufferException {
-    RunnerApi.FunctionSpec spec = windowMappingFn.getSpec();
+  public static WindowMappingFn<?> windowMappingFnFromProto(RunnerApi.FunctionSpec windowMappingFn)
+      throws InvalidProtocolBufferException {
+    RunnerApi.FunctionSpec spec = windowMappingFn;
     checkArgument(
         spec.getUrn().equals(ParDoTranslation.CUSTOM_JAVA_WINDOW_MAPPING_FN_URN),
         "Can't deserialize unknown %s type %s",

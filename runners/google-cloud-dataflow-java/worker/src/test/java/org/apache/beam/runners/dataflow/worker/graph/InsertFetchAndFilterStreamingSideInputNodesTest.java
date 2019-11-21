@@ -30,8 +30,8 @@ import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -194,9 +194,9 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
           && b instanceof FetchAndFilterStreamingSideInputsNode) {
         FetchAndFilterStreamingSideInputsNode nodeA = (FetchAndFilterStreamingSideInputsNode) a;
         FetchAndFilterStreamingSideInputsNode nodeB = (FetchAndFilterStreamingSideInputsNode) b;
-        Map.Entry<PCollectionView<?>, SdkFunctionSpec> nodeAEntry =
+        Map.Entry<PCollectionView<?>, FunctionSpec> nodeAEntry =
             Iterables.getOnlyElement(nodeA.getPCollectionViewsToWindowMappingFns().entrySet());
-        Map.Entry<PCollectionView<?>, SdkFunctionSpec> nodeBEntry =
+        Map.Entry<PCollectionView<?>, FunctionSpec> nodeBEntry =
             Iterables.getOnlyElement(nodeB.getPCollectionViewsToWindowMappingFns().entrySet());
         return Objects.equals(
                 nodeAEntry.getKey().getTagInternal(), nodeBEntry.getKey().getTagInternal())

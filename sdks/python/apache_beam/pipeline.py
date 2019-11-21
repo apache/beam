@@ -756,7 +756,12 @@ class AppliedPTransform(object):
   (used internally by Pipeline for bookeeping purposes).
   """
 
-  def __init__(self, parent, transform, full_label, inputs):
+  @classmethod
+  def get_known_sdk_transforms(cls):
+    from apache_beam.transforms.core import ParDo, CombineValues
+    return (ParDo, CombineValues)
+
+  def __init__(self, parent, transform, full_label, inputs, environment_id=None):
     self.parent = parent
     self.transform = transform
     # Note that we want the PipelineVisitor classes to use the full_label,
@@ -769,6 +774,9 @@ class AppliedPTransform(object):
     self.side_inputs = () if transform is None else tuple(transform.side_inputs)
     self.outputs = {}
     self.parts = []
+    self.environment_id = environment_id if environment_id else None
+    if self.environment_id is not None:
+      found = True;
 
   def __repr__(self):
     return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
@@ -896,6 +904,11 @@ class AppliedPTransform(object):
         return transform.to_runner_api(context, has_parts=bool(self.parts))
     # Iterate over inputs and outputs by sorted key order, so that ids are
     # consistently generated for multiple runs of the same pipeline.
+    environment_id = self.environment_id
+    if (not environment_id and
+        isinstance(self.transform, self.get_known_sdk_transforms())):
+      environment_id = context.default_environment_id()
+
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
         spec=transform_to_runner_api(self.transform, context),
@@ -905,6 +918,7 @@ class AppliedPTransform(object):
                 for tag, pc in sorted(self.named_inputs().items())},
         outputs={str(tag): context.pcollections.get_id(out)
                  for tag, out in sorted(self.named_outputs().items())},
+        environment_id=environment_id,
         # TODO(BEAM-366): Add display_data.
         display_data=None)
 
@@ -926,7 +940,8 @@ class AppliedPTransform(object):
         parent=None,
         transform=ptransform.PTransform.from_runner_api(proto.spec, context),
         full_label=proto.unique_name,
-        inputs=main_inputs)
+        inputs=main_inputs,
+        environment_id=proto.environment_id)
     if result.transform and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
         si.pvalue = pcoll

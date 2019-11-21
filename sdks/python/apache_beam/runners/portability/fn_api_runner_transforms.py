@@ -77,6 +77,8 @@ class Stage(object):
           self._merge_environments,
           (self._extract_environment(t) for t in transforms))
     self.environment = environment
+    if (self.environment == u''):
+      found = True
     self.forced_root = forced_root
 
   def __repr__(self):
@@ -95,15 +97,8 @@ class Stage(object):
 
   @staticmethod
   def _extract_environment(transform):
-    if transform.spec.urn in PAR_DO_URNS:
-      pardo_payload = proto_utils.parse_Bytes(
-          transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-      return pardo_payload.do_fn.environment_id
-    elif transform.spec.urn in COMBINE_URNS:
-      combine_payload = proto_utils.parse_Bytes(
-          transform.spec.payload, beam_runner_api_pb2.CombinePayload)
-      return combine_payload.combine_fn.environment_id
-    else:
+    environment = transform.environment_id
+    if not environment:
       return None
 
   @staticmethod

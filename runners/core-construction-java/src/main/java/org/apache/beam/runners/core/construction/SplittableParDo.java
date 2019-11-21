@@ -30,7 +30,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
@@ -366,7 +365,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           ParDoTranslation.payloadForParDoLike(
               new ParDoLike() {
                 @Override
-                public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
+                public FunctionSpec translateDoFn(SdkComponents newComponents) {
                   // Schemas not yet supported on splittable DoFn.
                   return ParDoTranslation.translateDoFn(
                       fn,

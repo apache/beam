@@ -75,8 +75,8 @@ public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
       ThrowingFunction<KV<T, Iterable<W>>, KV<T, KV<Iterable<W>, Iterable<KV<W, Iterable<W>>>>>>
           createMapFunctionForPTransform(String ptransformId, PTransform ptransform)
               throws IOException {
-    RunnerApi.SdkFunctionSpec payload =
-        RunnerApi.SdkFunctionSpec.parseFrom(ptransform.getSpec().getPayload());
+    RunnerApi.FunctionSpec payload =
+        RunnerApi.FunctionSpec.parseFrom(ptransform.getSpec().getPayload());
 
     WindowFn<?, W> windowFn =
         (WindowFn<?, W>) WindowingStrategyTranslation.windowFnFromProto(payload);
