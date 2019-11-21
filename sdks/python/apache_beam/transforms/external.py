@@ -408,7 +408,8 @@ class ExternalTransform(ptransform.PTransform):
           inputs={tag: pcoll_renames.get(pcoll, pcoll)
                   for tag, pcoll in proto.inputs.items()},
           outputs={tag: pcoll_renames.get(pcoll, pcoll)
-                   for tag, pcoll in proto.outputs.items()})
+                   for tag, pcoll in proto.outputs.items()},
+          environment_id=proto.environment_id)
       context.transforms.put_proto(id, new_proto)
 
     return beam_runner_api_pb2.PTransform(

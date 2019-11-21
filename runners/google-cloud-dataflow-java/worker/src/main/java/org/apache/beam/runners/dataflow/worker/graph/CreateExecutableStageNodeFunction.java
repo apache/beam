@@ -160,8 +160,6 @@ public class CreateExecutableStageNodeFunction
 
     // For intermediate PCollections we fabricate, we make a bogus WindowingStrategy
     // TODO: create a correct windowing strategy, including coders and environment
-    // An SdkFunctionSpec is invalid without a working environment reference. We can revamp that
-    // when we inline SdkFunctionSpec and FunctionSpec, both slated for inlining wherever they occur
 
     // Default to use the Java environment if pipeline doesn't have environment specified.
     if (pipeline.getComponents().getEnvironmentsMap().isEmpty()) {
@@ -389,7 +387,7 @@ public class CreateExecutableStageNodeFunction
                 .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                 .setPayload(parDoPayload.toByteString());
           } else {
-            // legacy path - bytes are the SdkFunctionSpec's payload field, basically, and
+            // legacy path - bytes are the FunctionSpec's payload field, basically, and
             // SDKs expect it in the PTransform's payload field
             byte[] userFnBytes = getBytes(userFnSpec, PropertyNames.SERIALIZED_FN);
             transformSpec

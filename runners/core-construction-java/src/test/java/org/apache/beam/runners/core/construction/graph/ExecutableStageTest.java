@@ -33,7 +33,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
@@ -65,12 +64,13 @@ public class ExecutableStageTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .putSideInputs("side_input", SideInput.getDefaultInstance())
                             .putStateSpecs("user_state", StateSpec.getDefaultInstance())
                             .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("foo")
             .build();
     PCollection input = PCollection.newBuilder().setUniqueName("input.out").build();
     PCollection sideInput = PCollection.newBuilder().setUniqueName("sideInput.in").build();
@@ -130,9 +130,10 @@ public class ExecutableStageTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setDoFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
     PTransform windowTransform =
         PTransform.newBuilder()
@@ -143,9 +144,10 @@ public class ExecutableStageTest {
                     .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
                     .setPayload(
                         WindowIntoPayload.newBuilder()
-                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .setWindowFn(FunctionSpec.newBuilder())
                             .build()
                             .toByteString()))
+            .setEnvironmentId("common")
             .build();
 
     Components components =
