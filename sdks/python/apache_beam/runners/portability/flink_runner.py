@@ -73,13 +73,11 @@ class FlinkRunner(portable_runner.PortableRunner):
 
 class FlinkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
-    super(FlinkJarJobServer, self).__init__()
+    super(FlinkJarJobServer, self).__init__(options)
     options = options.view_as(pipeline_options.FlinkRunnerOptions)
     self._jar = options.flink_job_server_jar
     self._master_url = options.flink_master
     self._flink_version = options.flink_version
-    self._artifacts_dir = options.artifacts_dir
-    self._artifact_port = options.artifact_port
 
   def path_to_jar(self):
     if self._jar:
@@ -88,12 +86,12 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
       return self.path_to_beam_jar(
           'runners:flink:%s:job-server:shadowJar' % self._flink_version)
 
-  def java_arguments(self, job_port, artifacts_dir):
+  def java_arguments(
+      self, job_port, artifact_port, expansion_port, artifacts_dir):
     return [
         '--flink-master', self._master_url,
-        '--artifacts-dir', (self._artifacts_dir
-                            if self._artifacts_dir else artifacts_dir),
+        '--artifacts-dir', artifacts_dir,
         '--job-port', job_port,
-        '--artifact-port', self._artifact_port,
-        '--expansion-port', 0
+        '--artifact-port', artifact_port,
+        '--expansion-port', expansion_port
     ]

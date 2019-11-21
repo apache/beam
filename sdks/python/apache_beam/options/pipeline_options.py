@@ -919,6 +919,27 @@ class PortableOptions(PipelineOptions):
               'the pipeline.'))
 
 
+class JobServerOptions(PipelineOptions):
+  """Options for starting a Beam job server. Roughly corresponds to
+  JobServerDriver.ServerConfiguration in Java.
+  """
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--artifacts_dir', default=None,
+                        help='The location to store staged artifact files. '
+                             'Any Beam-supported file system is allowed. '
+                             'If unset, the local temp dir will be used.')
+    parser.add_argument('--job_port', default=0,
+                        help='Port to use for the job service. 0 to use a '
+                             'dynamic port.')
+    parser.add_argument('--artifact_port', default=0,
+                        help='Port to use for artifact staging. 0 to use a '
+                             'dynamic port.')
+    parser.add_argument('--expansion_port', default=0,
+                        help='Port to use for artifact staging. 0 to use a '
+                             'dynamic port.')
+
+
 class FlinkRunnerOptions(PipelineOptions):
 
   PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
@@ -938,10 +959,6 @@ class FlinkRunnerOptions(PipelineOptions):
                         help='Flink version to use.')
     parser.add_argument('--flink_job_server_jar',
                         help='Path or URL to a flink jobserver jar.')
-    parser.add_argument('--artifacts_dir', default=None)
-    parser.add_argument('--artifact_port', default=0,
-                        help='Port to use for artifact staging. 0 to use a '
-                             'dynamic port.')
 
 
 class TestOptions(PipelineOptions):

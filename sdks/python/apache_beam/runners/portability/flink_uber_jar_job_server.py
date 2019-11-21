@@ -54,9 +54,10 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   def __init__(self, master_url, options):
     super(FlinkUberJarJobServer, self).__init__()
     self._master_url = master_url
-    flink_options = options.view_as(pipeline_options.FlinkRunnerOptions)
-    self._executable_jar = flink_options.flink_job_server_jar
-    self._artifact_port = flink_options.artifact_port
+    self._executable_jar = (options.view_as(pipeline_options.FlinkRunnerOptions)
+                            .flink_job_server_jar)
+    self._artifact_port = (options.view_as(pipeline_options.JobServerOptions)
+                           .artifact_port)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-flink')
 
   def start(self):
