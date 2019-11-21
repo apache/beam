@@ -27,6 +27,10 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.apache.beam.sdk.util.LzoCompressorInputStream;
+import org.apache.beam.sdk.util.LzoCompressorOutputStream;
+import org.apache.beam.sdk.util.LzopCompressorInputStream;
+import org.apache.beam.sdk.util.LzopCompressorOutputStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
@@ -149,6 +153,40 @@ public enum Compression {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(new ZstdCompressorOutputStream(Channels.newOutputStream(channel)));
+    }
+  },
+  LZO(".lzo", ".lzo") {
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      try {
+        return Channels.newChannel(new LzoCompressorInputStream(Channels.newInputStream(channel)));
+      } catch (IOException e) {
+        // TODO Auto-generated catch block
+        e = new IOException("try using lzop.");
+        throw e;
+      }
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(new LzoCompressorOutputStream(Channels.newOutputStream(channel)));
+    }
+  },
+  LZOP(".lzo", ".lzo") {
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      try {
+        return Channels.newChannel(new LzopCompressorInputStream(Channels.newInputStream(channel)));
+      } catch (IOException e) {
+        // TODO Auto-generated catch block
+        e = new IOException("try using lzo.");
+        throw e;
+      }
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(new LzopCompressorOutputStream(Channels.newOutputStream(channel)));
     }
   },
 
