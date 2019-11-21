@@ -195,8 +195,9 @@ cdef class StateSampler(object):
 
   def update_metric(self, typed_metric_name, value):
     # Each of these is a cdef lookup.
-    self.current_state_c().metrics_container.get_metric_cell(
-        typed_metric_name).update(value)
+    metrics_container = self.current_state_c().metrics_container
+    if self.current_state_c().metrics_container is not None:
+      metrics_container.get_metric_cell(typed_metric_name).update(value)
 
 
 cdef class ScopedState(object):

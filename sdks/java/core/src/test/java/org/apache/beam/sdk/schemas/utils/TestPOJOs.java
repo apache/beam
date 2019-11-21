@@ -602,9 +602,11 @@ public class TestPOJOs {
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedCollectionPOJO {
     public List<SimplePOJO> simples;
+    public Iterable<SimplePOJO> iterableSimples;
 
     public NestedCollectionPOJO(List<SimplePOJO> simples) {
       this.simples = simples;
+      this.iterableSimples = simples;
     }
 
     public NestedCollectionPOJO() {}
@@ -618,19 +620,22 @@ public class TestPOJOs {
         return false;
       }
       NestedCollectionPOJO that = (NestedCollectionPOJO) o;
-      return Objects.equals(simples, that.simples);
+      return Objects.equals(simples, that.simples)
+          && Objects.equals(iterableSimples, that.iterableSimples);
     }
 
     @Override
     public int hashCode() {
-
-      return Objects.hash(simples);
+      return Objects.hash(simples, iterableSimples);
     }
   }
 
   /** The schema for {@link NestedCollectionPOJO}. * */
   public static final Schema NESTED_COLLECTION_POJO_SCHEMA =
-      Schema.builder().addArrayField("simples", FieldType.row(SIMPLE_POJO_SCHEMA)).build();
+      Schema.builder()
+          .addArrayField("simples", FieldType.row(SIMPLE_POJO_SCHEMA))
+          .addIterableField("iterableSimples", FieldType.row(SIMPLE_POJO_SCHEMA))
+          .build();
 
   /** A POJO containing a simple {@link Map}. * */
   @DefaultSchema(JavaFieldSchema.class)
@@ -823,4 +828,36 @@ public class TestPOJOs {
       Schema.builder()
           .addArrayField("pojos", FieldType.array(FieldType.row(SIMPLE_POJO_SCHEMA)))
           .build();
+
+  /** A Pojo containing an iterable. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class PojoWithIterable {
+    public final Iterable<String> strings;
+
+    @SchemaCreate
+    public PojoWithIterable(Iterable<String> strings) {
+      this.strings = strings;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PojoWithNestedArray)) {
+        return false;
+      }
+      PojoWithIterable that = (PojoWithIterable) o;
+      return Objects.equals(strings, that.strings);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(strings);
+    }
+  }
+
+  /** The schema for {@link PojoWithNestedArray}. */
+  public static final Schema POJO_WITH_ITERABLE =
+      Schema.builder().addIterableField("strings", FieldType.STRING).build();
 }

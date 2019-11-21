@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ITERABLE_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_BEAN_SCHEMA;
@@ -34,6 +35,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.IterableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArraysBean;
@@ -403,5 +405,21 @@ public class JavaBeanSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     thrown.expect(RuntimeException.class);
     Schema schema = registry.getSchema(MismatchingNullableBean.class);
+  }
+
+  @Test
+  public void testFromRowIterable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(IterableBean.class);
+    SchemaTestUtils.assertSchemaEquivalent(ITERABLE_BEAM_SCHEMA, schema);
+
+    List<String> list = Lists.newArrayList("one", "two");
+    Row iterableRow = Row.withSchema(ITERABLE_BEAM_SCHEMA).addIterable(list).build();
+    IterableBean converted = registry.getFromRowFunction(IterableBean.class).apply(iterableRow);
+    assertEquals(list, Lists.newArrayList(converted.getStrings()));
+
+    // Make sure that the captured Iterable is backed by the previous one.
+    list.add("three");
+    assertEquals(list, Lists.newArrayList(converted.getStrings()));
   }
 }
