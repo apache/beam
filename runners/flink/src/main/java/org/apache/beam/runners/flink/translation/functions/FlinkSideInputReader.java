@@ -20,10 +20,10 @@ package org.apache.beam.runners.flink.translation.functions;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
@@ -36,9 +36,6 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 
 /** A {@link SideInputReader} for the Flink Batch Runner. */
 public class FlinkSideInputReader implements SideInputReader {
-  /** A {@link MultimapView} which always returns an empty iterable. */
-  private static final MultimapView EMPTY_MULTMAP_VIEW = o -> Collections.EMPTY_LIST;
-
   private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
 
   private RuntimeContext runtimeContext;
@@ -75,7 +72,7 @@ public class FlinkSideInputReader implements SideInputReader {
     T result = sideInputs.get(window);
     if (result == null) {
       ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-      result = viewFn.apply(EMPTY_MULTMAP_VIEW);
+      result = viewFn.apply(InMemoryMultimapSideInputView.empty());
     }
     return result;
   }

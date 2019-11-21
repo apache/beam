@@ -20,12 +20,12 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.IterableSideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
@@ -60,12 +60,18 @@ public class DataflowSideInputHandlerFactory
   }
 
   @Override
-  public <T, V, W extends BoundedWindow> StateRequestHandlers.SideInputHandler<V, W> forSideInput(
-      String pTransformId,
-      String sideInputId,
-      RunnerApi.FunctionSpec accessPattern,
-      Coder<T> elementCoder,
-      Coder<W> windowCoder) {
+  public <V, W extends BoundedWindow> IterableSideInputHandler<V, W> forIterableSideInput(
+      String pTransformId, String sideInputId, Coder<V> elementCoder, Coder<W> windowCoder) {
+    throw new UnsupportedOperationException(
+        String.format(
+            "The %s does not support handling sides inputs for PTransform %s with side "
+                + "input id %s.",
+            DataflowSideInputHandlerFactory.class.getSimpleName(), pTransformId, sideInputId));
+  }
+
+  @Override
+  public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forMultimapSideInput(
+      String pTransformId, String sideInputId, KvCoder<K, V> elementCoder, Coder<W> windowCoder) {
     checkArgument(
         pTransformId != null && pTransformId.length() > 0, "Expect a valid PTransform ID.");
 
@@ -99,14 +105,14 @@ public class DataflowSideInputHandlerFactory
             KvCoder.class.getSimpleName(),
             view.getCoderInternal().getClass().getSimpleName()));
 
-    KvCoder<?, V> kvCoder = (KvCoder<?, V>) elementCoder;
+    KvCoder<K, V> kvCoder = elementCoder;
 
-    return new DataflowSideInputHandler<>(
+    return new DataflowMultimapSideInputHandler<>(
         sideInputReader, view, kvCoder.getKeyCoder(), kvCoder.getValueCoder(), windowCoder);
   }
 
-  private static class DataflowSideInputHandler<K, V, W extends BoundedWindow>
-      implements StateRequestHandlers.SideInputHandler<V, W> {
+  private static class DataflowMultimapSideInputHandler<K, V, W extends BoundedWindow>
+      implements MultimapSideInputHandler<K, V, W> {
 
     private final SideInputReader sideInputReader;
     PCollectionView<Materializations.MultimapView<Object, Object>> view;
@@ -114,7 +120,7 @@ public class DataflowSideInputHandlerFactory
     private final Coder<V> valueCoder;
     private final Coder<W> windowCoder;
 
-    private DataflowSideInputHandler(
+    private DataflowMultimapSideInputHandler(
         SideInputReader sideInputReader,
         PCollectionView<Materializations.MultimapView<Object, Object>> view,
         Coder<K> keyCoder,
@@ -128,14 +134,15 @@ public class DataflowSideInputHandlerFactory
     }
 
     @Override
-    public Iterable<V> get(byte[] keyBytes, W window) {
-      K key;
-      try {
-        key = keyCoder.decode(new ByteArrayInputStream(keyBytes));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+    public Iterable<K> get(W window) {
+      Materializations.MultimapView<K, V> sideInput =
+          (Materializations.MultimapView<K, V>)
+              sideInputReader.get(view, (BoundedWindow) windowCoder.structuralValue(window));
+      return sideInput.get();
+    }
 
+    @Override
+    public Iterable<V> get(K key, W window) {
       Materializations.MultimapView<K, V> sideInput =
           (Materializations.MultimapView<K, V>)
               sideInputReader.get(view, (BoundedWindow) windowCoder.structuralValue(window));
@@ -144,7 +151,12 @@ public class DataflowSideInputHandlerFactory
     }
 
     @Override
-    public Coder<V> resultCoder() {
+    public Coder<K> keyCoder() {
+      return keyCoder;
+    }
+
+    @Override
+    public Coder<V> valueCoder() {
       return valueCoder;
     }
   }

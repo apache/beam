@@ -201,7 +201,7 @@ class MetricsReader(object):
     # required to prepare metrics for publishing purposes. Expected is to have
     # a list of dictionaries matching the schema.
     insert_dicts = self._prepare_all_metrics(metrics)
-    if len(insert_dicts):
+    if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
 
@@ -224,10 +224,11 @@ class MetricsReader(object):
     matching_namsespace, not_matching_namespace = \
       split_metrics_by_namespace_and_name(distributions, self._namespace,
                                           RUNTIME_METRIC)
-    runtime_metric = RuntimeMetric(matching_namsespace, metric_id)
-    rows.append(runtime_metric.as_dict())
-
-    rows += get_generic_distributions(not_matching_namespace, metric_id)
+    if len(matching_namsespace) > 0:
+      runtime_metric = RuntimeMetric(matching_namsespace, metric_id)
+      rows.append(runtime_metric.as_dict())
+    if len(not_matching_namespace) > 0:
+      rows += get_generic_distributions(not_matching_namespace, metric_id)
     return rows
 
 

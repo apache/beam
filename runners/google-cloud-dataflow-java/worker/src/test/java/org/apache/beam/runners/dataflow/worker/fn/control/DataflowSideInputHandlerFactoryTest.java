@@ -23,17 +23,12 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.dataflow.worker.DataflowPortabilityPCollectionView;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -59,10 +54,6 @@ public final class DataflowSideInputHandlerFactoryTest {
 
   private static final String TRANSFORM_ID = "transformId";
   private static final String SIDE_INPUT_NAME = "testSideInputId";
-  private static final RunnerApi.FunctionSpec MULTIMAP_ACCESS =
-      RunnerApi.FunctionSpec.newBuilder().setUrn(PTransformTranslation.MULTIMAP_SIDE_INPUT).build();
-  private static final byte[] ENCODED_FOO = encode("foo", StringUtf8Coder.of());
-  private static final byte[] ENCODED_FOO2 = encode("foo2", StringUtf8Coder.of());
 
   private static final PCollectionView view =
       DataflowPortabilityPCollectionView.with(
@@ -119,10 +110,9 @@ public final class DataflowSideInputHandlerFactoryTest {
     DataflowSideInputHandlerFactory factory =
         DataflowSideInputHandlerFactory.of(sideInputReadersMap, sideInputIdToPCollectionViewMap);
     thrown.expect(instanceOf(IllegalStateException.class));
-    factory.forSideInput(
+    factory.forMultimapSideInput(
         TRANSFORM_ID,
         SIDE_INPUT_NAME,
-        MULTIMAP_ACCESS,
         KvCoder.of(VoidCoder.of(), VoidCoder.of()),
         GlobalWindow.Coder.INSTANCE);
   }
@@ -142,15 +132,14 @@ public final class DataflowSideInputHandlerFactoryTest {
 
     DataflowSideInputHandlerFactory factory =
         DataflowSideInputHandlerFactory.of(sideInputReadersMap, sideInputIdToPCollectionViewMap);
-    SideInputHandler<Integer, GlobalWindow> handler =
-        factory.forSideInput(
+    MultimapSideInputHandler<String, Integer, GlobalWindow> handler =
+        factory.forMultimapSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
-            MULTIMAP_ACCESS,
-            KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
             GlobalWindow.Coder.INSTANCE);
 
-    Iterable<Integer> result = handler.get(ENCODED_FOO2, GlobalWindow.INSTANCE);
+    Iterable<Integer> result = handler.get("foo2", GlobalWindow.INSTANCE);
     assertThat(result, emptyIterable());
   }
 
@@ -170,24 +159,13 @@ public final class DataflowSideInputHandlerFactoryTest {
     DataflowSideInputHandlerFactory factory =
         DataflowSideInputHandlerFactory.of(sideInputReadersMap, sideInputIdToPCollectionViewMap);
 
-    StateRequestHandlers.SideInputHandler handler =
-        factory.forSideInput(
+    MultimapSideInputHandler<String, Integer, GlobalWindow> handler =
+        factory.forMultimapSideInput(
             TRANSFORM_ID,
             SIDE_INPUT_NAME,
-            MULTIMAP_ACCESS,
             KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
             GlobalWindow.Coder.INSTANCE);
-    Iterable<String> result = handler.get(ENCODED_FOO, GlobalWindow.INSTANCE);
+    Iterable<Integer> result = handler.get("foo", GlobalWindow.INSTANCE);
     assertThat(result, containsInAnyOrder(1, 4, 3));
-  }
-
-  private static <T> byte[] encode(T value, Coder<T> coder) {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    try {
-      coder.encode(value, out);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    return out.toByteArray();
   }
 }
