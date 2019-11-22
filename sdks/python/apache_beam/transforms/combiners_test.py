@@ -20,14 +20,12 @@ from __future__ import absolute_import
 from __future__ import division
 
 import itertools
-import math
 import random
 import sys
 import unittest
 
 import hamcrest as hc
 from future.builtins import range
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -395,8 +393,7 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
-  @attr('ValidatesRunner')
-  def test_accumulating_combine(self):
+  def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
       input = (p
                | beam.Create([('a', 1),
@@ -417,13 +414,9 @@ class CombineTest(unittest.TestCase):
       assert_that(mean_per_key, equal_to(expected_mean_per_key),
                   label='mean per key')
 
-  @attr('ValidatesRunner')
-  def test_accumulating_combine_empty(self):
+  def test_MeanCombineFn_combine_empty(self):
     # For each element in a PCollection, if it is float('NaN'), then emits
     # a string 'NaN', otherwise emits str(element).
-    class FormatNaNDoFn(beam.DoFn):
-      def process(self, element):
-        return ([str(element)], ['NaN'])[math.isnan(element)]
 
     with TestPipeline() as p:
       input = (p | beam.Create([]))
@@ -434,13 +427,13 @@ class CombineTest(unittest.TestCase):
       global_mean = (input
                      | beam.Values()
                      | beam.CombineGlobally(combine.MeanCombineFn())
-                     | beam.ParDo(FormatNaNDoFn()))
+                     | beam.Map(str))
 
       mean_per_key = (input | beam.CombinePerKey(combine.MeanCombineFn()))
 
       # We can't compare one float('NaN') with another float('NaN'),
-      # but we can compare one 'NaN' string with another string.
-      assert_that(global_mean, equal_to(['NaN']), label='global mean')
+      # but we can compare one 'nan' string with another string.
+      assert_that(global_mean, equal_to(['nan']), label='global mean')
       assert_that(mean_per_key, equal_to([]), label='mean per key')
 
 
