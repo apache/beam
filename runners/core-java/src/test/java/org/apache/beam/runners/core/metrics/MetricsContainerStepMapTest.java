@@ -328,6 +328,50 @@ public class MetricsContainerStepMapTest {
         metricsContainerStepMap.hashCode(), differentUnboundedContainer.hashCode());
   }
 
+  @Test
+  public void testReset() {
+    MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
+    attemptedMetrics.update(STEP1, metricsContainer);
+    attemptedMetrics.update(STEP2, metricsContainer);
+    attemptedMetrics.update(STEP2, metricsContainer);
+
+    MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
+    MetricQueryResults allres = metricResults.allMetrics();
+    assertCounter(COUNTER_NAME, allres, STEP1, VALUE, false);
+    assertDistribution(
+        DISTRIBUTION_NAME,
+        allres,
+        STEP1,
+        DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
+        false);
+    assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
+
+    assertCounter(COUNTER_NAME, allres, STEP2, VALUE * 2, false);
+    assertDistribution(
+        DISTRIBUTION_NAME,
+        allres,
+        STEP2,
+        DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
+        false);
+    assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
+
+    attemptedMetrics.reset();
+    metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
+    allres = metricResults.allMetrics();
+
+    // Check that the metrics container for STEP1 is reset
+    assertCounter(COUNTER_NAME, allres, STEP1, 0L, false);
+    assertDistribution(
+        DISTRIBUTION_NAME, allres, STEP1, DistributionResult.IDENTITY_ELEMENT, false);
+    assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.empty(), false);
+
+    // Check that the metrics container for STEP2 is reset
+    assertCounter(COUNTER_NAME, allres, STEP2, 0L, false);
+    assertDistribution(
+        DISTRIBUTION_NAME, allres, STEP2, DistributionResult.IDENTITY_ELEMENT, false);
+    assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.empty(), false);
+  }
+
   private <T> void assertIterableSize(Iterable<T> iterable, int size) {
     assertThat(iterable, IsIterableWithSize.iterableWithSize(size));
   }

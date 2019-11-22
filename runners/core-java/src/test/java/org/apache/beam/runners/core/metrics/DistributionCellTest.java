@@ -81,4 +81,15 @@ public class DistributionCellTest {
     Assert.assertNotEquals(distributionCell, differentName);
     Assert.assertNotEquals(distributionCell.hashCode(), differentName.hashCode());
   }
+
+  @Test
+  public void testReset() {
+    DistributionCell distributionCell = new DistributionCell(MetricName.named("namespace", "name"));
+    distributionCell.update(2);
+    assertThat(distributionCell.getCumulative(), equalTo(DistributionData.create(2, 1, 2, 2)));
+
+    distributionCell.reset();
+    assertThat(distributionCell.getCumulative(), equalTo(DistributionData.EMPTY));
+    assertThat(distributionCell.getDirty(), equalTo(new DirtyState()));
+  }
 }

@@ -69,6 +69,11 @@ public class SimpleExecutionState extends ExecutionState {
     }
   }
 
+  /** Reset the totalMillis spent in the state. */
+  public void reset() {
+    this.totalMillis = 0;
+  }
+
   public String getUrn() {
     return this.urn;
   }
