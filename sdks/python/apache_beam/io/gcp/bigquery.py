@@ -728,7 +728,7 @@ class BigQueryWriteFn(DoFn):
     self._max_buffered_rows = (max_buffered_rows
                                or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
     self._retry_strategy = (
-        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ON_TRANSIENT_ERROR)
+        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ALWAYS)
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
@@ -859,6 +859,14 @@ class BigQueryWriteFn(DoFn):
     rows = [r[0] for r in rows_and_insert_ids]
     insert_ids = [r[1] for r in rows_and_insert_ids]
 
+    # If we want to RETRY ALWAYS for errors, then we allow the process call
+    # to directly error out.
+    # If we want to retry only under specific conditions, then we rely on
+    # the behavior defined by the while loop below.
+    skip_invalid_rows = True
+    if self._retry_strategy == bigquery_tools.RetryStrategy.RETRY_ALWAYS:
+        skip_invalid_rows = False
+
     while True:
       passed, errors = self.bigquery_wrapper.insert_rows(
           project_id=table_reference.projectId,
@@ -866,7 +874,7 @@ class BigQueryWriteFn(DoFn):
           table_id=table_reference.tableId,
           rows=rows,
           insert_ids=insert_ids,
-          skip_invalid_rows=True)
+          skip_invalid_rows=skip_invalid_rows)
 
       _LOGGER.debug("Passed: %s. Errors are %s", passed, errors)
       failed_rows = [rows[entry.index] for entry in errors]
@@ -1066,6 +1074,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         FILE_LOADS on Batch pipelines.
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
+        Default is to retry always. This means that errors will be triggered
+        when we have problems inserting to BigQuery. Other retry strategy
+        settings will produce a deadletter PCollection as output.
       additional_bq_parameters (callable): A function that returns a dictionary
         with additional parameters to pass to BQ when creating / loading data
         into a table. These can be 'timePartitioning', 'clustering', etc. They
