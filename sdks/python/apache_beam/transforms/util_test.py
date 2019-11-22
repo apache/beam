@@ -507,17 +507,17 @@ class ReshuffleTest(unittest.TestCase):
           t = 'MIN_TIMESTAMP'
         elif timestamp == MAX_TIMESTAMP:
           t = 'MAX_TIMESTAMP'
-        yield '{} - {}'.format(t, element['name'])
+        return '{} - {}'.format(t, element['name'])
 
       # Combine each element in before_reshuffle with its timestamp.
       formatted_before_reshuffle = (before_reshuffle
                                     | "Get before_reshuffle timestamp" >>
-                                    beam.ParDo(format_with_timestamp))
+                                    beam.Map(format_with_timestamp))
 
       # Combine each element in after_reshuffle with its timestamp.
       formatted_after_reshuffle = (after_reshuffle
                                    | "Get after_reshuffle timestamp" >>
-                                   beam.ParDo(format_with_timestamp))
+                                   beam.Map(format_with_timestamp))
 
       expected_data = ['MIN_TIMESTAMP - foo',
                        'Timestamp(0) - foo',
