@@ -131,6 +131,13 @@ public class ProcessBundleHandlerTest {
       orderOfOperations.add("setUp");
     }
 
+    @Teardown
+    public void tearDown() {
+      checkState(!TestDoFn.State.TEAR_DOWN.equals(state), "Unexpected state: %s", state);
+      state = TestDoFn.State.TEAR_DOWN;
+      orderOfOperations.add("tearDown");
+    }
+
     @StartBundle
     public void startBundle() {
       state = TestDoFn.State.START_BUNDLE;
@@ -416,11 +423,14 @@ public class ProcessBundleHandlerTest {
                 BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
             .build());
 
+    handler.shutdown();
+
     // setup and teardown should occur only once when processing multiple bundles for the same
     // descriptor
     assertThat(
         TestDoFn.orderOfOperations,
-        contains("setUp", "startBundle", "finishBundle", "startBundle", "finishBundle"));
+        contains(
+            "setUp", "startBundle", "finishBundle", "startBundle", "finishBundle", "tearDown"));
   }
 
   @Test
