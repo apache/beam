@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -48,6 +49,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.sdk.function.ThrowingConsumer;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -118,6 +120,7 @@ public class ProcessBundleHandlerTest {
             pCollectionConsumerRegistry,
             startFunctionRegistry,
             finishFunctionRegistry,
+            addTearDownFunction,
             splitListener) -> {
           assertThat(processBundleInstructionId.get(), equalTo("999L"));
 
@@ -188,6 +191,7 @@ public class ProcessBundleHandlerTest {
                     pCollectionConsumerRegistry,
                     startFunctionRegistry,
                     finishFunctionRegistry,
+                    addTearDownFunction,
                     splitListener) -> {
                   thrown.expect(IllegalStateException.class);
                   thrown.expectMessage("TestException");
@@ -233,6 +237,7 @@ public class ProcessBundleHandlerTest {
                         pCollectionConsumerRegistry,
                         startFunctionRegistry,
                         finishFunctionRegistry,
+                        addTearDownFunction,
                         splitListener) -> {
                       thrown.expect(IllegalStateException.class);
                       thrown.expectMessage("TestException");
@@ -280,6 +285,7 @@ public class ProcessBundleHandlerTest {
                         pCollectionConsumerRegistry,
                         startFunctionRegistry,
                         finishFunctionRegistry,
+                        addTearDownFunction,
                         splitListener) -> {
                       thrown.expect(IllegalStateException.class);
                       thrown.expectMessage("TestException");
@@ -365,6 +371,7 @@ public class ProcessBundleHandlerTest {
                       PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
+                      Consumer<ThrowingRunnable> addTearDownFunction,
                       BundleSplitListener splitListener)
                       throws IOException {
                     startFunctionRegistry.register(
@@ -424,6 +431,7 @@ public class ProcessBundleHandlerTest {
                       PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
+                      Consumer<ThrowingRunnable> addTearDownFunction,
                       BundleSplitListener splitListener)
                       throws IOException {
                     startFunctionRegistry.register(
