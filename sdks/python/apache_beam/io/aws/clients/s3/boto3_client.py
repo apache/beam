@@ -221,7 +221,7 @@ class Client(object):
 
     failed = [obj['Key'] for obj in aws_response.get('Errors', [])]
 
-    errors = [messages.S3ClientError(obj['Message'], obj['Code']) 
+    errors = [messages.S3ClientError(obj['Message'], obj['Code'])
               for obj in aws_response.get('Errors', [])]
 
     return messages.DeleteBatchResponse(deleted, failed, errors)
