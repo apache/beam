@@ -867,7 +867,7 @@ class BigQueryWriteFn(DoFn):
           rows=rows,
           insert_ids=insert_ids,
           skip_invalid_rows=True)
-      
+
       if not passed:
         _LOGGER.info("There were errors inserting to BigQuery: %s",
                      errors)
@@ -1070,7 +1070,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
         Default is to retry always. This means that whenever there are rows
         that fail to be inserted to BigQuery, they will be retried indefinitely.
-        Other retry strategy settings will produce a deadletter PCollection 
+        Other retry strategy settings will produce a deadletter PCollection
         as output.
       additional_bq_parameters (callable): A function that returns a dictionary
         with additional parameters to pass to BQ when creating / loading data
