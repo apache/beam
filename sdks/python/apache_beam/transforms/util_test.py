@@ -485,13 +485,13 @@ class ReshuffleTest(unittest.TestCase):
 
       # Create a PCollection and assign each element with a different timestamp.
       before_reshuffle = (pipeline
-                          | "Four elements" >> beam.Create([
+                          | beam.Create([
                               {'name': 'foo', 'timestamp': MIN_TIMESTAMP},
                               {'name': 'foo', 'timestamp': 0},
                               {'name': 'bar', 'timestamp': 33},
                               {'name': 'bar', 'timestamp': MAX_TIMESTAMP},
                           ])
-                          | "With timestamp" >> beam.Map(
+                          | beam.Map(
                               lambda element: beam.window.TimestampedValue(
                                   element, element['timestamp'])))
 
