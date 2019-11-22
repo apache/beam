@@ -375,7 +375,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_spanner_version = "1.38.0"
     def grpc_version = "1.23.0"
     def guava_version = "25.1-jre"
-    def hadoop_version = "2.7.3"
+    def hadoop_version = "2.8.4"
     def hamcrest_version = "2.1"
     def jackson_version = "2.9.10"
     def jaxb_api_version = "2.2.12"
