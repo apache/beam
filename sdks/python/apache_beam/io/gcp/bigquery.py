@@ -859,14 +859,6 @@ class BigQueryWriteFn(DoFn):
     rows = [r[0] for r in rows_and_insert_ids]
     insert_ids = [r[1] for r in rows_and_insert_ids]
 
-    # If we want to RETRY ALWAYS for errors, then we allow the process call
-    # to directly error out.
-    # If we want to retry only under specific conditions, then we rely on
-    # the behavior defined by the while loop below.
-    skip_invalid_rows = True
-    if self._retry_strategy == bigquery_tools.RetryStrategy.RETRY_ALWAYS:
-      skip_invalid_rows = False
-
     while True:
       passed, errors = self.bigquery_wrapper.insert_rows(
           project_id=table_reference.projectId,
@@ -874,17 +866,11 @@ class BigQueryWriteFn(DoFn):
           table_id=table_reference.tableId,
           rows=rows,
           insert_ids=insert_ids,
-          skip_invalid_rows=skip_invalid_rows)
+          skip_invalid_rows=True)
       
-      if not passed and not skip_invalid_rows:
-        raise RuntimeError('Could not successfully insert rows to BigQuery'
-                           ' table [%s:%s.%s]. Errors: %s' %
-                           (table_reference.projectId, 
-                            table_reference.datasetId,
-                            table_reference.tableId, 
-                            errors))
-
-      _LOGGER.debug("Passed: %s. Errors are %s", passed, errors)
+      if not passed:
+        _LOGGER.info("There were errors inserting to BigQuery: %s",
+                     errors)
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
           bigquery_tools.RetryStrategy.should_retry(
@@ -1082,9 +1068,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         FILE_LOADS on Batch pipelines.
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
-        Default is to retry always. This means that errors will be triggered
-        when we have problems inserting to BigQuery. Other retry strategy
-        settings will produce a deadletter PCollection as output.
+        Default is to retry always. This means that whenever there are rows
+        that fail to be inserted to BigQuery, they will be retried indefinitely.
+        Other retry strategy settings will produce a deadletter PCollection 
+        as output.
       additional_bq_parameters (callable): A function that returns a dictionary
         with additional parameters to pass to BQ when creating / loading data
         into a table. These can be 'timePartitioning', 'clustering', etc. They
