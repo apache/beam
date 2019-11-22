@@ -556,7 +556,7 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_file_mime_type(self):
-    if self.USE_MOCK: 
+    if self.USE_MOCK:
       self.skipTest("The boto3_client mock doesn't support mime_types")
 
     mime_type = 'example/example'
