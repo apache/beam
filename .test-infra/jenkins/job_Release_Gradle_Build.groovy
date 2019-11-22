@@ -25,7 +25,10 @@ job('beam_Release_Gradle_Build') {
   description('Verify Gradle build against the official release version.')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate,
+  commonJobProperties
+  .setTopLevelMainJobProperties(
+    delegate,
+    defaultBranch='master',
     defaultTimeout=150)
 
   // Allows triggering this build against pull requests.
