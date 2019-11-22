@@ -492,7 +492,6 @@ class LatestCombineFnTest(unittest.TestCase):
 @attr('ValidatesRunner')
 class TimestampCombinerTest(unittest.TestCase):
 
-  @unittest.skip('BEAM-8657')
   def test_combiner_earliest(self):
     """Test TimestampCombiner with EARLIEST."""
     options = PipelineOptions(streaming=True)
