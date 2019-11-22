@@ -294,6 +294,11 @@ public class ProcessBundleHandler {
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
+  /** Shutdown the bundles, running the tearDown() functions. */
+  public void shutdown() throws Exception {
+    bundleProcessorCache.shutdown();
+  }
+
   private BundleProcessor createBundleProcessor(
       String bundleId, BeamFnApi.ProcessBundleRequest processBundleRequest) throws IOException {
     // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
@@ -434,6 +439,20 @@ public class ProcessBundleHandler {
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
       bundleProcessor.reset();
       cachedBundleProcessors.get(bundleDescriptorId).add(bundleProcessor);
+    }
+
+    /** Shutdown all the cached {@link BundleProcessor}s, running the tearDown() functions. */
+    void shutdown() throws Exception {
+      for (ConcurrentLinkedQueue<BundleProcessor> bundleProcessors :
+          cachedBundleProcessors.values()) {
+        for (BundleProcessor bundleProcessor : bundleProcessors) {
+          for (ThrowingRunnable tearDownFunction : bundleProcessor.getTearDownFunctions()) {
+            LOG.debug("Tearing down function {}", tearDownFunction);
+            tearDownFunction.run();
+          }
+        }
+      }
+      cachedBundleProcessors.clear();
     }
   }
 
