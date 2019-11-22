@@ -57,7 +57,8 @@ class Client(object):
     item = messages.Item(boto_response['ETag'],
                          request.object,
                          boto_response['LastModified'],
-                         boto_response['ContentLength'])
+                         boto_response['ContentLength'],
+                         boto_response['ContentType'])
 
     return item
 
@@ -131,8 +132,11 @@ class Client(object):
       (UploadResponse) The response message.
     """
     try:
-      boto_response = self.client.create_multipart_upload(Bucket=request.bucket,
-                                                          Key=request.object)
+      boto_response = self.client.create_multipart_upload(
+          Bucket=request.bucket,
+          Key=request.object,
+          ContentType=request.mime_type
+      )
       response = messages.UploadResponse(boto_response['UploadId'])
     except Exception as e:
       message = e.response['Error']['Message']

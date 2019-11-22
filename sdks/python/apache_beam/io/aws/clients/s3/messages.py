@@ -113,11 +113,12 @@ class Item():
   An item in S3
   """
 
-  def __init__(self, etag, key, last_modified, size):
+  def __init__(self, etag, key, last_modified, size, mime_type):
     self.etag = etag
     self.key = key
     self.last_modified = last_modified
     self.size = size
+    self.mime_type = mime_type
 
 
 class DeleteRequest():
