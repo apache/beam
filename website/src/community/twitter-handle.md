@@ -37,5 +37,5 @@ The Twitter feed found here is owned by the Apache Beam PMC, and the process of 
 	- Links/media - anything you want to add to the tweet, eg. photos, videos, references
 	- Deadline - by when the tweet needs to be out, or preferred date when it needs to be out 
 - After you type in your tweets, PMC members that are subscribed to the document will get notified and review the content.
-- After the PMC approval, a PMC member with access to the twitter handle will send out the tweet.
+- After approval, a PMC member with access to the Twitter handle will publish the tweet.
 - Follow [Apache Beam handle](https://twitter.com/ApacheBeam) to see if your content is published!
