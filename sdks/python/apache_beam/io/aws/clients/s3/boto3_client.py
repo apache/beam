@@ -63,7 +63,7 @@ class Client(object):
     return item
 
   def get_range(self, request, start, end):
-    r"""Retrieves an object.
+    r"""Retrieves an object's contents.
 
       Args:
         request: (GetRequest) request
