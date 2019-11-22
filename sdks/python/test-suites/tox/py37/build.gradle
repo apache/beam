@@ -46,7 +46,6 @@ test.dependsOn testPy37Cython
 testPy37Cython.mustRunAfter testPython37, testPy37Gcp
 
 task preCommitPy37() {
-    dependsOn "testPython37"
     dependsOn "testPy37Gcp"
     dependsOn "testPy37Cython"
 }

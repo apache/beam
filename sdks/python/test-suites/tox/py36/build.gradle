@@ -40,7 +40,6 @@ test.dependsOn testPy36Cython
 testPy36Cython.mustRunAfter testPython36, testPy36Gcp
 
 task preCommitPy36() {
-    dependsOn "testPython36"
     dependsOn "testPy36Gcp"
     dependsOn "testPy36Cython"
 }
