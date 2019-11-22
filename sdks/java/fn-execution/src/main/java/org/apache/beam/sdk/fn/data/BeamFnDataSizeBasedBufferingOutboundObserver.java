@@ -85,7 +85,7 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
   }
 
   @Override
-  public synchronized void flush() throws IOException {
+  public void flush() throws IOException {
     if (bufferedElements.size() > 0) {
       outboundObserver.onNext(convertBufferForTransmission().build());
     }

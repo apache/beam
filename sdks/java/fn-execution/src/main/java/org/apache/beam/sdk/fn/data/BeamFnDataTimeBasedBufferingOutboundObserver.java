@@ -69,6 +69,11 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
   }
 
   @Override
+  public synchronized void flush() throws IOException {
+    super.flush();
+  }
+
+  @Override
   public void accept(T t) throws IOException {
     checkFlushThreadException();
     super.accept(t);
