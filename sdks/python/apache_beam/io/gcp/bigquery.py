@@ -875,6 +875,14 @@ class BigQueryWriteFn(DoFn):
           rows=rows,
           insert_ids=insert_ids,
           skip_invalid_rows=skip_invalid_rows)
+      
+      if not passed and not skip_invalid_rows:
+        raise RuntimeError('Could not successfully insert rows to BigQuery'
+                           ' table [%s:%s.%s]. Errors: %s' %
+                           (table_reference.projectId, 
+                            table_reference.datasetId,
+                            table_reference.tableId, 
+                            errors))
 
       _LOGGER.debug("Passed: %s. Errors are %s", passed, errors)
       failed_rows = [rows[entry.index] for entry in errors]
