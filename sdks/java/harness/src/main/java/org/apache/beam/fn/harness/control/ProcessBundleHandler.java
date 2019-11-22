@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.control;
 
+import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashSet;
@@ -41,7 +42,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
@@ -215,93 +215,20 @@ public class ProcessBundleHandler {
    */
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
       throws Exception {
-    // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
-    // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
-    // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
-    QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
+    BeamFnApi.ProcessBundleResponse.Builder response = BeamFnApi.ProcessBundleResponse.newBuilder();
 
-    String bundleId = request.getProcessBundle().getProcessBundleDescriptorId();
-    BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
-        (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
-
-    SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    ExecutionStateTracker stateTracker =
-        new ExecutionStateTracker(ExecutionStateSampler.instance());
+    BundleProcessor bundleProcessor = createBundleProcessor(request);
+    PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
+    Multimap<String, DelayedBundleApplication> allResiduals = bundleProcessor.getAllResiduals();
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
-        new PCollectionConsumerRegistry(metricsContainerRegistry, stateTracker);
-    HashSet<String> processedPTransformIds = new HashSet<>();
+        bundleProcessor.getpCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry =
+        bundleProcessor.getMetricsContainerRegistry();
+    ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
+    QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
 
-    PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            metricsContainerRegistry, stateTracker, ExecutionStateTracker.START_STATE_NAME);
-    PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
-
-    // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
-    for (Map.Entry<String, RunnerApi.PTransform> entry :
-        bundleDescriptor.getTransformsMap().entrySet()) {
-      for (String pCollectionId : entry.getValue().getInputsMap().values()) {
-        pCollectionIdsToConsumingPTransforms.put(pCollectionId, entry.getKey());
-      }
-    }
-
-    ProcessBundleResponse.Builder response = ProcessBundleResponse.newBuilder();
-
-    // Instantiate a State API call handler depending on whether a State Api service descriptor
-    // was specified.
-    try (HandleStateCallsForBundle beamFnStateClient =
-        bundleDescriptor.hasStateApiServiceDescriptor()
-            ? new BlockTillStateCallsFinish(
-                beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                    bundleDescriptor.getStateApiServiceDescriptor()))
-            : new FailAllStateCallsForBundle(request.getProcessBundle())) {
-      Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
-      Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
-      BundleSplitListener splitListener =
-          (List<BundleApplication> primaries, List<DelayedBundleApplication> residuals) -> {
-            // Reset primaries and accumulate residuals.
-            Multimap<String, BundleApplication> newPrimaries = ArrayListMultimap.create();
-            for (BundleApplication primary : primaries) {
-              newPrimaries.put(primary.getTransformId(), primary);
-            }
-            allPrimaries.clear();
-            allPrimaries.putAll(newPrimaries);
-
-            for (DelayedBundleApplication residual : residuals) {
-              allResiduals.put(residual.getApplication().getTransformId(), residual);
-            }
-          };
-
-      // Create a BeamFnStateClient
-      for (Map.Entry<String, RunnerApi.PTransform> entry :
-          bundleDescriptor.getTransformsMap().entrySet()) {
-
-        // Skip anything which isn't a root
-        // TODO: Remove source as a root and have it be triggered by the Runner.
-        if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
-            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
-            && !PTransformTranslation.READ_TRANSFORM_URN.equals(
-                entry.getValue().getSpec().getUrn())) {
-          continue;
-        }
-
-        createRunnerAndConsumersForPTransformRecursively(
-            beamFnStateClient,
-            queueingClient,
-            entry.getKey(),
-            entry.getValue(),
-            request::getInstructionId,
-            bundleDescriptor,
-            pCollectionIdsToConsumingPTransforms,
-            pCollectionConsumerRegistry,
-            processedPTransformIds,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            splitListener);
-      }
-
+    try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
       try (Closeable closeTracker = stateTracker.activate()) {
         // Already in reverse topological order so we don't need to do anything.
         for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
@@ -340,6 +267,144 @@ public class ProcessBundleHandler {
       }
     }
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
+  }
+
+  private BundleProcessor createBundleProcessor(BeamFnApi.InstructionRequest request)
+      throws IOException {
+    // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
+    // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
+    // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
+    QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
+
+    String bundleId = request.getProcessBundle().getProcessBundleDescriptorId();
+    BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
+        (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
+
+    SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ExecutionStateTracker stateTracker =
+        new ExecutionStateTracker(ExecutionStateSampler.instance());
+    PCollectionConsumerRegistry pCollectionConsumerRegistry =
+        new PCollectionConsumerRegistry(metricsContainerRegistry, stateTracker);
+    HashSet<String> processedPTransformIds = new HashSet<>();
+
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, stateTracker, ExecutionStateTracker.START_STATE_NAME);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
+
+    // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
+    for (Map.Entry<String, RunnerApi.PTransform> entry :
+        bundleDescriptor.getTransformsMap().entrySet()) {
+      for (String pCollectionId : entry.getValue().getInputsMap().values()) {
+        pCollectionIdsToConsumingPTransforms.put(pCollectionId, entry.getKey());
+      }
+    }
+
+    Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
+
+    // Instantiate a State API call handler depending on whether a State Api service descriptor
+    // was specified.
+    HandleStateCallsForBundle beamFnStateClient =
+        bundleDescriptor.hasStateApiServiceDescriptor()
+            ? new BlockTillStateCallsFinish(
+                beamFnStateGrpcClientCache.forApiServiceDescriptor(
+                    bundleDescriptor.getStateApiServiceDescriptor()))
+            : new FailAllStateCallsForBundle(request.getProcessBundle());
+    Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
+    BundleSplitListener splitListener =
+        (List<BundleApplication> primaries, List<DelayedBundleApplication> residuals) -> {
+          // Reset primaries and accumulate residuals.
+          Multimap<String, BundleApplication> newPrimaries = ArrayListMultimap.create();
+          for (BundleApplication primary : primaries) {
+            newPrimaries.put(primary.getTransformId(), primary);
+          }
+          allPrimaries.clear();
+          allPrimaries.putAll(newPrimaries);
+
+          for (DelayedBundleApplication residual : residuals) {
+            allResiduals.put(residual.getApplication().getTransformId(), residual);
+          }
+        };
+
+    // Create a BeamFnStateClient
+    for (Map.Entry<String, RunnerApi.PTransform> entry :
+        bundleDescriptor.getTransformsMap().entrySet()) {
+
+      // Skip anything which isn't a root
+      // TODO: Remove source as a root and have it be triggered by the Runner.
+      if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
+          && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
+          && !PTransformTranslation.READ_TRANSFORM_URN.equals(
+              entry.getValue().getSpec().getUrn())) {
+        continue;
+      }
+
+      createRunnerAndConsumersForPTransformRecursively(
+          beamFnStateClient,
+          queueingClient,
+          entry.getKey(),
+          entry.getValue(),
+          request::getInstructionId,
+          bundleDescriptor,
+          pCollectionIdsToConsumingPTransforms,
+          pCollectionConsumerRegistry,
+          processedPTransformIds,
+          startFunctionRegistry,
+          finishFunctionRegistry,
+          splitListener);
+    }
+    return BundleProcessor.create(
+        startFunctionRegistry,
+        finishFunctionRegistry,
+        allResiduals,
+        pCollectionConsumerRegistry,
+        metricsContainerRegistry,
+        stateTracker,
+        beamFnStateClient,
+        queueingClient);
+  }
+
+  /** A container for the reusable information used to process a bundle. */
+  @AutoValue
+  public abstract static class BundleProcessor {
+    public static BundleProcessor create(
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
+        Multimap<String, DelayedBundleApplication> allResiduals,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        MetricsContainerStepMap metricsContainerRegistry,
+        ExecutionStateTracker stateTracker,
+        HandleStateCallsForBundle beamFnStateClient,
+        QueueingBeamFnDataClient queueingClient) {
+      return new AutoValue_ProcessBundleHandler_BundleProcessor(
+          startFunctionRegistry,
+          finishFunctionRegistry,
+          allResiduals,
+          pCollectionConsumerRegistry,
+          metricsContainerRegistry,
+          stateTracker,
+          beamFnStateClient,
+          queueingClient);
+    }
+
+    abstract PTransformFunctionRegistry getStartFunctionRegistry();
+
+    abstract PTransformFunctionRegistry getFinishFunctionRegistry();
+
+    abstract Multimap<String, DelayedBundleApplication> getAllResiduals();
+
+    abstract PCollectionConsumerRegistry getpCollectionConsumerRegistry();
+
+    abstract MetricsContainerStepMap getMetricsContainerRegistry();
+
+    abstract ExecutionStateTracker getStateTracker();
+
+    abstract HandleStateCallsForBundle getBeamFnStateClient();
+
+    abstract QueueingBeamFnDataClient getQueueingClient();
   }
 
   /**
@@ -408,8 +473,7 @@ public class ProcessBundleHandler {
     }
   }
 
-  private abstract static class HandleStateCallsForBundle
-      implements AutoCloseable, BeamFnStateClient {}
+  abstract static class HandleStateCallsForBundle implements AutoCloseable, BeamFnStateClient {}
 
   private static class UnknownPTransformRunnerFactory implements PTransformRunnerFactory<Object> {
     private final Set<String> knownUrns;
