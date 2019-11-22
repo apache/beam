@@ -265,6 +265,11 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
     doFnInvoker.invokeFinishBundle(finishBundleContext);
   }
 
+  @Override
+  public void tearDown() {
+    doFnInvoker.invokeTeardown();
+  }
+
   /** Outputs the given element to the specified set of consumers wrapping any exceptions. */
   private <T> void outputTo(
       Collection<FnDataReceiver<WindowedValue<T>>> consumers, WindowedValue<T> output) {

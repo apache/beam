@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -76,6 +78,8 @@ abstract class DoFnPTransformRunnerFactory<
         String timerId, TimeDomain timeDomain, WindowedValue<KV<Object, Timer>> input);
 
     void finishBundle() throws Exception;
+
+    void tearDown() throws Exception;
   }
 
   @Override
@@ -92,6 +96,7 @@ abstract class DoFnPTransformRunnerFactory<
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
+      Consumer<ThrowingRunnable> tearDownFunctions,
       BundleSplitListener splitListener) {
     Context<FnInputT, OutputT> context =
         new Context<>(
@@ -139,6 +144,7 @@ abstract class DoFnPTransformRunnerFactory<
     }
 
     finishFunctionRegistry.register(pTransformId, runner::finishBundle);
+    tearDownFunctions.accept(runner::tearDown);
     return runner;
   }
 

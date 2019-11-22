@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.control;
 import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Phaser;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
@@ -151,6 +153,7 @@ public class ProcessBundleHandler {
       Set<String> processedPTransformIds,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
+      Consumer<ThrowingRunnable> addTearDownFunction,
       BundleSplitListener splitListener)
       throws IOException {
 
@@ -172,6 +175,7 @@ public class ProcessBundleHandler {
             processedPTransformIds,
             startFunctionRegistry,
             finishFunctionRegistry,
+            addTearDownFunction,
             splitListener);
       }
     }
@@ -204,6 +208,7 @@ public class ProcessBundleHandler {
               pCollectionConsumerRegistry,
               startFunctionRegistry,
               finishFunctionRegistry,
+              addTearDownFunction,
               splitListener);
       processedPTransformIds.add(pTransformId);
     }
@@ -294,6 +299,7 @@ public class ProcessBundleHandler {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
+    List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -354,11 +360,13 @@ public class ProcessBundleHandler {
           processedPTransformIds,
           startFunctionRegistry,
           finishFunctionRegistry,
+          tearDownFunctions::add,
           splitListener);
     }
     return BundleProcessor.create(
         startFunctionRegistry,
         finishFunctionRegistry,
+        tearDownFunctions,
         allResiduals,
         pCollectionConsumerRegistry,
         metricsContainerRegistry,
@@ -373,6 +381,7 @@ public class ProcessBundleHandler {
     public static BundleProcessor create(
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
+        List<ThrowingRunnable> tearDownFunctions,
         Multimap<String, DelayedBundleApplication> allResiduals,
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         MetricsContainerStepMap metricsContainerRegistry,
@@ -382,6 +391,7 @@ public class ProcessBundleHandler {
       return new AutoValue_ProcessBundleHandler_BundleProcessor(
           startFunctionRegistry,
           finishFunctionRegistry,
+          tearDownFunctions,
           allResiduals,
           pCollectionConsumerRegistry,
           metricsContainerRegistry,
@@ -393,6 +403,8 @@ public class ProcessBundleHandler {
     abstract PTransformFunctionRegistry getStartFunctionRegistry();
 
     abstract PTransformFunctionRegistry getFinishFunctionRegistry();
+
+    abstract List<ThrowingRunnable> getTearDownFunctions();
 
     abstract Multimap<String, DelayedBundleApplication> getAllResiduals();
 
@@ -496,6 +508,7 @@ public class ProcessBundleHandler {
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> tearDownFunctions,
         BundleSplitListener splitListener) {
       String message =
           String.format(
