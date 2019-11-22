@@ -91,7 +91,7 @@ class S3IO(object):
       return io.BufferedReader(DownloaderStream(downloader, mode=mode),
                                buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
-      uploader = S3Uploader(self.client, filename, None)
+      uploader = S3Uploader(self.client, filename, mime_type)
       return io.BufferedWriter(UploaderStream(uploader, mode=mode),
                                buffer_size=128 * 1024)
     else:
@@ -525,7 +525,7 @@ class S3Uploader(Uploader):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_s3_path(path)
-    #self._mime_type = mime_type
+    self._mime_type = mime_type
 
     self.part_number = 1
     self.buffer = b''
@@ -545,7 +545,9 @@ class S3Uploader(Uploader):
     # The uploader by default transfers data in chunks of 1024 * 1024 bytes at
     # a time, buffering writes until that size is reached.
     try:
-      request = messages.UploadRequest(self._bucket, self._name, None)
+      request = messages.UploadRequest(self._bucket,
+                                       self._name,
+                                       self._mime_type)
       response = self._client.create_multipart_upload(request)
       self.upload_id = response.upload_id
     except Exception as e:  # pylint: disable=broad-except

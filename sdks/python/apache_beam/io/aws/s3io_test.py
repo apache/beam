@@ -555,6 +555,25 @@ class TestS3IO(unittest.TestCase):
     # Clean up
     self.aws.delete(file_name)
 
+  def test_file_mime_type(self):
+    if self.USE_MOCK: 
+      self.skipTest("The boto3_client mock doesn't support mime_types")
+
+    mime_type = 'example/example'
+    file_name = self.TEST_DATA_PATH + 'write_file'
+    f = self.aws.open(file_name, 'w', mime_type=mime_type)
+    f.write(b'a string of binary text')
+    f.close()
+
+    bucket, key = s3io.parse_s3_path(file_name)
+    metadata = self.client.get_object_metadata(messages.GetRequest(bucket, key))
+
+    self.assertEqual(mime_type, metadata.mime_type)
+
+    # Clean up
+    self.aws.delete(file_name)
+
+
   def test_file_random_seek(self):
     file_name = self.TEST_DATA_PATH + 'write_seek_file'
     file_size = 5 * 1024 * 1024 - 100
