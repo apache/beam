@@ -501,24 +501,23 @@ class ReshuffleTest(unittest.TestCase):
 
       # Given an element, emits a string which contains the timestamp and the
       # name field of the element.
-      class FormatWithTimestamp(beam.DoFn):
-        def process(self, element, timestamp=beam.DoFn.TimestampParam):
-          t = str(timestamp)
-          if timestamp == MIN_TIMESTAMP:
-            t = 'MIN_TIMESTAMP'
-          elif timestamp == MAX_TIMESTAMP:
-            t = 'MAX_TIMESTAMP'
-          yield '{} - {}'.format(t, element['name'])
+      def format_with_timestamp(element, timestamp=beam.DoFn.TimestampParam):
+        t = str(timestamp)
+        if timestamp == MIN_TIMESTAMP:
+          t = 'MIN_TIMESTAMP'
+        elif timestamp == MAX_TIMESTAMP:
+          t = 'MAX_TIMESTAMP'
+        yield '{} - {}'.format(t, element['name'])
 
       # Combine each element in before_reshuffle with its timestamp.
       formatted_before_reshuffle = (before_reshuffle
                                     | "Get before_reshuffle timestamp" >>
-                                    beam.ParDo(FormatWithTimestamp()))
+                                    beam.ParDo(format_with_timestamp))
 
       # Combine each element in after_reshuffle with its timestamp.
       formatted_after_reshuffle = (after_reshuffle
                                    | "Get after_reshuffle timestamp" >>
-                                   beam.ParDo(FormatWithTimestamp()))
+                                   beam.ParDo(format_with_timestamp))
 
       expected_data = ['MIN_TIMESTAMP - foo',
                        'Timestamp(0) - foo',
