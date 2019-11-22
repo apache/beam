@@ -21,7 +21,7 @@ limitations under the License.
 ## What is it and what are the goals?
 Apache Beam community thrives to be inclusive to everyone. As part of this effort, we want to enable any community member to share anything interesting and fun related to Beam via its [official Twitter handle](https://twitter.com/ApacheBeam).
 
-The Twitter feed found here is owned by the Apache Beam PMC, and the process of adding new tweets into the feed is documented below.
+The Twitter feed found here is owned by the Apache Beam PMC, and the process of proposing new tweets is documented below.
 
 <a class="twitter-timeline" data-lang="en" data-height="500" data-theme="light" data-link-color="#E95F28" href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
