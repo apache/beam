@@ -865,7 +865,7 @@ class BigQueryWriteFn(DoFn):
     # the behavior defined by the while loop below.
     skip_invalid_rows = True
     if self._retry_strategy == bigquery_tools.RetryStrategy.RETRY_ALWAYS:
-        skip_invalid_rows = False
+      skip_invalid_rows = False
 
     while True:
       passed, errors = self.bigquery_wrapper.insert_rows(
