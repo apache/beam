@@ -440,7 +440,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client                           : "com.google.api-client:google-api-client:$google_api_client_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_api_client_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_api_client_version",
-        google_api_common                           : "com.google.api:api-common:1.7.0",
+        google_api_common                           : "com.google.api:api-common:1.8.1",
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20190907-$google_api_client_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20191003-$google_api_client_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20191018-$google_api_client_version",
