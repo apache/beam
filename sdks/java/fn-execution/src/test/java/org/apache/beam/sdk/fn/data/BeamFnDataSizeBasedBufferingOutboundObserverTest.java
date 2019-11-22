@@ -20,11 +20,13 @@ package org.apache.beam.sdk.fn.data;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -34,6 +36,9 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -41,9 +46,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link BeamFnDataBufferingOutboundObserver}. */
+/** Tests for {@link BeamFnDataSizeBasedBufferingOutboundObserver}. */
 @RunWith(JUnit4.class)
-public class BeamFnDataBufferingOutboundObserverTest {
+public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
   private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "555L");
   private static final Coder<WindowedValue<byte[]>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(ByteArrayCoder.of()));
@@ -54,37 +59,43 @@ public class BeamFnDataBufferingOutboundObserverTest {
     final AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
     CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         BeamFnDataBufferingOutboundObserver.forLocation(
+            PipelineOptionsFactory.create(),
             OUTPUT_LOCATION,
             CODER,
             TestStreams.withOnNext(addToValuesConsumer(values))
                 .withOnCompleted(setBooleanToTrue(onCompletedWasCalled))
                 .build());
 
+    // Test that the time-based flush is disabled by default.
+    assertFalse(consumer instanceof BeamFnDataTimeBasedBufferingOutboundObserver);
+
     // Test that nothing is emitted till the default buffer size is surpassed.
     consumer.accept(
         valueInGlobalWindow(
-            new byte[BeamFnDataBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50]));
+            new byte
+                [BeamFnDataSizeBasedBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50]));
     assertThat(values, empty());
 
     // Test that when we cross the buffer, we emit.
     consumer.accept(valueInGlobalWindow(new byte[50]));
     assertEquals(
         messageWithData(
-            new byte[BeamFnDataBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50],
+            new byte[BeamFnDataSizeBasedBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50],
             new byte[50]),
         Iterables.get(values, 0));
 
     // Test that nothing is emitted till the default buffer size is surpassed after a reset
     consumer.accept(
         valueInGlobalWindow(
-            new byte[BeamFnDataBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50]));
+            new byte
+                [BeamFnDataSizeBasedBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50]));
     assertEquals(1, values.size());
 
     // Test that when we cross the buffer, we emit.
     consumer.accept(valueInGlobalWindow(new byte[50]));
     assertEquals(
         messageWithData(
-            new byte[BeamFnDataBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50],
+            new byte[BeamFnDataSizeBasedBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50],
             new byte[50]),
         Iterables.get(values, 1));
 
@@ -96,7 +107,8 @@ public class BeamFnDataBufferingOutboundObserverTest {
     try {
       consumer.accept(
           valueInGlobalWindow(
-              new byte[BeamFnDataBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50]));
+              new byte
+                  [BeamFnDataSizeBasedBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50]));
       fail("Writing after close should be prohibited.");
     } catch (IllegalStateException exn) {
       // expected
@@ -115,9 +127,13 @@ public class BeamFnDataBufferingOutboundObserverTest {
   public void testConfiguredBufferLimit() throws Exception {
     Collection<BeamFnApi.Elements> values = new ArrayList<>();
     AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("beam_fn_api_data_buffer_size_limit=100"));
     CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
-        BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
-            100,
+        BeamFnDataBufferingOutboundObserver.forLocation(
+            options,
             OUTPUT_LOCATION,
             CODER,
             TestStreams.withOnNext(addToValuesConsumer(values))
@@ -146,7 +162,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
         Iterables.get(values, 1));
   }
 
-  private static BeamFnApi.Elements messageWithData(byte[]... datum) throws IOException {
+  static BeamFnApi.Elements messageWithData(byte[]... datum) throws IOException {
     ByteString.Output output = ByteString.newOutput();
     for (byte[] data : datum) {
       CODER.encode(valueInGlobalWindow(data), output);
