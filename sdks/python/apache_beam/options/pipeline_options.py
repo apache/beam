@@ -465,7 +465,10 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--service_account_email',
                         default=None,
                         help='Identity to run virtual machines as.')
-    parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
+    parser.add_argument('--no_auth', 
+                        dest='no_auth', 
+                        action='store_true', 
+                        default=False)
     # Option to run templated pipelines
     parser.add_argument('--template_location',
                         default=None,
