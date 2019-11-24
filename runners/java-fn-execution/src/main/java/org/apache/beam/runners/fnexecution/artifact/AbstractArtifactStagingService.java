@@ -50,6 +50,8 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractArtifactStagingService extends ArtifactStagingServiceImplBase
     implements FnService {
 
+  public static final String NO_ARTIFACTS_STAGED_TOKEN = "__no_artifacts_staged__";
+
   private static final Logger LOG = LoggerFactory.getLogger(AbstractArtifactStagingService.class);
 
   private static final Charset CHARSET = StandardCharsets.UTF_8;
@@ -77,25 +79,29 @@ public abstract class AbstractArtifactStagingService extends ArtifactStagingServ
   public void commitManifest(
       CommitManifestRequest request, StreamObserver<CommitManifestResponse> responseObserver) {
     try {
-      String stagingSessionToken = request.getStagingSessionToken();
-      ProxyManifest.Builder proxyManifestBuilder =
-          ProxyManifest.newBuilder().setManifest(request.getManifest());
-      for (ArtifactMetadata artifactMetadata : request.getManifest().getArtifactList()) {
-        proxyManifestBuilder.addLocation(
-            Location.newBuilder()
-                .setName(artifactMetadata.getName())
-                .setUri(getArtifactUri(stagingSessionToken, encodedFileName(artifactMetadata)))
-                .build());
+      final String retrievalToken;
+      if (request.getManifest().getArtifactCount() > 0) {
+        String stagingSessionToken = request.getStagingSessionToken();
+        ProxyManifest.Builder proxyManifestBuilder =
+            ProxyManifest.newBuilder().setManifest(request.getManifest());
+        for (ArtifactMetadata artifactMetadata : request.getManifest().getArtifactList()) {
+          proxyManifestBuilder.addLocation(
+              Location.newBuilder()
+                  .setName(artifactMetadata.getName())
+                  .setUri(getArtifactUri(stagingSessionToken, encodedFileName(artifactMetadata)))
+                  .build());
+        }
+        try (WritableByteChannel manifestWritableByteChannel = openManifest(stagingSessionToken)) {
+          manifestWritableByteChannel.write(
+              CHARSET.encode(JsonFormat.printer().print(proxyManifestBuilder.build())));
+        }
+        retrievalToken = getRetrievalToken(stagingSessionToken);
+        // TODO: Validate integrity of staged files.
+      } else {
+        retrievalToken = NO_ARTIFACTS_STAGED_TOKEN;
       }
-      try (WritableByteChannel manifestWritableByteChannel = openManifest(stagingSessionToken)) {
-        manifestWritableByteChannel.write(
-            CHARSET.encode(JsonFormat.printer().print(proxyManifestBuilder.build())));
-      }
-      // TODO: Validate integrity of staged files.
       responseObserver.onNext(
-          CommitManifestResponse.newBuilder()
-              .setRetrievalToken(getRetrievalToken(stagingSessionToken))
-              .build());
+          CommitManifestResponse.newBuilder().setRetrievalToken(retrievalToken).build());
       responseObserver.onCompleted();
     } catch (Exception e) {
       // TODO: Cleanup all the artifacts.
