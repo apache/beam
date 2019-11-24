@@ -1373,11 +1373,14 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolStub(
         GRPCChannelFactory.insecure_channel(
             self._external_payload.endpoint.url))
+    control_descriptor = endpoints_pb2.ApiServiceDescriptor(
+        url=self.control_address)
     response = stub.StartWorker(
         beam_fn_api_pb2.StartWorkerRequest(
             worker_id=self.worker_id,
-            control_endpoint=endpoints_pb2.ApiServiceDescriptor(
-                url=self.control_address),
+            control_endpoint=control_descriptor,
+            artifact_endpoint=control_descriptor,
+            provision_endpoint=control_descriptor,
             logging_endpoint=self.logging_api_service_descriptor(),
             params=self._external_payload.params))
     if response.error:
