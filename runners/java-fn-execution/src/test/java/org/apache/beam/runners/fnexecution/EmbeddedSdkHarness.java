@@ -79,7 +79,8 @@ public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            GrpcDataService.create(
+                PipelineOptionsFactory.create(), executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
     controlServer = GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
 
