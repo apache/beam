@@ -419,7 +419,7 @@ public class JmsIO {
         throws Exception {
       List<UnboundedJmsSource<T>> sources = new ArrayList<>();
       if (spec.getTopic() != null) {
-        // in the case of a topic, we create a single source, so an unique subscriber, to avoid
+        // in the case of a topic, we create a single source, so a unique subscriber, to avoid
         // element duplication
         sources.add(new UnboundedJmsSource<T>(spec));
       } else {
