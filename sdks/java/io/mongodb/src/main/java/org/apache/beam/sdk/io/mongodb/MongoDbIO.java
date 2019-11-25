@@ -489,7 +489,7 @@ public class MongoDbIO {
           }
 
           if (splitKeys.size() < 1) {
-            LOG.debug("Split keys is low, using an unique source");
+            LOG.debug("Split keys is low, using a unique source");
             return Collections.singletonList(this);
           }
 
