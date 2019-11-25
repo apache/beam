@@ -206,6 +206,24 @@ public class BeamFileSystemArtifactServicesTest {
   }
 
   @Test
+  public void noArtifactsTest() throws Exception {
+    String stagingSession = "123";
+    String stagingSessionToken =
+        BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+            stagingSession, stagingDir.toUri().getPath());
+    String stagingToken = commitManifest(stagingSessionToken, Collections.emptyList());
+    Assert.assertEquals(AbstractArtifactStagingService.NO_ARTIFACTS_STAGED_TOKEN, stagingToken);
+    Assert.assertFalse(
+        Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
+
+    GetManifestResponse retrievedManifest =
+        retrievalBlockingStub.getManifest(
+            GetManifestRequest.newBuilder().setRetrievalToken(stagingToken).build());
+    Assert.assertEquals(
+        "Manifest with 0 artifacts", 0, retrievedManifest.getManifest().getArtifactCount());
+  }
+
+  @Test
   public void putArtifactsSingleSmallFileTest() throws Exception {
     String fileName = "file1";
     String stagingSession = "123";
