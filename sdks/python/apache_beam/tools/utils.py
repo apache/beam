@@ -32,14 +32,22 @@ import time
 import numpy
 
 
-def check_compiled(module):
-  """Check whether given module has been compiled.
+def is_compiled(module):
+  """Return whether given module has been compiled.
   Args:
     module: string, module name
   """
   check_module = importlib.import_module(module)
   ext = os.path.splitext(check_module.__file__)[-1]
-  if ext in ('.py', '.pyc'):
+  return ext not in ('.py', '.pyc')
+
+
+def check_compiled(module):
+  """Check whether given module has been compiled.
+  Args:
+    module: string, module name
+  """
+  if not is_compiled(module):
     raise RuntimeError(
         "Profiling uncompiled code.\n"
         "To compile beam, run "

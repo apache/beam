@@ -23,9 +23,7 @@ from __future__ import absolute_import
 
 import unittest
 
-from pkg_resources import DistributionNotFound
-from pkg_resources import get_distribution
-
+from apache_beam.testing.util import cython_should_be_enabled
 from apache_beam.tools import coders_microbenchmark
 from apache_beam.tools import utils
 
@@ -37,21 +35,10 @@ class MicrobenchmarksTest(unittest.TestCase):
     coders_microbenchmark.run_coder_benchmarks(
         num_runs=1, input_size=10, seed=1, verbose=False)
 
-  def is_cython_installed(self):
-    try:
-      get_distribution('cython')
-      return True
-    except DistributionNotFound:
-      return False
-
   def test_check_compiled(self):
-    if self.is_cython_installed():
-      utils.check_compiled('apache_beam.runners.worker.opcounters')
-    # Unfortunately, if cython is not installed, that doesn't mean we
-    # can rule out compiled modules (e.g. if Beam was installed from a wheel).
-    # Technically the other way around could be true as well, e.g. if
-    # Cython was installed after Beam, but this is rarer and more easily
-    # remedied.
+    self.assertEqual(
+        cython_should_be_enabled(),
+        utils.is_compiled('apache_beam.runners.worker.opcounters'))
 
 
 if __name__ == '__main__':

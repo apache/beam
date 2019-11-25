@@ -59,6 +59,7 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import cython_should_be_enabled
 from apache_beam.testing.util import equal_to
 from apache_beam.tools import utils
 from apache_beam.transforms import core
@@ -1579,10 +1580,13 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
     # TODO(BEAM-1251): Remove this test skip after dropping Py 2 support.
     if sys.version_info < (3, 4):
       self.skipTest('Log-based assertions are supported after Python 3.4')
-    try:
-      utils.check_compiled('apache_beam.runners.worker.opcounters')
-    except RuntimeError:
-      self.skipTest('Cython is not available')
+
+    cython_enabled = cython_should_be_enabled()
+    self.assertEqual(
+        cython_enabled,
+        utils.is_compiled('apache_beam.runners.worker.opcounters'))
+    if not cython_enabled:
+      self.skipTest('Cython is not enabled')
 
     with self.assertLogs(level='WARNING') as logs:
       with self.create_pipeline() as p:

@@ -24,6 +24,7 @@ from __future__ import absolute_import
 import collections
 import glob
 import io
+import os
 import tempfile
 from builtins import object
 
@@ -40,6 +41,7 @@ from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'assert_that',
+    'cython_should_be_enabled',
     'equal_to',
     'equal_to_per_window',
     'is_empty',
@@ -327,3 +329,7 @@ def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
         out_file.write(in_file.read())
     concatenated_file_name = out_file.name
   return io.open(concatenated_file_name, mode, encoding=encoding)
+
+
+def cython_should_be_enabled():
+  return os.environ.get('BEAM_TESTS_USING_CYTHON') == '1'
