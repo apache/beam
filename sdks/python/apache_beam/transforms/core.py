@@ -2271,8 +2271,8 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,
-               timestamp_combiner=None,
+               accumulation_mode=None,  # typing.Optional[beam_runner_api_pb2.AccumulationMode]
+               timestamp_combiner=None,  # typing.Optional[beam_runner_api_pb2.OutputTime]
               ):
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position

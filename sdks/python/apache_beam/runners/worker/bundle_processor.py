@@ -40,7 +40,6 @@ from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Mapping
-from typing import MutableMapping
 from typing import Optional
 from typing import Set
 from typing import Tuple
@@ -117,9 +116,9 @@ class RunnerIOOperation(operations.Operation):
                consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
                counter_factory,
                state_sampler,
-               windowed_coder,  # type: coders.WindowedValueCoder
+               windowed_coder,  # type: coders.Coder
                transform_id,  # type: str
-               data_channel  # type: data_plane.GrpcClientDataChannel
+               data_channel  # type: data_plane.DataChannel
               ):
     # type: (...) -> None
     super(RunnerIOOperation, self).__init__(
@@ -164,7 +163,7 @@ class DataInputOperation(RunnerIOOperation):
                consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
                counter_factory,
                state_sampler,
-               windowed_coder,  # type: coders.WindowedValueCoder
+               windowed_coder,  # type: coders.Coder
                transform_id,
                data_channel  # type: data_plane.GrpcClientDataChannel
               ):
@@ -385,9 +384,11 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
     return merged_accumulator
 
   def read(self):
+    # type: () -> Iterable[Any]
     return self._combinefn.extract_output(self._read_accumulator())
 
   def add(self, value):
+    # type: (Any) -> None
     # Prefer blind writes, but don't let them grow unboundedly.
     # This should be tuned to be much lower, but for now exercise
     # both paths well.
@@ -400,10 +401,11 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
         self._combinefn.add_input(accumulator, value))
 
   def clear(self):
+    # type: () -> None
     self._underlying_bag_state.clear()
 
-  def _commit(self):
-    self._underlying_bag_state._commit()
+  def commit(self):
+    self._underlying_bag_state.commit()
 
 
 class _ConcatIterable(object):
@@ -451,13 +453,15 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
         self._added_elements)
 
   def add(self, value):
+    # type: (Any) -> None
     self._added_elements.append(value)
 
   def clear(self):
+    # type: () -> None
     self._cleared = True
     self._added_elements = []
 
-  def _commit(self):
+  def commit(self):
     to_await = None
     if self._cleared:
       to_await = self._state_handler.clear(self._state_key, is_cached=True)
@@ -512,6 +516,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     return self._compact_data(rewrite=False)
 
   def add(self, value):
+    # type: (Any) -> None
     if self._cleared:
       # This is a good time explicitly clear.
       self._state_handler.clear(self._state_key, is_cached=True)
@@ -526,7 +531,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._cleared = True
     self._added_elements = set()
 
-  def _commit(self):
+  def commit(self):
     # type: () -> None
     to_await = None
     if self._cleared:
@@ -575,7 +580,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
                transform_id,  # type: str
                key_coder,  # type: coders.Coder
                window_coder,  # type: coders.Coder
-               timer_specs  # type: MutableMapping[str, beam_runner_api_pb2.TimerSpec]
+               timer_specs  # type: Mapping[str, beam_runner_api_pb2.TimerSpec]
               ):
     # type: (...) -> None
     """Initialize a ``FnApiUserStateContext``.
@@ -594,7 +599,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._window_coder = window_coder
     self._timer_specs = timer_specs
     self._timer_receivers = None  # type: Optional[Dict[str, operations.ConsumerSet]]
-    self._all_states = {}  # type: Dict[tuple, Union[SynchronousBagRuntimeState, SynchronousSetRuntimeState, CombiningValueRuntimeState]]
+    self._all_states = {}  # type: Dict[tuple, userstate.AccumulatingRuntimeState]
 
   def update_timer_receivers(self, receivers):
     # type: (operations._TaggedReceivers) -> None
@@ -623,6 +628,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
                     key,
                     window  # type: windowed_value.BoundedWindow
                    ):
+    # type: (...) -> userstate.AccumulatingRuntimeState
     if isinstance(state_spec,
                   (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
       bag_state = SynchronousBagRuntimeState(
@@ -656,7 +662,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
   def commit(self):
     # type: () -> None
     for state in self._all_states.values():
-      state._commit()
+      state.commit()
 
   def reset(self):
     # type: () -> None
@@ -1059,7 +1065,7 @@ class BeamTransformFactory(object):
           json.loads(coder_proto.spec.payload.decode('utf-8')))
 
   def get_windowed_coder(self, pcoll_id):
-    # type: (str) -> WindowedValueCoder
+    # type: (str) -> coders.Coder
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
     # TODO(robertwb): Remove this condition once all runners are consistent.
     if not isinstance(coder, WindowedValueCoder):
@@ -1071,25 +1077,25 @@ class BeamTransformFactory(object):
       return coder
 
   def get_output_coders(self, transform_proto):
-    # type: (beam_runner_api_pb2.PTransform) -> Dict[str, WindowedValueCoder]
+    # type: (beam_runner_api_pb2.PTransform) -> Dict[str, coders.Coder]
     return {
         tag: self.get_windowed_coder(pcoll_id)
         for tag, pcoll_id in transform_proto.outputs.items()
     }
 
   def get_only_output_coder(self, transform_proto):
-    # type: (beam_runner_api_pb2.PTransform) -> WindowedValueCoder
+    # type: (beam_runner_api_pb2.PTransform) -> coders.Coder
     return only_element(self.get_output_coders(transform_proto).values())
 
   def get_input_coders(self, transform_proto):
-    # type: (beam_runner_api_pb2.PTransform) -> Dict[str, WindowedValueCoder]
+    # type: (beam_runner_api_pb2.PTransform) -> Dict[str, coders.Coder]
     return {
         tag: self.get_windowed_coder(pcoll_id)
         for tag, pcoll_id in transform_proto.inputs.items()
     }
 
   def get_only_input_coder(self, transform_proto):
-    # type: (beam_runner_api_pb2.PTransform) -> WindowedValueCoder
+    # type: (beam_runner_api_pb2.PTransform) -> coders.Coder
     return only_element(list(self.get_input_coders(transform_proto).values()))
 
   # TODO(robertwb): Update all operations to take these in the constructor.
@@ -1131,8 +1137,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
         break
 
   if grpc_port.coder_id:
-    output_coder = cast(coders.WindowedValueCoder,
-                        factory.get_coder(grpc_port.coder_id))
+    output_coder = factory.get_coder(grpc_port.coder_id)
   else:
     _LOGGER.info(
         'Missing required coder_id on grpc_port for %s; '
@@ -1154,8 +1159,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
     DATA_OUTPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
-    output_coder = cast(coders.WindowedValueCoder,
-                        factory.get_coder(grpc_port.coder_id))
+    output_coder = factory.get_coder(grpc_port.coder_id)
   else:
     _LOGGER.info(
         'Missing required coder_id on grpc_port for %s; '

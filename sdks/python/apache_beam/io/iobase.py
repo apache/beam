@@ -41,6 +41,7 @@ from builtins import object
 from builtins import range
 from collections import namedtuple
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -156,8 +157,8 @@ class BoundedSource(SourceBase):
 
   def split(self,
             desired_bundle_size,  # type: int
-            start_position=None,  # type: Optional[int]
-            stop_position=None,  # type: Optional[int]
+            start_position=None,  # type: Optional[Any]
+            stop_position=None,  # type: Optional[Any]
            ):
     # type: (...) -> Iterator[SourceBundle]
     """Splits the source into a set of bundles.
@@ -177,8 +178,8 @@ class BoundedSource(SourceBase):
     raise NotImplementedError
 
   def get_range_tracker(self,
-                        start_position,  # type: Optional[int]
-                        stop_position,  # type: Optional[int]
+                        start_position,  # type: Optional[Any]
+                        stop_position,  # type: Optional[Any]
                        ):
     # type: (...) -> RangeTracker
     """Returns a RangeTracker for a given position range.
@@ -1304,7 +1305,7 @@ class ThreadsafeRestrictionTracker(object):
       return self._restriction_tracker.try_split(fraction_of_remainder)
 
   def deferred_status(self):
-    # type: () -> Optional[Tuple[restriction_trackers.OffsetRange, Timestamp]]
+    # type: () -> Optional[Tuple[Any, Timestamp]]
     """Returns deferred work which is produced by ``defer_remainder()``.
 
     When there is a self-checkpoint performed, the system needs to fulfill the

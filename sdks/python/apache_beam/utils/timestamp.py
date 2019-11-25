@@ -29,6 +29,7 @@ import time
 from builtins import object
 from typing import Any
 from typing import Union
+from typing import overload
 
 import dateutil.parser
 import pytz
@@ -37,6 +38,11 @@ from google.protobuf import timestamp_pb2
 from past.builtins import long
 
 from apache_beam.portability import common_urns
+
+# types compatible with Timestamp.of()
+TimestampTypes = Union[int, float, 'Timestamp']
+# types compatible with Duration.of()
+DurationTypes = Union[int, float, 'Duration']
 
 
 @functools.total_ordering
@@ -63,7 +69,7 @@ class Timestamp(object):
 
   @staticmethod
   def of(seconds):
-    # type: (Union[int, float, Timestamp]) -> Timestamp
+    # type: (TimestampTypes) -> Timestamp
     """Return the Timestamp for the given number of seconds.
 
     If the input is already a Timestamp, the input itself will be returned.
@@ -208,23 +214,32 @@ class Timestamp(object):
     return hash(self.micros)
 
   def __add__(self, other):
-    # type: (Union[int, float, Duration]) -> Timestamp
+    # type: (DurationTypes) -> Timestamp
     other = Duration.of(other)
     return Timestamp(micros=self.micros + other.micros)
 
   def __radd__(self, other):
-    # type: (Union[int, float, Duration]) -> Timestamp
+    # type: (DurationTypes) -> Timestamp
     return self + other
 
+  @overload
   def __sub__(self, other):
-    # type: (Union[int, float, Duration]) -> Timestamp
+    # type: (DurationTypes) -> Timestamp
+    pass
+
+  @overload
+  def __sub__(self, other):
+    # type: (Timestamp) -> Duration
+    pass
+
+  def __sub__(self, other):
     if isinstance(other, Timestamp):
       return Duration(micros=self.micros - other.micros)
     other = Duration.of(other)
     return Timestamp(micros=self.micros - other.micros)
 
   def __mod__(self, other):
-    # type: (Union[int, float, Duration]) -> Duration
+    # type: (DurationTypes) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 
@@ -253,7 +268,7 @@ class Duration(object):
 
   @staticmethod
   def of(seconds):
-    # type: (Union[int, float, Duration]) -> Duration
+    # type: (DurationTypes) -> Duration
     """Return the Duration for the given number of seconds since Unix epoch.
 
     If the input is already a Duration, the input itself will be returned.
@@ -341,6 +356,7 @@ class Duration(object):
     return Duration(micros=-self.micros)
 
   def __add__(self, other):
+    # type: (DurationTypes) -> Duration
     if isinstance(other, Timestamp):
       return other + self
     other = Duration.of(other)
@@ -350,7 +366,7 @@ class Duration(object):
     return self + other
 
   def __sub__(self, other):
-    # type: (Union[int, float, Duration]) -> Duration
+    # type: (DurationTypes) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros - other.micros)
 
@@ -358,7 +374,7 @@ class Duration(object):
     return -(self - other)
 
   def __mul__(self, other):
-    # type: (Union[int, float, Duration]) -> Duration
+    # type: (DurationTypes) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros * other.micros // 1000000)
 
@@ -366,7 +382,7 @@ class Duration(object):
     return self * other
 
   def __mod__(self, other):
-    # type: (Union[int, float, Duration]) -> Duration
+    # type: (DurationTypes) -> Duration
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 

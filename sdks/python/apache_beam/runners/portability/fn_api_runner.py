@@ -933,7 +933,7 @@ class FnApiRunner(runner.PipelineRunner):
                          data_api_service_descriptor, # type: Optional[endpoints_pb2.ApiServiceDescriptor]
                          pcoll_buffers  # type: DefaultDict[bytes, _ListBuffer]
                         ):
-    # type: (...) -> Tuple[Dict[str, _ListBuffer], Dict[Tuple[str, str], Tuple[bytes, beam_runner_api_pb2.FunctionSpec]], Dict[str, bytes]]
+    # type: (...) -> Tuple[Dict[str, _ListBuffer], DataSideInput, DataOutput]
     """Returns maps of transform names to PCollection identifiers.
 
     Also mutates IO stages to point to the data ApiServiceDescriptor.

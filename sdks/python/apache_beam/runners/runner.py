@@ -164,29 +164,12 @@ class PipelineRunner(object):
                    pipeline,  # type: Pipeline
                    options  # type: PipelineOptions
                   ):
+    # type: (...) -> PipelineResult
     """Execute the entire pipeline or the sub-DAG reachable from a node.
 
     Runners should override this method.
     """
-
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.pipeline import PipelineVisitor
-
-    class RunVisitor(PipelineVisitor):
-
-      def __init__(self, runner):
-        # type: (PipelineRunner) -> None
-        self.runner = runner
-
-      def visit_transform(self, transform_node):
-        try:
-          self.runner.run_transform(transform_node, options)
-        except:
-          _LOGGER.error('Error while visiting %s', transform_node.full_label)
-          raise
-
-    pipeline.visit(RunVisitor(self))
+    raise NotImplementedError
 
   def apply(self,
             transform,  # type: PTransform
@@ -210,6 +193,30 @@ class PipelineRunner(object):
         return m(transform, input, options)
     raise NotImplementedError(
         'Execution of [%s] not implemented in runner %s.' % (transform, self))
+
+  def visit_transforms(self,
+                       pipeline,  # type: Pipeline
+                       options  # type: PipelineOptions
+                      ):
+    # type: (...) -> None
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.pipeline import PipelineVisitor
+
+    class RunVisitor(PipelineVisitor):
+
+      def __init__(self, runner):
+        # type: (PipelineRunner) -> None
+        self.runner = runner
+
+      def visit_transform(self, transform_node):
+        try:
+          self.runner.run_transform(transform_node, options)
+        except:
+          _LOGGER.error('Error while visiting %s', transform_node.full_label)
+          raise
+
+    pipeline.visit(RunVisitor(self))
 
   def apply_PTransform(self, transform, input, options):
     # The base case of apply is to call the transform's expand.

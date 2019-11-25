@@ -20,16 +20,11 @@ from __future__ import absolute_import
 from __future__ import division
 
 from builtins import object
-from typing import TYPE_CHECKING
-from typing import Optional
 from typing import Tuple
 
 from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker
-
-if TYPE_CHECKING:
-  from apache_beam.utils.timestamp import Timestamp
 
 
 class OffsetRange(object):

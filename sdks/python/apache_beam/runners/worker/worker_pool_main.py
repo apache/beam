@@ -57,7 +57,6 @@ class BeamFnExternalWorkerPoolServicer(
                container_executable=None,  # type: Optional[str]
                state_cache_size=0
               ):
-    self._worker_threads = worker_threads
     self._use_process = use_process
     self._container_executable = container_executable
     self._state_cache_size = state_cache_size

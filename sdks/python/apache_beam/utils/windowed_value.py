@@ -34,11 +34,11 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused-import
 
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
@@ -188,7 +188,7 @@ class WindowedValue(object):
 
   def __init__(self,
                value,
-               timestamp,  # type: Union[int, float, Timestamp]
+               timestamp,  # type: TimestampTypes
                windows,  # type: Tuple[BoundedWindow, ...]
                pane_info=PANE_INFO_UNKNOWN
               ):
@@ -265,7 +265,6 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
 
 
 try:
-  # FIXME: for review: why not add this as a class attribute?
   WindowedValue.timestamp_object = None
 except TypeError:
   # When we're compiled, we can't dynamically add attributes to
@@ -278,19 +277,22 @@ class _IntervalWindowBase(object):
   """Optimized form of IntervalWindow storing only microseconds for endpoints.
   """
 
-  def __init__(self,
-               start,  # type: Optional[Union[int, float, Timestamp]]
-               end  # type: Optional[Union[int, float, Timestamp]]
-              ):
-    if start is not None or end is not None:
+  def __init__(self, start, end):
+    # type: (TimestampTypes, TimestampTypes) -> None
+    if start is not None:
       self._start_object = Timestamp.of(start)  # type: Optional[Timestamp]
-      self._end_object = Timestamp.of(end)  # type: Optional[Timestamp]
       try:
         self._start_micros = self._start_object.micros
       except OverflowError:
         self._start_micros = (
             MIN_TIMESTAMP.micros if self._start_object.micros < 0
             else MAX_TIMESTAMP.micros)
+    else:
+      # Micros must be populated elsewhere.
+      self._start_object = None
+
+    if end is not None:
+      self._end_object = Timestamp.of(end)  # type: Optional[Timestamp]
       try:
         self._end_micros = self._end_object.micros
       except OverflowError:
@@ -299,7 +301,7 @@ class _IntervalWindowBase(object):
             else MAX_TIMESTAMP.micros)
     else:
       # Micros must be populated elsewhere.
-      self._start_object = self._end_object = None
+      self._end_object = None
 
   @property
   def start(self):

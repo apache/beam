@@ -27,6 +27,7 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
+from typing import Iterable
 from typing import Optional
 from typing import Set
 from typing import Tuple
@@ -295,12 +296,19 @@ class RuntimeState(object):
 
 class AccumulatingRuntimeState(RuntimeState):
   def read(self):
+    # type: () -> Iterable[Any]
     raise NotImplementedError(type(self))
 
   def add(self, value):
+    # type: (Any) -> None
     raise NotImplementedError(type(self))
 
   def clear(self):
+    # type: () -> None
+    raise NotImplementedError(type(self))
+
+  def commit(self):
+    # type: () -> None
     raise NotImplementedError(type(self))
 
 

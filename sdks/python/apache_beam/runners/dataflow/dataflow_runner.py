@@ -493,8 +493,8 @@ class DataflowRunner(PipelineRunner):
     # inputs, hence we enforce that here.
     pipeline.visit(self.flatten_input_visitor())
 
-    # The superclass's run will trigger a traversal of all reachable nodes.
-    super(DataflowRunner, self).run_pipeline(pipeline, options)
+    # Trigger a traversal of all reachable nodes.
+    self.visit_transforms(pipeline, options)
 
     test_options = options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.

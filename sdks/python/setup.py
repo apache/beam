@@ -68,7 +68,7 @@ class mypy(Command):
     args = ['mypy', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
-      raise DistutilsError()
+      raise DistutilsError("mypy exited with status %d" % result)
 
 
 def get_version():

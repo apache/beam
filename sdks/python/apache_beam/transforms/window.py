@@ -56,7 +56,6 @@ from functools import total_ordering
 from typing import Any
 from typing import Iterable
 from typing import List
-from typing import Union
 
 from future.utils import with_metaclass
 from google.protobuf import duration_pb2
@@ -73,7 +72,9 @@ from apache_beam.utils import urns
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import DurationTypes  # pylint: disable=unused-import
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused-import
 from apache_beam.utils.windowed_value import WindowedValue
 
 __all__ = [
@@ -123,7 +124,7 @@ class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):  # type: ignore[m
     """Context passed to WindowFn.assign()."""
 
     def __init__(self,
-                 timestamp,  # type: Union[int, float, Timestamp]
+                 timestamp,  # type: TimestampTypes
                  element=None,
                  window=None
                 ):
@@ -148,7 +149,7 @@ class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):  # type: ignore[m
     """Context passed to WindowFn.merge() to perform merging, if any."""
 
     def __init__(self, windows):
-      # type: (Iterable[Union[IntervalWindow, GlobalWindow]]) -> None
+      # type: (Iterable[BoundedWindow]) -> None
       self.windows = list(windows)
 
     def merge(self, to_be_merged, merge_result):
@@ -198,8 +199,18 @@ class BoundedWindow(object):
   """
 
   def __init__(self, end):
-    # type: (Union[int, float, Timestamp]) -> None
-    self.end = Timestamp.of(end)
+    # type: (TimestampTypes) -> None
+    self._end = Timestamp.of(end)
+
+  @property
+  def start(self):
+    # type: () -> Timestamp
+    raise NotImplementedError
+
+  @property
+  def end(self):
+    # type: () -> Timestamp
+    return self._end
 
   def max_timestamp(self):
     return self.end.predecessor()
@@ -269,7 +280,7 @@ class TimestampedValue(object):
   """
 
   def __init__(self, value, timestamp):
-    # type: (Any, Union[int, float, Timestamp]) -> None
+    # type: (Any, TimestampTypes) -> None
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
@@ -303,7 +314,6 @@ class GlobalWindow(BoundedWindow):
 
   def __init__(self):
     super(GlobalWindow, self).__init__(GlobalWindow._getTimestampFromProto())
-    self.start = MIN_TIMESTAMP
 
   def __repr__(self):
     return 'GlobalWindow'
@@ -317,6 +327,11 @@ class GlobalWindow(BoundedWindow):
 
   def __ne__(self, other):
     return not self == other
+
+  @property
+  def start(self):
+    # type: () -> Timestamp
+    return MIN_TIMESTAMP
 
   @staticmethod
   def _getTimestampFromProto():
@@ -386,8 +401,8 @@ class FixedWindows(NonMergingWindowFn):
   """
 
   def __init__(self,
-               size,  # type: Union[int, float, Duration]
-               offset=0  # type: Union[int, float, Timestamp]
+               size,  # type: DurationTypes
+               offset=0  # type: TimestampTypes
               ):
     """Initialize a ``FixedWindows`` function for a given size and offset.
 
@@ -454,9 +469,9 @@ class SlidingWindows(NonMergingWindowFn):
   """
 
   def __init__(self,
-               size,  # type: Union[int, float, Duration]
-               period,  # type: Union[int, float, Duration]
-               offset=0,  # type: Union[int, float, Timestamp]
+               size,  # type: DurationTypes
+               period,  # type: DurationTypes
+               offset=0,  # type: TimestampTypes
               ):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
@@ -518,7 +533,7 @@ class Sessions(WindowFn):
   """
 
   def __init__(self, gap_size):
-    # type: (Union[int, float, Duration]) -> None
+    # type: (DurationTypes) -> None
     if gap_size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.gap_size = Duration.of(gap_size)
@@ -532,7 +547,7 @@ class Sessions(WindowFn):
 
   def merge(self, merge_context):
     # type: (WindowFn.MergeContext) -> None
-    to_merge = []  # type: List[Union[IntervalWindow, GlobalWindow]]
+    to_merge = []  # type: List[BoundedWindow]
     end = MIN_TIMESTAMP
     for w in sorted(merge_context.windows, key=lambda w: w.start):
       if to_merge:

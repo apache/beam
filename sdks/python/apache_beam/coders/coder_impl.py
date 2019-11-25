@@ -64,8 +64,28 @@ from apache_beam.utils.timestamp import Timestamp
 if TYPE_CHECKING:
   from apache_beam.transforms.window import IntervalWindow
 
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
+  from . import stream  # pylint: disable=unused-import
+except ImportError:
+  SLOW_STREAM = True
+else:
+  SLOW_STREAM = False
+
+if TYPE_CHECKING or SLOW_STREAM:
+  from .slow_stream import InputStream as create_InputStream
+  from .slow_stream import OutputStream as create_OutputStream
+  from .slow_stream import ByteCountingOutputStream
+  from .slow_stream import get_varint_size
+
+  if False:  # pylint: disable=using-constant-test
+    # This clause is interpreted by the compiler.
+    from cython import compiled as is_compiled
+  else:
+    is_compiled = False
+    fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
+
+else:
+  # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
   from .stream import InputStream as create_InputStream
   from .stream import OutputStream as create_OutputStream
   from .stream import ByteCountingOutputStream
@@ -75,19 +95,7 @@ try:
   globals()['create_InputStream'] = create_InputStream
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
-except ImportError:
-  from .slow_stream import InputStream as create_InputStream
-  from .slow_stream import OutputStream as create_OutputStream
-  from .slow_stream import ByteCountingOutputStream
-  from .slow_stream import get_varint_size
-  if False:  # pylint: disable=using-constant-test
-    # This clause is interpreted by the compiler.
-    from cython import compiled as is_compiled
-  else:
-    is_compiled = False
-    fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
-
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+  # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 _TIME_SHIFT = 1 << 63
@@ -390,7 +398,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         # when value does not fit into int64.
         int_value = value
         # If Cython is not used, we must do a (slower) check ourselves.
-        if not is_compiled:
+        if not TYPE_CHECKING and not is_compiled:
           if not fits_in_64_bits(value):
             raise OverflowError()
         stream.write_byte(INT_TYPE)
@@ -570,7 +578,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
       global IntervalWindow
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
-    typed_value = IntervalWindow(None, None)
+    # instantiating with None is not part of the public interface
+    typed_value = IntervalWindow(None, None)  # type: ignore[arg-type]
     typed_value._end_micros = (
         1000 * self._to_normal_time(in_.read_bigendian_uint64()))
     typed_value._start_micros = (
