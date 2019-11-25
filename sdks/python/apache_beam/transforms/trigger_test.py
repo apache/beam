@@ -647,7 +647,7 @@ def _windowed_value_info_map_fn(
 
 def _windowed_value_info_check(actual, expected, key=None):
 
-  key_string = 'for %s' % key if key else ''
+  key_string = ' for %s' % key if key else ''
 
   def format(panes):
     return '\n[%s]\n' % '\n '.join(str(pane) for pane in sorted(
@@ -767,11 +767,11 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
     if is_order_agnostic:
       reshuffle_seed = random.randrange(1 << 20)
       keys = [
-          'original', 'reversed', 'reshuffled(%s)' % reshuffle_seed,
-          'one-element-bundles', 'one-element-bundles-reversed',
-          'two-element-bundles']
+          u'original', u'reversed', u'reshuffled(%s)' % reshuffle_seed,
+          u'one-element-bundles', u'one-element-bundles-reversed',
+          u'two-element-bundles']
     else:
-      keys = ['key1', 'key2']
+      keys = [u'key1', u'key2']
 
     # Elements are encoded as a json strings to allow other languages to
     # decode elements while executing the test stream.
