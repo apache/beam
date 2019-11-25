@@ -412,12 +412,12 @@ class PipelineExecutionContext(object):
     self.endpoints_per_stage = {
         s.name: self._extract_stage_endpoints(s) for s in stages}
 
-    self._consuming_stage_per_input_buffer_id = {
-        k: v[0]
+    self._consuming_stages_per_input_buffer_id = {
+        k: [subv[0] for subv in v]
         for k, v in self._compute_pcoll_consumer_per_buffer_id(stages).items()}
 
-    self._consuming_transform_per_input_buffer_id = {
-        k: v[1]
+    self._consuming_transforms_per_input_buffer_id = {
+        k: [subv[1] for subv in v]
         for k, v in self._compute_pcoll_consumer_per_buffer_id(stages).items()}
 
     self.pcoll_to_side_input_info = self._compute_side_input_to_consumer_map(
@@ -469,13 +469,13 @@ class PipelineExecutionContext(object):
     # type: (str) -> List[SideInputInfo]
     return self.pcoll_to_side_input_info.get(pcoll_name, [])
 
-  def get_consuming_stage(self, buffer_id):
-    # type: (str) -> Stage
-    return self._consuming_stage_per_input_buffer_id.get(buffer_id, None)
+  def get_consuming_stages(self, buffer_id):
+    # type: (str) -> List[Stage]
+    return self._consuming_stages_per_input_buffer_id.get(buffer_id, None)
 
-  def get_consuming_transform(self, buffer_id):
-    # type: (str) -> beam_runner_api_pb2.PTransform
-    return self._consuming_transform_per_input_buffer_id.get(
+  def get_consuming_transforms(self, buffer_id):
+    # type: (str) -> List[beam_runner_api_pb2.PTransform]
+    return self._consuming_transforms_per_input_buffer_id.get(
         buffer_id, None)
 
   def update_pcoll_watermark(self, pcoll_name, watermark):
@@ -490,27 +490,32 @@ class PipelineExecutionContext(object):
 
   @staticmethod
   def _compute_pcoll_consumer_per_buffer_id(stages):
+    # type: (List[Stage]) -> Dict[bytes, List[Tuple(Stage, beam_runner_api_pb2.PTransform)]]
     """Computes the stages that consume a PCollection as main input.
 
     This means either data-input operations, or timer pcollections. It does NOT
     include side input consumption."""
-    data_input_consumers = {
-        t.spec.payload: (s, t)
-        for s in stages
-        for t in s.transforms
-        if t.spec.urn == bundle_processor.DATA_INPUT_URN}
 
-    timer_pcoll_consumers = {}
+    result = collections.defaultdict(list)
+    known_consumers = collections.defaultdict(set)
+
+    for s in stages:
+      for t in s.transforms:
+        if t.spec.urn == bundle_processor.DATA_INPUT_URN:
+          consumer_pair = (s.name, t.unique_name)
+          if consumer_pair not in known_consumers[t.spec.payload]:
+            known_consumers[t.spec.payload].add(consumer_pair)
+            result[t.spec.payload].append((s, t))
+
     for s in stages:
       transforms_per_unique_name = {t.unique_name:t for t in s.transforms}
       for input_id, timer_pcoll in s.timer_pcollections:
+        # We do not need to review known_consumers for timer PCollections
+        # because they are always only consumed by a single transform.
+        # Specifically, the transform that outputs them.
         buffer_id = create_buffer_id(timer_pcoll, 'timers')
-        timer_pcoll_consumers[buffer_id] = (
-            s, transforms_per_unique_name[input_id])
+        result[buffer_id].append((s, transforms_per_unique_name[input_id]))
 
-    result = {}
-    result.update(timer_pcoll_consumers)
-    result.update(data_input_consumers)
     return result
 
   @staticmethod
