@@ -626,7 +626,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      | beam.ParDo(SetStateClearingStatefulDoFn())
                      | beam.GroupByKey())
 
-    assert_that(actual_values, equal_to([('key', [1, 2, 3, 4, 5])]))
+    assert_that(actual_values, equal_to([('key', 2 * [1, 2, 3, 4, 5])]))
     result = p.run()
     result.wait_until_finish()
 

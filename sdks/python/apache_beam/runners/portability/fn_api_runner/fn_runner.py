@@ -371,14 +371,15 @@ class _GroupingBuffer(object):
           with_value(value))
 
   def extend(self, input_buffer):
-    raise NotImplementedError(
-        'GroupingBuffer is not expected to merge with others')
+    # type: (_GroupingBuffer) -> None
+    for key, values in input_buffer._table.items():
+      self._table[key].extend(values)
 
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
 
     """ It is used to partition _GroupingBuffer to N parts. Once it is
-    partitioned, it would not be re-partitioned with diff N. Re-partition
+    partitioned, it would not be re-partitioned with different N. Re-partition
     is not supported now.
     """
     if not self._grouped_output:
@@ -798,8 +799,6 @@ class FnApiRunner(runner.PipelineRunner):
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
     stage_context, stages = self.create_stages(pipeline_proto)
-    # TODO(pabloem, BEAM-7514): Create a watermark manager (that has access to
-    #   the teststream (if any), and all the stages).
     return self.run_stages(stage_context, stages)
 
   @contextlib.contextmanager
@@ -977,7 +976,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     execution_context = PipelineExecutionContext(stage_context.components,
                                                  stages)
-    execution_context.show()
+    #execution_context.show()
 
     self._enqueue_all_initial_inputs(stages, input_queue_manager)
     try:
@@ -1199,14 +1198,12 @@ class FnApiRunner(runner.PipelineRunner):
     """TODO(pabloem)"""
     logging.debug('Processing output bundles: %s', output_bundles)
     for (bundle_watermark, buffer_id), data in output_bundles:
-      consumer_stage = execution_context.get_consuming_stage(buffer_id)
-      consumer_transform = execution_context.get_consuming_transform(buffer_id)
+      consumer_stages = execution_context.get_consuming_stages(buffer_id)
+      consumer_transforms = execution_context.get_consuming_transforms(
+          buffer_id)
 
-      consuming_stage_name = (consumer_stage.name if consumer_stage else None)
-      consuming_transform_name = (consumer_transform.unique_name
-                                  if consumer_transform else None)
       kind, _ = split_buffer_id(buffer_id)
-      if not consuming_stage_name or not consuming_transform_name:
+      if not consumer_stages or not consumer_transforms:
         # This means that the PCollection is not consumed by any transforms,
         # and we can discard the elements.
         continue
@@ -1215,23 +1212,31 @@ class FnApiRunner(runner.PipelineRunner):
         # Empty timer collections should not be rescheduled.
         continue
 
+      consuming_stage_names = [stage.name if stage else None
+                               for stage in consumer_stages]
+      consuming_transform_names = [transform.unique_name if transform else None
+                                   for transform in consumer_transforms]
+
       # In this case, `data` may be an empty buffer, but we still schedule it
       # for execution (unless it's a timer pcollection) because otherwise the
       # watermark for the consumer will not be pushed forward later.
       # As mentioned above, empty timer bundles are not scheduled again,
       # because they hold back the pipeline.
-      stage_watermark_mgr = execution_context.watermark_manager.get_node(
-          consuming_stage_name)
-      stage_input_watermark = stage_watermark_mgr.input_watermark()
-      if stage_input_watermark >= bundle_watermark:
-        logging.debug('Enqueuing bundle output after execution, '
-                      'to be consumed by stage: %s', consuming_stage_name)
-        input_queue_manager.ready_inputs.enque(
-            (consuming_stage_name, {consuming_transform_name: data}))
-      else:
-        input_queue_manager.watermark_pending_inputs.enque(
-            ((consuming_stage_name, bundle_watermark),
-             {consuming_transform_name: data}))
+
+      for consuming_stage_name, consuming_transform_name in zip(
+          consuming_stage_names, consuming_transform_names):
+        stage_watermark_mgr = execution_context.watermark_manager.get_node(
+            consuming_stage_name)
+        stage_input_watermark = stage_watermark_mgr.input_watermark()
+        if stage_input_watermark >= bundle_watermark:
+          logging.debug('Enqueuing bundle output after execution, '
+                        'to be consumed by stage: %s', consuming_stage_name)
+          input_queue_manager.ready_inputs.enque(
+              (consuming_stage_name, {consuming_transform_name: data}))
+        else:
+          input_queue_manager.watermark_pending_inputs.enque(
+              ((consuming_stage_name, bundle_watermark),
+               {consuming_transform_name: data}))
 
   def _run_bundle_multiple_times_for_testing(
       self,
