@@ -70,12 +70,13 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
 
   @Override
   public void onTimer(
-      final String timerId,
-      final BoundedWindow window,
-      final Instant timestamp,
-      final TimeDomain timeDomain) {
+      String timerId,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
-      delegate.onTimer(timerId, window, timestamp, timeDomain);
+      delegate.onTimer(timerId, window, timestamp, outputTimestamp, timeDomain);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
