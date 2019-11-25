@@ -90,6 +90,7 @@ dependencies {
   runtime project(":sdks:java:io:kafka")
   runtime library.java.kafka_clients
   runtime project(":sdks:java:io:google-cloud-platform")
+  runtime project(path: flinkRunnerProject, configuration: "miniCluster")
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
@@ -181,20 +182,57 @@ project.ext.validatesCrossLanguageRunner = createCrossLanguageValidatesRunnerTas
   ]
 )
 
-task testPipelineJar() {
-  dependsOn shadowJar
-  dependsOn ":sdks:python:container:py35:docker"
-  doLast{
-    exec {
-      executable "sh"
-      def options = [
-        "--flink_job_server_jar ${shadowJar.archivePath}",
-        "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-        "--python_root_dir ${project.rootDir}/sdks/python",
-        "--python_version 3.5",
-        "--python_container_image apachebeam/python3.5_sdk:${project['python_sdk_version']}",
-      ]
-      args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+def addTestJavaJarCreator(String pyVersion) {
+  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
+  project.tasks.create(name: "testJavaJarCreatorPy${pyBuildPath}") {
+    dependsOn shadowJar
+    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+                "--python_root_dir ${project.rootDir}/sdks/python",
+                "--python_version ${pyVersion}",
+                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+        ]
+        args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+      }
     }
   }
+}
+
+def addTestFlinkRunnerPy(String pyVersion) {
+  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
+  project.tasks.create(name: "testFlinkRunnerPy${pyBuildPath}") {
+    dependsOn shadowJar
+    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+                "--python_root_dir ${project.rootDir}/sdks/python",
+                "--python_version ${pyVersion}",
+                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+        ]
+        args "-c", "../../job-server/test_python_flink_runner.sh ${options.join(' ')}"
+      }
+    }
+  }
+}
+
+["2.7", "3.5", "3.6", "3.7"].each{ pyVersion ->
+  addTestJavaJarCreator(pyVersion)
+  addTestFlinkRunnerPy(pyVersion)
+}
+
+task testPipelineJar() {
+  dependsOn testJavaJarCreatorPy37
+  dependsOn testFlinkRunnerPy2
+  dependsOn testFlinkRunnerPy35
+  dependsOn testFlinkRunnerPy36
+  dependsOn testFlinkRunnerPy37
 }

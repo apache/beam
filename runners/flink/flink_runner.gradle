@@ -128,6 +128,7 @@ test {
 
 configurations {
   validatesRunner
+  miniCluster
 }
 
 dependencies {
@@ -170,6 +171,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(project.path)
+  miniCluster "org.apache.flink:flink-runtime-web_2.11:$flink_version"
 }
 
 class ValidatesRunnerConfig {
