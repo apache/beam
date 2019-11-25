@@ -122,7 +122,8 @@ class TriggerTest(unittest.TestCase):
     state = InMemoryUnmergedState()
 
     for bundle in bundles:
-      for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
+      for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP,
+                                            MIN_TIMESTAMP):
         window, = wvalue.windows
         self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
@@ -131,13 +132,14 @@ class TriggerTest(unittest.TestCase):
       for timer_window, (name, time_domain, timestamp) in (
           state.get_and_clear_timers()):
         for wvalue in driver.process_timer(
-            timer_window, name, time_domain, timestamp, state):
+            timer_window, name, time_domain, timestamp, state, MIN_TIMESTAMP):
           window, = wvalue.windows
           self.assertEqual(window.max_timestamp(), wvalue.timestamp)
           actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
-      for wvalue in driver.process_elements(state, bundle, MAX_TIMESTAMP):
+      for wvalue in driver.process_elements(state, bundle, MAX_TIMESTAMP,
+                                            MAX_TIMESTAMP):
         window, = wvalue.windows
         self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
@@ -146,7 +148,7 @@ class TriggerTest(unittest.TestCase):
         for timer_window, (name, time_domain, timestamp) in (
             state.get_and_clear_timers()):
           for wvalue in driver.process_timer(
-              timer_window, name, time_domain, timestamp, state):
+              timer_window, name, time_domain, timestamp, state, MAX_TIMESTAMP):
             window, = wvalue.windows
             self.assertEqual(window.max_timestamp(), wvalue.timestamp)
             actual_panes[window].append(set(wvalue.value))
@@ -395,7 +397,7 @@ class TriggerTest(unittest.TestCase):
                    for k in range(10))
     with self.assertRaises(TypeError):
       pickle.dumps(unpicklable)
-    for unwindowed in driver.process_elements(None, unpicklable, None):
+    for unwindowed in driver.process_elements(None, unpicklable, None, None):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
                        list(range(10)))
 
