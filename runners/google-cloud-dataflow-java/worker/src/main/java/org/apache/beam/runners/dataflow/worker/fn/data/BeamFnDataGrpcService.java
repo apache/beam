@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.data;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,10 +39,8 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,38 +59,26 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements BeamFnService {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcService.class);
-  private static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final ConcurrentMap<String, CompletableFuture<BeamFnDataGrpcMultiplexer>>
       connectedClients;
 
+  private final PipelineOptions options;
   private final Function<StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
       streamObserverFactory;
   private final HeaderAccessor headerAccessor;
-  private final Optional<Integer> outboundBufferLimit;
 
   public BeamFnDataGrpcService(
       PipelineOptions options,
       Endpoints.ApiServiceDescriptor descriptor,
       Function<StreamObserver<Elements>, StreamObserver<Elements>> streamObserverFactory,
       HeaderAccessor headerAccessor) {
-    this.outboundBufferLimit = getOutboundBufferLimit(options);
+    this.options = options;
     this.streamObserverFactory = streamObserverFactory;
     this.headerAccessor = headerAccessor;
     this.connectedClients = new ConcurrentHashMap<>();
     this.apiServiceDescriptor = descriptor;
     LOG.info("Launched Beam Fn Data service {}", this.apiServiceDescriptor);
-  }
-
-  private static final Optional<Integer> getOutboundBufferLimit(PipelineOptions options) {
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
-      if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_LIMIT)) {
-        return Optional.of(
-            Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_LIMIT.length())));
-      }
-    }
-    return Optional.absent();
   }
 
   @Override
@@ -218,16 +202,11 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
       public <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder) {
         LOG.debug("Creating output consumer for {}", outputLocation);
         try {
-          if (outboundBufferLimit.isPresent()) {
-            return BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
-                outboundBufferLimit.get(),
-                outputLocation,
-                coder,
-                getClientFuture(clientId).get().getOutboundObserver());
-          } else {
-            return BeamFnDataBufferingOutboundObserver.forLocation(
-                outputLocation, coder, getClientFuture(clientId).get().getOutboundObserver());
-          }
+          return BeamFnDataBufferingOutboundObserver.forLocation(
+              options,
+              outputLocation,
+              coder,
+              getClientFuture(clientId).get().getOutboundObserver());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
