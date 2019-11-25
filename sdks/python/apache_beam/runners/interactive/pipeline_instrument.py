@@ -42,7 +42,6 @@ REPLACEABLE_UNBOUNDED_SOURCES = (
     ExternalReadFromPubSub,
     ReadFromKafka,
     ReadFromPubSub,
-    BigQueryReader,
 )
 
 
