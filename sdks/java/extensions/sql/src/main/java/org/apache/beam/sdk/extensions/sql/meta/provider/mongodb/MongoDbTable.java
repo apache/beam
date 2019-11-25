@@ -104,7 +104,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
 
     if (!(filters instanceof DefaultTableFilter)) {
-      throw new RuntimeException("Unimplemented at the moment.");
+      throw new AssertionError("Predicate push-down is unsupported, yet received a predicate.");
     }
 
     if (!fieldNames.isEmpty()) {

@@ -26,9 +26,9 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
+import static org.apache.beam.sdk.testing.SerializableMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.junit.Assert.assertEquals;
 
 import com.mongodb.MongoClient;
 import de.flapdoodle.embed.mongo.MongodExecutable;
@@ -55,6 +55,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -95,7 +96,7 @@ public class MongoDbReadWriteIT {
   private static MongodProcess mongodProcess;
   private static MongoClient client;
 
-  private static final BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new MongoDbTableProvider());
+  private static BeamSqlEnv sqlEnv;
   private static String mongoSqlUrl;
 
   @Rule public final TestPipeline writePipeline = TestPipeline.create();
@@ -124,13 +125,7 @@ public class MongoDbReadWriteIT {
     mongodProcess = mongodExecutable.start();
     client = new MongoClient(hostname, port);
 
-    mongoSqlUrl =
-        String.format(
-            "mongodb://%s:%d/%s/%s",
-            hostname,
-            port,
-            database,
-            collection);
+    mongoSqlUrl = String.format("mongodb://%s:%d/%s/%s", hostname, port, database, collection);
   }
 
   @AfterClass
@@ -139,6 +134,11 @@ public class MongoDbReadWriteIT {
     client.close();
     mongodProcess.stop();
     mongodExecutable.stop();
+  }
+
+  @Before
+  public void init() {
+    sqlEnv = BeamSqlEnv.inMemory(new MongoDbTableProvider());
   }
 
   @After
@@ -199,7 +199,7 @@ public class MongoDbReadWriteIT {
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery("select * from TEST"));
 
-    assertEquals(SOURCE_SCHEMA, output.getSchema());
+    assertThat(output.getSchema(), equalTo(SOURCE_SCHEMA));
 
     PAssert.that(output).containsInAnyOrder(testRow);
 
@@ -260,8 +260,7 @@ public class MongoDbReadWriteIT {
         containsInAnyOrder("c_varchar", "c_boolean", "c_integer"));
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, node);
 
-    assertEquals(expectedSchema, output.getSchema());
-
+    assertThat(output.getSchema(), equalTo(expectedSchema));
     PAssert.that(output).containsInAnyOrder(testRow);
 
     readPipeline.run().waitUntilFinish();
