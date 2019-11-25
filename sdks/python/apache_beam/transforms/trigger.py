@@ -1075,8 +1075,8 @@ class BatchGlobalTriggerDriver(TriggerDriver):
       nonspeculative_index=0)
 
   def process_elements(self, state, windowed_values,
-                       unused_output_watermark=None,
-                       unused_input_watermark=None):
+                       unused_output_watermark,
+                       unused_input_watermark=MIN_TIMESTAMP):
     yield WindowedValue(
         _UnwindowedValues(windowed_values),
         MIN_TIMESTAMP,
