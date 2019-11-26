@@ -61,6 +61,12 @@ public interface SparkCommonPipelineOptions
 
   void setFilesToStage(List<String> value);
 
+  @Description("Enable/disable sending aggregator values to Spark's metric sinks")
+  @Default.Boolean(true)
+  Boolean getEnableSparkMetricSinks();
+
+  void setEnableSparkMetricSinks(Boolean enableSparkMetricSinks);
+
   /**
    * Returns the default checkpoint directory of /tmp/${job.name}. For testing purposes only.
    * Production applications should use a reliable filesystem such as HDFS/S3/GS.

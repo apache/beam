@@ -61,8 +61,7 @@ class TableScanConverter extends RelConverter<ResolvedTableScan> {
     SchemaPlus defaultSchemaPlus = getConfig().getDefaultSchema();
     // TODO: reject incorrect top-level schema
 
-    Table calciteTable =
-        TableResolution.resolveCalciteTable(getConfig().getContext(), defaultSchemaPlus, tablePath);
+    Table calciteTable = TableResolution.resolveCalciteTable(defaultSchemaPlus, tablePath);
 
     // we already resolved the table before passing the query to Analyzer, so it should be there
     checkNotNull(
