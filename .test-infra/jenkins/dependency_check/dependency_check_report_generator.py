@@ -103,6 +103,9 @@ def prioritize_dependencies(deps, sdk_type):
 
   for dep in deps:
     try:
+      if re.match(r'https?://', dep.lstrip()):
+        # Gradle-version-plugin's output contains URLs of the libraries
+        continue
       logging.info("\n\nStart processing: " + dep)
       dep_name, curr_ver, latest_ver = extract_single_dep(dep)
       curr_release_date = None
@@ -140,8 +143,7 @@ def prioritize_dependencies(deps, sdk_type):
           compare_dependency_release_dates(curr_release_date, latest_release_date)):
         # Create a new issue or update on the existing issue
         jira_issue = jira_manager.run(dep_name, curr_ver, latest_ver, sdk_type, group_id = group_id)
-        if (jira_issue.fields.status.name == 'Open' or
-            jira_issue.fields.status.name == 'Reopened'):
+        if (jira_issue and jira_issue.fields.status.name in ['Open', 'Reopened', 'Triage Needed']):
           dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(
             ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
             jira_issue.key)
@@ -229,7 +231,7 @@ def find_release_time_from_python_compatibility_checking_service(dep_name, versi
 
 def request_session_with_retries():
   """
-  Create a http session with retries
+  Create an http session with retries
   """
   session = requests.Session()
   retries = Retry(total=3)

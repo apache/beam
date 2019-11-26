@@ -625,6 +625,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.PARAMETER)
   public @interface Timestamp {}
 
+  /** Parameter annotation for the SideInput for a {@link ProcessElement} method. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface SideInput {
+    /** The SideInput tag ID. */
+    String value();
+  }
   /**
    * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
    * feature may change.</i></b>
@@ -816,11 +824,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into multiple parts to
    * be processed in parallel.
    *
-   * <p>Signature: {@code List<RestrictionT> splitRestriction( InputT element, RestrictionT
-   * restriction);}
+   * <p>Signature: {@code void splitRestriction(InputT element, RestrictionT restriction,
+   * OutputReceiver<RestrictionT> receiver);}
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
-   * defining the method and returning {@code Collections.singletonList(restriction)}).
+   * defining the method and outputting the {@code restriction} unchanged).
    */
   // TODO: Make the InputT parameter optional.
   @Documented

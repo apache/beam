@@ -29,6 +29,8 @@ import tempfile
 import unittest
 from builtins import range
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 
@@ -40,6 +42,8 @@ from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+
+_LOGGER = logging.getLogger(__name__)
 
 
 # TODO: Refactor code so all io tests are using same library
@@ -231,13 +235,21 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     with self.assertRaises(ValueError):
       _get_temp_dir(dir_root_path)
 
+  def test_temp_dir_uniqueness(self):
+    temp_path = os.path.join(self._new_tempdir(), 'unique')
+    sink = MyFileBasedSink(temp_path, coder=coders.ToStringCoder())
+    init_list = [''] * 1000
+    temp_dir_list = [sink._create_temp_dir(temp_path) for _ in init_list]
+    temp_dir_set = set(temp_dir_list)
+    self.assertEqual(len(temp_dir_list), len(temp_dir_set))
+
   def test_temp_dir_gcs(self):
     try:
       self.run_temp_dir_check(
           'gs://aaa/bbb', 'gs://aaa/bbb/', 'gs://aaa', 'gs://aaa/', 'gs://',
           '/')
     except ValueError:
-      logging.debug('Ignoring test since GCP module is not installed')
+      _LOGGER.debug('Ignoring test since GCP module is not installed')
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_temp_dir_local(self, filesystem_os_mock):
@@ -303,7 +315,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     error_str = 'mock rename error description'
     rename_mock.side_effect = BeamIOError(
         'mock rename error', {('src', 'dst'): error_str})
-    with self.assertRaisesRegexp(Exception, error_str):
+    with self.assertRaisesRegex(Exception, error_str):
       list(sink.finalize_write(init_token, writer_results,
                                pre_finalize_results))
 
@@ -315,7 +327,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     pre_finalize_results = sink.pre_finalize(init_token, writer_results)
 
     os.remove(writer_results[0])
-    with self.assertRaisesRegexp(Exception, r'not exist'):
+    with self.assertRaisesRegex(Exception, r'not exist'):
       list(sink.finalize_write(init_token, writer_results,
                                pre_finalize_results))
 
@@ -390,7 +402,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     error_str = 'mock rename error description'
     delete_mock.side_effect = BeamIOError(
         'mock rename error', {shard2: error_str})
-    with self.assertRaisesRegexp(Exception, error_str):
+    with self.assertRaisesRegex(Exception, error_str):
       sink.pre_finalize(init_token, [res1, res2])
 
 

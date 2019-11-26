@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -63,8 +64,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 
 /**
@@ -368,7 +369,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
                   // Schemas not yet supported on splittable DoFn.
                   return ParDoTranslation.translateDoFn(
-                      fn, pke.getMainOutputTag(), DoFnSchemaInformation.create(), newComponents);
+                      fn,
+                      pke.getMainOutputTag(),
+                      Collections.emptyMap(),
+                      DoFnSchemaInformation.create(),
+                      newComponents);
                 }
 
                 @Override

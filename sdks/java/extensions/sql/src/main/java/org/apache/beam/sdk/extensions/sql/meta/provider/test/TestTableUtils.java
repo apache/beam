@@ -27,7 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Lists;
 
 /** Utility functions for mock classes. */
 @Experimental
@@ -55,8 +55,22 @@ public class TestTableUtils {
         .collect(toSchema());
   }
 
+  public static Schema buildBeamSqlNullableSchema(Object... args) {
+    return Stream.iterate(0, i -> i + 3)
+        .limit(args.length / 3)
+        .map(i -> toNullableRecordField(args, i))
+        .collect(toSchema());
+  }
+
   // TODO: support nested.
   public static Schema.Field toRecordField(Object[] args, int i) {
+    return Schema.Field.of((String) args[i + 1], (FieldType) args[i]);
+  }
+
+  public static Schema.Field toNullableRecordField(Object[] args, int i) {
+    if ((boolean) args[i + 2]) {
+      return Schema.Field.nullable((String) args[i + 1], (FieldType) args[i]);
+    }
     return Schema.Field.of((String) args[i + 1], (FieldType) args[i]);
   }
 

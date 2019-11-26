@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
@@ -94,7 +94,8 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
         options,
         keyCoder,
         keySelector,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
   }
 
   @Override

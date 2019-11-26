@@ -26,6 +26,7 @@ from __future__ import absolute_import
 import itertools
 import logging
 import time
+import typing
 
 from google.protobuf import wrappers_pb2
 
@@ -59,6 +60,9 @@ __all__ = ['BundleBasedDirectRunner',
            'SwitchingDirectRunner']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class SwitchingDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine.
 
@@ -67,6 +71,9 @@ class SwitchingDirectRunner(PipelineRunner):
   which supports streaming execution and certain primitives not yet
   implemented in the FnApiRunner.
   """
+
+  def is_fnapi_compatible(self):
+    return BundleBasedDirectRunner.is_fnapi_compatible()
 
   def run_pipeline(self, pipeline, options):
 
@@ -114,7 +121,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     # Also ensure grpc is available.
     try:
-      # pylint: disable=unused-variable
+      # pylint: disable=unused-import
       import grpc
     except ImportError:
       use_fnapi_runner = False
@@ -129,12 +136,12 @@ class SwitchingDirectRunner(PipelineRunner):
 
 
 # Type variables.
-K = typehints.TypeVariable('K')
-V = typehints.TypeVariable('V')
+K = typing.TypeVar('K')
+V = typing.TypeVar('V')
 
 
-@typehints.with_input_types(typehints.KV[K, V])
-@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_input_types(typing.Tuple[K, V])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
   """Streaming GroupByKeyOnly placeholder for overriding in DirectRunner."""
   urn = "direct_runner:streaming_gbko:v0.1"
@@ -148,8 +155,8 @@ class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
     return _StreamingGroupByKeyOnly()
 
 
-@typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
-@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
   """Streaming GroupAlsoByWindow placeholder for overriding in DirectRunner."""
   urn = "direct_runner:streaming_gabw:v0.1"
@@ -176,14 +183,14 @@ def _get_transform_overrides(pipeline_options):
 
   # Importing following locally to avoid a circular dependency.
   from apache_beam.pipeline import PTransformOverride
-  from apache_beam.runners.sdf_common import SplittableParDoOverride
   from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
+  from apache_beam.runners.direct.sdf_direct_runner import SplittableParDoOverride
 
   class CombinePerKeyOverride(PTransformOverride):
     def matches(self, applied_ptransform):
       if isinstance(applied_ptransform.transform, CombinePerKey):
-        return True
+        return applied_ptransform.inputs[0].windowing.is_default()
 
     def get_replacement_transform(self, transform):
       # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
@@ -250,7 +257,7 @@ class _DirectReadFromPubSub(PTransform):
 
   def expand(self, pvalue):
     # This is handled as a native transform.
-    return PCollection(self.pipeline)
+    return PCollection(self.pipeline, is_bounded=self._source.is_bounded())
 
 
 class _DirectWriteToPubSubFn(DoFn):
@@ -335,6 +342,10 @@ def _get_pubsub_transform_overrides(pipeline_options):
 class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
+  @staticmethod
+  def is_fnapi_compatible():
+    return False
+
   def run_pipeline(self, pipeline, options):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
@@ -368,10 +379,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     pipeline.visit(visitor)
     clock = TestClock() if visitor.uses_test_stream else RealClock()
 
-    # TODO(BEAM-4274): Circular import runners-metrics. Requires refactoring.
-    from apache_beam.metrics.execution import MetricsEnvironment
-    MetricsEnvironment.set_metrics_supported(True)
-    logging.info('Running pipeline with DirectRunner.')
+    _LOGGER.info('Running pipeline with DirectRunner.')
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(self.consumer_tracking_visitor)
 
@@ -413,7 +421,7 @@ class DirectPipelineResult(PipelineResult):
 
   def __del__(self):
     if self._state == PipelineState.RUNNING:
-      logging.warning(
+      _LOGGER.warning(
           'The DirectPipelineResult is being garbage-collected while the '
           'DirectRunner is still running the corresponding pipeline. This may '
           'lead to incomplete execution of the pipeline if the main thread '

@@ -31,22 +31,8 @@ from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
-
-
-class Environment(object):
-  """A wrapper around the environment proto.
-
-  Provides consistency with how the other componentes are accessed.
-  """
-  def __init__(self, proto):
-    self._proto = proto
-
-  def to_runner_api(self, context):
-    return self._proto
-
-  @staticmethod
-  def from_runner_api(proto, context):
-    return Environment(proto)
+from apache_beam.transforms import environments
+from apache_beam.typehints import native_type_compatibility
 
 
 class _PipelineContextMap(object):
@@ -100,6 +86,9 @@ class _PipelineContextMap(object):
           return id
     return self.put_proto(self._unique_ref(label), maybe_new_proto)
 
+  def get_id_to_proto_map(self):
+    return self._id_to_proto
+
   def put_proto(self, id, proto):
     if id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
@@ -124,7 +113,7 @@ class PipelineContext(object):
       'pcollections': pvalue.PCollection,
       'coders': coders.Coder,
       'windowing_strategies': core.Windowing,
-      'environments': Environment,
+      'environments': environments.Environment,
   }
 
   def __init__(
@@ -142,7 +131,7 @@ class PipelineContext(object):
               self, cls, namespace, getattr(proto, name, None)))
     if default_environment:
       self._default_environment_id = self.environments.get_id(
-          Environment(default_environment), label='default_environment')
+          default_environment, label='default_environment')
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders
@@ -164,7 +153,8 @@ class PipelineContext(object):
     if self.use_fake_coders or coder_id not in self.coders:
       return pickler.loads(coder_id)
     else:
-      return self.coders[coder_id].to_type_hint()
+      return native_type_compatibility.convert_to_beam_type(
+          self.coders[coder_id].to_type_hint())
 
   @staticmethod
   def from_runner_api(proto):

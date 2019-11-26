@@ -21,11 +21,11 @@
 from __future__ import absolute_import
 
 import logging
-import os
-import sys
 import unittest
 from builtins import object
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 
@@ -69,9 +69,9 @@ class TestPubsubMessage(unittest.TestCase):
     _ = PubsubMessage(None, {'k': 'v'})
 
   def test_payload_invalid(self):
-    with self.assertRaisesRegexp(ValueError, r'data.*attributes.*must be set'):
+    with self.assertRaisesRegex(ValueError, r'data.*attributes.*must be set'):
       _ = PubsubMessage(None, None)
-    with self.assertRaisesRegexp(ValueError, r'data.*attributes.*must be set'):
+    with self.assertRaisesRegex(ValueError, r'data.*attributes.*must be set'):
       _ = PubsubMessage(None, {})
 
   @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
@@ -111,10 +111,6 @@ class TestPubsubMessage(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestReadFromPubSubOverride(unittest.TestCase):
 
-  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.'
-                   'See BEAM-6877')
   def test_expand_with_topic(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -139,10 +135,6 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual('a_topic', source.topic_name)
     self.assertEqual('a_label', source.id_label)
 
-  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.'
-                   'See BEAM-6877')
   def test_expand_with_subscription(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -168,21 +160,17 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual('a_label', source.id_label)
 
   def test_expand_with_no_topic_or_subscription(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, "Either a topic or subscription must be provided."):
       ReadFromPubSub(None, None, 'a_label', with_attributes=False,
                      timestamp_attribute=None)
 
   def test_expand_with_both_topic_and_subscription(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, "Only one of topic or subscription should be provided."):
       ReadFromPubSub('a_topic', 'a_subscription', 'a_label',
                      with_attributes=False, timestamp_attribute=None)
 
-  @unittest.skipIf(sys.version_info >= (3, 6, 0) and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.6.'
-                   'See BEAM-6877')
   def test_expand_with_other_options(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -540,7 +528,7 @@ class TestReadFromPubSub(unittest.TestCase):
          | ReadFromPubSub(
              'projects/fakeprj/topics/a_topic', None, None,
              with_attributes=True, timestamp_attribute='time'))
-    with self.assertRaisesRegexp(ValueError, r'parse'):
+    with self.assertRaisesRegex(ValueError, r'parse'):
       p.run()
     mock_pubsub.return_value.acknowledge.assert_not_called()
 
@@ -553,8 +541,8 @@ class TestReadFromPubSub(unittest.TestCase):
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
     _ = (p | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label'))
-    with self.assertRaisesRegexp(NotImplementedError,
-                                 r'id_label is not supported'):
+    with self.assertRaisesRegex(NotImplementedError,
+                                r'id_label is not supported'):
       p.run()
 
 
@@ -619,8 +607,8 @@ class TestWriteToPubSub(unittest.TestCase):
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
                          with_attributes=True))
-    with self.assertRaisesRegexp(AttributeError,
-                                 r'str.*has no attribute.*data'):
+    with self.assertRaisesRegex(AttributeError,
+                                r'str.*has no attribute.*data'):
       p.run()
 
   def test_write_messages_unsupported_features(self, mock_pubsub):
@@ -635,8 +623,8 @@ class TestWriteToPubSub(unittest.TestCase):
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
                          id_label='a_label'))
-    with self.assertRaisesRegexp(NotImplementedError,
-                                 r'id_label is not supported'):
+    with self.assertRaisesRegex(NotImplementedError,
+                                r'id_label is not supported'):
       p.run()
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -645,8 +633,8 @@ class TestWriteToPubSub(unittest.TestCase):
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
                          timestamp_attribute='timestamp'))
-    with self.assertRaisesRegexp(NotImplementedError,
-                                 r'timestamp_attribute is not supported'):
+    with self.assertRaisesRegex(NotImplementedError,
+                                r'timestamp_attribute is not supported'):
       p.run()
 
 

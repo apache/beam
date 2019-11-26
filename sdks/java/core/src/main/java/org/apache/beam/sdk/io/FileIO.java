@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -72,10 +72,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -237,7 +237,7 @@ import org.slf4j.LoggerFactory;
  * type to the sink's <i>output type</i>.
  *
  * <p>However, when using dynamic destinations, in many such cases the destination needs to be
- * extract from the original type, so such a conversion is not possible. For example, one might
+ * extracted from the original type, so such a conversion is not possible. For example, one might
  * write events of a custom class {@code Event} to a text sink, using the event's "type" as a
  * destination. In that case, specify an <i>output function</i> in {@link Write#via(Contextful,
  * Contextful)} or {@link Write#via(Contextful, Sink)}.
@@ -245,7 +245,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Example: Writing CSV files</h3>
  *
  * <pre>{@code
- * class CSVSink implements FileSink<List<String>> {
+ * class CSVSink implements FileIO.Sink<List<String>> {
  *   private String header;
  *   private PrintWriter writer;
  *
@@ -262,7 +262,7 @@ import org.slf4j.LoggerFactory;
  *     writer.println(Joiner.on(",").join(element));
  *   }
  *
- *   public void finish() throws IOException {
+ *   public void flush() throws IOException {
  *     writer.flush();
  *   }
  * }
@@ -270,13 +270,13 @@ import org.slf4j.LoggerFactory;
  * PCollection<BankTransaction> transactions = ...;
  * // Convert transactions to strings before writing them to the CSV sink.
  * transactions.apply(MapElements
- *         .into(lists(strings()))
+ *         .into(TypeDescriptors.lists(TypeDescriptors.strings()))
  *         .via(tx -> Arrays.asList(tx.getUser(), tx.getAmount())))
  *     .apply(FileIO.<List<String>>write()
- *         .via(new CSVSink(Arrays.asList("user", "amount"))
+ *         .via(new CSVSink(Arrays.asList("user", "amount")))
  *         .to(".../path/to/")
  *         .withPrefix("transactions")
- *         .withSuffix(".csv")
+ *         .withSuffix(".csv"));
  * }</pre>
  *
  * <h3>Example: Writing CSV files to different directories and with different headers</h3>

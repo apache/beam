@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.apache.beam.sdk.io.mongodb.FindQuery.bson2BsonDocument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
@@ -52,7 +52,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
@@ -323,6 +323,13 @@ public class MongoDbIO {
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
     }
 
+    public long getDocumentCount() {
+      checkArgument(uri() != null, "withUri() is required");
+      checkArgument(database() != null, "withDatabase() is required");
+      checkArgument(collection() != null, "withCollection() is required");
+      return new BoundedMongoDbSource(this).getDocumentCount();
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
@@ -374,6 +381,38 @@ public class MongoDbIO {
     @Override
     public BoundedReader<Document> createReader(PipelineOptions options) {
       return new BoundedMongoDbReader(this);
+    }
+
+    /**
+     * Returns number of Documents in a collection.
+     *
+     * @return Positive number of Documents in a collection or -1 on error.
+     */
+    long getDocumentCount() {
+      try (MongoClient mongoClient =
+          new MongoClient(
+              new MongoClientURI(
+                  spec.uri(),
+                  getOptions(
+                      spec.maxConnectionIdleTime(),
+                      spec.sslEnabled(),
+                      spec.sslInvalidHostNameAllowed())))) {
+        return getDocumentCount(mongoClient, spec.database(), spec.collection());
+      } catch (Exception e) {
+        return -1;
+      }
+    }
+
+    private long getDocumentCount(MongoClient mongoClient, String database, String collection) {
+      MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
+
+      // get the Mongo collStats object
+      // it gives the size for the entire collection
+      BasicDBObject stat = new BasicDBObject();
+      stat.append("collStats", collection);
+      Document stats = mongoDatabase.runCommand(stat);
+
+      return stats.get("count", Number.class).longValue();
     }
 
     @Override
@@ -450,7 +489,7 @@ public class MongoDbIO {
           }
 
           if (splitKeys.size() < 1) {
-            LOG.debug("Split keys is low, using an unique source");
+            LOG.debug("Split keys is low, using a unique source");
             return Collections.singletonList(this);
           }
 

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +25,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@code MetricKey} based on a MonitoringInfo's URN and label to represent the
@@ -51,7 +51,14 @@ public class MonitoringInfoMetricName extends MetricName {
   @Override
   public String getNamespace() {
     if (labels.containsKey(MonitoringInfoConstants.Labels.NAMESPACE)) {
+      // User-generated metric
       return labels.getOrDefault(MonitoringInfoConstants.Labels.NAMESPACE, null);
+    } else if (labels.containsKey(MonitoringInfoConstants.Labels.PCOLLECTION)) {
+      // System-generated metric
+      return labels.getOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
+    } else if (labels.containsKey(MonitoringInfoConstants.Labels.PTRANSFORM)) {
+      // System-generated metric
+      return labels.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     } else {
       return urn.split(":", 2)[0];
     }

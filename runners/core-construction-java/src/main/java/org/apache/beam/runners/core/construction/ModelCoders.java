@@ -18,20 +18,21 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
 public class ModelCoders {
   private ModelCoders() {}
 
   public static final String BYTES_CODER_URN = getUrn(StandardCoders.Enum.BYTES);
+  public static final String BOOL_CODER_URN = getUrn(StandardCoders.Enum.BOOL);
   // Where is this required explicitly, instead of implicit within WindowedValue and LengthPrefix
   // coders?
   public static final String INT64_CODER_URN = getUrn(StandardCoders.Enum.VARINT);
@@ -53,9 +54,12 @@ public class ModelCoders {
 
   public static final String WINDOWED_VALUE_CODER_URN = getUrn(StandardCoders.Enum.WINDOWED_VALUE);
 
+  public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
+
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(
           BYTES_CODER_URN,
+          BOOL_CODER_URN,
           INT64_CODER_URN,
           STRING_UTF8_CODER_URN,
           ITERABLE_CODER_URN,
@@ -65,7 +69,8 @@ public class ModelCoders {
           GLOBAL_WINDOW_CODER_URN,
           INTERVAL_WINDOW_CODER_URN,
           WINDOWED_VALUE_CODER_URN,
-          DOUBLE_CODER_URN);
+          DOUBLE_CODER_URN,
+          ROW_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;

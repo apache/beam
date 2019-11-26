@@ -17,7 +17,6 @@ package exec
 
 import (
 	"fmt"
-	"path"
 	"strconv"
 	"strings"
 
@@ -382,9 +381,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				if err != nil {
 					return nil, err
 				}
-				// transform.UniqueName may be per-bundle, which isn't useful for metrics.
-				// Use the short name for the DoFn instead.
-				n.PID = path.Base(n.Fn.Name())
+				n.PID = transform.GetUniqueName()
 
 				input := unmarshalKeyedValues(transform.GetInputs())
 				for i := 1; i < len(input); i++ {
@@ -414,9 +411,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				}
 				cn.UsesKey = typex.IsKV(in[0].Type)
 
-				// transform.UniqueName may be per-bundle, which isn't useful for metrics.
-				// Use the short name for the DoFn instead.
-				cn.PID = path.Base(cn.Fn.Name())
+				cn.PID = transform.GetUniqueName()
 
 				switch urn {
 				case urnPerKeyCombinePre:
@@ -492,7 +487,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	case graphx.URNFlatten:
 		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
-	
+
 		// Use the same flatten instance for all the inputs links to this transform.
 		for i := 0; i < len(transform.Inputs); i++ {
 			b.links[linkID{id.to, i}] = u

@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.jdbc')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -25,7 +25,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
 ext.summary = "IO to read and write on JDBC datasource."
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile "org.apache.commons:commons-dbcp2:2.6.0"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -40,5 +40,5 @@ dependencies {
   testCompile "org.apache.derby:derbyclient:10.14.2.0"
   testCompile "org.apache.derby:derbynet:10.14.2.0"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

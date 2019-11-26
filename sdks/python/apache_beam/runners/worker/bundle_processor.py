@@ -32,7 +32,8 @@ from builtins import next
 from builtins import object
 
 from future.utils import itervalues
-from google import protobuf
+from google.protobuf import duration_pb2
+from google.protobuf import timestamp_pb2
 
 import apache_beam as beam
 from apache_beam import coders
@@ -68,6 +69,8 @@ OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
 OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'beam:source:java:0.1'
 URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
                                  monitoring_infos.SAMPLED_BYTE_SIZE_URN])
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class RunnerIOOperation(operations.Operation):
@@ -199,25 +202,19 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class _StateBackedIterable(object):
-  def __init__(self, state_handler, state_key, coder_or_impl):
+  def __init__(self, state_handler, state_key, coder_or_impl,
+               is_cached=False):
     self._state_handler = state_handler
     self._state_key = state_key
     if isinstance(coder_or_impl, coders.Coder):
       self._coder_impl = coder_or_impl.get_impl()
     else:
       self._coder_impl = coder_or_impl
+    self._is_cached = is_cached
 
   def __iter__(self):
-    data, continuation_token = self._state_handler.blocking_get(self._state_key)
-    while True:
-      input_stream = coder_impl.create_InputStream(data)
-      while input_stream.size() > 0:
-        yield self._coder_impl.decode_from_stream(input_stream, True)
-      if not continuation_token:
-        break
-      else:
-        data, continuation_token = self._state_handler.blocking_get(
-            self._state_key, continuation_token)
+    return self._state_handler.blocking_get(
+        self._state_key, self._coder_impl, is_cached=self._is_cached)
 
   def __reduce__(self):
     return list, (list(self),)
@@ -241,20 +238,25 @@ class StateBackedSideInputMap(object):
   def __getitem__(self, window):
     target_window = self._side_input_data.window_mapping_fn(window)
     if target_window not in self._cache:
-      state_key = beam_fn_api_pb2.StateKey(
-          multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-              ptransform_id=self._transform_id,
-              side_input_id=self._tag,
-              window=self._target_window_coder.encode(target_window),
-              key=b''))
       state_handler = self._state_handler
       access_pattern = self._side_input_data.access_pattern
 
       if access_pattern == common_urns.side_inputs.ITERABLE.urn:
+        state_key = beam_fn_api_pb2.StateKey(
+            iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
+                transform_id=self._transform_id,
+                side_input_id=self._tag,
+                window=self._target_window_coder.encode(target_window)))
         raw_view = _StateBackedIterable(
             state_handler, state_key, self._element_coder)
 
       elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
+        state_key = beam_fn_api_pb2.StateKey(
+            multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
+                transform_id=self._transform_id,
+                side_input_id=self._tag,
+                window=self._target_window_coder.encode(target_window),
+                key=b''))
         cache = {}
         key_coder_impl = self._element_coder.key_coder().get_impl()
         value_coder = self._element_coder.value_coder()
@@ -292,7 +294,8 @@ class StateBackedSideInputMap(object):
     self._cache = {}
 
 
-class CombiningValueRuntimeState(userstate.RuntimeState):
+class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
+
   def __init__(self, underlying_bag_state, combinefn):
     self._combinefn = combinefn
     self._underlying_bag_state = underlying_bag_state
@@ -346,8 +349,8 @@ class _ConcatIterable(object):
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
-# TODO(BEAM-5428): Implement cross-bundle state caching.
-class SynchronousBagRuntimeState(userstate.RuntimeState):
+class SynchronousBagRuntimeState(userstate.BagRuntimeState):
+
   def __init__(self, state_handler, state_key, value_coder):
     self._state_handler = state_handler
     self._state_key = state_key
@@ -358,7 +361,8 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
   def read(self):
     return _ConcatIterable(
         [] if self._cleared else _StateBackedIterable(
-            self._state_handler, self._state_key, self._value_coder),
+            self._state_handler, self._state_key, self._value_coder,
+            is_cached=True),
         self._added_elements)
 
   def add(self, value):
@@ -369,14 +373,80 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
     self._added_elements = []
 
   def _commit(self):
+    to_await = None
     if self._cleared:
-      self._state_handler.blocking_clear(self._state_key)
+      to_await = self._state_handler.clear(self._state_key, is_cached=True)
     if self._added_elements:
-      value_coder_impl = self._value_coder.get_impl()
-      out = coder_impl.create_OutputStream()
-      for element in self._added_elements:
-        value_coder_impl.encode_to_stream(element, out, True)
-      self._state_handler.blocking_append(self._state_key, out.get())
+      to_await = self._state_handler.extend(
+          self._state_key,
+          self._value_coder.get_impl(),
+          self._added_elements,
+          is_cached=True)
+    if to_await:
+      # To commit, we need to wait on the last state request future to complete.
+      to_await.get()
+
+
+class SynchronousSetRuntimeState(userstate.SetRuntimeState):
+
+  def __init__(self, state_handler, state_key, value_coder):
+    self._state_handler = state_handler
+    self._state_key = state_key
+    self._value_coder = value_coder
+    self._cleared = False
+    self._added_elements = set()
+
+  def _compact_data(self, rewrite=True):
+    accumulator = set(_ConcatIterable(
+        set() if self._cleared else _StateBackedIterable(
+            self._state_handler, self._state_key, self._value_coder,
+            is_cached=True),
+        self._added_elements))
+
+    if rewrite and accumulator:
+      self._state_handler.clear(self._state_key, is_cached=True)
+      self._state_handler.extend(
+          self._state_key,
+          self._value_coder.get_impl(),
+          accumulator,
+          is_cached=True)
+
+      # Since everthing is already committed so we can safely reinitialize
+      # added_elements here.
+      self._added_elements = set()
+
+    return accumulator
+
+  def read(self):
+    return self._compact_data(rewrite=False)
+
+  def add(self, value):
+    if self._cleared:
+      # This is a good time explicitly clear.
+      self._state_handler.clear(self._state_key, is_cached=True)
+      self._cleared = False
+
+    self._added_elements.add(value)
+    if random.random() > 0.5:
+      self._compact_data()
+
+  def clear(self):
+    self._cleared = True
+    self._added_elements = set()
+
+  def _commit(self):
+    to_await = None
+    if self._cleared:
+      to_await = self._state_handler.clear(self._state_key, is_cached=True)
+    if self._added_elements:
+      to_await = self._state_handler.extend(
+          self._state_key,
+          self._value_coder.get_impl(),
+          self._added_elements,
+          is_cached=True)
+    if to_await:
+      # To commit, we need to wait on the last state request future to complete.
+      to_await.get()
 
 
 class OutputTimer(object):
@@ -445,15 +515,27 @@ class FnApiUserStateContext(userstate.UserStateContext):
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
-                  ptransform_id=self._transform_id,
+                  transform_id=self._transform_id,
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),
-                  key=self._key_coder.encode(key))),
+                  # State keys are expected in nested encoding format
+                  key=self._key_coder.encode_nested(key))),
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
       else:
         return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
+    elif isinstance(state_spec, userstate.SetStateSpec):
+      return SynchronousSetRuntimeState(
+          self._state_handler,
+          state_key=beam_fn_api_pb2.StateKey(
+              bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
+                  transform_id=self._transform_id,
+                  user_state_id=state_spec.name,
+                  window=self._window_coder.encode(window),
+                  # State keys are expected in nested encoding format
+                  key=self._key_coder.encode_nested(key))),
+          value_coder=state_spec.coder)
     else:
       raise NotImplementedError(state_spec)
 
@@ -493,7 +575,7 @@ class BundleProcessor(object):
     Args:
       process_bundle_descriptor (``beam_fn_api_pb2.ProcessBundleDescriptor``):
         a description of the stage that this ``BundleProcessor``is to execute.
-      state_handler (beam_fn_api_pb2_grpc.BeamFnStateServicer).
+      state_handler (CachingStateHandler).
       data_channel_factory (``data_plane.DataChannelFactory``).
     """
     self.process_bundle_descriptor = process_bundle_descriptor
@@ -575,7 +657,7 @@ class BundleProcessor(object):
       self.state_sampler.start()
       # Start all operations.
       for op in reversed(self.ops.values()):
-        logging.debug('start %s', op)
+        _LOGGER.debug('start %s', op)
         op.execution_context = execution_context
         op.start()
 
@@ -590,11 +672,11 @@ class BundleProcessor(object):
         for data in data_channel.input_elements(
             instruction_id, expected_transforms):
           input_op_by_transform_id[
-              data.ptransform_id].process_encoded(data.data)
+              data.transform_id].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
-        logging.debug('finish %s', op)
+        _LOGGER.debug('finish %s', op)
         op.finish()
 
       return ([self.delayed_bundle_application(op, residual)
@@ -630,36 +712,52 @@ class BundleProcessor(object):
               ) = split
               if element_primary:
                 split_response.primary_roots.add().CopyFrom(
-                    self.delayed_bundle_application(
-                        *element_primary).application)
+                    self.bundle_application(*element_primary))
               if element_residual:
                 split_response.residual_roots.add().CopyFrom(
                     self.delayed_bundle_application(*element_residual))
               split_response.channel_splits.extend([
                   beam_fn_api_pb2.ProcessBundleSplitResponse.ChannelSplit(
-                      ptransform_id=op.transform_id,
+                      transform_id=op.transform_id,
                       last_primary_element=primary_end,
                       first_residual_element=residual_start)])
 
     return split_response
 
   def delayed_bundle_application(self, op, deferred_remainder):
-    ptransform_id, main_input_tag, main_input_coder, outputs = op.input_info
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
-    element_and_restriction, watermark = deferred_remainder
-    if watermark:
-      proto_watermark = protobuf.Timestamp()
-      proto_watermark.FromMicroseconds(watermark.micros)
-      output_watermarks = {output: proto_watermark for output in outputs}
+    ((element_and_restriction, output_watermark),
+     deferred_watermark) = deferred_remainder
+    if deferred_watermark:
+      assert isinstance(deferred_watermark, timestamp.Duration)
+      proto_deferred_watermark = duration_pb2.Duration()
+      proto_deferred_watermark.FromMicroseconds(deferred_watermark.micros)
+    else:
+      proto_deferred_watermark = None
+    return beam_fn_api_pb2.DelayedBundleApplication(
+        requested_time_delay=proto_deferred_watermark,
+        application=self.construct_bundle_application(
+            op, output_watermark, element_and_restriction))
+
+  def bundle_application(self, op, primary):
+    ((element_and_restriction, output_watermark),
+     _) = primary
+    return self.construct_bundle_application(
+        op, output_watermark, element_and_restriction)
+
+  def construct_bundle_application(self, op, output_watermark, element):
+    transform_id, main_input_tag, main_input_coder, outputs = op.input_info
+    if output_watermark:
+      proto_output_watermark = timestamp_pb2.Timestamp()
+      proto_output_watermark.FromMicroseconds(output_watermark.micros)
+      output_watermarks = {output: proto_output_watermark for output in outputs}
     else:
       output_watermarks = None
-    return beam_fn_api_pb2.DelayedBundleApplication(
-        application=beam_fn_api_pb2.BundleApplication(
-            ptransform_id=ptransform_id,
-            input_id=main_input_tag,
-            output_watermarks=output_watermarks,
-            element=main_input_coder.get_impl().encode_nested(
-                element_and_restriction)))
+    return beam_fn_api_pb2.BundleApplication(
+        transform_id=transform_id,
+        input_id=main_input_tag,
+        output_watermarks=output_watermarks,
+        element=main_input_coder.get_impl().encode_nested(element))
 
   def metrics(self):
     # DEPRECATED
@@ -694,7 +792,7 @@ class BundleProcessor(object):
 
   def monitoring_infos(self):
     """Returns the list of MonitoringInfos collected processing this bundle."""
-    # Construct a new dict first to remove duplciates.
+    # Construct a new dict first to remove duplicates.
     all_monitoring_infos_dict = {}
     for transform_id, op in self.ops.items():
       for mi in op.monitoring_infos(transform_id).values():
@@ -789,7 +887,7 @@ class BeamTransformFactory(object):
   def create_operation(self, transform_id, consumers):
     transform_proto = self.descriptor.transforms[transform_id]
     if not transform_proto.unique_name:
-      logging.warn("No unique name set for transform %s" % transform_id)
+      _LOGGER.debug("No unique name set for transform %s" % transform_id)
       transform_proto.unique_name = transform_id
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
     payload = proto_utils.parse_Bytes(
@@ -874,7 +972,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
-    logging.info(
+    _LOGGER.info(
         'Missing required coder_id on grpc_port for %s; '
         'using deprecated fallback.',
         transform_id)
@@ -896,7 +994,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if grpc_port.coder_id:
     output_coder = factory.get_coder(grpc_port.coder_id)
   else:
-    logging.info(
+    _LOGGER.info(
         'Missing required coder_id on grpc_port for %s; '
         'using deprecated fallback.',
         transform_id)
@@ -1051,7 +1149,8 @@ def _create_pardo_operation(
         for tag, si in pardo_proto.side_inputs.items()]
     tagged_side_inputs.sort(
         key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
-                                        tag_si[0]).group(1)))
+                                        tag_si[0],
+                                        re.DOTALL).group(1)))
     side_input_maps = [
         StateBackedSideInputMap(
             factory.state_handler,

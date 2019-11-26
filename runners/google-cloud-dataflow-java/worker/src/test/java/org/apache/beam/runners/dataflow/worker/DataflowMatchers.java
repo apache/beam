@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.io.Serializable;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 

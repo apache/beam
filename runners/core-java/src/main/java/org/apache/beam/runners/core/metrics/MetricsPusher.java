@@ -32,8 +32,8 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /** Component that regularly merges metrics and pushes them to a metrics sink. */
 @Experimental(Experimental.Kind.METRICS)

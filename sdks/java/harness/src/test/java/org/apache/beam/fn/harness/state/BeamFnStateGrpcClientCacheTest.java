@@ -36,15 +36,15 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -123,8 +123,8 @@ public class BeamFnStateGrpcClientCacheTest {
     CompletableFuture<StateResponse> successfulResponse = new CompletableFuture<>();
     CompletableFuture<StateResponse> unsuccessfulResponse = new CompletableFuture<>();
 
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), successfulResponse);
-    client.handle(StateRequest.newBuilder().setInstructionReference(FAIL), unsuccessfulResponse);
+    client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS), successfulResponse);
+    client.handle(StateRequest.newBuilder().setInstructionId(FAIL), unsuccessfulResponse);
 
     // Wait for the client to connect.
     StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
@@ -150,7 +150,7 @@ public class BeamFnStateGrpcClientCacheTest {
     BeamFnStateClient client = clientCache.forApiServiceDescriptor(apiServiceDescriptor);
 
     CompletableFuture<StateResponse> inflight = new CompletableFuture<>();
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), inflight);
+    client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS), inflight);
 
     // Wait for the client to connect.
     StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
@@ -167,7 +167,7 @@ public class BeamFnStateGrpcClientCacheTest {
 
     // Send a response after the client will have received an error.
     CompletableFuture<StateResponse> late = new CompletableFuture<>();
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), late);
+    client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS), late);
 
     try {
       inflight.get();
@@ -182,7 +182,7 @@ public class BeamFnStateGrpcClientCacheTest {
     BeamFnStateClient client = clientCache.forApiServiceDescriptor(apiServiceDescriptor);
 
     CompletableFuture<StateResponse> inflight = new CompletableFuture<>();
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), inflight);
+    client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS), inflight);
 
     // Wait for the client to connect.
     StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
@@ -198,7 +198,7 @@ public class BeamFnStateGrpcClientCacheTest {
 
     // Send a response after the client will have received an error.
     CompletableFuture<StateResponse> late = new CompletableFuture<>();
-    client.handle(StateRequest.newBuilder().setInstructionReference(SUCCESS), late);
+    client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS), late);
 
     try {
       inflight.get();
@@ -210,7 +210,7 @@ public class BeamFnStateGrpcClientCacheTest {
 
   private void handleServerRequest(
       StreamObserver<StateResponse> outboundObserver, StateRequest value) {
-    switch (value.getInstructionReference()) {
+    switch (value.getInstructionId()) {
       case SUCCESS:
         outboundObserver.onNext(StateResponse.newBuilder().setId(value.getId()).build());
         return;

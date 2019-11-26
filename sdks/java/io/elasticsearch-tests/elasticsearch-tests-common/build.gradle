@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    publish: false,
     archivesBaseName: 'beam-sdks-java-io-elasticsearch-tests-common'
 )
 
@@ -47,5 +48,5 @@ dependencies {
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:6.4.0"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

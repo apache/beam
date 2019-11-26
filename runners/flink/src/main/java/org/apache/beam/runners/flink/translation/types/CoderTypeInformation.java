@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.flink.api.common.ExecutionConfig;

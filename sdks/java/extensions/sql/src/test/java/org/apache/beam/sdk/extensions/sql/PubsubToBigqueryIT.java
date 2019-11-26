@@ -34,8 +34,8 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -91,6 +91,57 @@ public class PubsubToBigqueryIT implements Serializable {
             + "  pubsub_topic.payload.id, \n"
             + "  pubsub_topic.payload.name \n"
             + "FROM pubsub_topic";
+
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
+
+    pipeline.run();
+
+    List<PubsubMessage> messages =
+        ImmutableList.of(
+            message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
+    pubsub.publish(messages);
+
+    bigQuery
+        .assertThatAllRows(SOURCE_SCHEMA)
+        .eventually(
+            containsInAnyOrder(
+                row(SOURCE_SCHEMA, 3L, "foo"),
+                row(SOURCE_SCHEMA, 5L, "bar"),
+                row(SOURCE_SCHEMA, 7L, "baz")))
+        .pollFor(Duration.standardMinutes(5));
+  }
+
+  @Test
+  public void testSimpleInsertFlat() throws Exception {
+    BeamSqlEnv sqlEnv =
+        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
+
+    String createTableString =
+        "CREATE EXTERNAL TABLE pubsub_topic (\n"
+            + "event_timestamp TIMESTAMP, \n"
+            + "id INTEGER, \n"
+            + "name VARCHAR \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + pubsub.topicPath()
+            + "' \n"
+            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
+    sqlEnv.executeDdl(createTableString);
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE bq_table( \n"
+            + "   id BIGINT, \n"
+            + "   name VARCHAR \n "
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQuery.tableSpec()
+            + "'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO bq_table \n" + "SELECT \n" + "  id, \n" + "  name \n" + "FROM pubsub_topic";
 
     BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
 

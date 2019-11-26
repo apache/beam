@@ -65,7 +65,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils.TestReader;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -125,7 +125,7 @@ public class ReadOperationTest {
       executor = mock(ScheduledExecutorService.class);
       when(executor.scheduleAtFixedRate(
               any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
-          .then(invocation -> schedule(invocation.getArgumentAt(0, Runnable.class)));
+          .then(invocation -> schedule(invocation.getArgument(0, Runnable.class)));
     }
 
     public ScheduledExecutorService getExecutor() {

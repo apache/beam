@@ -58,11 +58,12 @@ from apache_beam.internal import util
 from apache_beam.portability import python_urns
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import getcallargs_forhints
-from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
@@ -348,6 +349,8 @@ class PTransform(WithTypeHints, HasDisplayData):
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """
+    input_type_hint = native_type_compatibility.convert_to_beam_type(
+        input_type_hint)
     validate_composite_type_param(input_type_hint,
                                   'Type hints for a PTransform')
     return super(PTransform, self).with_input_types(input_type_hint)
@@ -369,6 +372,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """
+    type_hint = native_type_compatibility.convert_to_beam_type(type_hint)
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
     return super(PTransform, self).with_output_types(type_hint)
 
@@ -383,7 +387,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def type_check_inputs_or_outputs(self, pvalueish, input_or_output):
     hints = getattr(self.get_type_hints(), input_or_output + '_types')
-    if not hints:
+    if hints is None or not any(hints):
       return
     arg_hints, kwarg_hints = hints
     if arg_hints and kwarg_hints:
@@ -611,7 +615,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         # For external transforms we cannot build a Python ParDo object so
         # we build a holder transform instead.
         from apache_beam.transforms.core import RunnerAPIPTransformHolder
-        return RunnerAPIPTransformHolder(proto)
+        return RunnerAPIPTransformHolder(proto, context)
       raise
 
   def to_runner_api_parameter(self, unused_context):
@@ -696,8 +700,8 @@ class PTransformWithSideInputs(PTransform):
     # Ensure fn and side inputs are picklable for remote execution.
     try:
       self.fn = pickler.loads(pickler.dumps(self.fn))
-    except RuntimeError:
-      raise RuntimeError('Unable to pickle fn %s' % self.fn)
+    except RuntimeError as e:
+      raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e))
 
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
@@ -735,6 +739,11 @@ class PTransformWithSideInputs(PTransform):
       methods.
     """
     super(PTransformWithSideInputs, self).with_input_types(input_type_hint)
+
+    side_inputs_arg_hints = native_type_compatibility.convert_to_beam_types(
+        side_inputs_arg_hints)
+    side_input_kwarg_hints = native_type_compatibility.convert_to_beam_types(
+        side_input_kwarg_hints)
 
     for si in side_inputs_arg_hints:
       validate_composite_type_param(si, 'Type hints for a PTransform')
@@ -812,7 +821,7 @@ class _PTransformFnPTransform(PTransform):
 
     # TODO(BEAM-5878) Support keyword-only arguments.
     try:
-      if 'type_hints' in getfullargspec(self._fn).args:
+      if 'type_hints' in get_signature(self._fn).parameters:
         args = (self.get_type_hints(),) + args
     except TypeError:
       # Might not be a function.
@@ -840,7 +849,7 @@ def ptransform_fn(fn):
   This wrapper provides an alternative, simpler way to define a PTransform.
   The standard method is to subclass from PTransform and override the expand()
   method. An equivalent effect can be obtained by defining a function that
-  an input PCollection and additional optional arguments and returns a
+  accepts an input PCollection and additional optional arguments and returns a
   resulting PCollection. For example::
 
     @ptransform_fn

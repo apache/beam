@@ -32,7 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -85,6 +85,13 @@ public class WindowingStrategyTranslationTest {
                 .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
                 .withTrigger(REPRESENTATIVE_TRIGGER)
                 .withAllowedLateness(Duration.millis(93))
+                .withTimestampCombiner(TimestampCombiner.LATEST)),
+        toProtoAndBackSpec(
+            WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
+                .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY)
+                .withMode(AccumulationMode.RETRACTING_FIRED_PANES)
+                .withTrigger(REPRESENTATIVE_TRIGGER)
+                .withAllowedLateness(Duration.millis(100))
                 .withTimestampCombiner(TimestampCombiner.LATEST)));
   }
 

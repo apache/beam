@@ -67,6 +67,8 @@ from apache_beam.utils import retry
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class Step(object):
   """Wrapper for a dataflow Step protobuf."""
@@ -250,12 +252,11 @@ class Environment(object):
       pool.network = self.worker_options.network
     if self.worker_options.subnetwork:
       pool.subnetwork = self.worker_options.subnetwork
-    if self.worker_options.worker_harness_container_image:
-      pool.workerHarnessContainerImage = (
-          self.worker_options.worker_harness_container_image)
-    else:
-      pool.workerHarnessContainerImage = (
-          get_default_container_image_for_current_sdk(job_type))
+    pool.workerHarnessContainerImage = (
+        get_container_image_from_options(options))
+    if self.debug_options.number_of_worker_harness_threads:
+      pool.numThreadsPerWorker = (
+          self.debug_options.number_of_worker_harness_threads)
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
@@ -271,7 +272,8 @@ class Environment(object):
       disk = dataflow.Disk()
       if self.local:
         disk.diskType = 'local'
-      # TODO(ccy): allow customization of disk.
+      if self.worker_options.disk_type:
+        disk.diskType = self.worker_options.disk_type
       pool.dataDisks.append(disk)
     self.proto.workerPools.append(pool)
 
@@ -378,7 +380,7 @@ class Job(object):
           'Missing required configuration parameters: %s' % missing)
 
     if not self.google_cloud_options.staging_location:
-      logging.info('Defaulting to the temp_location as staging_location: %s',
+      _LOGGER.info('Defaulting to the temp_location as staging_location: %s',
                    self.google_cloud_options.temp_location)
       (self.google_cloud_options
        .staging_location) = self.google_cloud_options.temp_location
@@ -404,7 +406,14 @@ class Job(object):
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
     if self.google_cloud_options.update:
       self.proto.replaceJobId = self.job_id_for_name(self.proto.name)
-
+      if self.google_cloud_options.transform_name_mapping:
+        self.proto.transformNameMapping = (
+            dataflow.Job.TransformNameMappingValue())
+        for _, (key, value) in enumerate(
+            self.google_cloud_options.transform_name_mapping.items()):
+          self.proto.transformNameMapping.additionalProperties.append(
+              dataflow.Job.TransformNameMappingValue
+              .AdditionalProperty(key=key, value=value))
     # Labels.
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()
@@ -488,7 +497,7 @@ class DataflowApplicationClient(object):
     """Stages a file at a GCS or local path with stream-supplied contents."""
     if not gcs_or_local_path.startswith('gs://'):
       local_path = FileSystems.join(gcs_or_local_path, file_name)
-      logging.info('Staging file locally to %s', local_path)
+      _LOGGER.info('Staging file locally to %s', local_path)
       with open(local_path, 'wb') as f:
         f.write(stream.read())
       return
@@ -498,7 +507,7 @@ class DataflowApplicationClient(object):
     request = storage.StorageObjectsInsertRequest(
         bucket=bucket, name=name)
     start_time = time.time()
-    logging.info('Starting GCS upload to %s...', gcs_location)
+    _LOGGER.info('Starting GCS upload to %s...', gcs_location)
     upload = storage.Upload(stream, mime_type)
     try:
       response = self._storage_client.objects.Insert(request, upload=upload)
@@ -513,7 +522,7 @@ class DataflowApplicationClient(object):
                        'access to the specified path.') %
                       (gcs_or_local_path, reportable_errors[e.status_code]))
       raise
-    logging.info('Completed GCS upload to %s in %s seconds.', gcs_location,
+    _LOGGER.info('Completed GCS upload to %s in %s seconds.', gcs_location,
                  int(time.time() - start_time))
     return response
 
@@ -537,7 +546,7 @@ class DataflowApplicationClient(object):
     if not template_location:
       return self.submit_job_description(job)
 
-    logging.info('A template was just created at location %s',
+    _LOGGER.info('A template was just created at location %s',
                  template_location)
     return None
 
@@ -557,7 +566,7 @@ class DataflowApplicationClient(object):
                                       shared_names.STAGED_PIPELINE_FILENAME),
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
-    logging.debug('JOB: %s', job)
+    _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id):
@@ -568,7 +577,7 @@ class DataflowApplicationClient(object):
     try:
       response = self._client.projects_locations_jobs.GetMetrics(request)
     except exceptions.BadStatusCodeError as e:
-      logging.error('HTTP status %d. Unable to query metrics',
+      _LOGGER.error('HTTP status %d. Unable to query metrics',
                     e.response.status)
       raise
     return response
@@ -584,16 +593,16 @@ class DataflowApplicationClient(object):
     try:
       response = self._client.projects_locations_jobs.Create(request)
     except exceptions.BadStatusCodeError as e:
-      logging.error('HTTP status %d trying to create job'
+      _LOGGER.error('HTTP status %d trying to create job'
                     ' at dataflow service endpoint %s',
                     e.response.status,
                     self.google_cloud_options.dataflow_endpoint)
-      logging.fatal('details of server error: %s', e)
+      _LOGGER.fatal('details of server error: %s', e)
       raise
-    logging.info('Create job: %s', response)
+    _LOGGER.info('Create job: %s', response)
     # The response is a Job proto with the id for the new job.
-    logging.info('Created job with id: [%s]', response.id)
-    logging.info(
+    _LOGGER.info('Created job with id: [%s]', response.id)
+    _LOGGER.info(
         'To access the Dataflow monitoring console, please navigate to '
         'https://console.cloud.google.com/dataflow/jobsDetail'
         '/locations/%s/jobs/%s?project=%s',
@@ -634,7 +643,8 @@ class DataflowApplicationClient(object):
     self._client.projects_locations_jobs.Update(request)
     return True
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_notfound_filter)
   def get_job(self, job_id):
     """Gets the job status for a submitted job.
 
@@ -663,7 +673,8 @@ class DataflowApplicationClient(object):
     response = self._client.projects_locations_jobs.Get(request)
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_notfound_filter)
   def list_messages(
       self, job_id, start_time=None, end_time=None, page_token=None,
       minimum_importance=None):
@@ -898,15 +909,19 @@ def _get_container_image_tag():
   return base_version
 
 
-def get_default_container_image_for_current_sdk(job_type):
+def get_container_image_from_options(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
-      job_type (str): BEAM job type.
+      pipeline_options (PipelineOptions): A container for pipeline options.
 
     Returns:
-      str: Google Cloud Dataflow container image for remote execution.
+      str: Container image for remote execution.
     """
+  worker_options = pipeline_options.view_as(WorkerOptions)
+  if worker_options.worker_harness_container_image:
+    return worker_options.worker_harness_container_image
+
   if sys.version_info[0] == 2:
     version_suffix = ''
   elif sys.version_info[0:2] == (3, 5):
@@ -919,8 +934,9 @@ def get_default_container_image_for_current_sdk(job_type):
     raise Exception('Dataflow only supports Python versions 2 and 3.5+, got: %s'
                     % str(sys.version_info[0:2]))
 
+  use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
-  if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+  if use_fnapi:
     fnapi_suffix = '-fnapi'
   else:
     fnapi_suffix = ''
@@ -930,22 +946,22 @@ def get_default_container_image_for_current_sdk(job_type):
       version_suffix=version_suffix,
       fnapi_suffix=fnapi_suffix)
 
-  image_tag = _get_required_container_version(job_type)
+  image_tag = _get_required_container_version(use_fnapi)
   return image_name + ':' + image_tag
 
 
-def _get_required_container_version(job_type=None):
+def _get_required_container_version(use_fnapi):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
-      job_type (str, optional): BEAM job type. Defaults to None.
+      use_fnapi (bool): True, if pipeline is using FnAPI, False otherwise.
 
     Returns:
       str: The tag of worker container images in GCR that corresponds to
         current version of the SDK.
     """
   if 'dev' in beam_version.__version__:
-    if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+    if use_fnapi:
       return names.BEAM_FNAPI_CONTAINER_VERSION
     else:
       return names.BEAM_CONTAINER_VERSION

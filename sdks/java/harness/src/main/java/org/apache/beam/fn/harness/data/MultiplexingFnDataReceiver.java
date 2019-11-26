@@ -19,7 +19,7 @@ package org.apache.beam.fn.harness.data;
 
 import java.util.Collection;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * A {@link FnDataReceiver} which forwards all received inputs to a collection of {@link

@@ -19,10 +19,17 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
 import org.junit.Test;
@@ -98,5 +105,56 @@ public class ProcessManagerTest {
     }
     assertThat(process.getUnderlyingProcess().exitValue(), is(1));
     processManager.stopProcess("1");
+  }
+
+  @Test
+  public void testRedirectOutput() throws IOException, InterruptedException {
+    File outputFile = File.createTempFile("beam-redirect-output-", "");
+    outputFile.deleteOnExit();
+    ProcessManager processManager = ProcessManager.create();
+    ProcessManager.RunningProcess process =
+        processManager.startProcess(
+            "1",
+            "bash",
+            Arrays.asList("-c", "echo 'testing123'"),
+            Collections.emptyMap(),
+            outputFile);
+    for (int i = 0; i < 10 && process.getUnderlyingProcess().isAlive(); i++) {
+      Thread.sleep(100);
+    }
+    processManager.stopProcess("1");
+    byte[] output = Files.readAllBytes(outputFile.toPath());
+    assertNotNull(output);
+    String outputStr = new String(output, Charset.defaultCharset());
+    assertThat(outputStr, containsString("testing123"));
+  }
+
+  @Test
+  public void testInheritIO() throws IOException, InterruptedException {
+    final PrintStream oldOut = System.out;
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    PrintStream newOut = new PrintStream(baos);
+    try {
+      System.setOut(newOut);
+      ProcessManager processManager = ProcessManager.create();
+      ProcessManager.RunningProcess process =
+          processManager.startProcess(
+              "1",
+              "bash",
+              Arrays.asList("-c", "echo 'testing123' 1>&2;"),
+              Collections.emptyMap(),
+              ProcessManager.INHERIT_IO_FILE);
+      for (int i = 0; i < 10 && process.getUnderlyingProcess().isAlive(); i++) {
+        Thread.sleep(100);
+      }
+      processManager.stopProcess("1");
+    } finally {
+      System.setOut(oldOut);
+    }
+    // TODO: this doesn't work as inherit IO bypasses System.out/err
+    // the output instead appears in the console
+    // String outputStr = new String(baos.toByteArray(), Charset.defaultCharset());
+    // assertThat(outputStr, containsString("testing123"));
+    assertFalse(ProcessManager.INHERIT_IO_FILE.exists());
   }
 }

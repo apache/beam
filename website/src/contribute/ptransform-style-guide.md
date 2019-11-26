@@ -408,7 +408,7 @@ When developing a family of highly related transforms (e.g. interacting with the
 
 The container class must have a private constructor, so it can't be instantiated directly.
 
-Document common stuff at `BlahIO` level, and each factory method individually.
+Document common stuff at `FooIO` level, and each factory method individually.
 
 ```java
 /** Transforms for clustering data. */
@@ -425,7 +425,7 @@ public class Cluster {
   public static class Hierarchically extends PTransform<...> { ... }
 }
 
-public lass FooIO {
+public class FooIO {
   // Force use of static factory methods.
   private FooIO() {}
 

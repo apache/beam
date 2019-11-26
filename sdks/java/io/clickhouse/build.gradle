@@ -21,6 +21,7 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
+    automaticModuleName: 'org.apache.beam.sdk.io.clickhouse',
     // javacc generated code produces lint warnings
     disableLintWarnings: ['dep-ann']
 )
@@ -59,5 +60,5 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile "org.testcontainers:clickhouse:$testcontainers_version"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

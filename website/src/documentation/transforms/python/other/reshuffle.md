@@ -31,7 +31,7 @@ limitations under the License.
  Adds a temporary random key to each element in a collection, reshuffles
  these keys, and removes the temporary key. This redistributes the
  elements between workers and returns a collection equivalent to its
- input collection.  This is most useful for adjusting paralellism or
+ input collection.  This is most useful for adjusting parallelism or
  preventing coupled failures.
 
 ## Examples

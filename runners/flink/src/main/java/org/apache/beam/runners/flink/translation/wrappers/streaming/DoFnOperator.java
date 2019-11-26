@@ -56,6 +56,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.runners.flink.translation.utils.NoopLock;
@@ -82,10 +83,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -179,6 +180,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final DoFnSchemaInformation doFnSchemaInformation;
 
+  private final Map<String, PCollectionView<?>> sideInputMapping;
+
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
 
@@ -189,6 +192,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private transient long pushedBackWatermark;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
+
+  /** Metrics container for reporting Beam metrics to Flink (null if metrics are disabled). */
+  @Nullable transient FlinkMetricContainer flinkMetricContainer;
 
   /** Use an AtomicBoolean because we start/stop bundles by a timer thread (see below). */
   private transient AtomicBoolean bundleStarted;
@@ -217,7 +223,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       PipelineOptions options,
       Coder<?> keyCoder,
       KeySelector<WindowedValue<InputT>, ?> keySelector,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.stepName = stepName;
     this.windowedInputCoder = inputWindowedCoder;
@@ -246,6 +253,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.maxBundleTimeMills = flinkOptions.getMaxBundleTimeMills();
     Preconditions.checkArgument(maxBundleTimeMills > 0, "Bundle time must be at least 1");
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
 
     this.requiresStableInput =
         // WindowDoFnOperator does not use a DoFn
@@ -254,7 +262,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     if (requiresStableInput) {
       Preconditions.checkState(
-          flinkOptions.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE,
+          CheckpointingMode.valueOf(flinkOptions.getCheckpointingMode())
+              == CheckpointingMode.EXACTLY_ONCE,
           "Checkpointing mode is not set to exactly once but @RequiresStableInput is used.");
       Preconditions.checkState(
           flinkOptions.getCheckpointingInterval() > 0,
@@ -307,8 +316,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       Output<StreamRecord<WindowedValue<OutputT>>> output) {
 
     // make sure that FileSystems is initialized correctly
-    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
-    FileSystems.setDefaultPipelineOptions(options);
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
 
     super.setup(containingTask, config, output);
   }
@@ -380,11 +388,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     outputManager =
         outputManagerFactory.create(
-            output,
-            getLockToAcquireForStateAccessDuringBundles(),
-            getOperatorStateBackend(),
-            getKeyedStateBackend(),
-            keySelector);
+            output, getLockToAcquireForStateAccessDuringBundles(), getOperatorStateBackend());
   }
 
   /**
@@ -417,7 +421,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     if (requiresStableInput) {
       // put this in front of the root FnRunner before any additional wrappers
@@ -434,7 +439,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
-      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+      flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
     }
 
     bundleStarted = new AtomicBoolean(false);
@@ -620,7 +626,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void processWatermark1(Watermark mark) throws Exception {
-    checkInvokeStartBundle();
     // We do the check here because we are guaranteed to at least get the +Inf watermark on the
     // main input when the job finishes.
     if (currentSideInputWatermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
@@ -667,7 +672,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void processWatermark2(Watermark mark) throws Exception {
-    checkInvokeStartBundle();
 
     setCurrentSideInputWatermark(mark.getTimestamp());
     if (mark.getTimestamp() >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
@@ -688,6 +692,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     Iterator<WindowedValue<InputT>> it = pushedBackElementsHandler.getElements().iterator();
 
     while (it.hasNext()) {
+      checkInvokeStartBundle();
       WindowedValue<InputT> element = it.next();
       // we need to set the correct key in case the operator is
       // a (keyed) window operator
@@ -758,12 +763,20 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     // We can't output here anymore because the checkpoint barrier has already been
     // sent downstream. This is going to change with 1.6/1.7's prepareSnapshotBarrier.
-    outputManager.openBuffer();
-    // Ensure that no new bundle gets started as part of finishing a bundle
-    while (bundleStarted.get()) {
-      invokeFinishBundle();
+    try {
+      outputManager.openBuffer();
+      // Ensure that no new bundle gets started as part of finishing a bundle
+      while (bundleStarted.get()) {
+        invokeFinishBundle();
+      }
+      outputManager.closeBuffer();
+    } catch (Exception e) {
+      // https://jira.apache.org/jira/browse/FLINK-14653
+      // Any regular exception during checkpointing will be tolerated by Flink because those
+      // typically do not affect the execution flow. We need to fail hard here because errors
+      // in bundle execution are application errors which are not related to checkpointing.
+      throw new Error("Checkpointing failed because bundle failed to finalize.", e);
     }
-    outputManager.closeBuffer();
 
     super.snapshotState(context);
   }
@@ -780,8 +793,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void onEventTime(InternalTimer<ByteBuffer, TimerData> timer) throws Exception {
-    // We don't have to cal checkInvokeStartBundle() because it's already called in
-    // processWatermark*().
+    checkInvokeStartBundle();
     fireTimer(timer);
   }
 
@@ -820,9 +832,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     BufferedOutputManager<OutputT> create(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         Lock bufferLock,
-        @Nullable OperatorStateBackend operatorStateBackend,
-        @Nullable KeyedStateBackend keyedStateBackend,
-        @Nullable KeySelector keySelector)
+        OperatorStateBackend operatorStateBackend)
         throws Exception;
   }
 
@@ -906,6 +916,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
      * by a lock.
      */
     void flushBuffer() {
+      if (openBuffer) {
+        // Buffering currently in progress, do not proceed
+        return;
+      }
       try {
         pushedBackElementsHandler
             .getElements()
@@ -1010,35 +1024,19 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     public BufferedOutputManager<OutputT> create(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         Lock bufferLock,
-        OperatorStateBackend operatorStateBackend,
-        @Nullable KeyedStateBackend keyedStateBackend,
-        @Nullable KeySelector keySelector)
+        OperatorStateBackend operatorStateBackend)
         throws Exception {
       Preconditions.checkNotNull(output);
       Preconditions.checkNotNull(bufferLock);
       Preconditions.checkNotNull(operatorStateBackend);
-      Preconditions.checkState(
-          (keyedStateBackend == null) == (keySelector == null),
-          "Either both KeyedStatebackend and Keyselector are provided or none.");
 
       TaggedKvCoder taggedKvCoder = buildTaggedKvCoder();
       ListStateDescriptor<KV<Integer, WindowedValue<?>>> taggedOutputPushbackStateDescriptor =
           new ListStateDescriptor<>("bundle-buffer-tag", new CoderTypeSerializer<>(taggedKvCoder));
-
-      final PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler;
-      if (keyedStateBackend != null) {
-        // build a key selector for the tagged output
-        KeySelector<KV<Integer, WindowedValue<?>>, ?> taggedValueKeySelector =
-            (KeySelector<KV<Integer, WindowedValue<?>>, Object>)
-                value -> keySelector.getKey(value.getValue());
-        pushedBackElementsHandler =
-            KeyedPushedBackElementsHandler.create(
-                taggedValueKeySelector, keyedStateBackend, taggedOutputPushbackStateDescriptor);
-      } else {
-        ListState<KV<Integer, WindowedValue<?>>> listState =
-            operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
-        pushedBackElementsHandler = NonKeyedPushedBackElementsHandler.create(listState);
-      }
+      ListState<KV<Integer, WindowedValue<?>>> listStateBuffer =
+          operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
+      PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
+          NonKeyedPushedBackElementsHandler.create(listStateBuffer);
 
       return new BufferedOutputManager<>(
           output, mainTag, tagsToOutputTags, tagsToIds, bufferLock, pushedBackElementsHandler);

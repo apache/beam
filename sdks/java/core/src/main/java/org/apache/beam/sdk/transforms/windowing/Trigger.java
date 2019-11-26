@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
 /**
@@ -137,6 +137,15 @@ public abstract class Trigger implements Serializable {
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
+   * <p>Indicates whether this trigger may "finish". A top level trigger that finishes can cause
+   * data loss, so is rejected by GroupByKey validation.
+   */
+  @Internal
+  public abstract boolean mayFinish();
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
    * <p>Returns whether this performs the same triggering as the given {@link Trigger}.
    */
   @Internal
@@ -227,6 +236,11 @@ public abstract class Trigger implements Serializable {
   public abstract static class OnceTrigger extends Trigger {
     protected OnceTrigger(@Nullable List<Trigger> subTriggers) {
       super(subTriggers);
+    }
+
+    @Override
+    public final boolean mayFinish() {
+      return true;
     }
 
     @Override

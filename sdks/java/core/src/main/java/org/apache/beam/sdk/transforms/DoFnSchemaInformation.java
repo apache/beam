@@ -29,7 +29,7 @@ import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Represents information about how a DoFn extracts schemas. */
 @AutoValue

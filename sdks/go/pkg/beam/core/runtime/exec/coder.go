@@ -66,8 +66,14 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	case coder.Bytes:
 		return &bytesEncoder{}
 
+	case coder.Bool:
+		return &boolEncoder{}
+
 	case coder.VarInt:
 		return &varIntEncoder{}
+
+	case coder.Double:
+		return &doubleEncoder{}
 
 	case coder.Custom:
 		return &customEncoder{
@@ -93,8 +99,14 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 	case coder.Bytes:
 		return &bytesDecoder{}
 
+	case coder.Bool:
+		return &boolDecoder{}
+
 	case coder.VarInt:
 		return &varIntDecoder{}
+
+	case coder.Double:
+		return &doubleDecoder{}
 
 	case coder.Custom:
 		return &customDecoder{
@@ -147,6 +159,42 @@ func (*bytesDecoder) Decode(r io.Reader) (*FullValue, error) {
 	return &FullValue{Elm: data}, nil
 }
 
+type boolEncoder struct{}
+
+func (*boolEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: false = 0, true = 1
+	var err error
+	if val.Elm.(bool) {
+		_, err = ioutilx.WriteUnsafe(w, []byte{1})
+	} else {
+		_, err = ioutilx.WriteUnsafe(w, []byte{0})
+	}
+	if err != nil {
+		return fmt.Errorf("error encoding bool: %v", err)
+	}
+	return nil
+}
+
+type boolDecoder struct{}
+
+func (*boolDecoder) Decode(r io.Reader) (*FullValue, error) {
+	// Encoding: false = 0, true = 1
+	b := make([]byte, 1, 1)
+	if err := ioutilx.ReadNBufUnsafe(r, b); err != nil {
+		if err == io.EOF {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error decoding bool: %v", err)
+	}
+	switch b[0] {
+	case 0:
+		return &FullValue{Elm: false}, nil
+	case 1:
+		return &FullValue{Elm: true}, nil
+	}
+	return nil, fmt.Errorf("error decoding bool: received invalid value %v", b)
+}
+
 type varIntEncoder struct{}
 
 func (*varIntEncoder) Encode(val *FullValue, w io.Writer) error {
@@ -163,6 +211,24 @@ func (*varIntDecoder) Decode(r io.Reader) (*FullValue, error) {
 		return nil, err
 	}
 	return &FullValue{Elm: n}, nil
+}
+
+type doubleEncoder struct{}
+
+func (*doubleEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: beam double (big-endian 64-bit IEEE 754 double)
+	return coder.EncodeDouble(val.Elm.(float64), w)
+}
+
+type doubleDecoder struct{}
+
+func (*doubleDecoder) Decode(r io.Reader) (*FullValue, error) {
+	// Encoding: beam double (big-endian 64-bit IEEE 754 double)
+	f, err := coder.DecodeDouble(r)
+	if err != nil {
+		return nil, err
+	}
+	return &FullValue{Elm: f}, nil
 }
 
 type customEncoder struct {

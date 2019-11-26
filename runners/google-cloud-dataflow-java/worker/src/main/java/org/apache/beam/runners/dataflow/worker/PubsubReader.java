@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** A Reader that receives elements from Pubsub, via a Windmill server. */
 class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
@@ -122,7 +122,9 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
         value =
             parseFn.apply(
                 new PubsubMessage(
-                    pubsubMessage.getData().toByteArray(), pubsubMessage.getAttributes()));
+                    pubsubMessage.getData().toByteArray(),
+                    pubsubMessage.getAttributesMap(),
+                    pubsubMessage.getMessageId()));
       } else {
         value = coder.decode(data, Coder.Context.OUTER);
       }

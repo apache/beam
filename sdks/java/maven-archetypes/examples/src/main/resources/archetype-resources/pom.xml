@@ -31,7 +31,6 @@
 
     <bigquery.version>@bigquery.version@</bigquery.version>
     <google-clients.version>@google-clients.version@</google-clients.version>
-    <guava.version>@guava.version@</guava.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
@@ -178,7 +177,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-reference-java</artifactId>
+          <artifactId>beam-runners-portability-java</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -369,7 +368,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-jet-experimental</artifactId>
+          <artifactId>beam-runners-jet</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -456,12 +455,6 @@
       <version>${joda.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
-    </dependency>
-
     <!-- Add slf4j API frontend binding with JUL backend -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -484,7 +477,7 @@
       <artifactId>hamcrest-core</artifactId>
       <version>${hamcrest.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
@@ -504,7 +497,7 @@
       <version>${beam.version}</version>
       <scope>test</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>

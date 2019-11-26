@@ -82,7 +82,8 @@ class StreamingWordCountIT(unittest.TestCase):
   @attr('IT')
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
-    expected_msg = [('%d: 1' % num) for num in range(DEFAULT_INPUT_NUMBERS)]
+    expected_msg = [('%d: 1' % num).encode('utf-8')
+                    for num in range(DEFAULT_INPUT_NUMBERS)]
 
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
@@ -102,7 +103,8 @@ class StreamingWordCountIT(unittest.TestCase):
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
     streaming_wordcount.run(
-        self.test_pipeline.get_full_options_as_args(**extra_opts))
+        self.test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
 
 
 if __name__ == '__main__':

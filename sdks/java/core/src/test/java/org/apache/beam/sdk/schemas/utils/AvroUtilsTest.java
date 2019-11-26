@@ -19,13 +19,13 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -40,16 +40,21 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.joda.time.DateTime;
@@ -82,8 +87,8 @@ public class AvroUtilsTest {
 
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
-  public void avroToBeamRoudTrip(
-      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) throws IOException {
+  public void avroToBeamRoundTrip(
+      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
     // not everything is possible to translate
     assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
     // roundtrip for enums returns strings because Beam doesn't have enum type
@@ -140,17 +145,54 @@ public class AvroUtilsTest {
         typeWithNullability.type);
   }
 
-  private org.apache.avro.Schema getAvroSubSchema() {
+  @Test
+  public void testNullableArrayFieldToBeamArrayField() {
+    org.apache.avro.Schema.Field avroField =
+        new org.apache.avro.Schema.Field(
+            "arrayField",
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
+            "",
+            null);
+
+    Field expectedBeamField = Field.nullable("arrayField", FieldType.array(FieldType.INT32));
+
+    Field beamField = AvroUtils.toBeamField(avroField);
+    assertEquals(expectedBeamField, beamField);
+  }
+
+  @Test
+  public void testNullableBeamArrayFieldToAvroField() {
+    Field beamField = Field.nullable("arrayField", FieldType.array(FieldType.INT32));
+
+    org.apache.avro.Schema.Field expectedAvroField =
+        new org.apache.avro.Schema.Field(
+            "arrayField",
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.createArray((org.apache.avro.Schema.create(Type.INT)))),
+            "",
+            null);
+
+    org.apache.avro.Schema.Field avroField = AvroUtils.toAvroField(beamField, "ignored");
+    assertEquals(expectedAvroField, avroField);
+  }
+
+  private static List<org.apache.avro.Schema.Field> getAvroSubSchemaFields() {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
             "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", null));
     fields.add(
         new org.apache.avro.Schema.Field("int", org.apache.avro.Schema.create(Type.INT), "", null));
-    return org.apache.avro.Schema.createRecord(fields);
+    return fields;
   }
 
-  private org.apache.avro.Schema getAvroSchema() {
+  private static org.apache.avro.Schema getAvroSubSchema(String name) {
+    return org.apache.avro.Schema.createRecord(
+        name, null, "topLevelRecord", false, getAvroSubSchemaFields());
+  }
+
+  private static org.apache.avro.Schema getAvroSchema() {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
@@ -186,17 +228,20 @@ public class AvroUtilsTest {
             LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
             "",
             (Object) null));
-    fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema(), "", (Object) null));
+    fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema("row"), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "array", org.apache.avro.Schema.createArray(getAvroSubSchema()), "", (Object) null));
+            "array",
+            org.apache.avro.Schema.createArray(getAvroSubSchema("array")),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "map", org.apache.avro.Schema.createMap(getAvroSubSchema()), "", (Object) null));
-    return org.apache.avro.Schema.createRecord(fields);
+            "map", org.apache.avro.Schema.createMap(getAvroSubSchema("map")), "", (Object) null));
+    return org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
   }
 
-  private Schema getBeamSubSchema() {
+  private static Schema getBeamSubSchema() {
     return new Schema.Builder()
         .addField(Field.of("bool", FieldType.BOOLEAN))
         .addField(Field.of("int", FieldType.INT32))
@@ -221,10 +266,10 @@ public class AvroUtilsTest {
         .build();
   }
 
-  static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
-  static final DateTime DATE_TIME =
-      new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-  static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
+  private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
+  private static final DateTime DATE_TIME =
+      new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+  private static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
 
   private Row getBeamRow() {
     Row subRow = Row.withSchema(getBeamSubSchema()).addValues(true, 42).build();
@@ -244,10 +289,14 @@ public class AvroUtilsTest {
         .build();
   }
 
-  private GenericRecord getGenericRecord() {
+  private static GenericRecord getSubGenericRecord(String name) {
+    return new GenericRecordBuilder(getAvroSubSchema(name))
+        .set("bool", true)
+        .set("int", 42)
+        .build();
+  }
 
-    GenericRecord subRecord =
-        new GenericRecordBuilder(getAvroSubSchema()).set("bool", true).set("int", 42).build();
+  private static GenericRecord getGenericRecord() {
 
     LogicalType decimalType =
         LogicalTypes.decimal(Integer.MAX_VALUE)
@@ -266,9 +315,15 @@ public class AvroUtilsTest {
         .set("bytes", ByteBuffer.wrap(BYTE_ARRAY))
         .set("decimal", encodedDecimal)
         .set("timestampMillis", DATE_TIME.getMillis())
-        .set("row", subRecord)
-        .set("array", ImmutableList.of(subRecord, subRecord))
-        .set("map", ImmutableMap.of(new Utf8("k1"), subRecord, new Utf8("k2"), subRecord))
+        .set("row", getSubGenericRecord("row"))
+        .set("array", ImmutableList.of(getSubGenericRecord("array"), getSubGenericRecord("array")))
+        .set(
+            "map",
+            ImmutableMap.of(
+                new Utf8("k1"),
+                getSubGenericRecord("map"),
+                new Utf8("k2"),
+                getSubGenericRecord("map")))
         .build();
   }
 
@@ -282,6 +337,61 @@ public class AvroUtilsTest {
     Schema beamSchema = getBeamSchema();
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
     assertEquals(getAvroSchema(), avroSchema);
+  }
+
+  @Test
+  public void testAvroSchemaFromBeamSchemaCanBeParsed() {
+    org.apache.avro.Schema convertedSchema = AvroUtils.toAvroSchema(getBeamSchema());
+    org.apache.avro.Schema validatedSchema =
+        new org.apache.avro.Schema.Parser().parse(convertedSchema.toString());
+    assertEquals(convertedSchema, validatedSchema);
+  }
+
+  @Test
+  public void testAvroSchemaFromBeamSchemaWithFieldCollisionCanBeParsed() {
+
+    // Two similar schemas, the only difference is the "street" field type in the nested record.
+    Schema contact =
+        new Schema.Builder()
+            .addField(Field.of("name", FieldType.STRING))
+            .addField(
+                Field.of(
+                    "address",
+                    FieldType.row(
+                        new Schema.Builder()
+                            .addField(Field.of("street", FieldType.STRING))
+                            .addField(Field.of("city", FieldType.STRING))
+                            .build())))
+            .build();
+
+    Schema contactMultiline =
+        new Schema.Builder()
+            .addField(Field.of("name", FieldType.STRING))
+            .addField(
+                Field.of(
+                    "address",
+                    FieldType.row(
+                        new Schema.Builder()
+                            .addField(Field.of("street", FieldType.array(FieldType.STRING)))
+                            .addField(Field.of("city", FieldType.STRING))
+                            .build())))
+            .build();
+
+    // Ensure that no collisions happen between two sibling fields with same-named child fields
+    // (with different schemas, between a parent field and a sub-record field with the same name,
+    // and artificially with the generated field name.
+    Schema beamSchema =
+        new Schema.Builder()
+            .addField(Field.of("home", FieldType.row(contact)))
+            .addField(Field.of("work", FieldType.row(contactMultiline)))
+            .addField(Field.of("address", FieldType.row(contact)))
+            .addField(Field.of("topLevelRecord", FieldType.row(contactMultiline)))
+            .build();
+
+    org.apache.avro.Schema convertedSchema = AvroUtils.toAvroSchema(beamSchema);
+    org.apache.avro.Schema validatedSchema =
+        new org.apache.avro.Schema.Parser().parse(convertedSchema.toString());
+    assertEquals(convertedSchema, validatedSchema);
   }
 
   @Test
@@ -304,7 +414,8 @@ public class AvroUtilsTest {
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
             null));
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
 
     Schema expectedSchema =
         Schema.builder()
@@ -358,7 +469,8 @@ public class AvroUtilsTest {
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
             null));
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
     assertEquals(avroSchema, AvroUtils.toAvroSchema(beamSchema));
 
     Map<Utf8, Object> nullMapUtf8 = Maps.newHashMap();
@@ -390,8 +502,44 @@ public class AvroUtilsTest {
 
   @Test
   public void testGenericRecordToBeamRow() {
+    GenericRecord genericRecord = getGenericRecord();
     Row row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
     assertEquals(getBeamRow(), row);
+
+    // Alternatively, a timestamp-millis logical type can have a joda datum.
+    genericRecord.put("timestampMillis", new DateTime(genericRecord.get("timestampMillis")));
+    row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
+    assertEquals(getBeamRow(), row);
+  }
+
+  @Test
+  public void testAvroSchemaCoders() {
+    Pipeline pipeline = Pipeline.create();
+    org.apache.avro.Schema schema =
+        org.apache.avro.Schema.createRecord(
+            "TestSubRecord",
+            "TestSubRecord doc",
+            "org.apache.beam.sdk.schemas.utils",
+            false,
+            getAvroSubSchemaFields());
+    GenericRecord record =
+        new GenericRecordBuilder(getAvroSubSchema("simple"))
+            .set("bool", true)
+            .set("int", 42)
+            .build();
+
+    PCollection<GenericRecord> records =
+        pipeline.apply(Create.of(record).withCoder(AvroCoder.of(schema)));
+    assertFalse(records.hasSchema());
+    records.setCoder(AvroUtils.schemaCoder(schema));
+    assertTrue(records.hasSchema());
+
+    AvroGeneratedUser user = new AvroGeneratedUser("foo", 42, "green");
+    PCollection<AvroGeneratedUser> users =
+        pipeline.apply(Create.of(user).withCoder(AvroCoder.of(AvroGeneratedUser.class)));
+    assertFalse(users.hasSchema());
+    users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
+    assertTrue(users.hasSchema());
   }
 
   public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {

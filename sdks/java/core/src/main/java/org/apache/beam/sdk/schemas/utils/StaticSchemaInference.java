@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
@@ -31,7 +31,7 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
 
 /** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
@@ -108,16 +108,6 @@ public class StaticSchemaInference {
         // Otherwise this is an array type.
         return FieldType.array(fieldFromType(component, fieldValueTypeSupplier));
       }
-    } else if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
-      TypeDescriptor<Collection<?>> collection = type.getSupertype(Collection.class);
-      if (collection.getType() instanceof ParameterizedType) {
-        ParameterizedType ptype = (ParameterizedType) collection.getType();
-        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        checkArgument(params.length == 1);
-        return FieldType.array(fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
-      } else {
-        throw new RuntimeException("Cannot infer schema from unparameterized collection.");
-      }
     } else if (type.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       TypeDescriptor<Collection<?>> map = type.getSupertype(Map.class);
       if (map.getType() instanceof ParameterizedType) {
@@ -139,6 +129,23 @@ public class StaticSchemaInference {
       return FieldType.DATETIME;
     } else if (type.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
       return FieldType.BYTES;
+    } else if (type.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
+      TypeDescriptor<Iterable<?>> iterable = type.getSupertype(Iterable.class);
+      if (iterable.getType() instanceof ParameterizedType) {
+        ParameterizedType ptype = (ParameterizedType) iterable.getType();
+        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
+        checkArgument(params.length == 1);
+        // TODO: should this be AbstractCollection?
+        if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
+          return FieldType.array(
+              fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
+        } else {
+          return FieldType.iterable(
+              fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
+        }
+      } else {
+        throw new RuntimeException("Cannot infer schema from unparameterized collection.");
+      }
     } else {
       return FieldType.row(schemaFromClass(type.getRawType(), fieldValueTypeSupplier));
     }

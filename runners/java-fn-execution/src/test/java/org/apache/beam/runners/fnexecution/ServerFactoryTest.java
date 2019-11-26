@@ -42,14 +42,14 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.Epoll;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.io.netty.channel.epoll.Epoll;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Test;
 
 /** Tests for {@link ServerFactory}. */
@@ -57,11 +57,11 @@ public class ServerFactoryTest {
 
   private static final BeamFnApi.Elements CLIENT_DATA =
       BeamFnApi.Elements.newBuilder()
-          .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference("1"))
+          .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId("1"))
           .build();
   private static final BeamFnApi.Elements SERVER_DATA =
       BeamFnApi.Elements.newBuilder()
-          .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference("1"))
+          .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId("1"))
           .build();
 
   @Test

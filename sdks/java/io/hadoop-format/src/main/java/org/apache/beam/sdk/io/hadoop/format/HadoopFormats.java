@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.hadoop.format;
 import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.MRJobConfig;

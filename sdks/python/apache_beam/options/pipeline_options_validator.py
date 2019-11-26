@@ -24,6 +24,8 @@ from __future__ import absolute_import
 import re
 from builtins import object
 
+from past.builtins import unicode
+
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -75,6 +77,9 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_TEST_MATCHER_UNPICKLABLE = (
       'Invalid value (%s) for option: %s. Please make sure the test matcher '
       'is unpicklable.')
+  ERR_INVALID_TRANSFORM_NAME_MAPPING = (
+      'Invalid transform name mapping format. Please make sure the mapping is '
+      'string key-value pairs. Invalid pair: (%s:%s)')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -174,6 +179,33 @@ class PipelineOptionsValidator(object):
       if not view.job_name:
         errors.extend(self._validate_error(
             'Existing job name must be provided when updating a pipeline.'))
+    if view.transform_name_mapping:
+      if not view.update or not self.options.view_as(StandardOptions).streaming:
+        errors.append('Transform name mapping option is only useful when '
+                      '--update and --streaming is specified')
+      for _, (key, value) in enumerate(view.transform_name_mapping.items()):
+        if not isinstance(key, (str, unicode)) \
+            or not isinstance(value, (str, unicode)):
+          errors.extend(self._validate_error(
+              self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
+          break
+    return errors
+
+  def validate_worker_region_zone(self, view):
+    """Validates Dataflow worker region and zone arguments are consistent."""
+    errors = []
+    if view.zone and (view.worker_region or view.worker_zone):
+      errors.extend(self._validate_error(
+          'Cannot use deprecated flag --zone along with worker_region or '
+          'worker_zone.'))
+    if self.options.view_as(DebugOptions).lookup_experiment('worker_region')\
+        and (view.worker_region or view.worker_zone):
+      errors.extend(self._validate_error(
+          'Cannot use deprecated experiment worker_region along with '
+          'worker_region or worker_zone.'))
+    if view.worker_region and view.worker_zone:
+      errors.extend(self._validate_error(
+          'worker_region and worker_zone are mutually exclusive.'))
     return errors
 
   def validate_optional_argument_positive(self, view, arg_name):

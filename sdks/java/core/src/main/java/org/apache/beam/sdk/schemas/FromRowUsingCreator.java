@@ -17,34 +17,36 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.lang.reflect.Type;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Function to convert a {@link Row} to a user type using a creator factory. */
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   private final Class<T> clazz;
+  private final GetterBasedSchemaProvider schemaProvider;
   private final Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory;
   private final Factory<List<FieldValueTypeInformation>> fieldValueTypeInformationFactory;
 
-  public FromRowUsingCreator(
-      Class<T> clazz,
-      UserTypeCreatorFactory schemaTypeUserTypeCreatorFactory,
-      FieldValueTypeInformationFactory fieldValueTypeInformationFactory) {
+  public FromRowUsingCreator(Class<T> clazz, GetterBasedSchemaProvider schemaProvider) {
     this.clazz = clazz;
-    this.schemaTypeCreatorFactory = new CachingFactory<>(schemaTypeUserTypeCreatorFactory);
-    this.fieldValueTypeInformationFactory = new CachingFactory<>(fieldValueTypeInformationFactory);
+    this.schemaProvider = schemaProvider;
+    this.schemaTypeCreatorFactory = new CachingFactory<>(schemaProvider::schemaTypeCreator);
+    this.fieldValueTypeInformationFactory =
+        new CachingFactory<>(schemaProvider::fieldValueTypeInformations);
   }
 
   @Override
@@ -106,7 +108,12 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
       return (ValueT)
           fromListValue(type.getCollectionElementType(), (List) value, elementType, typeFactory);
-    } else if (TypeName.MAP.equals(type.getTypeName())) {
+    } else if (TypeName.ITERABLE.equals(type.getTypeName())) {
+      return (ValueT)
+          fromIterableValue(
+              type.getCollectionElementType(), (Iterable) value, elementType, typeFactory);
+    }
+    if (TypeName.MAP.equals(type.getTypeName())) {
       return (ValueT)
           fromMapValue(
               type.getMapKeyType(),
@@ -142,6 +149,40 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   }
 
   @SuppressWarnings("unchecked")
+  private <ElementT> Iterable fromIterableValue(
+      FieldType elementType,
+      Iterable<ElementT> rowIterable,
+      FieldValueTypeInformation elementTypeInformation,
+      Factory<List<FieldValueTypeInformation>> typeFactory) {
+    return new Iterable<ElementT>() {
+      @Override
+      public Iterator<ElementT> iterator() {
+        return new Iterator<ElementT>() {
+          Iterator<ElementT> innerIter = rowIterable.iterator();
+
+          @Override
+          public boolean hasNext() {
+            return innerIter.hasNext();
+          }
+
+          @Override
+          public ElementT next() {
+            ElementT element = innerIter.next();
+            return fromValue(
+                elementType,
+                element,
+                elementTypeInformation.getType().getType(),
+                elementTypeInformation.getElementType(),
+                elementTypeInformation.getMapKeyType(),
+                elementTypeInformation.getMapValueType(),
+                typeFactory);
+          }
+        };
+      }
+    };
+  }
+
+  @SuppressWarnings("unchecked")
   private Map<?, ?> fromMapValue(
       FieldType keyType,
       FieldType valueType,
@@ -172,5 +213,22 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       newMap.put(key, value);
     }
     return newMap;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    FromRowUsingCreator<?> that = (FromRowUsingCreator<?>) o;
+    return clazz.equals(that.clazz) && schemaProvider.equals(that.schemaProvider);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(clazz, schemaProvider);
   }
 }

@@ -68,7 +68,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -311,7 +311,8 @@ public class UserParDoFnFactoryTest {
             null /* side input views */,
             null /* input coder */,
             new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
     object.set(
         PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(SerializableUtils.serializeToByteArray(info)));

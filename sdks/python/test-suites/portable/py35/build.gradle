@@ -20,13 +20,22 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 // Required to setup a Python 3.5 virtualenv.
 pythonVersion = '3.5'
+apply from: "../common.gradle"
 
 addPortableWordCountTasks()
 
-task portablePreCommitPy35() {
-    dependsOn ':runners:flink:1.5:job-server-container:docker'
-    dependsOn ':sdks:python:container:py3:docker'
+task preCommitPy35() {
+    dependsOn ':runners:flink:1.9:job-server-container:docker'
+    dependsOn ':sdks:python:container:py35:docker'
     dependsOn portableWordCountBatch
     dependsOn portableWordCountStreaming
 }
 
+task postCommitPy35() {
+    dependsOn 'setupVirtualenv'
+    dependsOn ':runners:flink:1.9:job-server:shadowJar'
+    dependsOn portableWordCountFlinkRunnerBatch
+    dependsOn portableWordCountFlinkRunnerStreaming
+    dependsOn ':runners:spark:job-server:shadowJar'
+    dependsOn portableWordCountSparkRunnerBatch
+}

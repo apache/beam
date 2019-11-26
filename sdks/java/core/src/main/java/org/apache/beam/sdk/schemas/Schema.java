@@ -36,12 +36,12 @@ import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -186,6 +186,11 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addIterableField(String name, FieldType collectionElementType) {
+      fields.add(Field.of(name, FieldType.iterable(collectionElementType)));
+      return this;
+    }
+
     public Builder addRowField(String name, Schema fieldSchema) {
       fields.add(Field.of(name, FieldType.row(fieldSchema)));
       return this;
@@ -302,7 +307,7 @@ public class Schema implements Serializable {
     return equivalent(other, EquivalenceNullablePolicy.WEAKEN);
   }
 
-  /** Returns true if this Schema can be assigned to another Schema, igmoring nullable. * */
+  /** Returns true if this Schema can be assigned to another Schema, ignoring nullable. * */
   public boolean assignableToIgnoreNullable(Schema other) {
     return equivalent(other, EquivalenceNullablePolicy.IGNORE);
   }
@@ -334,10 +339,11 @@ public class Schema implements Serializable {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("Fields:\n");
+    builder.append("Fields:");
+    builder.append(System.lineSeparator());
     for (Field field : fields) {
       builder.append(field);
-      builder.append("\n");
+      builder.append(System.lineSeparator());
     }
     return builder.toString();
   };
@@ -374,6 +380,7 @@ public class Schema implements Serializable {
     BOOLEAN, // Boolean.
     BYTES, // Byte array.
     ARRAY,
+    ITERABLE, // Iterable. Different than array in that it might not fit completely in memory.
     MAP,
     ROW, // The field is itself a nested row.
     LOGICAL_TYPE;
@@ -382,7 +389,7 @@ public class Schema implements Serializable {
         ImmutableSet.of(BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
     public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
     public static final Set<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
-    public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY);
+    public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY, ITERABLE);
     public static final Set<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
     public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
@@ -522,7 +529,7 @@ public class Schema implements Serializable {
     @Nullable
     public abstract LogicalType getLogicalType();
 
-    // For container types (e.g. ARRAY), returns the type of the contained element.
+    // For container types (e.g. ARRAY or ITERABLE), returns the type of the contained element.
     @Nullable
     public abstract FieldType getCollectionElementType();
 
@@ -628,6 +635,10 @@ public class Schema implements Serializable {
           .build();
     }
 
+    public static final FieldType iterable(FieldType elementType) {
+      return FieldType.forTypeName(TypeName.ITERABLE).setCollectionElementType(elementType).build();
+    }
+
     /** Create a map type for the given key and value types. */
     public static final FieldType map(FieldType keyType, FieldType valueType) {
       return FieldType.forTypeName(TypeName.MAP)
@@ -730,10 +741,11 @@ public class Schema implements Serializable {
       if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;
       }
-      if (getTypeName() == TypeName.ARRAY
+      if (getTypeName().isCollectionType()
           && !getCollectionElementType().typesEqual(other.getCollectionElementType())) {
         return false;
       }
+
       if (getTypeName() == TypeName.MAP
           && (!getMapValueType().typesEqual(other.getMapValueType())
               || !getMapKeyType().typesEqual(other.getMapKeyType()))) {
@@ -770,6 +782,7 @@ public class Schema implements Serializable {
           }
           break;
         case ARRAY:
+        case ITERABLE:
           if (!getCollectionElementType()
               .equivalent(other.getCollectionElementType(), nullablePolicy)) {
             return false;

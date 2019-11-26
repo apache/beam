@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Beam SQL aggregate functions for Calcite"
+title: "Beam Calcite SQL aggregate functions"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/calcite/aggregate-functions/
 redirect_from: /documentation/dsls/sql/aggregate-functions/
@@ -19,13 +19,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL aggregate functions (Calcite)
+# Beam Calcite SQL aggregate functions
 
-This page documents built-in functions supported by Beam SQL when using Apache Calcite.
-
-See also [Calcite
-SQL's operators and functions
-reference](http://calcite.apache.org/docs/reference.html#operators-and-functions).
+This page documents Apache Calcite aggregate functions supported by Beam Calcite SQL.
 
 | Operator syntax | Description |
 | ---- | ---- |

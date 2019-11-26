@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
@@ -47,9 +47,9 @@ import java.util.TreeMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** A Pubsub client using JSON transport. */
 public class PubsubJsonClient extends PubsubClient {
@@ -169,7 +169,7 @@ public class PubsubJsonClient extends PubsubClient {
       @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Payload.
-      byte[] elementBytes = pubsubMessage.decodeData();
+      byte[] elementBytes = pubsubMessage.getData() == null ? null : pubsubMessage.decodeData();
       if (elementBytes == null) {
         elementBytes = new byte[0];
       }

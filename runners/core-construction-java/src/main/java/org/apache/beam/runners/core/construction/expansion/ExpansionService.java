@@ -54,16 +54,16 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Converter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Converter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,11 +179,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         } catch (NoSuchMethodException e) {
           throw new RuntimeException(
               String.format(
-                  "The configuration class %s is missing a setter %s for %s",
-                  config.getClass(), setterName, fieldName),
+                  "The configuration class %s is missing a setter %s for %s with type %s",
+                  config.getClass(),
+                  setterName,
+                  fieldName,
+                  coder.getEncodedTypeDescriptor().getType().getTypeName()),
               e);
         }
-        method.invoke(config, coder.decode(entry.getValue().getPayload().newInput()));
+        method.invoke(
+            config, coder.decode(entry.getValue().getPayload().newInput(), Coder.Context.NESTED));
       }
     }
 

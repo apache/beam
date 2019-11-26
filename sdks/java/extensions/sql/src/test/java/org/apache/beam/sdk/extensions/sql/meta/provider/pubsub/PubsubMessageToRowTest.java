@@ -22,7 +22,7 @@ import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.MAIN_TAG;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.size;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
@@ -42,8 +42,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -85,6 +85,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     PubsubMessageToRow.builder()
                         .messageSchema(messageSchema)
                         .useDlq(false)
+                        .useFlatSchema(false)
                         .build()));
 
     PAssert.that(rows)
@@ -134,6 +135,7 @@ public class PubsubMessageToRowTest implements Serializable {
                         PubsubMessageToRow.builder()
                             .messageSchema(messageSchema)
                             .useDlq(true)
+                            .useFlatSchema(false)
                             .build())
                     .withOutputTags(MAIN_TAG, TupleTagList.of(DLQ_TAG)));
 
@@ -161,6 +163,113 @@ public class PubsubMessageToRowTest implements Serializable {
                 .build(),
             Row.withSchema(messageSchema)
                 .addValues(ts(4), map("bttr", "vbl"), row(payloadSchema, 5, "baz"))
+                .build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testConvertsMessagesToFlatRow() {
+    Schema messageSchema =
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addNullableField("id", FieldType.INT32)
+            .addNullableField("name", FieldType.STRING)
+            .build();
+
+    PCollection<Row> rows =
+        pipeline
+            .apply(
+                "create",
+                Create.timestamped(
+                    message(1, map("attr", "val"), "{ \"id\" : 3, \"name\" : \"foo\" }"),
+                    message(2, map("bttr", "vbl"), "{ \"name\" : \"baz\", \"id\" : 5 }"),
+                    message(3, map("cttr", "vcl"), "{ \"id\" : 7, \"name\" : \"bar\" }"),
+                    message(4, map("dttr", "vdl"), "{ \"name\" : \"qaz\", \"id\" : 8 }"),
+                    message(4, map("dttr", "vdl"), "{ \"name\" : null, \"id\" : null }")))
+            .apply(
+                "convert",
+                ParDo.of(
+                    PubsubMessageToRow.builder()
+                        .messageSchema(messageSchema)
+                        .useDlq(false)
+                        .useFlatSchema(true)
+                        .build()));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(messageSchema)
+                .addValues(ts(1), /* map("attr", "val"), */ 3, "foo")
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(2), /* map("bttr", "vbl"), */ 5, "baz")
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(3), /* map("cttr", "vcl"), */ 7, "bar")
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(4), /* map("dttr", "vdl"), */ 8, "qaz")
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(4), /* map("dttr", "vdl"), */ null, null)
+                .build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testSendsFlatRowInvalidToDLQ() {
+    Schema messageSchema =
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addInt32Field("id")
+            .addStringField("name")
+            .build();
+
+    PCollectionTuple outputs =
+        pipeline
+            .apply(
+                "create",
+                Create.timestamped(
+                    message(1, map("attr1", "val1"), "{ \"invalid1\" : \"sdfsd\" }"),
+                    message(2, map("attr2", "val2"), "{ \"invalid2"),
+                    message(3, map("attr", "val"), "{ \"id\" : 3, \"name\" : \"foo\" }"),
+                    message(4, map("bttr", "vbl"), "{ \"name\" : \"baz\", \"id\" : 5 }")))
+            .apply(
+                "convert",
+                ParDo.of(
+                        PubsubMessageToRow.builder()
+                            .messageSchema(messageSchema)
+                            .useDlq(true)
+                            .useFlatSchema(true)
+                            .build())
+                    .withOutputTags(
+                        PubsubMessageToRow.MAIN_TAG, TupleTagList.of(PubsubMessageToRow.DLQ_TAG)));
+
+    PCollection<Row> rows = outputs.get(PubsubMessageToRow.MAIN_TAG);
+    PCollection<PubsubMessage> dlqMessages = outputs.get(PubsubMessageToRow.DLQ_TAG);
+
+    PAssert.that(dlqMessages)
+        .satisfies(
+            messages -> {
+              assertEquals(2, size(messages));
+              assertEquals(
+                  ImmutableSet.of(map("attr1", "val1"), map("attr2", "val2")),
+                  convertToSet(messages, m -> m.getAttributeMap()));
+
+              assertEquals(
+                  ImmutableSet.of("{ \"invalid1\" : \"sdfsd\" }", "{ \"invalid2"),
+                  convertToSet(messages, m -> new String(m.getPayload(), UTF_8)));
+              return null;
+            });
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(messageSchema)
+                .addValues(ts(3), /* map("attr", "val"), */ 3, "foo")
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(4), /* map("bttr", "vbl"), */ 5, "baz")
                 .build());
 
     pipeline.run();

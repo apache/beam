@@ -79,7 +79,7 @@ class PipelineAnalyzer(object):
       1. Start from target PCollections and recursively insert the producing
          PTransforms of those PCollections, where the producing PTransforms are
          either ReadCache or PTransforms in the original pipeline.
-      2. Append WriteCache PTransforsm in the pipeline.
+      2. Append WriteCache PTransforms in the pipeline.
 
     After running this function, the following variables will be set:
       self._pipeline_proto_to_execute
@@ -343,7 +343,7 @@ class PipelineAnalyzer(object):
       pcoll: (PCollection)
 
     Returns:
-      (PTransform) top level producing PTransform of pcoll.
+      (AppliedPTransform) top level producing AppliedPTransform of pcoll.
     """
     top_level_transform = pcoll.producer
     while top_level_transform.parent.parent:
@@ -354,10 +354,10 @@ class PipelineAnalyzer(object):
     """Depth-first yield the PTransform itself and its sub transforms.
 
     Args:
-      transform: (PTransform)
+      transform: (AppliedPTransform)
 
     Yields:
-      The input PTransform itself and all its sub transforms.
+      The input AppliedPTransform itself and all its sub transforms.
     """
     yield transform
     for subtransform in transform.parts[::-1]:
@@ -375,9 +375,18 @@ class PipelineInfo(object):
     for transform_id, transform_proto in self._proto.transforms.items():
       if transform_proto.subtransforms:
         continue
+      # Identify producers of each PCollection. A PTransform is a producer of
+      # a PCollection if it outputs the PCollection but does not consume the
+      # same PCollection as input. The latter part of the definition is to avoid
+      # infinite recursions when constructing the PCollection's derivation.
+      transform_inputs = set(transform_proto.inputs.values())
       for tag, pcoll_id in transform_proto.outputs.items():
+        if pcoll_id in transform_inputs:
+          # A transform is not the producer of a PCollection if it consumes the
+          # PCollection as an input.
+          continue
         self._producers[pcoll_id] = transform_id, tag
-      for pcoll_id in transform_proto.inputs.values():
+      for pcoll_id in transform_inputs:
         self._consumers[pcoll_id].append(transform_id)
     self._derivations = {}
 

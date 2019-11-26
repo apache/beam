@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.testutils.TestResult;
 import org.apache.beam.sdk.testutils.fakes.FakeBigQueryClient;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

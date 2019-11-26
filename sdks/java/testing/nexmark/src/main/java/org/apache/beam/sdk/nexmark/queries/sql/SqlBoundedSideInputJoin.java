@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /** Basic stream enrichment: join a stream to a bounded side input. */
 public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
@@ -88,6 +89,7 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
         getSideInput()
             .setSchema(
                 schema,
+                TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.strings()),
                 kv -> Row.withSchema(schema).addValues(kv.getKey(), kv.getValue()).build(),
                 row -> KV.of(row.getInt64("id"), row.getString("extra")))
             .apply("SideToRows", Convert.toRows());

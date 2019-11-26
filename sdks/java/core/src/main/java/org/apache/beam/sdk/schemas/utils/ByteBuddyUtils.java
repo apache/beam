@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -25,50 +25,55 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.NamingStrategy;
-import net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
-import net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
-import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import net.bytebuddy.implementation.Implementation;
-import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import net.bytebuddy.implementation.bytecode.Duplication;
-import net.bytebuddy.implementation.bytecode.StackManipulation;
-import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
-import net.bytebuddy.implementation.bytecode.TypeCreation;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
-import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
-import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
-import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
-import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
-import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import net.bytebuddy.matcher.ElementMatchers;
-import net.bytebuddy.utility.RandomString;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.NamingStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.DynamicType;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.Implementation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.Duplication;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.TypeCreation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.Assigner;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.utility.RandomString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
+import org.joda.time.ReadablePartial;
+import org.joda.time.base.BaseLocal;
 
 class ByteBuddyUtils {
   private static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
@@ -77,9 +82,13 @@ class ByteBuddyUtils {
   private static final ForLoadedType BYTE_BUFFER_TYPE = new ForLoadedType(ByteBuffer.class);
   private static final ForLoadedType CHAR_SEQUENCE_TYPE = new ForLoadedType(CharSequence.class);
   private static final ForLoadedType INSTANT_TYPE = new ForLoadedType(Instant.class);
+  private static final ForLoadedType DATE_TIME_ZONE_TYPE = new ForLoadedType(DateTimeZone.class);
   private static final ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
   private static final ForLoadedType READABLE_INSTANT_TYPE =
       new ForLoadedType(ReadableInstant.class);
+  private static final ForLoadedType READABLE_PARTIAL_TYPE =
+      new ForLoadedType(ReadablePartial.class);
+  private static final ForLoadedType OBJECT_TYPE = new ForLoadedType(Object.class);
 
   /**
    * A naming strategy for ByteBuddy classes.
@@ -145,11 +154,11 @@ class ByteBuddyUtils {
           && !typeDescriptor.getComponentType().getRawType().equals(byte.class)) {
         // Byte arrays are special, so leave those alone.
         return convertArray(typeDescriptor);
-      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
-        return convertCollection(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
         return convertMap(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
+        return convertDateTime(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ReadablePartial.class))) {
         return convertDateTime(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
         return convertByteBuffer(typeDescriptor);
@@ -160,12 +169,22 @@ class ByteBuddyUtils {
         return convertCharSequence(typeDescriptor);
       } else if (typeDescriptor.getRawType().isPrimitive()) {
         return convertPrimitive(typeDescriptor);
+      } else if (typeDescriptor.getRawType().isEnum()) {
+        return convertEnum(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
+        if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
+          return convertCollection(typeDescriptor);
+        } else {
+          return convertIterable(typeDescriptor);
+        }
       } else {
         return convertDefault(typeDescriptor);
       }
     }
 
     protected abstract T convertArray(TypeDescriptor<?> type);
+
+    protected abstract T convertIterable(TypeDescriptor<?> type);
 
     protected abstract T convertCollection(TypeDescriptor<?> type);
 
@@ -180,6 +199,8 @@ class ByteBuddyUtils {
     protected abstract T convertCharSequence(TypeDescriptor<?> type);
 
     protected abstract T convertPrimitive(TypeDescriptor<?> type);
+
+    protected abstract T convertEnum(TypeDescriptor<?> type);
 
     protected abstract T convertDefault(TypeDescriptor<?> type);
   }
@@ -221,6 +242,11 @@ class ByteBuddyUtils {
     }
 
     @Override
+    protected Type convertIterable(TypeDescriptor<?> type) {
+      return Iterable.class;
+    }
+
+    @Override
     protected Type convertMap(TypeDescriptor<?> type) {
       return Map.class;
     }
@@ -248,6 +274,11 @@ class ByteBuddyUtils {
     @Override
     protected Type convertPrimitive(TypeDescriptor<?> type) {
       return ClassUtils.primitiveToWrapper(type.getRawType());
+    }
+
+    @Override
+    protected Type convertEnum(TypeDescriptor<?> type) {
+      return String.class;
     }
 
     @Override
@@ -313,6 +344,11 @@ class ByteBuddyUtils {
     }
 
     @Override
+    protected StackManipulation convertIterable(TypeDescriptor<?> type) {
+      return readValue;
+    }
+
+    @Override
     protected StackManipulation convertCollection(TypeDescriptor<?> type) {
       return readValue;
     }
@@ -328,22 +364,64 @@ class ByteBuddyUtils {
       if (Instant.class.isAssignableFrom(type.getRawType())) {
         return readValue;
       }
-      // Otherwise, generate the following code:
-      //   return new Instant(value.getMillis());
 
-      return new StackManipulation.Compound(
-          // Create a new instance of the target type.
-          TypeCreation.of(INSTANT_TYPE),
-          Duplication.SINGLE,
-          readValue,
-          TypeCasting.to(READABLE_INSTANT_TYPE),
-          // Call ReadableInstant.getMillis to extract the millis since the epoch.
+      // Otherwise, generate the following code:
+      //
+      // for ReadableInstant:
+      //   return new Instant(value.getMillis());
+      //
+      // for ReadablePartial:
+      //   return new Instant((value.toDateTime(Instant.EPOCH)).getMillis());
+
+      List<StackManipulation> stackManipulations = new ArrayList<>();
+
+      // Create a new instance of the target type.
+      stackManipulations.add(TypeCreation.of(INSTANT_TYPE));
+      stackManipulations.add(Duplication.SINGLE);
+
+      // if value is ReadablePartial, convert it to ReadableInstant first
+      if (ReadablePartial.class.isAssignableFrom(type.getRawType())) {
+        // Generate the following code: .toDateTime(Instant.EPOCH)
+
+        // Load the parameter and cast it to ReadablePartial.
+        stackManipulations.add(readValue);
+        stackManipulations.add(TypeCasting.to(READABLE_PARTIAL_TYPE));
+
+        // Get Instant.EPOCH
+        stackManipulations.add(
+            FieldAccess.forField(
+                    INSTANT_TYPE
+                        .getDeclaredFields()
+                        .filter(ElementMatchers.named("EPOCH"))
+                        .getOnly())
+                .read());
+
+        // Call ReadablePartial.toDateTime
+        stackManipulations.add(
+            MethodInvocation.invoke(
+                READABLE_PARTIAL_TYPE
+                    .getDeclaredMethods()
+                    .filter(
+                        ElementMatchers.named("toDateTime")
+                            .and(ElementMatchers.takesArguments(READABLE_INSTANT_TYPE)))
+                    .getOnly()));
+      } else {
+        // Otherwise, parameter is already ReadableInstant.
+        // Load the parameter and cast it to ReadableInstant.
+        stackManipulations.add(readValue);
+        stackManipulations.add(TypeCasting.to(READABLE_INSTANT_TYPE));
+      }
+
+      // Call ReadableInstant.getMillis to extract the millis since the epoch.
+      stackManipulations.add(
           MethodInvocation.invoke(
               READABLE_INSTANT_TYPE
                   .getDeclaredMethods()
                   .filter(ElementMatchers.named("getMillis"))
-                  .getOnly()),
-          // Construct a DateTime object containing the millis.
+                  .getOnly()));
+
+      // Construct a Instant object containing the millis.
+      stackManipulations.add(
           MethodInvocation.invoke(
               INSTANT_TYPE
                   .getDeclaredMethods()
@@ -351,6 +429,8 @@ class ByteBuddyUtils {
                       ElementMatchers.isConstructor()
                           .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
                   .getOnly()));
+
+      return new StackManipulation.Compound(stackManipulations);
     }
 
     @Override
@@ -402,7 +482,7 @@ class ByteBuddyUtils {
           MethodInvocation.invoke(
               CHAR_SEQUENCE_TYPE
                   .getDeclaredMethods()
-                  .filter(ElementMatchers.named("toString"))
+                  .filter(ElementMatchers.named("toString").and(ElementMatchers.takesArguments(0)))
                   .getOnly()));
     }
 
@@ -414,6 +494,17 @@ class ByteBuddyUtils {
           readValue,
           Assigner.DEFAULT.assign(
               loadedType.asGenericType(), loadedType.asBoxed().asGenericType(), Typing.STATIC));
+    }
+
+    @Override
+    protected StackManipulation convertEnum(TypeDescriptor<?> type) {
+      return new Compound(
+          readValue,
+          MethodInvocation.invoke(
+              OBJECT_TYPE
+                  .getDeclaredMethods()
+                  .filter(ElementMatchers.named("toString").and(ElementMatchers.takesArguments(0)))
+                  .getOnly()));
     }
 
     @Override
@@ -486,6 +577,11 @@ class ByteBuddyUtils {
     }
 
     @Override
+    protected StackManipulation convertIterable(TypeDescriptor<?> type) {
+      return readValue;
+    }
+
+    @Override
     protected StackManipulation convertCollection(TypeDescriptor<?> type) {
       return readValue;
     }
@@ -502,31 +598,62 @@ class ByteBuddyUtils {
       // that the POJO can accept.
 
       // Generate the following code:
-      // return new T(value.getMillis());
+      //   return new T(value.getMillis());
+      // Unless T is a sub-class of BaseLocal. Then generate:
+      //   return new T(value.getMillis(), DateTimeZone.UTC);
 
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-      return new Compound(
-          // Create a new instance of the target type.
-          TypeCreation.of(loadedType),
-          Duplication.SINGLE,
-          // Load the parameter and cast it to a ReadableInstant.
-          readValue,
-          TypeCasting.to(READABLE_INSTANT_TYPE),
-          // Call ReadableInstant.getMillis to extract the millis since the epoch.
+      List<StackManipulation> stackManipulations = new ArrayList<>();
+
+      // Create a new instance of the target ype.
+      stackManipulations.add(TypeCreation.of(loadedType));
+      stackManipulations.add(Duplication.SINGLE);
+      // Load the parameter and cast it to a ReadableInstant.
+      stackManipulations.add(readValue);
+      stackManipulations.add(TypeCasting.to(READABLE_INSTANT_TYPE));
+      // Call ReadableInstant.getMillis to extract the millis since the epoch.
+      stackManipulations.add(
           MethodInvocation.invoke(
               READABLE_INSTANT_TYPE
                   .getDeclaredMethods()
                   .filter(ElementMatchers.named("getMillis"))
-                  .getOnly()),
-          // All subclasses of ReadableInstant contain a ()(long) constructor that takes in a millis
-          // argument. Call that constructor of the field to initialize it.
-          MethodInvocation.invoke(
-              loadedType
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.isConstructor()
-                          .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
                   .getOnly()));
+      if (type.isSubtypeOf(TypeDescriptor.of(BaseLocal.class))) {
+        // Access DateTimeZone.UTC
+        stackManipulations.add(
+            FieldAccess.forField(
+                    DATE_TIME_ZONE_TYPE
+                        .getDeclaredFields()
+                        .filter(ElementMatchers.named("UTC"))
+                        .getOnly())
+                .read());
+        // All subclasses of BaseLocal contain a ()(long, DateTimeZone) constructor
+        // that takes in a millis and time zone argument. Call that constructor of the field to
+        // initialize it.
+        stackManipulations.add(
+            MethodInvocation.invoke(
+                loadedType
+                    .getDeclaredMethods()
+                    .filter(
+                        ElementMatchers.isConstructor()
+                            .and(
+                                ElementMatchers.takesArguments(
+                                    ForLoadedType.of(long.class), DATE_TIME_ZONE_TYPE)))
+                    .getOnly()));
+      } else {
+        // All subclasses of ReadableInstant and ReadablePartial contain a ()(long) constructor
+        // that takes in a millis argument. Call that constructor of the field to initialize it.
+        stackManipulations.add(
+            MethodInvocation.invoke(
+                loadedType
+                    .getDeclaredMethods()
+                    .filter(
+                        ElementMatchers.isConstructor()
+                            .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
+                    .getOnly()));
+      }
+
+      return new Compound(stackManipulations);
     }
 
     @Override
@@ -551,13 +678,14 @@ class ByteBuddyUtils {
     @Override
     protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
       // Generate the following code:
-      // return T((byte[]) value);
+      // return new T((byte[]) value);
 
       // TODO: Refactor AVRO-specific code out of this class.
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
       return new Compound(
           TypeCreation.of(loadedType),
           Duplication.SINGLE,
+          // Load the parameter and cast it to a byte[].
           readValue,
           TypeCasting.to(BYTE_ARRAY_TYPE),
           // Create a new instance that wraps this byte[].
@@ -607,6 +735,23 @@ class ByteBuddyUtils {
               valueType.asBoxed().asGenericType(),
               valueType.asUnboxed().asGenericType(),
               Typing.STATIC));
+    }
+
+    @Override
+    protected StackManipulation convertEnum(TypeDescriptor<?> type) {
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+
+      return new Compound(
+          readValue,
+          MethodInvocation.invoke(
+              loadedType
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("valueOf")
+                          .and(
+                              ElementMatchers.isStatic()
+                                  .and(ElementMatchers.takesArguments(String.class))))
+                  .getOnly()));
     }
 
     @Override

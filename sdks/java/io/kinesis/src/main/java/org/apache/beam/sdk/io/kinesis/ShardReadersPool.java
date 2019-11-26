@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Comparator;
 import java.util.List;
@@ -33,8 +33,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +47,7 @@ import org.slf4j.LoggerFactory;
 class ShardReadersPool {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShardReadersPool.class);
-  private static final int DEFAULT_CAPACITY_PER_SHARD = 10_000;
+  public static final int DEFAULT_CAPACITY_PER_SHARD = 10_000;
   private static final int ATTEMPTS_TO_SHUTDOWN = 3;
 
   /**
@@ -77,13 +78,6 @@ class ShardReadersPool {
   private final KinesisReaderCheckpoint initialCheckpoint;
   private final int queueCapacityPerShard;
   private final AtomicBoolean poolOpened = new AtomicBoolean(true);
-
-  ShardReadersPool(
-      SimplifiedKinesisClient kinesis,
-      KinesisReaderCheckpoint initialCheckpoint,
-      WatermarkPolicyFactory watermarkPolicyFactory) {
-    this(kinesis, initialCheckpoint, watermarkPolicyFactory, DEFAULT_CAPACITY_PER_SHARD);
-  }
 
   ShardReadersPool(
       SimplifiedKinesisClient kinesis,
@@ -308,5 +302,10 @@ class ShardReadersPool {
       }
     }
     return shardsMap.build();
+  }
+
+  @VisibleForTesting
+  BlockingQueue<KinesisRecord> getRecordsQueue() {
+    return recordsQueue;
   }
 }

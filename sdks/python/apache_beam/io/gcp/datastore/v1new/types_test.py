@@ -19,20 +19,28 @@
 
 from __future__ import absolute_import
 
+import datetime
 import logging
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import mock
 
 # Protect against environments where datastore library is not available.
 try:
   from google.cloud.datastore import client
+  from google.cloud.datastore.helpers import GeoPoint
   from apache_beam.io.gcp.datastore.v1new.types import Entity
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query
+  from apache_beam.options.value_provider import StaticValueProvider
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')
@@ -46,25 +54,52 @@ class TypesTest(unittest.TestCase):
         # Don't do any network requests.
         _http=mock.MagicMock())
 
+  def _assert_keys_equal(self, beam_type, client_type, expected_project):
+    self.assertEqual(beam_type.path_elements[0], client_type.kind)
+    self.assertEqual(beam_type.path_elements[1], client_type.id)
+    self.assertEqual(expected_project, client_type.project)
+
   def testEntityToClientEntity(self):
+    # Test conversion from Beam type to client type.
     k = Key(['kind', 1234], project=self._PROJECT)
     kc = k.to_client_key()
-    exclude_from_indexes = ('efi1', 'efi2')
+    exclude_from_indexes = ('datetime', 'key')
     e = Entity(k, exclude_from_indexes=exclude_from_indexes)
-    e.set_properties({'efi1': 'value', 'property': 'value'})
+    properties = {
+        'datetime': datetime.datetime.utcnow(),
+        'key_ref': Key(['kind2', 1235]),
+        'bool': True,
+        'float': 1.21,
+        'int': 1337,
+        'unicode': 'text',
+        'bytes': b'bytes',
+        'geopoint': GeoPoint(0.123, 0.456),
+        'none': None,
+        'list': [1, 2, 3],
+        'entity': Entity(Key(['kind', 111])),
+        'dict': {'property': 5},
+    }
+    e.set_properties(properties)
     ec = e.to_client_entity()
     self.assertEqual(kc, ec.key)
     self.assertSetEqual(set(exclude_from_indexes), ec.exclude_from_indexes)
     self.assertEqual('kind', ec.kind)
     self.assertEqual(1234, ec.id)
+    for name, unconverted in properties.items():
+      converted = ec[name]
+      if name == 'key_ref':
+        self.assertNotIsInstance(converted, Key)
+        self._assert_keys_equal(unconverted, converted, self._PROJECT)
+      elif name == 'entity':
+        self.assertNotIsInstance(converted, Entity)
+        self.assertNotIsInstance(converted.key, Key)
+        self._assert_keys_equal(unconverted.key, converted.key, self._PROJECT)
+      else:
+        self.assertEqual(unconverted, converted)
 
-  def testEntityFromClientEntity(self):
-    k = Key(['kind', 1234], project=self._PROJECT)
-    exclude_from_indexes = ('efi1', 'efi2')
-    e = Entity(k, exclude_from_indexes=exclude_from_indexes)
-    e.set_properties({'efi1': 'value', 'property': 'value'})
-    efc = Entity.from_client_entity(e.to_client_entity())
-    self.assertEqual(e, efc)
+    # Test reverse conversion.
+    entity_from_client_entity = Entity.from_client_entity(ec)
+    self.assertEqual(e, entity_from_client_entity)
 
   def testKeyToClientKey(self):
     k = Key(['kind1', 'parent'],
@@ -101,6 +136,10 @@ class TypesTest(unittest.TestCase):
     kfc3 = Key.from_client_key(kfc2.to_client_key())
     self.assertEqual(kfc2, kfc3)
 
+    kfc4 = Key.from_client_key(kfc2.to_client_key())
+    kfc4.project = 'other'
+    self.assertNotEqual(kfc2, kfc4)
+
   def testKeyFromClientKeyNoNamespace(self):
     k = Key(['k1', 1234], project=self._PROJECT)
     ck = k.to_client_key()
@@ -110,7 +149,7 @@ class TypesTest(unittest.TestCase):
 
   def testKeyToClientKeyMissingProject(self):
     k = Key(['k1', 1234], namespace=self._NAMESPACE)
-    with self.assertRaisesRegexp(ValueError, r'project'):
+    with self.assertRaisesRegex(ValueError, r'project'):
       _ = Key.from_client_key(k.to_client_key())
 
   def testQuery(self):
@@ -132,7 +171,32 @@ class TypesTest(unittest.TestCase):
     self.assertEqual(order, cq.order)
     self.assertEqual(distinct_on, cq.distinct_on)
 
-    logging.info('query: %s', q)  # Test __repr__()
+    _LOGGER.info('query: %s', q)  # Test __repr__()
+
+  def testValueProviderFilters(self):
+    self.vp_filters = [
+        [(
+            StaticValueProvider(str, 'property_name'),
+            StaticValueProvider(str, '='),
+            StaticValueProvider(str, 'value'))],
+        [(
+            StaticValueProvider(str, 'property_name'),
+            StaticValueProvider(str, '='),
+            StaticValueProvider(str, 'value')),
+         ('property_name', '=', 'value')],
+    ]
+    self.expected_filters = [[('property_name', '=', 'value')],
+                             [('property_name', '=', 'value'),
+                              ('property_name', '=', 'value')],
+                            ]
+
+    for vp_filter, exp_filter in zip(self.vp_filters, self.expected_filters):
+      q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
+                filters=vp_filter)
+      cq = q._to_client_query(self._test_client)
+      self.assertEqual(exp_filter, cq.filters)
+
+      _LOGGER.info('query: %s', q)  # Test __repr__()
 
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.

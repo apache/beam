@@ -236,6 +236,7 @@ import itertools
 import json
 import logging
 import time
+import uuid
 from builtins import object
 from builtins import zip
 
@@ -270,6 +271,9 @@ __all__ = [
     'WriteToBigQuery',
     'SCHEMA_AUTODETECT',
     ]
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -437,7 +441,7 @@ class BigQuerySource(dataflow_io.NativeSource):
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base import py  # pylint: disable=unused-variable
+      from apitools.base import py  # pylint: disable=unused-import
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
@@ -574,7 +578,7 @@ bigquery_v2_messages.TableSchema` object.
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base import py  # pylint: disable=unused-variable
+      from apitools.base import py  # pylint: disable=unused-import
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
@@ -724,7 +728,7 @@ class BigQueryWriteFn(DoFn):
     self._max_buffered_rows = (max_buffered_rows
                                or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
     self._retry_strategy = (
-        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ON_TRANSIENT_ERROR)
+        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ALWAYS)
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
@@ -786,7 +790,7 @@ class BigQueryWriteFn(DoFn):
       # and avoid the get-or-create step.
       return
 
-    logging.debug('Creating or getting table %s with schema %s.',
+    _LOGGER.debug('Creating or getting table %s with schema %s.',
                   table_reference, schema)
 
     table_schema = self.get_table_schema(schema)
@@ -820,8 +824,8 @@ class BigQueryWriteFn(DoFn):
 
     destination = bigquery_tools.get_hashable_destination(destination)
 
-    row = element[1]
-    self._rows_buffer[destination].append(row)
+    row_and_insert_id = element[1]
+    self._rows_buffer[destination].append(row_and_insert_id)
     self._total_buffered_rows += 1
     if len(self._rows_buffer[destination]) >= self._max_batch_size:
       return self._flush_batch(destination)
@@ -832,7 +836,7 @@ class BigQueryWriteFn(DoFn):
     return self._flush_all_batches()
 
   def _flush_all_batches(self):
-    logging.debug('Attempting to flush to all destinations. Total buffered: %s',
+    _LOGGER.debug('Attempting to flush to all destinations. Total buffered: %s',
                   self._total_buffered_rows)
 
     return itertools.chain(*[self._flush_batch(destination)
@@ -842,26 +846,31 @@ class BigQueryWriteFn(DoFn):
   def _flush_batch(self, destination):
 
     # Flush the current batch of rows to BigQuery.
-    rows = self._rows_buffer[destination]
+    rows_and_insert_ids = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
 
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
 
-    logging.debug('Flushing data to %s. Total %s rows.',
-                  destination, len(rows))
+    _LOGGER.debug('Flushing data to %s. Total %s rows.',
+                  destination, len(rows_and_insert_ids))
+
+    rows = [r[0] for r in rows_and_insert_ids]
+    insert_ids = [r[1] for r in rows_and_insert_ids]
 
     while True:
-      # TODO: Figure out an insertId to make calls idempotent.
       passed, errors = self.bigquery_wrapper.insert_rows(
           project_id=table_reference.projectId,
           dataset_id=table_reference.datasetId,
           table_id=table_reference.tableId,
           rows=rows,
+          insert_ids=insert_ids,
           skip_invalid_rows=True)
 
-      logging.debug("Passed: %s. Errors are %s", passed, errors)
+      if not passed:
+        _LOGGER.info("There were errors inserting to BigQuery: %s",
+                     errors)
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
           bigquery_tools.RetryStrategy.should_retry(
@@ -873,7 +882,7 @@ class BigQueryWriteFn(DoFn):
         break
       else:
         retry_backoff = next(self._backoff_calculator)
-        logging.info('Sleeping %s seconds before retrying insertion.',
+        _LOGGER.info('Sleeping %s seconds before retrying insertion.',
                      retry_backoff)
         time.sleep(retry_backoff)
 
@@ -883,6 +892,68 @@ class BigQueryWriteFn(DoFn):
     return [pvalue.TaggedOutput(BigQueryWriteFn.FAILED_ROWS,
                                 GlobalWindows.windowed_value(
                                     (destination, row))) for row in failed_rows]
+
+
+class _StreamToBigQuery(PTransform):
+
+  def __init__(self,
+               table_reference,
+               table_side_inputs,
+               schema_side_inputs,
+               schema,
+               batch_size,
+               create_disposition,
+               write_disposition,
+               kms_key,
+               retry_strategy,
+               additional_bq_parameters,
+               test_client=None):
+    self.table_reference = table_reference
+    self.table_side_inputs = table_side_inputs
+    self.schema_side_inputs = schema_side_inputs
+    self.schema = schema
+    self.batch_size = batch_size
+    self.create_disposition = create_disposition
+    self.write_disposition = write_disposition
+    self.kms_key = kms_key
+    self.retry_strategy = retry_strategy
+    self.test_client = test_client
+    self.additional_bq_parameters = additional_bq_parameters
+
+  class InsertIdPrefixFn(DoFn):
+
+    def start_bundle(self):
+      self.prefix = str(uuid.uuid4())
+      self._row_count = 0
+
+    def process(self, element):
+      key = element[0]
+      value = element[1]
+
+      insert_id = '%s-%s' % (self.prefix, self._row_count)
+      self._row_count += 1
+      yield (key, (value, insert_id))
+
+  def expand(self, input):
+    bigquery_write_fn = BigQueryWriteFn(
+        schema=self.schema,
+        batch_size=self.batch_size,
+        create_disposition=self.create_disposition,
+        write_disposition=self.write_disposition,
+        kms_key=self.kms_key,
+        retry_strategy=self.retry_strategy,
+        test_client=self.test_client,
+        additional_bq_parameters=self.additional_bq_parameters)
+
+    return (input
+            | 'AppendDestination' >> beam.ParDo(
+                bigquery_tools.AppendDestinationsFn(self.table_reference),
+                *self.table_side_inputs)
+            | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
+            | 'CommitInsertIds' >> beam.Reshuffle()
+            | 'StreamInsertRows' >> ParDo(
+                bigquery_write_fn, *self.schema_side_inputs).with_outputs(
+                    BigQueryWriteFn.FAILED_ROWS, main='main'))
 
 
 # Flag to be passed to WriteToBigQuery to force schema autodetection
@@ -920,6 +991,7 @@ class WriteToBigQuery(PTransform):
                additional_bq_parameters=None,
                table_side_inputs=None,
                schema_side_inputs=None,
+               triggering_frequency=None,
                validate=True):
     """Initialize a WriteToBigQuery transform.
 
@@ -996,6 +1068,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         FILE_LOADS on Batch pipelines.
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
+        Default is to retry always. This means that whenever there are rows
+        that fail to be inserted to BigQuery, they will be retried indefinitely.
+        Other retry strategy settings will produce a deadletter PCollection
+        as output.
       additional_bq_parameters (callable): A function that returns a dictionary
         with additional parameters to pass to BQ when creating / loading data
         into a table. These can be 'timePartitioning', 'clustering', etc. They
@@ -1005,6 +1081,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
         passed to the schema callable (if one is provided).
+      triggering_frequency (int): Every triggering_frequency duration, a
+        BigQuery load job will be triggered for all the data written since
+        the last load job. BigQuery has limits on how many load jobs can be
+        triggered per day, so be careful not to set this duration too low, or
+        you may exceed daily quota. Often this is set to 5 or 10 minutes to
+        ensure that the project stays well under the BigQuery quota.
+        See https://cloud.google.com/bigquery/quota-policy for more information
+        about BigQuery quotas.
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
     """
@@ -1027,6 +1111,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.max_file_size = max_file_size
     self.max_files_per_bundle = max_files_per_bundle
     self.method = method or WriteToBigQuery.Method.DEFAULT
+    self.triggering_frequency = triggering_frequency
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
 
@@ -1112,19 +1197,14 @@ bigquery_v2_messages.TableSchema):
     else:
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
-  def _compute_method(self, pipeline, options):
-    experiments = options.view_as(DebugOptions).experiments or []
-
-    # TODO(pabloem): Use a different method to determine if streaming or batch.
-    streaming_pipeline = pipeline.options.view_as(StandardOptions).streaming
-
+  def _compute_method(self, experiments, is_streaming_pipeline):
     # If the new BQ sink is not activated for experiment flags, then we use
     # streaming inserts by default (it gets overridden in dataflow_runner.py).
     if 'use_beam_bq_sink' not in experiments:
       return self.Method.STREAMING_INSERTS
-    elif self.method == self.Method.DEFAULT and streaming_pipeline:
+    elif self.method == self.Method.DEFAULT and is_streaming_pipeline:
       return self.Method.STREAMING_INSERTS
-    elif self.method == self.Method.DEFAULT and not streaming_pipeline:
+    elif self.method == self.Method.DEFAULT and not is_streaming_pipeline:
       return self.Method.FILE_LOADS
     else:
       return self.method
@@ -1137,7 +1217,11 @@ bigquery_v2_messages.TableSchema):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
 
-    method_to_use = self._compute_method(p, p.options)
+    experiments = p.options.view_as(DebugOptions).experiments or []
+    # TODO(pabloem): Use a different method to determine if streaming or batch.
+    is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
+
+    method_to_use = self._compute_method(experiments, is_streaming_pipeline)
 
     if (method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS
         and self.schema == SCHEMA_AUTODETECT):
@@ -1145,37 +1229,31 @@ bigquery_v2_messages.TableSchema):
                        'inserts into BigQuery. Only for File Loads.')
 
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
-      # TODO: Support load jobs for streaming pipelines.
-      bigquery_write_fn = BigQueryWriteFn(
-          schema=self.schema,
-          batch_size=self.batch_size,
-          create_disposition=self.create_disposition,
-          write_disposition=self.write_disposition,
-          kms_key=self.kms_key,
-          retry_strategy=self.insert_retry_strategy,
-          test_client=self.test_client,
-          additional_bq_parameters=self.additional_bq_parameters)
+      if self.triggering_frequency:
+        raise ValueError('triggering_frequency can only be used with '
+                         'FILE_LOADS method of writing to BigQuery.')
 
-      outputs = (pcoll
-                 | 'AppendDestination' >> beam.ParDo(
-                     bigquery_tools.AppendDestinationsFn(self.table_reference),
-                     *self.table_side_inputs)
-                 | 'StreamInsertRows' >> ParDo(
-                     bigquery_write_fn, *self.schema_side_inputs).with_outputs(
-                         BigQueryWriteFn.FAILED_ROWS, main='main'))
+      outputs = pcoll | _StreamToBigQuery(self.table_reference,
+                                          self.table_side_inputs,
+                                          self.schema_side_inputs,
+                                          self.schema,
+                                          self.batch_size,
+                                          self.create_disposition,
+                                          self.write_disposition,
+                                          self.kms_key,
+                                          self.insert_retry_strategy,
+                                          self.additional_bq_parameters,
+                                          test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
-      if p.options.view_as(StandardOptions).streaming:
-        raise NotImplementedError(
-            'File Loads to BigQuery are only supported on Batch pipelines.')
-
       from apache_beam.io.gcp import bigquery_file_loads
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.schema,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
+          triggering_frequency=self.triggering_frequency,
           max_file_size=self.max_file_size,
           max_files_per_bundle=self.max_files_per_bundle,
           custom_gcs_temp_location=self.custom_gcs_temp_location,
@@ -1183,7 +1261,8 @@ bigquery_v2_messages.TableSchema):
           table_side_inputs=self.table_side_inputs,
           schema_side_inputs=self.schema_side_inputs,
           additional_bq_parameters=self.additional_bq_parameters,
-          validate=self._validate)
+          validate=self._validate,
+          is_streaming_pipeline=is_streaming_pipeline)
 
   def display_data(self):
     res = {}

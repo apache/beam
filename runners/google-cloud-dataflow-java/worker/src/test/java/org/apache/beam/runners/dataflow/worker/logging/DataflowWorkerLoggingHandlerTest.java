@@ -35,8 +35,8 @@ import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Timestamp;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -348,7 +348,7 @@ public class DataflowWorkerLoggingHandlerTest {
         .setLogLocation("LoggerName")
         .setSeverity(BeamFnApi.LogEntry.Severity.Enum.INFO)
         .setMessage(message)
-        .setInstructionReference("1")
+        .setInstructionId("1")
         .setThread("2")
         .setTimestamp(Timestamp.newBuilder().setSeconds(0).setNanos(1 * 1000000))
         .build();

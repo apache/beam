@@ -22,7 +22,11 @@ from __future__ import absolute_import
 import datetime
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import pytz
+from google.protobuf import duration_pb2
+from google.protobuf import timestamp_pb2
 
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
@@ -65,10 +69,19 @@ class TimestampTest(unittest.TestCase):
       self.assertEqual(rfc3339_str,
                        Timestamp.from_rfc3339(rfc3339_str).to_rfc3339())
 
+  def test_from_rfc3339_with_timezone(self):
+    test_cases = [
+        (1458328979.123456, '2016-03-18T23:22:59.123456+04:00'),
+        (1458357779.123456, '2016-03-18T23:22:59.123456-04:00'),
+    ]
+    for seconds_float, rfc3339_str in test_cases:
+      self.assertEqual(Timestamp(seconds_float),
+                       Timestamp.from_rfc3339(rfc3339_str))
+
   def test_from_rfc3339_failure(self):
-    with self.assertRaisesRegexp(ValueError, 'parse'):
+    with self.assertRaisesRegex(ValueError, 'parse'):
       Timestamp.from_rfc3339('not rfc3339')
-    with self.assertRaisesRegexp(ValueError, 'parse'):
+    with self.assertRaisesRegex(ValueError, 'parse'):
       Timestamp.from_rfc3339('2016-03-18T23:22:59.123456Z unparseable')
 
   def test_from_utc_datetime(self):
@@ -76,7 +89,7 @@ class TimestampTest(unittest.TestCase):
         Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1,
                                                       tzinfo=pytz.utc)),
         Timestamp(0))
-    with self.assertRaisesRegexp(ValueError, r'UTC'):
+    with self.assertRaisesRegex(ValueError, r'UTC'):
       Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1))
 
   def test_arithmetic(self):
@@ -89,6 +102,7 @@ class TimestampTest(unittest.TestCase):
     self.assertEqual(Timestamp(123) - Duration(456), -333)
     self.assertEqual(Timestamp(1230) % 456, 318)
     self.assertEqual(Timestamp(1230) % Duration(456), 318)
+    self.assertEqual(Timestamp(123) - Timestamp(100), 23)
 
     # Check that direct comparison of Timestamp and Duration is allowed.
     self.assertTrue(Duration(123) == Timestamp(123))
@@ -105,6 +119,7 @@ class TimestampTest(unittest.TestCase):
     self.assertEqual((Timestamp(123) - Duration(456)).__class__, Timestamp)
     self.assertEqual((Timestamp(1230) % 456).__class__, Duration)
     self.assertEqual((Timestamp(1230) % Duration(456)).__class__, Duration)
+    self.assertEqual((Timestamp(123) - Timestamp(100)).__class__, Duration)
 
     # Unsupported operations.
     with self.assertRaises(TypeError):
@@ -147,6 +162,27 @@ class TimestampTest(unittest.TestCase):
                      str(Timestamp(999999999)))
     self.assertEqual('Timestamp(-999999999)',
                      str(Timestamp(-999999999)))
+
+  def test_now(self):
+    now = Timestamp.now()
+    self.assertTrue(isinstance(now, Timestamp))
+
+  def test_from_proto(self):
+    ts_proto = timestamp_pb2.Timestamp(seconds=1234, nanos=56000)
+    actual_ts = Timestamp.from_proto(ts_proto)
+    expected_ts = Timestamp(seconds=1234, micros=56)
+    self.assertEqual(actual_ts, expected_ts)
+
+  def test_from_proto_fails_with_truncation(self):
+    # TODO(BEAM-8738): Better define timestamps.
+    with self.assertRaises(ValueError):
+      Timestamp.from_proto(timestamp_pb2.Timestamp(seconds=1234, nanos=56789))
+
+  def test_to_proto(self):
+    ts = Timestamp(seconds=1234, micros=56)
+    actual_ts_proto = Timestamp.to_proto(ts)
+    expected_ts_proto = timestamp_pb2.Timestamp(seconds=1234, nanos=56000)
+    self.assertEqual(actual_ts_proto, expected_ts_proto)
 
 
 class DurationTest(unittest.TestCase):
@@ -191,6 +227,23 @@ class DurationTest(unittest.TestCase):
                      str(Duration(999999999)))
     self.assertEqual('Duration(-999999999)',
                      str(Duration(-999999999)))
+
+  def test_from_proto(self):
+    dur_proto = duration_pb2.Duration(seconds=1234, nanos=56000)
+    actual_dur = Duration.from_proto(dur_proto)
+    expected_dur = Duration(seconds=1234, micros=56)
+    self.assertEqual(actual_dur, expected_dur)
+
+  def test_from_proto_fails_with_truncation(self):
+    # TODO(BEAM-8738): Better define durations.
+    with self.assertRaises(ValueError):
+      Duration.from_proto(duration_pb2.Duration(seconds=1234, nanos=56789))
+
+  def test_to_proto(self):
+    dur = Duration(seconds=1234, micros=56)
+    actual_dur_proto = Duration.to_proto(dur)
+    expected_dur_proto = duration_pb2.Duration(seconds=1234, nanos=56000)
+    self.assertEqual(actual_dur_proto, expected_dur_proto)
 
 
 if __name__ == '__main__':

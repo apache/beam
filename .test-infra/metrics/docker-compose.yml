@@ -25,12 +25,14 @@ services:
     container_name: beampostgresql
     volumes:
       - beam-postgresql-data:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=<PGPasswordHere>
       - POSTGRES_DB=beam_metrics
   grafana:
-    image: grafana/grafana
+    image: beamgrafana
+    build: ./grafana
     ports:
       - "3000:3000"
     container_name: beamgrafana
@@ -42,7 +44,11 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=<GrafanaPasswordHere>
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
-      - GF_INSTALL_PLUGINS=vonage-status-panel
+      - DB_HOST=beampostgresql
+      - DB_PORT=5432
+      - DB_DBNAME=beam_metrics
+      - DB_DBUSERNAME=admin
+      - DB_DBPWD=<PGPasswordHere>
   syncgithub:
     image: syncgithub
     container_name: beamsyncgithub
@@ -55,7 +61,7 @@ services:
       - DB_DBNAME=beam_metrics
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
-      - GH_ACCESS_TOKEN=<GitHubAccessToken>
+      - GH_ACCESS_TOKEN=<GithubAccessToken>
   syncjenkins:
     image: syncjenkins
     container_name: beamsyncjenkins
@@ -63,11 +69,11 @@ services:
       context: ./sync/jenkins
       dockerfile: Dockerfile
     environment:
-      - JENSYNC_HOST=beampostgresql
-      - JENSYNC_PORT=5432
-      - JENSYNC_DBNAME=beam_metrics
-      - JENSYNC_DBUSERNAME=admin
-      - JENSYNC_DBPWD=<PGPasswordHere>
+      - DB_HOST=beampostgresql
+      - DB_PORT=5432
+      - DB_DBNAME=beam_metrics
+      - DB_DBUSERNAME=admin
+      - DB_DBPWD=<PGPasswordHere>
   syncjira:
     image: syncjira
     container_name: beamsyncjira
@@ -80,9 +86,35 @@ services:
       - DB_DBNAME=beam_metrics
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus/config:/etc/prometheus:ro
+      - prometheus-storage:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --web.console.templates=/etc/prometheus/consoles
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=365d
+  pushgateway:
+    image: prom/pushgateway
+    container_name: pushgateway
+    ports:
+      - 9091:9091
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    ports:
+      - 9093:9093
+    volumes:
+      - ./prometheus/alertmanager/config:/etc/alertmanager:ro
 volumes:
   beam-postgresql-data:
   beam-grafana-libdata:
   beam-grafana-etcdata:
   beam-grafana-logdata:
-
+  prometheus-storage:

@@ -37,6 +37,7 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -45,10 +46,11 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.context.Context;
 import org.joda.time.Instant;
 
@@ -60,8 +62,8 @@ public class SamzaDoFnRunners {
       SamzaPipelineOptions pipelineOptions,
       DoFn<InT, FnOutT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
-      String stepName,
-      String stateId,
+      String transformFullName,
+      String transformId,
       Context context,
       TupleTag<FnOutT> mainOutputTag,
       SideInputHandler sideInputHandler,
@@ -71,14 +73,15 @@ public class SamzaDoFnRunners {
       Coder<InT> inputCoder,
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stateId, keyCoder, context.getTaskContext(), pipelineOptions, signature);
+            transformId, keyCoder, context.getTaskContext(), pipelineOptions, signature);
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
@@ -104,12 +107,13 @@ public class SamzaDoFnRunners {
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final DoFnRunner<InT, FnOutT> doFnRunnerWithMetrics =
         pipelineOptions.getEnableMetrics()
             ? DoFnRunnerWithMetrics.wrap(
-                underlyingRunner, executionContext.getMetricsContainer(), stepName)
+                underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
             : underlyingRunner;
 
     if (keyedInternals != null) {
@@ -160,19 +164,21 @@ public class SamzaDoFnRunners {
 
   /** Create DoFnRunner for portable runner. */
   public static <InT, FnOutT> DoFnRunner<InT, FnOutT> createPortable(
+      SamzaPipelineOptions pipelineOptions,
+      BagState<WindowedValue<InT>> bundledEventsBag,
       DoFnRunners.OutputManager outputManager,
       StageBundleFactory stageBundleFactory,
       TupleTag<FnOutT> mainOutputTag,
       Map<String, TupleTag<?>> idToTupleTagMap,
       Context context,
-      String stepName) {
+      String transformFullName) {
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
     final DoFnRunner<InT, FnOutT> sdkHarnessDoFnRunner =
         new SdkHarnessDoFnRunner<>(
-            outputManager, stageBundleFactory, mainOutputTag, idToTupleTagMap);
+            outputManager, stageBundleFactory, mainOutputTag, idToTupleTagMap, bundledEventsBag);
     return DoFnRunnerWithMetrics.wrap(
-        sdkHarnessDoFnRunner, executionContext.getMetricsContainer(), stepName);
+        sdkHarnessDoFnRunner, executionContext.getMetricsContainer(), transformFullName);
   }
 
   private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
@@ -181,23 +187,25 @@ public class SamzaDoFnRunners {
     private final TupleTag<FnOutT> mainOutputTag;
     private final Map<String, TupleTag<?>> idToTupleTagMap;
     private final LinkedBlockingQueue<KV<String, FnOutT>> outputQueue = new LinkedBlockingQueue<>();
+    private final BagState<WindowedValue<InT>> bundledEventsBag;
+    private RemoteBundle remoteBundle;
+    private FnDataReceiver<WindowedValue<?>> inputReceiver;
 
     private SdkHarnessDoFnRunner(
         DoFnRunners.OutputManager outputManager,
         StageBundleFactory stageBundleFactory,
         TupleTag<FnOutT> mainOutputTag,
-        Map<String, TupleTag<?>> idToTupleTagMap) {
+        Map<String, TupleTag<?>> idToTupleTagMap,
+        BagState<WindowedValue<InT>> bundledEventsBag) {
       this.outputManager = outputManager;
       this.stageBundleFactory = stageBundleFactory;
       this.mainOutputTag = mainOutputTag;
       this.idToTupleTagMap = idToTupleTagMap;
+      this.bundledEventsBag = bundledEventsBag;
     }
 
     @Override
-    public void startBundle() {}
-
-    @Override
-    public void processElement(WindowedValue<InT> elem) {
+    public void startBundle() {
       try {
         OutputReceiverFactory receiverFactory =
             new OutputReceiverFactory() {
@@ -210,22 +218,45 @@ public class SamzaDoFnRunners {
               }
             };
 
-        try (RemoteBundle bundle =
+        remoteBundle =
             stageBundleFactory.getBundle(
                 receiverFactory,
                 StateRequestHandler.unsupported(),
-                BundleProgressHandler.ignored())) {
-          Iterables.getOnlyElement(bundle.getInputReceivers().values()).accept(elem);
-        }
+                BundleProgressHandler.ignored());
 
-        // RemoteBundle close blocks until all results are received
-        KV<String, FnOutT> result;
-        while ((result = outputQueue.poll()) != null) {
-          outputManager.output(
-              idToTupleTagMap.get(result.getKey()), (WindowedValue) result.getValue());
-        }
+        // TODO: side input support needs to implement to handle this properly
+        inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
+        bundledEventsBag
+            .read()
+            .forEach(
+                elem -> {
+                  try {
+                    inputReceiver.accept(elem);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                });
       } catch (Exception e) {
         throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public void processElement(WindowedValue<InT> elem) {
+      try {
+        bundledEventsBag.add(elem);
+        inputReceiver.accept(elem);
+        emitResults();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    private void emitResults() {
+      KV<String, FnOutT> result;
+      while ((result = outputQueue.poll()) != null) {
+        outputManager.output(
+            idToTupleTagMap.get(result.getKey()), (WindowedValue) result.getValue());
       }
     }
 
@@ -234,7 +265,19 @@ public class SamzaDoFnRunners {
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
 
     @Override
-    public void finishBundle() {}
+    public void finishBundle() {
+      try {
+        // RemoteBundle close blocks until all results are received
+        remoteBundle.close();
+        emitResults();
+        bundledEventsBag.clear();
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to finish remote bundle", e);
+      } finally {
+        remoteBundle = null;
+        inputReceiver = null;
+      }
+    }
 
     @Override
     public DoFn<InT, FnOutT> getFn() {

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -59,8 +59,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -115,6 +115,8 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
   private DoFnSchemaInformation doFnSchemaInformation;
 
+  private Map<String, PCollectionView<?>> sideInputMapping;
+
   FnApiDoFnRunner(Context<InputT, OutputT> context) {
     this.context = context;
 
@@ -122,6 +124,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
             (Collection) context.localNameToConsumer.get(context.mainOutputTag.getId());
     this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.parDoPayload);
+    this.sideInputMapping = ParDoTranslation.getSideInputMapping(context.parDoPayload);
     this.doFnInvoker = DoFnInvokers.invokerFor(context.doFn);
     this.doFnInvoker.invokeSetup();
 
@@ -220,6 +223,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     // TODO: Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
     this.stateAccessor = null;
+  }
+
+  @Override
+  public void tearDown() {
+    doFnInvoker.invokeTeardown();
   }
 
   /** Outputs the given element to the specified set of consumers wrapping any exceptions. */
@@ -394,6 +402,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       return element();
+    }
+
+    @Override
+    public Object sideInput(String tagId) {
+      return sideInput(sideInputMapping.get(tagId));
     }
 
     @Override
@@ -578,6 +591,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
+    public InputT sideInput(String tagId) {
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 
     @Override

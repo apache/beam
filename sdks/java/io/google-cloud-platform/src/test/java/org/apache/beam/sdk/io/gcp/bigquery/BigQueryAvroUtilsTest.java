@@ -41,9 +41,9 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -243,8 +243,8 @@ public class BigQueryAvroUtilsTest {
                 Schema.create(Type.NULL),
                 Schema.createRecord(
                     "scion",
-                    "org.apache.beam.sdk.io.gcp.bigquery",
                     "Translated Avro Schema for scion",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
                     false,
                     ImmutableList.of(
                         new Field(
@@ -259,8 +259,8 @@ public class BigQueryAvroUtilsTest {
             Schema.createArray(
                 Schema.createRecord(
                     "associates",
-                    "org.apache.beam.sdk.io.gcp.bigquery",
                     "Translated Avro Schema for associates",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
                     false,
                     ImmutableList.of(
                         new Field(

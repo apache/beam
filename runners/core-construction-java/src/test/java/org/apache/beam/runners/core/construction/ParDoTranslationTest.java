@@ -62,7 +62,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -122,7 +122,7 @@ public class ParDoTranslationTest {
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
-      for (PCollectionView<?> view : parDo.getSideInputs()) {
+      for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
     }
@@ -148,7 +148,7 @@ public class ParDoTranslationTest {
 
       // Decode
       ParDoPayload parDoPayload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
-      for (PCollectionView<?> view : parDo.getSideInputs()) {
+      for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
             PCollectionViewTranslation.viewFromProto(

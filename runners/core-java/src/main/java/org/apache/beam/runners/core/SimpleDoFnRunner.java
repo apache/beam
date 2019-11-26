@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collection;
 import java.util.List;
@@ -54,9 +54,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -106,6 +106,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Nullable private final DoFnSchemaInformation doFnSchemaInformation;
 
+  private final Map<String, PCollectionView<?>> sideInputMapping;
+
   /** Constructor. */
   public SimpleDoFnRunner(
       PipelineOptions options,
@@ -118,7 +120,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       @Nullable Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.options = options;
     this.fn = fn;
     this.signature = DoFnSignatures.getSignature(fn.getClass());
@@ -151,6 +154,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.windowCoder = untypedCoder;
     this.allowedLateness = windowingStrategy.getAllowedLateness();
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
@@ -302,6 +306,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public InputT sideInput(String tagId) {
+      throw new UnsupportedOperationException(
+          "SideInput parameters are not supported outside of @ProcessElement method.");
+    }
+
+    @Override
     public Object schemaElement(int index) {
       throw new UnsupportedOperationException(
           "Element parameters are not supported outside of @ProcessElement method.");
@@ -413,6 +423,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
+    }
+
+    @Override
+    public InputT sideInput(String tagId) {
+      throw new UnsupportedOperationException(
+          "Cannot access sideInput outside of @ProcessElement method.");
     }
 
     @Override
@@ -632,6 +648,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Object sideInput(String tagId) {
+      return sideInput(sideInputMapping.get(tagId));
+    }
+
+    @Override
     public Object schemaElement(int index) {
       SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
       return converter.apply(element());
@@ -779,6 +800,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
+    public Object sideInput(String tagId) {
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 
     @Override

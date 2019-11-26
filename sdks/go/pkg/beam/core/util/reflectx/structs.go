@@ -44,7 +44,7 @@ func RegisterStructWrapper(t reflect.Type, wrapper func(interface{}) map[string]
 	}
 
 	key := t.String()
-	if _, exists := funcs[key]; exists {
+	if _, exists := structFuncs[key]; exists {
 		log.Warnf(context.Background(), "StructWrapper for %v already registered. Overwriting.", key)
 	}
 	structFuncs[key] = wrapper

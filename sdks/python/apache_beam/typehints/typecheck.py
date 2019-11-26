@@ -71,9 +71,6 @@ class AbstractDoFnWrapper(DoFn):
   def finish_bundle(self, *args, **kwargs):
     return self.wrapper(self.dofn.finish_bundle, args, kwargs)
 
-  def is_process_bounded(self):
-    return self.dofn.is_process_bounded()
-
 
 class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""
@@ -130,7 +127,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
   def process(self, *args, **kwargs):
     if self._input_hints:
-      actual_inputs = inspect.getcallargs(self._process_fn, *args, **kwargs)
+      actual_inputs = inspect.getcallargs(self._process_fn, *args, **kwargs)  # pylint: disable=deprecated-method
       for var, hint in self._input_hints.items():
         if hint is actual_inputs[var]:
           # self parameter

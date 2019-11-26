@@ -76,7 +76,7 @@ dependencies {
   compile project(":runners:java-fn-execution")
   compile project(":sdks:java:fn-execution")
   compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
-  compile library.java.vendored_grpc_1_13_1
+  compile library.java.vendored_grpc_1_21_0
   compile google_api_services_dataflow
   compile library.java.avro
   compile library.java.google_api_client
@@ -86,7 +86,7 @@ dependencies {
   compile library.java.jackson_core
   compile library.java.jackson_databind
   compile library.java.joda_time
-  shadow library.java.vendored_guava_20_0
+  shadow library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
   compile "javax.servlet:javax.servlet-api:3.1.0"
   compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"

@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.spark.coders;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.function.Function;
@@ -149,7 +151,7 @@ public final class CoderHelpers {
    */
   public static class FromByteFunction<K, V>
       implements PairFunction<Tuple2<ByteArray, byte[]>, K, V>,
-          org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function<
+          org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function<
               Tuple2<ByteArray, byte[]>, Tuple2<K, V>> {
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
@@ -169,8 +171,11 @@ public final class CoderHelpers {
           fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
     }
 
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public Tuple2<K, V> apply(Tuple2<ByteArray, byte[]> tuple) {
+    public Tuple2<K, V> apply(@Nonnull Tuple2<ByteArray, byte[]> tuple) {
       return call(tuple);
     }
   }

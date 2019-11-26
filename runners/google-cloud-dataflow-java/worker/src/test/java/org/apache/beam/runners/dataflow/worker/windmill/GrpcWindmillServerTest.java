@@ -59,13 +59,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.util.MutableHandlerRegistry;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -87,7 +87,7 @@ public class GrpcWindmillServerTest {
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
   private GrpcWindmillServer client;
-  private static final int STREAM_CHUNK_SIZE = 63 * 1024;
+  private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private int remainingErrors = 20;
 
   @Before

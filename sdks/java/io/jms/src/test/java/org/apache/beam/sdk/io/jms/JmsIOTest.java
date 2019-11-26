@@ -56,7 +56,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -264,7 +264,7 @@ public class JmsIOTest {
     int desiredNumSplits = 5;
     JmsIO.UnboundedJmsSource initialSource = new JmsIO.UnboundedJmsSource(read);
     List<JmsIO.UnboundedJmsSource> splits = initialSource.split(desiredNumSplits, pipelineOptions);
-    // in the case of a topic, we can have only an unique subscriber on the topic per pipeline
+    // in the case of a topic, we can have only a unique subscriber on the topic per pipeline
     // else it means we can have duplicate messages (all subscribers on the topic receive every
     // message).
     // So, whatever the desizedNumSplits is, the actual number of splits should be 1.

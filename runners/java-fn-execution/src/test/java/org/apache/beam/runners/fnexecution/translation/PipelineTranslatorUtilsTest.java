@@ -23,8 +23,8 @@ import static org.junit.Assert.assertThat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 /** Tests for {@link PipelineTranslatorUtils}. */

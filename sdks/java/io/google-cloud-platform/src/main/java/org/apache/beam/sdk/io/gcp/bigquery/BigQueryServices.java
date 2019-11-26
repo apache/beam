@@ -55,7 +55,7 @@ public interface BigQueryServices extends Serializable {
   StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
 
   /** An interface for the Cloud BigQuery load service. */
-  interface JobService {
+  public interface JobService {
     /** Start a BigQuery load job. */
     void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
@@ -91,7 +91,7 @@ public interface BigQueryServices extends Serializable {
   }
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
-  interface DatasetService {
+  public interface DatasetService {
     /**
      * Gets the specified {@link Table} resource by table ID.
      *

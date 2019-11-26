@@ -52,9 +52,9 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -206,16 +206,17 @@ public class FlinkSavepointTest implements Serializable {
 
     ListeningExecutorService executorService =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+    FlinkPipelineOptions pipelineOptions = pipeline.getOptions().as(FlinkPipelineOptions.class);
     try {
       JobInvocation jobInvocation =
-          FlinkJobInvoker.createJobInvocation(
-              "id",
-              "none",
-              executorService,
-              pipelineProto,
-              pipeline.getOptions().as(FlinkPipelineOptions.class),
-              null,
-              Collections.emptyList());
+          FlinkJobInvoker.create(null)
+              .createJobInvocation(
+                  "id",
+                  "none",
+                  executorService,
+                  pipelineProto,
+                  pipelineOptions,
+                  new FlinkPipelineRunner(pipelineOptions, null, Collections.emptyList()));
 
       jobInvocation.start();
 

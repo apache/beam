@@ -39,12 +39,12 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingInputStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingInputStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
 
 /**
  * Properties for use in {@link Coder} tests. These are implemented with junit assertions rather
@@ -102,6 +102,17 @@ public class CoderProperties {
   public static <T> void coderDecodeEncodeEqualInContext(
       Coder<T> coder, Coder.Context context, T value) throws Exception {
     assertThat(decodeEncode(coder, context, value), equalTo(value));
+  }
+
+  /**
+   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and value of type {@code
+   * T}, encoding followed by decoding yields a value of type {@code T} and tests that the matcher
+   * succeeds on the values.
+   */
+  public static <T> void coderDecodeEncodeInContext(
+      Coder<T> coder, Coder.Context context, T value, org.hamcrest.Matcher<T> matcher)
+      throws Exception {
+    assertThat(decodeEncode(coder, context, value), matcher);
   }
 
   /**

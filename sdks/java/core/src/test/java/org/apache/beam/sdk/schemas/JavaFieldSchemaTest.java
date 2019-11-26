@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_NULLABLE_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLES_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ITERABLE;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_NESTED_ARRAY_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
@@ -46,15 +47,17 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithIterable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithNestedArray;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -179,6 +182,18 @@ public class JavaFieldSchemaTest {
     assertEquals(BYTE_BUFFER, pojo.byteBuffer);
     assertEquals(BigDecimal.ONE, pojo.bigDecimal);
     assertEquals("stringbuilder", pojo.stringBuilder.toString());
+  }
+
+  @Test
+  public void testToRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getToRowFunction(SimplePOJO.class));
+  }
+
+  @Test
+  public void testFromRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getFromRowFunction(SimplePOJO.class));
   }
 
   @Test
@@ -415,7 +430,7 @@ public class JavaFieldSchemaTest {
   }
 
   @Test
-  public void testNNestedullValuesSetters() throws NoSuchSchemaException {
+  public void testNestedNullValuesSetters() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
 
     Row row = Row.withSchema(NESTED_NULLABLE_SCHEMA).addValue(null).build();
@@ -494,5 +509,22 @@ public class JavaFieldSchemaTest {
             .getToRowFunction(PojoWithNestedArray.class)
             .apply(new PojoWithNestedArray(simplePojoListOfList));
     assertEquals(nestedRow, converted);
+  }
+
+  @Test
+  public void testIterableFieldFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(PojoWithIterable.class);
+    SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_ITERABLE, schema);
+
+    List<String> list = Lists.newArrayList("one", "two");
+    Row iterableRow = Row.withSchema(POJO_WITH_ITERABLE).addIterable(list).build();
+    PojoWithIterable converted =
+        registry.getFromRowFunction(PojoWithIterable.class).apply(iterableRow);
+    assertEquals(list, Lists.newArrayList(converted.strings));
+
+    // Make sure that the captured Iterable is backed by the previous one.
+    list.add("three");
+    assertEquals(list, Lists.newArrayList(converted.strings));
   }
 }

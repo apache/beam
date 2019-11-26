@@ -30,7 +30,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;

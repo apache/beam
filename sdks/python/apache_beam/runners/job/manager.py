@@ -29,6 +29,8 @@ import grpc
 
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class DockerRPCManager(object):
   """A native co-process to start a contianer that speaks the JobApi
@@ -51,5 +53,5 @@ class DockerRPCManager(object):
   def __del__(self):
     """Terminate the co-process when the manager is GC'ed
     """
-    logging.info('Shutting the co-process')
+    _LOGGER.info('Shutting the co-process')
     self.process.terminate()

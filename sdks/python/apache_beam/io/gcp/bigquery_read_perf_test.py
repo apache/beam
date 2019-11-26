@@ -36,6 +36,9 @@ python setup.py nosetests \
     --staging_location=gs://...
     --temp_location=gs://...
     --sdk_location=.../dist/apache-beam-x.x.x.dev0.tar.gz
+    --publish_to_big_query=true
+    --metrics_dataset=gs://...
+    --metrics_table=...
     --input_dataset=...
     --input_table=...
     --input_options='{
@@ -54,6 +57,7 @@ import os
 import unittest
 
 from apache_beam import Map
+from apache_beam import ParDo
 from apache_beam.io import BigQueryDisposition
 from apache_beam.io import BigQuerySource
 from apache_beam.io import Read
@@ -61,6 +65,8 @@ from apache_beam.io import WriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -119,7 +125,7 @@ class BigQueryReadPerfTest(LoadTest):
      | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
      | 'Format' >> Map(format_record)
      | 'Write to BigQuery' >> WriteToBigQuery(
-         self.input_dataset + '.' + self.input_table,
+         dataset=self.input_dataset, table=self.input_table,
          schema=SCHEMA,
          create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
          write_disposition=BigQueryDisposition.WRITE_EMPTY))
@@ -129,6 +135,10 @@ class BigQueryReadPerfTest(LoadTest):
     self.result = (self.pipeline
                    | 'Read from BigQuery' >> Read(BigQuerySource(
                        dataset=self.input_dataset, table=self.input_table))
+                   | 'Count messages' >> ParDo(CountMessages(
+                       self.metrics_namespace))
+                   | 'Measure time' >> ParDo(MeasureTime(
+                       self.metrics_namespace))
                    | 'Count' >> Count.Globally())
 
 

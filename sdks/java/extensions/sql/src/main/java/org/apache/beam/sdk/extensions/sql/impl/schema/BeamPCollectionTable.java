@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -27,7 +30,7 @@ import org.apache.beam.sdk.values.Row;
  * {@code BeamPCollectionTable} converts a {@code PCollection<Row>} as a virtual table, then a
  * downstream query can query directly.
  */
-public class BeamPCollectionTable<InputT> extends BaseBeamTable {
+public class BeamPCollectionTable<InputT> extends SchemaBaseBeamTable {
   private transient PCollection<InputT> upstream;
 
   public BeamPCollectionTable(PCollection<InputT> upstream) {
@@ -52,5 +55,10 @@ public class BeamPCollectionTable<InputT> extends BaseBeamTable {
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     throw new IllegalArgumentException("cannot use [BeamPCollectionTable] as target");
+  }
+
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 }

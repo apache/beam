@@ -629,3 +629,4 @@ class _FastAvroSink(_BaseAvroSink):
 
   def close(self, writer):
     writer.flush()
+    writer.fo.close()

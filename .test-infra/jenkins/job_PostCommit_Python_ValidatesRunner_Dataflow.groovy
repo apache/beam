@@ -28,12 +28,16 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+  publishers {
+    archiveJunit('**/nosetests*.xml')
+  }
+
   // Execute gradle task to test Python SDK.
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:validatesRunnerBatchTests')
-      tasks(':sdks:python:validatesRunnerStreamingTests')
+      tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerBatchTests')
+      tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerStreamingTests')
       tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests')
       tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
       tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests')

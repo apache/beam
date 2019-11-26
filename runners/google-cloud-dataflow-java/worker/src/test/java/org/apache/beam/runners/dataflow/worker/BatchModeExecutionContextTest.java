@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext.BatchModeExecutionState;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
@@ -78,7 +79,7 @@ public class BatchModeExecutionContextTest {
                             .setOriginNamespace("namespace")
                             .setName("some-counter")
                             .setOriginalStepName("originalName"))
-                    .setMetadata(new CounterMetadata().setKind("SUM")))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
             .setCumulative(true)
             .setInteger(longToSplitInt(42));
 
@@ -102,7 +103,7 @@ public class BatchModeExecutionContextTest {
                             .setOriginNamespace("namespace")
                             .setName("uncommitted-counter")
                             .setOriginalStepName("originalName"))
-                    .setMetadata(new CounterMetadata().setKind("SUM")))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
             .setCumulative(true)
             .setInteger(longToSplitInt(64));
 
@@ -145,7 +146,7 @@ public class BatchModeExecutionContextTest {
                             .setOriginNamespace("namespace")
                             .setName("some-distribution")
                             .setOriginalStepName("originalName"))
-                    .setMetadata(new CounterMetadata().setKind("DISTRIBUTION")))
+                    .setMetadata(new CounterMetadata().setKind(Kind.DISTRIBUTION.toString())))
             .setCumulative(true)
             .setDistribution(
                 new DistributionUpdate()
@@ -249,7 +250,7 @@ public class BatchModeExecutionContextTest {
                         .setOrigin("SYSTEM")
                         .setName(counterName)
                         .setExecutionStepName(stageName))
-                .setMetadata(new CounterMetadata().setKind("SUM")))
+                .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
         .setCumulative(true)
         .setInteger(longToSplitInt(value));
   }
@@ -265,7 +266,7 @@ public class BatchModeExecutionContextTest {
                         .setName(counterName)
                         .setOriginalStepName(originalStepName)
                         .setExecutionStepName(stageName))
-                .setMetadata(new CounterMetadata().setKind("SUM")))
+                .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
         .setCumulative(true)
         .setInteger(longToSplitInt(value));
   }

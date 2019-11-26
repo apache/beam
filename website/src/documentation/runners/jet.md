@@ -21,7 +21,7 @@ limitations under the License.
 
 ## Overview
 
-The Hazelcast Jet Runner can be used to execute Beam pipelines using [Hazelcat
+The Hazelcast Jet Runner can be used to execute Beam pipelines using [Hazelcast
 Jet](https://jet.hazelcast.org/). 
 
 The Jet Runner and Jet are suitable for large scale continuous jobs and provide:
@@ -41,41 +41,8 @@ supported capabilities of the Jet Runner.
 
 ## Running WordCount with the Hazelcast Jet Runner
 
-### Generating the Beam examples project from SNAPSHOT versions of Beam ##
-Make sure that your maven config (~/.m2/settings.xml) is set up to have access to the Apache Snapshot Repository. It 
-should contain this:
-```
-    <repositories>
-      <repository>
-        <id>apache.snapshots</id>
-        <name>Apache Development Snapshot Repository</name>
-        <url>https://repository.apache.org/content/repositories/snapshots/</url>
-        <releases>
-          <enabled>true</enabled>
-        </releases>
-        <snapshots>
-          <enabled>true</enabled>
-        </snapshots>
-      </repository>
-    </repositories>
-```
-
-Generate the Examples Maven Project just like when the archetype is local:
-```
-    $ mvn archetype:generate \
-        -DarchetypeGroupId=org.apache.beam \
-        -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-        -DarchetypeVersion=2.14.0-SNAPSHOT \
-        -DgroupId=org.example \
-        -DartifactId=word-count-beam \
-        -Dversion="0.1" \
-        -Dpackage=org.apache.beam.examples \
-        -DinteractiveMode=false
-```
-
-### Generating the Beam examples project from RELEASED versions of Beam ##
-
-Caution: The released Beam versions don't contain the Jet Runner yet. The SNAPSHOT version has to be used until Jet is released.
+### Generating the Beam examples project ##
+Just follow the instruction from the [Java Quickstart page]({{ site.baseurl }}/get-started/quickstart-java/#get-the-wordcount-code)
 
 ### Running WordCount on a Local Jet Cluster ##
 Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.

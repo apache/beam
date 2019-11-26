@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.parquet;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE;
 
 import com.google.auto.value.AutoValue;
@@ -101,15 +101,19 @@ import org.apache.parquet.io.SeekableInputStream;
  * <pre>{@code
  * pipeline
  *   .apply(...) // PCollection<GenericRecord>
- *   .apply(FileIO.<GenericRecord>
- *     .write()
+ *   .apply(FileIO
+ *     .<GenericRecord>write()
  *     .via(ParquetIO.sink(SCHEMA)
- *       .withCompression(CompressionCodecName.SNAPPY))
+ *       .withCompressionCodec(CompressionCodecName.SNAPPY))
  *     .to("destination/path")
+ *     .withSuffix(".parquet"));
  * }</pre>
  *
  * <p>This IO API is considered experimental and may break or receive backwards-incompatible changes
  * in future versions of the Apache Beam SDK.
+ *
+ * @see <a href="https://beam.apache.org/documentation/io/built-in/parquet/">Beam ParquetIO
+ *     documentation</a>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ParquetIO {
@@ -316,6 +320,7 @@ public class ParquetIO {
 
     @Override
     public void flush() throws IOException {
+      // the only way to completely flush the output is to call writer.close() here
       writer.close();
     }
 

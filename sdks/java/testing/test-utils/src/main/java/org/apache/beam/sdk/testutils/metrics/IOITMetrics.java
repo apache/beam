@@ -34,8 +34,8 @@ public class IOITMetrics {
   private final Set<Function<MetricsReader, NamedTestResult>> metricSuppliers;
   private final PipelineResult result;
   private final String namespace;
-  private String uuid;
-  private String timestamp;
+  private final String uuid;
+  private final String timestamp;
 
   public IOITMetrics(
       Set<Function<MetricsReader, NamedTestResult>> metricSuppliers,
@@ -53,10 +53,21 @@ public class IOITMetrics {
   public void publish(String bigQueryDataset, String bigQueryTable) {
     MetricsReader reader = new MetricsReader(result, namespace);
     Collection<NamedTestResult> namedTestResults = reader.readAll(metricSuppliers);
+
+    publish(uuid, timestamp, bigQueryDataset, bigQueryTable, namedTestResults);
+  }
+
+  public static void publish(
+      String uuid,
+      String timestamp,
+      String bigQueryDataset,
+      String bigQueryTable,
+      Collection<NamedTestResult> results) {
+
     if (bigQueryDataset != null && bigQueryTable != null) {
       BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-          .publish(namedTestResults, bigQueryTable);
+          .publish(results, bigQueryTable);
     }
-    ConsoleResultPublisher.publish(namedTestResults, uuid, timestamp);
+    ConsoleResultPublisher.publish(results, uuid, timestamp);
   }
 }

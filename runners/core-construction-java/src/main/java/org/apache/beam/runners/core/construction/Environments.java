@@ -34,12 +34,13 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
 public class Environments {
@@ -89,7 +90,7 @@ public class Environments {
    * container.
    */
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      String.format("%s-docker-apache.bintray.io/beam/java", System.getenv("USER"));
+      "apachebeam/java_sdk:" + ReleaseInfo.getReleaseInfo().getVersion();
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
@@ -115,6 +116,9 @@ public class Environments {
   }
 
   public static Environment createDockerEnvironment(String dockerImageUrl) {
+    if (Strings.isNullOrEmpty(dockerImageUrl)) {
+      return JAVA_SDK_HARNESS_ENVIRONMENT;
+    }
     return Environment.newBuilder()
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
         .setPayload(

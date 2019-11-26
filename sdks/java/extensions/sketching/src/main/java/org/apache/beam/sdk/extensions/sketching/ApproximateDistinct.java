@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sketching;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
@@ -199,6 +199,11 @@ import org.apache.beam.sdk.values.PCollection;
  *  PCollection<Long> cardinality = hll.apply(ApproximateDistinct.RetrieveCardinality.globally());
  *
  * }</pre>
+ *
+ * Consider using the {@code HllCount.Init} transform in the {@code zetasketch} extension module if
+ * you need to create sketches compatible with Google Cloud BigQuery. For more details about using
+ * {@code HllCount} and the {@code zetasketch} extension module, see
+ * https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7
  *
  * <p><b>Warning: this class is experimental.</b> Its API is subject to change in future versions of
  * Beam. For example, it may be merged with the {@link

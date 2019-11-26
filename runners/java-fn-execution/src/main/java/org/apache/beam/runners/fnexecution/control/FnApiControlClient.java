@@ -29,9 +29,9 @@ import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,16 +148,18 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
       LOG.debug("Received InstructionResponse {}", response);
       CompletableFuture<BeamFnApi.InstructionResponse> responseFuture =
           outstandingRequests.remove(response.getInstructionId());
-      if (responseFuture != null) {
-        if (response.getError().isEmpty()) {
-          responseFuture.complete(response);
-        } else {
-          responseFuture.completeExceptionally(
-              new RuntimeException(
-                  String.format(
-                      "Error received from SDK harness for instruction %s: %s",
-                      response.getInstructionId(), response.getError())));
-        }
+      if (responseFuture == null) {
+        LOG.warn("Dropped unknown InstructionResponse {}", response);
+        return;
+      }
+      if (response.getError().isEmpty()) {
+        responseFuture.complete(response);
+      } else {
+        responseFuture.completeExceptionally(
+            new RuntimeException(
+                String.format(
+                    "Error received from SDK harness for instruction %s: %s",
+                    response.getInstructionId(), response.getError())));
       }
     }
 

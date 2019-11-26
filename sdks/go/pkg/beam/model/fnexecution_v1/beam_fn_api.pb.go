@@ -8,6 +8,7 @@ import fmt "fmt"
 import math "math"
 import pipeline_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 import _ "github.com/golang/protobuf/protoc-gen-go/descriptor"
+import duration "github.com/golang/protobuf/ptypes/duration"
 import timestamp "github.com/golang/protobuf/ptypes/timestamp"
 import _ "github.com/golang/protobuf/ptypes/wrappers"
 
@@ -74,7 +75,7 @@ func (x LogEntry_Severity_Enum) String() string {
 	return proto.EnumName(LogEntry_Severity_Enum_name, int32(x))
 }
 func (LogEntry_Severity_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{27, 1, 0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{27, 1, 0}
 }
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
@@ -97,7 +98,7 @@ func (m *RemoteGrpcPort) Reset()         { *m = RemoteGrpcPort{} }
 func (m *RemoteGrpcPort) String() string { return proto.CompactTextString(m) }
 func (*RemoteGrpcPort) ProtoMessage()    {}
 func (*RemoteGrpcPort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{0}
 }
 func (m *RemoteGrpcPort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoteGrpcPort.Unmarshal(m, b)
@@ -136,7 +137,7 @@ func (m *RemoteGrpcPort) GetCoderId() string {
 // matching instruction id.
 // Stable
 type InstructionRequest struct {
-	// (Required) An unique identifier provided by the runner which represents
+	// (Required) A unique identifier provided by the runner which represents
 	// this requests execution. The InstructionResponse MUST have the matching id.
 	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	// (Required) A request that the SDK Harness needs to interpret.
@@ -157,7 +158,7 @@ func (m *InstructionRequest) Reset()         { *m = InstructionRequest{} }
 func (m *InstructionRequest) String() string { return proto.CompactTextString(m) }
 func (*InstructionRequest) ProtoMessage()    {}
 func (*InstructionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{1}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{1}
 }
 func (m *InstructionRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InstructionRequest.Unmarshal(m, b)
@@ -413,7 +414,7 @@ func (m *InstructionResponse) Reset()         { *m = InstructionResponse{} }
 func (m *InstructionResponse) String() string { return proto.CompactTextString(m) }
 func (*InstructionResponse) ProtoMessage()    {}
 func (*InstructionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{2}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{2}
 }
 func (m *InstructionResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InstructionResponse.Unmarshal(m, b)
@@ -661,7 +662,7 @@ func (m *RegisterRequest) Reset()         { *m = RegisterRequest{} }
 func (m *RegisterRequest) String() string { return proto.CompactTextString(m) }
 func (*RegisterRequest) ProtoMessage()    {}
 func (*RegisterRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{3}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{3}
 }
 func (m *RegisterRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RegisterRequest.Unmarshal(m, b)
@@ -699,7 +700,7 @@ func (m *RegisterResponse) Reset()         { *m = RegisterResponse{} }
 func (m *RegisterResponse) String() string { return proto.CompactTextString(m) }
 func (*RegisterResponse) ProtoMessage()    {}
 func (*RegisterResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{4}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{4}
 }
 func (m *RegisterResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RegisterResponse.Unmarshal(m, b)
@@ -747,7 +748,7 @@ func (m *ProcessBundleDescriptor) Reset()         { *m = ProcessBundleDescriptor
 func (m *ProcessBundleDescriptor) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleDescriptor) ProtoMessage()    {}
 func (*ProcessBundleDescriptor) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{5}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{5}
 }
 func (m *ProcessBundleDescriptor) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleDescriptor.Unmarshal(m, b)
@@ -821,8 +822,8 @@ func (m *ProcessBundleDescriptor) GetStateApiServiceDescriptor() *pipeline_v1.Ap
 // https://docs.google.com/document/d/1tUDb45sStdR8u7-jBkGdw3OGFK7aa2-V7eo86zYSE_4/edit#heading=h.9g3g5weg2u9
 // for further details.
 type BundleApplication struct {
-	// (Required) The primitive transform to which to pass the element
-	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId,proto3" json:"ptransform_id,omitempty"`
+	// (Required) The transform to which to pass the element
+	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
 	// (Required) Name of the transform's input to which to pass the element.
 	InputId string `protobuf:"bytes,2,opt,name=input_id,json=inputId,proto3" json:"input_id,omitempty"`
 	// (Required) The encoded element to pass to the transform.
@@ -831,18 +832,18 @@ type BundleApplication struct {
 	// value represents a lower bound on the timestamps of elements that
 	// are produced by this PTransform into each of its output PCollections
 	// when invoked with this application.
+	//
+	// If there is no watermark reported from RestrictionTracker, the runner will
+	// use MIN_TIMESTAMP by default.
 	OutputWatermarks map[string]*timestamp.Timestamp `protobuf:"bytes,4,rep,name=output_watermarks,json=outputWatermarks,proto3" json:"output_watermarks,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// (Required) Whether this application potentially produces an unbounded
 	// amount of data. Note that this should only be set to BOUNDED if and
 	// only if the application is known to produce a finite amount of output.
-	//
-	// Note that this is different from the backlog as the backlog represents
-	// how much work there is currently outstanding.
 	IsBounded pipeline_v1.IsBounded_Enum `protobuf:"varint,5,opt,name=is_bounded,json=isBounded,proto3,enum=org.apache.beam.model.pipeline.v1.IsBounded_Enum" json:"is_bounded,omitempty"`
 	// Contains additional monitoring information related to this application.
 	//
 	// Each application is able to report information that some runners
-	// will use consume when providing a UI or for making scaling and performance
+	// will use when providing a UI or for making scaling and performance
 	// decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
 	// details about what types of signals may be useful to report.
 	MonitoringInfos      []*pipeline_v1.MonitoringInfo `protobuf:"bytes,6,rep,name=monitoring_infos,json=monitoringInfos,proto3" json:"monitoring_infos,omitempty"`
@@ -855,7 +856,7 @@ func (m *BundleApplication) Reset()         { *m = BundleApplication{} }
 func (m *BundleApplication) String() string { return proto.CompactTextString(m) }
 func (*BundleApplication) ProtoMessage()    {}
 func (*BundleApplication) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{6}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{6}
 }
 func (m *BundleApplication) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BundleApplication.Unmarshal(m, b)
@@ -875,9 +876,9 @@ func (m *BundleApplication) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_BundleApplication proto.InternalMessageInfo
 
-func (m *BundleApplication) GetPtransformId() string {
+func (m *BundleApplication) GetTransformId() string {
 	if m != nil {
-		return m.PtransformId
+		return m.TransformId
 	}
 	return ""
 }
@@ -918,12 +919,19 @@ func (m *BundleApplication) GetMonitoringInfos() []*pipeline_v1.MonitoringInfo {
 }
 
 // An Application should be scheduled for execution after a delay.
+// Either an absolute timestamp or a relative timestamp can represent a
+// scheduled execution time.
 type DelayedBundleApplication struct {
 	// Recommended time at which the application should be scheduled to execute
 	// by the runner. Times in the past may be scheduled to execute immediately.
+	// TODO(BEAM-8536): Migrate usage of absolute time to requested_time_delay.
 	RequestedExecutionTime *timestamp.Timestamp `protobuf:"bytes,1,opt,name=requested_execution_time,json=requestedExecutionTime,proto3" json:"requested_execution_time,omitempty"`
 	// (Required) The application that should be scheduled.
-	Application          *BundleApplication `protobuf:"bytes,2,opt,name=application,proto3" json:"application,omitempty"`
+	Application *BundleApplication `protobuf:"bytes,2,opt,name=application,proto3" json:"application,omitempty"`
+	// Recommended time delay at which the application should be scheduled to
+	// execute by the runner. Time delay that equals 0 may be scheduled to execute
+	// immediately. The unit of time delay should be microsecond.
+	RequestedTimeDelay   *duration.Duration `protobuf:"bytes,3,opt,name=requested_time_delay,json=requestedTimeDelay,proto3" json:"requested_time_delay,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
 	XXX_unrecognized     []byte             `json:"-"`
 	XXX_sizecache        int32              `json:"-"`
@@ -933,7 +941,7 @@ func (m *DelayedBundleApplication) Reset()         { *m = DelayedBundleApplicati
 func (m *DelayedBundleApplication) String() string { return proto.CompactTextString(m) }
 func (*DelayedBundleApplication) ProtoMessage()    {}
 func (*DelayedBundleApplication) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{7}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{7}
 }
 func (m *DelayedBundleApplication) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DelayedBundleApplication.Unmarshal(m, b)
@@ -967,25 +975,32 @@ func (m *DelayedBundleApplication) GetApplication() *BundleApplication {
 	return nil
 }
 
+func (m *DelayedBundleApplication) GetRequestedTimeDelay() *duration.Duration {
+	if m != nil {
+		return m.RequestedTimeDelay
+	}
+	return nil
+}
+
 // A request to process a given bundle.
 // Stable
 type ProcessBundleRequest struct {
 	// (Required) A reference to the process bundle descriptor that must be
 	// instantiated and executed by the SDK harness.
-	ProcessBundleDescriptorReference string `protobuf:"bytes,1,opt,name=process_bundle_descriptor_reference,json=processBundleDescriptorReference,proto3" json:"process_bundle_descriptor_reference,omitempty"`
+	ProcessBundleDescriptorId string `protobuf:"bytes,1,opt,name=process_bundle_descriptor_id,json=processBundleDescriptorId,proto3" json:"process_bundle_descriptor_id,omitempty"`
 	// (Optional) A list of cache tokens that can be used by an SDK to reuse
 	// cached data returned by the State API across multiple bundles.
-	CacheTokens          [][]byte `protobuf:"bytes,2,rep,name=cache_tokens,json=cacheTokens,proto3" json:"cache_tokens,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	CacheTokens          []*ProcessBundleRequest_CacheToken `protobuf:"bytes,2,rep,name=cache_tokens,json=cacheTokens,proto3" json:"cache_tokens,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
+	XXX_unrecognized     []byte                             `json:"-"`
+	XXX_sizecache        int32                              `json:"-"`
 }
 
 func (m *ProcessBundleRequest) Reset()         { *m = ProcessBundleRequest{} }
 func (m *ProcessBundleRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleRequest) ProtoMessage()    {}
 func (*ProcessBundleRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{8}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{8}
 }
 func (m *ProcessBundleRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleRequest.Unmarshal(m, b)
@@ -1005,18 +1020,249 @@ func (m *ProcessBundleRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ProcessBundleRequest proto.InternalMessageInfo
 
-func (m *ProcessBundleRequest) GetProcessBundleDescriptorReference() string {
+func (m *ProcessBundleRequest) GetProcessBundleDescriptorId() string {
 	if m != nil {
-		return m.ProcessBundleDescriptorReference
+		return m.ProcessBundleDescriptorId
 	}
 	return ""
 }
 
-func (m *ProcessBundleRequest) GetCacheTokens() [][]byte {
+func (m *ProcessBundleRequest) GetCacheTokens() []*ProcessBundleRequest_CacheToken {
 	if m != nil {
 		return m.CacheTokens
 	}
 	return nil
+}
+
+// A cache token which can be used by an SDK to check for the validity
+// of cached elements which have a cache token associated.
+type ProcessBundleRequest_CacheToken struct {
+	// The scope of a cache token.
+	//
+	// Types that are valid to be assigned to Type:
+	//	*ProcessBundleRequest_CacheToken_UserState_
+	//	*ProcessBundleRequest_CacheToken_SideInput_
+	Type isProcessBundleRequest_CacheToken_Type `protobuf_oneof:"type"`
+	// The cache token identifier which should be globally unique.
+	Token                []byte   `protobuf:"bytes,10,opt,name=token,proto3" json:"token,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ProcessBundleRequest_CacheToken) Reset()         { *m = ProcessBundleRequest_CacheToken{} }
+func (m *ProcessBundleRequest_CacheToken) String() string { return proto.CompactTextString(m) }
+func (*ProcessBundleRequest_CacheToken) ProtoMessage()    {}
+func (*ProcessBundleRequest_CacheToken) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{8, 0}
+}
+func (m *ProcessBundleRequest_CacheToken) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken.Unmarshal(m, b)
+}
+func (m *ProcessBundleRequest_CacheToken) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken.Marshal(b, m, deterministic)
+}
+func (dst *ProcessBundleRequest_CacheToken) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken.Merge(dst, src)
+}
+func (m *ProcessBundleRequest_CacheToken) XXX_Size() int {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken.Size(m)
+}
+func (m *ProcessBundleRequest_CacheToken) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProcessBundleRequest_CacheToken proto.InternalMessageInfo
+
+type isProcessBundleRequest_CacheToken_Type interface {
+	isProcessBundleRequest_CacheToken_Type()
+}
+
+type ProcessBundleRequest_CacheToken_UserState_ struct {
+	UserState *ProcessBundleRequest_CacheToken_UserState `protobuf:"bytes,1,opt,name=user_state,json=userState,proto3,oneof"`
+}
+type ProcessBundleRequest_CacheToken_SideInput_ struct {
+	SideInput *ProcessBundleRequest_CacheToken_SideInput `protobuf:"bytes,2,opt,name=side_input,json=sideInput,proto3,oneof"`
+}
+
+func (*ProcessBundleRequest_CacheToken_UserState_) isProcessBundleRequest_CacheToken_Type() {}
+func (*ProcessBundleRequest_CacheToken_SideInput_) isProcessBundleRequest_CacheToken_Type() {}
+
+func (m *ProcessBundleRequest_CacheToken) GetType() isProcessBundleRequest_CacheToken_Type {
+	if m != nil {
+		return m.Type
+	}
+	return nil
+}
+
+func (m *ProcessBundleRequest_CacheToken) GetUserState() *ProcessBundleRequest_CacheToken_UserState {
+	if x, ok := m.GetType().(*ProcessBundleRequest_CacheToken_UserState_); ok {
+		return x.UserState
+	}
+	return nil
+}
+
+func (m *ProcessBundleRequest_CacheToken) GetSideInput() *ProcessBundleRequest_CacheToken_SideInput {
+	if x, ok := m.GetType().(*ProcessBundleRequest_CacheToken_SideInput_); ok {
+		return x.SideInput
+	}
+	return nil
+}
+
+func (m *ProcessBundleRequest_CacheToken) GetToken() []byte {
+	if m != nil {
+		return m.Token
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ProcessBundleRequest_CacheToken) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ProcessBundleRequest_CacheToken_OneofMarshaler, _ProcessBundleRequest_CacheToken_OneofUnmarshaler, _ProcessBundleRequest_CacheToken_OneofSizer, []interface{}{
+		(*ProcessBundleRequest_CacheToken_UserState_)(nil),
+		(*ProcessBundleRequest_CacheToken_SideInput_)(nil),
+	}
+}
+
+func _ProcessBundleRequest_CacheToken_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ProcessBundleRequest_CacheToken)
+	// type
+	switch x := m.Type.(type) {
+	case *ProcessBundleRequest_CacheToken_UserState_:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.UserState); err != nil {
+			return err
+		}
+	case *ProcessBundleRequest_CacheToken_SideInput_:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.SideInput); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("ProcessBundleRequest_CacheToken.Type has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ProcessBundleRequest_CacheToken_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ProcessBundleRequest_CacheToken)
+	switch tag {
+	case 1: // type.user_state
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ProcessBundleRequest_CacheToken_UserState)
+		err := b.DecodeMessage(msg)
+		m.Type = &ProcessBundleRequest_CacheToken_UserState_{msg}
+		return true, err
+	case 2: // type.side_input
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ProcessBundleRequest_CacheToken_SideInput)
+		err := b.DecodeMessage(msg)
+		m.Type = &ProcessBundleRequest_CacheToken_SideInput_{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ProcessBundleRequest_CacheToken_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ProcessBundleRequest_CacheToken)
+	// type
+	switch x := m.Type.(type) {
+	case *ProcessBundleRequest_CacheToken_UserState_:
+		s := proto.Size(x.UserState)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ProcessBundleRequest_CacheToken_SideInput_:
+		s := proto.Size(x.SideInput)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+// A flag to indicate a cache token is valid for user state.
+type ProcessBundleRequest_CacheToken_UserState struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ProcessBundleRequest_CacheToken_UserState) Reset() {
+	*m = ProcessBundleRequest_CacheToken_UserState{}
+}
+func (m *ProcessBundleRequest_CacheToken_UserState) String() string { return proto.CompactTextString(m) }
+func (*ProcessBundleRequest_CacheToken_UserState) ProtoMessage()    {}
+func (*ProcessBundleRequest_CacheToken_UserState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{8, 0, 0}
+}
+func (m *ProcessBundleRequest_CacheToken_UserState) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Unmarshal(m, b)
+}
+func (m *ProcessBundleRequest_CacheToken_UserState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Marshal(b, m, deterministic)
+}
+func (dst *ProcessBundleRequest_CacheToken_UserState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Merge(dst, src)
+}
+func (m *ProcessBundleRequest_CacheToken_UserState) XXX_Size() int {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Size(m)
+}
+func (m *ProcessBundleRequest_CacheToken_UserState) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState proto.InternalMessageInfo
+
+// A flag to indicate a cache token is valid for a side input.
+type ProcessBundleRequest_CacheToken_SideInput struct {
+	// The id of a side input.
+	SideInput            string   `protobuf:"bytes,1,opt,name=side_input,json=sideInput,proto3" json:"side_input,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ProcessBundleRequest_CacheToken_SideInput) Reset() {
+	*m = ProcessBundleRequest_CacheToken_SideInput{}
+}
+func (m *ProcessBundleRequest_CacheToken_SideInput) String() string { return proto.CompactTextString(m) }
+func (*ProcessBundleRequest_CacheToken_SideInput) ProtoMessage()    {}
+func (*ProcessBundleRequest_CacheToken_SideInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{8, 0, 1}
+}
+func (m *ProcessBundleRequest_CacheToken_SideInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Unmarshal(m, b)
+}
+func (m *ProcessBundleRequest_CacheToken_SideInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Marshal(b, m, deterministic)
+}
+func (dst *ProcessBundleRequest_CacheToken_SideInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Merge(dst, src)
+}
+func (m *ProcessBundleRequest_CacheToken_SideInput) XXX_Size() int {
+	return xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Size(m)
+}
+func (m *ProcessBundleRequest_CacheToken_SideInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput proto.InternalMessageInfo
+
+func (m *ProcessBundleRequest_CacheToken_SideInput) GetSideInput() string {
+	if m != nil {
+		return m.SideInput
+	}
+	return ""
 }
 
 type ProcessBundleResponse struct {
@@ -1046,7 +1292,7 @@ func (m *ProcessBundleResponse) Reset()         { *m = ProcessBundleResponse{} }
 func (m *ProcessBundleResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleResponse) ProtoMessage()    {}
 func (*ProcessBundleResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{9}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{9}
 }
 func (m *ProcessBundleResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleResponse.Unmarshal(m, b)
@@ -1100,7 +1346,7 @@ func (m *ProcessBundleResponse) GetRequiresFinalization() bool {
 type ProcessBundleProgressRequest struct {
 	// (Required) A reference to an active process bundle request with the given
 	// instruction id.
-	InstructionReference string   `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
+	InstructionId        string   `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1110,7 +1356,7 @@ func (m *ProcessBundleProgressRequest) Reset()         { *m = ProcessBundleProgr
 func (m *ProcessBundleProgressRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleProgressRequest) ProtoMessage()    {}
 func (*ProcessBundleProgressRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{10}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{10}
 }
 func (m *ProcessBundleProgressRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleProgressRequest.Unmarshal(m, b)
@@ -1130,9 +1376,9 @@ func (m *ProcessBundleProgressRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ProcessBundleProgressRequest proto.InternalMessageInfo
 
-func (m *ProcessBundleProgressRequest) GetInstructionReference() string {
+func (m *ProcessBundleProgressRequest) GetInstructionId() string {
 	if m != nil {
-		return m.InstructionReference
+		return m.InstructionId
 	}
 	return ""
 }
@@ -1149,7 +1395,7 @@ func (m *Metrics) Reset()         { *m = Metrics{} }
 func (m *Metrics) String() string { return proto.CompactTextString(m) }
 func (*Metrics) ProtoMessage()    {}
 func (*Metrics) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11}
 }
 func (m *Metrics) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics.Unmarshal(m, b)
@@ -1180,7 +1426,7 @@ func (m *Metrics) GetPtransforms() map[string]*Metrics_PTransform {
 // These metrics are split into processed and active element groups for
 // progress reporting purposes. This allows a Runner to see what is measured,
 // what is estimated and what can be extrapolated to be able to accurately
-// estimate the backlog of remaining work.
+// estimate the amount of remaining work.
 type Metrics_PTransform struct {
 	// (Required): Metrics for processed elements.
 	ProcessedElements *Metrics_PTransform_ProcessedElements `protobuf:"bytes,1,opt,name=processed_elements,json=processedElements,proto3" json:"processed_elements,omitempty"`
@@ -1202,7 +1448,7 @@ func (m *Metrics_PTransform) Reset()         { *m = Metrics_PTransform{} }
 func (m *Metrics_PTransform) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform) ProtoMessage()    {}
 func (*Metrics_PTransform) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 0}
 }
 func (m *Metrics_PTransform) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform.Unmarshal(m, b)
@@ -1272,7 +1518,7 @@ func (m *Metrics_PTransform_Measured) Reset()         { *m = Metrics_PTransform_
 func (m *Metrics_PTransform_Measured) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_Measured) ProtoMessage()    {}
 func (*Metrics_PTransform_Measured) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 0, 0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 0, 0}
 }
 func (m *Metrics_PTransform_Measured) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_Measured.Unmarshal(m, b)
@@ -1326,7 +1572,7 @@ func (m *Metrics_PTransform_ProcessedElements) Reset()         { *m = Metrics_PT
 func (m *Metrics_PTransform_ProcessedElements) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_ProcessedElements) ProtoMessage()    {}
 func (*Metrics_PTransform_ProcessedElements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 0, 1}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 0, 1}
 }
 func (m *Metrics_PTransform_ProcessedElements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_ProcessedElements.Unmarshal(m, b)
@@ -1380,7 +1626,7 @@ func (m *Metrics_PTransform_ActiveElements) Reset()         { *m = Metrics_PTran
 func (m *Metrics_PTransform_ActiveElements) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_ActiveElements) ProtoMessage()    {}
 func (*Metrics_PTransform_ActiveElements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 0, 2}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 0, 2}
 }
 func (m *Metrics_PTransform_ActiveElements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_ActiveElements.Unmarshal(m, b)
@@ -1441,7 +1687,7 @@ func (m *Metrics_User) Reset()         { *m = Metrics_User{} }
 func (m *Metrics_User) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User) ProtoMessage()    {}
 func (*Metrics_User) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 1}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 1}
 }
 func (m *Metrics_User) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User.Unmarshal(m, b)
@@ -1622,7 +1868,7 @@ func (m *Metrics_User_MetricName) Reset()         { *m = Metrics_User_MetricName
 func (m *Metrics_User_MetricName) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_MetricName) ProtoMessage()    {}
 func (*Metrics_User_MetricName) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 1, 0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 1, 0}
 }
 func (m *Metrics_User_MetricName) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_MetricName.Unmarshal(m, b)
@@ -1668,7 +1914,7 @@ func (m *Metrics_User_CounterData) Reset()         { *m = Metrics_User_CounterDa
 func (m *Metrics_User_CounterData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_CounterData) ProtoMessage()    {}
 func (*Metrics_User_CounterData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 1, 1}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 1, 1}
 }
 func (m *Metrics_User_CounterData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_CounterData.Unmarshal(m, b)
@@ -1710,7 +1956,7 @@ func (m *Metrics_User_DistributionData) Reset()         { *m = Metrics_User_Dist
 func (m *Metrics_User_DistributionData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_DistributionData) ProtoMessage()    {}
 func (*Metrics_User_DistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 1, 2}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 1, 2}
 }
 func (m *Metrics_User_DistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_DistributionData.Unmarshal(m, b)
@@ -1771,7 +2017,7 @@ func (m *Metrics_User_GaugeData) Reset()         { *m = Metrics_User_GaugeData{}
 func (m *Metrics_User_GaugeData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_GaugeData) ProtoMessage()    {}
 func (*Metrics_User_GaugeData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{11, 1, 3}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{11, 1, 3}
 }
 func (m *Metrics_User_GaugeData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_GaugeData.Unmarshal(m, b)
@@ -1823,7 +2069,7 @@ func (m *ProcessBundleProgressResponse) Reset()         { *m = ProcessBundleProg
 func (m *ProcessBundleProgressResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleProgressResponse) ProtoMessage()    {}
 func (*ProcessBundleProgressResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{12}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{12}
 }
 func (m *ProcessBundleProgressResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleProgressResponse.Unmarshal(m, b)
@@ -1868,19 +2114,7 @@ func (m *ProcessBundleProgressResponse) GetPrimaryRoots() []*BundleApplication {
 type ProcessBundleSplitRequest struct {
 	// (Required) A reference to an active process bundle request with the given
 	// instruction id.
-	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
-	// (Required) Specifies that the Runner would like the bundle to split itself
-	// such that it performs no more work than the backlog specified for each
-	// PTransform. The interpretation of how much work should be processed is up
-	// to the PTransform.
-	//
-	// For example, A backlog of "" tells the SDK to perform as little work as
-	// possible, effectively checkpointing when able. The remaining backlog
-	// will be relative to the backlog reported during processing.
-	//
-	// If the backlog is unspecified for a PTransform, the runner would like
-	// the SDK to process all data received for that PTransform.
-	BacklogRemaining map[string][]byte `protobuf:"bytes,2,rep,name=backlog_remaining,json=backlogRemaining,proto3" json:"backlog_remaining,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	// (Required) Specifies the desired split for each transform.
 	//
 	// Currently only splits at GRPC read operations are supported.
@@ -1896,7 +2130,7 @@ func (m *ProcessBundleSplitRequest) Reset()         { *m = ProcessBundleSplitReq
 func (m *ProcessBundleSplitRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitRequest) ProtoMessage()    {}
 func (*ProcessBundleSplitRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{13}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{13}
 }
 func (m *ProcessBundleSplitRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitRequest.Unmarshal(m, b)
@@ -1916,18 +2150,11 @@ func (m *ProcessBundleSplitRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ProcessBundleSplitRequest proto.InternalMessageInfo
 
-func (m *ProcessBundleSplitRequest) GetInstructionReference() string {
+func (m *ProcessBundleSplitRequest) GetInstructionId() string {
 	if m != nil {
-		return m.InstructionReference
+		return m.InstructionId
 	}
 	return ""
-}
-
-func (m *ProcessBundleSplitRequest) GetBacklogRemaining() map[string][]byte {
-	if m != nil {
-		return m.BacklogRemaining
-	}
-	return nil
 }
 
 func (m *ProcessBundleSplitRequest) GetDesiredSplits() map[string]*ProcessBundleSplitRequest_DesiredSplit {
@@ -1963,7 +2190,7 @@ func (m *ProcessBundleSplitRequest_DesiredSplit) Reset() {
 func (m *ProcessBundleSplitRequest_DesiredSplit) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitRequest_DesiredSplit) ProtoMessage()    {}
 func (*ProcessBundleSplitRequest_DesiredSplit) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{13, 1}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{13, 0}
 }
 func (m *ProcessBundleSplitRequest_DesiredSplit) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitRequest_DesiredSplit.Unmarshal(m, b)
@@ -2033,7 +2260,7 @@ func (m *ProcessBundleSplitResponse) Reset()         { *m = ProcessBundleSplitRe
 func (m *ProcessBundleSplitResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitResponse) ProtoMessage()    {}
 func (*ProcessBundleSplitResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{14}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{14}
 }
 func (m *ProcessBundleSplitResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitResponse.Unmarshal(m, b)
@@ -2084,7 +2311,7 @@ func (m *ProcessBundleSplitResponse) GetChannelSplits() []*ProcessBundleSplitRes
 // as some range in an underlying dataset).
 type ProcessBundleSplitResponse_ChannelSplit struct {
 	// (Required) The grpc read transform reading this channel.
-	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId,proto3" json:"ptransform_id,omitempty"`
+	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
 	// The last element of the input channel that should be entirely considered
 	// part of the primary, identified by its absolute index in the (ordered)
 	// channel.
@@ -2104,7 +2331,7 @@ func (m *ProcessBundleSplitResponse_ChannelSplit) Reset() {
 func (m *ProcessBundleSplitResponse_ChannelSplit) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitResponse_ChannelSplit) ProtoMessage()    {}
 func (*ProcessBundleSplitResponse_ChannelSplit) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{14, 0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{14, 0}
 }
 func (m *ProcessBundleSplitResponse_ChannelSplit) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitResponse_ChannelSplit.Unmarshal(m, b)
@@ -2124,9 +2351,9 @@ func (m *ProcessBundleSplitResponse_ChannelSplit) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ProcessBundleSplitResponse_ChannelSplit proto.InternalMessageInfo
 
-func (m *ProcessBundleSplitResponse_ChannelSplit) GetPtransformId() string {
+func (m *ProcessBundleSplitResponse_ChannelSplit) GetTransformId() string {
 	if m != nil {
-		return m.PtransformId
+		return m.TransformId
 	}
 	return ""
 }
@@ -2148,7 +2375,7 @@ func (m *ProcessBundleSplitResponse_ChannelSplit) GetFirstResidualElement() int3
 type FinalizeBundleRequest struct {
 	// (Required) A reference to a completed process bundle request with the given
 	// instruction id.
-	InstructionReference string   `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
+	InstructionId        string   `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2158,7 +2385,7 @@ func (m *FinalizeBundleRequest) Reset()         { *m = FinalizeBundleRequest{} }
 func (m *FinalizeBundleRequest) String() string { return proto.CompactTextString(m) }
 func (*FinalizeBundleRequest) ProtoMessage()    {}
 func (*FinalizeBundleRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{15}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{15}
 }
 func (m *FinalizeBundleRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FinalizeBundleRequest.Unmarshal(m, b)
@@ -2178,9 +2405,9 @@ func (m *FinalizeBundleRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_FinalizeBundleRequest proto.InternalMessageInfo
 
-func (m *FinalizeBundleRequest) GetInstructionReference() string {
+func (m *FinalizeBundleRequest) GetInstructionId() string {
 	if m != nil {
-		return m.InstructionReference
+		return m.InstructionId
 	}
 	return ""
 }
@@ -2195,7 +2422,7 @@ func (m *FinalizeBundleResponse) Reset()         { *m = FinalizeBundleResponse{}
 func (m *FinalizeBundleResponse) String() string { return proto.CompactTextString(m) }
 func (*FinalizeBundleResponse) ProtoMessage()    {}
 func (*FinalizeBundleResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{16}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{16}
 }
 func (m *FinalizeBundleResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FinalizeBundleResponse.Unmarshal(m, b)
@@ -2229,7 +2456,7 @@ func (m *Elements) Reset()         { *m = Elements{} }
 func (m *Elements) String() string { return proto.CompactTextString(m) }
 func (*Elements) ProtoMessage()    {}
 func (*Elements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{17}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{17}
 }
 func (m *Elements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Elements.Unmarshal(m, b)
@@ -2261,7 +2488,7 @@ func (m *Elements) GetData() []*Elements_Data {
 type Elements_Data struct {
 	// (Required) A reference to an active instruction request with the given
 	// instruction id.
-	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
+	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	// (Required) A definition representing a consumer or producer of this data.
 	// If received by a harness, this represents the consumer within that
 	// harness that should consume these bytes. If sent by a harness, this
@@ -2270,7 +2497,7 @@ type Elements_Data struct {
 	// Note that a single element may span multiple Data messages.
 	//
 	// Note that a sending/receiving pair should share the same identifier.
-	PtransformId string `protobuf:"bytes,2,opt,name=ptransform_id,json=ptransformId,proto3" json:"ptransform_id,omitempty"`
+	TransformId string `protobuf:"bytes,2,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
 	// (Optional) Represents a part of a logical byte stream. Elements within
 	// the logical byte stream are encoded in the nested context and
 	// concatenated together.
@@ -2287,7 +2514,7 @@ func (m *Elements_Data) Reset()         { *m = Elements_Data{} }
 func (m *Elements_Data) String() string { return proto.CompactTextString(m) }
 func (*Elements_Data) ProtoMessage()    {}
 func (*Elements_Data) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{17, 0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{17, 0}
 }
 func (m *Elements_Data) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Elements_Data.Unmarshal(m, b)
@@ -2307,16 +2534,16 @@ func (m *Elements_Data) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Elements_Data proto.InternalMessageInfo
 
-func (m *Elements_Data) GetInstructionReference() string {
+func (m *Elements_Data) GetInstructionId() string {
 	if m != nil {
-		return m.InstructionReference
+		return m.InstructionId
 	}
 	return ""
 }
 
-func (m *Elements_Data) GetPtransformId() string {
+func (m *Elements_Data) GetTransformId() string {
 	if m != nil {
-		return m.PtransformId
+		return m.TransformId
 	}
 	return ""
 }
@@ -2329,14 +2556,14 @@ func (m *Elements_Data) GetData() []byte {
 }
 
 type StateRequest struct {
-	// (Required) An unique identifier provided by the SDK which represents this
+	// (Required) A unique identifier provided by the SDK which represents this
 	// requests execution. The StateResponse corresponding with this request
 	// will have the matching id.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// (Required) The associated instruction id of the work that is currently
 	// being processed. This allows for the runner to associate any modifications
 	// to state to be committed with the appropriate work execution.
-	InstructionReference string `protobuf:"bytes,2,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
+	InstructionId string `protobuf:"bytes,2,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
 	// (Required) The state key this request is for.
 	StateKey *StateKey `protobuf:"bytes,3,opt,name=state_key,json=stateKey,proto3" json:"state_key,omitempty"`
 	// (Required) The action to take on this request.
@@ -2355,7 +2582,7 @@ func (m *StateRequest) Reset()         { *m = StateRequest{} }
 func (m *StateRequest) String() string { return proto.CompactTextString(m) }
 func (*StateRequest) ProtoMessage()    {}
 func (*StateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{18}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{18}
 }
 func (m *StateRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateRequest.Unmarshal(m, b)
@@ -2407,9 +2634,9 @@ func (m *StateRequest) GetId() string {
 	return ""
 }
 
-func (m *StateRequest) GetInstructionReference() string {
+func (m *StateRequest) GetInstructionId() string {
 	if m != nil {
-		return m.InstructionReference
+		return m.InstructionId
 	}
 	return ""
 }
@@ -2544,9 +2771,6 @@ type StateResponse struct {
 	// A human readable string representing the reason as to why the request
 	// failed.
 	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
-	// (Optional) If this is specified, then the result of this state request
-	// can be cached using the supplied token.
-	CacheToken []byte `protobuf:"bytes,3,opt,name=cache_token,json=cacheToken,proto3" json:"cache_token,omitempty"`
 	// A corresponding response matching the request will be populated.
 	//
 	// Types that are valid to be assigned to Response:
@@ -2563,7 +2787,7 @@ func (m *StateResponse) Reset()         { *m = StateResponse{} }
 func (m *StateResponse) String() string { return proto.CompactTextString(m) }
 func (*StateResponse) ProtoMessage()    {}
 func (*StateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{19}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{19}
 }
 func (m *StateResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateResponse.Unmarshal(m, b)
@@ -2620,13 +2844,6 @@ func (m *StateResponse) GetError() string {
 		return m.Error
 	}
 	return ""
-}
-
-func (m *StateResponse) GetCacheToken() []byte {
-	if m != nil {
-		return m.CacheToken
-	}
-	return nil
 }
 
 func (m *StateResponse) GetGet() *StateGetResponse {
@@ -2750,6 +2967,8 @@ type StateKey struct {
 	//	*StateKey_Runner_
 	//	*StateKey_MultimapSideInput_
 	//	*StateKey_BagUserState_
+	//	*StateKey_IterableSideInput_
+	//	*StateKey_MultimapKeysSideInput_
 	Type                 isStateKey_Type `protobuf_oneof:"type"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
@@ -2760,7 +2979,7 @@ func (m *StateKey) Reset()         { *m = StateKey{} }
 func (m *StateKey) String() string { return proto.CompactTextString(m) }
 func (*StateKey) ProtoMessage()    {}
 func (*StateKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{20}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{20}
 }
 func (m *StateKey) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey.Unmarshal(m, b)
@@ -2793,10 +3012,18 @@ type StateKey_MultimapSideInput_ struct {
 type StateKey_BagUserState_ struct {
 	BagUserState *StateKey_BagUserState `protobuf:"bytes,3,opt,name=bag_user_state,json=bagUserState,proto3,oneof"`
 }
+type StateKey_IterableSideInput_ struct {
+	IterableSideInput *StateKey_IterableSideInput `protobuf:"bytes,4,opt,name=iterable_side_input,json=iterableSideInput,proto3,oneof"`
+}
+type StateKey_MultimapKeysSideInput_ struct {
+	MultimapKeysSideInput *StateKey_MultimapKeysSideInput `protobuf:"bytes,5,opt,name=multimap_keys_side_input,json=multimapKeysSideInput,proto3,oneof"`
+}
 
-func (*StateKey_Runner_) isStateKey_Type()            {}
-func (*StateKey_MultimapSideInput_) isStateKey_Type() {}
-func (*StateKey_BagUserState_) isStateKey_Type()      {}
+func (*StateKey_Runner_) isStateKey_Type()                {}
+func (*StateKey_MultimapSideInput_) isStateKey_Type()     {}
+func (*StateKey_BagUserState_) isStateKey_Type()          {}
+func (*StateKey_IterableSideInput_) isStateKey_Type()     {}
+func (*StateKey_MultimapKeysSideInput_) isStateKey_Type() {}
 
 func (m *StateKey) GetType() isStateKey_Type {
 	if m != nil {
@@ -2826,12 +3053,28 @@ func (m *StateKey) GetBagUserState() *StateKey_BagUserState {
 	return nil
 }
 
+func (m *StateKey) GetIterableSideInput() *StateKey_IterableSideInput {
+	if x, ok := m.GetType().(*StateKey_IterableSideInput_); ok {
+		return x.IterableSideInput
+	}
+	return nil
+}
+
+func (m *StateKey) GetMultimapKeysSideInput() *StateKey_MultimapKeysSideInput {
+	if x, ok := m.GetType().(*StateKey_MultimapKeysSideInput_); ok {
+		return x.MultimapKeysSideInput
+	}
+	return nil
+}
+
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*StateKey) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
 	return _StateKey_OneofMarshaler, _StateKey_OneofUnmarshaler, _StateKey_OneofSizer, []interface{}{
 		(*StateKey_Runner_)(nil),
 		(*StateKey_MultimapSideInput_)(nil),
 		(*StateKey_BagUserState_)(nil),
+		(*StateKey_IterableSideInput_)(nil),
+		(*StateKey_MultimapKeysSideInput_)(nil),
 	}
 }
 
@@ -2852,6 +3095,16 @@ func _StateKey_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	case *StateKey_BagUserState_:
 		b.EncodeVarint(3<<3 | proto.WireBytes)
 		if err := b.EncodeMessage(x.BagUserState); err != nil {
+			return err
+		}
+	case *StateKey_IterableSideInput_:
+		b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.IterableSideInput); err != nil {
+			return err
+		}
+	case *StateKey_MultimapKeysSideInput_:
+		b.EncodeVarint(5<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.MultimapKeysSideInput); err != nil {
 			return err
 		}
 	case nil:
@@ -2888,6 +3141,22 @@ func _StateKey_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffe
 		err := b.DecodeMessage(msg)
 		m.Type = &StateKey_BagUserState_{msg}
 		return true, err
+	case 4: // type.iterable_side_input
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(StateKey_IterableSideInput)
+		err := b.DecodeMessage(msg)
+		m.Type = &StateKey_IterableSideInput_{msg}
+		return true, err
+	case 5: // type.multimap_keys_side_input
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(StateKey_MultimapKeysSideInput)
+		err := b.DecodeMessage(msg)
+		m.Type = &StateKey_MultimapKeysSideInput_{msg}
+		return true, err
 	default:
 		return false, nil
 	}
@@ -2912,6 +3181,16 @@ func _StateKey_OneofSizer(msg proto.Message) (n int) {
 		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
+	case *StateKey_IterableSideInput_:
+		s := proto.Size(x.IterableSideInput)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *StateKey_MultimapKeysSideInput_:
+		s := proto.Size(x.MultimapKeysSideInput)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
 	case nil:
 	default:
 		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
@@ -2922,6 +3201,11 @@ func _StateKey_OneofSizer(msg proto.Message) (n int) {
 type StateKey_Runner struct {
 	// (Required) Opaque information supplied by the runner. Used to support
 	// remote references.
+	// https://s.apache.org/beam-fn-api-send-and-receive-data
+	//
+	// Used by state backed iterable. And in this use case, request type can
+	// only be of type get. Details see:
+	// https://s.apache.org/beam-fn-api-state-backed-iterables
 	Key                  []byte   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -2932,7 +3216,7 @@ func (m *StateKey_Runner) Reset()         { *m = StateKey_Runner{} }
 func (m *StateKey_Runner) String() string { return proto.CompactTextString(m) }
 func (*StateKey_Runner) ProtoMessage()    {}
 func (*StateKey_Runner) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{20, 0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{20, 0}
 }
 func (m *StateKey_Runner) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_Runner.Unmarshal(m, b)
@@ -2959,9 +3243,90 @@ func (m *StateKey_Runner) GetKey() []byte {
 	return nil
 }
 
+// Represents a request for the values associated with a specified window
+// in a PCollection. See
+// https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+// details.
+//
+// Can only be used to perform StateGetRequests on side inputs of the URN
+// beam:side_input:iterable:v1.
+//
+// For a PCollection<V>, the response data stream will be a concatenation
+// of all V's. See https://s.apache.org/beam-fn-api-send-and-receive-data
+// for further details.
+type StateKey_IterableSideInput struct {
+	// (Required) The id of the PTransform containing a side input.
+	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	// (Required) The id of the side input.
+	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
+	// (Required) The window (after mapping the currently executing elements
+	// window into the side input windows domain) encoded in a nested context.
+	Window               []byte   `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StateKey_IterableSideInput) Reset()         { *m = StateKey_IterableSideInput{} }
+func (m *StateKey_IterableSideInput) String() string { return proto.CompactTextString(m) }
+func (*StateKey_IterableSideInput) ProtoMessage()    {}
+func (*StateKey_IterableSideInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{20, 1}
+}
+func (m *StateKey_IterableSideInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StateKey_IterableSideInput.Unmarshal(m, b)
+}
+func (m *StateKey_IterableSideInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StateKey_IterableSideInput.Marshal(b, m, deterministic)
+}
+func (dst *StateKey_IterableSideInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateKey_IterableSideInput.Merge(dst, src)
+}
+func (m *StateKey_IterableSideInput) XXX_Size() int {
+	return xxx_messageInfo_StateKey_IterableSideInput.Size(m)
+}
+func (m *StateKey_IterableSideInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_StateKey_IterableSideInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StateKey_IterableSideInput proto.InternalMessageInfo
+
+func (m *StateKey_IterableSideInput) GetTransformId() string {
+	if m != nil {
+		return m.TransformId
+	}
+	return ""
+}
+
+func (m *StateKey_IterableSideInput) GetSideInputId() string {
+	if m != nil {
+		return m.SideInputId
+	}
+	return ""
+}
+
+func (m *StateKey_IterableSideInput) GetWindow() []byte {
+	if m != nil {
+		return m.Window
+	}
+	return nil
+}
+
+// Represents a request for the values associated with a specified user key
+// and window in a PCollection. See
+// https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+// details.
+//
+// Can only be used to perform StateGetRequests on side inputs of the URN
+// beam:side_input:multimap:v1.
+//
+// For a PCollection<KV<K, V>>, the response data stream will be a
+// concatenation of all V's associated with the specified key K. See
+// https://s.apache.org/beam-fn-api-send-and-receive-data for further
+// details.
 type StateKey_MultimapSideInput struct {
 	// (Required) The id of the PTransform containing a side input.
-	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId,proto3" json:"ptransform_id,omitempty"`
+	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
 	// (Required) The id of the side input.
 	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
 	// (Required) The window (after mapping the currently executing elements
@@ -2978,7 +3343,7 @@ func (m *StateKey_MultimapSideInput) Reset()         { *m = StateKey_MultimapSid
 func (m *StateKey_MultimapSideInput) String() string { return proto.CompactTextString(m) }
 func (*StateKey_MultimapSideInput) ProtoMessage()    {}
 func (*StateKey_MultimapSideInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{20, 1}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{20, 2}
 }
 func (m *StateKey_MultimapSideInput) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_MultimapSideInput.Unmarshal(m, b)
@@ -2998,9 +3363,9 @@ func (m *StateKey_MultimapSideInput) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_StateKey_MultimapSideInput proto.InternalMessageInfo
 
-func (m *StateKey_MultimapSideInput) GetPtransformId() string {
+func (m *StateKey_MultimapSideInput) GetTransformId() string {
 	if m != nil {
-		return m.PtransformId
+		return m.TransformId
 	}
 	return ""
 }
@@ -3026,9 +3391,78 @@ func (m *StateKey_MultimapSideInput) GetKey() []byte {
 	return nil
 }
 
+// Represents a request for the keys associated with a specified window in a PCollection. See
+// https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+// details.
+//
+// Can only be used to perform StateGetRequests on side inputs of the URN
+// beam:side_input:multimap:v1.
+//
+// For a PCollection<KV<K, V>>, the response data stream will be a
+// concatenation of all K's associated with the specified window. See
+// https://s.apache.org/beam-fn-api-send-and-receive-data for further
+// details.
+type StateKey_MultimapKeysSideInput struct {
+	// (Required) The id of the PTransform containing a side input.
+	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	// (Required) The id of the side input.
+	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
+	// (Required) The window (after mapping the currently executing elements
+	// window into the side input windows domain) encoded in a nested context.
+	Window               []byte   `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StateKey_MultimapKeysSideInput) Reset()         { *m = StateKey_MultimapKeysSideInput{} }
+func (m *StateKey_MultimapKeysSideInput) String() string { return proto.CompactTextString(m) }
+func (*StateKey_MultimapKeysSideInput) ProtoMessage()    {}
+func (*StateKey_MultimapKeysSideInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{20, 3}
+}
+func (m *StateKey_MultimapKeysSideInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StateKey_MultimapKeysSideInput.Unmarshal(m, b)
+}
+func (m *StateKey_MultimapKeysSideInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StateKey_MultimapKeysSideInput.Marshal(b, m, deterministic)
+}
+func (dst *StateKey_MultimapKeysSideInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateKey_MultimapKeysSideInput.Merge(dst, src)
+}
+func (m *StateKey_MultimapKeysSideInput) XXX_Size() int {
+	return xxx_messageInfo_StateKey_MultimapKeysSideInput.Size(m)
+}
+func (m *StateKey_MultimapKeysSideInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_StateKey_MultimapKeysSideInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StateKey_MultimapKeysSideInput proto.InternalMessageInfo
+
+func (m *StateKey_MultimapKeysSideInput) GetTransformId() string {
+	if m != nil {
+		return m.TransformId
+	}
+	return ""
+}
+
+func (m *StateKey_MultimapKeysSideInput) GetSideInputId() string {
+	if m != nil {
+		return m.SideInputId
+	}
+	return ""
+}
+
+func (m *StateKey_MultimapKeysSideInput) GetWindow() []byte {
+	if m != nil {
+		return m.Window
+	}
+	return nil
+}
+
 type StateKey_BagUserState struct {
 	// (Required) The id of the PTransform containing user state.
-	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId,proto3" json:"ptransform_id,omitempty"`
+	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
 	// (Required) The id of the user state.
 	UserStateId string `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
 	// (Required) The window encoded in a nested context.
@@ -3045,7 +3479,7 @@ func (m *StateKey_BagUserState) Reset()         { *m = StateKey_BagUserState{} }
 func (m *StateKey_BagUserState) String() string { return proto.CompactTextString(m) }
 func (*StateKey_BagUserState) ProtoMessage()    {}
 func (*StateKey_BagUserState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{20, 2}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{20, 4}
 }
 func (m *StateKey_BagUserState) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_BagUserState.Unmarshal(m, b)
@@ -3065,9 +3499,9 @@ func (m *StateKey_BagUserState) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_StateKey_BagUserState proto.InternalMessageInfo
 
-func (m *StateKey_BagUserState) GetPtransformId() string {
+func (m *StateKey_BagUserState) GetTransformId() string {
 	if m != nil {
-		return m.PtransformId
+		return m.TransformId
 	}
 	return ""
 }
@@ -3110,7 +3544,7 @@ func (m *StateGetRequest) Reset()         { *m = StateGetRequest{} }
 func (m *StateGetRequest) String() string { return proto.CompactTextString(m) }
 func (*StateGetRequest) ProtoMessage()    {}
 func (*StateGetRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{21}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{21}
 }
 func (m *StateGetRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateGetRequest.Unmarshal(m, b)
@@ -3157,7 +3591,7 @@ func (m *StateGetResponse) Reset()         { *m = StateGetResponse{} }
 func (m *StateGetResponse) String() string { return proto.CompactTextString(m) }
 func (*StateGetResponse) ProtoMessage()    {}
 func (*StateGetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{22}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{22}
 }
 func (m *StateGetResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateGetResponse.Unmarshal(m, b)
@@ -3206,7 +3640,7 @@ func (m *StateAppendRequest) Reset()         { *m = StateAppendRequest{} }
 func (m *StateAppendRequest) String() string { return proto.CompactTextString(m) }
 func (*StateAppendRequest) ProtoMessage()    {}
 func (*StateAppendRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{23}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{23}
 }
 func (m *StateAppendRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateAppendRequest.Unmarshal(m, b)
@@ -3244,7 +3678,7 @@ func (m *StateAppendResponse) Reset()         { *m = StateAppendResponse{} }
 func (m *StateAppendResponse) String() string { return proto.CompactTextString(m) }
 func (*StateAppendResponse) ProtoMessage()    {}
 func (*StateAppendResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{24}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{24}
 }
 func (m *StateAppendResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateAppendResponse.Unmarshal(m, b)
@@ -3275,7 +3709,7 @@ func (m *StateClearRequest) Reset()         { *m = StateClearRequest{} }
 func (m *StateClearRequest) String() string { return proto.CompactTextString(m) }
 func (*StateClearRequest) ProtoMessage()    {}
 func (*StateClearRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{25}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{25}
 }
 func (m *StateClearRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateClearRequest.Unmarshal(m, b)
@@ -3306,7 +3740,7 @@ func (m *StateClearResponse) Reset()         { *m = StateClearResponse{} }
 func (m *StateClearResponse) String() string { return proto.CompactTextString(m) }
 func (*StateClearResponse) ProtoMessage()    {}
 func (*StateClearResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{26}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{26}
 }
 func (m *StateClearResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateClearResponse.Unmarshal(m, b)
@@ -3339,10 +3773,10 @@ type LogEntry struct {
 	Trace string `protobuf:"bytes,4,opt,name=trace,proto3" json:"trace,omitempty"`
 	// (Optional) A reference to the instruction this log statement is associated
 	// with.
-	InstructionReference string `protobuf:"bytes,5,opt,name=instruction_reference,json=instructionReference,proto3" json:"instruction_reference,omitempty"`
-	// (Optional) A reference to the primitive transform this log statement is
+	InstructionId string `protobuf:"bytes,5,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	// (Optional) A reference to the transform this log statement is
 	// associated with.
-	PrimitiveTransformReference string `protobuf:"bytes,6,opt,name=primitive_transform_reference,json=primitiveTransformReference,proto3" json:"primitive_transform_reference,omitempty"`
+	TransformId string `protobuf:"bytes,6,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
 	// (Optional) Human-readable name of the function or method being invoked,
 	// with optional context such as the class or package name. The format can
 	// vary by language. For example:
@@ -3362,7 +3796,7 @@ func (m *LogEntry) Reset()         { *m = LogEntry{} }
 func (m *LogEntry) String() string { return proto.CompactTextString(m) }
 func (*LogEntry) ProtoMessage()    {}
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{27}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{27}
 }
 func (m *LogEntry) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry.Unmarshal(m, b)
@@ -3410,16 +3844,16 @@ func (m *LogEntry) GetTrace() string {
 	return ""
 }
 
-func (m *LogEntry) GetInstructionReference() string {
+func (m *LogEntry) GetInstructionId() string {
 	if m != nil {
-		return m.InstructionReference
+		return m.InstructionId
 	}
 	return ""
 }
 
-func (m *LogEntry) GetPrimitiveTransformReference() string {
+func (m *LogEntry) GetTransformId() string {
 	if m != nil {
-		return m.PrimitiveTransformReference
+		return m.TransformId
 	}
 	return ""
 }
@@ -3452,7 +3886,7 @@ func (m *LogEntry_List) Reset()         { *m = LogEntry_List{} }
 func (m *LogEntry_List) String() string { return proto.CompactTextString(m) }
 func (*LogEntry_List) ProtoMessage()    {}
 func (*LogEntry_List) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{27, 0}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{27, 0}
 }
 func (m *LogEntry_List) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry_List.Unmarshal(m, b)
@@ -3502,7 +3936,7 @@ func (m *LogEntry_Severity) Reset()         { *m = LogEntry_Severity{} }
 func (m *LogEntry_Severity) String() string { return proto.CompactTextString(m) }
 func (*LogEntry_Severity) ProtoMessage()    {}
 func (*LogEntry_Severity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{27, 1}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{27, 1}
 }
 func (m *LogEntry_Severity) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry_Severity.Unmarshal(m, b)
@@ -3532,7 +3966,7 @@ func (m *LogControl) Reset()         { *m = LogControl{} }
 func (m *LogControl) String() string { return proto.CompactTextString(m) }
 func (*LogControl) ProtoMessage()    {}
 func (*LogControl) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{28}
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{28}
 }
 func (m *LogControl) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogControl.Unmarshal(m, b)
@@ -3552,7 +3986,7 @@ func (m *LogControl) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_LogControl proto.InternalMessageInfo
 
-type NotifyRunnerAvailableRequest struct {
+type StartWorkerRequest struct {
 	WorkerId             string                            `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
 	ControlEndpoint      *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,2,opt,name=control_endpoint,json=controlEndpoint,proto3" json:"control_endpoint,omitempty"`
 	LoggingEndpoint      *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,3,opt,name=logging_endpoint,json=loggingEndpoint,proto3" json:"logging_endpoint,omitempty"`
@@ -3564,104 +3998,180 @@ type NotifyRunnerAvailableRequest struct {
 	XXX_sizecache        int32                             `json:"-"`
 }
 
-func (m *NotifyRunnerAvailableRequest) Reset()         { *m = NotifyRunnerAvailableRequest{} }
-func (m *NotifyRunnerAvailableRequest) String() string { return proto.CompactTextString(m) }
-func (*NotifyRunnerAvailableRequest) ProtoMessage()    {}
-func (*NotifyRunnerAvailableRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{29}
+func (m *StartWorkerRequest) Reset()         { *m = StartWorkerRequest{} }
+func (m *StartWorkerRequest) String() string { return proto.CompactTextString(m) }
+func (*StartWorkerRequest) ProtoMessage()    {}
+func (*StartWorkerRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{29}
 }
-func (m *NotifyRunnerAvailableRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NotifyRunnerAvailableRequest.Unmarshal(m, b)
+func (m *StartWorkerRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartWorkerRequest.Unmarshal(m, b)
 }
-func (m *NotifyRunnerAvailableRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NotifyRunnerAvailableRequest.Marshal(b, m, deterministic)
+func (m *StartWorkerRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartWorkerRequest.Marshal(b, m, deterministic)
 }
-func (dst *NotifyRunnerAvailableRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NotifyRunnerAvailableRequest.Merge(dst, src)
+func (dst *StartWorkerRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartWorkerRequest.Merge(dst, src)
 }
-func (m *NotifyRunnerAvailableRequest) XXX_Size() int {
-	return xxx_messageInfo_NotifyRunnerAvailableRequest.Size(m)
+func (m *StartWorkerRequest) XXX_Size() int {
+	return xxx_messageInfo_StartWorkerRequest.Size(m)
 }
-func (m *NotifyRunnerAvailableRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_NotifyRunnerAvailableRequest.DiscardUnknown(m)
+func (m *StartWorkerRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartWorkerRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NotifyRunnerAvailableRequest proto.InternalMessageInfo
+var xxx_messageInfo_StartWorkerRequest proto.InternalMessageInfo
 
-func (m *NotifyRunnerAvailableRequest) GetWorkerId() string {
+func (m *StartWorkerRequest) GetWorkerId() string {
 	if m != nil {
 		return m.WorkerId
 	}
 	return ""
 }
 
-func (m *NotifyRunnerAvailableRequest) GetControlEndpoint() *pipeline_v1.ApiServiceDescriptor {
+func (m *StartWorkerRequest) GetControlEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if m != nil {
 		return m.ControlEndpoint
 	}
 	return nil
 }
 
-func (m *NotifyRunnerAvailableRequest) GetLoggingEndpoint() *pipeline_v1.ApiServiceDescriptor {
+func (m *StartWorkerRequest) GetLoggingEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if m != nil {
 		return m.LoggingEndpoint
 	}
 	return nil
 }
 
-func (m *NotifyRunnerAvailableRequest) GetArtifactEndpoint() *pipeline_v1.ApiServiceDescriptor {
+func (m *StartWorkerRequest) GetArtifactEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if m != nil {
 		return m.ArtifactEndpoint
 	}
 	return nil
 }
 
-func (m *NotifyRunnerAvailableRequest) GetProvisionEndpoint() *pipeline_v1.ApiServiceDescriptor {
+func (m *StartWorkerRequest) GetProvisionEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if m != nil {
 		return m.ProvisionEndpoint
 	}
 	return nil
 }
 
-func (m *NotifyRunnerAvailableRequest) GetParams() map[string]string {
+func (m *StartWorkerRequest) GetParams() map[string]string {
 	if m != nil {
 		return m.Params
 	}
 	return nil
 }
 
-type NotifyRunnerAvailableResponse struct {
+type StartWorkerResponse struct {
 	Error                string   `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *NotifyRunnerAvailableResponse) Reset()         { *m = NotifyRunnerAvailableResponse{} }
-func (m *NotifyRunnerAvailableResponse) String() string { return proto.CompactTextString(m) }
-func (*NotifyRunnerAvailableResponse) ProtoMessage()    {}
-func (*NotifyRunnerAvailableResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_e97479b62fd7f85c, []int{30}
+func (m *StartWorkerResponse) Reset()         { *m = StartWorkerResponse{} }
+func (m *StartWorkerResponse) String() string { return proto.CompactTextString(m) }
+func (*StartWorkerResponse) ProtoMessage()    {}
+func (*StartWorkerResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{30}
 }
-func (m *NotifyRunnerAvailableResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NotifyRunnerAvailableResponse.Unmarshal(m, b)
+func (m *StartWorkerResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartWorkerResponse.Unmarshal(m, b)
 }
-func (m *NotifyRunnerAvailableResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NotifyRunnerAvailableResponse.Marshal(b, m, deterministic)
+func (m *StartWorkerResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartWorkerResponse.Marshal(b, m, deterministic)
 }
-func (dst *NotifyRunnerAvailableResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NotifyRunnerAvailableResponse.Merge(dst, src)
+func (dst *StartWorkerResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartWorkerResponse.Merge(dst, src)
 }
-func (m *NotifyRunnerAvailableResponse) XXX_Size() int {
-	return xxx_messageInfo_NotifyRunnerAvailableResponse.Size(m)
+func (m *StartWorkerResponse) XXX_Size() int {
+	return xxx_messageInfo_StartWorkerResponse.Size(m)
 }
-func (m *NotifyRunnerAvailableResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_NotifyRunnerAvailableResponse.DiscardUnknown(m)
+func (m *StartWorkerResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartWorkerResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NotifyRunnerAvailableResponse proto.InternalMessageInfo
+var xxx_messageInfo_StartWorkerResponse proto.InternalMessageInfo
 
-func (m *NotifyRunnerAvailableResponse) GetError() string {
+func (m *StartWorkerResponse) GetError() string {
+	if m != nil {
+		return m.Error
+	}
+	return ""
+}
+
+type StopWorkerRequest struct {
+	WorkerId             string   `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StopWorkerRequest) Reset()         { *m = StopWorkerRequest{} }
+func (m *StopWorkerRequest) String() string { return proto.CompactTextString(m) }
+func (*StopWorkerRequest) ProtoMessage()    {}
+func (*StopWorkerRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{31}
+}
+func (m *StopWorkerRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StopWorkerRequest.Unmarshal(m, b)
+}
+func (m *StopWorkerRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StopWorkerRequest.Marshal(b, m, deterministic)
+}
+func (dst *StopWorkerRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StopWorkerRequest.Merge(dst, src)
+}
+func (m *StopWorkerRequest) XXX_Size() int {
+	return xxx_messageInfo_StopWorkerRequest.Size(m)
+}
+func (m *StopWorkerRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StopWorkerRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StopWorkerRequest proto.InternalMessageInfo
+
+func (m *StopWorkerRequest) GetWorkerId() string {
+	if m != nil {
+		return m.WorkerId
+	}
+	return ""
+}
+
+type StopWorkerResponse struct {
+	Error                string   `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StopWorkerResponse) Reset()         { *m = StopWorkerResponse{} }
+func (m *StopWorkerResponse) String() string { return proto.CompactTextString(m) }
+func (*StopWorkerResponse) ProtoMessage()    {}
+func (*StopWorkerResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_beam_fn_api_232aec3131d70c18, []int{32}
+}
+func (m *StopWorkerResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StopWorkerResponse.Unmarshal(m, b)
+}
+func (m *StopWorkerResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StopWorkerResponse.Marshal(b, m, deterministic)
+}
+func (dst *StopWorkerResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StopWorkerResponse.Merge(dst, src)
+}
+func (m *StopWorkerResponse) XXX_Size() int {
+	return xxx_messageInfo_StopWorkerResponse.Size(m)
+}
+func (m *StopWorkerResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_StopWorkerResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StopWorkerResponse proto.InternalMessageInfo
+
+func (m *StopWorkerResponse) GetError() string {
 	if m != nil {
 		return m.Error
 	}
@@ -3684,6 +4194,9 @@ func init() {
 	proto.RegisterMapType((map[string]*timestamp.Timestamp)(nil), "org.apache.beam.model.fn_execution.v1.BundleApplication.OutputWatermarksEntry")
 	proto.RegisterType((*DelayedBundleApplication)(nil), "org.apache.beam.model.fn_execution.v1.DelayedBundleApplication")
 	proto.RegisterType((*ProcessBundleRequest)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleRequest")
+	proto.RegisterType((*ProcessBundleRequest_CacheToken)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleRequest.CacheToken")
+	proto.RegisterType((*ProcessBundleRequest_CacheToken_UserState)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleRequest.CacheToken.UserState")
+	proto.RegisterType((*ProcessBundleRequest_CacheToken_SideInput)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleRequest.CacheToken.SideInput")
 	proto.RegisterType((*ProcessBundleResponse)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleResponse")
 	proto.RegisterType((*ProcessBundleProgressRequest)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleProgressRequest")
 	proto.RegisterType((*Metrics)(nil), "org.apache.beam.model.fn_execution.v1.Metrics")
@@ -3703,7 +4216,6 @@ func init() {
 	proto.RegisterType((*Metrics_User_GaugeData)(nil), "org.apache.beam.model.fn_execution.v1.Metrics.User.GaugeData")
 	proto.RegisterType((*ProcessBundleProgressResponse)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleProgressResponse")
 	proto.RegisterType((*ProcessBundleSplitRequest)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleSplitRequest")
-	proto.RegisterMapType((map[string][]byte)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleSplitRequest.BacklogRemainingEntry")
 	proto.RegisterMapType((map[string]*ProcessBundleSplitRequest_DesiredSplit)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleSplitRequest.DesiredSplitsEntry")
 	proto.RegisterType((*ProcessBundleSplitRequest_DesiredSplit)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleSplitRequest.DesiredSplit")
 	proto.RegisterType((*ProcessBundleSplitResponse)(nil), "org.apache.beam.model.fn_execution.v1.ProcessBundleSplitResponse")
@@ -3716,7 +4228,9 @@ func init() {
 	proto.RegisterType((*StateResponse)(nil), "org.apache.beam.model.fn_execution.v1.StateResponse")
 	proto.RegisterType((*StateKey)(nil), "org.apache.beam.model.fn_execution.v1.StateKey")
 	proto.RegisterType((*StateKey_Runner)(nil), "org.apache.beam.model.fn_execution.v1.StateKey.Runner")
+	proto.RegisterType((*StateKey_IterableSideInput)(nil), "org.apache.beam.model.fn_execution.v1.StateKey.IterableSideInput")
 	proto.RegisterType((*StateKey_MultimapSideInput)(nil), "org.apache.beam.model.fn_execution.v1.StateKey.MultimapSideInput")
+	proto.RegisterType((*StateKey_MultimapKeysSideInput)(nil), "org.apache.beam.model.fn_execution.v1.StateKey.MultimapKeysSideInput")
 	proto.RegisterType((*StateKey_BagUserState)(nil), "org.apache.beam.model.fn_execution.v1.StateKey.BagUserState")
 	proto.RegisterType((*StateGetRequest)(nil), "org.apache.beam.model.fn_execution.v1.StateGetRequest")
 	proto.RegisterType((*StateGetResponse)(nil), "org.apache.beam.model.fn_execution.v1.StateGetResponse")
@@ -3728,9 +4242,11 @@ func init() {
 	proto.RegisterType((*LogEntry_List)(nil), "org.apache.beam.model.fn_execution.v1.LogEntry.List")
 	proto.RegisterType((*LogEntry_Severity)(nil), "org.apache.beam.model.fn_execution.v1.LogEntry.Severity")
 	proto.RegisterType((*LogControl)(nil), "org.apache.beam.model.fn_execution.v1.LogControl")
-	proto.RegisterType((*NotifyRunnerAvailableRequest)(nil), "org.apache.beam.model.fn_execution.v1.NotifyRunnerAvailableRequest")
-	proto.RegisterMapType((map[string]string)(nil), "org.apache.beam.model.fn_execution.v1.NotifyRunnerAvailableRequest.ParamsEntry")
-	proto.RegisterType((*NotifyRunnerAvailableResponse)(nil), "org.apache.beam.model.fn_execution.v1.NotifyRunnerAvailableResponse")
+	proto.RegisterType((*StartWorkerRequest)(nil), "org.apache.beam.model.fn_execution.v1.StartWorkerRequest")
+	proto.RegisterMapType((map[string]string)(nil), "org.apache.beam.model.fn_execution.v1.StartWorkerRequest.ParamsEntry")
+	proto.RegisterType((*StartWorkerResponse)(nil), "org.apache.beam.model.fn_execution.v1.StartWorkerResponse")
+	proto.RegisterType((*StopWorkerRequest)(nil), "org.apache.beam.model.fn_execution.v1.StopWorkerRequest")
+	proto.RegisterType((*StopWorkerResponse)(nil), "org.apache.beam.model.fn_execution.v1.StopWorkerResponse")
 	proto.RegisterEnum("org.apache.beam.model.fn_execution.v1.LogEntry_Severity_Enum", LogEntry_Severity_Enum_name, LogEntry_Severity_Enum_value)
 }
 
@@ -4142,7 +4658,10 @@ var _BeamFnLogging_serviceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type BeamFnExternalWorkerPoolClient interface {
-	NotifyRunnerAvailable(ctx context.Context, in *NotifyRunnerAvailableRequest, opts ...grpc.CallOption) (*NotifyRunnerAvailableResponse, error)
+	// Start the SDK worker with the given ID.
+	StartWorker(ctx context.Context, in *StartWorkerRequest, opts ...grpc.CallOption) (*StartWorkerResponse, error)
+	// Stop the SDK worker.
+	StopWorker(ctx context.Context, in *StopWorkerRequest, opts ...grpc.CallOption) (*StopWorkerResponse, error)
 }
 
 type beamFnExternalWorkerPoolClient struct {
@@ -4153,9 +4672,18 @@ func NewBeamFnExternalWorkerPoolClient(cc *grpc.ClientConn) BeamFnExternalWorker
 	return &beamFnExternalWorkerPoolClient{cc}
 }
 
-func (c *beamFnExternalWorkerPoolClient) NotifyRunnerAvailable(ctx context.Context, in *NotifyRunnerAvailableRequest, opts ...grpc.CallOption) (*NotifyRunnerAvailableResponse, error) {
-	out := new(NotifyRunnerAvailableResponse)
-	err := c.cc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/NotifyRunnerAvailable", in, out, opts...)
+func (c *beamFnExternalWorkerPoolClient) StartWorker(ctx context.Context, in *StartWorkerRequest, opts ...grpc.CallOption) (*StartWorkerResponse, error) {
+	out := new(StartWorkerResponse)
+	err := c.cc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StartWorker", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *beamFnExternalWorkerPoolClient) StopWorker(ctx context.Context, in *StopWorkerRequest, opts ...grpc.CallOption) (*StopWorkerResponse, error) {
+	out := new(StopWorkerResponse)
+	err := c.cc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StopWorker", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4164,27 +4692,48 @@ func (c *beamFnExternalWorkerPoolClient) NotifyRunnerAvailable(ctx context.Conte
 
 // BeamFnExternalWorkerPoolServer is the server API for BeamFnExternalWorkerPool service.
 type BeamFnExternalWorkerPoolServer interface {
-	NotifyRunnerAvailable(context.Context, *NotifyRunnerAvailableRequest) (*NotifyRunnerAvailableResponse, error)
+	// Start the SDK worker with the given ID.
+	StartWorker(context.Context, *StartWorkerRequest) (*StartWorkerResponse, error)
+	// Stop the SDK worker.
+	StopWorker(context.Context, *StopWorkerRequest) (*StopWorkerResponse, error)
 }
 
 func RegisterBeamFnExternalWorkerPoolServer(s *grpc.Server, srv BeamFnExternalWorkerPoolServer) {
 	s.RegisterService(&_BeamFnExternalWorkerPool_serviceDesc, srv)
 }
 
-func _BeamFnExternalWorkerPool_NotifyRunnerAvailable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NotifyRunnerAvailableRequest)
+func _BeamFnExternalWorkerPool_StartWorker_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartWorkerRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BeamFnExternalWorkerPoolServer).NotifyRunnerAvailable(ctx, in)
+		return srv.(BeamFnExternalWorkerPoolServer).StartWorker(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/NotifyRunnerAvailable",
+		FullMethod: "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StartWorker",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BeamFnExternalWorkerPoolServer).NotifyRunnerAvailable(ctx, req.(*NotifyRunnerAvailableRequest))
+		return srv.(BeamFnExternalWorkerPoolServer).StartWorker(ctx, req.(*StartWorkerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BeamFnExternalWorkerPool_StopWorker_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopWorkerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BeamFnExternalWorkerPoolServer).StopWorker(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StopWorker",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BeamFnExternalWorkerPoolServer).StopWorker(ctx, req.(*StopWorkerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -4194,212 +4743,223 @@ var _BeamFnExternalWorkerPool_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*BeamFnExternalWorkerPoolServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "NotifyRunnerAvailable",
-			Handler:    _BeamFnExternalWorkerPool_NotifyRunnerAvailable_Handler,
+			MethodName: "StartWorker",
+			Handler:    _BeamFnExternalWorkerPool_StartWorker_Handler,
+		},
+		{
+			MethodName: "StopWorker",
+			Handler:    _BeamFnExternalWorkerPool_StopWorker_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "beam_fn_api.proto",
 }
 
-func init() { proto.RegisterFile("beam_fn_api.proto", fileDescriptor_beam_fn_api_e97479b62fd7f85c) }
+func init() { proto.RegisterFile("beam_fn_api.proto", fileDescriptor_beam_fn_api_232aec3131d70c18) }
 
-var fileDescriptor_beam_fn_api_e97479b62fd7f85c = []byte{
-	// 3128 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x5a, 0xdb, 0x6f, 0x1b, 0xd7,
-	0x99, 0xf7, 0x88, 0xa4, 0x44, 0x7d, 0xa4, 0x24, 0xf2, 0x48, 0xb2, 0xe9, 0x89, 0xb3, 0xf1, 0x32,
-	0x1b, 0x40, 0x2f, 0xa1, 0xaf, 0x9b, 0xd8, 0xd9, 0xc4, 0x89, 0x44, 0xc9, 0x36, 0x13, 0x59, 0xe6,
-	0x8e, 0xe4, 0x78, 0x37, 0xd9, 0xcd, 0xe0, 0x88, 0x73, 0x48, 0x1f, 0x78, 0x38, 0x33, 0x39, 0x33,
-	0x94, 0x2d, 0x6f, 0xb0, 0x8b, 0x6d, 0x81, 0xf4, 0x82, 0x16, 0x79, 0x0d, 0xda, 0xa7, 0x5e, 0xd0,
-	0xc7, 0xfe, 0x0f, 0x7d, 0x2d, 0x0a, 0x14, 0x7d, 0x6d, 0xf3, 0xd8, 0x02, 0x69, 0xd3, 0xd7, 0x02,
-	0x05, 0xfa, 0x52, 0x9c, 0xcb, 0x5c, 0x38, 0x24, 0x65, 0x5e, 0x94, 0xbe, 0xf1, 0x9c, 0x33, 0xdf,
-	0xef, 0xf7, 0xcd, 0x77, 0xbe, 0xf3, 0x5d, 0xe6, 0x10, 0xca, 0x87, 0x04, 0x77, 0xcd, 0xb6, 0x63,
-	0x62, 0x8f, 0xd6, 0x3c, 0xe6, 0x06, 0x2e, 0x7a, 0xc5, 0x65, 0x9d, 0x1a, 0xf6, 0x70, 0xeb, 0x11,
-	0xa9, 0xf1, 0xd5, 0x5a, 0xd7, 0xb5, 0x88, 0x5d, 0x6b, 0x3b, 0x26, 0x79, 0x4a, 0x5a, 0xbd, 0x80,
-	0xba, 0x4e, 0xed, 0xe8, 0x8a, 0xbe, 0x2e, 0x24, 0x59, 0xcf, 0x71, 0x08, 0x8b, 0xa5, 0xf5, 0x15,
-	0xe2, 0x58, 0x9e, 0x4b, 0x9d, 0xc0, 0x57, 0x13, 0x17, 0x3b, 0xae, 0xdb, 0xb1, 0xc9, 0x25, 0x31,
-	0x3a, 0xec, 0xb5, 0x2f, 0x59, 0xc4, 0x6f, 0x31, 0xea, 0x05, 0x2e, 0x53, 0x4f, 0xbc, 0x94, 0x7e,
-	0x22, 0xa0, 0x5d, 0xe2, 0x07, 0xb8, 0xeb, 0xa9, 0x07, 0xfe, 0x29, 0xfd, 0xc0, 0x13, 0x86, 0x3d,
-	0x8f, 0xb0, 0x90, 0x62, 0xa9, 0x4b, 0x02, 0x46, 0x5b, 0x6a, 0x58, 0xfd, 0x81, 0x06, 0xcb, 0x06,
-	0xe9, 0xba, 0x01, 0xb9, 0xc3, 0xbc, 0x56, 0xd3, 0x65, 0x01, 0xea, 0xc2, 0x59, 0xec, 0x51, 0xd3,
-	0x27, 0xec, 0x88, 0xb6, 0x88, 0x19, 0xab, 0x50, 0xd1, 0x2e, 0x6a, 0x1b, 0x85, 0xab, 0xaf, 0xd7,
-	0x86, 0xbf, 0xb4, 0x47, 0x3d, 0x62, 0x53, 0x87, 0xd4, 0x8e, 0xae, 0xd4, 0x36, 0x3d, 0xba, 0x2f,
-	0xe5, 0xb7, 0x23, 0x71, 0x63, 0x0d, 0x0f, 0x99, 0x45, 0xe7, 0x21, 0xdf, 0x72, 0x2d, 0xc2, 0x4c,
-	0x6a, 0x55, 0xe6, 0x2e, 0x6a, 0x1b, 0x8b, 0xc6, 0x82, 0x18, 0x37, 0xac, 0xea, 0x1f, 0xb2, 0x80,
-	0x1a, 0x8e, 0x1f, 0xb0, 0x5e, 0x8b, 0x5b, 0xd2, 0x20, 0x1f, 0xf7, 0x88, 0x1f, 0xa0, 0x57, 0x60,
-	0x99, 0xc6, 0xb3, 0x5c, 0x4e, 0x13, 0x72, 0x4b, 0x89, 0xd9, 0x86, 0x85, 0x1e, 0x40, 0x9e, 0x91,
-	0x0e, 0xf5, 0x03, 0xc2, 0x2a, 0x5f, 0x2e, 0x08, 0xd5, 0x5f, 0xab, 0x8d, 0xb5, 0x5f, 0x35, 0x43,
-	0xc9, 0x29, 0xc6, 0xbb, 0x67, 0x8c, 0x08, 0x0a, 0x11, 0x58, 0xf6, 0x98, 0xdb, 0x22, 0xbe, 0x6f,
-	0x1e, 0xf6, 0x1c, 0xcb, 0x26, 0x95, 0x3f, 0x4a, 0xf0, 0x7f, 0x1b, 0x13, 0xbc, 0x29, 0xa5, 0xb7,
-	0x84, 0x70, 0xcc, 0xb0, 0xe4, 0x25, 0xe7, 0xd1, 0xff, 0xc2, 0xb9, 0x7e, 0x1a, 0xd3, 0x63, 0x6e,
-	0x87, 0x11, 0xdf, 0xaf, 0xfc, 0x49, 0xf2, 0xd5, 0xa7, 0xe1, 0x6b, 0x2a, 0x90, 0x98, 0x77, 0xdd,
-	0x1b, 0xb6, 0x8e, 0x7a, 0xb0, 0x96, 0xe2, 0xf7, 0x3d, 0x9b, 0x06, 0x95, 0xaf, 0x24, 0xf9, 0x3b,
-	0xd3, 0x90, 0xef, 0x73, 0x84, 0x98, 0x19, 0x79, 0x03, 0x8b, 0xe8, 0x11, 0xac, 0xb4, 0xa9, 0x83,
-	0x6d, 0xfa, 0x8c, 0x84, 0xe6, 0xfd, 0xb3, 0x64, 0x7c, 0x73, 0x4c, 0xc6, 0xdb, 0x4a, 0x3c, 0x6d,
-	0xdf, 0xe5, 0x76, 0xdf, 0xc2, 0xd6, 0x22, 0x2c, 0x30, 0xb9, 0x58, 0xfd, 0x46, 0x0e, 0x56, 0xfb,
-	0xfc, 0xcc, 0xf7, 0x5c, 0xc7, 0x27, 0xe3, 0x3a, 0xda, 0x1a, 0xe4, 0x08, 0x63, 0x2e, 0x53, 0xee,
-	0x2b, 0x07, 0xe8, 0xfd, 0x41, 0xf7, 0x7b, 0x7d, 0x62, 0xf7, 0x93, 0x8a, 0xf4, 0xf9, 0x5f, 0x7b,
-	0x94, 0xff, 0xbd, 0x39, 0x9d, 0xff, 0x45, 0x14, 0x29, 0x07, 0xfc, 0xbf, 0xe7, 0x3a, 0xe0, 0xf6,
-	0x6c, 0x0e, 0x18, 0x11, 0x8f, 0xf0, 0xc0, 0xa3, 0x93, 0x3d, 0x70, 0x73, 0x06, 0x0f, 0x8c, 0xa8,
-	0x87, 0xb9, 0x20, 0x1d, 0xe9, 0x82, 0x6f, 0x4d, 0xe9, 0x82, 0x11, 0x5d, 0xda, 0x07, 0x81, 0xfb,
-	0x88, 0x5c, 0xad, 0x7e, 0x5f, 0x83, 0x95, 0x54, 0xdc, 0x41, 0xcf, 0xe0, 0x7c, 0xca, 0x04, 0x7d,
-	0xd1, 0x38, 0xb3, 0x51, 0xb8, 0x7a, 0x6b, 0x1a, 0x33, 0x24, 0x82, 0xf2, 0x39, 0x6f, 0xf8, 0x42,
-	0x15, 0x41, 0x29, 0xed, 0x87, 0xd5, 0x9f, 0x00, 0x9c, 0x1b, 0x01, 0x84, 0x96, 0x61, 0x2e, 0x3a,
-	0x20, 0x73, 0xd4, 0x42, 0x0e, 0x40, 0xc0, 0xb0, 0xe3, 0xb7, 0x5d, 0xd6, 0xf5, 0x2b, 0x73, 0x42,
-	0xd9, 0xbd, 0xd9, 0x94, 0xad, 0x1d, 0x44, 0x80, 0x3b, 0x4e, 0xc0, 0x8e, 0x8d, 0x04, 0x03, 0x0a,
-	0xa0, 0xe8, 0xb5, 0x5c, 0xdb, 0x26, 0xe2, 0x58, 0xfa, 0x95, 0x8c, 0x60, 0x6c, 0xce, 0xc8, 0xd8,
-	0x4c, 0x40, 0x4a, 0xce, 0x3e, 0x16, 0xf4, 0x5d, 0x0d, 0xd6, 0x9e, 0x50, 0xc7, 0x72, 0x9f, 0x50,
-	0xa7, 0x63, 0xfa, 0x01, 0xc3, 0x01, 0xe9, 0x50, 0xe2, 0x57, 0xb2, 0x82, 0xfe, 0xe1, 0x8c, 0xf4,
-	0x0f, 0x43, 0xe8, 0xfd, 0x08, 0x59, 0x6a, 0xb1, 0xfa, 0x64, 0x70, 0x05, 0x1d, 0xc2, 0xbc, 0x48,
-	0x9d, 0x7e, 0x25, 0x27, 0xd8, 0xdf, 0x9d, 0x91, 0xbd, 0x2e, 0xc0, 0x24, 0xa1, 0x42, 0xe6, 0x66,
-	0x26, 0xce, 0x11, 0x65, 0xae, 0xd3, 0x25, 0x4e, 0xe0, 0x57, 0xe6, 0x4f, 0xc5, 0xcc, 0x3b, 0x09,
-	0x48, 0x65, 0xe6, 0x24, 0x0b, 0x7a, 0x0a, 0x17, 0xfc, 0x00, 0x07, 0xc4, 0x1c, 0x51, 0x99, 0x2c,
-	0xcc, 0x56, 0x99, 0x9c, 0x17, 0xe0, 0xc3, 0x96, 0x74, 0x1b, 0x56, 0x52, 0x5e, 0x87, 0x4a, 0x90,
-	0x79, 0x4c, 0x8e, 0x95, 0xab, 0xf3, 0x9f, 0xa8, 0x0e, 0xb9, 0x23, 0x6c, 0xf7, 0x88, 0xc8, 0x00,
-	0x85, 0xab, 0xaf, 0x8e, 0xa1, 0x47, 0x33, 0x42, 0x35, 0xa4, 0xec, 0x1b, 0x73, 0x37, 0x34, 0xdd,
-	0x85, 0xf2, 0x80, 0xc7, 0x0d, 0xe1, 0xdb, 0xee, 0xe7, 0xab, 0x8d, 0xc3, 0x57, 0x8f, 0x60, 0x93,
-	0x84, 0x9f, 0x40, 0x65, 0x94, 0x8f, 0x0d, 0xe1, 0x7d, 0xb7, 0x9f, 0xf7, 0xfa, 0x18, 0xbc, 0x69,
-	0xf4, 0xe3, 0x24, 0x7b, 0x0b, 0x0a, 0x09, 0x1f, 0x1b, 0x42, 0x78, 0xab, 0x9f, 0x70, 0x63, 0x0c,
-	0x42, 0x01, 0x98, 0xb2, 0xe9, 0x80, 0x7b, 0x9d, 0x8e, 0x4d, 0x13, 0xb0, 0x09, 0xc2, 0xea, 0xdf,
-	0x32, 0x50, 0x96, 0x1e, 0xbe, 0xe9, 0x79, 0x36, 0x6d, 0x61, 0x6e, 0x74, 0xf4, 0x32, 0x2c, 0x79,
-	0x51, 0xb8, 0x8a, 0x6b, 0x89, 0x62, 0x3c, 0xd9, 0xb0, 0x78, 0x31, 0x4c, 0x1d, 0xaf, 0x17, 0x24,
-	0x8a, 0x61, 0x31, 0x6e, 0x58, 0xa8, 0x02, 0x0b, 0xc4, 0x26, 0x9c, 0xab, 0x92, 0xb9, 0xa8, 0x6d,
-	0x14, 0x8d, 0x70, 0x88, 0xfe, 0x07, 0xca, 0x6e, 0x2f, 0xe0, 0x52, 0x4f, 0x70, 0x40, 0x58, 0x17,
-	0xb3, 0xc7, 0x61, 0xfc, 0x19, 0x37, 0xe0, 0x0e, 0xa8, 0x5b, 0xbb, 0x2f, 0x10, 0x1f, 0x46, 0x80,
-	0xf2, 0x54, 0x96, 0xdc, 0xd4, 0x34, 0x6a, 0x02, 0x50, 0xdf, 0x3c, 0x74, 0x7b, 0x8e, 0x45, 0xac,
-	0x4a, 0xee, 0xa2, 0xb6, 0xb1, 0x7c, 0xf5, 0xca, 0x18, 0xb6, 0x6b, 0xf8, 0x5b, 0x52, 0xa6, 0xb6,
-	0xe3, 0xf4, 0xba, 0xc6, 0x22, 0x0d, 0xc7, 0xe8, 0xbf, 0xa0, 0xd4, 0x75, 0x1d, 0x1a, 0xb8, 0x8c,
-	0x87, 0x54, 0xea, 0xb4, 0xdd, 0x30, 0xca, 0x8c, 0x83, 0x7b, 0x2f, 0x12, 0x6d, 0x38, 0x6d, 0xd7,
-	0x58, 0xe9, 0xf6, 0x8d, 0x7d, 0xdd, 0x84, 0xf5, 0xa1, 0xaf, 0x36, 0xc4, 0x23, 0x2e, 0xf7, 0x7b,
-	0x84, 0x5e, 0x93, 0xad, 0x55, 0x2d, 0x6c, 0xad, 0x6a, 0x07, 0x61, 0xef, 0x95, 0xdc, 0xfd, 0x5f,
-	0x69, 0x50, 0xd9, 0x26, 0x36, 0x3e, 0x26, 0xd6, 0xa0, 0x13, 0x1c, 0x40, 0x45, 0x15, 0x9d, 0xc4,
-	0x8a, 0x77, 0xc0, 0xe4, 0x4d, 0x9c, 0xea, 0xae, 0x4e, 0x62, 0x39, 0x1b, 0xc9, 0xee, 0x84, 0xa2,
-	0x7c, 0x11, 0x7d, 0x00, 0x05, 0x1c, 0x93, 0x28, 0x75, 0x6f, 0x4c, 0xbb, 0xf5, 0x46, 0x12, 0xac,
-	0xfa, 0x6d, 0x0d, 0xd6, 0x86, 0x75, 0x2c, 0xe8, 0x1e, 0xbc, 0x3c, 0xb2, 0x36, 0x31, 0x19, 0x69,
-	0x13, 0x46, 0x9c, 0x16, 0x51, 0xf6, 0xbc, 0x38, 0xa2, 0xca, 0x30, 0xc2, 0xe7, 0xd0, 0x3f, 0x43,
-	0xb1, 0xc5, 0x55, 0x35, 0x03, 0xf7, 0x31, 0x71, 0x64, 0xc1, 0x50, 0x34, 0x0a, 0x62, 0xee, 0x40,
-	0x4c, 0x55, 0xbf, 0x98, 0x83, 0xf5, 0xa1, 0xc5, 0x2b, 0xba, 0x0b, 0x0b, 0xaa, 0xad, 0x55, 0x56,
-	0xac, 0x8d, 0xf9, 0xf2, 0xf7, 0xa4, 0x94, 0x11, 0x8a, 0xf3, 0xea, 0x9a, 0x11, 0x9f, 0x5a, 0x3d,
-	0x6c, 0x9b, 0xcc, 0x75, 0x83, 0xb0, 0x72, 0x79, 0x7b, 0x4c, 0xc0, 0x51, 0x3b, 0x6f, 0x2c, 0x85,
-	0xb0, 0x06, 0x47, 0x1d, 0xea, 0xe4, 0x99, 0xd3, 0x72, 0x72, 0x74, 0x0d, 0xd6, 0xb9, 0xab, 0x50,
-	0x46, 0x7c, 0x53, 0x95, 0x9c, 0xd2, 0x35, 0xb2, 0x17, 0xb5, 0x8d, 0xbc, 0xb1, 0x16, 0x2e, 0xde,
-	0x4e, 0xac, 0x55, 0xf7, 0xe1, 0xc2, 0x49, 0xad, 0x22, 0x07, 0x4d, 0x76, 0x43, 0xe9, 0x2d, 0x5e,
-	0xa3, 0xc9, 0x0e, 0x4a, 0xad, 0x55, 0x3f, 0x5f, 0x85, 0x05, 0x65, 0x64, 0x84, 0xa1, 0xe0, 0x25,
-	0x4a, 0x42, 0x6d, 0x22, 0xc3, 0x2a, 0x90, 0x5a, 0x33, 0x48, 0xd5, 0x80, 0x49, 0x4c, 0xfd, 0x8b,
-	0x02, 0x40, 0x9c, 0x59, 0xd1, 0x33, 0x08, 0x0b, 0x7c, 0x7e, 0xdc, 0x64, 0xb8, 0x0c, 0x5d, 0xe4,
-	0xbd, 0x49, 0x89, 0x23, 0xd8, 0xb0, 0x8a, 0x21, 0xd6, 0x8e, 0x82, 0x34, 0xca, 0x5e, 0x7a, 0x0a,
-	0x7d, 0x0c, 0x2b, 0xb8, 0x15, 0xd0, 0x23, 0x12, 0x13, 0xcb, 0x83, 0x79, 0x77, 0x7a, 0xe2, 0x4d,
-	0x01, 0x18, 0xb1, 0x2e, 0xe3, 0xbe, 0x31, 0xa2, 0x00, 0x89, 0x0c, 0x20, 0xdd, 0xa9, 0x31, 0x3d,
-	0x5b, 0x3a, 0xf8, 0x27, 0xc0, 0xd1, 0x1d, 0xc8, 0xf6, 0x7c, 0xc2, 0x54, 0x9a, 0xb9, 0x36, 0x21,
-	0xc9, 0x03, 0x9f, 0x30, 0x43, 0x00, 0xe8, 0xbf, 0xcf, 0x40, 0xfe, 0x1e, 0xc1, 0x7e, 0x8f, 0x11,
-	0x0b, 0x7d, 0x4f, 0x83, 0x35, 0x99, 0xff, 0x94, 0xcd, 0xcc, 0x96, 0xdb, 0x93, 0x5b, 0xc6, 0x69,
-	0x3e, 0x98, 0xfe, 0x5d, 0x42, 0x8a, 0x5a, 0x83, 0xc3, 0x2b, 0x8b, 0xd5, 0x05, 0xb8, 0x7c, 0x39,
-	0x44, 0x07, 0x16, 0xd0, 0x67, 0x1a, 0xac, 0xab, 0xcc, 0x9a, 0xd2, 0x47, 0x06, 0x85, 0x0f, 0x4f,
-	0x41, 0x1f, 0x99, 0x8c, 0x86, 0x28, 0xb4, 0xea, 0x0e, 0xae, 0xa0, 0x0d, 0x28, 0x05, 0x6e, 0x80,
-	0x6d, 0x91, 0x31, 0x4c, 0xdf, 0x0b, 0xab, 0x01, 0xcd, 0x58, 0x16, 0xf3, 0x3c, 0x1d, 0xec, 0xf3,
-	0x59, 0x7d, 0x07, 0xce, 0x8d, 0x78, 0xd5, 0x21, 0x99, 0x6e, 0x2d, 0x99, 0xe9, 0x32, 0xc9, 0xe2,
-	0xe9, 0x36, 0x54, 0x46, 0x69, 0x38, 0x11, 0x8e, 0x0f, 0xe5, 0x81, 0x53, 0x83, 0x3e, 0x82, 0x7c,
-	0x57, 0xd9, 0x41, 0x1d, 0xca, 0xad, 0xd9, 0x2d, 0x6a, 0x44, 0x98, 0xfa, 0x67, 0x19, 0x58, 0xee,
-	0x3f, 0x32, 0x5f, 0x37, 0x25, 0x7a, 0x15, 0x50, 0x9b, 0xe1, 0x30, 0x42, 0x76, 0x31, 0x75, 0xa8,
-	0xd3, 0x11, 0xe6, 0xd0, 0x8c, 0x72, 0xb8, 0x62, 0x84, 0x0b, 0xe8, 0x47, 0x1a, 0x9c, 0xef, 0xf7,
-	0x30, 0x3f, 0x21, 0x26, 0x4f, 0x30, 0x39, 0xad, 0x78, 0xd1, 0xef, 0x6b, 0x7e, 0xa4, 0x85, 0xf4,
-	0xb7, 0x73, 0xee, 0xf0, 0x55, 0xfd, 0x5d, 0xb8, 0x70, 0x92, 0xe0, 0x44, 0x6e, 0xf0, 0x16, 0xac,
-	0x3c, 0xbf, 0xee, 0x1a, 0x2d, 0xfe, 0xeb, 0x1c, 0x64, 0x79, 0xec, 0x40, 0x26, 0x14, 0x64, 0xc6,
-	0x36, 0x1d, 0x1c, 0x95, 0x4e, 0xb7, 0xa6, 0x88, 0x42, 0x6a, 0xb0, 0x87, 0xbb, 0xc4, 0x80, 0x6e,
-	0xf4, 0x1b, 0x11, 0x28, 0x8a, 0xa3, 0x4e, 0x98, 0x69, 0xe1, 0x00, 0x87, 0xdf, 0xd8, 0xde, 0x9e,
-	0x86, 0xa2, 0x2e, 0x81, 0xb6, 0x71, 0x80, 0xef, 0x9e, 0x31, 0x0a, 0xad, 0x78, 0x88, 0x02, 0x28,
-	0x5b, 0xd4, 0x0f, 0x18, 0x3d, 0x94, 0x85, 0xa0, 0xe0, 0x9a, 0xf0, 0xf3, 0x5a, 0x1f, 0xd7, 0x76,
-	0x02, 0x4d, 0x11, 0x96, 0xac, 0xd4, 0x1c, 0x32, 0x01, 0x3a, 0xb8, 0xd7, 0x21, 0x92, 0xee, 0xab,
-	0xc9, 0x3e, 0x6e, 0xf5, 0xd1, 0xdd, 0xe1, 0x30, 0x8a, 0x67, 0xb1, 0x13, 0x0e, 0xf4, 0x5b, 0x00,
-	0xb1, 0x5d, 0xd1, 0x05, 0x58, 0xe4, 0xbb, 0xe4, 0x7b, 0xb8, 0x45, 0x54, 0x57, 0x13, 0x4f, 0x20,
-	0x04, 0x59, 0xb1, 0x87, 0x19, 0xb1, 0x20, 0x7e, 0xeb, 0x2f, 0xf3, 0xbe, 0x30, 0xb6, 0x52, 0xe4,
-	0x10, 0x5a, 0xc2, 0x21, 0xf4, 0x8f, 0xa0, 0x94, 0x7e, 0x5b, 0xfe, 0xa4, 0x30, 0x6f, 0xf8, 0xa4,
-	0x18, 0x70, 0x17, 0xf3, 0x7b, 0x5d, 0xe5, 0x4e, 0xfc, 0x27, 0x9f, 0xe9, 0x52, 0x47, 0x70, 0x66,
-	0x0c, 0xfe, 0x53, 0xcc, 0xe0, 0xa7, 0xa2, 0x40, 0xe2, 0x33, 0xf8, 0xa9, 0xfe, 0x21, 0x2c, 0x46,
-	0xaf, 0x37, 0x5c, 0x05, 0x74, 0x03, 0x16, 0xa3, 0xfb, 0x97, 0x31, 0xba, 0x84, 0xf8, 0xe1, 0xad,
-	0x79, 0xc8, 0x72, 0xe3, 0xeb, 0xc7, 0x50, 0x4a, 0x57, 0x34, 0x43, 0x4e, 0xc4, 0xfd, 0xfe, 0x4e,
-	0xe4, 0xe6, 0xd4, 0x11, 0x21, 0xd9, 0xa8, 0xfc, 0x6c, 0x0e, 0x5e, 0x3c, 0xf1, 0xd3, 0xec, 0x29,
-	0x96, 0xd5, 0x5f, 0x6f, 0xb9, 0xfb, 0xdf, 0xb0, 0xe4, 0x31, 0xda, 0xc5, 0xec, 0x58, 0xd5, 0xec,
-	0xb2, 0x2a, 0x99, 0xbe, 0x03, 0x2a, 0x2a, 0x38, 0x51, 0xab, 0x57, 0x7f, 0x9b, 0x83, 0xf3, 0x23,
-	0xef, 0x31, 0xa6, 0x2a, 0x8b, 0xd1, 0x37, 0x35, 0x28, 0x1f, 0xe2, 0xd6, 0x63, 0xdb, 0xed, 0xf4,
-	0xa5, 0x09, 0xae, 0xf6, 0xfb, 0xb3, 0x5e, 0xad, 0xd4, 0xb6, 0x24, 0x72, 0x2a, 0xc0, 0x97, 0x0e,
-	0x53, 0xd3, 0xe8, 0x19, 0x2c, 0x5b, 0xc4, 0xa7, 0x8c, 0x58, 0xf2, 0xd3, 0x7a, 0xb8, 0x27, 0xfb,
-	0x33, 0x6b, 0xb0, 0x2d, 0x61, 0xc5, 0x9c, 0xaa, 0x67, 0x96, 0xac, 0xe4, 0x9c, 0x5e, 0x87, 0xf5,
-	0xa1, 0x6a, 0x3e, 0x2f, 0x1f, 0x14, 0x93, 0xf9, 0xe0, 0xe7, 0x1a, 0x14, 0x93, 0x54, 0xe8, 0x2a,
-	0xac, 0x47, 0xe9, 0xd7, 0x6d, 0x2b, 0xd3, 0x5a, 0x44, 0x5e, 0x5d, 0xce, 0x19, 0xab, 0xe1, 0xe2,
-	0xfd, 0xb6, 0x11, 0x2e, 0xa1, 0xcb, 0xb0, 0x86, 0x6d, 0xdb, 0x7d, 0x12, 0x5a, 0xc1, 0x94, 0x57,
-	0xb2, 0xc2, 0x16, 0x19, 0x03, 0xa9, 0x35, 0x81, 0xdf, 0x14, 0x2b, 0xe8, 0x06, 0x54, 0x88, 0x1f,
-	0xd0, 0x2e, 0xe6, 0x5d, 0x7c, 0x5f, 0xbd, 0xea, 0xab, 0x20, 0x73, 0x36, 0x5a, 0x4f, 0x16, 0x61,
-	0xbe, 0xfe, 0x99, 0x06, 0x68, 0xd0, 0x36, 0x43, 0xde, 0xb9, 0xd5, 0x7f, 0xe2, 0xef, 0x9d, 0xea,
-	0x8e, 0x24, 0xa3, 0xc0, 0x5f, 0x33, 0xa0, 0x8f, 0xbe, 0x22, 0x19, 0x3c, 0x5a, 0xda, 0x69, 0x1e,
-	0xad, 0x7f, 0x58, 0xbb, 0xdd, 0x83, 0xe5, 0xd6, 0x23, 0xec, 0x38, 0xc4, 0xee, 0xf7, 0xf4, 0xbd,
-	0x99, 0x2f, 0x91, 0x6a, 0x75, 0x89, 0x2b, 0x27, 0x97, 0x5a, 0x89, 0x91, 0xaf, 0xff, 0x50, 0x83,
-	0x62, 0x72, 0x7d, 0xbc, 0x8f, 0x80, 0x97, 0x61, 0xcd, 0xc6, 0x7e, 0x60, 0x86, 0x86, 0x0f, 0x3f,
-	0xfb, 0x71, 0x57, 0xc8, 0x19, 0x88, 0xaf, 0x35, 0xe5, 0x92, 0xf2, 0x2b, 0x74, 0x1d, 0xce, 0xb6,
-	0x29, 0xf3, 0x03, 0x33, 0x32, 0x66, 0xf2, 0x53, 0x61, 0xce, 0x58, 0x13, 0xab, 0x86, 0x5a, 0x54,
-	0x52, 0xd5, 0x5d, 0x58, 0x1f, 0x7a, 0x59, 0x3a, 0x5d, 0xa7, 0x5f, 0x81, 0xb3, 0xc3, 0xef, 0xbd,
-	0xaa, 0xbf, 0xd4, 0x20, 0x1f, 0x15, 0xe0, 0x77, 0x65, 0xe2, 0x53, 0x7e, 0x74, 0x7d, 0x4c, 0xfb,
-	0x47, 0x25, 0x2c, 0x4f, 0xc6, 0x86, 0x4c, 0x9d, 0x01, 0x64, 0x45, 0x6a, 0x9e, 0x2a, 0x00, 0x0f,
-	0x6c, 0xc4, 0xdc, 0x90, 0x8d, 0x40, 0x4a, 0x57, 0xf9, 0xbd, 0x55, 0xfc, 0xae, 0xfe, 0x38, 0x03,
-	0xc5, 0xfd, 0x00, 0x07, 0x91, 0xb1, 0xd2, 0xf7, 0x5e, 0x23, 0xd5, 0x99, 0x3b, 0x41, 0x9d, 0x5d,
-	0x58, 0x94, 0xf7, 0x1b, 0x3c, 0x0c, 0x64, 0xc4, 0x91, 0xbf, 0x34, 0xa6, 0x69, 0x84, 0x32, 0xef,
-	0x91, 0x63, 0x23, 0xef, 0xab, 0x5f, 0xe8, 0x3d, 0xc8, 0x74, 0x48, 0x30, 0xe9, 0x9f, 0x1e, 0x04,
-	0xd0, 0x1d, 0x92, 0xb8, 0xa0, 0xe7, 0x28, 0xe8, 0x00, 0xe6, 0xb1, 0xe7, 0x11, 0xc7, 0x0a, 0x6b,
-	0xe0, 0x9b, 0x93, 0xe0, 0x6d, 0x0a, 0xd1, 0x18, 0x52, 0x61, 0xa1, 0x7f, 0x87, 0x5c, 0xcb, 0x26,
-	0x98, 0x85, 0xc5, 0xee, 0x8d, 0x49, 0x40, 0xeb, 0x5c, 0x32, 0xc6, 0x94, 0x48, 0xc9, 0x0b, 0xfd,
-	0xdf, 0xcd, 0xc1, 0x92, 0xda, 0x24, 0x15, 0xc7, 0xd2, 0xbb, 0x34, 0xfc, 0xce, 0xfe, 0x25, 0x28,
-	0x24, 0x3e, 0x42, 0xaa, 0x7d, 0x87, 0xf8, 0x1b, 0x24, 0xda, 0xed, 0xb3, 0xec, 0xeb, 0x13, 0x5b,
-	0x36, 0xba, 0x09, 0x16, 0xa6, 0x7d, 0x90, 0x36, 0xed, 0x1b, 0xd3, 0x98, 0x36, 0xc2, 0x0c, 0x6d,
-	0x6b, 0xa4, 0x6c, 0x7b, 0x73, 0x0a, 0xdb, 0x46, 0xa0, 0xca, 0xb8, 0xc9, 0x9b, 0xea, 0x2f, 0xb3,
-	0x90, 0x0f, 0xbd, 0x0e, 0x35, 0x61, 0x5e, 0xfe, 0xaf, 0x49, 0x95, 0x88, 0xaf, 0x4d, 0xe8, 0xb6,
-	0x35, 0x43, 0x48, 0x73, 0xf5, 0x25, 0x0e, 0xf2, 0x61, 0xb5, 0xdb, 0xb3, 0x79, 0xfa, 0xf4, 0x4c,
-	0x9f, 0x5a, 0x44, 0x66, 0x58, 0x95, 0x08, 0x37, 0x27, 0x85, 0xbf, 0xa7, 0xa0, 0xf6, 0xa9, 0x45,
-	0x44, 0x2e, 0xbe, 0x7b, 0xc6, 0x28, 0x77, 0xd3, 0x93, 0xc8, 0x82, 0xe5, 0x43, 0xdc, 0x31, 0x7b,
-	0x3e, 0x61, 0xa6, 0x38, 0x47, 0xea, 0x14, 0xbe, 0x39, 0x29, 0xdf, 0x16, 0xee, 0xf0, 0xce, 0x48,
-	0x8c, 0xef, 0x9e, 0x31, 0x8a, 0x87, 0x89, 0xb1, 0xae, 0xc3, 0xbc, 0x7c, 0xdd, 0x64, 0xc6, 0x2f,
-	0x8a, 0x8c, 0xaf, 0x7f, 0xaa, 0x41, 0x79, 0x40, 0xd9, 0xf1, 0x12, 0x46, 0x15, 0x96, 0x62, 0x43,
-	0xc5, 0xc1, 0xac, 0xe0, 0x87, 0x30, 0x0d, 0x0b, 0x9d, 0x85, 0x79, 0x79, 0x65, 0xac, 0xbc, 0x5a,
-	0x8d, 0x42, 0x45, 0xb2, 0xb1, 0x22, 0xff, 0xaf, 0x41, 0x31, 0xf9, 0x16, 0x63, 0xeb, 0x10, 0x1b,
-	0x2f, 0xa1, 0x43, 0x2f, 0x84, 0x99, 0x44, 0x07, 0xde, 0x1e, 0x05, 0xc7, 0x1e, 0xa9, 0xbe, 0x03,
-	0x2b, 0xa9, 0xb0, 0x84, 0x5e, 0x05, 0xd4, 0x72, 0x9d, 0x80, 0x3a, 0x3d, 0x2c, 0xef, 0x4e, 0xc4,
-	0x51, 0x95, 0x86, 0x2c, 0x27, 0x57, 0xc4, 0x89, 0xad, 0x3e, 0x80, 0x52, 0xfa, 0xf8, 0x4d, 0x08,
-	0x11, 0xa5, 0x81, 0xb9, 0x44, 0x1a, 0xd8, 0x00, 0x34, 0x18, 0xdf, 0xa2, 0x27, 0xb5, 0xc4, 0x93,
-	0xeb, 0xb0, 0x3a, 0xe4, 0xb8, 0x56, 0x57, 0xa1, 0x3c, 0x10, 0xcb, 0xaa, 0x6b, 0x0a, 0xb5, 0xef,
-	0x10, 0x56, 0x7f, 0x93, 0x85, 0xfc, 0xae, 0xab, 0xca, 0xe3, 0xff, 0x84, 0xbc, 0x4f, 0x8e, 0x08,
-	0xa3, 0x81, 0xf4, 0x9e, 0xe5, 0xb1, 0x1b, 0xf7, 0x10, 0xa2, 0xb6, 0xaf, 0xe4, 0xe5, 0xcd, 0x5b,
-	0x04, 0x37, 0x7d, 0x37, 0x8b, 0x2a, 0xbc, 0x51, 0xf4, 0x7d, 0xdc, 0x09, 0xdb, 0xf8, 0x70, 0xc8,
-	0xe3, 0x6c, 0xc0, 0x78, 0xdf, 0x9f, 0x95, 0x71, 0x56, 0x0c, 0x46, 0xe7, 0xc8, 0xdc, 0x09, 0x39,
-	0x72, 0x0b, 0x5e, 0xe4, 0x15, 0x11, 0x15, 0xdf, 0xd4, 0x63, 0x7f, 0x8c, 0x85, 0xe7, 0x85, 0xf0,
-	0x0b, 0xd1, 0x43, 0x71, 0xd7, 0x9b, 0xbc, 0x65, 0xe2, 0x2d, 0x97, 0xed, 0xaa, 0xab, 0xb2, 0x05,
-	0xe9, 0xa4, 0xb6, 0xdb, 0xd9, 0x55, 0x53, 0xdc, 0x49, 0x83, 0x47, 0x8c, 0x60, 0xab, 0x92, 0x17,
-	0x8b, 0x6a, 0xa4, 0xff, 0x07, 0x64, 0x77, 0xa9, 0x1f, 0xa0, 0x26, 0xf0, 0xc7, 0x4d, 0xe2, 0x04,
-	0x8c, 0x92, 0xb0, 0x1e, 0xbe, 0x34, 0xe1, 0x1e, 0x18, 0x60, 0xcb, 0x5f, 0x94, 0xf8, 0x3a, 0x83,
-	0x7c, 0xb8, 0x25, 0xd5, 0x36, 0x64, 0xf9, 0xae, 0xa0, 0x15, 0x28, 0x3c, 0xd8, 0xdb, 0x6f, 0xee,
-	0xd4, 0x1b, 0xb7, 0x1b, 0x3b, 0xdb, 0xa5, 0x33, 0x68, 0x11, 0x72, 0x07, 0xc6, 0x66, 0x7d, 0xa7,
-	0xa4, 0xf1, 0x9f, 0xdb, 0x3b, 0x5b, 0x0f, 0xee, 0x94, 0xe6, 0x50, 0x1e, 0xb2, 0x8d, 0xbd, 0xdb,
-	0xf7, 0x4b, 0x19, 0x04, 0x30, 0xbf, 0x77, 0xff, 0xa0, 0x51, 0xdf, 0x29, 0x65, 0xf9, 0xec, 0xc3,
-	0x4d, 0x63, 0xaf, 0x94, 0xe3, 0x8f, 0xee, 0x18, 0xc6, 0x7d, 0xa3, 0x34, 0x8f, 0x8a, 0x90, 0xaf,
-	0x1b, 0x8d, 0x83, 0x46, 0x7d, 0x73, 0xb7, 0xb4, 0x50, 0x2d, 0x02, 0xec, 0xba, 0x9d, 0xba, 0xeb,
-	0x04, 0xcc, 0xb5, 0xab, 0x7f, 0xc9, 0xc2, 0x85, 0x3d, 0x37, 0xa0, 0xed, 0x63, 0x19, 0x9e, 0x36,
-	0x8f, 0x30, 0xb5, 0xf1, 0x61, 0x5c, 0x11, 0xbe, 0x00, 0x8b, 0x4f, 0x5c, 0xf6, 0x58, 0xfe, 0x4b,
-	0x53, 0x1e, 0xff, 0xbc, 0x9c, 0x68, 0x58, 0xe8, 0x10, 0x4a, 0x2d, 0x09, 0x64, 0x86, 0x7f, 0x68,
-	0x55, 0xee, 0x33, 0xf5, 0x1f, 0x32, 0x56, 0x14, 0xe0, 0x8e, 0xc2, 0xe3, 0x1c, 0xb6, 0xdb, 0xe9,
-	0x50, 0xa7, 0x13, 0x73, 0x64, 0x66, 0xe4, 0x50, 0x80, 0x11, 0x87, 0x05, 0x65, 0xcc, 0x02, 0xda,
-	0xc6, 0xad, 0x20, 0x26, 0xc9, 0xce, 0x46, 0x52, 0x0a, 0x11, 0x23, 0x96, 0xb6, 0xb8, 0x93, 0x3a,
-	0xa2, 0x3e, 0xf7, 0xfc, 0x88, 0x26, 0x37, 0x1b, 0x4d, 0x39, 0x82, 0x8c, 0x78, 0x3a, 0x30, 0xef,
-	0x61, 0x86, 0xbb, 0x7e, 0x05, 0x84, 0x8b, 0xde, 0x1f, 0xd3, 0x45, 0x4f, 0xf2, 0x83, 0x5a, 0x53,
-	0x20, 0xaa, 0x7f, 0x04, 0x49, 0x78, 0xfd, 0x26, 0x14, 0x12, 0xd3, 0xcf, 0xeb, 0xdf, 0x17, 0x93,
-	0xcd, 0xe7, 0xbf, 0xc2, 0x8b, 0x23, 0xe8, 0x54, 0xa4, 0x8e, 0xca, 0x34, 0x2d, 0x51, 0xa6, 0x5d,
-	0xfd, 0x5c, 0x83, 0xa5, 0x2d, 0x82, 0xbb, 0xb7, 0x1d, 0xe5, 0xc0, 0xe8, 0x53, 0x0d, 0x16, 0xc2,
-	0xdf, 0xe3, 0x16, 0x51, 0x43, 0xfe, 0xf1, 0xa9, 0xdf, 0x9c, 0x46, 0x56, 0xc6, 0xee, 0x33, 0x1b,
-	0xda, 0x65, 0xed, 0xea, 0x27, 0x00, 0x52, 0x33, 0xd1, 0x9a, 0x38, 0xaa, 0x45, 0xb9, 0x34, 0x61,
-	0x9b, 0xa3, 0x4f, 0x2a, 0xa0, 0xd8, 0xbf, 0xa5, 0x41, 0x41, 0xd2, 0xcb, 0xcc, 0xfd, 0x14, 0x72,
-	0xf2, 0xc7, 0xb5, 0x49, 0xca, 0x18, 0xf5, 0x46, 0xfa, 0xf5, 0xc9, 0x84, 0x54, 0xb6, 0x92, 0x9a,
-	0x7c, 0x27, 0xda, 0xa2, 0x5d, 0x79, 0xca, 0xd0, 0x53, 0x58, 0x08, 0x7f, 0x5e, 0x9f, 0x34, 0x63,
-	0xf1, 0xc0, 0xab, 0x5f, 0x19, 0x5f, 0x2a, 0x8c, 0x6b, 0x52, 0x97, 0x5f, 0x68, 0x50, 0x91, 0xba,
-	0xec, 0x3c, 0x0d, 0x08, 0x73, 0xb0, 0xfd, 0x50, 0x84, 0xae, 0xa6, 0xeb, 0xda, 0xe8, 0xa7, 0x1a,
-	0xac, 0x0f, 0xf5, 0x41, 0x54, 0x3f, 0x85, 0x03, 0xa3, 0x6f, 0xcf, 0x06, 0x12, 0xda, 0x74, 0x6b,
-	0x13, 0xfe, 0x65, 0x14, 0x50, 0x12, 0x67, 0x6b, 0x51, 0xbe, 0xe8, 0xa6, 0x47, 0x3f, 0x58, 0x4e,
-	0x2c, 0x99, 0x47, 0x57, 0x0e, 0xe7, 0x45, 0x0e, 0xbf, 0xf6, 0xf7, 0x00, 0x00, 0x00, 0xff, 0xff,
-	0x9b, 0xb0, 0x51, 0x80, 0xc7, 0x30, 0x00, 0x00,
+var fileDescriptor_beam_fn_api_232aec3131d70c18 = []byte{
+	// 3241 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x5a, 0xdd, 0x6f, 0x1b, 0xc7,
+	0xb5, 0xf7, 0xf2, 0x43, 0x22, 0x0f, 0x29, 0x89, 0x1c, 0x49, 0x36, 0xbd, 0xd7, 0xb9, 0xd7, 0xe1,
+	0xbd, 0x01, 0x84, 0x5c, 0x84, 0xb6, 0x65, 0x23, 0xb1, 0x73, 0x13, 0x27, 0x12, 0x45, 0xdb, 0x8c,
+	0x65, 0x9b, 0x77, 0x25, 0x5f, 0xdf, 0x9b, 0xdc, 0x64, 0xb1, 0xe2, 0x0e, 0xe9, 0x85, 0xc9, 0xdd,
+	0xcd, 0xcc, 0x52, 0xb6, 0xdc, 0xa0, 0xe9, 0x17, 0x5a, 0xb4, 0x68, 0x9b, 0x97, 0x3e, 0x24, 0x7d,
+	0x6b, 0x0b, 0x14, 0xe8, 0x4b, 0xff, 0x80, 0xfc, 0x03, 0x45, 0x9f, 0xfa, 0x0f, 0xe4, 0xa5, 0x40,
+	0x0b, 0xb4, 0x4d, 0x9f, 0x0b, 0xf4, 0xad, 0x98, 0x8f, 0xfd, 0xe0, 0x72, 0xe9, 0x2c, 0x29, 0xb9,
+	0x6f, 0x3b, 0x73, 0xf6, 0xfc, 0x7e, 0x33, 0x67, 0xcf, 0x9c, 0x39, 0x67, 0x66, 0xa1, 0x7a, 0x80,
+	0x8d, 0xa1, 0xde, 0xb3, 0x75, 0xc3, 0xb5, 0x1a, 0x2e, 0x71, 0x3c, 0x07, 0xbd, 0xe4, 0x90, 0x7e,
+	0xc3, 0x70, 0x8d, 0xee, 0x43, 0xdc, 0x60, 0xd2, 0xc6, 0xd0, 0x31, 0xf1, 0xa0, 0xd1, 0xb3, 0x75,
+	0xfc, 0x04, 0x77, 0x47, 0x9e, 0xe5, 0xd8, 0x8d, 0xc3, 0x4b, 0xea, 0x3a, 0xd7, 0x24, 0x23, 0xdb,
+	0xc6, 0x24, 0xd4, 0x56, 0x57, 0xb0, 0x6d, 0xba, 0x8e, 0x65, 0x7b, 0x54, 0x76, 0x9c, 0xef, 0x3b,
+	0x4e, 0x7f, 0x80, 0x2f, 0xf0, 0xd6, 0xc1, 0xa8, 0x77, 0xc1, 0xc4, 0xb4, 0x4b, 0x2c, 0xd7, 0x73,
+	0x88, 0x7c, 0xe3, 0xdf, 0xe2, 0x6f, 0x78, 0xd6, 0x10, 0x53, 0xcf, 0x18, 0xba, 0xf2, 0x85, 0x7f,
+	0x9d, 0x80, 0x18, 0x11, 0x83, 0x8f, 0x63, 0x8a, 0xfc, 0x31, 0x31, 0x5c, 0x17, 0x13, 0x7f, 0x08,
+	0x4b, 0x43, 0xec, 0x11, 0xab, 0x2b, 0x9b, 0xf5, 0x9f, 0x2a, 0xb0, 0xac, 0xe1, 0xa1, 0xe3, 0xe1,
+	0x9b, 0xc4, 0xed, 0x76, 0x1c, 0xe2, 0xa1, 0x21, 0x9c, 0x36, 0x5c, 0x4b, 0xa7, 0x98, 0x1c, 0x5a,
+	0x5d, 0xac, 0x87, 0x43, 0xac, 0x29, 0xe7, 0x95, 0x8d, 0xd2, 0xe6, 0x6b, 0x8d, 0x64, 0xa3, 0xb8,
+	0x96, 0x8b, 0x07, 0x96, 0x8d, 0x1b, 0x87, 0x97, 0x1a, 0x5b, 0xae, 0xb5, 0x27, 0xf4, 0x77, 0x02,
+	0x75, 0x6d, 0xcd, 0x48, 0xe8, 0x45, 0x67, 0xa1, 0xd0, 0x75, 0x4c, 0x4c, 0x74, 0xcb, 0xac, 0x65,
+	0xce, 0x2b, 0x1b, 0x45, 0x6d, 0x91, 0xb7, 0xdb, 0x66, 0xfd, 0x8f, 0x39, 0x40, 0x6d, 0x9b, 0x7a,
+	0x64, 0xd4, 0x65, 0x33, 0xd4, 0xf0, 0x87, 0x23, 0x4c, 0x3d, 0xf4, 0x12, 0x2c, 0x5b, 0x61, 0x2f,
+	0xd3, 0x53, 0xb8, 0xde, 0x52, 0xa4, 0xb7, 0x6d, 0xa2, 0xfb, 0x50, 0x20, 0xb8, 0x6f, 0x51, 0x0f,
+	0x93, 0xda, 0x9f, 0x16, 0xf9, 0xd0, 0x5f, 0x6d, 0xa4, 0xfa, 0x9e, 0x0d, 0x4d, 0xea, 0x49, 0xc6,
+	0x5b, 0xa7, 0xb4, 0x00, 0x0a, 0x61, 0x58, 0x76, 0x89, 0xd3, 0xc5, 0x94, 0xea, 0x07, 0x23, 0xdb,
+	0x1c, 0xe0, 0xda, 0x9f, 0x05, 0xf8, 0x7f, 0xa5, 0x04, 0xef, 0x08, 0xed, 0x6d, 0xae, 0x1c, 0x32,
+	0x2c, 0xb9, 0xd1, 0x7e, 0xf4, 0x75, 0x38, 0x33, 0x4e, 0xa3, 0xbb, 0xc4, 0xe9, 0x13, 0x4c, 0x69,
+	0xed, 0x2f, 0x82, 0xaf, 0x39, 0x0f, 0x5f, 0x47, 0x82, 0x84, 0xbc, 0xeb, 0x6e, 0x92, 0x1c, 0x8d,
+	0x60, 0x2d, 0xc6, 0x4f, 0xdd, 0x81, 0xe5, 0xd5, 0xbe, 0x14, 0xe4, 0x6f, 0xcf, 0x43, 0xbe, 0xc7,
+	0x10, 0x42, 0x66, 0xe4, 0x4e, 0x08, 0xd1, 0x43, 0x58, 0xe9, 0x59, 0xb6, 0x31, 0xb0, 0x9e, 0x62,
+	0xdf, 0xbc, 0x7f, 0x15, 0x8c, 0x6f, 0xa4, 0x64, 0xbc, 0x21, 0xd5, 0xe3, 0xf6, 0x5d, 0xee, 0x8d,
+	0x09, 0xb6, 0x8b, 0xb0, 0x48, 0x84, 0xb0, 0xfe, 0xad, 0x3c, 0xac, 0x8e, 0xf9, 0x19, 0x75, 0x1d,
+	0x9b, 0xe2, 0xb4, 0x8e, 0xb6, 0x06, 0x79, 0x4c, 0x88, 0x43, 0xa4, 0xfb, 0x8a, 0x06, 0xfa, 0x9f,
+	0x49, 0xf7, 0x7b, 0x6d, 0x66, 0xf7, 0x13, 0x03, 0x19, 0xf3, 0xbf, 0xde, 0x34, 0xff, 0x7b, 0x63,
+	0x3e, 0xff, 0x0b, 0x28, 0x62, 0x0e, 0xf8, 0xf1, 0x57, 0x3a, 0xe0, 0xce, 0xf1, 0x1c, 0x30, 0x20,
+	0x9e, 0xe2, 0x81, 0x87, 0xcf, 0xf6, 0xc0, 0xad, 0x63, 0x78, 0x60, 0x40, 0x9d, 0xe4, 0x82, 0xd6,
+	0x54, 0x17, 0x7c, 0x73, 0x4e, 0x17, 0x0c, 0xe8, 0xe2, 0x3e, 0x08, 0xcc, 0x47, 0x84, 0xb4, 0xfe,
+	0x23, 0x05, 0x56, 0x62, 0x71, 0x07, 0x3d, 0x85, 0xb3, 0x31, 0x13, 0x8c, 0x45, 0xe3, 0xec, 0x46,
+	0x69, 0xf3, 0xfa, 0x3c, 0x66, 0x88, 0x04, 0xe5, 0x33, 0x6e, 0xb2, 0xa0, 0x8e, 0xa0, 0x12, 0xf7,
+	0xc3, 0xfa, 0x2f, 0x00, 0xce, 0x4c, 0x01, 0x42, 0xcb, 0x90, 0x09, 0x16, 0x48, 0xc6, 0x32, 0x91,
+	0x0d, 0xe0, 0x11, 0xc3, 0xa6, 0x3d, 0x87, 0x0c, 0x69, 0x2d, 0xc3, 0x07, 0x7b, 0xf7, 0x78, 0x83,
+	0x6d, 0xec, 0x07, 0x80, 0x2d, 0xdb, 0x23, 0x47, 0x5a, 0x84, 0x01, 0x79, 0x50, 0x76, 0xbb, 0xce,
+	0x60, 0x80, 0xf9, 0xb2, 0xa4, 0xb5, 0x2c, 0x67, 0xec, 0x1c, 0x93, 0xb1, 0x13, 0x81, 0x14, 0x9c,
+	0x63, 0x2c, 0xe8, 0x07, 0x0a, 0xac, 0x3d, 0xb6, 0x6c, 0xd3, 0x79, 0x6c, 0xd9, 0x7d, 0x9d, 0x7a,
+	0xc4, 0xf0, 0x70, 0xdf, 0xc2, 0xb4, 0x96, 0xe3, 0xf4, 0x0f, 0x8e, 0x49, 0xff, 0xc0, 0x87, 0xde,
+	0x0b, 0x90, 0xc5, 0x28, 0x56, 0x1f, 0x4f, 0x4a, 0xd0, 0x01, 0x2c, 0xf0, 0xad, 0x93, 0xd6, 0xf2,
+	0x9c, 0xfd, 0x9d, 0x63, 0xb2, 0x37, 0x39, 0x98, 0x20, 0x94, 0xc8, 0xcc, 0xcc, 0xd8, 0x3e, 0xb4,
+	0x88, 0x63, 0x0f, 0xb1, 0xed, 0xd1, 0xda, 0xc2, 0x89, 0x98, 0xb9, 0x15, 0x81, 0x94, 0x66, 0x8e,
+	0xb2, 0xa0, 0x27, 0x70, 0x8e, 0x7a, 0x86, 0x87, 0xf5, 0x29, 0x99, 0xc9, 0xe2, 0xf1, 0x32, 0x93,
+	0xb3, 0x1c, 0x3c, 0x49, 0xa4, 0x0e, 0x60, 0x25, 0xe6, 0x75, 0xa8, 0x02, 0xd9, 0x47, 0xf8, 0x48,
+	0xba, 0x3a, 0x7b, 0x44, 0x4d, 0xc8, 0x1f, 0x1a, 0x83, 0x11, 0xe6, 0x3b, 0x40, 0x69, 0xf3, 0x95,
+	0x14, 0xe3, 0xe8, 0x04, 0xa8, 0x9a, 0xd0, 0x7d, 0x3d, 0x73, 0x55, 0x51, 0x1d, 0xa8, 0x4e, 0x78,
+	0x5c, 0x02, 0xdf, 0xce, 0x38, 0x5f, 0x23, 0x0d, 0x5f, 0x33, 0x80, 0x8d, 0x12, 0x7e, 0x04, 0xb5,
+	0x69, 0x3e, 0x96, 0xc0, 0xfb, 0xce, 0x38, 0xef, 0x95, 0x14, 0xbc, 0x71, 0xf4, 0xa3, 0x28, 0x7b,
+	0x17, 0x4a, 0x11, 0x1f, 0x4b, 0x20, 0xbc, 0x3e, 0x4e, 0xb8, 0x91, 0x82, 0x90, 0x03, 0xc6, 0x6c,
+	0x3a, 0xe1, 0x5e, 0x27, 0x63, 0xd3, 0x08, 0x6c, 0x84, 0xb0, 0xfe, 0xf7, 0x2c, 0x54, 0x85, 0x87,
+	0x6f, 0xb9, 0xee, 0xc0, 0xea, 0xf2, 0xf4, 0x1c, 0xbd, 0x08, 0xe5, 0x20, 0x5a, 0x85, 0xa9, 0x44,
+	0x29, 0xe8, 0x6b, 0x9b, 0x2c, 0x15, 0xb6, 0x6c, 0x77, 0xe4, 0x45, 0x52, 0x61, 0xde, 0x6e, 0x9b,
+	0xa8, 0x06, 0x8b, 0x78, 0x80, 0x19, 0x53, 0x2d, 0x7b, 0x5e, 0xd9, 0x28, 0x6b, 0x7e, 0x13, 0x7d,
+	0x0d, 0xaa, 0xce, 0xc8, 0x63, 0x5a, 0x8f, 0x0d, 0x0f, 0x93, 0xa1, 0x41, 0x1e, 0xf9, 0xd1, 0x27,
+	0x6d, 0xb8, 0x9d, 0x18, 0x6c, 0xe3, 0x1e, 0x47, 0x7c, 0x10, 0x00, 0x8a, 0x35, 0x59, 0x71, 0x62,
+	0xdd, 0xa8, 0x03, 0x60, 0x51, 0xfd, 0xc0, 0x19, 0xd9, 0x26, 0x36, 0x6b, 0xf9, 0xf3, 0xca, 0xc6,
+	0xf2, 0xe6, 0xa5, 0x14, 0x96, 0x6b, 0xd3, 0x6d, 0xa1, 0xd3, 0x68, 0xd9, 0xa3, 0xa1, 0x56, 0xb4,
+	0xfc, 0x36, 0xfa, 0x7f, 0xa8, 0x0c, 0x1d, 0xdb, 0xf2, 0x1c, 0xc2, 0x02, 0xaa, 0x65, 0xf7, 0x1c,
+	0x3f, 0xc6, 0xa4, 0xc1, 0xbd, 0x13, 0xa8, 0xb6, 0xed, 0x9e, 0xa3, 0xad, 0x0c, 0xc7, 0xda, 0x54,
+	0xd5, 0x61, 0x3d, 0x71, 0x6a, 0x09, 0xfe, 0x70, 0x71, 0xdc, 0x1f, 0xd4, 0x86, 0x28, 0xac, 0x1a,
+	0x7e, 0x61, 0xd5, 0xd8, 0xf7, 0x2b, 0xb3, 0xe8, 0xb7, 0xff, 0x2c, 0x03, 0xb5, 0x1d, 0x3c, 0x30,
+	0x8e, 0xb0, 0x39, 0xe9, 0x02, 0xfb, 0x50, 0x93, 0x29, 0x27, 0x36, 0xc3, 0x2f, 0xa0, 0xb3, 0x12,
+	0x4f, 0xd6, 0x56, 0xcf, 0x62, 0x39, 0x1d, 0xe8, 0xb6, 0x7c, 0x55, 0x26, 0x44, 0xef, 0x42, 0xc9,
+	0x08, 0x49, 0xe4, 0x70, 0xaf, 0xce, 0xfb, 0xe9, 0xb5, 0x28, 0x18, 0xba, 0x0d, 0x6b, 0xe1, 0x88,
+	0xd9, 0x38, 0x75, 0x93, 0x4d, 0x8e, 0xfb, 0x60, 0x69, 0xf3, 0xec, 0xc4, 0x68, 0x77, 0x64, 0x31,
+	0xaa, 0xa1, 0x40, 0x8d, 0x8d, 0x91, 0x5b, 0xa4, 0xfe, 0xe3, 0x1c, 0xac, 0x25, 0x15, 0x3f, 0xe8,
+	0x2d, 0x38, 0x37, 0x35, 0xcd, 0x09, 0x97, 0xca, 0xd9, 0x29, 0x99, 0x4a, 0xdb, 0x44, 0x16, 0x94,
+	0xbb, 0x6c, 0xa6, 0xba, 0xe7, 0x3c, 0xc2, 0xb6, 0x9f, 0x6d, 0xdc, 0x38, 0x46, 0x41, 0xd6, 0x68,
+	0x32, 0xad, 0x7d, 0x06, 0xa7, 0x95, 0xba, 0xc1, 0x33, 0x55, 0x7f, 0x9b, 0x01, 0x08, 0x65, 0xe8,
+	0x43, 0x80, 0x11, 0xc5, 0x44, 0xe7, 0x1b, 0x88, 0xfc, 0x88, 0x9d, 0x93, 0xe1, 0x6d, 0xdc, 0xa7,
+	0x98, 0xec, 0x31, 0xdc, 0x5b, 0xa7, 0xb4, 0xe2, 0xc8, 0x6f, 0x30, 0x4a, 0x6a, 0x99, 0x58, 0xe7,
+	0xa1, 0x41, 0x7e, 0xee, 0x93, 0xa2, 0xdc, 0xb3, 0x4c, 0xdc, 0x66, 0xb8, 0x8c, 0x92, 0xfa, 0x0d,
+	0x56, 0xe1, 0x70, 0xcb, 0xd6, 0x80, 0xc7, 0x1e, 0xd1, 0x50, 0x4b, 0x50, 0x0c, 0x86, 0xa8, 0xbe,
+	0x0c, 0xc5, 0x40, 0x19, 0xbd, 0x30, 0x36, 0x44, 0xf1, 0xf9, 0x42, 0xb8, 0xed, 0x05, 0xc8, 0x79,
+	0x47, 0x2e, 0xae, 0x7f, 0x91, 0x81, 0xf5, 0xc4, 0x6a, 0x04, 0xdd, 0x82, 0x45, 0x79, 0x4e, 0x21,
+	0x6d, 0xda, 0x48, 0x39, 0xc1, 0x3b, 0x42, 0x4b, 0xf3, 0xd5, 0x59, 0xb9, 0x44, 0x30, 0xb5, 0xcc,
+	0x91, 0x31, 0xd0, 0x89, 0xe3, 0x78, 0xbe, 0x73, 0xbc, 0x95, 0x12, 0x70, 0xda, 0x62, 0xd6, 0x96,
+	0x7c, 0x58, 0x8d, 0xa1, 0x26, 0xc6, 0xad, 0xec, 0x49, 0xc5, 0x2d, 0x74, 0x19, 0xd6, 0xd9, 0x82,
+	0xb2, 0x08, 0xa6, 0xba, 0xac, 0x21, 0xc4, 0x6a, 0xcf, 0x9d, 0x57, 0x36, 0x0a, 0xda, 0x9a, 0x2f,
+	0xbc, 0x11, 0x91, 0xd5, 0x5b, 0x70, 0xee, 0x59, 0xb5, 0x7f, 0xca, 0xf2, 0xb6, 0xfe, 0xe9, 0x2a,
+	0x2c, 0x4a, 0xb3, 0x22, 0x03, 0x4a, 0x6e, 0x24, 0xab, 0x57, 0x66, 0x32, 0xa5, 0x04, 0x69, 0x74,
+	0xbc, 0x58, 0x1a, 0x1f, 0xc5, 0x54, 0xbf, 0x28, 0x01, 0x84, 0xc9, 0x11, 0x7a, 0x0a, 0x7e, 0x8d,
+	0xc6, 0x62, 0xa6, 0xd8, 0xf3, 0x7c, 0xa7, 0xb8, 0x3d, 0x2b, 0x71, 0x00, 0xeb, 0x2f, 0x04, 0x6c,
+	0xb6, 0x24, 0xa4, 0x56, 0x75, 0xe3, 0x5d, 0xe8, 0x43, 0x58, 0x31, 0xba, 0x9e, 0x75, 0x88, 0x43,
+	0x62, 0xb1, 0xdc, 0x6e, 0xcd, 0x4f, 0xbc, 0xc5, 0x01, 0x03, 0xd6, 0x65, 0x63, 0xac, 0x8d, 0x2c,
+	0x80, 0xc8, 0x36, 0x2e, 0x1c, 0xa8, 0x3d, 0x3f, 0x5b, 0x7c, 0x07, 0x8f, 0x80, 0xa3, 0x9b, 0x90,
+	0x63, 0x41, 0x45, 0xe6, 0x0a, 0x97, 0x67, 0x24, 0x61, 0x2b, 0x5f, 0xe3, 0x00, 0xea, 0x1f, 0xb2,
+	0x50, 0xb8, 0x83, 0x0d, 0x3a, 0x22, 0xd8, 0x44, 0x3f, 0x54, 0x60, 0x4d, 0x24, 0x31, 0xd2, 0x66,
+	0x7a, 0xd7, 0x19, 0x89, 0x4f, 0xc6, 0x68, 0xde, 0x9d, 0x7f, 0x2e, 0x3e, 0x45, 0x83, 0x07, 0x11,
+	0x69, 0xb1, 0x26, 0x07, 0x17, 0x93, 0x43, 0xd6, 0x84, 0x00, 0x7d, 0xa2, 0xc0, 0xba, 0x4c, 0x8f,
+	0x62, 0xe3, 0x11, 0x61, 0xe0, 0xbd, 0x13, 0x18, 0x8f, 0xc8, 0x28, 0x12, 0x06, 0xb4, 0xea, 0x4c,
+	0x4a, 0xd0, 0x06, 0x54, 0x3c, 0xc7, 0x33, 0x06, 0x62, 0x3b, 0xa5, 0xae, 0x9f, 0xd2, 0x29, 0xda,
+	0x32, 0xef, 0x67, 0xfb, 0xe5, 0x1e, 0xeb, 0x55, 0x5b, 0x70, 0x66, 0xca, 0x54, 0x13, 0xd2, 0x95,
+	0xb5, 0x68, 0xba, 0x92, 0x8d, 0xe6, 0xbf, 0x37, 0xa0, 0x36, 0x6d, 0x84, 0x33, 0xe1, 0x50, 0xa8,
+	0x4e, 0xac, 0x1a, 0xf4, 0x01, 0x14, 0x86, 0xd2, 0x0e, 0x72, 0x51, 0x6e, 0x1f, 0xdf, 0xa2, 0x5a,
+	0x80, 0xa9, 0x7e, 0x92, 0x85, 0xe5, 0xf1, 0x25, 0xf3, 0xbc, 0x29, 0xd1, 0x2b, 0x80, 0x7a, 0xc4,
+	0x10, 0x31, 0x91, 0xe0, 0xa1, 0x61, 0xd9, 0x96, 0xdd, 0xe7, 0xe6, 0x50, 0xb4, 0xaa, 0x2f, 0xd1,
+	0x7c, 0x01, 0xfa, 0x99, 0x02, 0x67, 0xc7, 0x3d, 0x8c, 0x46, 0xd4, 0xc4, 0x0a, 0xc6, 0x27, 0x15,
+	0x2f, 0xc6, 0x7d, 0x8d, 0x06, 0xa3, 0x10, 0xfe, 0x76, 0xc6, 0x49, 0x96, 0xaa, 0xef, 0xc0, 0xb9,
+	0x67, 0x29, 0xce, 0xe4, 0x06, 0x6f, 0xc2, 0xca, 0x57, 0x27, 0xcf, 0xd3, 0xd5, 0x7f, 0x97, 0x87,
+	0x1c, 0x8b, 0x1d, 0x48, 0x87, 0x92, 0xd8, 0xa3, 0x75, 0xdb, 0x08, 0xf2, 0xdf, 0xeb, 0x73, 0x44,
+	0x21, 0xd9, 0xb8, 0x6b, 0x0c, 0xb1, 0x06, 0xc3, 0xe0, 0x19, 0x61, 0x28, 0xf3, 0xa5, 0x8e, 0x89,
+	0x6e, 0x1a, 0x9e, 0xe1, 0x1f, 0x93, 0xbe, 0x35, 0x0f, 0x45, 0x53, 0x00, 0xed, 0x18, 0x9e, 0x71,
+	0xeb, 0x94, 0x56, 0xea, 0x86, 0x4d, 0xe4, 0x41, 0xd5, 0xb4, 0xa8, 0x47, 0xac, 0x03, 0x91, 0xcd,
+	0x73, 0xae, 0x19, 0x4f, 0x48, 0xc7, 0xb8, 0x76, 0x22, 0x68, 0x92, 0xb0, 0x62, 0xc6, 0xfa, 0x90,
+	0x0e, 0xd0, 0x37, 0x46, 0x7d, 0x2c, 0xe8, 0xbe, 0x9c, 0xed, 0x7c, 0x72, 0x8c, 0xee, 0x26, 0x83,
+	0x91, 0x3c, 0xc5, 0xbe, 0xdf, 0x50, 0xaf, 0x03, 0x84, 0x76, 0x45, 0xe7, 0xa0, 0xc8, 0xbe, 0x12,
+	0x75, 0x8d, 0x2e, 0x96, 0xa5, 0x69, 0xd8, 0x81, 0x10, 0xe4, 0xf8, 0x37, 0xcc, 0x72, 0x01, 0x7f,
+	0x56, 0xff, 0x9d, 0x95, 0xf6, 0xa1, 0x95, 0x02, 0x87, 0x50, 0x22, 0x0e, 0xa1, 0x7e, 0x00, 0x95,
+	0xf8, 0x6c, 0xd9, 0x9b, 0xdc, 0xbc, 0xfe, 0x9b, 0xbc, 0xc1, 0x5c, 0x8c, 0x8e, 0x86, 0xd2, 0x9d,
+	0xd8, 0x23, 0xeb, 0x19, 0x5a, 0x36, 0xe7, 0xcc, 0x6a, 0xec, 0x91, 0xf7, 0x18, 0x4f, 0x78, 0x4a,
+	0xc4, 0x7a, 0x8c, 0x27, 0xea, 0x7b, 0x50, 0x0c, 0xa6, 0x97, 0x3c, 0x04, 0x74, 0x15, 0x8a, 0xc1,
+	0x15, 0x5b, 0x8a, 0x52, 0x2f, 0x7c, 0x99, 0x65, 0xb1, 0xcc, 0xf8, 0xea, 0x11, 0x54, 0xe2, 0x19,
+	0x4d, 0xc2, 0x8a, 0xb8, 0x37, 0x5e, 0x4e, 0x5e, 0x9b, 0x3b, 0x22, 0x44, 0xab, 0xcd, 0x5f, 0x66,
+	0xe0, 0x85, 0x67, 0x9e, 0xae, 0x9f, 0x60, 0x22, 0xfd, 0x7c, 0x13, 0xdc, 0xf7, 0x61, 0xc9, 0x25,
+	0xd6, 0xd0, 0x20, 0x47, 0x32, 0x4b, 0x17, 0x59, 0xc9, 0xfc, 0x65, 0x6c, 0x59, 0xc2, 0xf1, 0xec,
+	0xbc, 0xfe, 0xcd, 0x1c, 0x9c, 0x9d, 0x7a, 0x15, 0x95, 0xf6, 0x9e, 0xe7, 0x29, 0x2c, 0x9b, 0x98,
+	0x5a, 0x04, 0x9b, 0xe2, 0x26, 0xc2, 0x9f, 0xff, 0xde, 0x71, 0xef, 0xc2, 0x1a, 0x3b, 0x02, 0x96,
+	0xf7, 0xc9, 0xdc, 0x61, 0xc9, 0x8c, 0xf6, 0xa9, 0xbf, 0x56, 0xa0, 0x1c, 0x7d, 0x0b, 0x6d, 0xc2,
+	0x7a, 0xb0, 0x4b, 0x39, 0x3d, 0xb9, 0xe3, 0x98, 0x58, 0x5c, 0xd2, 0x66, 0xb4, 0x55, 0x5f, 0x78,
+	0xaf, 0xa7, 0xf9, 0x22, 0x74, 0x11, 0xd6, 0x8c, 0xc1, 0xc0, 0x79, 0xec, 0x4f, 0x40, 0x17, 0x97,
+	0xd3, 0x7c, 0x1a, 0x59, 0x0d, 0x49, 0x19, 0xc7, 0xef, 0x70, 0x09, 0xba, 0x0a, 0x35, 0x4c, 0x3d,
+	0x6b, 0x68, 0xb0, 0xfa, 0x7f, 0x2c, 0xad, 0xa3, 0x72, 0x2d, 0x9e, 0x0e, 0xe4, 0xd1, 0x5c, 0x85,
+	0xaa, 0x9f, 0x28, 0x80, 0x26, 0xa7, 0x95, 0xb0, 0x30, 0xba, 0xe3, 0x0b, 0xe3, 0xce, 0x89, 0x1a,
+	0x33, 0xba, 0x58, 0xfe, 0x96, 0x05, 0x75, 0xfa, 0x65, 0xd0, 0xa4, 0x07, 0x2a, 0x27, 0xe9, 0x81,
+	0xff, 0xb4, 0x3a, 0x74, 0x04, 0xcb, 0xdd, 0x87, 0x86, 0x6d, 0xe3, 0xc1, 0xb8, 0x93, 0xde, 0x3d,
+	0xf6, 0x75, 0x59, 0xa3, 0x29, 0x70, 0x45, 0xe7, 0x52, 0x37, 0xd2, 0xa2, 0xea, 0x67, 0x0a, 0x94,
+	0xa3, 0xf2, 0x34, 0xc7, 0x9d, 0x17, 0x61, 0x6d, 0x60, 0x50, 0x4f, 0xf7, 0xcd, 0xee, 0x1f, 0x70,
+	0x32, 0x47, 0xc8, 0x6b, 0x88, 0xc9, 0x3a, 0x42, 0x24, 0xbd, 0x0a, 0x5d, 0x81, 0xd3, 0x3d, 0x8b,
+	0x50, 0x4f, 0x0f, 0x4c, 0x19, 0x3d, 0x14, 0xcd, 0x6b, 0x6b, 0x5c, 0xaa, 0x49, 0xa1, 0xd4, 0xaa,
+	0x5f, 0x87, 0xf5, 0xc4, 0x4b, 0xe1, 0xb4, 0x05, 0x70, 0x0d, 0x4e, 0x27, 0xdf, 0xe8, 0xd5, 0x3f,
+	0x57, 0xa0, 0x10, 0xe4, 0xa5, 0xb7, 0xc4, 0x7e, 0x20, 0xfd, 0xe6, 0x4a, 0x4a, 0x7b, 0x07, 0x99,
+	0x1d, 0xdb, 0xa3, 0x34, 0xb1, 0xa3, 0x98, 0x90, 0xe3, 0x3b, 0x56, 0xca, 0xb8, 0x14, 0x37, 0x75,
+	0x66, 0xd2, 0xd4, 0x48, 0x8e, 0x4d, 0x9c, 0x1d, 0xf3, 0xe7, 0xfa, 0x4f, 0xb2, 0x50, 0xe6, 0x67,
+	0x37, 0xbe, 0x39, 0xe2, 0x37, 0x78, 0x93, 0xf4, 0x99, 0x24, 0xfa, 0x5d, 0x28, 0x8a, 0xbb, 0x19,
+	0xb6, 0xb0, 0xc5, 0xc1, 0xe0, 0x85, 0x94, 0x93, 0xe7, 0xf4, 0xb7, 0xf1, 0x91, 0x56, 0xa0, 0xf2,
+	0x09, 0xdd, 0x86, 0x6c, 0x1f, 0x7b, 0xb3, 0xfe, 0xb0, 0xc1, 0x81, 0x6e, 0xe2, 0xc8, 0xcf, 0x05,
+	0x0c, 0x05, 0xed, 0xc3, 0x82, 0xe1, 0xba, 0xd8, 0x36, 0xfd, 0xe4, 0xef, 0xda, 0x2c, 0x78, 0x5b,
+	0x5c, 0x35, 0x84, 0x94, 0x58, 0xe8, 0xbf, 0x21, 0xdf, 0x1d, 0x60, 0x83, 0xf8, 0x59, 0xde, 0xd5,
+	0x59, 0x40, 0x9b, 0x4c, 0x33, 0xc4, 0x14, 0x48, 0xd1, 0x9f, 0x11, 0x3e, 0xcf, 0xc0, 0x92, 0xfc,
+	0x2c, 0x32, 0x32, 0xc5, 0xbf, 0x4b, 0xf2, 0xff, 0x06, 0xbb, 0x63, 0x86, 0x7b, 0x6d, 0x66, 0xc3,
+	0x05, 0x97, 0xd4, 0xdc, 0x72, 0xf7, 0xe3, 0x96, 0x7b, 0x7d, 0x1e, 0xcb, 0x05, 0x98, 0xbe, 0xe9,
+	0xb4, 0x98, 0xe9, 0xae, 0xcd, 0x61, 0xba, 0x00, 0x54, 0xda, 0x2e, 0x7a, 0x89, 0xfe, 0x9b, 0x02,
+	0x14, 0x7c, 0xa7, 0x42, 0x1d, 0x58, 0x10, 0xbf, 0x64, 0xc9, 0xd4, 0xe7, 0xd5, 0x19, 0xbd, 0xb2,
+	0xa1, 0x71, 0x6d, 0x36, 0x7c, 0x81, 0x83, 0x28, 0xac, 0x0e, 0x47, 0x03, 0xb6, 0xdf, 0xb9, 0xfa,
+	0xc4, 0x19, 0xec, 0xd6, 0xac, 0xf0, 0x77, 0x24, 0x54, 0xf4, 0xd0, 0xb5, 0x3a, 0x8c, 0x77, 0x22,
+	0x13, 0x96, 0x0f, 0x8c, 0xbe, 0x1e, 0x39, 0x66, 0xce, 0xce, 0xf4, 0xbf, 0x47, 0xc0, 0xb7, 0x6d,
+	0xf4, 0xa3, 0x47, 0xca, 0xe5, 0x83, 0x48, 0x9b, 0x4d, 0xcd, 0xf2, 0x30, 0x31, 0x0e, 0x06, 0x38,
+	0x3a, 0xb5, 0xdc, 0x7c, 0x53, 0x6b, 0x4b, 0xa8, 0xb1, 0xa9, 0x59, 0xf1, 0x4e, 0xf4, 0x0d, 0x05,
+	0x6a, 0x81, 0x41, 0x1f, 0xe1, 0x23, 0x1a, 0xa5, 0xce, 0x73, 0xea, 0xd6, 0xbc, 0x56, 0xbd, 0x8d,
+	0x8f, 0x68, 0x94, 0x7e, 0x7d, 0x98, 0x24, 0x50, 0x55, 0x58, 0x10, 0x9f, 0x39, 0x9a, 0x9a, 0x94,
+	0x79, 0x6a, 0xa2, 0x12, 0xa8, 0x4e, 0x4c, 0x24, 0xcd, 0xc6, 0x56, 0x87, 0xa5, 0x70, 0x1e, 0x91,
+	0x88, 0x1c, 0x9c, 0x80, 0xb7, 0x4d, 0x74, 0x1a, 0x16, 0xc4, 0x15, 0xbe, 0x8c, 0xc9, 0xb2, 0xa5,
+	0x7e, 0x47, 0x81, 0xea, 0x84, 0x63, 0x3c, 0x67, 0x52, 0x7f, 0xea, 0xb9, 0x70, 0xea, 0x87, 0xb0,
+	0x9e, 0x68, 0xc8, 0xe7, 0x3d, 0xfd, 0x8f, 0xa1, 0x1c, 0x75, 0xd3, 0x94, 0x74, 0xe1, 0xda, 0x88,
+	0xd0, 0x05, 0x37, 0x26, 0xb3, 0x4c, 0x3c, 0xb8, 0x9b, 0x78, 0x1b, 0x56, 0x62, 0x9b, 0x0a, 0x7a,
+	0x05, 0x50, 0xd7, 0xb1, 0x3d, 0xcb, 0x1e, 0x19, 0xe2, 0xde, 0x8e, 0x5f, 0x89, 0x08, 0x7f, 0xa9,
+	0x46, 0x25, 0xfc, 0x2e, 0xa5, 0x7e, 0x1f, 0x2a, 0xf1, 0xe8, 0x3a, 0x23, 0x44, 0xb0, 0x6d, 0x67,
+	0x22, 0xdb, 0xf6, 0x06, 0xa0, 0xc9, 0xdd, 0x29, 0x78, 0x53, 0x89, 0xbc, 0xb9, 0x0e, 0xab, 0x09,
+	0xd1, 0xb8, 0xbe, 0x0a, 0xd5, 0x89, 0x9d, 0xa8, 0xbe, 0x26, 0x51, 0xc7, 0x62, 0x6c, 0xfd, 0xe7,
+	0x39, 0x28, 0xec, 0x3a, 0xf2, 0x90, 0xe8, 0xff, 0xa0, 0x40, 0xf1, 0x21, 0x26, 0x96, 0x27, 0x16,
+	0xc9, 0x72, 0xea, 0xf3, 0x06, 0x1f, 0xa2, 0xb1, 0x27, 0xf5, 0xc5, 0xad, 0x6f, 0x00, 0x37, 0x7f,
+	0x11, 0x8e, 0x6a, 0xac, 0xbe, 0xa5, 0xd4, 0xe8, 0xfb, 0xa7, 0x0f, 0x7e, 0x93, 0xdf, 0x59, 0x11,
+	0xa3, 0x8b, 0xf9, 0xc7, 0x2d, 0x6a, 0xa2, 0x91, 0x90, 0xd3, 0xe4, 0xd3, 0xa4, 0x54, 0x0b, 0x93,
+	0x6e, 0xf7, 0x22, 0x94, 0x07, 0x4e, 0x5f, 0x1f, 0x38, 0xf2, 0xde, 0x75, 0x51, 0xbc, 0x32, 0x70,
+	0xfa, 0xbb, 0xb2, 0x8b, 0x79, 0x9d, 0xf7, 0x90, 0x60, 0xc3, 0xac, 0x15, 0xb8, 0x50, 0xb6, 0xd4,
+	0xff, 0x85, 0xdc, 0xae, 0x45, 0x3d, 0xd4, 0x01, 0xf6, 0xba, 0x8e, 0x6d, 0x8f, 0x58, 0xd8, 0x2f,
+	0x38, 0x2e, 0xcc, 0x68, 0x54, 0x0d, 0x06, 0xe2, 0xc9, 0xc2, 0x54, 0x25, 0x50, 0xf0, 0x6d, 0x5c,
+	0xef, 0x41, 0x8e, 0x99, 0x19, 0xad, 0x40, 0xe9, 0xfe, 0xdd, 0xbd, 0x4e, 0xab, 0xd9, 0xbe, 0xd1,
+	0x6e, 0xed, 0x54, 0x4e, 0xa1, 0x22, 0xe4, 0xf7, 0xb5, 0xad, 0x66, 0xab, 0xa2, 0xb0, 0xc7, 0x9d,
+	0xd6, 0xf6, 0xfd, 0x9b, 0x95, 0x0c, 0x2a, 0x40, 0xae, 0x7d, 0xf7, 0xc6, 0xbd, 0x4a, 0x16, 0x01,
+	0x2c, 0xdc, 0xbd, 0xb7, 0xdf, 0x6e, 0xb6, 0x2a, 0x39, 0xd6, 0xfb, 0x60, 0x4b, 0xbb, 0x5b, 0xc9,
+	0xb3, 0x57, 0x5b, 0x9a, 0x76, 0x4f, 0xab, 0x2c, 0xa0, 0x32, 0x14, 0x9a, 0x5a, 0x7b, 0xbf, 0xdd,
+	0xdc, 0xda, 0xad, 0x2c, 0xd6, 0xcb, 0x00, 0xbb, 0x4e, 0xbf, 0xe9, 0xd8, 0x1e, 0x71, 0x06, 0xf5,
+	0xdf, 0xe7, 0xb8, 0x27, 0x11, 0xef, 0x81, 0x43, 0x1e, 0x85, 0x7f, 0xb2, 0xfd, 0x0b, 0x14, 0x1f,
+	0xf3, 0x8e, 0x70, 0x11, 0x17, 0x44, 0x47, 0xdb, 0x44, 0x07, 0x50, 0xe9, 0x0a, 0x75, 0xdd, 0xff,
+	0x63, 0x5a, 0x7a, 0xc1, 0xdc, 0x7f, 0xf4, 0xac, 0x48, 0xc0, 0x96, 0xc4, 0x63, 0x1c, 0x03, 0xa7,
+	0xdf, 0xb7, 0xec, 0x7e, 0xc8, 0x91, 0x3d, 0x26, 0x87, 0x04, 0x0c, 0x38, 0x4c, 0xa8, 0x1a, 0xc4,
+	0xb3, 0x7a, 0x46, 0xd7, 0x0b, 0x49, 0x72, 0xc7, 0x23, 0xa9, 0xf8, 0x88, 0x01, 0x4b, 0x8f, 0xdf,
+	0x88, 0x1d, 0x5a, 0x94, 0x39, 0x70, 0x40, 0x93, 0x3f, 0x1e, 0x4d, 0x35, 0x80, 0x0c, 0x78, 0xde,
+	0x87, 0x05, 0xd7, 0x20, 0xc6, 0x90, 0xd6, 0x80, 0x3b, 0xe6, 0x0c, 0x3b, 0x71, 0xec, 0xeb, 0x37,
+	0x3a, 0x1c, 0x47, 0xfe, 0x48, 0x26, 0x40, 0xd5, 0x6b, 0x50, 0x8a, 0x74, 0x7f, 0xd5, 0x19, 0x72,
+	0x31, 0x5a, 0xc9, 0xff, 0x27, 0x0f, 0x6c, 0x21, 0x89, 0x0c, 0xae, 0x41, 0x5e, 0xac, 0x44, 0xf2,
+	0xe2, 0xfa, 0x45, 0x16, 0xee, 0x1c, 0x37, 0xbd, 0x3b, 0xd6, 0x5f, 0x66, 0x1e, 0x1c, 0x6a, 0x3c,
+	0x0b, 0x7d, 0xf3, 0x53, 0x05, 0x96, 0xb6, 0xb1, 0x31, 0xbc, 0x61, 0xcb, 0x05, 0x80, 0xbe, 0xab,
+	0xc0, 0xa2, 0xff, 0x9c, 0x36, 0x69, 0x4e, 0xf8, 0xf9, 0x58, 0xbd, 0x36, 0x8f, 0xae, 0x08, 0xe6,
+	0xa7, 0x36, 0x94, 0x8b, 0xca, 0xe6, 0x47, 0x00, 0x62, 0x64, 0xbc, 0x96, 0xb4, 0x65, 0x4d, 0x79,
+	0x61, 0xc6, 0xba, 0x54, 0x9d, 0x55, 0x41, 0xb2, 0x7f, 0x4f, 0x81, 0x92, 0xa0, 0x17, 0x1b, 0xf9,
+	0x13, 0xc8, 0x8b, 0x87, 0xcb, 0xb3, 0x24, 0x74, 0x72, 0x46, 0xea, 0x95, 0xd9, 0x94, 0xe4, 0xf6,
+	0x25, 0x46, 0xf2, 0xfd, 0xe0, 0x13, 0xed, 0x8a, 0xf5, 0x8a, 0x9e, 0xc0, 0xa2, 0xff, 0x78, 0x65,
+	0xd6, 0x2d, 0x8c, 0x05, 0x6e, 0xf5, 0x52, 0x7a, 0x2d, 0x3f, 0x2e, 0x8a, 0xb1, 0xfc, 0x2a, 0x03,
+	0x35, 0x31, 0x96, 0xd6, 0x13, 0x0f, 0x13, 0xdb, 0x18, 0x08, 0x2f, 0xeb, 0x38, 0xc2, 0x73, 0x4a,
+	0x11, 0xbf, 0x46, 0xd7, 0xe6, 0x5e, 0x70, 0xea, 0xeb, 0xf3, 0xa8, 0xfa, 0x56, 0x43, 0xdf, 0x56,
+	0x00, 0xc2, 0x15, 0x80, 0xd2, 0xd7, 0xb7, 0xb1, 0x65, 0xa6, 0x5e, 0x9b, 0x43, 0xd3, 0x1f, 0xc5,
+	0xf6, 0x16, 0xfc, 0xc7, 0x34, 0xed, 0xa8, 0xf2, 0x76, 0x51, 0x18, 0x74, 0xcb, 0xb5, 0xde, 0x5d,
+	0x8e, 0x88, 0xf4, 0xc3, 0x4b, 0x07, 0x0b, 0x3c, 0x79, 0xb8, 0xfc, 0x8f, 0x00, 0x00, 0x00, 0xff,
+	0xff, 0xdb, 0x09, 0x17, 0x4b, 0xda, 0x33, 0x00, 0x00,
 }

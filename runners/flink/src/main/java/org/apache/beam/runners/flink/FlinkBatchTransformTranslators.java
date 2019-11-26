@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -74,8 +74,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -502,12 +502,14 @@ class FlinkBatchTransformTranslators {
 
       TupleTag<?> mainOutputTag;
       DoFnSchemaInformation doFnSchemaInformation;
+      Map<String, PCollectionView<?>> sideInputMapping;
       try {
         mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
       doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+      sideInputMapping = ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
       Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
       // put the main output at index 0, FlinkMultiOutputDoFnFunction  expects this
       outputMap.put(mainOutputTag, 0);
@@ -590,7 +592,8 @@ class FlinkBatchTransformTranslators {
                 mainOutputTag,
                 inputCoder,
                 outputCoderMap,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed.
@@ -611,7 +614,8 @@ class FlinkBatchTransformTranslators {
                 mainOutputTag,
                 context.getInput(transform).getCoder(),
                 outputCoderMap,
-                doFnSchemaInformation);
+                doFnSchemaInformation,
+                sideInputMapping);
 
         outputDataSet =
             new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
@@ -636,7 +640,7 @@ class FlinkBatchTransformTranslators {
       TypeInformation<WindowedValue<T>> outputType = context.getTypeInfo(collection);
 
       FlinkMultiOutputPruningFunction<T> pruningFunction =
-          new FlinkMultiOutputPruningFunction<>(integerTag);
+          new FlinkMultiOutputPruningFunction<>(integerTag, context.getPipelineOptions());
 
       FlatMapOperator<WindowedValue<RawUnionValue>, WindowedValue<T>> pruningOperator =
           new FlatMapOperator<>(taggedDataSet, outputType, pruningFunction, collection.getName());

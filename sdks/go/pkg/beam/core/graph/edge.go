@@ -334,7 +334,7 @@ const CombinePerKeyScope = "CombinePerKey"
 
 // NewCombine inserts a new Combine edge into the graph. Combines cannot have side
 // input.
-func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder) (*MultiEdge, error) {
+func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder, typedefs map[string]reflect.Type) (*MultiEdge, error) {
 	addContext := func(err error, s *Scope) error {
 		return errors.WithContextf(err, "creating new Combine in scope %v", s)
 	}
@@ -391,7 +391,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder) (*M
 	key := in.Type().Components()[0]
 	synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
 
-	inbound, kinds, outbound, out, err := Bind(synth, nil, inT)
+	inbound, kinds, outbound, out, err := Bind(synth, typedefs, inT)
 	if err != nil {
 		return nil, addContext(err, s)
 	}

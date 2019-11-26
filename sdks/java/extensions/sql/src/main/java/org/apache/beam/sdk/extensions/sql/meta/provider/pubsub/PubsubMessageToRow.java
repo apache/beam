@@ -18,12 +18,14 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.util.JsonToRowUtils.newObjectMapperWith;
+import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -31,9 +33,9 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.JsonToRowUtils;
-import org.apache.beam.sdk.util.RowJsonDeserializer;
-import org.apache.beam.sdk.util.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
@@ -54,10 +56,12 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
   /**
    * Schema of the Pubsub message.
    *
-   * <p>Required to have exactly 3 top level fields at the moment:
+   * <p>Required to have at least 'event_timestamp' field of type {@link Schema.FieldType#DATETIME}.
+   *
+   * <p>If {@code useFlatSchema()} is set every other field is assumed to be part of the payload.
+   * Otherwise, the schema must contain exactly:
    *
    * <ul>
-   *   <li>'event_timestamp' of type {@link Schema.FieldType#DATETIME}
    *   <li>'attributes' of type {@link TypeName#MAP MAP&lt;VARCHAR,VARCHAR&gt;}
    *   <li>'payload' of type {@link TypeName#ROW ROW&lt;...&gt;}
    * </ul>
@@ -68,8 +72,18 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
 
   public abstract boolean useDlq();
 
+  public abstract boolean useFlatSchema();
+
   private Schema payloadSchema() {
-    return messageSchema().getField(PAYLOAD_FIELD).getType().getRowSchema();
+    if (!useFlatSchema()) {
+      return messageSchema().getField(PAYLOAD_FIELD).getType().getRowSchema();
+    } else {
+      // The payload contains every field in the schema except event_timestamp
+      return new Schema(
+          messageSchema().getFields().stream()
+              .filter(f -> !f.getName().equals(TIMESTAMP_FIELD))
+              .collect(Collectors.toList()));
+    }
   }
 
   public static Builder builder() {
@@ -95,28 +109,40 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
    * payload, and attributes.
    */
   private List<Object> getFieldValues(ProcessContext context) {
+    Row payload = parsePayloadJsonRow(context.element());
     return messageSchema().getFields().stream()
-        .map(field -> getValueForField(field, context.timestamp(), context.element()))
+        .map(
+            field ->
+                getValueForField(
+                    field, context.timestamp(), context.element().getAttributeMap(), payload))
         .collect(toList());
   }
 
   private Object getValueForField(
-      Schema.Field field, Instant timestamp, PubsubMessage pubsubMessage) {
-
-    switch (field.getName()) {
-      case TIMESTAMP_FIELD:
+      Schema.Field field, Instant timestamp, Map<String, String> attributeMap, Row payload) {
+    // TODO(BEAM-8801): do this check once at construction time, rather than for every element.
+    if (useFlatSchema()) {
+      if (field.getName().equals(TIMESTAMP_FIELD)) {
         return timestamp;
-      case ATTRIBUTES_FIELD:
-        return pubsubMessage.getAttributeMap();
-      case PAYLOAD_FIELD:
-        return parsePayloadJsonRow(pubsubMessage);
-      default:
-        throw new IllegalArgumentException(
-            "Unexpected field '"
-                + field.getName()
-                + "' in top level schema"
-                + " for Pubsub message. Top level schema should only contain "
-                + "'timestamp', 'attributes', and 'payload' fields");
+      } else {
+        return payload.getValue(field.getName());
+      }
+    } else {
+      switch (field.getName()) {
+        case TIMESTAMP_FIELD:
+          return timestamp;
+        case ATTRIBUTES_FIELD:
+          return attributeMap;
+        case PAYLOAD_FIELD:
+          return payload;
+        default:
+          throw new IllegalArgumentException(
+              "Unexpected field '"
+                  + field.getName()
+                  + "' in top level schema"
+                  + " for Pubsub message. Top level schema should only contain "
+                  + "'timestamp', 'attributes', and 'payload' fields");
+      }
     }
   }
 
@@ -127,7 +153,7 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
       objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema()));
     }
 
-    return JsonToRowUtils.jsonToRow(objectMapper, payloadJson);
+    return RowJsonUtils.jsonToRow(objectMapper, payloadJson);
   }
 
   @AutoValue.Builder
@@ -135,6 +161,8 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
     public abstract Builder messageSchema(Schema messageSchema);
 
     public abstract Builder useDlq(boolean useDlq);
+
+    public abstract Builder useFlatSchema(boolean useFlatSchema);
 
     public abstract PubsubMessageToRow build();
   }

@@ -159,8 +159,12 @@ cdef class StateSampler(object):
       (<ScopedState>state)._nsecs = 0
     self.started = self.finished = False
 
-  def current_state(self):
-    return self.scoped_states_by_index[self.current_state_index]
+  cpdef ScopedState current_state(self):
+    return self.current_state_c()
+
+  cdef inline ScopedState current_state_c(self):
+    # Faster than cpdef due to self always being a Python subclass.
+    return <ScopedState>self.scoped_states_by_index[self.current_state_index]
 
   cpdef _scoped_state(self, counter_name, name_context, output_counter,
                       metrics_container):
@@ -189,6 +193,12 @@ cdef class StateSampler(object):
     pythread.PyThread_release_lock(self.lock)
     return scoped_state
 
+  def update_metric(self, typed_metric_name, value):
+    # Each of these is a cdef lookup.
+    metrics_container = self.current_state_c().metrics_container
+    if self.current_state_c().metrics_container is not None:
+      metrics_container.get_metric_cell(typed_metric_name).update(value)
+
 
 cdef class ScopedState(object):
   """Context manager class managing transitions for a given sampler state."""
@@ -205,7 +215,7 @@ cdef class ScopedState(object):
     self.name_context = step_name_context
     self.state_index = state_index
     self.counter = counter
-    self._metrics_container = metrics_container
+    self.metrics_container = metrics_container
 
   @property
   def nsecs(self):
@@ -232,7 +242,3 @@ cdef class ScopedState(object):
     self.sampler.current_state_index = self.old_state_index
     self.sampler.state_transition_count += 1
     pythread.PyThread_release_lock(self.sampler.lock)
-
-  @property
-  def metrics_container(self):
-    return self._metrics_container

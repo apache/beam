@@ -66,6 +66,7 @@ excluded_patterns=(
     apache_beam/runners/dataflow/internal/
     apache_beam/runners/portability/
     apache_beam/runners/worker/
+    apache_beam/testing/benchmarks/chicago_taxi/
     apache_beam/tools/map_fn_microbenchmark.*
     apache_beam/transforms/cy_combiners.*
     apache_beam/transforms/cy_dataflow_distribution_counter.*
@@ -75,6 +76,8 @@ excluded_patterns=(
     *_pb2.py
     *_test.py
     *_test_common.py
+    # TODO(BEAM-7847): Remove this once doc generation can parse Py3 syntax.
+    *_py3*.py
 )
 
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
@@ -117,7 +120,7 @@ import apache_beam as beam
 intersphinx_mapping = {
   'python': ('https://docs.python.org/2', None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
-  'google-cloud': ('https://googleapis.github.io/google-cloud-python/latest/', None),
+  'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
@@ -154,6 +157,7 @@ ignore_identifiers = [
   'apache_beam.metrics.metric.MetricResults',
   'apache_beam.pipeline.PipelineVisitor',
   'apache_beam.pipeline.PTransformOverride',
+  'apache_beam.portability.api.schema_pb2.Schema',
   'apache_beam.pvalue.AsSideInput',
   'apache_beam.pvalue.DoOutputsTuple',
   'apache_beam.pvalue.PValue',
@@ -179,9 +183,11 @@ ignore_identifiers = [
   '_TimerDoFnParam',
   '_BundleFinalizerParam',
   '_RestrictionDoFnParam',
+  '_WatermarkEstimatorParam',
 
   # Sphinx cannot find this py:class reference target
   'typing.Generic',
+  'concurrent.futures._base.Executor',
 ]
 
 # When inferring a base class it will use ':py:class'; if inferring a function

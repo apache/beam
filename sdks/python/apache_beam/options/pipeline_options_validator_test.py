@@ -23,6 +23,9 @@ import logging
 import unittest
 from builtins import object
 
+from hamcrest import assert_that
+from hamcrest import contains_string
+from hamcrest import only_contains
 from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
@@ -304,6 +307,56 @@ class SetupTest(unittest.TestCase):
     errors = validator.validate()
     self.assertFalse(errors)
 
+  def test_zone_and_worker_region_mutually_exclusive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--zone', 'us-east1-b',
+        '--worker_region', 'us-east1',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertTrue(errors)
+
+  def test_zone_and_worker_zone_mutually_exclusive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--zone', 'us-east1-b',
+        '--worker_zone', 'us-east1-c',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertTrue(errors)
+
+  def test_experiment_region_and_worker_region_mutually_exclusive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--experiments', 'worker_region=us-west1',
+        '--worker_region', 'us-east1',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertTrue(errors)
+
+  def test_experiment_region_and_worker_zone_mutually_exclusive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--experiments', 'worker_region=us-west1',
+        '--worker_zone', 'us-east1-b',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertTrue(errors)
+
+  def test_worker_region_and_worker_zone_mutually_exclusive(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--worker_region', 'us-east1',
+        '--worker_zone', 'us-east1-b',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertTrue(errors)
+
   def test_test_matcher(self):
     def get_validator(matcher):
       options = ['--project=example:example',
@@ -332,6 +385,36 @@ class SetupTest(unittest.TestCase):
       errors = get_validator(case['on_success_matcher']).validate()
       self.assertEqual(
           self.check_errors_for_arguments(errors, case['errors']), [])
+
+  def test_transform_name_mapping_without_update(self):
+    options = ['--project=example:example',
+               '--staging_location=gs://foo/bar',
+               '--temp_location=gs://foo/bar',
+               '--transform_name_mapping={\"fromPardo\":\"toPardo\"}']
+
+    pipeline_options = PipelineOptions(options)
+    runner = MockRunners.DataflowRunner()
+    validator = PipelineOptionsValidator(pipeline_options, runner)
+    errors = validator.validate()
+    assert_that(errors, only_contains(
+        contains_string('Transform name mapping option is only useful when '
+                        '--update and --streaming is specified')))
+
+  def test_transform_name_mapping_invalid_format(self):
+    options = ['--project=example:example',
+               '--staging_location=gs://foo/bar',
+               '--temp_location=gs://foo/bar',
+               '--update',
+               '--job_name=test',
+               '--streaming',
+               '--transform_name_mapping={\"fromPardo\":123}']
+
+    pipeline_options = PipelineOptions(options)
+    runner = MockRunners.DataflowRunner()
+    validator = PipelineOptionsValidator(pipeline_options, runner)
+    errors = validator.validate()
+    assert_that(errors, only_contains(
+        contains_string('Invalid transform name mapping format.')))
 
 
 if __name__ == '__main__':

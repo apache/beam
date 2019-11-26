@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -45,7 +45,7 @@ configurations.testRuntimeClasspath {
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
   compile project(":sdks:java:io:hadoop-common")
   provided library.java.hadoop_common
@@ -82,7 +82,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   compile library.java.commons_io_2x
 
   delegate.add("sparkRunner", project(":sdks:java:io:hadoop-format"))

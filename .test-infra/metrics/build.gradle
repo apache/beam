@@ -31,7 +31,8 @@ dependencies {
 }
 
 task testMetricsStack {
-  doLast { // TODO(BEAM-5837): Add some actual validation of the metrics stack
+  doLast {
+    // TODO(BEAM-5837): Add some actual validation of the metrics stack
     println "Hello world!" }
 }
 dockerCompose.isRequiredBy(testMetricsStack)

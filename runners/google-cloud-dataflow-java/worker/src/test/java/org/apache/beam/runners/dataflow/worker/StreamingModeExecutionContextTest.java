@@ -47,6 +47,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -64,8 +65,8 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -278,7 +279,7 @@ public class StreamingModeExecutionContextTest {
                         .setName(counterName)
                         .setOriginalStepName(originalStepName)
                         .setExecutionStepName(stageName))
-                .setMetadata(new CounterMetadata().setKind("SUM")))
+                .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
         .setCumulative(false)
         .setInteger(longToSplitInt(value));
   }
@@ -292,7 +293,7 @@ public class StreamingModeExecutionContextTest {
                         .setOrigin("SYSTEM")
                         .setName(counterName)
                         .setExecutionStepName(stageName))
-                .setMetadata(new CounterMetadata().setKind("SUM")))
+                .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
         .setCumulative(false)
         .setInteger(longToSplitInt(value));
   }

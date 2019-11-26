@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
@@ -42,7 +42,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -71,7 +71,7 @@ import org.slf4j.LoggerFactory;
  * <p>HCatalog source supports reading of HCatRecord from a HCatalog managed source, for eg. Hive.
  *
  * <p>To configure a HCatalog source, you must specify a metastore URI and a table name. Other
- * optional parameters are database &amp; filter For instance:
+ * optional parameters are database &amp; filter. For instance:
  *
  * <pre>{@code
  * Map<String, String> configProperties = new HashMap<>();
@@ -104,8 +104,8 @@ import org.slf4j.LoggerFactory;
  * <p>HCatalog sink supports writing of HCatRecord to a HCatalog managed source, for eg. Hive.
  *
  * <p>To configure a HCatalog sink, you must specify a metastore URI and a table name. Other
- * optional parameters are database, partition &amp; batchsize The destination table should exist
- * beforehand, the transform does not create a new table if it does not exist For instance:
+ * optional parameters are database, partition &amp; batchsize. The destination table should exist
+ * beforehand, the transform does not create a new table if it does not exist. For instance:
  *
  * <pre>{@code
  * Map<String, String> configProperties = new HashMap<>();

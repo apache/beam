@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
@@ -65,9 +66,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -1250,6 +1251,19 @@ public class WatermarkManagerTest implements Serializable {
         Collections.emptyList(),
         new Instant(50_000L));
     manager.refreshAll();
+    assertTrue(manager.extractFiredTimers().isEmpty());
+
+    // confirm processing of the firstExtracted timers
+    manager.updateWatermarks(
+        null,
+        TimerUpdate.builder(key).withCompletedTimers(firstFired.getTimers()).build(),
+        graph.getProducer(filtered),
+        null,
+        Collections.emptyList(),
+        new Instant(1000L));
+
+    manager.refreshAll();
+
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
         manager.extractFiredTimers();
     assertThat(secondFiredTimers, not(emptyIterable()));
@@ -1314,6 +1328,18 @@ public class WatermarkManagerTest implements Serializable {
         Collections.emptyList(),
         new Instant(50_000L));
     manager.refreshAll();
+    assertTrue(manager.extractFiredTimers().isEmpty());
+
+    manager.updateWatermarks(
+        null,
+        TimerUpdate.builder(key).withCompletedTimers(firstFired.getTimers()).build(),
+        graph.getProducer(filtered),
+        null,
+        Collections.emptyList(),
+        new Instant(1000L));
+
+    manager.refreshAll();
+
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
         manager.extractFiredTimers();
     assertThat(secondFiredTimers, not(emptyIterable()));
@@ -1381,6 +1407,16 @@ public class WatermarkManagerTest implements Serializable {
         Collections.emptyList(),
         new Instant(50_000L));
     manager.refreshAll();
+    assertTrue(manager.extractFiredTimers().isEmpty());
+
+    manager.updateWatermarks(
+        null,
+        TimerUpdate.builder(key).withCompletedTimers(firstFired.getTimers()).build(),
+        graph.getProducer(filtered),
+        null,
+        Collections.emptyList(),
+        new Instant(1000L));
+
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
         manager.extractFiredTimers();
     assertThat(secondFiredTimers, not(emptyIterable()));
@@ -1497,7 +1533,8 @@ public class WatermarkManagerTest implements Serializable {
     Watermark mockWatermark = Mockito.mock(Watermark.class);
 
     AppliedPTransformInputWatermark underTest =
-        new AppliedPTransformInputWatermark("underTest", ImmutableList.of(mockWatermark));
+        new AppliedPTransformInputWatermark(
+            "underTest", ImmutableList.of(mockWatermark), update -> {});
 
     // Refresh
     when(mockWatermark.get()).thenReturn(new Instant(0));

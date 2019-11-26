@@ -37,7 +37,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
-import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
@@ -60,7 +60,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.joda.time.Instant;
@@ -84,12 +84,13 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   private final RunnerApi.ExecutableStagePayload stagePayload;
   private final Map<String, Integer> outputMap;
-  private final JobBundleFactoryCreator jobBundleFactoryCreator;
+  private final SparkExecutableStageContextFactory contextFactory;
   // map from pCollection id to tuple of serialized bytes and coder to decode the bytes
   private final Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
       sideInputs;
   private final MetricsContainerStepMapAccumulator metricsAccumulator;
   private final Coder windowCoder;
+  private final JobInfo jobInfo;
 
   private transient InMemoryBagUserStateFactory bagUserStateHandlerFactory;
   private transient Object currentTimerKey;
@@ -98,28 +99,14 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
-      MetricsContainerStepMapAccumulator metricsAccumulator,
-      Coder windowCoder) {
-    this(
-        stagePayload,
-        outputMap,
-        () -> DefaultJobBundleFactory.create(jobInfo),
-        sideInputs,
-        metricsAccumulator,
-        windowCoder);
-  }
-
-  SparkExecutableStageFunction(
-      RunnerApi.ExecutableStagePayload stagePayload,
-      Map<String, Integer> outputMap,
-      JobBundleFactoryCreator jobBundleFactoryCreator,
+      SparkExecutableStageContextFactory contextFactory,
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
       MetricsContainerStepMapAccumulator metricsAccumulator,
       Coder windowCoder) {
     this.stagePayload = stagePayload;
+    this.jobInfo = jobInfo;
     this.outputMap = outputMap;
-    this.jobBundleFactoryCreator = jobBundleFactoryCreator;
+    this.contextFactory = contextFactory;
     this.sideInputs = sideInputs;
     this.metricsAccumulator = metricsAccumulator;
     this.windowCoder = windowCoder;
@@ -132,9 +119,10 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   @Override
   public Iterator<RawUnionValue> call(Iterator<WindowedValue<InputT>> inputs) throws Exception {
-    try (JobBundleFactory jobBundleFactory = jobBundleFactoryCreator.create()) {
+    try (ExecutableStageContext stageContext = contextFactory.get(jobInfo)) {
       ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-      try (StageBundleFactory stageBundleFactory = jobBundleFactory.forStage(executableStage)) {
+      try (StageBundleFactory stageBundleFactory =
+          stageContext.getStageBundleFactory(executableStage)) {
         ConcurrentLinkedQueue<RawUnionValue> collector = new ConcurrentLinkedQueue<>();
         StateRequestHandler stateRequestHandler =
             getStateRequestHandler(
@@ -283,7 +271,9 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       userStateHandler = StateRequestHandler.unsupported();
     }
 
+    handlerMap.put(StateKey.TypeCase.ITERABLE_SIDE_INPUT, sideInputHandler);
     handlerMap.put(StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+    handlerMap.put(StateKey.TypeCase.MULTIMAP_KEYS_SIDE_INPUT, sideInputHandler);
     handlerMap.put(StateKey.TypeCase.BAG_USER_STATE, userStateHandler);
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }

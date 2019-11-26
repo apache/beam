@@ -50,7 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -117,22 +117,21 @@ public class FnApiWindowMappingFnTest {
 
     @Override
     public <T> InboundDataClient receive(
-        LogicalEndpoint inputLocation,
-        Coder<WindowedValue<T>> coder,
-        FnDataReceiver<WindowedValue<T>> consumer) {
+        LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> consumer) {
       this.inboundReceiver = (FnDataReceiver) consumer;
       this.inboundDataClient = CompletableFutureInboundDataClient.create();
       return inboundDataClient;
     }
 
     @Override
-    public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-        LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) {
-      return new CloseableFnDataReceiver<WindowedValue<T>>() {
+    public <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder) {
+      return new CloseableFnDataReceiver<T>() {
         @Override
-        public void accept(WindowedValue<T> windowedValue) throws Exception {
+        public void accept(T value) throws Exception {
+          WindowedValue<KV<Object, Object>> windowedValue =
+              (WindowedValue<KV<Object, Object>>) value;
           inputValues.add(windowedValue);
-          KV<Object, Object> kv = (KV) windowedValue.getValue();
+          KV<Object, Object> kv = windowedValue.getValue();
           inboundReceiver.accept(windowedValue.withValue(KV.of(kv.getKey(), outputValue)));
           inboundDataClient.complete();
         }
@@ -160,8 +159,7 @@ public class FnApiWindowMappingFnTest {
                 .build());
       } else if (RequestCase.PROCESS_BUNDLE.equals(request.getRequestCase())) {
         assertEquals(
-            processBundleDescriptorId,
-            request.getProcessBundle().getProcessBundleDescriptorReference());
+            processBundleDescriptorId, request.getProcessBundle().getProcessBundleDescriptorId());
         return CompletableFuture.completedFuture(
             InstructionResponse.newBuilder()
                 .setInstructionId(request.getInstructionId())

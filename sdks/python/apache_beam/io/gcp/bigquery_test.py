@@ -21,28 +21,39 @@ from __future__ import absolute_import
 import decimal
 import json
 import logging
+import os
 import random
 import re
 import time
 import unittest
+import uuid
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery import WriteToBigQuery
+from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.pubsub import ReadFromPubSub
+from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -58,6 +69,9 @@ try:
 except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -113,12 +127,12 @@ class TestTableRowJsonCoder(unittest.TestCase):
     test_row = bigquery.TableRow(
         f=[bigquery.TableCell(v=to_json_value(e))
            for e in ['abc', 123, 123.456, True]])
-    with self.assertRaisesRegexp(AttributeError,
-                                 r'^The TableRowJsonCoder requires'):
+    with self.assertRaisesRegex(AttributeError,
+                                r'^The TableRowJsonCoder requires'):
       coder.encode(test_row)
 
   def json_compliance_exception(self, value):
-    with self.assertRaisesRegexp(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
+    with self.assertRaisesRegex(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
       schema_definition = [('f', 'FLOAT')]
       schema = bigquery.TableSchema(
           fields=[bigquery.TableFieldSchema(name=k, type=v)
@@ -288,7 +302,20 @@ class TestBigQuerySink(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class WriteToBigQuery(unittest.TestCase):
+class TestWriteToBigQuery(unittest.TestCase):
+
+  def _cleanup_files(self):
+    if os.path.exists('insert_calls1'):
+      os.remove('insert_calls1')
+
+    if os.path.exists('insert_calls2'):
+      os.remove('insert_calls2')
+
+  def setUp(self):
+    self._cleanup_files()
+
+  def tearDown(self):
+    self._cleanup_files()
 
   def test_noop_schema_parsing(self):
     expected_table_schema = None
@@ -419,8 +446,8 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         test_client=client)
 
     fn.start_bundle()
-    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
-    fn.process(('project_id:dataset_id.table_id', {'month': 2}))
+    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
+    fn.process(('project_id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
     # InsertRows called as batch size is hit
     self.assertTrue(client.tabledata.InsertAll.called)
 
@@ -445,7 +472,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
-    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
+    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit
@@ -481,8 +508,68 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     self.assertFalse(client.tabledata.InsertAll.called)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
+
+  def test_failure_has_same_insert_ids(self):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    file_name_1 = os.path.join(tempdir, 'file1')
+    file_name_2 = os.path.join(tempdir, 'file2')
+
+    def store_callback(arg):
+      insert_ids = [r.insertId for r in arg.tableDataInsertAllRequest.rows]
+      colA_values = [r.json.additionalProperties[0].value.string_value
+                     for r in arg.tableDataInsertAllRequest.rows]
+      json_output = {'insertIds': insert_ids,
+                     'colA_values': colA_values}
+      # The first time we try to insert, we save those insertions in
+      # file insert_calls1.
+      if not os.path.exists(file_name_1):
+        with open(file_name_1, 'w') as f:
+          json.dump(json_output, f)
+        raise RuntimeError()
+      else:
+        with open(file_name_2, 'w') as f:
+          json.dump(json_output, f)
+
+      res = mock.Mock()
+      res.insertErrors = []
+      return res
+
+    client = mock.Mock()
+    client.tabledata.InsertAll = mock.Mock(side_effect=store_callback)
+
+    # Using the bundle based direct runner to avoid pickling problems
+    # with mocks.
+    with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+      _ = (p
+           | beam.Create([{'columnA':'value1', 'columnB':'value2'},
+                          {'columnA':'value3', 'columnB':'value4'},
+                          {'columnA':'value5', 'columnB':'value6'}])
+           | _StreamToBigQuery(
+               'project:dataset.table',
+               [], [],
+               'anyschema',
+               None,
+               'CREATE_NEVER', None,
+               None, None,
+               [], test_client=client))
+
+    with open(file_name_1) as f1, open(file_name_2) as f2:
+      self.assertEqual(
+          json.load(f1),
+          json.load(f2))
+
+
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
+
+  # Prevent nose from finding and running tests that were not
+  # specified in the Gradle file.
+  # See "More tests may be found" in:
+  # https://nose.readthedocs.io/en/latest/doc_tests/test_multiprocess
+  # /multiprocess.html#other-differences-in-test-running
+  _multiprocess_can_split_ = True
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -495,7 +582,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
-    logging.info("Created dataset %s in project %s",
+    _LOGGER.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
   @attr('IT')
@@ -561,6 +648,10 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
+    streaming = self.test_pipeline.options.view_as(StandardOptions).streaming
+    if streaming and isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest("TestStream is not supported on TestDataflowRunner")
+
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
 
@@ -576,100 +667,52 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
     bad_record = {'language': 1, 'manguage': 2}
 
-    pipeline_verifiers = [
-        BigqueryFullResultMatcher(
-            project=self.project,
-            query="SELECT name, language FROM %s" % output_table_1,
-            data=[(d['name'], d['language'])
-                  for d in _ELEMENTS
-                  if 'language' in d]),
-        BigqueryFullResultMatcher(
-            project=self.project,
-            query="SELECT name, foundation FROM %s" % output_table_2,
-            data=[(d['name'], d['foundation'])
-                  for d in _ELEMENTS
-                  if 'foundation' in d])]
+    if streaming:
+      pipeline_verifiers = [
+          PipelineStateMatcher(PipelineState.RUNNING),
+          BigqueryFullResultStreamingMatcher(
+              project=self.project,
+              query="SELECT name, language FROM %s" % output_table_1,
+              data=[(d['name'], d['language'])
+                    for d in _ELEMENTS
+                    if 'language' in d]),
+          BigqueryFullResultStreamingMatcher(
+              project=self.project,
+              query="SELECT name, foundation FROM %s" % output_table_2,
+              data=[(d['name'], d['foundation'])
+                    for d in _ELEMENTS
+                    if 'foundation' in d])]
+    else:
+      pipeline_verifiers = [
+          BigqueryFullResultMatcher(
+              project=self.project,
+              query="SELECT name, language FROM %s" % output_table_1,
+              data=[(d['name'], d['language'])
+                    for d in _ELEMENTS
+                    if 'language' in d]),
+          BigqueryFullResultMatcher(
+              project=self.project,
+              query="SELECT name, foundation FROM %s" % output_table_2,
+              data=[(d['name'], d['foundation'])
+                    for d in _ELEMENTS
+                    if 'foundation' in d])]
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers),
         experiments='use_beam_bq_sink')
 
     with beam.Pipeline(argv=args) as p:
-      input = p | beam.Create(_ELEMENTS)
-
-      schema_table_pcv = beam.pvalue.AsDict(
-          p | "MakeSchemas" >> beam.Create([(full_output_table_1, schema1),
-                                            (full_output_table_2, schema2)]))
-
-      table_record_pcv = beam.pvalue.AsDict(
-          p | "MakeTables" >> beam.Create([('table1', full_output_table_1),
-                                           ('table2', full_output_table_2)]))
-
-      input2 = p | "Broken record" >> beam.Create([bad_record])
-
-      input = (input, input2) | beam.Flatten()
-
-      r = (input
-           | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=lambda x, tables: (tables['table1']
-                                        if 'language' in x
-                                        else tables['table2']),
-               table_side_inputs=(table_record_pcv,),
-               schema=lambda dest, table_map: table_map.get(dest, None),
-               schema_side_inputs=(schema_table_pcv,),
-               method='STREAMING_INSERTS'))
-
-      assert_that(r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
-                  equal_to([(full_output_table_1, bad_record)]))
-
-  @attr('IT')
-  def test_multiple_destinations_transform_streaming(self):
-    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
-      self.skipTest("TestStream is not supported on TestDataflowRunner")
-    output_table_1 = '%s%s_streaming' % (self.output_table, 1)
-    output_table_2 = '%s%s_streaming' % (self.output_table, 2)
-
-    full_output_table_1 = '%s:%s' % (self.project, output_table_1)
-    full_output_table_2 = '%s:%s' % (self.project, output_table_2)
-
-    schema1 = {'fields': [
-        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-        {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
-    schema2 = {'fields': [
-        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-        {'name': 'foundation', 'type': 'STRING', 'mode': 'NULLABLE'}]}
-
-    bad_record = {'language': 1, 'manguage': 2}
-
-    pipeline_verifiers = [
-        PipelineStateMatcher(PipelineState.RUNNING),
-        BigqueryFullResultStreamingMatcher(
-            project=self.project,
-            query="SELECT name, language FROM %s" % output_table_1,
-            data=[(d['name'], d['language'])
-                  for d in _ELEMENTS
-                  if 'language' in d]),
-        BigqueryFullResultStreamingMatcher(
-            project=self.project,
-            query="SELECT name, foundation FROM %s" % output_table_2,
-            data=[(d['name'], d['foundation'])
-                  for d in _ELEMENTS
-                  if 'foundation' in d])]
-
-    args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink',
-        streaming=True)
-
-    with beam.Pipeline(argv=args) as p:
-      _SIZE = len(_ELEMENTS)
-      test_stream = (TestStream()
-                     .advance_watermark_to(0)
-                     .add_elements(_ELEMENTS[:_SIZE//2])
-                     .advance_watermark_to(100)
-                     .add_elements(_ELEMENTS[_SIZE//2:])
-                     .advance_watermark_to_infinity())
-      input = p | test_stream
+      if streaming:
+        _SIZE = len(_ELEMENTS)
+        test_stream = (TestStream()
+                       .advance_watermark_to(0)
+                       .add_elements(_ELEMENTS[:_SIZE//2])
+                       .advance_watermark_to(100)
+                       .add_elements(_ELEMENTS[_SIZE//2:])
+                       .advance_watermark_to_infinity())
+        input = p | test_stream
+      else:
+        input = p | beam.Create(_ELEMENTS)
 
       schema_table_pcv = beam.pvalue.AsDict(
           p | "MakeSchemas" >> beam.Create([(full_output_table_1, schema1),
@@ -701,12 +744,101 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
         projectId=self.project, datasetId=self.dataset_id,
         deleteContents=True)
     try:
-      logging.info("Deleting dataset %s in project %s",
+      _LOGGER.info("Deleting dataset %s in project %s",
                    self.dataset_id, self.project)
       self.bigquery_client.client.datasets.Delete(request)
     except HttpError:
-      logging.debug('Failed to clean up dataset %s in project %s',
+      _LOGGER.debug('Failed to clean up dataset %s in project %s',
                     self.dataset_id, self.project)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class PubSubBigQueryIT(unittest.TestCase):
+
+  INPUT_TOPIC = 'psit_topic_output'
+  INPUT_SUB = 'psit_subscription_input'
+
+  BIG_QUERY_DATASET_ID = 'python_pubsub_bq_'
+  SCHEMA = {'fields': [
+      {'name': 'number', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
+  _SIZE = 4
+
+  WAIT_UNTIL_FINISH_DURATION = 15 * 60 * 1000
+
+  def setUp(self):
+    # Set up PubSub
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.test_pipeline.get_option('project')
+    self.uuid = str(uuid.uuid4())
+    from google.cloud import pubsub
+    self.pub_client = pubsub.PublisherClient()
+    self.input_topic = self.pub_client.create_topic(
+        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + self.uuid))
+    self.sub_client = pubsub.SubscriberClient()
+    self.input_sub = self.sub_client.create_subscription(
+        self.sub_client.subscription_path(self.project,
+                                          self.INPUT_SUB + self.uuid),
+        self.input_topic.name)
+
+    # Set up BQ
+    self.dataset_ref = utils.create_bq_dataset(self.project,
+                                               self.BIG_QUERY_DATASET_ID)
+    self.output_table = "%s.output_table" % (self.dataset_ref.dataset_id)
+
+  def tearDown(self):
+    # Tear down PubSub
+    test_utils.cleanup_topics(self.pub_client,
+                              [self.input_topic])
+    test_utils.cleanup_subscriptions(self.sub_client,
+                                     [self.input_sub])
+    # Tear down BigQuery
+    utils.delete_bq_dataset(self.project, self.dataset_ref)
+
+  def _run_pubsub_bq_pipeline(self, method, triggering_frequency=None):
+    l = [i for i in range(self._SIZE)]
+
+    matchers = [
+        PipelineStateMatcher(PipelineState.RUNNING),
+        BigqueryFullResultStreamingMatcher(
+            project=self.project,
+            query="SELECT number FROM %s" % self.output_table,
+            data=[(i,) for i in l])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*matchers),
+        wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
+        experiments='use_beam_bq_sink',
+        streaming=True)
+
+    def add_schema_info(element):
+      yield {'number': element}
+
+    messages = [str(i).encode('utf-8') for i in l]
+    for message in messages:
+      self.pub_client.publish(self.input_topic.name, message)
+
+    with beam.Pipeline(argv=args) as p:
+      mesages = (p
+                 | ReadFromPubSub(subscription=self.input_sub.name)
+                 | beam.ParDo(add_schema_info))
+      _ = mesages | WriteToBigQuery(
+          self.output_table,
+          schema=self.SCHEMA,
+          method=method,
+          triggering_frequency=triggering_frequency)
+
+  @attr('IT')
+  def test_streaming_inserts(self):
+    self._run_pubsub_bq_pipeline(WriteToBigQuery.Method.STREAMING_INSERTS)
+
+  @attr('IT')
+  def test_file_loads(self):
+    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
+      self.skipTest('https://issuetracker.google.com/issues/118375066')
+    self._run_pubsub_bq_pipeline(WriteToBigQuery.Method.FILE_LOADS,
+                                 triggering_frequency=20)
 
 
 if __name__ == '__main__':

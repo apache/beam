@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
@@ -67,6 +67,11 @@ public class SimpleExecutionState extends ExecutionState {
     if (this.labelsMetadata == null) {
       this.labelsMetadata = new HashMap<String, String>();
     }
+  }
+
+  /** Reset the totalMillis spent in the state. */
+  public void reset() {
+    this.totalMillis = 0;
   }
 
   public String getUrn() {

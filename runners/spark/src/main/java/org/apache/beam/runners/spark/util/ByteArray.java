@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.util;
 
 import java.io.Serializable;
 import java.util.Arrays;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 
 /** Serializable byte array. */
 public class ByteArray implements Serializable, Comparable<ByteArray> {

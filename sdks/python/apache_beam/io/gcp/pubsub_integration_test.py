@@ -63,6 +63,10 @@ class PubSubIntegrationTest(unittest.TestCase):
           PubsubMessage(b'data002', {
               TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
           }),
+          PubsubMessage(b'data003\xab\xac', {}),
+          PubsubMessage(b'data004\xab\xac', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+          })
       ],
       'TestDataflowRunner': [
           # Use ID_LABEL attribute to deduplicate messages with the same ID.
@@ -73,6 +77,12 @@ class PubSubIntegrationTest(unittest.TestCase):
           # IT pipeline writes back the timestamp of each element (as reported
           # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
           PubsubMessage(b'data002', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+          }),
+          PubsubMessage(b'data003\xab\xac', {ID_LABEL: 'foo2'}),
+          PubsubMessage(b'data003\xab\xac', {ID_LABEL: 'foo2'}),
+          PubsubMessage(b'data003\xab\xac', {ID_LABEL: 'foo2'}),
+          PubsubMessage(b'data004\xab\xac', {
               TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
           })
       ],
@@ -85,6 +95,12 @@ class PubSubIntegrationTest(unittest.TestCase):
               TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
               'processed': 'IT',
           }),
+          PubsubMessage(b'data003\xab\xac-seen', {'processed': 'IT'}),
+          PubsubMessage(b'data004\xab\xac-seen', {
+              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+              'processed': 'IT',
+          })
       ],
       'TestDataflowRunner': [
           PubsubMessage(b'data001-seen', {'processed': 'IT'}),
@@ -92,6 +108,11 @@ class PubSubIntegrationTest(unittest.TestCase):
               TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
               'processed': 'IT',
           }),
+          PubsubMessage(b'data003\xab\xac-seen', {'processed': 'IT'}),
+          PubsubMessage(b'data004\xab\xac-seen', {
+              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+              'processed': 'IT',
+          })
       ],
   }
 
@@ -139,8 +160,7 @@ class PubSubIntegrationTest(unittest.TestCase):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
     expected_messages = self.EXPECTED_OUTPUT_MESSAGES[self.runner_name]
     if not with_attributes:
-      expected_messages = [pubsub_msg.data.decode('utf-8')
-                           for pubsub_msg in expected_messages]
+      expected_messages = [pubsub_msg.data for pubsub_msg in expected_messages]
     if self.runner_name == 'TestDirectRunner':
       strip_attributes = None
     else:

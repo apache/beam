@@ -36,6 +36,8 @@ __all__ = ['TestDataflowRunner']
 # pool.
 WAIT_IN_STATE_TIMEOUT = 10 * 60
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class TestDataflowRunner(DataflowRunner):
   def run_pipeline(self, pipeline, options):
@@ -54,13 +56,13 @@ class TestDataflowRunner(DataflowRunner):
     if self.result.has_job:
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
-      print('Found: %s.' % self.build_console_url(options))
+      print('Worker logs: %s' % self.build_console_url(options))
 
     try:
       self.wait_until_in_state(PipelineState.RUNNING)
 
       if is_streaming and not wait_duration:
-        logging.warning('Waiting indefinitely for streaming job.')
+        _LOGGER.warning('Waiting indefinitely for streaming job.')
       self.result.wait_until_finish(duration=wait_duration)
 
       if on_success_matcher:

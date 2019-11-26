@@ -24,10 +24,15 @@ import itertools
 import logging
 import math
 import random
+import re
 import time
 import unittest
 from builtins import object
 from builtins import range
+
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import WindowInto
@@ -50,6 +55,8 @@ from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -152,6 +159,60 @@ class BatchElementsTest(unittest.TestCase):
         min(stable_set), expected_target - expected_target * variance)
     self.assertLess(
         max(stable_set), expected_target + expected_target * variance)
+
+  def test_ignore_first_n_batch_size(self):
+    clock = FakeClock()
+    batch_estimator = util._BatchSizeEstimator(
+        clock=clock, ignore_first_n_seen_per_batch_size=2)
+
+    expected_sizes = [
+        1, 1, 1, 2, 2, 2, 4, 4, 4, 8, 8, 8, 16, 16, 16, 32, 32, 32, 64, 64, 64
+    ]
+    actual_sizes = []
+    for i in range(len(expected_sizes)):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        if i % 3 == 2:
+          clock.sleep(0.01)
+        else:
+          clock.sleep(1)
+
+    self.assertEqual(expected_sizes, actual_sizes)
+
+    # Check we only record the third timing.
+    expected_data_batch_sizes = [1, 2, 4, 8, 16, 32, 64]
+    actual_data_batch_sizes = [x[0] for x in batch_estimator._data]
+    self.assertEqual(expected_data_batch_sizes, actual_data_batch_sizes)
+    expected_data_timing = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+    for i in range(len(expected_data_timing)):
+      self.assertAlmostEqual(
+          expected_data_timing[i], batch_estimator._data[i][1])
+
+  def test_ignore_next_timing(self):
+    clock = FakeClock()
+    batch_estimator = util._BatchSizeEstimator(clock=clock)
+    batch_estimator.ignore_next_timing()
+
+    expected_sizes = [1, 1, 2, 4, 8, 16]
+    actual_sizes = []
+    for i in range(len(expected_sizes)):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        if i == 0:
+          clock.sleep(1)
+        else:
+          clock.sleep(0.01)
+
+    self.assertEqual(expected_sizes, actual_sizes)
+
+    # Check the first record_time was skipped.
+    expected_data_batch_sizes = [1, 2, 4, 8, 16]
+    actual_data_batch_sizes = [x[0] for x in batch_estimator._data]
+    self.assertEqual(expected_data_batch_sizes, actual_data_batch_sizes)
+    expected_data_timing = [0.01, 0.01, 0.01, 0.01, 0.01]
+    for i in range(len(expected_data_timing)):
+      self.assertAlmostEqual(
+          expected_data_timing[i], batch_estimator._data[i][1])
 
   def _run_regression_test(self, linear_regression_fn, test_outliers):
     xs = [random.random() for _ in range(10)]
@@ -269,9 +330,8 @@ class IdentityWindowTest(unittest.TestCase):
                       | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
     assert_that(after_identity, equal_to(expected_windows),
                 label='after_identity', reify_windows=True)
-    with self.assertRaisesRegexp(ValueError, r'window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
       pipeline.run()
-
 
 class ReshuffleTest(unittest.TestCase):
 
@@ -319,7 +379,7 @@ class ReshuffleTest(unittest.TestCase):
   def test_reshuffle_windows_unchanged(self):
     pipeline = TestPipeline()
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
+    expected_data = [TestWindowedValue(v, t - .001, [w]) for (v, t, w) in [
         ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
         ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
         ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
@@ -347,11 +407,12 @@ class ReshuffleTest(unittest.TestCase):
         ((1, 2), 2.0, IntervalWindow(2.0, 4.0)),
         ((2, 2), 2.0, IntervalWindow(2.0, 4.0)),
         ((1, 4), 4.0, IntervalWindow(4.0, 6.0))]]
-    expected_merged_windows = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
-        ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
-        ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
-        ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
-        ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
+    expected_merged_windows = [
+        TestWindowedValue(v, t - .001, [w]) for (v, t, w) in [
+            ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+            ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+            ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
+            ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
     before_reshuffle = (pipeline
                         | 'start' >> beam.Create(data)
                         | 'add_timestamp' >> beam.Map(
@@ -417,6 +478,59 @@ class ReshuffleTest(unittest.TestCase):
     assert_that(after_reshuffle, equal_to(expected_data),
                 label='after reshuffle')
     pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_reshuffle_preserves_timestamps(self):
+    with TestPipeline() as pipeline:
+
+      # Create a PCollection and assign each element with a different timestamp.
+      before_reshuffle = (pipeline
+                          | beam.Create([
+                              {'name': 'foo', 'timestamp': MIN_TIMESTAMP},
+                              {'name': 'foo', 'timestamp': 0},
+                              {'name': 'bar', 'timestamp': 33},
+                              {'name': 'bar', 'timestamp': MAX_TIMESTAMP},
+                          ])
+                          | beam.Map(
+                              lambda element: beam.window.TimestampedValue(
+                                  element, element['timestamp'])))
+
+      # Reshuffle the PCollection above and assign the timestamp of an element
+      # to that element again.
+      after_reshuffle = before_reshuffle | beam.Reshuffle()
+
+      # Given an element, emits a string which contains the timestamp and the
+      # name field of the element.
+      def format_with_timestamp(element, timestamp=beam.DoFn.TimestampParam):
+        t = str(timestamp)
+        if timestamp == MIN_TIMESTAMP:
+          t = 'MIN_TIMESTAMP'
+        elif timestamp == MAX_TIMESTAMP:
+          t = 'MAX_TIMESTAMP'
+        return '{} - {}'.format(t, element['name'])
+
+      # Combine each element in before_reshuffle with its timestamp.
+      formatted_before_reshuffle = (before_reshuffle
+                                    | "Get before_reshuffle timestamp" >>
+                                    beam.Map(format_with_timestamp))
+
+      # Combine each element in after_reshuffle with its timestamp.
+      formatted_after_reshuffle = (after_reshuffle
+                                   | "Get after_reshuffle timestamp" >>
+                                   beam.Map(format_with_timestamp))
+
+      expected_data = ['MIN_TIMESTAMP - foo',
+                       'Timestamp(0) - foo',
+                       'Timestamp(33) - bar',
+                       'MAX_TIMESTAMP - bar']
+
+      # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
+      # directly, because they are deferred PCollections while equal_to only
+      # takes a concrete argument.
+      assert_that(formatted_before_reshuffle, equal_to(expected_data),
+                  label="formatted_before_reshuffle")
+      assert_that(formatted_after_reshuffle, equal_to(expected_data),
+                  label="formatted_after_reshuffle")
 
 
 class WithKeysTest(unittest.TestCase):
@@ -575,6 +689,13 @@ class ReifyTest(unittest.TestCase):
                                   [GlobalWindow()])]
     with TestPipeline() as p:
       pc = p | beam.Create(l)
+      # Map(lambda x: x) PTransform is added after Create here, because when
+      # a PCollection of WindowedValues is created with Create PTransform,
+      # the windows are not assigned to it. Adding a Map forces the
+      # PCollection to go through a DoFn so that the PCollection consists of
+      # the elements with timestamps assigned to them instead of a PCollection
+      # of WindowedValue(element, timestamp, window).
+      pc = pc | beam.Map(lambda x: x)
       reified_pc = pc | util.Reify.Window()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
 
@@ -609,6 +730,285 @@ class ReifyTest(unittest.TestCase):
       pc = p | beam.Create(l) | beam.Map(lambda x: x)
       reified_pc = pc | util.Reify.WindowInValue()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
+
+
+class RegexTest(unittest.TestCase):
+
+  def test_find(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"])
+                | util.Regex.find("[xyz]"))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("[xyz]")
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"]) | util.Regex.find(rc))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_group(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"])
+                | util.Regex.find("([xyz])j", group=1))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_empty(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "b", "c", "d"])
+                | util.Regex.find("[xyz]"))
+      assert_that(result, equal_to([]))
+
+  def test_find_group_name(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"])
+                | util.Regex.find("(?P<namedgroup>[xyz])j", group="namedgroup"))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_group_name_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("(?P<namedgroup>[xyz])j")
+      result = (p | beam.Create(["aj", "xj", "yj", "zj"]) | util.Regex.find(
+          rc, group="namedgroup"))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_find_all_groups(self):
+    data = ["abb ax abbb", "abc qwerty abcabcd xyz"]
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(data))
+
+      assert_that(pcol | 'with default values' >> util.Regex.find_all('a(b*)'),
+                  equal_to([['abb', 'a', 'abbb'], ['ab', 'ab', 'ab']]),
+                  label='CheckWithDefaultValues')
+
+      assert_that(pcol | 'group 1' >> util.Regex.find_all('a(b*)', 1),
+                  equal_to([['b', 'b', 'b'], ['bb', '', 'bbb']]),
+                  label='CheckWithGroup1')
+
+      assert_that(pcol | 'group 1 non empty' >> util.Regex.find_all(
+          'a(b*)', 1, outputEmpty=False),
+                  equal_to([['b', 'b', 'b'], ['bb', 'bbb']]),
+                  label='CheckGroup1NonEmpty')
+
+      assert_that(pcol | 'named group' >> util.Regex.find_all(
+          'a(?P<namedgroup>b*)', 'namedgroup'),
+                  equal_to([['b', 'b', 'b'], ['bb', '', 'bbb']]),
+                  label='CheckNamedGroup')
+
+      assert_that(pcol | 'all groups' >> util.Regex.find_all(
+          'a(?P<namedgroup>b*)', util.Regex.ALL),
+                  equal_to([[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
+                            [('abb', 'bb'), ('a', ''), ('abbb', 'bbb')]]),
+                  label='CheckAllGroups')
+
+      assert_that(pcol | 'all non empty groups' >> util.Regex.find_all(
+          'a(b*)', util.Regex.ALL, outputEmpty=False),
+                  equal_to([[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
+                            [('abb', 'bb'), ('abbb', 'bbb')]]),
+                  label='CheckAllNonEmptyGroups')
+
+  def test_find_kv(self):
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(['a b c d']))
+      assert_that(pcol | 'key 1' >> util.Regex.find_kv(
+          'a (b) (c)', 1,), equal_to([('b', 'a b c')]), label='CheckKey1')
+
+      assert_that(pcol | 'key 1 group 1' >> util.Regex.find_kv(
+          'a (b) (c)', 1, 2), equal_to([('b', 'c')]), label='CheckKey1Group1')
+
+  def test_find_kv_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("a (b) (c)")
+      result = (p | beam.Create(["a b c"]) | util.Regex.find_kv(rc, 1, 2))
+      assert_that(result, equal_to([("b", "c")]))
+
+  def test_find_kv_none(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["x y z"])
+                | util.Regex.find_kv("a (b) (c)", 1, 2))
+      assert_that(result, equal_to([]))
+
+  def test_match(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x", "y", "z"])
+                | util.Regex.matches("[xyz]"))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "ax", "yby", "zzc"])
+                | util.Regex.matches("[xyz]"))
+      assert_that(result, equal_to(["y", "z"]))
+
+  def test_match_entire_line(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x", "y", "ay", "zz"])
+                | util.Regex.matches("[xyz]$"))
+      assert_that(result, equal_to(["x", "y"]))
+
+  def test_match_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("[xyz]")
+      result = (p | beam.Create(["a", "x", "y", "z"]) | util.Regex.matches(rc))
+      assert_that(result, equal_to(["x", "y", "z"]))
+
+  def test_match_none(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "b", "c", "d"])
+                | util.Regex.matches("[xyz]"))
+      assert_that(result, equal_to([]))
+
+  def test_match_group(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x xxx", "x yyy", "x zzz"])
+                | util.Regex.matches("x ([xyz]*)", 1))
+      assert_that(result, equal_to(("xxx", "yyy", "zzz")))
+
+  def test_match_group_name(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "x xxx", "x yyy", "x zzz"])
+                | util.Regex.matches("x (?P<namedgroup>[xyz]*)", 'namedgroup'))
+      assert_that(result, equal_to(("xxx", "yyy", "zzz")))
+
+  def test_match_group_name_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("x (?P<namedgroup>[xyz]*)")
+      result = (p | beam.Create(["a", "x xxx", "x yyy", "x zzz"])
+                | util.Regex.matches(rc, 'namedgroup'))
+      assert_that(result, equal_to(("xxx", "yyy", "zzz")))
+
+  def test_match_group_empty(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a", "b", "c", "d"])
+                | util.Regex.matches("x (?P<namedgroup>[xyz]*)", 'namedgroup'))
+      assert_that(result, equal_to([]))
+
+  def test_all_matched(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a x", "x x", "y y", "z z"])
+                | util.Regex.all_matches("([xyz]) ([xyz])"))
+      expected_result = [["x x", "x", "x"], ["y y", "y", "y"],
+                         ["z z", "z", "z"]]
+      assert_that(result, equal_to(expected_result))
+
+  def test_all_matched_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("([xyz]) ([xyz])")
+      result = (p | beam.Create(["a x", "x x", "y y", "z z"])
+                | util.Regex.all_matches(rc))
+      expected_result = [["x x", "x", "x"], ["y y", "y", "y"],
+                         ["z z", "z", "z"]]
+      assert_that(result, equal_to(expected_result))
+
+  def test_match_group_kv(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a b c"])
+                | util.Regex.matches_kv("a (b) (c)", 1, 2))
+      assert_that(result, equal_to([("b", "c")]))
+
+  def test_match_group_kv_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("a (b) (c)")
+      pcol = (p | beam.Create(["a b c"]))
+      assert_that(pcol | 'key 1' >> util.Regex.matches_kv(
+          rc, 1), equal_to([("b", "a b c")]), label="CheckKey1")
+
+      assert_that(pcol | 'key 1 group 2' >> util.Regex.matches_kv(
+          rc, 1, 2), equal_to([("b", "c")]), label="CheckKey1Group2")
+
+  def test_match_group_kv_none(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["x y z"])
+                | util.Regex.matches_kv("a (b) (c)", 1, 2))
+      assert_that(result, equal_to([]))
+
+  def test_match_kv_group_names(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["a b c"]) | util.Regex.matches_kv(
+          "a (?P<keyname>b) (?P<valuename>c)", 'keyname', 'valuename'))
+      assert_that(result, equal_to([("b", "c")]))
+
+  def test_match_kv_group_names_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("a (?P<keyname>b) (?P<valuename>c)")
+      result = (p | beam.Create(["a b c"]) | util.Regex.matches_kv(
+          rc, 'keyname', 'valuename'))
+      assert_that(result, equal_to([("b", "c")]))
+
+  def test_match_kv_group_name_none(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["x y z"]) | util.Regex.matches_kv(
+          "a (?P<keyname>b) (?P<valuename>c)", 'keyname', 'valuename'))
+      assert_that(result, equal_to([]))
+
+  def test_replace_all(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["xj", "yj", "zj"]) | util.Regex.replace_all(
+          "[xyz]", "new"))
+      assert_that(result, equal_to(["newj", "newj", "newj"]))
+
+  def test_replace_all_mixed(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["abc", "xj", "yj", "zj", "def"])
+                | util.Regex.replace_all("[xyz]", 'new'))
+      assert_that(result, equal_to(["abc", "newj", "newj", "newj", "def"]))
+
+  def test_replace_all_mixed_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("[xyz]")
+      result = (p | beam.Create(
+          ["abc", "xj", "yj", "zj", "def"]) | util.Regex.replace_all(rc, 'new'))
+      assert_that(result, equal_to(["abc", "newj", "newj", "newj", "def"]))
+
+  def test_replace_first(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["xjx", "yjy", "zjz"])
+                | util.Regex.replace_first("[xyz]", 'new'))
+      assert_that(result, equal_to(["newjx", "newjy", "newjz"]))
+
+  def test_replace_first_mixed(self):
+    with TestPipeline() as p:
+      result = (p | beam.Create(["abc", "xjx", "yjy", "zjz", "def"])
+                | util.Regex.replace_first("[xyz]", 'new'))
+      assert_that(result, equal_to(["abc", "newjx", "newjy", "newjz", "def"]))
+
+  def test_replace_first_mixed_pattern(self):
+    with TestPipeline() as p:
+      rc = re.compile("[xyz]")
+      result = (p | beam.Create(["abc", "xjx", "yjy", "zjz", "def"])
+                | util.Regex.replace_first(rc, 'new'))
+      assert_that(result, equal_to(["abc", "newjx", "newjy", "newjz", "def"]))
+
+  def test_split(self):
+    with TestPipeline() as p:
+      data = ["The  quick   brown fox jumps over    the lazy dog"]
+      result = (p | beam.Create(data) | util.Regex.split("\\W+"))
+      expected_result = [["The", "quick", "brown", "fox", "jumps", "over",
+                          "the", "lazy", "dog"]]
+      assert_that(result, equal_to(expected_result))
+
+  def test_split_pattern(self):
+    with TestPipeline() as p:
+      data = ["The  quick   brown fox jumps over    the lazy dog"]
+      rc = re.compile("\\W+")
+      result = (p | beam.Create(data) | util.Regex.split(rc))
+      expected_result = [["The", "quick", "brown", "fox", "jumps", "over",
+                          "the", "lazy", "dog"]]
+      assert_that(result, equal_to(expected_result))
+
+  def test_split_with_empty(self):
+    with TestPipeline() as p:
+      data = ["The  quick   brown fox jumps over    the lazy dog"]
+      result = (p | beam.Create(data) | util.Regex.split("\\s", True))
+      expected_result = [['The', '', 'quick', '', '', 'brown', 'fox', 'jumps',
+                          'over', '', '', '', 'the', 'lazy', 'dog']]
+      assert_that(result, equal_to(expected_result))
+
+  def test_split_without_empty(self):
+    with TestPipeline() as p:
+      data = ["The  quick   brown fox jumps over    the lazy dog"]
+      result = (p | beam.Create(data) | util.Regex.split("\\s", False))
+      expected_result = [["The", "quick", "brown", "fox", "jumps", "over",
+                          "the", "lazy", "dog"]]
+      assert_that(result, equal_to(expected_result))
 
 
 if __name__ == '__main__':

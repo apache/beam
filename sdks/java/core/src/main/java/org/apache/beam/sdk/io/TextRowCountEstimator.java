@@ -72,7 +72,7 @@ public abstract class TextRowCountEstimator {
    * @throws org.apache.beam.sdk.io.TextRowCountEstimator.NoEstimationException if all the sampled
    *     lines are empty and we have not read all the lines in the matched files.
    */
-  public Long estimateRowCount(PipelineOptions pipelineOptions)
+  public Double estimateRowCount(PipelineOptions pipelineOptions)
       throws IOException, NoEstimationException {
     long linesSize = 0;
     int numberOfReadLines = 0;
@@ -129,7 +129,7 @@ public abstract class TextRowCountEstimator {
     }
 
     if (numberOfReadLines == 0 && sampledEverything) {
-      return 0L;
+      return 0d;
     }
 
     if (numberOfReadLines == 0) {
@@ -138,7 +138,7 @@ public abstract class TextRowCountEstimator {
     }
 
     // This is total file sizes divided by average line size.
-    return totalFileSizes * numberOfReadLines / linesSize;
+    return (double) totalFileSizes * numberOfReadLines / linesSize;
   }
 
   /** Builder for {@link org.apache.beam.sdk.io.TextRowCountEstimator}. */

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
 import java.util.List;
@@ -45,7 +45,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
@@ -62,7 +62,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         @Nullable Coder<InputT> inputCoder,
         Map<TupleTag<?>, Coder<?>> outputCoders,
         WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
-        DoFnSchemaInformation doFnSchemaInformation);
+        DoFnSchemaInformation doFnSchemaInformation,
+        Map<String, PCollectionView<?>> sideInputMapping);
   }
 
   public static <InputT, OutputT> DoFnRunnerFactory<InputT, OutputT> defaultRunnerFactory() {
@@ -77,7 +78,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         schemaCoder,
         outputCoders,
         windowingStrategy,
-        doFnSchemaInformation) -> {
+        doFnSchemaInformation,
+        sideInputMapping) -> {
       DoFnRunner<InputT, OutputT> underlying =
           DoFnRunners.simpleRunner(
               options,
@@ -90,7 +92,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               schemaCoder,
               outputCoders,
               windowingStrategy,
-              doFnSchemaInformation);
+              doFnSchemaInformation,
+              sideInputMapping);
       return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
   }
@@ -109,6 +112,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs,
       DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping,
       DoFnRunnerFactory<InputT, OutputT> runnerFactory) {
 
     BundleOutputManager outputManager = createOutputManager(evaluationContext, key, outputs);
@@ -133,7 +137,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
             inputCoder,
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     return create(runner, stepContext, application, outputManager);
   }

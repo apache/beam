@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -53,7 +53,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -419,7 +419,7 @@ public class JmsIO {
         throws Exception {
       List<UnboundedJmsSource<T>> sources = new ArrayList<>();
       if (spec.getTopic() != null) {
-        // in the case of a topic, we create a single source, so an unique subscriber, to avoid
+        // in the case of a topic, we create a single source, so a unique subscriber, to avoid
         // element duplication
         sources.add(new UnboundedJmsSource<T>(spec));
       } else {

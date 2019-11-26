@@ -48,8 +48,8 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
@@ -419,6 +419,7 @@ public class GroupTest implements Serializable {
             .addArrayField("field1_top", FieldType.INT64)
             .build();
     Row expectedRow = Row.withSchema(aggregateSchema).addValues(10L, 14).addArray(4L).build();
+
     PAssert.that(aggregate).containsInAnyOrder(expectedRow);
 
     pipeline.run();

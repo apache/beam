@@ -34,6 +34,9 @@ __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class OffsetRangeTracker(iobase.RangeTracker):
   """A 'RangeTracker' for non-negative positions of type 'long'."""
 
@@ -61,6 +64,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
     self._stop_offset = end
 
     self._last_record_start = -1
+    self._last_attempted_record_start = -1
     self._offset_of_last_split_point = -1
     self._lock = threading.Lock()
 
@@ -76,6 +80,16 @@ class OffsetRangeTracker(iobase.RangeTracker):
   @property
   def last_record_start(self):
     return self._last_record_start
+
+  @property
+  def last_attempted_record_start(self):
+    """Return current value of last_attempted_record_start.
+
+    last_attempted_record_start records a valid position that tried to be
+    claimed by calling try_claim(). This value is only updated by `try_claim()`
+    no matter `try_claim()` returns `True` or `False`.
+    """
+    return self._last_attempted_record_start
 
   def _validate_record_start(self, record_start, split_point):
     # This function must only be called under the lock self.lock.
@@ -102,7 +116,14 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
   def try_claim(self, record_start):
     with self._lock:
+      # Attempted claim should be monotonous.
+      if record_start <= self._last_attempted_record_start:
+        raise ValueError(
+            'Trying to return a record [starting at %d] which is not greater'
+            'than the last-attempted record [starting at %d]' %
+            (record_start, self._last_attempted_record_start))
       self._validate_record_start(record_start, True)
+      self._last_attempted_record_start = record_start
       if record_start >= self.stop_position():
         return False
       self._offset_of_last_split_point = record_start
@@ -119,27 +140,27 @@ class OffsetRangeTracker(iobase.RangeTracker):
     assert isinstance(split_offset, (int, long))
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
-        logging.debug('refusing to split %r at %d: stop position unspecified',
+        _LOGGER.debug('refusing to split %r at %d: stop position unspecified',
                       self, split_offset)
         return
       if self._last_record_start == -1:
-        logging.debug('Refusing to split %r at %d: unstarted', self,
+        _LOGGER.debug('Refusing to split %r at %d: unstarted', self,
                       split_offset)
         return
 
       if split_offset <= self._last_record_start:
-        logging.debug(
+        _LOGGER.debug(
             'Refusing to split %r at %d: already past proposed stop offset',
             self, split_offset)
         return
       if (split_offset < self.start_position()
           or split_offset >= self.stop_position()):
-        logging.debug(
+        _LOGGER.debug(
             'Refusing to split %r at %d: proposed split position out of range',
             self, split_offset)
         return
 
-      logging.debug('Agreeing to split %r at %d', self, split_offset)
+      _LOGGER.debug('Agreeing to split %r at %d', self, split_offset)
 
       split_fraction = (float(split_offset - self._start_offset) / (
           self._stop_offset - self._start_offset))
@@ -149,17 +170,19 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     with self._lock:
-      fraction = ((1.0 * (self._last_record_start - self.start_position()) /
-                   (self.stop_position() - self.start_position())) if
-                  self.stop_position() != self.start_position() else 0.0)
-
       # self.last_record_start may become larger than self.end_offset when
       # reading the records since any record that starts before the first 'split
       # point' at or after the defined 'stop offset' is considered to be within
       # the range of the OffsetRangeTracker. Hence fraction could be > 1.
       # self.last_record_start is initialized to -1, hence fraction may be < 0.
       # Bounding the to range [0, 1].
-      return max(0.0, min(1.0, fraction))
+      return self.position_to_fraction(self._last_record_start,
+                                       self.start_position(),
+                                       self.stop_position())
+
+  def position_to_fraction(self, pos, start, stop):
+    fraction = 1.0 * (pos - start) / (stop - start) if start != stop else 0.0
+    return max(0.0, min(1.0, fraction))
 
   def position_at_fraction(self, fraction):
     if self.stop_position() == OffsetRangeTracker.OFFSET_INFINITY:
@@ -252,13 +275,6 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
     else:
       return self.position_to_fraction(
           self._last_claim, self._start_position, self._stop_position)
-
-  def position_to_fraction(self, pos, start, end):
-    """
-    Converts a position `pos` betweeen `start` and `end` (inclusive) to a
-    fraction between 0 and 1.
-    """
-    raise NotImplementedError
 
   def fraction_to_position(self, fraction, start, end):
     """

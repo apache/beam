@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.testing;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableCell;
@@ -33,10 +33,10 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.testing.SerializableMatcher;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashCode;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.slf4j.Logger;
@@ -63,6 +63,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
   private final String projectId;
   private final String query;
+  private final boolean usingStandardSql;
   private final String expectedChecksum;
   private String actualChecksum;
   private transient QueryResponse response;
@@ -70,6 +71,15 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
   public BigqueryMatcher(
       String applicationName, String projectId, String query, String expectedChecksum) {
+    this(applicationName, projectId, query, false, expectedChecksum);
+  }
+
+  private BigqueryMatcher(
+      String applicationName,
+      String projectId,
+      String query,
+      boolean usingStandardSql,
+      String expectedChecksum) {
     validateArgument("applicationName", applicationName);
     validateArgument("projectId", projectId);
     validateArgument("query", query);
@@ -77,8 +87,14 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
     this.projectId = projectId;
     this.query = query;
+    this.usingStandardSql = usingStandardSql;
     this.expectedChecksum = expectedChecksum;
     this.bigqueryClient = BigqueryClient.getClient(applicationName);
+  }
+
+  public static BigqueryMatcher createUsingStandardSql(
+      String applicationName, String projectId, String query, String expectedChecksum) {
+    return new BigqueryMatcher(applicationName, projectId, query, true, expectedChecksum);
   }
 
   @Override
@@ -88,7 +104,11 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     // execute query
     LOG.debug("Executing query: {}", query);
     try {
-      response = bigqueryClient.queryWithRetries(query, this.projectId);
+      if (usingStandardSql) {
+        response = bigqueryClient.queryWithRetriesUsingStandardSql(query, this.projectId);
+      } else {
+        response = bigqueryClient.queryWithRetries(query, this.projectId);
+      }
     } catch (IOException | InterruptedException e) {
       if (e instanceof InterruptedIOException) {
         Thread.currentThread().interrupt();

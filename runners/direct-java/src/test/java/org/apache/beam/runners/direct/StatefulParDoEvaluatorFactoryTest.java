@@ -21,8 +21,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +42,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -68,8 +69,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -96,6 +97,11 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   private final transient PipelineOptions options = PipelineOptionsFactory.create();
   private final transient StateInternals stateInternals =
       CopyOnAccessInMemoryStateInternals.<Object>withUnderlying(KEY, null);
+  private final transient DirectTimerInternals timerInternals =
+      DirectTimerInternals.create(
+          MockClock.fromInstant(Instant.now()),
+          Mockito.mock(TransformWatermarks.class),
+          TimerUpdate.builder(StructuralKey.of(KEY, StringUtf8Coder.of())));
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
 
@@ -103,10 +109,12 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   public transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
+  @SuppressWarnings("unchecked")
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
     when((StateInternals) mockStepContext.stateInternals()).thenReturn(stateInternals);
+    when(mockStepContext.timerInternals()).thenReturn(timerInternals);
     when(mockEvaluationContext.createSideInputReader(anyList()))
         .thenReturn(
             SideInputContainer.create(mockEvaluationContext, Collections.emptyList())
@@ -142,7 +150,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     mainOutput,
                     TupleTagList.empty(),
                     Collections.emptyList(),
-                    DoFnSchemaInformation.create()))
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap()))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 
@@ -159,7 +168,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     when(mockEvaluationContext.getExecutionContext(
             eq(producingTransform), Mockito.<StructuralKey>any()))
         .thenReturn(mockExecutionContext);
-    when(mockExecutionContext.getStepContext(anyString())).thenReturn(mockStepContext);
+    when(mockExecutionContext.getStepContext(any())).thenReturn(mockStepContext);
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
     IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(19));
@@ -251,7 +260,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     mainOutput,
                     TupleTagList.empty(),
                     Collections.singletonList(sideInput),
-                    DoFnSchemaInformation.create()))
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap()))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 
@@ -269,7 +279,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     when(mockEvaluationContext.getExecutionContext(
             eq(producingTransform), Mockito.<StructuralKey>any()))
         .thenReturn(mockExecutionContext);
-    when(mockExecutionContext.getStepContext(anyString())).thenReturn(mockStepContext);
+    when(mockExecutionContext.getStepContext(any())).thenReturn(mockStepContext);
     when(mockEvaluationContext.createBundle(Matchers.<PCollection<Integer>>any()))
         .thenReturn(mockUncommittedBundle);
     when(mockStepContext.getTimerUpdate()).thenReturn(TimerUpdate.empty());

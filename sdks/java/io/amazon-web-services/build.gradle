@@ -19,13 +19,13 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.aws')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.aws_java_sdk_cloudwatch
   compile library.java.aws_java_sdk_core
@@ -50,7 +50,7 @@ dependencies {
   testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
   testCompile 'org.testcontainers:localstack:1.11.2'
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 
 test {

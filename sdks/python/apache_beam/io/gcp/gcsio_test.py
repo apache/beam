@@ -31,6 +31,8 @@ from builtins import object
 from builtins import range
 from email.message import Message
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import httplib2
 import mock
 
@@ -106,7 +108,7 @@ class FakeGcsObjects(object):
   def Get(self, get_request, download=None):  # pylint: disable=invalid-name
     f = self.get_file(get_request.bucket, get_request.object)
     if f is None:
-      # Failing with a HTTP 404 if file does not exist.
+      # Failing with an HTTP 404 if file does not exist.
       raise HttpError({'status': 404}, None, None)
     if download is None:
       return f.get_metadata()
@@ -288,6 +290,16 @@ class TestGCSIO(unittest.TestCase):
     self.client = FakeGcsClient()
     self.gcs = gcsio.GcsIO(self.client)
 
+  def test_num_retries(self):
+    # BEAM-7424: update num_retries accordingly if storage_client is
+    # regenerated.
+    self.assertEqual(gcsio.GcsIO().client.num_retries, 20)
+
+  def test_retry_func(self):
+    # BEAM-7667: update retry_func accordingly if storage_client is
+    # regenerated.
+    self.assertIsNotNone(gcsio.GcsIO().client.retry_func)
+
   def test_exists(self):
     file_name = 'gs://gcsio-test/dummy_file'
     file_size = 1234
@@ -416,7 +428,7 @@ class TestGCSIO(unittest.TestCase):
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
     # Test copy of non-existent files.
-    with self.assertRaisesRegexp(HttpError, r'Not Found'):
+    with self.assertRaisesRegex(HttpError, r'Not Found'):
       self.gcs.copy('gs://gcsio-test/non-existent',
                     'gs://gcsio-test/non-existent-destination')
 

@@ -52,7 +52,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -96,7 +96,7 @@ public class PipelineTranslationTest {
             Window.<Long>into(FixedWindows.of(Duration.standardMinutes(7)))
                 .triggering(
                     AfterWatermark.pastEndOfWindow()
-                        .withEarlyFirings(AfterPane.elementCountAtLeast(19)))
+                        .withLateFirings(AfterPane.elementCountAtLeast(19)))
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.standardMinutes(3L)));
     final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();

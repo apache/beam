@@ -21,8 +21,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.Writer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,16 +59,16 @@ public class TextRowCountEstimatorTest {
     writer.close();
     TextRowCountEstimator textRowCountEstimator =
         TextRowCountEstimator.builder().setFilePattern(temporaryFolder.getRoot() + "/**").build();
-    Long rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
+    Double rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
     Assert.assertNotNull(rows);
-    Assert.assertEquals(150L, rows.longValue());
+    Assert.assertEquals(150d, rows, 0.01);
   }
 
   @Test(expected = FileNotFoundException.class)
   public void testEmptyFolder() throws Exception {
     TextRowCountEstimator textRowCountEstimator =
         TextRowCountEstimator.builder().setFilePattern(temporaryFolder.getRoot() + "/**").build();
-    Long rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
+    Double rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
   }
 
   @Test
@@ -82,8 +82,8 @@ public class TextRowCountEstimatorTest {
     writer.close();
     TextRowCountEstimator textRowCountEstimator =
         TextRowCountEstimator.builder().setFilePattern(temporaryFolder.getRoot() + "/**").build();
-    Long rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
-    Assert.assertEquals(0L, rows.longValue());
+    Double rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
+    Assert.assertEquals(0d, rows, 0.01);
   }
 
   @Test(expected = TextRowCountEstimator.NoEstimationException.class)
@@ -110,7 +110,7 @@ public class TextRowCountEstimatorTest {
         TextRowCountEstimator.builder()
             .setFilePattern(temporaryFolder.getRoot() + "/something/**")
             .build();
-    Long rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
+    Double rows = textRowCountEstimator.estimateRowCount(PipelineOptionsFactory.create());
     Assert.assertNull(rows);
   }
 }

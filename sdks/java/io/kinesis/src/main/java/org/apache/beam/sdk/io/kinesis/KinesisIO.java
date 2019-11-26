@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
@@ -31,6 +31,7 @@ import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,7 +49,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -238,6 +239,7 @@ public final class KinesisIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setUpToDateThreshold(Duration.ZERO)
         .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
+        .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD)
         .build();
   }
 
@@ -271,6 +273,8 @@ public final class KinesisIO {
 
     abstract WatermarkPolicyFactory getWatermarkPolicyFactory();
 
+    abstract Integer getMaxCapacityPerShard();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -291,6 +295,8 @@ public final class KinesisIO {
       abstract Builder setRequestRecordsLimit(Integer limit);
 
       abstract Builder setWatermarkPolicyFactory(WatermarkPolicyFactory watermarkPolicyFactory);
+
+      abstract Builder setMaxCapacityPerShard(Integer maxCapacity);
 
       abstract Read build();
     }
@@ -419,6 +425,12 @@ public final class KinesisIO {
       return toBuilder().setWatermarkPolicyFactory(watermarkPolicyFactory).build();
     }
 
+    /** Specifies the maximum number of messages per one shard. */
+    public Read withMaxCapacityPerShard(Integer maxCapacity) {
+      checkArgument(maxCapacity > 0, "maxCapacity must be positive, but was: %s", maxCapacity);
+      return toBuilder().setMaxCapacityPerShard(maxCapacity).build();
+    }
+
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
       Unbounded<KinesisRecord> unbounded =
@@ -429,7 +441,8 @@ public final class KinesisIO {
                   getInitialPosition(),
                   getUpToDateThreshold(),
                   getWatermarkPolicyFactory(),
-                  getRequestRecordsLimit()));
+                  getRequestRecordsLimit(),
+                  getMaxCapacityPerShard()));
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
 
@@ -615,6 +628,7 @@ public final class KinesisIO {
         putFutures = Collections.synchronizedList(new ArrayList<>());
         /** Keep only the first {@link MAX_NUM_FAILURES} occurred exceptions */
         failures = new LinkedBlockingDeque<>(MAX_NUM_FAILURES);
+        initKinesisProducer();
       }
 
       private synchronized void initKinesisProducer() {
@@ -630,7 +644,14 @@ public final class KinesisIO {
         config.setCredentialsRefreshDelay(100);
 
         // Init Kinesis producer
-        producer = spec.getAWSClientsProvider().createKinesisProducer(config);
+        if (producer == null) {
+          producer = spec.getAWSClientsProvider().createKinesisProducer(config);
+        }
+      }
+
+      private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
+        is.defaultReadObject();
+        initKinesisProducer();
       }
 
       /**
@@ -753,6 +774,14 @@ public final class KinesisIO {
                 "Some errors occurred writing to Kinesis. First %d errors: %s",
                 i, logEntry.toString());
         throw new IOException(errorMessage);
+      }
+
+      @Teardown
+      public void teardown() throws Exception {
+        if (producer != null && producer.getOutstandingRecordsCount() > 0) {
+          producer.flushSync();
+        }
+        producer = null;
       }
     }
   }

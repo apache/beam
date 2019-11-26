@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.nexmark.NexmarkUtils.ResourceNameMode.QUERY;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.ResourceNameMode.QUERY_AND_SALT;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.ResourceNameMode.QUERY_RUNNER_AND_MODE;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.ResourceNameMode.VERBATIM;
-import static org.testng.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -78,13 +78,13 @@ public class NexmarkUtilsTest {
   @Test
   public void testFullQueryNameAppendsLanguageIfNeeded() {
     String fullName = NexmarkUtils.fullQueryName("sql", "1");
-    assertEquals(fullName, "1_sql");
+    assertEquals("1_sql", fullName);
   }
 
   @Test
   public void testFullQueryNameDoesntContainNullLanguage() {
     String fullName = NexmarkUtils.fullQueryName(null, "1");
-    assertEquals(fullName, "1");
+    assertEquals("1", fullName);
   }
 
   @Test
@@ -149,7 +149,7 @@ public class NexmarkUtilsTest {
       String version,
       Class runner,
       Boolean isStreaming,
-      String expected) {
+      final String expected) {
     NexmarkOptions options = PipelineOptionsFactory.as(NexmarkOptions.class);
     options.setResourceNameMode(nameMode);
     options.setBigQueryTable(baseTableName);
@@ -158,7 +158,7 @@ public class NexmarkUtilsTest {
 
     String tableName = NexmarkUtils.tableName(options, queryName, salt, version);
 
-    assertEquals(tableName, expected);
+    assertEquals(expected, tableName);
   }
 
   private static class Runner extends PipelineRunner<PipelineResult> {

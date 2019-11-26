@@ -99,6 +99,10 @@ class _Bundle(common.Receiver):
     def windows(self):
       return self._initial_windowed_value.windows
 
+    @property
+    def pane_info(self):
+      return self._initial_windowed_value.pane_info
+
     def add_value(self, value):
       self._appended_values.append(value)
 
@@ -107,8 +111,7 @@ class _Bundle(common.Receiver):
       # _appended_values to yield WindowedValue on the fly.
       yield self._initial_windowed_value
       for v in self._appended_values:
-        yield WindowedValue(v, self._initial_windowed_value.timestamp,
-                            self._initial_windowed_value.windows)
+        yield self._initial_windowed_value.with_value(v)
 
   def __init__(self, pcollection, stacked=True):
     assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
@@ -178,7 +181,8 @@ class _Bundle(common.Receiver):
         (isinstance(self._elements[-1], (WindowedValue,
                                          _Bundle._StackedWindowedValues))) and
         self._elements[-1].timestamp == element.timestamp and
-        self._elements[-1].windows == element.windows):
+        self._elements[-1].windows == element.windows and
+        self._elements[-1].pane_info == element.pane_info):
       if isinstance(self._elements[-1], WindowedValue):
         self._elements[-1] = _Bundle._StackedWindowedValues(self._elements[-1])
       self._elements[-1].add_value(element.value)

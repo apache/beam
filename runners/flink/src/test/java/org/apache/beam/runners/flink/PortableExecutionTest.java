@@ -43,9 +43,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -142,14 +142,15 @@ public class PortableExecutionTest implements Serializable {
 
     // execute the pipeline
     JobInvocation jobInvocation =
-        FlinkJobInvoker.createJobInvocation(
-            "fakeId",
-            "fakeRetrievalToken",
-            flinkJobExecutor,
-            pipelineProto,
-            options.as(FlinkPipelineOptions.class),
-            null,
-            Collections.emptyList());
+        FlinkJobInvoker.create(null)
+            .createJobInvocation(
+                "fakeId",
+                "fakeRetrievalToken",
+                flinkJobExecutor,
+                pipelineProto,
+                options.as(FlinkPipelineOptions.class),
+                new FlinkPipelineRunner(
+                    options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
     jobInvocation.start();
     while (jobInvocation.getState() != Enum.DONE) {
       Thread.sleep(1000);

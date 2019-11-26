@@ -30,6 +30,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 import sys
+import typing
 from builtins import object
 
 import apache_beam as beam
@@ -38,7 +39,6 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import with_output_types
 
 
@@ -74,13 +74,13 @@ class PlayerCoder(coders.Coder):
 # Annotate the get_players function so that the typehint system knows that the
 # input to the CombinePerKey operation is a key-value pair of a Player object
 # and an integer.
-@with_output_types(typehints.KV[Player, int])
+@with_output_types(typing.Tuple[Player, int])
 def get_players(descriptor):
   name, points = descriptor.split(',')
   return Player(name), int(points)
 
 
-def run(args=None):
+def run(args=None, save_main_session=True):
   """Runs the workflow computing total points from a collection of matches."""
 
   if args is None:
@@ -96,7 +96,7 @@ def run(args=None):
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   with beam.Pipeline(options=pipeline_options) as p:
 
     # Register the custom coder for the Player class, so that it will be used in

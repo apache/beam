@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.util.JsonToRowUtils.jsonToRow;
-import static org.apache.beam.sdk.util.JsonToRowUtils.newObjectMapperWith;
+import static org.apache.beam.sdk.util.RowJsonUtils.jsonToRow;
+import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.util.RowJsonDeserializer;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 

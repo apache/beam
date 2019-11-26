@@ -31,8 +31,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -41,11 +41,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
 /** Tests {@link ShardReadersPool}. */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class ShardReadersPoolTest {
 
   private static final int TIMEOUT_IN_MILLIS = (int) TimeUnit.SECONDS.toMillis(10);
@@ -78,7 +78,7 @@ public class ShardReadersPoolTest {
     WatermarkPolicy policy = WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
 
     checkpoint = new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint, factory));
+    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint, factory, 100));
 
     when(factory.createWatermarkPolicy()).thenReturn(policy);
 
@@ -112,6 +112,7 @@ public class ShardReadersPoolTest {
       }
     }
     assertThat(fetchedRecords).containsExactlyInAnyOrder(a, b, c, d);
+    assertThat(shardReadersPool.getRecordsQueue().remainingCapacity()).isEqualTo(100 * 2);
   }
 
   @Test
@@ -237,7 +238,12 @@ public class ShardReadersPoolTest {
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(Collections.emptyList());
     WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
     shardReadersPool =
-        Mockito.spy(new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory));
+        Mockito.spy(
+            new ShardReadersPool(
+                kinesis,
+                checkpoint,
+                watermarkPolicyFactory,
+                ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD));
     doReturn(firstIterator)
         .when(shardReadersPool)
         .createShardIterator(eq(kinesis), any(ShardCheckpoint.class));

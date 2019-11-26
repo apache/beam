@@ -33,7 +33,7 @@ class PerformanceTestConfigurations {
   // A benchmark defined flag, will pass to benchmark as "--bigqueryTable"
   String resultTable
   // A benchmark defined flag, will pass to benchmark as "--beam_it_class"
-  String itClass
+  String test
   // A benchmark defined flag, will pass to benchmark as "--beam_it_module".
   // It's a Gradle project that defines 'integrationTest' task. This task is executed by Perfkit
   // Beam benchmark launcher and can be added by enablePythonPerformanceTest() defined in
@@ -41,7 +41,7 @@ class PerformanceTestConfigurations {
   String itModule
   // A benchmark defined flag, will pass to benchmark as "--beam_python_sdk_location".
   // It's the location of Python SDK distribution archive which is required for TestDataflowRunner.
-  String pythonSdkLocation = ''
+  String pythonSdkLocation = 'build/apache-beam.tar.gz'
   // A benchmark defined flag, will pass to benchmark as "--beam_runner"
   String runner = 'TestDataflowRunner'
   // A benchmark defined flag, will pass to benchmark as "--beam_it_timeout"
@@ -65,8 +65,8 @@ def testConfigurations = [
         jobDescription    : 'Python SDK Performance Test - Run WordCountIT in Py27 with 1Gb files',
         jobTriggerPhrase  : 'Run Python27 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py27_pkb_results',
-        itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-        itModule          : ':sdks:python',
+        test              : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
+        itModule          : ':sdks:python:test-suites:dataflow:py2',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
             output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
@@ -80,7 +80,7 @@ def testConfigurations = [
         jobDescription    : 'Python SDK Performance Test - Run WordCountIT in Py35 with 1Gb files',
         jobTriggerPhrase  : 'Run Python35 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py35_pkb_results',
-        itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
+        test              : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : ':sdks:python:test-suites:dataflow:py35',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
@@ -95,7 +95,7 @@ def testConfigurations = [
         jobDescription    : 'Python SDK Performance Test - Run WordCountIT in Py36 with 1Gb files',
         jobTriggerPhrase  : 'Run Python36 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py36_pkb_results',
-        itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
+        test              : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : ':sdks:python:test-suites:dataflow:py36',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
@@ -110,7 +110,7 @@ def testConfigurations = [
         jobDescription    : 'Python SDK Performance Test - Run WordCountIT in Py37 with 1Gb files',
         jobTriggerPhrase  : 'Run Python37 WordCountIT Performance Test',
         resultTable       : 'beam_performance.wordcount_py37_pkb_results',
-        itClass           : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
+        test              : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
         itModule          : ':sdks:python:test-suites:dataflow:py37',
         extraPipelineArgs : dataflowPipelineArgs + [
             input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
@@ -149,11 +149,10 @@ private void createPythonPerformanceTestJob(PerformanceTestConfigurations testCo
         beam_sdk                : 'python',
         benchmarks              : testConfig.benchmarkName,
         bigquery_table          : testConfig.resultTable,
-        beam_it_class           : testConfig.itClass,
+        beam_it_class           : testConfig.test,
         beam_it_module          : testConfig.itModule,
         beam_prebuilt           : 'true',   // Python benchmark don't need to prebuild repo before running
-        beam_python_sdk_location: getSDKLocationFromModule(testConfig.pythonSdkLocation,
-                                                           testConfig.itModule),
+        beam_python_sdk_location: testConfig.pythonSdkLocation,
         beam_runner             : testConfig.runner,
         beam_it_timeout         : testConfig.itTimeoutSec.toString(),
         beam_it_args            : joinPipelineArgs(testConfig.extraPipelineArgs),
@@ -171,14 +170,4 @@ private static String joinPipelineArgs(Map pipelineArgs) {
     key, value -> pipelineArgList.add("--$key=$value")
   })
   return pipelineArgList.join(',')
-}
-
-
-// Get relative path of sdk location based on itModule if the location is not provided.
-private static String getSDKLocationFromModule(String pythonSDKLocation, String itModule) {
-  if (!pythonSDKLocation && itModule.startsWith(":sdks:python")) {
-    def projectPath = (itModule - ':sdks:python').replace(':', '/')
-    return (projectPath + "/build/apache-beam.tar.gz").substring(1)
-  }
-  return pythonSDKLocation
 }

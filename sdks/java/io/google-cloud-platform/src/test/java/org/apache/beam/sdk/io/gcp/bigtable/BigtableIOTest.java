@@ -25,9 +25,9 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify.verifyNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verifyNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
@@ -76,6 +76,8 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
@@ -91,19 +93,30 @@ import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipeline.PipelineRunMissingException;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -297,11 +310,12 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteValidationFailsMissingInstanceId() {
-    BigtableIO.Write write =
+    BigtableIO.WriteWithResults write =
         BigtableIO.write()
             .withTableId("table")
             .withProjectId("project")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -310,11 +324,12 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteValidationFailsMissingProjectId() {
-    BigtableIO.Write write =
+    BigtableIO.WriteWithResults write =
         BigtableIO.write()
             .withTableId("table")
             .withInstanceId("instance")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -323,10 +338,11 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteValidationFailsMissingInstanceIdAndProjectId() {
-    BigtableIO.Write write =
+    BigtableIO.WriteWithResults write =
         BigtableIO.write()
             .withTableId("table")
-            .withBigtableOptions(new BigtableOptions.Builder().build());
+            .withBigtableOptions(new BigtableOptions.Builder().build())
+            .withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -335,7 +351,7 @@ public class BigtableIOTest {
 
   @Test
   public void testWriteValidationFailsMissingOptionsAndInstanceAndProject() {
-    BigtableIO.Write write = BigtableIO.write().withTableId("table");
+    BigtableIO.WriteWithResults write = BigtableIO.write().withTableId("table").withWriteResults();
 
     thrown.expect(IllegalArgumentException.class);
 
@@ -1157,6 +1173,125 @@ public class BigtableIOTest {
     Map<ByteString, ByteString> rows = service.getTable(table);
     assertEquals(1, rows.size());
     assertEquals(ByteString.copyFromUtf8(value), rows.get(ByteString.copyFromUtf8(key)));
+  }
+
+  /** Tests that at least one result is emitted per element written in the global window. */
+  @Test
+  public void testWritingEmitsResultsWhenDoneInGlobalWindow() throws Exception {
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    service.createTable(table);
+
+    PCollection<BigtableWriteResult> results =
+        p.apply("single row", Create.of(makeWrite(key, value)).withCoder(bigtableCoder))
+            .apply("write", defaultWrite.withTableId(table).withWriteResults());
+    PAssert.that(results)
+        .inWindow(GlobalWindow.INSTANCE)
+        .containsInAnyOrder(BigtableWriteResult.create(1));
+
+    p.run();
+  }
+
+  /**
+   * Tests that the outputs of the Bigtable writer are correctly windowed, and can be used in a
+   * Wait.on transform as the trigger.
+   */
+  @Test
+  public void testWritingAndWaitingOnResults() throws Exception {
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    service.createTable(table);
+
+    Instant elementTimestamp = Instant.parse("2019-06-10T00:00:00");
+    Duration windowDuration = Duration.standardMinutes(1);
+
+    TestStream<KV<ByteString, Iterable<Mutation>>> writeInputs =
+        TestStream.create(bigtableCoder)
+            .advanceWatermarkTo(elementTimestamp)
+            .addElements(makeWrite(key, value))
+            .advanceWatermarkToInfinity();
+
+    TestStream<String> testInputs =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(elementTimestamp)
+            .addElements("done")
+            .advanceWatermarkToInfinity();
+
+    PCollection<BigtableWriteResult> writes =
+        p.apply("rows", writeInputs)
+            .apply(
+                "window rows",
+                Window.<KV<ByteString, Iterable<Mutation>>>into(FixedWindows.of(windowDuration))
+                    .withAllowedLateness(Duration.ZERO))
+            .apply("write", defaultWrite.withTableId(table).withWriteResults());
+
+    PCollection<String> inputs =
+        p.apply("inputs", testInputs)
+            .apply("window inputs", Window.into(FixedWindows.of(windowDuration)))
+            .apply("wait", Wait.on(writes));
+
+    BoundedWindow expectedWindow = new IntervalWindow(elementTimestamp, windowDuration);
+
+    PAssert.that(inputs).inWindow(expectedWindow).containsInAnyOrder("done");
+
+    p.run();
+  }
+
+  /**
+   * A DoFn used to generate N outputs, where N is the input. Used to generate bundles of >= 1
+   * element.
+   */
+  private static class WriteGeneratorDoFn
+      extends DoFn<Integer, KV<ByteString, Iterable<Mutation>>> {
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      for (int i = 0; i < ctx.element(); i++) {
+        ctx.output(makeWrite("key", "value"));
+      }
+    }
+  }
+
+  /** Tests that at least one result is emitted per element written in each window. */
+  @Test
+  public void testWritingEmitsResultsWhenDoneInFixedWindow() throws Exception {
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    service.createTable(table);
+
+    Instant elementTimestamp = Instant.parse("2019-06-10T00:00:00");
+    Duration windowDuration = Duration.standardMinutes(1);
+
+    TestStream<Integer> input =
+        TestStream.create(VarIntCoder.of())
+            .advanceWatermarkTo(elementTimestamp)
+            .addElements(1)
+            .advanceWatermarkTo(elementTimestamp.plus(windowDuration))
+            .addElements(2)
+            .advanceWatermarkToInfinity();
+
+    BoundedWindow expectedFirstWindow = new IntervalWindow(elementTimestamp, windowDuration);
+    BoundedWindow expectedSecondWindow =
+        new IntervalWindow(elementTimestamp.plus(windowDuration), windowDuration);
+
+    PCollection<BigtableWriteResult> results =
+        p.apply("rows", input)
+            .apply("window", Window.into(FixedWindows.of(windowDuration)))
+            .apply("expand", ParDo.of(new WriteGeneratorDoFn()))
+            .apply("write", defaultWrite.withTableId(table).withWriteResults());
+    PAssert.that(results)
+        .inWindow(expectedFirstWindow)
+        .containsInAnyOrder(BigtableWriteResult.create(1));
+    PAssert.that(results)
+        .inWindow(expectedSecondWindow)
+        .containsInAnyOrder(BigtableWriteResult.create(2));
+
+    p.run();
   }
 
   /** Tests that when writing to a non-existent table, the write fails. */

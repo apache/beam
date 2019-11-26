@@ -42,10 +42,10 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.Durations;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Timestamps;
 import org.joda.time.Duration;
 
 /** Utilities for working with {@link WindowingStrategy WindowingStrategies}. */
@@ -57,6 +57,8 @@ public class WindowingStrategyTranslation implements Serializable {
         return AccumulationMode.DISCARDING_FIRED_PANES;
       case ACCUMULATING:
         return AccumulationMode.ACCUMULATING_FIRED_PANES;
+      case RETRACTING:
+        return AccumulationMode.RETRACTING_FIRED_PANES;
       case UNRECOGNIZED:
       default:
         // Whether or not it is proto that cannot recognize it (due to the version of the
@@ -77,6 +79,8 @@ public class WindowingStrategyTranslation implements Serializable {
         return RunnerApi.AccumulationMode.Enum.DISCARDING;
       case ACCUMULATING_FIRED_PANES:
         return RunnerApi.AccumulationMode.Enum.ACCUMULATING;
+      case RETRACTING_FIRED_PANES:
+        return RunnerApi.AccumulationMode.Enum.RETRACTING;
       default:
         throw new IllegalArgumentException(
             String.format(

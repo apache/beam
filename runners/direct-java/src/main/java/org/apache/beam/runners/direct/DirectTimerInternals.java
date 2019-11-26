@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
@@ -80,6 +81,12 @@ class DirectTimerInternals implements TimerInternals {
     return timerUpdateBuilder.build();
   }
 
+  public boolean containsUpdateForTimeBefore(Instant time) {
+    TimerUpdate update = timerUpdateBuilder.build();
+    return hasTimeBefore(update.getSetTimers(), time)
+        || hasTimeBefore(update.getDeletedTimers(), time);
+  }
+
   @Override
   public Instant currentProcessingTime() {
     return processingTimeClock.now();
@@ -100,5 +107,10 @@ class DirectTimerInternals implements TimerInternals {
   @Nullable
   public Instant currentOutputWatermarkTime() {
     return watermarks.getOutputWatermark();
+  }
+
+  private boolean hasTimeBefore(Iterable<? extends TimerData> timers, Instant time) {
+    return StreamSupport.stream(timers.spliterator(), false)
+        .anyMatch(td -> td.getTimestamp().isBefore(time));
   }
 }

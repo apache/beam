@@ -27,7 +27,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
@@ -39,11 +38,10 @@ import org.apache.beam.sdk.transforms.CombineFns;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
 import org.apache.beam.sdk.transforms.CombineFns.ComposedCombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
 @Experimental(Kind.SCHEMAS)
@@ -158,11 +156,11 @@ class SchemaAggregateFn {
         if (fieldAggregation.unnestedInputSubSchema.getFieldCount() == 1) {
           extractFunction = new ExtractSingleFieldFunction<>(fieldAggregation, toRowFunction);
           extractOutputCoder =
-              RowCoder.coderForFieldType(
+              SchemaCoder.coderForFieldType(
                   fieldAggregation.unnestedInputSubSchema.getField(0).getType());
         } else {
           extractFunction = new ExtractFieldsFunction<>(fieldAggregation, toRowFunction);
-          extractOutputCoder = RowCoder.of(fieldAggregation.inputSubSchema);
+          extractOutputCoder = SchemaCoder.of(fieldAggregation.inputSubSchema);
         }
         if (i == 0) {
           composedCombineFn =
@@ -298,8 +296,7 @@ class SchemaAggregateFn {
 
     @Override
     public Coder<Row> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
-      return SchemaCoder.of(
-          getOutputSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+      return SchemaCoder.of(getOutputSchema());
     }
 
     @Override

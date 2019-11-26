@@ -30,6 +30,8 @@ import unittest
 from builtins import object
 from builtins import range
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 
 import apache_beam as beam
@@ -67,8 +69,10 @@ class LineSource(FileBasedSource):
         start += len(line)
       current = start
       line = f.readline()
-      while line:
-        if not range_tracker.try_claim(current):
+      while range_tracker.try_claim(current):
+        # When the source is unsplittable, try_claim is not enough to determine
+        # whether the file has reached to the end.
+        if not line:
           return
         yield line.rstrip(b'\n')
         current += len(line)
@@ -297,9 +301,9 @@ class TestFileBasedSource(unittest.TestCase):
 
   def test_validation_failing(self):
     no_files_found_error = 'No files found based on the file pattern*'
-    with self.assertRaisesRegexp(IOError, no_files_found_error):
+    with self.assertRaisesRegex(IOError, no_files_found_error):
       LineSource('dummy_pattern')
-    with self.assertRaisesRegexp(IOError, no_files_found_error):
+    with self.assertRaisesRegex(IOError, no_files_found_error):
       temp_dir = tempfile.mkdtemp()
       LineSource(os.path.join(temp_dir, '*'))
 
@@ -636,19 +640,19 @@ class TestSingleFileSource(unittest.TestCase):
     file_name = 'dummy_pattern'
     fbs = LineSource(file_name, validate=False)
 
-    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset='aaa', stop_offset='bbb')
-    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset='aaa', stop_offset=100)
-    with self.assertRaisesRegexp(TypeError, stop_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, stop_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset='bbb')
-    with self.assertRaisesRegexp(TypeError, stop_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, stop_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset=None)
-    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
+    with self.assertRaisesRegex(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=None, stop_offset=100)
 
@@ -668,10 +672,10 @@ class TestSingleFileSource(unittest.TestCase):
     fbs = LineSource('dummy_pattern', validate=False)
     SingleFileSource(
         fbs, file_name='dummy_file', start_offset=99, stop_offset=100)
-    with self.assertRaisesRegexp(ValueError, start_larger_than_stop_error):
+    with self.assertRaisesRegex(ValueError, start_larger_than_stop_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset=99)
-    with self.assertRaisesRegexp(ValueError, start_larger_than_stop_error):
+    with self.assertRaisesRegex(ValueError, start_larger_than_stop_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset=100)
 

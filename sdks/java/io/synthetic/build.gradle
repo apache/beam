@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false)
+applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.synthetic')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Synthetic"
 ext.summary = "Generators of Synthetic IO for Testing."
@@ -28,12 +28,11 @@ dependencies {
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
-  compile library.java.guava
   compile project(path: ":sdks:java:core", configuration: "shadow")
 
-  testCompile library.java.vendored_guava_20_0
+  testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

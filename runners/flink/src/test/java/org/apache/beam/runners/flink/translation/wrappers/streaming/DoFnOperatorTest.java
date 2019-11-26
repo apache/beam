@@ -19,12 +19,14 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.LRUMap;
@@ -71,11 +73,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -92,7 +94,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.internal.util.reflection.Whitebox;
+import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link DoFnOperator}. */
 @RunWith(JUnit4.class)
@@ -141,7 +143,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -202,7 +205,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -316,7 +320,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             VarIntCoder.of(), /* key coder */
             WindowedValue::getValue,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
@@ -409,7 +414,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             VarIntCoder.of(), /* key coder */
             WindowedValue::getValue,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
@@ -517,7 +523,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             StringUtf8Coder.of(), /* key coder */
             kvWindowedValue -> kvWindowedValue.getValue().getKey(),
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     KeyedOneInputStreamOperatorTestHarness<
             String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
@@ -622,7 +629,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             keyCoder,
             keyed ? WindowedValue::getValue : null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, WindowedValue<String>>
         testHarness = new TwoInputStreamOperatorTestHarness<>(doFnOperator);
@@ -793,7 +801,8 @@ public class DoFnOperatorTest {
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   null,
                   null,
-                  DoFnSchemaInformation.create());
+                  DoFnSchemaInformation.create(),
+                  Collections.emptyMap());
 
           return new TwoInputStreamOperatorTestHarness<>(doFnOperator);
         });
@@ -831,7 +840,8 @@ public class DoFnOperatorTest {
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   keyCoder,
                   WindowedValue::getValue,
-                  DoFnSchemaInformation.create());
+                  DoFnSchemaInformation.create(),
+                  Collections.emptyMap());
 
           return new KeyedTwoInputStreamOperatorTestHarness<>(
               doFnOperator,
@@ -928,7 +938,8 @@ public class DoFnOperatorTest {
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   null,
                   null,
-                  DoFnSchemaInformation.create());
+                  DoFnSchemaInformation.create(),
+                  Collections.emptyMap());
 
           return new TwoInputStreamOperatorTestHarness<>(doFnOperator);
         });
@@ -967,7 +978,8 @@ public class DoFnOperatorTest {
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   keyCoder,
                   WindowedValue::getValue,
-                  DoFnSchemaInformation.create());
+                  DoFnSchemaInformation.create(),
+                  Collections.emptyMap());
 
           return new KeyedTwoInputStreamOperatorTestHarness<>(
               doFnOperator,
@@ -1028,7 +1040,7 @@ public class DoFnOperatorTest {
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(helloElement, worldElement));
+        containsInAnyOrder(helloElement, worldElement));
 
     testHarness.close();
   }
@@ -1142,7 +1154,8 @@ public class DoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             VarIntCoder.of() /* key coder */,
             keySelector,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     return new KeyedOneInputStreamOperatorTestHarness<>(doFnOperator, keySelector, keyCoderInfo);
   }
@@ -1189,7 +1202,8 @@ public class DoFnOperatorTest {
             options,
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -1238,7 +1252,8 @@ public class DoFnOperatorTest {
             options,
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> newHarness =
         new OneInputStreamOperatorTestHarness<>(newDoFnOperator);
@@ -1261,7 +1276,8 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("d"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
 
-    // A final bundle will be created when sending the MAX watermark
+    // No bundle will be created when sending the MAX watermark
+    // (unless pushed back items are emitted)
     newHarness.close();
 
     assertThat(
@@ -1269,7 +1285,6 @@ public class DoFnOperatorTest {
         contains(
             WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("d"),
-            WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
 
     // close() will also call dispose(), but call again to verify no new bundle
@@ -1281,7 +1296,6 @@ public class DoFnOperatorTest {
         contains(
             WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("d"),
-            WindowedValue.valueInGlobalWindow("finishBundle"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
   }
 
@@ -1300,20 +1314,25 @@ public class DoFnOperatorTest {
     options.setMaxBundleSize(2L);
     options.setMaxBundleTimeMills(10L);
 
-    IdentityDoFn<KV<String, String>> doFn =
-        new IdentityDoFn<KV<String, String>>() {
+    DoFn<KV<String, String>, String> doFn =
+        new DoFn<KV<String, String>, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext ctx) {
+            // Change output type of element to test that we do not depend on the input keying
+            ctx.output(ctx.element().getValue());
+          }
+
           @FinishBundle
           public void finishBundle(FinishBundleContext context) {
             context.output(
-                KV.of("key2", "finishBundle"),
-                BoundedWindow.TIMESTAMP_MIN_VALUE,
-                GlobalWindow.INSTANCE);
+                "finishBundle", BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE);
           }
         };
 
-    DoFnOperator.MultiOutputOutputManagerFactory<KV<String, String>> outputManagerFactory =
+    DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
-            outputTag, WindowedValue.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE));
+            outputTag,
+            WindowedValue.getFullCoder(kvCoder.getValueCoder(), GlobalWindow.Coder.INSTANCE));
 
     DoFnOperator<KV<String, String>, KV<String, String>> doFnOperator =
         new DoFnOperator(
@@ -1331,10 +1350,10 @@ public class DoFnOperatorTest {
             options,
             keyCoder,
             keySelector,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
-    OneInputStreamOperatorTestHarness<
-            WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, String>>, WindowedValue<String>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
                 doFnOperator, keySelector, keySelector.getProducedType());
@@ -1351,10 +1370,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "c"))));
+            WindowedValue.valueInGlobalWindow("a"),
+            WindowedValue.valueInGlobalWindow("b"),
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("c")));
 
     // Take a snapshot
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
@@ -1362,12 +1381,11 @@ public class DoFnOperatorTest {
     // Finish bundle element will be buffered as part of finishing a bundle in snapshot()
     PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
         doFnOperator.outputManager.pushedBackElementsHandler;
-    assertThat(pushedBackElementsHandler, instanceOf(KeyedPushedBackElementsHandler.class));
+    assertThat(pushedBackElementsHandler, instanceOf(NonKeyedPushedBackElementsHandler.class));
     List<KV<Integer, WindowedValue<?>>> bufferedElements =
         pushedBackElementsHandler.getElements().collect(Collectors.toList());
     assertThat(
-        bufferedElements,
-        contains(KV.of(0, WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")))));
+        bufferedElements, contains(KV.of(0, WindowedValue.valueInGlobalWindow("finishBundle"))));
 
     testHarness.close();
 
@@ -1387,7 +1405,8 @@ public class DoFnOperatorTest {
             options,
             keyCoder,
             keySelector,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     testHarness =
         new KeyedOneInputStreamOperatorTestHarness(
@@ -1409,11 +1428,105 @@ public class DoFnOperatorTest {
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
             // The first finishBundle is restored from the checkpoint
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
-            WindowedValue.valueInGlobalWindow(KV.of("key", "d")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("d"),
+            WindowedValue.valueInGlobalWindow("finishBundle")));
 
     testHarness.close();
+  }
+
+  @Test
+  public void testCheckpointBufferingWithMultipleBundles() throws Exception {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setMaxBundleSize(10L);
+    options.setCheckpointingInterval(1L);
+
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+    StringUtf8Coder coder = StringUtf8Coder.of();
+    WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
+        WindowedValue.getValueOnlyCoder(coder);
+
+    DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(
+            outputTag,
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+
+    @SuppressWarnings("unchecked")
+    Supplier<DoFnOperator<String, String>> doFnOperatorSupplier =
+        () ->
+            new DoFnOperator<>(
+                new IdentityDoFn(),
+                "stepName",
+                windowedValueCoder,
+                null,
+                Collections.emptyMap(),
+                outputTag,
+                Collections.emptyList(),
+                outputManagerFactory,
+                WindowingStrategy.globalDefault(),
+                new HashMap<>(), /* side-input mapping */
+                Collections.emptyList(), /* side inputs */
+                options,
+                null,
+                null,
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
+
+    DoFnOperator<String, String> doFnOperator = doFnOperatorSupplier.get();
+    OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
+        new OneInputStreamOperatorTestHarness<>(doFnOperator);
+
+    testHarness.open();
+
+    // start a bundle
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValue.valueInGlobalWindow("regular element")));
+
+    // This callback will be executed in the snapshotState function in the course of
+    // finishing the currently active bundle. Everything emitted in the callback should
+    // be buffered and not sent downstream.
+    doFnOperator.setBundleFinishedCallback(
+        () -> {
+          try {
+            // Clear this early for the test here because we want to finish the bundle from within
+            // the callback which would otherwise cause an infinitive recursion
+            doFnOperator.setBundleFinishedCallback(null);
+            testHarness.processElement(
+                new StreamRecord<>(WindowedValue.valueInGlobalWindow("trigger another bundle")));
+            doFnOperator.invokeFinishBundle();
+            testHarness.processElement(
+                new StreamRecord<>(
+                    WindowedValue.valueInGlobalWindow(
+                        "check that the previous element is not flushed")));
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        });
+
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(WindowedValue.valueInGlobalWindow("regular element")));
+    testHarness.close();
+
+    // Restore
+    OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness2 =
+        new OneInputStreamOperatorTestHarness<>(doFnOperatorSupplier.get());
+
+    testHarness2.initializeState(snapshot);
+    testHarness2.open();
+
+    testHarness2.processElement(
+        new StreamRecord<>(WindowedValue.valueInGlobalWindow("after restore")));
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness2.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("trigger another bundle"),
+            WindowedValue.valueInGlobalWindow("check that the previous element is not flushed"),
+            WindowedValue.valueInGlobalWindow("after restore")));
   }
 
   @Test
@@ -1470,7 +1583,8 @@ public class DoFnOperatorTest {
                 options,
                 null,
                 null,
-                DoFnSchemaInformation.create());
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
 
     DoFnOperator<String, String> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
@@ -1585,7 +1699,8 @@ public class DoFnOperatorTest {
                 options,
                 keyCoder,
                 keySelector,
-                DoFnSchemaInformation.create());
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
 
     DoFnOperator<KV<String, String>, KV<String, String>> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<
@@ -1614,10 +1729,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
 
     doFnOperator = doFnOperatorSupplier.get();
@@ -1635,10 +1750,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
 
     // repeat to see if elements are evicted
@@ -1648,10 +1763,10 @@ public class DoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
-            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
             WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "c")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValue.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
   }
 
@@ -1698,7 +1813,65 @@ public class DoFnOperatorTest {
         options,
         keyCoder,
         keySelector,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
+  }
+
+  @Test
+  public void testBundleProcessingExceptionIsFatalDuringCheckpointing() throws Exception {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setMaxBundleSize(10L);
+    options.setCheckpointingInterval(1L);
+
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+    StringUtf8Coder coder = StringUtf8Coder.of();
+    WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
+        WindowedValue.getValueOnlyCoder(coder);
+
+    DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            outputTag,
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+
+    @SuppressWarnings("unchecked")
+    DoFnOperator doFnOperator =
+        new DoFnOperator<>(
+            new IdentityDoFn() {
+              @FinishBundle
+              public void finishBundle() {
+                throw new RuntimeException("something went wrong here");
+              }
+            },
+            "stepName",
+            windowedValueCoder,
+            null,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            null,
+            null,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    @SuppressWarnings("unchecked")
+    OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
+        new OneInputStreamOperatorTestHarness<>(doFnOperator);
+
+    testHarness.open();
+
+    // start a bundle
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValue.valueInGlobalWindow("regular element")));
+
+    // Make sure we throw Error, not a regular Exception.
+    // A regular exception would just cause the checkpoint to fail.
+    assertThrows(Error.class, () -> testHarness.snapshot(0, 0));
   }
 
   /**
@@ -1744,7 +1917,8 @@ public class DoFnOperatorTest {
             options,
             null,
             null,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);

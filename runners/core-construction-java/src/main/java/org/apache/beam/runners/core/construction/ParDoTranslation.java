@@ -20,8 +20,8 @@ package org.apache.beam.runners.core.construction;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -75,11 +75,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos. */
 public class ParDoTranslation {
@@ -172,7 +172,7 @@ public class ParDoTranslation {
             .map(TupleTag::getId)
             .collect(Collectors.toSet());
     Set<String> sideInputs =
-        parDo.getSideInputs().stream()
+        parDo.getSideInputs().values().stream()
             .map(s -> s.getTagInternal().getId())
             .collect(Collectors.toSet());
     Set<String> timerInputs = signature.timerDeclarations().keySet();
@@ -209,7 +209,11 @@ public class ParDoTranslation {
           @Override
           public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
             return ParDoTranslation.translateDoFn(
-                parDo.getFn(), parDo.getMainOutputTag(), doFnSchemaInformation, newComponents);
+                parDo.getFn(),
+                parDo.getMainOutputTag(),
+                parDo.getSideInputs(),
+                doFnSchemaInformation,
+                newComponents);
           }
 
           @Override
@@ -221,7 +225,7 @@ public class ParDoTranslation {
           @Override
           public Map<String, SideInput> translateSideInputs(SdkComponents components) {
             Map<String, SideInput> sideInputs = new HashMap<>();
-            for (PCollectionView<?> sideInput : parDo.getSideInputs()) {
+            for (PCollectionView<?> sideInput : parDo.getSideInputs().values()) {
               sideInputs.put(
                   sideInput.getTagInternal().getId(), translateView(sideInput, components));
             }
@@ -315,6 +319,28 @@ public class ParDoTranslation {
     return doFnWithExecutionInformationFromProto(payload.getDoFn()).getMainOutputTag();
   }
 
+  public static Map<String, PCollectionView<?>> getSideInputMapping(
+      AppliedPTransform<?, ?, ?> application) {
+    try {
+      return getSideInputMapping(getParDoPayload(application));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Map<String, PCollectionView<?>> getSideInputMapping(
+      RunnerApi.PTransform pTransform) {
+    try {
+      return getSideInputMapping(getParDoPayload(pTransform));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Map<String, PCollectionView<?>> getSideInputMapping(ParDoPayload payload) {
+    return doFnWithExecutionInformationFromProto(payload.getDoFn()).getSideInputMapping();
+  }
+
   public static TupleTag<?> getMainOutputTag(AppliedPTransform<?, ?, ?> application)
       throws IOException {
     PTransform<?, ?> transform = application.getTransform();
@@ -359,7 +385,8 @@ public class ParDoTranslation {
       throws IOException {
     PTransform<?, ?> transform = application.getTransform();
     if (transform instanceof ParDo.MultiOutput) {
-      return ((ParDo.MultiOutput<?, ?>) transform).getSideInputs();
+      return ((ParDo.MultiOutput<?, ?>) transform)
+          .getSideInputs().values().stream().collect(Collectors.toList());
     }
 
     SdkComponents sdkComponents = SdkComponents.create(application.getPipeline().getOptions());
@@ -424,8 +451,8 @@ public class ParDoTranslation {
           @Override
           public RunnerApi.StateSpec dispatchValue(Coder<?> valueCoder) {
             return builder
-                .setValueSpec(
-                    RunnerApi.ValueStateSpec.newBuilder()
+                .setReadModifyWriteSpec(
+                    RunnerApi.ReadModifyWriteStateSpec.newBuilder()
                         .setCoderId(registerCoderOrThrow(components, valueCoder)))
                 .build();
           }
@@ -475,8 +502,9 @@ public class ParDoTranslation {
   static StateSpec<?> fromProto(RunnerApi.StateSpec stateSpec, RehydratedComponents components)
       throws IOException {
     switch (stateSpec.getSpecCase()) {
-      case VALUE_SPEC:
-        return StateSpecs.value(components.getCoder(stateSpec.getValueSpec().getCoderId()));
+      case READ_MODIFY_WRITE_SPEC:
+        return StateSpecs.value(
+            components.getCoder(stateSpec.getReadModifyWriteSpec().getCoderId()));
       case BAG_SPEC:
         return StateSpecs.bag(components.getCoder(stateSpec.getBagSpec().getElementCoderId()));
       case COMBINING_SPEC:
@@ -551,6 +579,7 @@ public class ParDoTranslation {
   public static SdkFunctionSpec translateDoFn(
       DoFn<?, ?> fn,
       TupleTag<?> tag,
+      Map<String, PCollectionView<?>> sideInputMapping,
       DoFnSchemaInformation doFnSchemaInformation,
       SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
@@ -561,7 +590,8 @@ public class ParDoTranslation {
                 .setPayload(
                     ByteString.copyFrom(
                         SerializableUtils.serializeToByteArray(
-                            DoFnWithExecutionInformation.of(fn, tag, doFnSchemaInformation))))
+                            DoFnWithExecutionInformation.of(
+                                fn, tag, sideInputMapping, doFnSchemaInformation))))
                 .build())
         .build();
   }

@@ -62,8 +62,9 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-MAX_RETRIES = 3
+_LOGGER = logging.getLogger(__name__)
 
+MAX_RETRIES = 3
 
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 
@@ -262,7 +263,7 @@ class BigQueryWrapper(object):
 
     if response.statistics is None:
       # This behavior is only expected in tests
-      logging.warning(
+      _LOGGER.warning(
           "Unable to get location, missing response.statistics. Query: %s",
           query)
       return None
@@ -274,11 +275,11 @@ class BigQueryWrapper(object):
           table.projectId,
           table.datasetId,
           table.tableId)
-      logging.info("Using location %r from table %r referenced by query %s",
+      _LOGGER.info("Using location %r from table %r referenced by query %s",
                    location, table, query)
       return location
 
-    logging.debug("Query %s does not reference any tables.", query)
+    _LOGGER.debug("Query %s does not reference any tables.", query)
     return None
 
   @retry.with_exponential_backoff(
@@ -309,9 +310,9 @@ class BigQueryWrapper(object):
         )
     )
 
-    logging.info("Inserting job request: %s", request)
+    _LOGGER.info("Inserting job request: %s", request)
     response = self.client.jobs.Insert(request)
-    logging.info("Response was %s", response)
+    _LOGGER.info("Response was %s", response)
     return response.jobReference
 
   @retry.with_exponential_backoff(
@@ -442,7 +443,7 @@ class BigQueryWrapper(object):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
-    logging.debug("Created the table with id %s", table_id)
+    _LOGGER.debug("Created the table with id %s", table_id)
     # The response is a bigquery.Table instance.
     return response
 
@@ -491,7 +492,7 @@ class BigQueryWrapper(object):
       self.client.tables.Delete(request)
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Table %s:%s.%s does not exist', project_id,
+        _LOGGER.warning('Table %s:%s.%s does not exist', project_id,
                         dataset_id, table_id)
         return
       else:
@@ -508,7 +509,7 @@ class BigQueryWrapper(object):
       self.client.datasets.Delete(request)
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Dataset %s:%s does not exist', project_id,
+        _LOGGER.warning('Dataset %s:%s does not exist', project_id,
                         dataset_id)
         return
       else:
@@ -537,7 +538,7 @@ class BigQueryWrapper(object):
             % (project_id, dataset_id))
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning(
+        _LOGGER.warning(
             'Dataset %s:%s does not exist so we will create it as temporary '
             'with location=%s',
             project_id, dataset_id, location)
@@ -555,7 +556,7 @@ class BigQueryWrapper(object):
           projectId=project_id, datasetId=temp_table.datasetId))
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Dataset %s:%s does not exist', project_id,
+        _LOGGER.warning('Dataset %s:%s does not exist', project_id,
                         temp_table.datasetId)
         return
       else:
@@ -659,13 +660,22 @@ class BigQueryWrapper(object):
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
     else:
-      created_table = self._create_table(
-          project_id=project_id,
-          dataset_id=dataset_id,
-          table_id=table_id,
-          schema=schema or found_table.schema,
-          additional_parameters=additional_create_parameters)
-      logging.info('Created table %s.%s.%s with schema %s. '
+      created_table = None
+      try:
+        created_table = self._create_table(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            schema=schema or found_table.schema,
+            additional_parameters=additional_create_parameters)
+      except HttpError as exn:
+        if exn.status_code == 409:
+          _LOGGER.debug('Skipping Creation. Table %s:%s.%s already exists.'
+                        % (project_id, dataset_id, table_id))
+          created_table = self.get_table(project_id, dataset_id, table_id)
+        else:
+          raise
+      _LOGGER.info('Created table %s.%s.%s with schema %s. '
                    'Result: %s.',
                    project_id, dataset_id, table_id,
                    schema or found_table.schema,
@@ -675,7 +685,7 @@ class BigQueryWrapper(object):
       if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
         # BigQuery can route data to the old table for 2 mins max so wait
         # that much time before creating the table and writing it
-        logging.warning('Sleeping for 150 seconds before the write as ' +
+        _LOGGER.warning('Sleeping for 150 seconds before the write as ' +
                         'BigQuery inserts can be routed to deleted table ' +
                         'for 2 mins after the delete and create.')
         # TODO(BEAM-2673): Remove this sleep by migrating to load api
@@ -704,7 +714,7 @@ class BigQueryWrapper(object):
         # request not for the actual execution of the query in the service.  If
         # the request times out we keep trying. This situation is quite possible
         # if the query will return a large number of rows.
-        logging.info('Waiting on response from query: %s ...', query)
+        _LOGGER.info('Waiting on response from query: %s ...', query)
         time.sleep(1.0)
         continue
       # We got some results. The last page is signalled by a missing pageToken.
@@ -713,7 +723,7 @@ class BigQueryWrapper(object):
         break
       page_token = response.pageToken
 
-  def insert_rows(self, project_id, dataset_id, table_id, rows,
+  def insert_rows(self, project_id, dataset_id, table_id, rows, insert_ids=None,
                   skip_invalid_rows=False):
     """Inserts rows into the specified table.
 
@@ -738,24 +748,27 @@ class BigQueryWrapper(object):
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
     final_rows = []
-    for row in rows:
-      json_object = bigquery.JsonObject()
-      for k, v in iteritems(row):
-        if isinstance(v, decimal.Decimal):
-          # decimal values are converted into string because JSON does not
-          # support the precision that decimal supports. BQ is able to handle
-          # inserts into NUMERIC columns by receiving JSON with string attrs.
-          v = str(v)
-        json_object.additionalProperties.append(
-            bigquery.JsonObject.AdditionalProperty(
-                key=k, value=to_json_value(v)))
-      final_rows.append(
-          bigquery.TableDataInsertAllRequest.RowsValueListEntry(
-              insertId=str(self.unique_row_id),
-              json=json_object))
+    for i, row in enumerate(rows):
+      json_row = self._convert_to_json_row(row)
+      insert_id = str(self.unique_row_id) if not insert_ids else insert_ids[i]
+      final_rows.append(bigquery.TableDataInsertAllRequest.RowsValueListEntry(
+          insertId=insert_id, json=json_row))
     result, errors = self._insert_all_rows(
         project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
     return result, errors
+
+  def _convert_to_json_row(self, row):
+    json_object = bigquery.JsonObject()
+    for k, v in iteritems(row):
+      if isinstance(v, decimal.Decimal):
+        # decimal values are converted into string because JSON does not
+        # support the precision that decimal supports. BQ is able to handle
+        # inserts into NUMERIC columns by receiving JSON with string attrs.
+        v = str(v)
+      json_object.additionalProperties.append(
+          bigquery.JsonObject.AdditionalProperty(
+              key=k, value=to_json_value(v)))
+    return json_object
 
   def _convert_cell_value_to_dict(self, value, field):
     if field.type == 'STRING':
@@ -963,7 +976,7 @@ class BigQueryWriter(dataflow_io.NativeSinkWriter):
 
   def _flush_rows_buffer(self):
     if self.rows_buffer:
-      logging.info('Writing %d rows to %s:%s.%s table.', len(self.rows_buffer),
+      _LOGGER.info('Writing %d rows to %s:%s.%s table.', len(self.rows_buffer),
                    self.project_id, self.dataset_id, self.table_id)
       passed, errors = self.client.insert_rows(
           project_id=self.project_id, dataset_id=self.dataset_id,

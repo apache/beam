@@ -58,15 +58,15 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.Artifac
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -203,6 +203,24 @@ public class BeamFileSystemArtifactServicesTest {
     stagingService.removeArtifacts(stagingSessionToken);
     Assert.assertFalse(
         Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
+  }
+
+  @Test
+  public void noArtifactsTest() throws Exception {
+    String stagingSession = "123";
+    String stagingSessionToken =
+        BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+            stagingSession, stagingDir.toUri().getPath());
+    String stagingToken = commitManifest(stagingSessionToken, Collections.emptyList());
+    Assert.assertEquals(AbstractArtifactStagingService.NO_ARTIFACTS_STAGED_TOKEN, stagingToken);
+    Assert.assertFalse(
+        Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
+
+    GetManifestResponse retrievedManifest =
+        retrievalBlockingStub.getManifest(
+            GetManifestRequest.newBuilder().setRetrievalToken(stagingToken).build());
+    Assert.assertEquals(
+        "Manifest with 0 artifacts", 0, retrievedManifest.getManifest().getArtifactCount());
   }
 
   @Test

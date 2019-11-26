@@ -30,7 +30,7 @@ import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnl
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

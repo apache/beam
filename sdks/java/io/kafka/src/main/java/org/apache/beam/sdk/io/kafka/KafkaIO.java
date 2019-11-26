@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -64,11 +64,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -359,6 +358,7 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
+    @Experimental
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
@@ -401,26 +401,22 @@ public class KafkaIO {
       public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
           External.Configuration config) {
         ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
-        for (byte[] topic : config.topics) {
-          listBuilder.add(utf8String(topic));
+        for (String topic : config.topics) {
+          listBuilder.add(topic);
         }
         setTopics(listBuilder.build());
 
-        String keyDeserializerClassName = utf8String(config.keyDeserializer);
-        Class keyDeserializer = resolveClass(keyDeserializerClassName);
+        Class keyDeserializer = resolveClass(config.keyDeserializer);
         setKeyDeserializer(keyDeserializer);
         setKeyCoder(resolveCoder(keyDeserializer));
 
-        String valueDeserializerClassName = utf8String(config.valueDeserializer);
-        Class valueDeserializer = resolveClass(valueDeserializerClassName);
+        Class valueDeserializer = resolveClass(config.valueDeserializer);
         setValueDeserializer(valueDeserializer);
         setValueCoder(resolveCoder(valueDeserializer));
 
         Map<String, Object> consumerConfig = new HashMap<>();
-        for (KV<byte[], byte[]> kv : config.consumerConfig) {
-          String key = utf8String(kv.getKey());
-          String value = utf8String(kv.getValue());
-          consumerConfig.put(key, value);
+        for (KV<String, String> kv : config.consumerConfig) {
+          consumerConfig.put(kv.getKey(), kv.getValue());
         }
         // Key and Value Deserializers always have to be in the config.
         consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
@@ -464,6 +460,7 @@ public class KafkaIO {
      * Exposes {@link KafkaIO.TypedWithoutMetadata} as an external transform for cross-language
      * usage.
      */
+    @Experimental
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
@@ -478,24 +475,24 @@ public class KafkaIO {
       public static class Configuration {
 
         // All byte arrays are UTF-8 encoded strings
-        private Iterable<KV<byte[], byte[]>> consumerConfig;
-        private Iterable<byte[]> topics;
-        private byte[] keyDeserializer;
-        private byte[] valueDeserializer;
+        private Iterable<KV<String, String>> consumerConfig;
+        private Iterable<String> topics;
+        private String keyDeserializer;
+        private String valueDeserializer;
 
-        public void setConsumerConfig(Iterable<KV<byte[], byte[]>> consumerConfig) {
+        public void setConsumerConfig(Iterable<KV<String, String>> consumerConfig) {
           this.consumerConfig = consumerConfig;
         }
 
-        public void setTopics(Iterable<byte[]> topics) {
+        public void setTopics(Iterable<String> topics) {
           this.topics = topics;
         }
 
-        public void setKeyDeserializer(byte[] keyDeserializer) {
+        public void setKeyDeserializer(String keyDeserializer) {
           this.keyDeserializer = keyDeserializer;
         }
 
-        public void setValueDeserializer(byte[] valueDeserializer) {
+        public void setValueDeserializer(String valueDeserializer) {
           this.valueDeserializer = valueDeserializer;
         }
       }
@@ -1350,6 +1347,7 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
+    @Experimental
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
@@ -1362,24 +1360,21 @@ public class KafkaIO {
       @Override
       public PTransform<PCollection<KV<K, V>>, PDone> buildExternal(
           External.Configuration configuration) {
-        String topic = utf8String(configuration.topic);
-        setTopic(topic);
+        setTopic(configuration.topic);
 
         Map<String, Object> producerConfig = new HashMap<>();
-        for (KV<byte[], byte[]> kv : configuration.producerConfig) {
-          String key = utf8String(kv.getKey());
-          String value = utf8String(kv.getValue());
-          producerConfig.put(key, value);
+        for (KV<String, String> kv : configuration.producerConfig) {
+          producerConfig.put(kv.getKey(), kv.getValue());
         }
-        Class keySerializer = resolveClass(utf8String(configuration.keySerializer));
-        Class valSerializer = resolveClass(utf8String(configuration.valueSerializer));
+        Class keySerializer = resolveClass(configuration.keySerializer);
+        Class valSerializer = resolveClass(configuration.valueSerializer);
 
         WriteRecords<K, V> writeRecords =
             KafkaIO.<K, V>writeRecords()
                 .withProducerConfigUpdates(producerConfig)
                 .withKeySerializer(keySerializer)
                 .withValueSerializer(valSerializer)
-                .withTopic(topic);
+                .withTopic(configuration.topic);
         setWriteRecordsTransform(writeRecords);
 
         return build();
@@ -1387,6 +1382,7 @@ public class KafkaIO {
     }
 
     /** Exposes {@link KafkaIO.Write} as an external transform for cross-language usage. */
+    @Experimental
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
@@ -1401,24 +1397,24 @@ public class KafkaIO {
       public static class Configuration {
 
         // All byte arrays are UTF-8 encoded strings
-        private Iterable<KV<byte[], byte[]>> producerConfig;
-        private byte[] topic;
-        private byte[] keySerializer;
-        private byte[] valueSerializer;
+        private Iterable<KV<String, String>> producerConfig;
+        private String topic;
+        private String keySerializer;
+        private String valueSerializer;
 
-        public void setProducerConfig(Iterable<KV<byte[], byte[]>> producerConfig) {
+        public void setProducerConfig(Iterable<KV<String, String>> producerConfig) {
           this.producerConfig = producerConfig;
         }
 
-        public void setTopic(byte[] topic) {
+        public void setTopic(String topic) {
           this.topic = topic;
         }
 
-        public void setKeySerializer(byte[] keySerializer) {
+        public void setKeySerializer(String keySerializer) {
           this.keySerializer = keySerializer;
         }
 
-        public void setValueSerializer(byte[] valueSerializer) {
+        public void setValueSerializer(String valueSerializer) {
           this.valueSerializer = valueSerializer;
         }
       }
@@ -1685,10 +1681,6 @@ public class KafkaIO {
 
     throw new RuntimeException(
         String.format("Could not extract the Kafka Deserializer type from %s", deserializer));
-  }
-
-  private static String utf8String(byte[] bytes) {
-    return new String(bytes, Charsets.UTF_8);
   }
 
   private static Class resolveClass(String className) {

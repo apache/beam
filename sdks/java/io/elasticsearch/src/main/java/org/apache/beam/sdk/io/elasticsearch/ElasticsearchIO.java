@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.elasticsearch;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -44,6 +44,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Predicate;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -63,7 +65,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -77,6 +79,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
@@ -454,7 +457,7 @@ public class ElasticsearchIO {
     abstract ConnectionConfiguration getConnectionConfiguration();
 
     @Nullable
-    abstract String getQuery();
+    abstract ValueProvider<String> getQuery();
 
     abstract boolean isWithMetadata();
 
@@ -468,7 +471,7 @@ public class ElasticsearchIO {
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
 
-      abstract Builder setQuery(String query);
+      abstract Builder setQuery(ValueProvider<String> query);
 
       abstract Builder setWithMetadata(boolean withMetadata);
 
@@ -502,6 +505,20 @@ public class ElasticsearchIO {
     public Read withQuery(String query) {
       checkArgument(query != null, "query can not be null");
       checkArgument(!query.isEmpty(), "query can not be empty");
+      return withQuery(ValueProvider.StaticValueProvider.of(query));
+    }
+
+    /**
+     * Provide a {@link ValueProvider} that provides the query used while reading from
+     * Elasticsearch. This is useful for cases when the query must be dynamic.
+     *
+     * @param query the query. See <a
+     *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
+     *     DSL</a>
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
+    public Read withQuery(ValueProvider<String> query) {
+      checkArgument(query != null, "query can not be null");
       return builder().setQuery(query).build();
     }
 
@@ -577,6 +594,7 @@ public class ElasticsearchIO {
     @Nullable private final String shardPreference;
     @Nullable private final Integer numSlices;
     @Nullable private final Integer sliceId;
+    @Nullable private Long estimatedByteSize;
 
     // constructor used in split() when we know the backend version
     private BoundedElasticsearchSource(
@@ -584,11 +602,13 @@ public class ElasticsearchIO {
         @Nullable String shardPreference,
         @Nullable Integer numSlices,
         @Nullable Integer sliceId,
+        @Nullable Long estimatedByteSize,
         int backendVersion) {
       this.backendVersion = backendVersion;
       this.spec = spec;
       this.shardPreference = shardPreference;
       this.numSlices = numSlices;
+      this.estimatedByteSize = estimatedByteSize;
       this.sliceId = sliceId;
     }
 
@@ -627,11 +647,12 @@ public class ElasticsearchIO {
         while (shards.hasNext()) {
           Map.Entry<String, JsonNode> shardJson = shards.next();
           String shardId = shardJson.getKey();
-          sources.add(new BoundedElasticsearchSource(spec, shardId, null, null, backendVersion));
+          sources.add(
+              new BoundedElasticsearchSource(spec, shardId, null, null, null, backendVersion));
         }
         checkArgument(!sources.isEmpty(), "No shard found");
       } else if (backendVersion == 5 || backendVersion == 6) {
-        long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
+        long indexSize = getEstimatedSizeBytes(options);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
         // ES slice api imposes that the number of slices is <= 1024 even if it can be overloaded
@@ -644,7 +665,10 @@ public class ElasticsearchIO {
         // the slice API allows to split the ES shards
         // to have bundles closer to desiredBundleSizeBytes
         for (int i = 0; i < nbBundles; i++) {
-          sources.add(new BoundedElasticsearchSource(spec, null, nbBundles, i, backendVersion));
+          long estimatedByteSizeForBundle = getEstimatedSizeBytes(options) / nbBundles;
+          sources.add(
+              new BoundedElasticsearchSource(
+                  spec, null, nbBundles, i, estimatedByteSizeForBundle, backendVersion));
         }
       }
       return sources;
@@ -652,7 +676,54 @@ public class ElasticsearchIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws IOException {
-      return estimateIndexSize(spec.getConnectionConfiguration());
+      if (estimatedByteSize != null) {
+        return estimatedByteSize;
+      }
+      final ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
+      JsonNode statsJson = getStats(connectionConfiguration, false);
+      JsonNode indexStats =
+          statsJson.path("indices").path(connectionConfiguration.getIndex()).path("primaries");
+      long indexSize = indexStats.path("store").path("size_in_bytes").asLong();
+      LOG.debug("estimate source byte size: total index size " + indexSize);
+
+      String query = spec.getQuery() != null ? spec.getQuery().get() : null;
+      if (query == null || query.isEmpty()) { // return index size if no query
+        estimatedByteSize = indexSize;
+        return estimatedByteSize;
+      }
+
+      long totalCount = indexStats.path("docs").path("count").asLong();
+      LOG.debug("estimate source byte size: total document count " + totalCount);
+      if (totalCount == 0) { // The min size is 1, because DirectRunner does not like 0
+        estimatedByteSize = 1L;
+        return estimatedByteSize;
+      }
+
+      String endPoint =
+          String.format(
+              "/%s/%s/_count",
+              connectionConfiguration.getIndex(), connectionConfiguration.getType());
+      try (RestClient restClient = connectionConfiguration.createClient()) {
+        long count = queryCount(restClient, endPoint, query);
+        LOG.debug("estimate source byte size: query document count " + count);
+        if (count == 0) {
+          estimatedByteSize = 1L;
+        } else {
+          // We estimate the average byte size for each document is (index/totalCount)
+          // and then multiply the document count in the index
+          estimatedByteSize = (indexSize / totalCount) * count;
+        }
+      }
+      return estimatedByteSize;
+    }
+
+    private long queryCount(
+        @Nonnull RestClient restClient, @Nonnull String endPoint, @Nonnull String query)
+        throws IOException {
+      Request request = new Request("GET", endPoint);
+      request.setEntity(new NStringEntity(query, ContentType.APPLICATION_JSON));
+      JsonNode searchResult = parseResponse(restClient.performRequest(request).getEntity());
+      return searchResult.path("count").asLong();
     }
 
     @VisibleForTesting
@@ -726,7 +797,7 @@ public class ElasticsearchIO {
     public boolean start() throws IOException {
       restClient = source.spec.getConnectionConfiguration().createClient();
 
-      String query = source.spec.getQuery();
+      String query = source.spec.getQuery() != null ? source.spec.getQuery().get() : null;
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }

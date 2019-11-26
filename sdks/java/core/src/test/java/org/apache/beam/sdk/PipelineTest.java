@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,8 +68,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
@@ -114,6 +115,16 @@ public class PipelineTest {
     public PipelineResult run(Pipeline pipeline) {
       throw new IllegalStateException("SDK exception");
     }
+  }
+
+  @Test
+  public void testPipelineOptionsImplException() {
+    PipelineOptions pipelineOptions = mock(PipelineOptions.class);
+
+    // Check pipeline creation correctly throws exception
+    // since it doesn't accept user-implemented PipelineOptions.
+    thrown.expect(IllegalArgumentException.class);
+    Pipeline.create(pipelineOptions);
   }
 
   @Test

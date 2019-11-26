@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
@@ -83,7 +83,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(null, parseFn, outputCoder, bqServices);
+    super(null, null, null, parseFn, outputCoder, bqServices);
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.queryProvider = checkNotNull(queryProvider, "queryProvider");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");

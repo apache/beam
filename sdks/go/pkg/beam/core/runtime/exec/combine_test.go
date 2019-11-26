@@ -168,7 +168,7 @@ func getCombineEdge(t *testing.T, cfn interface{}, kt reflect.Type, ac *coder.Co
 	inT := typex.NewCoGBK(typex.New(kt), typex.New(vtype))
 	in := g.NewNode(inT, window.DefaultWindowingStrategy(), true)
 
-	edge, err := graph.NewCombine(g, g.Root(), fn, in, ac)
+	edge, err := graph.NewCombine(g, g.Root(), fn, in, ac, nil)
 	if err != nil {
 		t.Fatalf("invalid combinefn: %v", err)
 	}

@@ -30,23 +30,37 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-// ScopedSideInputReader scopes the global gRPC state manager to a single instruction
+// ScopedStateReader scopes the global gRPC state manager to a single instruction
 // for side input use. The indirection makes it easier to control access.
-type ScopedSideInputReader struct {
+type ScopedStateReader struct {
 	mgr    *StateChannelManager
-	instID string
+	instID instructionID
 
 	opened []io.Closer // track open readers to force close all
 	closed bool
 	mu     sync.Mutex
 }
 
-// NewScopedSideInputReader returns a ScopedSideInputReader for the given instruction.
-func NewScopedSideInputReader(mgr *StateChannelManager, instID string) *ScopedSideInputReader {
-	return &ScopedSideInputReader{mgr: mgr, instID: instID}
+// NewScopedStateReader returns a ScopedStateReader for the given instruction.
+func NewScopedStateReader(mgr *StateChannelManager, instID instructionID) *ScopedStateReader {
+	return &ScopedStateReader{mgr: mgr, instID: instID}
 }
 
-func (s *ScopedSideInputReader) Open(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+// OpenSideInput opens a byte stream for reading iterable side input.
+func (s *ScopedStateReader) OpenSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newSideInputReader(ch, id, sideInputID, s.instID, key, w)
+	})
+}
+
+// OpenIterable opens a byte stream for reading unwindowed iterables from the runner.
+func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, key []byte) (io.ReadCloser, error) {
+	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newRunnerReader(ch, s.instID, key)
+	})
+}
+
+func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, readerFn func(*StateChannel) *stateKeyReader) (*stateKeyReader, error) {
 	ch, err := s.open(ctx, id.Port)
 	if err != nil {
 		return nil, err
@@ -57,13 +71,13 @@ func (s *ScopedSideInputReader) Open(ctx context.Context, id exec.StreamID, side
 		s.mu.Unlock()
 		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
-	ret := newSideInputReader(ch, id, sideInputID, s.instID, key, w)
+	ret := readerFn(ch)
 	s.opened = append(s.opened, ret)
 	s.mu.Unlock()
 	return ret, nil
 }
 
-func (s *ScopedSideInputReader) open(ctx context.Context, port exec.Port) (*StateChannel, error) {
+func (s *ScopedStateReader) open(ctx context.Context, port exec.Port) (*StateChannel, error) {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -75,7 +89,8 @@ func (s *ScopedSideInputReader) open(ctx context.Context, port exec.Port) (*Stat
 	return local.Open(ctx, port) // don't hold lock over potentially slow operation
 }
 
-func (s *ScopedSideInputReader) Close() error {
+// Close closes all open readers.
+func (s *ScopedStateReader) Close() error {
 	s.mu.Lock()
 	s.closed = true
 	s.mgr = nil
@@ -87,8 +102,8 @@ func (s *ScopedSideInputReader) Close() error {
 	return nil
 }
 
-type sideInputReader struct {
-	instID string
+type stateKeyReader struct {
+	instID instructionID
 	key    *pb.StateKey
 
 	token []byte
@@ -100,25 +115,40 @@ type sideInputReader struct {
 	mu     sync.Mutex
 }
 
-func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID string, k, w []byte) *sideInputReader {
+func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, k, w []byte) *stateKeyReader {
 	key := &pb.StateKey{
 		Type: &pb.StateKey_MultimapSideInput_{
 			MultimapSideInput: &pb.StateKey_MultimapSideInput{
-				PtransformId: id.PtransformID,
-				SideInputId:  sideInputID,
-				Window:       w,
-				Key:          k,
+				TransformId: id.PtransformID,
+				SideInputId: sideInputID,
+				Window:      w,
+				Key:         k,
 			},
 		},
 	}
-	return &sideInputReader{
+	return &stateKeyReader{
 		instID: instID,
 		key:    key,
 		ch:     ch,
 	}
 }
 
-func (r *sideInputReader) Read(buf []byte) (int, error) {
+func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKeyReader {
+	key := &pb.StateKey{
+		Type: &pb.StateKey_Runner_{
+			Runner: &pb.StateKey_Runner{
+				Key: k,
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func (r *stateKeyReader) Read(buf []byte) (int, error) {
 	if r.buf == nil {
 		if r.eof {
 			return 0, io.EOF
@@ -136,8 +166,8 @@ func (r *sideInputReader) Read(buf []byte) (int, error) {
 
 		req := &pb.StateRequest{
 			// Id: set by channel
-			InstructionReference: r.instID,
-			StateKey:             r.key,
+			InstructionId: string(r.instID),
+			StateKey:      r.key,
 			Request: &pb.StateRequest_Get{
 				Get: &pb.StateGetRequest{
 					ContinuationToken: r.token,
@@ -149,8 +179,12 @@ func (r *sideInputReader) Read(buf []byte) (int, error) {
 			return 0, err
 		}
 		get := resp.GetGet()
-		r.token = get.ContinuationToken
-		r.buf = get.Data
+		if get == nil { // no data associated with this segment.
+			r.eof = true
+			return 0, io.EOF
+		}
+		r.token = get.GetContinuationToken()
+		r.buf = get.GetData()
 
 		if r.token == nil {
 			r.eof = true // no token == this is the last segment.
@@ -167,7 +201,7 @@ func (r *sideInputReader) Read(buf []byte) (int, error) {
 	return n, nil
 }
 
-func (r *sideInputReader) Close() error {
+func (r *stateKeyReader) Close() error {
 	r.mu.Lock()
 	r.closed = true
 	r.ch = nil
@@ -219,12 +253,12 @@ type StateChannel struct {
 func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error) {
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to connect")
+		return nil, errors.Wrapf(err, "failed to connect to state service %v", port.URL)
 	}
 	client, err := pb.NewBeamFnStateClient(cc).State(ctx)
 	if err != nil {
 		cc.Close()
-		return nil, errors.Wrap(err, "failed to connect to data service")
+		return nil, errors.Wrapf(err, "failed to create state client %v", port.URL)
 	}
 
 	ret := &StateChannel{
@@ -245,10 +279,11 @@ func (c *StateChannel) read(ctx context.Context) {
 		if err != nil {
 			if err == io.EOF {
 				// TODO(herohde) 10/12/2017: can this happen before shutdown? Reconnect?
-				log.Warnf(ctx, "StateChannel %v closed", c.id)
+				log.Warnf(ctx, "StateChannel[%v].read: closed", c.id)
 				return
 			}
-			panic(errors.Wrapf(err, "state channel %v bad", c.id))
+			log.Errorf(ctx, "StateChannel[%v].read bad: %v", c.id, err)
+			return
 		}
 
 		c.mu.Lock()
@@ -258,7 +293,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		if !ok {
 			// This can happen if Send returns an error that write handles, but
 			// the message was actually sent.
-			log.Errorf(ctx, "no consumer for state response: %v", proto.MarshalTextString(msg))
+			log.Errorf(ctx, "StateChannel[%v].read: no consumer for state response: %v", c.id, proto.MarshalTextString(msg))
 			continue
 		}
 
@@ -266,7 +301,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		case ch <- msg:
 			// ok
 		default:
-			panic(fmt.Sprintf("failed to consume state response: %v", proto.MarshalTextString(msg)))
+			panic(fmt.Sprintf("StateChannel[%v].read: failed to consume state response: %v", c.id, proto.MarshalTextString(msg)))
 		}
 	}
 }

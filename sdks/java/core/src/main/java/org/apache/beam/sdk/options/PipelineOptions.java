@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -57,6 +57,9 @@ import org.joda.time.format.DateTimeFormatter;
  * PipelineOptionsFactory#fromArgs(String[])}. They can be converted to another type by invoking
  * {@link PipelineOptions#as(Class)} and can be accessed from within a {@link DoFn} by invoking
  * {@code getPipelineOptions()} on the input {@link DoFn.ProcessContext Context} object.
+ *
+ * <p>Please don't implement {@link PipelineOptions}, it implies that it is backwards-incompatible
+ * to add new options. User-implemented {@link PipelineOptions} is not accepted by {@link Pipeline}.
  *
  * <p>For example:
  *
