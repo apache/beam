@@ -147,8 +147,6 @@ REQUIRED_TEST_PACKAGES = [
     'pyyaml>=3.12,<6.0.0',
     'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
-    'pytest>=4.4.0,<5.0',
-    'pytest-xdist>=1.29.0,<2',
     ]
 
 GCP_REQUIREMENTS = [
