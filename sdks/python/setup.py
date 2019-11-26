@@ -180,7 +180,7 @@ REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=0.23.4,<0.25',
-    'parameterized>=0.6.0,<0.8.0',
+    'parameterized>=0.7.1,<0.8.0',
     # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
     # See: https://github.com/hamcrest/PyHamcrest/issues/131.
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
