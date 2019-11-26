@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.counters;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 public class CounterUpdateAggregators {
 

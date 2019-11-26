@@ -53,6 +53,11 @@ public class DeltaDistributionCell implements Distribution, MetricCell<Distribut
   }
 
   @Override
+  public void reset() {
+    value.set(DistributionData.EMPTY);
+  }
+
+  @Override
   public void update(long sum, long count, long min, long max) {
     update(DistributionData.create(sum, count, min, max));
   }

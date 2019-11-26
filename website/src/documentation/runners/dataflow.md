@@ -195,7 +195,7 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
 <!-- Only show for Python -->
 <tr class="language-py">
   <td><code>sdk_location</code></td>
-  <td>Override the default location from where the Beam SDK is downloaded. This value can be an URL, a Cloud Storage path, or a local path to an SDK tarball. Workflow submissions will download or copy the SDK tarball from this location. If set to the string <code>default</code>, a standard SDK location is used. If empty, no SDK is copied.</td>
+  <td>Override the default location from where the Beam SDK is downloaded. This value can be a URL, a Cloud Storage path, or a local path to an SDK tarball. Workflow submissions will download or copy the SDK tarball from this location. If set to the string <code>default</code>, a standard SDK location is used. If empty, no SDK is copied.</td>
   <td><code>default</code></td>
 </tr>
 

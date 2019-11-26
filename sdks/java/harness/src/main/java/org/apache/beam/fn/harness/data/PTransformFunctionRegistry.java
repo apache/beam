@@ -112,6 +112,11 @@ public class PTransformFunctionRegistry {
     runnables.add(wrapped);
   }
 
+  /** Reset the execution states of the registered functions. */
+  public void reset() {
+    executionStates.reset();
+  }
+
   /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
     return executionStates.getExecutionTimeMonitoringInfos();

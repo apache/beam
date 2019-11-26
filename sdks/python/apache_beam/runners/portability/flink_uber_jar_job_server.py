@@ -33,6 +33,7 @@ import grpc
 import requests
 from google.protobuf import json_format
 
+from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import endpoints_pb2
@@ -50,10 +51,13 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   the pipeline artifacts.
   """
 
-  def __init__(self, master_url, executable_jar=None):
+  def __init__(self, master_url, options):
     super(FlinkUberJarJobServer, self).__init__()
     self._master_url = master_url
-    self._executable_jar = executable_jar
+    self._executable_jar = (options.view_as(pipeline_options.FlinkRunnerOptions)
+                            .flink_job_server_jar)
+    self._artifact_port = (options.view_as(pipeline_options.JobServerOptions)
+                           .artifact_port)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-flink')
 
   def start(self):
@@ -63,9 +67,10 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     pass
 
   def executable_jar(self):
-    return self._executable_jar or job_server.JavaJarJobServer.local_jar(
-        job_server.JavaJarJobServer.path_to_beam_jar(
-            'runners:flink:%s:job-server:shadowJar' % self.flink_version()))
+    url = (self._executable_jar or
+           job_server.JavaJarJobServer.path_to_beam_jar(
+               'runners:flink:%s:job-server:shadowJar' % self.flink_version()))
+    return job_server.JavaJarJobServer.local_jar(url)
 
   def flink_version(self):
     full_version = requests.get(
@@ -80,7 +85,8 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
         job_id,
         job_name,
         pipeline,
-        options)
+        options,
+        artifact_port=self._artifact_port)
 
 
 class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
@@ -101,11 +107,13 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
       [PIPELINE_FOLDER, PIPELINE_NAME, 'artifact-manifest.json'])
 
   def __init__(
-      self, master_url, executable_jar, job_id, job_name, pipeline, options):
+      self, master_url, executable_jar, job_id, job_name, pipeline, options,
+      artifact_port=0):
     super(FlinkBeamJob, self).__init__(job_id, job_name, pipeline, options)
     self._master_url = master_url
     self._executable_jar = executable_jar
     self._jar_uploaded = False
+    self._artifact_port = artifact_port
 
   def prepare(self):
     # Copy the executable jar, injecting the pipeline and options as resources.
@@ -122,13 +130,14 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
       with z.open(self.PIPELINE_MANIFEST, 'w') as fout:
         fout.write(json.dumps(
             {'defaultJobName': self.PIPELINE_NAME}).encode('utf-8'))
-    self._start_artifact_service(self._jar)
+    self._start_artifact_service(self._jar, self._artifact_port)
 
-  def _start_artifact_service(self, jar):
+  def _start_artifact_service(self, jar, requested_port):
     self._artifact_staging_service = artifact_service.ZipFileArtifactService(
         jar)
     self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
-    port = self._artifact_staging_server.add_insecure_port('[::]:0')
+    port = self._artifact_staging_server.add_insecure_port(
+        '[::]:%s' % requested_port)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         self._artifact_staging_service, self._artifact_staging_server)
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
