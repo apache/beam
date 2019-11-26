@@ -64,11 +64,11 @@ class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):
 
   @abstractmethod
   def assign_output_time(self, window, input_timestamp):
-    pass
+    raise NotImplementedError
 
   @abstractmethod
   def combine(self, output_timestamp, other_output_timestamp):
-    pass
+    raise NotImplementedError
 
   def combine_all(self, merging_timestamps):
     """Apply combine to list of timestamps."""
@@ -76,7 +76,7 @@ class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):
     for output_time in merging_timestamps:
       if combined_output_time is None:
         combined_output_time = output_time
-      else:
+      elif output_time is not None:
         combined_output_time = self.combine(
             combined_output_time, output_time)
     return combined_output_time
@@ -88,9 +88,6 @@ class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):
 
 class DependsOnlyOnWindow(with_metaclass(ABCMeta, TimestampCombinerImpl)):
   """TimestampCombinerImpl that only depends on the window."""
-
-  def combine(self, output_timestamp, other_output_timestamp):
-    return output_timestamp
 
   def merge(self, result_window, unused_merging_timestamps):
     # Since we know that the result only depends on the window, we can ignore
@@ -137,3 +134,6 @@ class OutputAtEndOfWindowImpl(DependsOnlyOnWindow):
 
   def assign_output_time(self, window, unused_input_timestamp):
     return window.max_timestamp()
+
+  def combine(self, output_timestamp, other_output_timestamp):
+    return max(output_timestamp, other_output_timestamp)

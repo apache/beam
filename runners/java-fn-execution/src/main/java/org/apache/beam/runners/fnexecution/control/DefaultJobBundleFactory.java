@@ -437,7 +437,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
     GrpcFnServer<GrpcDataService> dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            GrpcDataService.create(
+                portableOptions, executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
     GrpcFnServer<GrpcStateService> stateServer =
         GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);

@@ -84,12 +84,6 @@ public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
   @Experimental
   void setBundleSize(Long value);
 
-  @Description("Enable/disable sending aggregator values to Spark's metric sinks")
-  @Default.Boolean(true)
-  Boolean getEnableSparkMetricSinks();
-
-  void setEnableSparkMetricSinks(Boolean enableSparkMetricSinks);
-
   @Description(
       "If the spark runner will be initialized with a provided Spark Context. "
           + "The Spark Context should be provided with SparkContextOptions.")

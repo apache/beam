@@ -187,7 +187,6 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
