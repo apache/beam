@@ -130,6 +130,7 @@ REQUIRED_PACKAGES = [
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
+    'setuptools < 41.0.0',
     ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
