@@ -229,12 +229,13 @@ class _GroupingBuffer(object):
           else windowed_key_value.with_value(value))
 
   def extend(self, input_buffer):
-    raise NotImplementedError(
-        'GroupingBuffer is not expected to merge with others')
+    # type: (_GroupingBuffer) -> None
+    for key, values in input_buffer._table.items():
+      self._table[key].extend(values)
 
   def partition(self, n):
     """ It is used to partition _GroupingBuffer to N parts. Once it is
-    partitioned, it would not be re-partitioned with diff N. Re-partition
+    partitioned, it would not be re-partitioned with different N. Re-partition
     is not supported now.
     """
     if not self._grouped_output:
@@ -615,8 +616,6 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_via_runner_api(self, pipeline_proto):
     stage_context, stages = self.create_stages(pipeline_proto)
-    # TODO(pabloem, BEAM-7514): Create a watermark manager (that has access to
-    #   the teststream (if any), and all the stages).
     return self.run_stages(stage_context, stages)
 
   @contextlib.contextmanager

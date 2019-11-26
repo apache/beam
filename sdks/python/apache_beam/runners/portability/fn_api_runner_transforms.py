@@ -32,6 +32,7 @@ from apache_beam import coders
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api.beam_runner_api_pb2 import PTransform
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
@@ -261,7 +262,7 @@ class Stage(object):
           user_states=user_states,
           timers=timers)
 
-      return beam_runner_api_pb2.PTransform(
+      return PTransform(
           unique_name=unique_name(None, self.name),
           spec=beam_runner_api_pb2.FunctionSpec(
               urn='beam:runner:executable_stage:v1',
@@ -489,8 +490,10 @@ class PipelineExecutionContext(object):
                     self.watermark_manager.get_watermark(pcoll_name))
 
   @staticmethod
-  def _compute_pcoll_consumer_per_buffer_id(stages):
-    # type: (List[Stage]) -> Dict[bytes, List[Tuple(Stage, beam_runner_api_pb2.PTransform)]]
+  def _compute_pcoll_consumer_per_buffer_id(
+      stages  # type: List[Stage]
+  ):
+    # type: (...) -> Dict[bytes, List[Tuple(Stage, PTransform)]]
     """Computes the stages that consume a PCollection as main input.
 
     This means either data-input operations, or timer pcollections. It does NOT

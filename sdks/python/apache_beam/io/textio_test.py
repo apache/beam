@@ -1105,7 +1105,6 @@ class TextSinkTest(unittest.TestCase):
       self.assertEqual(f.read().splitlines(), header.splitlines())
 
   def test_write_dataflow(self):
-    logging.getLogger().setLevel(logging.DEBUG)
     pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create(self.lines)
     pcoll | 'Write' >> WriteToText(self.path)  # pylint: disable=expression-not-assigned
