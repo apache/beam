@@ -2388,6 +2388,9 @@ class Flatten(PTransform):
     return pvalueish, pvalueish
 
   def expand(self, pcolls):
+    if not pcolls:
+      raise ValueError('No input passed to Flatten PTransform')
+
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
     is_bounded = all(pcoll.is_bounded for pcoll in pcolls)

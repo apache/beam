@@ -60,18 +60,20 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     pbegin = pvalue.PBegin(self.pipeline)
     pcoll_read = pbegin | 'read' >> root_read
     pcoll_read | FlatMap(lambda x: x)
-    [] | 'flatten' >> root_flatten
+
+    with self.assertRaises(ValueError):
+      [] | 'flatten' >> root_flatten
 
     self.pipeline.visit(self.visitor)
 
     root_transforms = [t.transform for t in self.visitor.root_transforms]
 
-    self.assertCountEqual(root_transforms, [root_read, root_flatten])
+    self.assertCountEqual(root_transforms, [root_read])
 
     pbegin_consumers = [c.transform
                         for c in self.visitor.value_to_consumers[pbegin]]
     self.assertCountEqual(pbegin_consumers, [root_read])
-    self.assertEqual(len(self.visitor.step_names), 3)
+    self.assertEqual(len(self.visitor.step_names), 2)
 
   def test_side_inputs(self):
 

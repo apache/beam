@@ -523,9 +523,8 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     with self.assertRaises(ValueError):
       () | 'PipelineArgMissing' >> beam.Flatten()
-    result = () | 'Empty' >> beam.Flatten(pipeline=pipeline)
-    assert_that(result, equal_to([]))
-    pipeline.run()
+    with self.assertRaises(ValueError):
+      () | 'Empty' >> beam.Flatten(pipeline=pipeline)
 
   def test_flatten_same_pcollections(self):
     pipeline = TestPipeline()
