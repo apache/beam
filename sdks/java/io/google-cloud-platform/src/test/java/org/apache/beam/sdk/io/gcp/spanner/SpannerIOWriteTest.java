@@ -374,7 +374,7 @@ public class SpannerIOWriteTest implements Serializable {
         };
 
     BatchableMutationFilterFn testFn =
-        new BatchableMutationFilterFn(null, null, 10000000, 3 * CELLS_PER_KEY);
+        new BatchableMutationFilterFn(null, null, 10000000, 3 * CELLS_PER_KEY, 1000);
 
     ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
@@ -428,7 +428,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
     BatchableMutationFilterFn testFn =
-        new BatchableMutationFilterFn(null, null, mutationSize * 3, 1000);
+        new BatchableMutationFilterFn(null, null, mutationSize * 3, 1000, 1000);
 
     ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
@@ -462,11 +462,64 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testBatchableMutationFilterFn_rows() {
+    Mutation all = Mutation.delete("test", KeySet.all());
+    Mutation prefix = Mutation.delete("test", KeySet.prefixRange(Key.of(1L)));
+    Mutation range =
+        Mutation.delete(
+            "test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
+    MutationGroup[] mutationGroups =
+        new MutationGroup[] {
+          g(m(1L)),
+          g(m(2L), m(3L)),
+          g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too many rows.
+          g(del(1L)),
+          g(del(5L, 6L)), // not point delete.
+          g(all),
+          g(prefix),
+          g(range)
+        };
+
+    long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
+    BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 1000, 1000, 3);
+
+    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
+
+    // Capture the outputs.
+    doNothing().when(mockProcessContext).output(mutationGroupCaptor.capture());
+    doNothing().when(mockProcessContext).output(any(), mutationGroupListCaptor.capture());
+
+    // Process all elements.
+    for (MutationGroup m : mutationGroups) {
+      when(mockProcessContext.element()).thenReturn(m);
+      testFn.processElement(mockProcessContext);
+    }
+
+    // Verify captured batchable elements.
+    assertThat(
+        mutationGroupCaptor.getAllValues(),
+        containsInAnyOrder(g(m(1L)), g(m(2L), m(3L)), g(del(1L))));
+
+    // Verify captured unbatchable mutations
+    Iterable<MutationGroup> unbatchableMutations =
+        Iterables.concat(mutationGroupListCaptor.getAllValues());
+    assertThat(
+        unbatchableMutations,
+        containsInAnyOrder(
+            g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too many rows.
+            g(del(5L, 6L)), // not point delete.
+            g(all),
+            g(prefix),
+            g(range)));
+  }
+
+  @Test
   public void testBatchableMutationFilterFn_batchingDisabled() {
     MutationGroup[] mutationGroups =
         new MutationGroup[] {g(m(1L)), g(m(2L)), g(del(1L)), g(del(5L, 6L))};
 
-    BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 0, 0);
+    BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 0, 0, 0);
 
     ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
@@ -492,7 +545,7 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void testGatherBundleAndSortFn() throws Exception {
-    GatherBundleAndSortFn testFn = new GatherBundleAndSortFn(10000000, 10, 100, null);
+    GatherBundleAndSortFn testFn = new GatherBundleAndSortFn(10000000, 10, 1000, 100, null);
 
     ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
     FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
@@ -533,7 +586,8 @@ public class SpannerIOWriteTest implements Serializable {
   public void testGatherBundleAndSortFn_flushOversizedBundle() throws Exception {
 
     // Setup class to bundle every 3 mutations
-    GatherBundleAndSortFn testFn = new GatherBundleAndSortFn(10000000, CELLS_PER_KEY, 3, null);
+    GatherBundleAndSortFn testFn =
+        new GatherBundleAndSortFn(10000000, CELLS_PER_KEY, 1000, 3, null);
 
     ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
     FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
@@ -594,7 +648,7 @@ public class SpannerIOWriteTest implements Serializable {
   public void testBatchFn_cells() throws Exception {
 
     // Setup class to bundle every 3 mutations (3xCELLS_PER_KEY cell mutations)
-    BatchFn testFn = new BatchFn(10000000, 3 * CELLS_PER_KEY, null);
+    BatchFn testFn = new BatchFn(10000000, 3 * CELLS_PER_KEY, 1000, null);
 
     ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
@@ -639,7 +693,50 @@ public class SpannerIOWriteTest implements Serializable {
     long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
 
     // Setup class to bundle every 3 mutations by size)
-    BatchFn testFn = new BatchFn(mutationSize * 3, 1000, null);
+    BatchFn testFn = new BatchFn(mutationSize * 3, 1000, 1000, null);
+
+    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
+
+    // Capture the outputs.
+    doNothing().when(mockProcessContext).output(mutationGroupListCaptor.capture());
+
+    List<MutationGroup> mutationGroups =
+        Arrays.asList(
+            g(m(1L)),
+            g(m(4L)),
+            g(m(5L), m(6L), m(7L), m(8L), m(9L)),
+            g(m(3L)),
+            g(m(10L)),
+            g(m(11L)),
+            g(m(2L)));
+
+    List<KV<byte[], byte[]>> encodedInput =
+        mutationGroups.stream()
+            .map(mg -> KV.of((byte[]) null, WriteGrouped.encode(mg)))
+            .collect(Collectors.toList());
+
+    // Process elements.
+    when(mockProcessContext.element()).thenReturn(encodedInput);
+    testFn.processElement(mockProcessContext);
+
+    verify(mockProcessContext, times(4)).output(any());
+
+    List<Iterable<MutationGroup>> batches = mutationGroupListCaptor.getAllValues();
+    assertEquals(4, batches.size());
+
+    // verify contents of 4 batches.
+    assertThat(batches.get(0), contains(g(m(1L)), g(m(4L))));
+    assertThat(batches.get(1), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
+    assertThat(batches.get(2), contains(g(m(3L)), g(m(10L)), g(m(11L))));
+    assertThat(batches.get(3), contains(g(m(2L))));
+  }
+
+  @Test
+  public void testBatchFn_rows() throws Exception {
+
+    // Setup class to bundle every 3 mutations (3xCELLS_PER_KEY cell mutations)
+    BatchFn testFn = new BatchFn(10000000, 1000, 3, null);
 
     ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
