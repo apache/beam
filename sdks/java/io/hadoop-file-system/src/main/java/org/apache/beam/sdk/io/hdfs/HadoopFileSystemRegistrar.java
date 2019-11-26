@@ -36,7 +36,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.hdfs.client.HdfsClientConfigKeys;
 
 /** {@link AutoService} registrar for the {@link HadoopFileSystem}. */
 @AutoService(FileSystemRegistrar.class)
@@ -75,7 +75,7 @@ public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
       builder.add(new HadoopFileSystem(scheme, configuration));
       registeredSchemes.add(scheme);
     }
-    final String nameServices = configuration.get(DFSConfigKeys.DFS_NAMESERVICES);
+    final String nameServices = configuration.get(HdfsClientConfigKeys.DFS_NAMESERVICES);
     if (nameServices != null && !nameServices.isEmpty()) {
       // we can register schemes that are support by HA cluster
       for (String scheme : HA_SCHEMES) {
