@@ -770,12 +770,8 @@ class FnApiRunner(runner.PipelineRunner):
               execution_context, stage, data_input, output_bundles,
               deferred_inputs)
 
-          for k, v in deferred_inputs.items():
-            # TODO(pabloem, MUST): SOMEHOW ENQUEUE THE DEFERRED INPUTS.
-            #  this is not a nice way.
-            input_queue_manager.ready_inputs.enque((stage.name, {k: v}))
-
-          self._process_output_bundles(execution_context,
+          self._process_output_bundles(deferred_inputs, stage,
+                                       execution_context,
                                        output_bundles_with_timestamps,
                                        input_queue_manager)
           self._schedule_newly_ready_bundles(execution_context,
@@ -947,11 +943,18 @@ class FnApiRunner(runner.PipelineRunner):
     return output_bundles_with_target_watermarks
 
   @staticmethod
-  def _process_output_bundles(execution_context,
+  def _process_output_bundles(deferred_inputs,
+                              stage,
+                              execution_context,
                               output_bundles,
                               input_queue_manager):
     """TODO(pabloem)"""
     logging.debug('Processing output bundles: %s', output_bundles)
+
+    # Enqueueing all deferred inputs for execution.
+    for k, v in deferred_inputs.items():
+      input_queue_manager.ready_inputs.enque((stage.name, {k: v}))
+
     for (bundle_watermark, buffer_id), data in output_bundles:
       consumer_stages = execution_context.get_consuming_stages(buffer_id)
       consumer_transforms = execution_context.get_consuming_transforms(
