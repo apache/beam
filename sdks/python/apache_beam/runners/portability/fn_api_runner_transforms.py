@@ -80,9 +80,6 @@ class Stage(object):
     self.environment = environment
     self.forced_root = forced_root
 
-  def update_watermark(self):
-    pass
-
   def __repr__(self):
     must_follow = ', '.join(prev.name for prev in self.must_follow)
     if self.downstream_side_inputs is None:
