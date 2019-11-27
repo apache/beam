@@ -83,6 +83,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -710,8 +711,11 @@ public class DataflowPipelineTranslator {
       String generatedName = String.format("%s.out%d", stepName, outputInfoList.size());
 
       addString(outputInfo, PropertyNames.USER_NAME, generatedName);
-      if (value instanceof PCollection
-          && translator.runner.doesPCollectionRequireIndexedFormat((PCollection<?>) value)) {
+      if ((value instanceof PCollection
+              && translator.runner.doesPCollectionRequireIndexedFormat((PCollection<?>) value))
+          || ((value instanceof PCollectionView)
+              && (Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+                  ((PCollectionView) value).getViewFn().getMaterialization().getUrn())))) {
         addBoolean(outputInfo, PropertyNames.USE_INDEXED_FORMAT, true);
       }
       if (valueCoder != null) {
