@@ -231,7 +231,7 @@ def find_release_time_from_python_compatibility_checking_service(dep_name, versi
 
 def request_session_with_retries():
   """
-  Create a http session with retries
+  Create an http session with retries
   """
   session = requests.Session()
   retries = Retry(total=3)

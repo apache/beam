@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming;
 
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -27,11 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * master address, and other user-related knobs.
  */
 public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipelineOptions {
-  @Description("Enable/disable sending aggregator values to Spark's metric sinks")
-  @Default.Boolean(true)
-  Boolean getEnableSparkMetricSinks();
-
-  void setEnableSparkMetricSinks(Boolean enableSparkMetricSinks);
 
   /** Set to true to run the job in test mode. */
   @Default.Boolean(false)
