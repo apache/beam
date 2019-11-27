@@ -227,11 +227,7 @@ setuptools.setup(
     install_requires=REQUIRED_PACKAGES,
     python_requires=python_requires,
     test_suite='nose.collector',
-    setup_requires=['pytest_runner'],
-    tests_require= [
-        REQUIRED_TEST_PACKAGES,
-        INTERACTIVE_BEAM,
-    ],
+    # BEAM-8840: Do NOT use tests_require or setup_requires.
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
