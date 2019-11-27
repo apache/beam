@@ -28,12 +28,21 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.junit.Assert.assertEquals;
 
 import com.mongodb.MongoClient;
+import de.flapdoodle.embed.mongo.MongodExecutable;
+import de.flapdoodle.embed.mongo.MongodProcess;
+import de.flapdoodle.embed.mongo.MongodStarter;
+import de.flapdoodle.embed.mongo.config.IMongodConfig;
+import de.flapdoodle.embed.mongo.config.MongoCmdOptionsBuilder;
+import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
+import de.flapdoodle.embed.mongo.config.Net;
+import de.flapdoodle.embed.mongo.config.Storage;
+import de.flapdoodle.embed.mongo.distribution.Version;
+import de.flapdoodle.embed.process.runtime.Network;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
-import org.apache.beam.sdk.io.mongodb.MongoDBIOIT.MongoDBPipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
@@ -42,35 +51,22 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A test of {@link org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbTable} on an
  * independent Mongo instance.
- *
- * <p>This test requires a running instance of MongoDB. Pass in connection information using
- * PipelineOptions:
- *
- * <pre>
- *  ./gradlew integrationTest -p sdks/java/extensions/sql/integrationTest -DintegrationTestPipelineOptions='[
- *  "--mongoDBHostName=1.2.3.4",
- *  "--mongoDBPort=27017",
- *  "--mongoDBDatabaseName=mypass",
- *  "--numberOfRecords=1000" ]'
- *  --tests org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbReadWriteIT
- *  -DintegrationTestRunner=direct
- * </pre>
- *
- * A database, specified in the pipeline options, will be created implicitly if it does not exist
- * already. And dropped upon completing tests.
- *
- * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
- * performance testing framework.
  */
-@Ignore("https://issues.apache.org/jira/browse/BEAM-8586")
+@RunWith(JUnit4.class)
 public class MongoDbReadWriteIT {
+  private static final Logger LOG = LoggerFactory.getLogger(MongoDbReadWriteIT.class);
   private static final Schema SOURCE_SCHEMA =
       Schema.builder()
           .addNullableField("_id", STRING)
@@ -84,38 +80,57 @@ public class MongoDbReadWriteIT {
           .addNullableField("c_varchar", STRING)
           .addNullableField("c_arr", FieldType.array(STRING))
           .build();
+  private static final String hostname = "localhost";
+  private static final String database = "beam";
   private static final String collection = "collection";
-  private static MongoDBPipelineOptions options;
+  private static int port;
+
+  @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
+
+  private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
+  private static MongodExecutable mongodExecutable;
+  private static MongodProcess mongodProcess;
+  private static MongoClient client;
 
   @Rule public final TestPipeline writePipeline = TestPipeline.create();
   @Rule public final TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setUp() throws Exception {
-    PipelineOptionsFactory.register(MongoDBPipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(MongoDBPipelineOptions.class);
+    port = NetworkTestHelper.getAvailableLocalPort();
+    LOG.info("Starting MongoDB embedded instance on {}", port);
+    IMongodConfig mongodConfig =
+        new MongodConfigBuilder()
+            .version(Version.Main.PRODUCTION)
+            .configServer(false)
+            .replication(new Storage(MONGODB_LOCATION.getRoot().getPath(), null, 0))
+            .net(new Net(hostname, port, Network.localhostIsIPv6()))
+            .cmdOptions(
+                new MongoCmdOptionsBuilder()
+                    .syncDelay(10)
+                    .useNoPrealloc(true)
+                    .useSmallFiles(true)
+                    .useNoJournal(true)
+                    .verbose(false)
+                    .build())
+            .build();
+    mongodExecutable = mongodStarter.prepare(mongodConfig);
+    mongodProcess = mongodExecutable.start();
+    client = new MongoClient(hostname, port);
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
-    dropDatabase();
-  }
-
-  private static void dropDatabase() throws Exception {
-    new MongoClient(options.getMongoDBHostName())
-        .getDatabase(options.getMongoDBDatabaseName())
-        .drop();
+    client.dropDatabase(database);
+    client.close();
+    mongodProcess.stop();
+    mongodExecutable.stop();
   }
 
   @Test
   public void testWriteAndRead() {
     final String mongoSqlUrl =
-        String.format(
-            "mongodb://%s:%d/%s/%s",
-            options.getMongoDBHostName(),
-            options.getMongoDBPort(),
-            options.getMongoDBDatabaseName(),
-            collection);
+        String.format("mongodb://%s:%d/%s/%s", hostname, port, database, collection);
 
     Row testRow =
         row(
