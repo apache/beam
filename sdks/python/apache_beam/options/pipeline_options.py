@@ -468,7 +468,8 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--no_auth',
                         dest='no_auth',
                         action='store_true',
-                        default=False)
+                        default=False,
+                        help='Skips authorizing credentials with Google Cloud.')
     # Option to run templated pipelines
     parser.add_argument('--template_location',
                         default=None,
