@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import static org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets.getRuleSets;
+
 import com.google.cloud.Timestamp;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -27,14 +31,20 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOPushDownRule;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -71,7 +81,7 @@ public class BigQueryIOPushDownIT {
           + "' \n"
           + "TBLPROPERTIES '{ method: \"%s\" }'";
   private static final String SELECT_STATEMENT =
-      "SELECT `by` as author, title, score from HACKER_NEWS where type='story' and score>1000";
+      "SELECT `by` as author, type, title, score from HACKER_NEWS where (type='story' or type='job') and score>100";
 
   private static SQLBigQueryPerfTestOptions options;
   private static String metricsBigQueryDataset;
@@ -92,7 +102,7 @@ public class BigQueryIOPushDownIT {
   }
 
   @Test
-  public void readUsingDirectReadMethod() {
+  public void readUsingDirectReadMethodPushDown() {
     LOG.warn("\n\n\n*** RUNNING SQL PERFORMANCE TESTS ***\n\n\n");
     LOG.warn("With following pipeline option: " + options.toString());
 
@@ -103,7 +113,51 @@ public class BigQueryIOPushDownIT {
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
+    collectAndPublishMetrics(result, "_directread_pushdown");
+  }
+
+  @Test
+  public void readUsingDirectReadMethod() {
+    LOG.warn("\n\n\n*** RUNNING SQL PERFORMANCE TESTS ***\n\n\n");
+    LOG.warn("With following pipeline option: " + options.toString());
+
+    List<RelOptRule> ruleList = new ArrayList<>();
+    for (RuleSet x : getRuleSets()) {
+      x.iterator().forEachRemaining(ruleList::add);
+    }
+    // Remove push-down rule
+    ruleList.remove(BeamIOPushDownRule.INSTANCE);
+
+    InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
+    inMemoryMetaStore.registerProvider(new BigQueryPerfTableProvider(NAMESPACE, "read_time"));
+    sqlEnv =
+        BeamSqlEnv.builder(inMemoryMetaStore)
+            .setPipelineOptions(PipelineOptionsFactory.create())
+            .setRuleSets(new RuleSet[] {RuleSets.ofList(ruleList)})
+            .build();
+    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, "DIRECT_READ"));
+
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
+    PCollection<Row> output = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
     collectAndPublishMetrics(result, "_directread");
+  }
+
+  @Test
+  public void readUsingDefaultMethod() {
+    LOG.warn("\n\n\n*** RUNNING SQL PERFORMANCE TESTS ***\n\n\n");
+    LOG.warn("With following pipeline option: " + options.toString());
+
+    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, "DEFAULT"));
+
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
+    PCollection<Row> output = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    collectAndPublishMetrics(result, "_default");
   }
 
   private void collectAndPublishMetrics(PipelineResult readResult, String postfix) {
