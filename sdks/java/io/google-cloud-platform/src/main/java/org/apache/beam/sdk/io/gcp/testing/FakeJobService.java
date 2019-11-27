@@ -51,10 +51,12 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
@@ -262,6 +264,12 @@ public class FakeJobService implements JobService, Serializable {
       }
     }
     throw new UnsupportedOperationException();
+  }
+
+  public Collection<Job> getAllJobs() {
+    synchronized (allJobs) {
+      return allJobs.values().stream().map(j -> j.job).collect(Collectors.toList());
+    }
   }
 
   @Override
