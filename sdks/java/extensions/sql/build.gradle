@@ -141,23 +141,6 @@ task runPojoExample(type: JavaExec) {
   args = ["--runner=DirectRunner"]
 }
 
-task performanceTest(type: Test) {
-  // Disable Gradle cache (it should not be used because the IT's won't run).
-  outputs.upToDateWhen { false }
-
-  include "**/*Perf.class"
-  maxParallelForks 4
-
-  classpath = project(":sdks:java:extensions:sql")
-          .sourceSets
-          .test
-          .runtimeClasspath
-  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
-
-  systemProperties.beamTestPipelineOptions = it.properties
-  useJUnit { }
-}
-
 task integrationTest(type: Test) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'

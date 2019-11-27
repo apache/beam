@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import java.io.IOException;
+import com.google.cloud.Timestamp;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -63,7 +66,9 @@ public class BigQueryIOPushDownIT {
           + "   deleted BOOLEAN \n"
           + ") \n"
           + "TYPE 'bigquery' \n"
-          + "LOCATION '" + READ_FROM_TABLE + "' \n"
+          + "LOCATION '"
+          + READ_FROM_TABLE
+          + "' \n"
           + "TBLPROPERTIES '{ method: \"%s\" }'";
   private static final String SELECT_STATEMENT =
       "SELECT `by` as author, title, score from HACKER_NEWS where type='story' and score>1000";
@@ -71,15 +76,12 @@ public class BigQueryIOPushDownIT {
   private static SQLBigQueryPerfTestOptions options;
   private static String metricsBigQueryDataset;
   private static String metricsBigQueryTable;
-  private static String tableQualifier;
-  private static String tempRoot;
-  Pipeline pipeline = Pipeline.create(options);
+  private Pipeline pipeline = Pipeline.create(options);
   private BeamSqlEnv sqlEnv;
 
   @BeforeClass
-  public static void setUp() throws IOException {
+  public static void setUp() {
     options = IOITHelper.readIOTestPipelineOptions(SQLBigQueryPerfTestOptions.class);
-    tempRoot = options.getTempRoot();
     metricsBigQueryDataset = options.getMetricsBigQueryDataset();
     metricsBigQueryTable = options.getMetricsBigQueryTable();
   }
@@ -99,7 +101,19 @@ public class BigQueryIOPushDownIT {
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    collectAndPublishMetrics(result, "_directread");
+  }
+
+  private void collectAndPublishMetrics(PipelineResult readResult, String postfix) {
+    String uuid = UUID.randomUUID().toString();
+    String timestamp = Timestamp.now().toString();
+
+    Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
+    IOITMetrics readMetrics =
+        new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
+    readMetrics.publish(metricsBigQueryDataset, metricsBigQueryTable + postfix);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(
