@@ -607,7 +607,8 @@ class DataflowRunner(PipelineRunner):
     return step
 
   def _add_singleton_step(
-      self, label, full_label, tag, input_step, windowing_strategy):
+      self, label, full_label, tag, input_step, windowing_strategy,
+      access_pattern):
     """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
     # Import here to avoid adding the dependency for local running scenarios.
     from apache_beam.runners.dataflow.internal import apiclient
@@ -620,12 +621,16 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(tag)})
     step.encoding = self._get_side_input_encoding(input_step.encoding)
-    step.add_property(
-        PropertyNames.OUTPUT_INFO,
-        [{PropertyNames.USER_NAME: (
-            '%s.%s' % (full_label, PropertyNames.OUTPUT)),
-          PropertyNames.ENCODING: step.encoding,
-          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+
+    output_info = {
+        PropertyNames.USER_NAME: '%s.%s' % (full_label, PropertyNames.OUTPUT),
+        PropertyNames.ENCODING: step.encoding,
+        PropertyNames.OUTPUT_NAME: PropertyNames.OUT
+    }
+    if common_urns.side_inputs.MULTIMAP.urn == access_pattern:
+      output_info[PropertyNames.USE_INDEXED_FORMAT] = True
+    step.add_property(PropertyNames.OUTPUT_INFO, [output_info])
+
     step.add_property(
         PropertyNames.WINDOWING_STRATEGY,
         self.serialize_windowing_strategy(windowing_strategy))
@@ -820,7 +825,8 @@ class DataflowRunner(PipelineRunner):
       self._add_singleton_step(
           step_name, si_full_label, side_pval.pvalue.tag,
           self._cache.get_pvalue(side_pval.pvalue),
-          side_pval.pvalue.windowing)
+          side_pval.pvalue.windowing,
+          side_pval._side_input_data().access_pattern)
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: step_name,
