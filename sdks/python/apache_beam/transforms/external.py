@@ -294,7 +294,7 @@ class ExternalTransform(ptransform.PTransform):
         else pvalueish.pipeline)
     context = pipeline_context.PipelineContext()
     transform_proto = beam_runner_api_pb2.PTransform(
-        unique_name=self._EXPANDED_TRANSFORM_UNIQUE_NAME,
+        unique_name=pipeline._current_transform().full_label,
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=self._urn, payload=self._payload))
     for tag, pcoll in self._inputs.items():
