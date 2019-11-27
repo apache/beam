@@ -227,7 +227,6 @@ setuptools.setup(
     install_requires=REQUIRED_PACKAGES,
     python_requires=python_requires,
     test_suite='nose.collector',
-    setup_requires=['pytest_runner'],
     tests_require= [
         REQUIRED_TEST_PACKAGES,
         INTERACTIVE_BEAM,
