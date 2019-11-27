@@ -33,8 +33,6 @@ def jobConfigs = [
                         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                         tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
                         writeMethod           : 'FILE_LOADS',
-                        testBigQueryDataset   : 'bigquery-public-data:hacker_news',
-                        testBigQueryTable     : 'full',
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'sql_bqio_read_results_java_batch',
                         runner                : "DataflowRunner",
