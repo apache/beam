@@ -47,3 +47,7 @@ The Beam SDK for Python provides an extensible API that you can use to create
 new I/O connectors. See the [Developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview)
 for information about developing new I/O connectors and links to
 language-specific implementation guidance.
+
+## Using Beam Python SDK in your ML pipelines
+
+* [TFX](https://www.tensorflow.org/tfx) is an ML platform based on TensorFlow and it is integrated with Beam. See [TFX user guide](https://www.tensorflow.org/tfx/guide) for more information.
