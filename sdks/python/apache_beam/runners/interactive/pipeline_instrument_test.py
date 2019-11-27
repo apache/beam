@@ -31,7 +31,6 @@ from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import interactive_runner
-from apache_beam.testing.test_stream import TestStream
 
 # Work around nose tests using Python2 without unittest.mock module.
 try:

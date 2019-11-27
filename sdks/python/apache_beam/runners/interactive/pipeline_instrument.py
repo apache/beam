@@ -200,12 +200,12 @@ class PipelineInstrument(object):
     # Get the transform IDs of the caching transforms.
     transforms = pipeline_proto.components.transforms
     caching_transform_ids = [t_id for root in roots
-                              for t_id in transforms[root].subtransforms
-                              if WRITE_CACHE in t_id]
+                             for t_id in transforms[root].subtransforms
+                             if WRITE_CACHE in t_id]
 
     # Get the IDs of the unbounded sources.
     required_transform_labels = [src.full_label for src in sources]
-    unbounded_source_ids = [k for k,v in transforms.items()
+    unbounded_source_ids = [k for k, v in transforms.items()
                             if v.unique_name in required_transform_labels]
 
     # The required transforms are the tranforms that we want to cut out of
@@ -232,8 +232,8 @@ class PipelineInstrument(object):
     for root_id in roots:
       root = pipeline_to_execute.components.transforms[root_id]
       root.subtransforms[:] = [
-            transform_id for transform_id in root.subtransforms
-            if transform_id in pipeline_to_execute.components.transforms]
+          transform_id for transform_id in root.subtransforms
+          if transform_id in pipeline_to_execute.components.transforms]
 
     return pipeline_to_execute
 
@@ -580,7 +580,7 @@ def unbounded_pcolls(unbounded_sources):
   """Returns all output PCollections of the given sources."""
   pcolls = set()
   for source in unbounded_sources:
-    for label, output in source.outputs.items():
+    for output in source.outputs.values():
       pcolls.add(output)
 
   return list(pcolls)
