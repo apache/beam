@@ -210,7 +210,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
   def _get_state(self):
     """Query flink to get the current state.
 
-    :return: tuple of int and float timestamp or None
+    :return: tuple of int and Timestamp or None
       timestamp will be None if the state has not changed since the last query.
     """
     # For just getting the status, execution-result seems cheaper.

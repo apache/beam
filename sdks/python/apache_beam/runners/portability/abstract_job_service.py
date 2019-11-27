@@ -18,7 +18,6 @@ from __future__ import absolute_import
 
 import itertools
 import logging
-import time
 import uuid
 from builtins import object
 
@@ -26,16 +25,23 @@ from google.protobuf import timestamp_pb2
 
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
-from apache_beam.utils import proto_utils
+from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def make_state_event(state, timestamp):
-  if not isinstance(timestamp, timestamp_pb2.Timestamp):
-    timestamp = proto_utils.to_Timestamp(timestamp)
+  if isinstance(timestamp, Timestamp):
+    proto_timestamp = timestamp.to_proto()
+  elif isinstance(timestamp, timestamp_pb2.Timestamp):
+    proto_timestamp = timestamp
+  else:
+    raise ValueError("Expected apache_beam.utils.timestamp.Timestamp, "
+                     "or google.protobuf.timestamp_pb2.Timestamp. "
+                     "Got %s" % type(timestamp))
+
   return beam_job_api_pb2.JobStateEvent(
-      state=state, timestamp=timestamp)
+      state=state, timestamp=proto_timestamp)
 
 
 class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
@@ -127,7 +133,8 @@ class AbstractBeamJob(object):
     self._job_name = job_name
     self._pipeline_proto = pipeline
     self._pipeline_options = options
-    self._state_history = [(beam_job_api_pb2.JobState.STOPPED, time.time())]
+    self._state_history = [(beam_job_api_pb2.JobState.STOPPED,
+                            Timestamp.now())]
 
   def _to_implement(self):
     raise NotImplementedError(self)
@@ -151,11 +158,11 @@ class AbstractBeamJob(object):
 
     :param new_state: int
       latest state enum
-    :return: float or None
+    :return: Timestamp or None
       the new timestamp if the state has not changed, else None
     """
     if new_state != self._state_history[-1][0]:
-      timestamp = time.time()
+      timestamp = Timestamp.now()
       self._state_history.append((new_state, timestamp))
       return timestamp
     else:
