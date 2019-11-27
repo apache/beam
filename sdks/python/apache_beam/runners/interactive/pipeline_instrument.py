@@ -179,11 +179,10 @@ class PipelineInstrument(object):
   def background_caching_pipeline_proto(self):
     """Returns the background caching pipeline.
 
-    This method creates a background caching pipeline from the original user
-    pipeline by: adding writes to cache from each unbounded source (done in the
-    instrument method), and cutting out all components (transform, PCollections,
-    coders, windowing strategies) that are not the unbounded sources or writes
-    to cache (or subtransforms thereof).
+    This method creates a background caching pipeline by: adding writes to cache
+    from each unbounded source (done in the instrument method), and cutting out
+    all components (transform, PCollections, coders, windowing strategies) that
+    are not the unbounded sources or writes to cache (or subtransforms thereof).
     """
     # Create the pipeline_proto to read all the components from. It will later
     # create a new pipeline proto from the cut out components.
@@ -197,7 +196,10 @@ class PipelineInstrument(object):
     # of one of these roots.
     roots = pipeline_proto.root_transform_ids
 
-    # Get the transform IDs of the caching transforms.
+    # Get the transform IDs of the caching transforms. These caching operations
+    # are added the the _background_caching_pipeline in the instrument() method.
+    # It's added there so that multiple calls to this method won't add multiple
+    # caching operations (idempotent).
     transforms = pipeline_proto.components.transforms
     caching_transform_ids = [t_id for root in roots
                              for t_id in transforms[root].subtransforms
