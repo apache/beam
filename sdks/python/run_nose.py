@@ -25,6 +25,8 @@ TODO(BEAM-3713): Remove this module once nose is removed.
 
 from __future__ import absolute_import
 
+import sys
+
 from nose.plugins import Plugin
 
 
@@ -49,3 +51,11 @@ class BeamTestPlugin(Plugin):
                       action='store_true',
                       default=False,
                       help='whether not to use test-runner-api')
+
+
+if __name__ == '__main__':
+  import nose
+  # remove the current directory so that we import from tox site-packages
+  # rather than the source tree.
+  sys.path = sys.path[1:]
+  nose.main(addplugins=[BeamTestPlugin()])

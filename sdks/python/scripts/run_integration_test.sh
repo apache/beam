@@ -245,7 +245,7 @@ echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 echo ">>>   test options: $TEST_OPTS"
 # TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't support
 #   suite names.
-python setup.py nosetests \
+python run_nose.py \
   --test-pipeline-options="$PIPELINE_OPTS" \
   --with-xunitmp --xunitmp-file=$XUNIT_FILE \
   --ignore-files '.*py3\d?\.py$' \

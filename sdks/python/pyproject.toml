@@ -15,5 +15,13 @@
 #    limitations under the License.
 #
 # TODO(BEAM-5414): latest grpcio-tools incompatible with latest protobuf 3.6.1.
-grpcio-tools>=1.3.5,<=1.14.2
-future==0.16.0
+[build-system]
+requires = [
+    "cython==0.28.1; 'linux' in sys.platform",
+    "future==0.16.0",
+    "grpcio-tools>=1.3.5,<=1.14.2",
+    "setuptools >= 40.8.0",
+    "wheel==0.33.6",
+    "pip==19.3.1",
+]
+build-backend = "setuptools.build_meta"

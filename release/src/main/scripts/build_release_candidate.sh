@@ -173,6 +173,9 @@ if [[ $confirmation = "y" ]]; then
   cd sdks/python
   virtualenv ${LOCAL_PYTHON_VIRTUALENV}
   source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
+  pip install --upgrade pep517==0.7.0
+  # FIXME: unclear how to build zip
+  python -m pep517.build --source .
   python setup.py sdist --format=zip
   cd dist
 

@@ -37,10 +37,7 @@ from pkg_resources import normalize_path
 from pkg_resources import to_filename
 from setuptools import Command
 from setuptools.command.build_py import build_py
-from setuptools.command.develop import develop
-from setuptools.command.egg_info import egg_info
-from setuptools.command.test import test
-
+from setuptools.command.sdist import sdist
 
 class mypy(Command):
   user_options = []
@@ -230,8 +227,10 @@ def generate_protos_first(original_cmd):
         gen_protos.generate_proto_files(log=log)
         super(cmd, self).run()
     return cmd
-  except ImportError:
-    warnings.warn("Could not import gen_protos, skipping proto generation.")
+  except ImportError as err:
+    warnings.warn(
+        "Could not import gen_protos, skipping proto generation: %s (pwd=%s)" %
+        (err, os.getcwd()))
     return original_cmd
 
 
@@ -270,7 +269,6 @@ setuptools.setup(
     ]),
     install_requires=REQUIRED_PACKAGES,
     python_requires=python_requires,
-    test_suite='nose.collector',
     # BEAM-8840: Do NOT use tests_require or setup_requires.
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
@@ -300,9 +298,7 @@ setuptools.setup(
         ]},
     cmdclass={
         'build_py': generate_protos_first(build_py),
-        'develop': generate_protos_first(develop),
-        'egg_info': generate_protos_first(egg_info),
-        'test': generate_protos_first(test),
+        'sdist': generate_protos_first(sdist),
         'mypy': generate_protos_first(mypy),
     },
 )

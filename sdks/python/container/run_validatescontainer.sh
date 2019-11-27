@@ -110,15 +110,16 @@ VENV_PATH=sdks/python/container/venv/$PY_INTERPRETER
 virtualenv $VENV_PATH -p $PY_INTERPRETER
 . $VENV_PATH/bin/activate
 cd sdks/python
+pip install --upgrade pep517==0.7.0
 pip install -e .[gcp,test]
 
 # Create a tarball
-python setup.py sdist
+python -m pep517.build --source .
 SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
-python setup.py nosetests \
+python run_nose.py \
   --attr ValidatesContainer \
   --nologcapture \
   --processes=1 \

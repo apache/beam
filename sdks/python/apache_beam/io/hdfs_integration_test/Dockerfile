@@ -31,7 +31,7 @@ RUN gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt .
 ADD sdks/python /app/sdks/python
 ADD model /app/model
 RUN cd sdks/python && \
-    python setup.py sdist && \
+    python -m pep517.build --source .  && \
     pip install --no-cache-dir $(ls dist/apache-beam-*.tar.gz | tail -n1)[gcp]
 
 # Run wordcount, and write results to HDFS.

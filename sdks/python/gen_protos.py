@@ -23,14 +23,11 @@ import contextlib
 import glob
 import inspect
 import logging
-import multiprocessing
 import os
-import platform
 import re
 import shutil
 import subprocess
 import sys
-import time
 import warnings
 
 import pkg_resources
@@ -227,7 +224,6 @@ def generate_proto_files(force=False, log=None):
     log = logging.getLogger(__name__)
 
   py_sdk_root = os.path.dirname(os.path.abspath(__file__))
-  common = os.path.join(py_sdk_root, '..', 'common')
   proto_dirs = [os.path.join(py_sdk_root, path) for path in BEAM_PROTO_PATHS]
   proto_files = sum(
       [glob.glob(os.path.join(d, '*.proto')) for d in proto_dirs], [])
@@ -241,7 +237,7 @@ def generate_proto_files(force=False, log=None):
     return
 
   elif not out_files and not proto_files:
-    if not os.path.exists(common):
+    if not os.path.exists(py_sdk_root):
       raise RuntimeError(
           'Not in apache git tree; unable to find proto definitions.')
     else:
@@ -269,27 +265,9 @@ def generate_proto_files(force=False, log=None):
     regenerate = None
 
   if regenerate:
-    try:
-      from grpc_tools import protoc
-    except ImportError:
-      if platform.system() == 'Windows':
-        # For Windows, grpcio-tools has to be installed manually.
-        raise RuntimeError(
-            'Cannot generate protos for Windows since grpcio-tools package is '
-            'not installed. Please install this package manually '
-            'using \'pip install grpcio-tools\'.')
 
-      # Use a subprocess to avoid messing with this process' path and imports.
-      # Note that this requires a separate module from setup.py for Windows:
-      # https://docs.python.org/2/library/multiprocessing.html#windows
-      p = multiprocessing.Process(
-          target=_install_grpcio_tools_and_generate_proto_files,
-          kwargs={'force': force})
-      p.start()
-      p.join()
-      if p.exitcode:
-        raise ValueError("Proto generation failed (see log for details).")
-    else:
+      from grpc_tools import protoc
+
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
       args = (
@@ -310,11 +288,6 @@ def generate_proto_files(force=False, log=None):
       for path in MODEL_RESOURCES:
         shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
-      ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
-      if ret_code:
-        raise RuntimeError(
-            'Error installing future during proto generation')
-
       ret_code = subprocess.call(
           ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
       if ret_code:
@@ -322,42 +295,6 @@ def generate_proto_files(force=False, log=None):
             'Error applying futurize to generated protobuf python files.')
 
       generate_urn_files(log, out_dir)
-
-  else:
-    log.info('Skipping proto regeneration: all files up to date')
-
-
-# Though wheels are available for grpcio-tools, setup_requires uses
-# easy_install which doesn't understand them.  This means that it is
-# compiled from scratch (which is expensive as it compiles the full
-# protoc compiler).  Instead, we attempt to install a wheel in a temporary
-# directory and add it to the path as needed.
-# See https://github.com/pypa/setuptools/issues/377
-def _install_grpcio_tools_and_generate_proto_files(force=False):
-  py_sdk_root = os.path.dirname(os.path.abspath(__file__))
-  install_path = os.path.join(py_sdk_root, '.eggs', 'grpcio-wheels')
-  build_path = install_path + '-build'
-  if os.path.exists(build_path):
-    shutil.rmtree(build_path)
-  logging.warning('Installing grpcio-tools into %s', install_path)
-  try:
-    start = time.time()
-    subprocess.check_call(
-        [sys.executable, '-m', 'pip', 'install',
-         '--target', install_path, '--build', build_path,
-         '--upgrade',
-         '-r', os.path.join(py_sdk_root, 'build-requirements.txt')])
-    logging.warning(
-        'Installing grpcio-tools took %0.2f seconds.', time.time() - start)
-  finally:
-    sys.stderr.flush()
-    shutil.rmtree(build_path, ignore_errors=True)
-  sys.path.append(install_path)
-  try:
-    generate_proto_files(force=force)
-  finally:
-    sys.stderr.flush()
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
