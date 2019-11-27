@@ -137,7 +137,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		rem := reflectx.ShallowClone(t.Inputs).(map[string]string)
 
 		prop.NonParallelInputs = make(map[string]*outputReference)
-		for key := range payload.SideInputs {
+		for key, side_input := range payload.SideInputs {
 			// Side input require an additional conversion step, which must
 			// be before the present one.
 			delete(rem, key)
@@ -146,16 +146,24 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 			ref := x.pcollections[t.Inputs[key]]
 			c := x.translateCoder(pcol, pcol.CoderId)
 
+			var output_info output
+			output_info = output{
+				UserName:   "i0",
+				OutputName: "i0",
+				Encoding:   graphx.WrapIterable(c),
+			}
+			if graphx.URNMultimapSideInput == side_input.GetAccessPattern().GetUrn() {
+				output_info.UseIndexedFormat = true
+			}
+
 			side := &df.Step{
 				Name: fmt.Sprintf("view%v_%v", id, key),
 				Kind: sideInputKind,
 				Properties: newMsg(properties{
 					ParallelInput: ref,
-					OutputInfo: []output{{
-						UserName:   "i0",
-						OutputName: "i0",
-						Encoding:   graphx.WrapIterable(c),
-					}},
+					OutputInfo: []output{
+						output_info,
+					},
 					UserName: userName(trunk, fmt.Sprintf("AsView%v_%v", id, key)),
 				}),
 			}
