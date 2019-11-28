@@ -615,6 +615,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                  self.dataset_id, self.project)
 
   @attr('IT')
+  @unittest.skip('BEAM-8842: Disabled due to reliance on old retry behavior.')
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
