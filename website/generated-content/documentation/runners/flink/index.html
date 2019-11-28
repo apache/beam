@@ -534,8 +534,8 @@ Note however that <code class="highlighter-rouge">environment_type=LOOPBACK</cod
 See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.
 </span></p>
 
-<p><span class="language-py">As of Beam 2.15.0, steps 2 and 3 can be automated in Python by using the <code class="highlighter-rouge">FlinkRunner</code>,
-plus the optional <code class="highlighter-rouge">flink_version</code> and <code class="highlighter-rouge">flink_master_url</code> options if required, i.e.
+<p><span class="language-py">Steps 2 and 3 can be automated in Python by using the <code class="highlighter-rouge">FlinkRunner</code>,
+plus the optional <code class="highlighter-rouge">flink_version</code> and <code class="highlighter-rouge">flink_master</code>* options, e.g.:
 </span></p>
 
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
@@ -544,12 +544,14 @@ plus the optional <code class="highlighter-rouge">flink_version</code> and <code
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span>
     <span class="s">"--runner=FlinkRunner"</span><span class="p">,</span>
     <span class="s">"--flink_version=1.8"</span><span class="p">,</span>
-    <span class="s">"--flink_master_url=localhost:8081"</span><span class="p">,</span>
+    <span class="s">"--flink_master=localhost:8081"</span><span class="p">,</span>
     <span class="s">"--environment_type=LOOPBACK"</span>
 <span class="p">])</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="o">...</span>
 </code></pre></div></div>
+
+<p>* Note: For Beam versions &lt; 2.17.0, use <code class="highlighter-rouge">flink_master_url</code> instead of <code class="highlighter-rouge">flink_master</code>.</p>
 
 <h2 id="additional-information-and-caveats">Additional information and caveats</h2>
 
