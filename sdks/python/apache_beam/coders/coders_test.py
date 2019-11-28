@@ -113,7 +113,7 @@ class DeterministicProtoCoderTest(unittest.TestCase):
       self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
 
 
-class AvroTestCoder(coders.AvroCoder):
+class AvroTestCoder(coders.AvroGenericCoder):
   SCHEMA = """
   {
     "type": "record", "name": "testrecord",

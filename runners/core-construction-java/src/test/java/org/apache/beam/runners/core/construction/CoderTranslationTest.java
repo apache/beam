@@ -132,6 +132,11 @@ public class CoderTranslationTest {
               KvCoder.of(
                   new RecordCoder(),
                   AvroCoder.of(SchemaBuilder.record("record").fields().endRecord())))
+          .add(
+              StringUtf8Coder.of(),
+              SerializableCoder.of(Record.class),
+              new RecordCoder(),
+              KvCoder.of(new RecordCoder(), AvroCoder.of(Record.class)))
           .build();
     }
 
