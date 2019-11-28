@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -340,14 +341,19 @@ public class MongoDbIO {
   }
 
   private static MongoClientOptions.Builder getOptions(
-      int maxConnectionIdleTime, boolean sslEnabled, boolean sslInvalidHostNameAllowed) {
+      int maxConnectionIdleTime,
+      boolean sslEnabled,
+      boolean sslInvalidHostNameAllowed,
+      boolean ignoreSSLCertificate) {
     MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder();
     optionsBuilder.maxConnectionIdleTime(maxConnectionIdleTime);
     if (sslEnabled) {
-      optionsBuilder
-          .sslEnabled(sslEnabled)
-          .sslInvalidHostNameAllowed(sslInvalidHostNameAllowed)
-          .sslContext(SSLUtils.ignoreSSLCertificate());
+      optionsBuilder.sslEnabled(sslEnabled).sslInvalidHostNameAllowed(sslInvalidHostNameAllowed);
+      if (ignoreSSLCertificate) {
+        SSLContext sslContext = SSLUtils.ignoreSSLCertificate();
+        optionsBuilder.sslContext(sslContext);
+        optionsBuilder.socketFactory(sslContext.getSocketFactory());
+      }
     }
     return optionsBuilder;
   }
@@ -385,7 +391,8 @@ public class MongoDbIO {
                   getOptions(
                       spec.maxConnectionIdleTime(),
                       spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed())))) {
+                      spec.sslInvalidHostNameAllowed(),
+                      spec.ignoreSSLCertificate())))) {
         return getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
       }
     }
@@ -413,7 +420,8 @@ public class MongoDbIO {
                   getOptions(
                       spec.maxConnectionIdleTime(),
                       spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed())))) {
+                      spec.sslInvalidHostNameAllowed(),
+                      spec.ignoreSSLCertificate())))) {
         MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
 
         List<Document> splitKeys;
@@ -704,7 +712,8 @@ public class MongoDbIO {
               getOptions(
                   spec.maxConnectionIdleTime(),
                   spec.sslEnabled(),
-                  spec.sslInvalidHostNameAllowed())));
+                  spec.sslInvalidHostNameAllowed(),
+                  spec.ignoreSSLCertificate())));
     }
   }
 
@@ -886,7 +895,8 @@ public class MongoDbIO {
                     getOptions(
                         spec.maxConnectionIdleTime(),
                         spec.sslEnabled(),
-                        spec.sslInvalidHostNameAllowed())));
+                        spec.sslInvalidHostNameAllowed(),
+                        spec.ignoreSSLCertificate())));
       }
 
       @StartBundle
