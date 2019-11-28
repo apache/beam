@@ -522,7 +522,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               inputDataWatermark,
               processingTime,
               outputDataWatermark,
-              synchronizedProcessingTime);
+              synchronizedProcessingTime,
+              outputBuilder);
 
       this.userTimerInternals =
           new WindmillTimerInternals(
@@ -531,7 +532,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               inputDataWatermark,
               processingTime,
               outputDataWatermark,
-              synchronizedProcessingTime);
+              synchronizedProcessingTime,
+              outputBuilder);
 
       this.cachedFiredTimers = null;
       this.cachedFiredUserTimers = null;
