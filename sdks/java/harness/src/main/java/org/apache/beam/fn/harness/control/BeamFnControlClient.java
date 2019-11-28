@@ -75,12 +75,12 @@ public class BeamFnControlClient {
               ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
           handlers) {
     this.bufferedInstructions = new LinkedBlockingDeque<>();
+    this.handlers = handlers;
+    this.onFinish = new CompletableFuture<>();
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(
             BeamFnControlGrpc.newStub(channelFactory.forDescriptor(apiServiceDescriptor))::control,
             new InboundObserver());
-    this.handlers = handlers;
-    this.onFinish = new CompletableFuture<>();
   }
 
   private static final Object COMPLETED = new Object();
@@ -94,7 +94,12 @@ public class BeamFnControlClient {
     @Override
     public void onNext(BeamFnApi.InstructionRequest value) {
       LOG.debug("Received InstructionRequest {}", value);
-      Uninterruptibles.putUninterruptibly(bufferedInstructions, value);
+      if (value.hasRegister()) {
+        // registration request is handled synchronously
+        processInstructionRequest(value);
+      } else {
+        Uninterruptibles.putUninterruptibly(bufferedInstructions, value);
+      }
     }
 
     @Override
@@ -137,19 +142,19 @@ public class BeamFnControlClient {
     BeamFnApi.InstructionRequest request;
     while (!Objects.equals((request = bufferedInstructions.take()), POISON_PILL)) {
       BeamFnApi.InstructionRequest currentRequest = request;
-      executor.execute(
-          () -> {
-            try {
-              BeamFnApi.InstructionResponse response =
-                  delegateOnInstructionRequestType(currentRequest);
-              sendInstructionResponse(response);
-            } catch (Error e) {
-              sendErrorResponse(e);
-              throw e;
-            }
-          });
+      executor.execute(() -> processInstructionRequest(currentRequest));
     }
     onFinish.get();
+  }
+
+  private void processInstructionRequest(BeamFnApi.InstructionRequest request) {
+    try {
+      BeamFnApi.InstructionResponse response = delegateOnInstructionRequestType(request);
+      sendInstructionResponse(response);
+    } catch (Error e) {
+      sendErrorResponse(e);
+      throw e;
+    }
   }
 
   public BeamFnApi.InstructionResponse delegateOnInstructionRequestType(
