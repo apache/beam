@@ -20,25 +20,25 @@ package org.apache.beam.runners.core.construction;
 import java.util.Collections;
 import java.util.List;
 import org.apache.avro.Schema;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.AvroGenericCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 
-/** Coder translator for AvroCoder. */
-public class AvroCoderTranslator implements CoderTranslator<AvroCoder<?>> {
+/** Coder translator for AvroGenericCoder. */
+public class AvroGenericCoderTranslator implements CoderTranslator<AvroGenericCoder> {
   @Override
-  public List<? extends Coder<?>> getComponents(AvroCoder from) {
+  public List<? extends Coder<?>> getComponents(AvroGenericCoder from) {
     return Collections.emptyList();
   }
 
   @Override
-  public byte[] getPayload(AvroCoder from) {
+  public byte[] getPayload(AvroGenericCoder from) {
     return from.getSchema().toString().getBytes(Charsets.UTF_8);
   }
 
   @Override
-  public AvroCoder fromComponents(List<Coder<?>> components, byte[] payload) {
+  public AvroGenericCoder fromComponents(List<Coder<?>> components, byte[] payload) {
     Schema schema = new Schema.Parser().parse(new String(payload, Charsets.UTF_8));
-    return AvroCoder.of(schema);
+    return AvroGenericCoder.of(schema);
   }
 }
