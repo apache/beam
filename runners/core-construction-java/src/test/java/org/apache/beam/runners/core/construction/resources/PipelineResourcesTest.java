@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction.resources;
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.io.File;
@@ -30,10 +31,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -43,8 +42,6 @@ import org.junit.runners.JUnit4;
 public class PipelineResourcesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
-  @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient RestoreSystemProperties systemProperties = new RestoreSystemProperties();
 
   @Test
   public void testDetectsResourcesToStage() throws IOException {
@@ -89,12 +86,15 @@ public class PipelineResourcesTest {
 
   @Test
   public void testIfThrowsWhenThereIsNoTemporaryFolderForJars() throws IOException {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Please provide temporary location for storing the jar files.");
-
     List<String> filesToStage = new ArrayList<>();
     filesToStage.add(tmpFolder.newFolder().getAbsolutePath());
 
-    PipelineResources.prepareFilesForStaging(filesToStage, null);
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> PipelineResources.prepareFilesForStaging(filesToStage, null));
+
+    assertEquals(
+        "Please provide temporary location for storing the jar files.", exception.getMessage());
   }
 }
