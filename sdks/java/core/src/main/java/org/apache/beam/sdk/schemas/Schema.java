@@ -497,15 +497,18 @@ public class Schema implements Serializable {
     /** The unique identifier for this type. */
     String getIdentifier();
 
+    /** A schema type representing how to interpret the argument. */
+    FieldType getArgumentType();
+
     /** An optional argument to configure the type. */
-    default String getArgument() {
-      return "";
+    @SuppressWarnings("TypeParameterUnusedInFormals")
+    default <T> T getArgument() {
+      return null;
     }
 
     /** The base {@link FieldType} used to store values of this type. */
     FieldType getBaseType();
 
-    /** Convert the input Java type to one appropriate for the base {@link FieldType}. */
     BaseT toBaseType(InputT input);
 
     /** Convert the Java type used by the base {@link FieldType} to the input type. */
@@ -665,11 +668,7 @@ public class Schema implements Serializable {
     /** Creates a logical type based on a primitive field type. */
     public static final <InputT, BaseT> FieldType logicalType(
         LogicalType<InputT, BaseT> logicalType) {
-      return FieldType.forTypeName(TypeName.LOGICAL_TYPE)
-          .setLogicalType(logicalType)
-          .build()
-          .withMetadata(LOGICAL_TYPE_IDENTIFIER, logicalType.getIdentifier())
-          .withMetadata(LOGICAL_TYPE_ARGUMENT, logicalType.getArgument());
+      return FieldType.forTypeName(TypeName.LOGICAL_TYPE).setLogicalType(logicalType).build();
     }
 
     /** Set the metadata map for the type, overriding any existing metadata.. */
@@ -720,10 +719,26 @@ public class Schema implements Serializable {
       if (!(o instanceof FieldType)) {
         return false;
       }
-      // Logical type not included here, since the logical type identifier is included in the
-      // metadata. The LogicalType class is cached in this object just for convenience.
-      // TODO: this is wrong, since LogicalTypes have metadata associated.
+
       FieldType other = (FieldType) o;
+      if (getTypeName().isLogicalType()) {
+        if (!other.getTypeName().isLogicalType()) {
+          return false;
+        }
+        if (!Objects.equals(
+            getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
+          return false;
+        }
+        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
+          return false;
+        }
+        if (!Row.Equals.deepEquals(
+            getLogicalType().getArgument(),
+            other.getLogicalType().getArgument(),
+            getLogicalType().getArgumentType())) {
+          return false;
+        }
+      }
       return Objects.equals(getTypeName(), other.getTypeName())
           && Objects.equals(getNullable(), other.getNullable())
           && Objects.equals(getCollectionElementType(), other.getCollectionElementType())
@@ -737,6 +752,24 @@ public class Schema implements Serializable {
     public boolean typesEqual(FieldType other) {
       if (!Objects.equals(getTypeName(), other.getTypeName())) {
         return false;
+      }
+      if (getTypeName().isLogicalType()) {
+        if (!other.getTypeName().isLogicalType()) {
+          return false;
+        }
+        if (!Objects.equals(
+            getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
+          return false;
+        }
+        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
+          return false;
+        }
+        if (!Row.Equals.deepEquals(
+            getLogicalType().getArgument(),
+            other.getLogicalType().getArgument(),
+            getLogicalType().getArgumentType())) {
+          return false;
+        }
       }
       if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;

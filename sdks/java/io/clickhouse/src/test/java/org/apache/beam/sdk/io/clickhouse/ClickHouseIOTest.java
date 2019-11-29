@@ -25,10 +25,10 @@ import java.util.Arrays;
 import java.util.Objects;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.Row;
@@ -158,7 +158,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f14", FieldType.STRING),
             Schema.Field.of("f15", FieldType.STRING),
             Schema.Field.of("f16", FieldType.BYTES),
-            Schema.Field.of("f17", FieldType.logicalType(LogicalTypes.FixedBytes.of(3))));
+            Schema.Field.of("f17", FieldType.logicalType(FixedBytes.of(3))));
     Row row1 =
         Row.withSchema(schema)
             .addValue(new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC))

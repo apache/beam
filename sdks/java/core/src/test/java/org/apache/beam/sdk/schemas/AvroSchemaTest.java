@@ -31,9 +31,10 @@ import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
@@ -213,6 +214,44 @@ public class AvroSchemaTest {
     }
 
     public AvroPojo() {}
+
+    @Override
+    public String toString() {
+      return "AvroPojo{"
+          + "boolNonNullable="
+          + boolNonNullable
+          + ", anInt="
+          + anInt
+          + ", aLong="
+          + aLong
+          + ", aFloat="
+          + aFloat
+          + ", aDouble="
+          + aDouble
+          + ", string='"
+          + string
+          + '\''
+          + ", bytes="
+          + bytes
+          + ", fixed="
+          + Arrays.toString(fixed)
+          + ", date="
+          + date
+          + ", timestampMillis="
+          + timestampMillis
+          + ", testEnum="
+          + testEnum
+          + ", row="
+          + row
+          + ", array="
+          + array
+          + ", map="
+          + map
+          + ", extraField='"
+          + extraField
+          + '\''
+          + '}';
+    }
   }
 
   private static final Schema SUBSCHEMA =
@@ -221,6 +260,8 @@ public class AvroSchemaTest {
           .addNullableField("int", FieldType.INT32)
           .build();
   private static final FieldType SUB_TYPE = FieldType.row(SUBSCHEMA).withNullable(true);
+
+  private static final EnumerationType TEST_ENUM_TYPE = EnumerationType.create("abc", "cde");
 
   private static final Schema SCHEMA =
       Schema.builder()
@@ -234,7 +275,7 @@ public class AvroSchemaTest {
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
-          .addField("testEnum", FieldType.STRING)
+          .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE))
@@ -252,7 +293,7 @@ public class AvroSchemaTest {
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
-          .addField("testEnum", FieldType.STRING)
+          .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE.withNullable(false)))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE.withNullable(false)))
@@ -324,7 +365,7 @@ public class AvroSchemaTest {
               BYTE_ARRAY,
               DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
-              "abc",
+              TEST_ENUM_TYPE.valueOf("abc"),
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))
@@ -399,7 +440,7 @@ public class AvroSchemaTest {
               BYTE_ARRAY,
               DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
-              "abc",
+              TEST_ENUM_TYPE.valueOf("abc"),
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))

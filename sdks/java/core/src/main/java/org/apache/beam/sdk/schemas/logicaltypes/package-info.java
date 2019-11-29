@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+/**
+ * A set of common LogicalTypes for use with schemas.
+ *
+ * <p>For further details, see the documentation for each class in this package.
+ */
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.sdk.schemas.logicaltypes;
 
-import static org.junit.Assert.assertTrue;
-
-import org.apache.beam.sdk.schemas.Schema;
-
-/** Utilities for testing schemas. */
-public class SchemaTestUtils {
-  // Assert that two schemas are equivalent, ignoring field order. This tests that both schemas
-  // (recursively) contain the same fields with the same names, but possibly different orders.
-  public static void assertSchemaEquivalent(Schema expected, Schema actual) {
-    assertTrue("Expected: " + expected + "  Got: " + actual, actual.equivalent(expected));
-  }
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

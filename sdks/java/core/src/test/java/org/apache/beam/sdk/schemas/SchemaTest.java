@@ -24,9 +24,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.stream.Stream;
-import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -296,7 +296,7 @@ public class SchemaTest {
 
   static class TestType extends PassThroughLogicalType<Long> {
     TestType(String id, String arg) {
-      super(id, arg, FieldType.INT64);
+      super(id, FieldType.STRING, arg, FieldType.INT64);
     }
   }
 

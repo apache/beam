@@ -50,7 +50,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -62,6 +61,8 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -612,7 +613,7 @@ public class AvroUtils {
           break;
 
         case ENUM:
-          fieldType = Schema.FieldType.STRING;
+          fieldType = FieldType.logicalType(EnumerationType.create(type.type.getEnumSymbols()));
           break;
 
         case ARRAY:
@@ -661,10 +662,10 @@ public class AvroUtils {
           break;
 
         case UNION:
-          throw new RuntimeException("Can't convert 'union' to FieldType");
+          throw new IllegalArgumentException("Union types not yet supported");
 
         case NULL:
-          throw new RuntimeException("Can't convert 'null' to FieldType");
+          throw new IllegalArgumentException("Can't convert 'null' to FieldType");
 
         default:
           throw new AssertionError("Unexpected AVRO Schema.Type: " + avroSchema.getType());
@@ -722,12 +723,20 @@ public class AvroUtils {
         break;
 
       case LOGICAL_TYPE:
-        FixedBytesField fixedBytesField = FixedBytesField.fromBeamFieldType(fieldType);
-        if (fixedBytesField != null) {
-          baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
-        } else {
-          throw new RuntimeException(
-              "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
+        switch (fieldType.getLogicalType().getIdentifier()) {
+          case FixedBytes.IDENTIFIER:
+            FixedBytesField fixedBytesField =
+                checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
+            baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
+            break;
+          case EnumerationType.IDENTIFIER:
+            EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
+            baseType =
+                org.apache.avro.Schema.createEnum(fieldName, "", "", enumerationType.getValues());
+            break;
+          default:
+            throw new RuntimeException(
+                "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
         }
         break;
 
@@ -810,16 +819,24 @@ public class AvroUtils {
         return ByteBuffer.wrap((byte[]) value);
 
       case LOGICAL_TYPE:
-        FixedBytesField fixedBytesField = FixedBytesField.fromBeamFieldType(fieldType);
-        if (fixedBytesField != null) {
-          byte[] byteArray = (byte[]) value;
-          if (byteArray.length != fixedBytesField.getSize()) {
-            throw new IllegalArgumentException("Incorrectly sized byte array.");
-          }
-          return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
+        switch (fieldType.getLogicalType().getIdentifier()) {
+          case FixedBytes.IDENTIFIER:
+            FixedBytesField fixedBytesField =
+                checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
+            byte[] byteArray = (byte[]) value;
+            if (byteArray.length != fixedBytesField.getSize()) {
+              throw new IllegalArgumentException("Incorrectly sized byte array.");
+            }
+            return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
+          case EnumerationType.IDENTIFIER:
+            EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
+            return GenericData.get()
+                .createEnum(
+                    enumerationType.valueOf((int) value).toString(), typeWithNullability.type);
+          default:
+            throw new RuntimeException(
+                "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
         }
-        throw new RuntimeException(
-            "Unknown logical type " + fieldType.getLogicalType().getIdentifier());
 
       case ARRAY:
       case ITERABLE:
@@ -942,8 +959,7 @@ public class AvroUtils {
             (Map<CharSequence, Object>) value, type.type.getValueType(), fieldType);
 
       case UNION:
-        throw new IllegalArgumentException(
-            "Can't convert 'union', only nullable fields are supported");
+        throw new IllegalArgumentException("Union types not yet supported");
 
       case NULL:
         throw new IllegalArgumentException("Can't convert 'null' to non-nullable field");
@@ -1018,8 +1034,10 @@ public class AvroUtils {
   }
 
   private static Object convertEnumStrict(Object value, Schema.FieldType fieldType) {
-    checkTypeName(fieldType.getTypeName(), Schema.TypeName.STRING, "enum");
-    return value.toString();
+    checkTypeName(fieldType.getTypeName(), TypeName.LOGICAL_TYPE, "enum");
+    checkArgument(fieldType.getLogicalType().getIdentifier().equals(EnumerationType.IDENTIFIER));
+    EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
+    return enumerationType.valueOf(value.toString());
   }
 
   private static Object convertArrayStrict(
