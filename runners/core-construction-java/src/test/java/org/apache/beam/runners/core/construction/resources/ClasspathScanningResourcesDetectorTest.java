@@ -21,6 +21,7 @@ import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,14 +33,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 public class ClasspathScanningResourcesDetectorTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
-
-  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Rule public transient RestoreSystemProperties systemProperties = new RestoreSystemProperties();
 
@@ -80,9 +78,9 @@ public class ClasspathScanningResourcesDetectorTest {
     String url = "http://www.google.com/all-the-secrets.jar";
     URLClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unable to convert url (" + url + ") to file.");
+    IllegalArgumentException exeption =
+        assertThrows(IllegalArgumentException.class, () -> detector.detect(classLoader));
 
-    detector.detect(classLoader);
+    assertEquals("Unable to convert url (" + url + ") to file.", exeption.getMessage());
   }
 }
