@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

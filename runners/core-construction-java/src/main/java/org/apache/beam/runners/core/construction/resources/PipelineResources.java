@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.runners.core.construction.resources;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.core.construction.resources.PipelineResourcesOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -38,7 +37,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 public class PipelineResources {
 
   /**
-   * Uses algorithm provided via {@link PipelineResourcesOptions} to detect classpath resources.
+   * Uses algorithm provided via {@link
+   * org.apache.beam.runners.core.construction.resources.PipelineResourcesOptions} to detect
+   * classpath resources.
    *
    * @param classLoader The URLClassLoader to use to detect resources to stage (optional).
    * @param options pipeline options

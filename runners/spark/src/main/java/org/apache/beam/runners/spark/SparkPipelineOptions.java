@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark;
 import java.io.File;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.core.construction.PipelineResources;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
