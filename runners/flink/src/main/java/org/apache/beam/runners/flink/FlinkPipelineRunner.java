@@ -178,7 +178,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
         new FlinkPipelineRunner(
             flinkOptions,
             configuration.flinkConfDir,
-            detectClassPathResourcesToStage(FlinkPipelineRunner.class.getClassLoader()));
+            detectClassPathResourcesToStage(
+                FlinkPipelineRunner.class.getClassLoader(), flinkOptions));
     JobInfo jobInfo =
         JobInfo.create(
             invocationId,

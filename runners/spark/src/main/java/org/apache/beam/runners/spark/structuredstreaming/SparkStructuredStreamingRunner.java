@@ -111,7 +111,8 @@ public final class SparkStructuredStreamingRunner
 
     if (sparkOptions.getFilesToStage() == null) {
       sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkStructuredStreamingRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(
+              SparkStructuredStreamingRunner.class.getClassLoader(), options));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "

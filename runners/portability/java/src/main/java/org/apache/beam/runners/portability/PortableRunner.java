@@ -104,7 +104,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
           s -> pathsToStage.addAll(Arrays.asList(s.replaceFirst("jar_packages=", "").split(","))));
     }
     if (portableOptions.getFilesToStage() == null) {
-      pathsToStage.addAll(detectClassPathResourcesToStage(PortableRunner.class.getClassLoader()));
+      pathsToStage.addAll(
+          detectClassPathResourcesToStage(PortableRunner.class.getClassLoader(), options));
       if (pathsToStage.isEmpty()) {
         throw new IllegalArgumentException("No classpath elements found.");
       }
