@@ -49,7 +49,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc.Artif
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.construction.PipelineResources;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;

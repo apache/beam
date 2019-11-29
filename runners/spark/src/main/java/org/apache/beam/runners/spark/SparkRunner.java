@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
 import java.util.Collection;
