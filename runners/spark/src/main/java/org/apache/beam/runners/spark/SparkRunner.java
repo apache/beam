@@ -128,7 +128,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     if (sparkOptions.getFilesToStage() == null) {
       sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(SparkRunner.class.getClassLoader(), options));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "

@@ -78,7 +78,8 @@ public class FlinkJobInvoker extends JobInvoker {
           new FlinkPipelineRunner(
               flinkOptions,
               serverConfig.getFlinkConfDir(),
-              detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
+              detectClassPathResourcesToStage(
+                  FlinkJobInvoker.class.getClassLoader(), flinkOptions));
     } else {
       pipelineRunner = new PortablePipelineJarCreator(FlinkPipelineRunner.class);
     }

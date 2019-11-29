@@ -94,7 +94,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     if (pipelineOptions.getFilesToStage() == null) {
       pipelineOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkPipelineRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(
+              SparkPipelineRunner.class.getClassLoader(), pipelineOptions));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
     }
