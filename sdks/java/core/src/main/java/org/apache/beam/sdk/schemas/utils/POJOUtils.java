@@ -34,7 +34,6 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruction;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
@@ -91,14 +90,15 @@ public class POJOUtils {
       Maps.newConcurrentMap();
 
   public static List<FieldValueGetter> getGetters(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier,
+      TypeConversionsFactory typeConversionsFactory) {
     // Return the getters ordered by their position in the schema.
     return CACHED_GETTERS.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           List<FieldValueGetter> getters =
-              types.stream().map(POJOUtils::createGetter).collect(Collectors.toList());
+              types.stream().map(t -> createGetter(t, typeConversionsFactory)).collect(Collectors.toList());
           if (getters.size() != schema.getFieldCount()) {
             throw new RuntimeException(
                 "Was not able to generate getters for schema: " + schema + " class: " + clazz);
@@ -123,12 +123,6 @@ public class POJOUtils {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createSetFieldCreator(clazz, schema, types, typeConversionsFactory);
         });
-  }
-
-  public static <T> SchemaUserTypeCreator getSetFieldCreator(
-      Class<T> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return getSetFieldCreator(
-        clazz, schema, fieldValueTypeSupplier, new DefaultTypeConversionsFactory());
   }
 
   private static <T> SchemaUserTypeCreator createSetFieldCreator(
@@ -179,15 +173,6 @@ public class POJOUtils {
         });
   }
 
-  public static SchemaUserTypeCreator getConstructorCreator(
-      Class clazz,
-      Constructor constructor,
-      Schema schema,
-      FieldValueTypeSupplier fieldValueTypeSuppliery) {
-    return getConstructorCreator(
-        clazz, constructor, schema, fieldValueTypeSuppliery, new DefaultTypeConversionsFactory());
-  }
-
   public static <T> SchemaUserTypeCreator createConstructorCreator(
       Class<T> clazz,
       Constructor<T> constructor,
@@ -233,12 +218,6 @@ public class POJOUtils {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createStaticCreator(clazz, creator, schema, types, typeConversionsFactory);
         });
-  }
-
-  public static SchemaUserTypeCreator getStaticCreator(
-      Class clazz, Method creator, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return getStaticCreator(
-        clazz, creator, schema, fieldValueTypeSupplier, new DefaultTypeConversionsFactory());
   }
 
   public static <T> SchemaUserTypeCreator createStaticCreator(
@@ -316,12 +295,6 @@ public class POJOUtils {
     }
   }
 
-  @Nullable
-  static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(
-      FieldValueTypeInformation typeInformation) {
-    return createGetter(typeInformation, new DefaultTypeConversionsFactory());
-  }
-
   private static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
       DynamicType.Builder<FieldValueGetter> builder,
       Field field,
@@ -353,11 +326,6 @@ public class POJOUtils {
               .map(t -> createSetter(t, typeConversionsFactory))
               .collect(Collectors.toList());
         });
-  }
-
-  public static List<FieldValueSetter> getSetters(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return getSetters(clazz, schema, fieldValueTypeSupplier, new DefaultTypeConversionsFactory());
   }
 
   /**

@@ -31,7 +31,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.avro.generic.GenericFixed;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -187,9 +186,6 @@ public class ByteBuddyUtils {
         return convertDateTime(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
         return convertByteBuffer(typeDescriptor);
-      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
-        // TODO: Refactor AVRO-specific check into separate class.
-        return convertGenericFixed(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
         return convertCharSequence(typeDescriptor);
       } else if (typeDescriptor.getRawType().isPrimitive()) {
@@ -218,8 +214,6 @@ public class ByteBuddyUtils {
     protected abstract T convertDateTime(TypeDescriptor<?> type);
 
     protected abstract T convertByteBuffer(TypeDescriptor<?> type);
-
-    protected abstract T convertGenericFixed(TypeDescriptor<?> type);
 
     protected abstract T convertCharSequence(TypeDescriptor<?> type);
 
@@ -283,11 +277,6 @@ public class ByteBuddyUtils {
 
     @Override
     protected Type convertByteBuffer(TypeDescriptor<?> type) {
-      return byte[].class;
-    }
-
-    @Override
-    protected Type convertGenericFixed(TypeDescriptor<?> type) {
       return byte[].class;
     }
 
@@ -477,23 +466,6 @@ public class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(
                       ElementMatchers.named("array").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
-                  .getOnly()));
-    }
-
-    @Override
-    protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
-      // TODO: Refactor AVRO-specific code into separate class.
-
-      // Generate the following code:
-      // return value.bytes();
-
-      return new Compound(
-          readValue,
-          MethodInvocation.invoke(
-              new ForLoadedType(GenericFixed.class)
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
                   .getOnly()));
     }
 
@@ -704,29 +676,6 @@ public class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(
                       ElementMatchers.named("wrap")
-                          .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
-                  .getOnly()));
-    }
-
-    @Override
-    protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
-      // Generate the following code:
-      // return new T((byte[]) value);
-
-      // TODO: Refactor AVRO-specific code out of this class.
-      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-      return new Compound(
-          TypeCreation.of(loadedType),
-          Duplication.SINGLE,
-          // Load the parameter and cast it to a byte[].
-          readValue,
-          TypeCasting.to(BYTE_ARRAY_TYPE),
-          // Create a new instance that wraps this byte[].
-          MethodInvocation.invoke(
-              loadedType
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.isConstructor()
                           .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
                   .getOnly()));
     }

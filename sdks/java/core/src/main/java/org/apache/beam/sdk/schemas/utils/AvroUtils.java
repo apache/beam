@@ -57,9 +57,22 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.Duplication;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.TypeCreation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -165,6 +178,104 @@ public class AvroUtils {
     /** Convert to an AVRO type. */
     public org.apache.avro.Schema toAvroType(String name, String namespace) {
       return org.apache.avro.Schema.createFixed(name, null, namespace, size);
+    }
+  }
+
+  public static class AvroConvertType extends ConvertType {
+    public  AvroConvertType(boolean returnRawType) {
+      super(returnRawType);
+    }
+
+    @Override
+    protected java.lang.reflect.Type convertDefault(TypeDescriptor<?> type) {
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        return byte[].class;
+      } else {
+        return super.convertDefault(type);
+      }
+    }
+  }
+
+  public static class AvroConvertValueForGetter extends ConvertValueForGetter {
+    AvroConvertValueForGetter(StackManipulation readValue) {
+      super(readValue);
+    }
+
+    @Override
+    protected TypeConversionsFactory getFactory() {
+      return new AvroTypeConversionFactory();
+    }
+
+    @Override
+    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        // Generate the following code:
+        // return value.bytes();
+        return new Compound(
+                readValue,
+                MethodInvocation.invoke(
+                        new ForLoadedType(GenericFixed.class)
+                                .getDeclaredMethods()
+                                .filter(
+                                        ElementMatchers.named("bytes")
+                                                .and(ElementMatchers.returns(new ForLoadedType(byte[].class))))
+                                .getOnly()));
+      }
+      return super.convertDefault(type);
+    }
+  }
+
+  public static class AvroConvertValueForSetter extends ConvertValueForSetter  {
+    AvroConvertValueForSetter(StackManipulation readValue) {
+      super(readValue);
+    }
+
+    @Override
+    protected TypeConversionsFactory getFactory() {
+      return new AvroTypeConversionFactory();
+    }
+
+    @Override
+    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
+      final ForLoadedType byteArrayType = new ForLoadedType(byte[].class);
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        // Generate the following code:
+        // return new T((byte[]) value);
+        ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+        return new Compound(
+                TypeCreation.of(loadedType),
+                Duplication.SINGLE,
+                // Load the parameter and cast it to a byte[].
+                readValue,
+                TypeCasting.to(byteArrayType),
+                // Create a new instance that wraps this byte[].
+                MethodInvocation.invoke(
+                        loadedType
+                                .getDeclaredMethods()
+                                .filter(
+                                        ElementMatchers.isConstructor()
+                                                .and(ElementMatchers.takesArguments(byteArrayType)))
+                                .getOnly()));
+      }
+      return super.convertDefault(type);
+    }
+  }
+
+  static class AvroTypeConversionFactory implements TypeConversionsFactory {
+
+    @Override
+    public TypeConversion<java.lang.reflect.Type> createTypeConversion(boolean returnRawTypes) {
+      return new AvroConvertType(returnRawTypes);
+    }
+
+    @Override
+    public TypeConversion<StackManipulation> createGetterConversions(StackManipulation readValue) {
+      return new AvroConvertValueForGetter(readValue);
+    }
+
+    @Override
+    public TypeConversion<StackManipulation> createSetterConversions(StackManipulation readValue) {
+      return new AvroConvertValueForSetter(readValue);
     }
   }
 
@@ -456,9 +567,9 @@ public class AvroUtils {
   public static <T> List<FieldValueGetter> getGetters(Class<T> clazz, Schema schema) {
     if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
       return JavaBeanUtils.getGetters(
-          clazz, schema, new AvroSpecificRecordFieldValueTypeSupplier());
+          clazz, schema, new AvroSpecificRecordFieldValueTypeSupplier(), new AvroTypeConversionFactory());
     } else {
-      return POJOUtils.getGetters(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+      return POJOUtils.getGetters(clazz, schema, new AvroPojoFieldValueTypeSupplier(), new AvroTypeConversionFactory());
     }
   }
 
@@ -467,7 +578,7 @@ public class AvroUtils {
     if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
       return AvroByteBuddyUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
     } else {
-      return POJOUtils.getSetFieldCreator(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+      return POJOUtils.getSetFieldCreator(clazz, schema, new AvroPojoFieldValueTypeSupplier(), new AvroTypeConversionFactory());
     }
   }
 

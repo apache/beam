@@ -32,7 +32,6 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruction;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
@@ -131,11 +130,6 @@ public class JavaBeanUtils {
         });
   }
 
-  public static List<FieldValueGetter> getGetters(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return getGetters(clazz, schema, fieldValueTypeSupplier, new DefaultTypeConversionsFactory());
-  }
-
   private static <T> FieldValueGetter createGetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     DynamicType.Builder<FieldValueGetter> builder =
@@ -199,11 +193,6 @@ public class JavaBeanUtils {
         });
   }
 
-  public static List<FieldValueSetter> getSetters(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return getSetters(clazz, schema, fieldValueTypeSupplier, new DefaultTypeConversionsFactory());
-  }
-
   private static FieldValueSetter createSetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     DynamicType.Builder<FieldValueSetter> builder =
@@ -263,14 +252,6 @@ public class JavaBeanUtils {
         });
   }
 
-  public static SchemaUserTypeCreator getConstructorCreator(
-      Class clazz,
-      Constructor constructor,
-      Schema schema,
-      FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return getConstructorCreator(
-        clazz, constructor, schema, fieldValueTypeSupplier, new DefaultTypeConversionsFactory());
-  }
 
   public static <T> SchemaUserTypeCreator createConstructorCreator(
       Class<T> clazz,
@@ -316,12 +297,6 @@ public class JavaBeanUtils {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createStaticCreator(clazz, creator, schema, types, typeConversionsFactory);
         });
-  }
-
-  public static SchemaUserTypeCreator getStaticCreator(
-      Class clazz, Method creator, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return getStaticCreator(
-        clazz, creator, schema, fieldValueTypeSupplier, new DefaultTypeConversionsFactory());
   }
 
   public static <T> SchemaUserTypeCreator createStaticCreator(
