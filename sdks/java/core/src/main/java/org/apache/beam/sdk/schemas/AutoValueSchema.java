@@ -60,17 +60,18 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
     return JavaBeanUtils.getGetters(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
   }
 
   @Override
-  List<FieldValueTypeInformation> fieldValueTypeInformations(Class<?> targetClass, Schema schema) {
+  public List<FieldValueTypeInformation> fieldValueTypeInformations(
+      Class<?> targetClass, Schema schema) {
     return JavaBeanUtils.getFieldTypes(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
   }
 
   @Override
-  SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
     // If a static method is marked with @SchemaCreate, use that.
     Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
     if (annotated != null) {
