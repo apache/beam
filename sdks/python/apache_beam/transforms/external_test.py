@@ -322,7 +322,7 @@ class ExternalTransformTest(unittest.TestCase):
 
   def test_unique_name(self):
     p = beam.Pipeline()
-    p | FibTransform(6)
+    _ = p | FibTransform(6)
     proto = p.to_runner_api()
     xforms = [x.unique_name for x in proto.components.transforms.values()]
     self.assertEqual(
