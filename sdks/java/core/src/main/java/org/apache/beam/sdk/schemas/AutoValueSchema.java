@@ -62,7 +62,11 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
 
   @Override
   public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getGetters(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+    return JavaBeanUtils.getGetters(
+        targetClass,
+        schema,
+        AbstractGetterTypeSupplier.INSTANCE,
+        new DefaultTypeConversionsFactory());
   }
 
   @Override
@@ -77,7 +81,11 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
     if (annotated != null) {
       return JavaBeanUtils.getStaticCreator(
-          targetClass, annotated, schema, AbstractGetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+          targetClass,
+          annotated,
+          schema,
+          AbstractGetterTypeSupplier.INSTANCE,
+          new DefaultTypeConversionsFactory());
     }
 
     // Try to find a generated builder class. If one exists, use that to generate a

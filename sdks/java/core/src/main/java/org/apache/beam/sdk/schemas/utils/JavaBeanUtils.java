@@ -252,7 +252,6 @@ public class JavaBeanUtils {
         });
   }
 
-
   public static <T> SchemaUserTypeCreator createConstructorCreator(
       Class<T> clazz,
       Constructor<T> constructor,

@@ -98,7 +98,8 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
 
   @Override
   public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
-    return POJOUtils.getGetters(targetClass, schema, JavaFieldTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+    return POJOUtils.getGetters(
+        targetClass, schema, JavaFieldTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
   }
 
   @Override
@@ -113,16 +114,25 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
     Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
     if (annotated != null) {
       return POJOUtils.getStaticCreator(
-          targetClass, annotated, schema, JavaFieldTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+          targetClass,
+          annotated,
+          schema,
+          JavaFieldTypeSupplier.INSTANCE,
+          new DefaultTypeConversionsFactory());
     }
 
     // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
     Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
     if (constructor != null) {
       return POJOUtils.getConstructorCreator(
-          targetClass, constructor, schema, JavaFieldTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+          targetClass,
+          constructor,
+          schema,
+          JavaFieldTypeSupplier.INSTANCE,
+          new DefaultTypeConversionsFactory());
     }
 
-    return POJOUtils.getSetFieldCreator(targetClass, schema, JavaFieldTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+    return POJOUtils.getSetFieldCreator(
+        targetClass, schema, JavaFieldTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
   }
 }

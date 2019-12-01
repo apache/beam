@@ -134,7 +134,10 @@ public class JavaBeanUtilsTest {
 
     List<FieldValueGetter> getters =
         JavaBeanUtils.getGetters(
-            SimpleBean.class, SIMPLE_BEAN_SCHEMA, new JavaBeanSchema.GetterTypeSupplier(), new DefaultTypeConversionsFactory());
+            SimpleBean.class,
+            SIMPLE_BEAN_SCHEMA,
+            new JavaBeanSchema.GetterTypeSupplier(),
+            new DefaultTypeConversionsFactory());
     assertEquals(12, getters.size());
     assertEquals("str", getters.get(0).name());
 
@@ -162,7 +165,11 @@ public class JavaBeanUtilsTest {
   public void testGeneratedSimpleSetters() {
     SimpleBean simpleBean = new SimpleBean();
     List<FieldValueSetter> setters =
-        JavaBeanUtils.getSetters(SimpleBean.class, SIMPLE_BEAN_SCHEMA, new SetterTypeSupplier(), new DefaultTypeConversionsFactory());
+        JavaBeanUtils.getSetters(
+            SimpleBean.class,
+            SIMPLE_BEAN_SCHEMA,
+            new SetterTypeSupplier(),
+            new DefaultTypeConversionsFactory());
     assertEquals(12, setters.size());
 
     setters.get(0).set(simpleBean, "field1");
@@ -208,7 +215,7 @@ public class JavaBeanUtilsTest {
             BeanWithBoxedFields.class,
             BEAN_WITH_BOXED_FIELDS_SCHEMA,
             new JavaBeanSchema.GetterTypeSupplier(),
-                new DefaultTypeConversionsFactory());
+            new DefaultTypeConversionsFactory());
     assertEquals((byte) 41, getters.get(0).get(bean));
     assertEquals((short) 42, getters.get(1).get(bean));
     assertEquals((int) 43, getters.get(2).get(bean));
@@ -221,7 +228,10 @@ public class JavaBeanUtilsTest {
     BeanWithBoxedFields bean = new BeanWithBoxedFields();
     List<FieldValueSetter> setters =
         JavaBeanUtils.getSetters(
-            BeanWithBoxedFields.class, BEAN_WITH_BOXED_FIELDS_SCHEMA, new SetterTypeSupplier(), new DefaultTypeConversionsFactory());
+            BeanWithBoxedFields.class,
+            BEAN_WITH_BOXED_FIELDS_SCHEMA,
+            new SetterTypeSupplier(),
+            new DefaultTypeConversionsFactory());
 
     setters.get(0).set(bean, (byte) 41);
     setters.get(1).set(bean, (short) 42);
@@ -241,7 +251,10 @@ public class JavaBeanUtilsTest {
     BeanWithByteArray bean = new BeanWithByteArray();
     List<FieldValueSetter> setters =
         JavaBeanUtils.getSetters(
-            BeanWithByteArray.class, BEAN_WITH_BYTE_ARRAY_SCHEMA, new SetterTypeSupplier(), new DefaultTypeConversionsFactory());
+            BeanWithByteArray.class,
+            BEAN_WITH_BYTE_ARRAY_SCHEMA,
+            new SetterTypeSupplier(),
+            new DefaultTypeConversionsFactory());
     setters.get(0).set(bean, "field1".getBytes(Charset.defaultCharset()));
     setters.get(1).set(bean, "field2".getBytes(Charset.defaultCharset()));
 

@@ -90,7 +90,9 @@ public class POJOUtils {
       Maps.newConcurrentMap();
 
   public static List<FieldValueGetter> getGetters(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier,
+      Class<?> clazz,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     // Return the getters ordered by their position in the schema.
     return CACHED_GETTERS.computeIfAbsent(
@@ -98,7 +100,9 @@ public class POJOUtils {
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           List<FieldValueGetter> getters =
-              types.stream().map(t -> createGetter(t, typeConversionsFactory)).collect(Collectors.toList());
+              types.stream()
+                  .map(t -> createGetter(t, typeConversionsFactory))
+                  .collect(Collectors.toList());
           if (getters.size() != schema.getFieldCount()) {
             throw new RuntimeException(
                 "Was not able to generate getters for schema: " + schema + " class: " + clazz);

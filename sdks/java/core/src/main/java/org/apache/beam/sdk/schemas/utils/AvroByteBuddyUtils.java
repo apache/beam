@@ -24,7 +24,7 @@ import java.util.Map;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
+import org.apache.beam.sdk.schemas.utils.AvroUtils.AvroTypeConversionFactory;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
@@ -104,7 +104,7 @@ class AvroByteBuddyUtils {
 
   private static StackManipulation readAndConvertParameter(
       Class<?> constructorParameterType, int index) {
-    TypeConversionsFactory typeConversionsFactory = new DefaultTypeConversionsFactory();
+    TypeConversionsFactory typeConversionsFactory = new AvroTypeConversionFactory();
 
     // The types in the AVRO-generated constructor might be the types returned by Beam's Row class,
     // so we have to convert the types used by Beam's Row class.

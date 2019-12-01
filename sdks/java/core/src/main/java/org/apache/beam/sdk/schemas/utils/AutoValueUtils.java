@@ -116,7 +116,11 @@ public class AutoValueUtils {
         .map(
             c ->
                 JavaBeanUtils.getConstructorCreator(
-                    generatedClass, c, schema, fieldValueTypeSupplier, new DefaultTypeConversionsFactory()))
+                    generatedClass,
+                    c,
+                    schema,
+                    fieldValueTypeSupplier,
+                    new DefaultTypeConversionsFactory()))
         .orElse(null);
   }
 

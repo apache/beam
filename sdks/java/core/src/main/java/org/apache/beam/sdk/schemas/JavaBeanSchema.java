@@ -121,7 +121,8 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
   @Override
   public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getGetters(targetClass, schema, GetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+    return JavaBeanUtils.getGetters(
+        targetClass, schema, GetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
   }
 
   @Override
@@ -136,14 +137,22 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
     if (annotated != null) {
       return JavaBeanUtils.getStaticCreator(
-          targetClass, annotated, schema, GetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+          targetClass,
+          annotated,
+          schema,
+          GetterTypeSupplier.INSTANCE,
+          new DefaultTypeConversionsFactory());
     }
 
     // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
     Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
     if (constructor != null) {
       return JavaBeanUtils.getConstructorCreator(
-          targetClass, constructor, schema, GetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+          targetClass,
+          constructor,
+          schema,
+          GetterTypeSupplier.INSTANCE,
+          new DefaultTypeConversionsFactory());
     }
 
     // Else try to make a setter-based creator
@@ -156,7 +165,8 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   public static class JavaBeanSetterFactory implements FieldValueSetterFactory {
     @Override
     public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
-      return JavaBeanUtils.getSetters(targetClass, schema, SetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+      return JavaBeanUtils.getSetters(
+          targetClass, schema, SetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
     }
   }
 
