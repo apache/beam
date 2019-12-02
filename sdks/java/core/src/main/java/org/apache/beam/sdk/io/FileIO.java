@@ -135,9 +135,15 @@ import org.slf4j.LoggerFactory;
  *     .apply(FileIO.readMatches().withCompression(GZIP))
  *     .apply(MapElements
  *         // uses imports from TypeDescriptors
- *         .into(KVs(strings(), strings()))
- *         .via((ReadableFile f) -> KV.of(
- *             f.getMetadata().resourceId().toString(), f.readFullyAsUTF8String())));
+ *         .into(kvs(strings(), strings()))
+ *         .via((ReadableFile f) -> {
+ *           try {
+ *             return KV.of(
+ *                 f.getMetadata().resourceId().toString(), f.readFullyAsUTF8String());
+ *           } catch (IOException ex) {
+ *             throw new RuntimeException("Failed to read the file", ex);
+ *           }
+ *         }));
  * }</pre>
  *
  * <h2>Writing files</h2>
