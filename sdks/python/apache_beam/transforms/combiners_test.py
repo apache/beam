@@ -26,12 +26,16 @@ import unittest
 
 import hamcrest as hc
 from future.builtins import range
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import equal_to_per_window
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
@@ -39,7 +43,9 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.typehints import TypeCheckError
+from apache_beam.utils.timestamp import Timestamp
 
 
 class CombineTest(unittest.TestCase):
@@ -480,6 +486,73 @@ class LatestCombineFnTest(unittest.TestCase):
         pc = p | Create(l_3_tuple)
         _ = pc | beam.CombineGlobally(self.fn)
 
+#
+# Test cases for streaming.
+#
+@attr('ValidatesRunner')
+class TimestampCombinerTest(unittest.TestCase):
+
+  def test_combiner_earliest(self):
+    """Test TimestampCombiner with EARLIEST."""
+    options = PipelineOptions(streaming=True)
+    with TestPipeline(options=options) as p:
+      result = (p
+                | TestStream()
+                .add_elements([window.TimestampedValue(('k', 100), 2)])
+                .add_elements([window.TimestampedValue(('k', 400), 7)])
+                .advance_watermark_to_infinity()
+                | beam.WindowInto(
+                    window.FixedWindows(10),
+                    timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
+                | beam.CombinePerKey(sum))
+
+      records = (result
+                 | beam.Map(lambda e, ts=beam.DoFn.TimestampParam: (e, ts)))
+
+      # All the KV pairs are applied GBK using EARLIEST timestamp for the same
+      # key.
+      expected_window_to_elements = {
+          window.IntervalWindow(0, 10): [
+              (('k', 500), Timestamp(2)),
+          ],
+      }
+
+      assert_that(
+          records,
+          equal_to_per_window(expected_window_to_elements),
+          use_global_window=False,
+          label='assert per window')
+
+  def test_combiner_latest(self):
+    """Test TimestampCombiner with LATEST."""
+    options = PipelineOptions(streaming=True)
+    with TestPipeline(options=options) as p:
+      result = (p
+                | TestStream()
+                .add_elements([window.TimestampedValue(('k', 100), 2)])
+                .add_elements([window.TimestampedValue(('k', 400), 7)])
+                .advance_watermark_to_infinity()
+                | beam.WindowInto(
+                    window.FixedWindows(10),
+                    timestamp_combiner=TimestampCombiner.OUTPUT_AT_LATEST)
+                | beam.CombinePerKey(sum))
+
+      records = (result
+                 | beam.Map(lambda e, ts=beam.DoFn.TimestampParam: (e, ts)))
+
+      # All the KV pairs are applied GBK using LATEST timestamp for
+      # the same key.
+      expected_window_to_elements = {
+          window.IntervalWindow(0, 10): [
+              (('k', 500), Timestamp(7)),
+          ],
+      }
+
+      assert_that(
+          records,
+          equal_to_per_window(expected_window_to_elements),
+          use_global_window=False,
+          label='assert per window')
 
 if __name__ == '__main__':
   unittest.main()
