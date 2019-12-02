@@ -204,7 +204,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Add some extra PTransform afterwards to make sure that only the unbounded
     # sources remain.
     c = (a, b) | beam.CoGroupByKey()
-    c | beam.Map(lambda x: x)
+    _ = c | beam.Map(lambda x: x)
 
     instrumenter = instr.PipelineInstrument(p)
     instrumenter.instrument()
