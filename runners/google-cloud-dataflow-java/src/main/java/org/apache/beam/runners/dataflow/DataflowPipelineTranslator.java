@@ -1102,19 +1102,23 @@ public class DataflowPipelineTranslator {
                   }
                   payloadBuilder.addEventsBuilder().setElementEvent(addElementsBuilder);
                 } else if (event instanceof TestStream.WatermarkEvent) {
-                  payloadBuilder.addEventsBuilder().setWatermarkEvent(
-                      RunnerApi.TestStreamPayload.Event.AdvanceWatermark.newBuilder()
-                          .setNewWatermark(
-                              ((TestStream.WatermarkEvent) event).getWatermark().getMillis()
-                                  * 1000));
+                  payloadBuilder
+                      .addEventsBuilder()
+                      .setWatermarkEvent(
+                          RunnerApi.TestStreamPayload.Event.AdvanceWatermark.newBuilder()
+                              .setNewWatermark(
+                                  ((TestStream.WatermarkEvent) event).getWatermark().getMillis()
+                                      * 1000));
                 } else if (event instanceof TestStream.ProcessingTimeEvent) {
-                  payloadBuilder.addEventsBuilder().setProcessingTimeEvent(
-                      RunnerApi.TestStreamPayload.Event.AdvanceProcessingTime.newBuilder()
-                          .setAdvanceDuration(
-                              ((TestStream.ProcessingTimeEvent) event)
-                                      .getProcessingTimeAdvance()
-                                      .getMillis()
-                                  * 1000));
+                  payloadBuilder
+                      .addEventsBuilder()
+                      .setProcessingTimeEvent(
+                          RunnerApi.TestStreamPayload.Event.AdvanceProcessingTime.newBuilder()
+                              .setAdvanceDuration(
+                                  ((TestStream.ProcessingTimeEvent) event)
+                                          .getProcessingTimeAdvance()
+                                          .getMillis()
+                                      * 1000));
                 }
               }
               stepContext.addInput(
