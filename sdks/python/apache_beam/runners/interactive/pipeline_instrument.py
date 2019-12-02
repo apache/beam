@@ -90,7 +90,8 @@ class PipelineInstrument(object):
          return_context=True, use_fake_coders=True)
 
     # All compute-once-against-original-pipeline fields.
-    self._unbounded_sources = unbounded_sources(self._pipeline_snap)
+    self._unbounded_sources = unbounded_sources(
+        self._background_caching_pipeline)
     # TODO(BEAM-7760): once cache scope changed, this is not needed to manage
     # relationships across pipelines, runners, and jobs.
     self._pcolls_to_pcoll_id = pcolls_to_pcoll_id(self._pipeline_snap,
@@ -194,7 +195,7 @@ class PipelineInstrument(object):
 
     # Get all the root transforms. The caching transforms will be subtransforms
     # of one of these roots.
-    roots = pipeline_proto.root_transform_ids
+    roots = [root for root in pipeline_proto.root_transform_ids]
 
     # Get the transform IDs of the caching transforms. These caching operations
     # are added the the _background_caching_pipeline in the instrument() method.
@@ -310,7 +311,7 @@ class PipelineInstrument(object):
 
     # Instrument the background caching pipeline if we can.
     if self.has_unbounded_sources:
-      for source in sources:
+      for source in self._unbounded_sources:
         self._write_cache(self._background_caching_pipeline,
                           source.outputs[None])
 
@@ -570,7 +571,6 @@ def unbounded_sources(pipeline):
 
     def visit_transform(self, transform_node):
       if isinstance(transform_node.transform, REPLACEABLE_UNBOUNDED_SOURCES):
-        # print(transform_node.outputs[None])
         self.unbounded_sources.append(transform_node)
 
   v = GetUnboundedSourcesVisitor()

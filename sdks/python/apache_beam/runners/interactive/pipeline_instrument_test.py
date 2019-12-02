@@ -204,9 +204,10 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Add some extra PTransform afterwards to make sure that only the unbounded
     # sources remain.
     c = (a, b) | beam.CoGroupByKey()
-    d = c | beam.Map(lambda x: x)
+    c | beam.Map(lambda x: x)
 
     instrumenter = instr.PipelineInstrument(p)
+    instrumenter.instrument()
     actual_pipeline = instrumenter.background_caching_pipeline_proto()
 
     # Now recreate the expected pipeline, which should only have the unbounded
