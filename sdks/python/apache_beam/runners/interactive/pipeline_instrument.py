@@ -97,18 +97,13 @@ class PipelineInstrument(object):
     self._pcolls_to_pcoll_id = pcolls_to_pcoll_id(self._pipeline_snap,
                                                   self._original_context)
 
-    # A list of all the unbounded PCollections in the pipeline. These unbounded
-    # pcollections will be cached.
-    self._unbounded_pcolls = unbounded_pcolls(self._unbounded_sources)
-
     # A mapping from PCollection id to python id() value in user defined
     # pipeline instance.
     (self._pcoll_version_map,
      self._cacheables,
      # A dict from pcoll_id to variable name of the referenced PCollection.
      # (Dict[str, str])
-     self._cacheable_var_by_pcoll_id) = cacheables(self.pcolls_to_pcoll_id,
-                                                   self._unbounded_pcolls)
+     self._cacheable_var_by_pcoll_id) = cacheables(self.pcolls_to_pcoll_id)
 
     # A dict from cache key to PCollection that is read from cache.
     # If exists, caller should reuse the PCollection read. If not, caller
@@ -489,7 +484,7 @@ def pin(pipeline, options=None):
   return pi
 
 
-def cacheables(pcolls_to_pcoll_id, optional_extra_pcolls):
+def cacheables(pcolls_to_pcoll_id):
   """Finds PCollections that need to be cached for analyzed PCollections.
 
   The function only treats the result as cacheables since there is no guarantee
@@ -521,19 +516,6 @@ def cacheables(pcolls_to_pcoll_id, optional_extra_pcolls):
         pcoll_version_map[cacheable['pcoll_id']] = cacheable['version']
         cacheables[cacheable_key(val, pcolls_to_pcoll_id)] = cacheable
         cacheable_var_by_pcoll_id[cacheable['pcoll_id']] = key
-
-  # Remember all the extra PCollections for later caching.
-  for pcoll in optional_extra_pcolls:
-    cacheable = {}
-    cacheable['pcoll_id'] = pcolls_to_pcoll_id.get(str(pcoll), None)
-    if not cacheable['pcoll_id']:
-      continue
-    cacheable['var'] = ''
-    cacheable['version'] = str(id(pcoll))
-    cacheable['pcoll'] = pcoll
-    cacheable['producer_version'] = str(id(pcoll.producer))
-    pcoll_version_map[cacheable['pcoll_id']] = cacheable['version']
-    cacheables[cacheable_key(pcoll, pcolls_to_pcoll_id)] = cacheable
 
   return pcoll_version_map, cacheables, cacheable_var_by_pcoll_id
 
@@ -576,16 +558,6 @@ def unbounded_sources(pipeline):
   v = GetUnboundedSourcesVisitor()
   pipeline.visit(v)
   return v.unbounded_sources
-
-
-def unbounded_pcolls(unbounded_sources):
-  """Returns all output PCollections of the given sources."""
-  pcolls = set()
-  for source in unbounded_sources:
-    for output in source.outputs.values():
-      pcolls.add(output)
-
-  return list(pcolls)
 
 
 def pcolls_to_pcoll_id(pipeline, original_context):

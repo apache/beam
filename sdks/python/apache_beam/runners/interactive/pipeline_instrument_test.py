@@ -206,8 +206,8 @@ class PipelineInstrumentTest(unittest.TestCase):
     c = (a, b) | beam.CoGroupByKey()
     _ = c | beam.Map(lambda x: x)
 
-    instrumenter = instr.PipelineInstrument(p)
-    instrumenter.instrument()
+    ib.watch(locals())
+    instrumenter = instr.pin(p)
     actual_pipeline = instrumenter.background_caching_pipeline_proto()
 
     # Now recreate the expected pipeline, which should only have the unbounded
@@ -215,11 +215,11 @@ class PipelineInstrumentTest(unittest.TestCase):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
     a = p | 'ReadUnboundedSourceA' >> beam.io.ReadFromPubSub(
         subscription='projects/fake-project/subscriptions/fake_sub')
-    instrumenter._write_cache(p, a)
+    _ = a | 'a' >> cache.WriteCache(ie.current_env().cache_manager(), '')
 
     b = p | 'ReadUnboundedSourceB' >> beam.io.ReadFromPubSub(
         subscription='projects/fake-project/subscriptions/fake_sub')
-    instrumenter._write_cache(p, b)
+    _ = b | 'b' >> cache.WriteCache(ie.current_env().cache_manager(), '')
 
     expected_pipeline = p.to_runner_api(return_context=False,
                                         use_fake_coders=True)
