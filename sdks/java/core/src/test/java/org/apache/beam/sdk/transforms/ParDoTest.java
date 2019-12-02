@@ -3515,9 +3515,10 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
               .advanceWatermarkTo(new Instant(0));
 
+      final long prime = 7;
       for (int i = 0; i < numTestElements; i++) {
         builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
-        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
+        builder = builder.advanceWatermarkTo(now.plus(i / prime * prime));
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
@@ -3570,25 +3571,16 @@ public class ParDoTest implements Serializable {
             private final StateSpec<BagState<TimestampedValue<String>>> bagStateSpec =
                 StateSpecs.bag();
 
-            @StateId(minTimestamp)
-            private final StateSpec<ValueState<Instant>> minTimestampSpec = StateSpecs.value();
-
             @ProcessElement
             public void processElement(
                 ProcessContext context,
                 @TimerId(timerIdBagAppend) Timer bagTimer,
                 @TimerId(timerIdGc) Timer gcTimer,
-                @StateId(bag) BagState<TimestampedValue<String>> bagState,
-                @StateId(minTimestamp) ValueState<Instant> minStampState) {
+                @StateId(bag) BagState<TimestampedValue<String>> bagState) {
 
-              Instant currentMinStamp =
-                  MoreObjects.firstNonNull(minStampState.read(), BoundedWindow.TIMESTAMP_MAX_VALUE);
-              if (currentMinStamp.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+              if (bagState.isEmpty().read()) {
                 gcTimer.set(gcTimerStamp);
-              }
-              if (currentMinStamp.isAfter(context.timestamp())) {
-                minStampState.write(context.timestamp());
-                bagTimer.set(context.timestamp());
+                bagTimer.set(now);
               }
               bagState.add(TimestampedValue.of(context.element().getValue(), context.timestamp()));
             }
@@ -3607,11 +3599,10 @@ public class ParDoTest implements Serializable {
                 }
               }
               flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
-              context.output(
-                  Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
-              Instant newMinStamp = flushTime.plus(1);
+              String output = Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator());
+              context.output(output);
               if (flush.size() < numTestElements) {
-                timer.set(newMinStamp);
+                timer.set(flushTime.plus(1));
               }
             }
 
