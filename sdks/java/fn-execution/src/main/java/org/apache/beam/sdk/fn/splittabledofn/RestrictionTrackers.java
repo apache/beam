@@ -20,6 +20,7 @@ package org.apache.beam.sdk.fn.splittabledofn;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
 public class RestrictionTrackers {
@@ -67,8 +68,8 @@ public class RestrictionTrackers {
     }
 
     @Override
-    public synchronized RestrictionT checkpoint() {
-      return delegate.checkpoint();
+    public synchronized SplitResult<RestrictionT> trySplit(double fractionOfRemainder) {
+      return delegate.trySplit(fractionOfRemainder);
     }
 
     @Override
