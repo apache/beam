@@ -155,16 +155,12 @@ public enum Compression {
       return Channels.newChannel(new ZstdCompressorOutputStream(Channels.newOutputStream(channel)));
     }
   },
+
+  /** LZO compression. */
   LZO(".lzo", ".lzo") {
     @Override
     public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
-      try {
         return Channels.newChannel(new LzoCompressorInputStream(Channels.newInputStream(channel)));
-      } catch (IOException e) {
-        // TODO Auto-generated catch block
-        e = new IOException("try using lzop.");
-        throw e;
-      }
     }
 
     @Override
@@ -172,14 +168,16 @@ public enum Compression {
       return Channels.newChannel(new LzoCompressorOutputStream(Channels.newOutputStream(channel)));
     }
   },
+
+  /** LZOP compression. */
   LZOP(".lzo", ".lzo") {
     @Override
     public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
       try {
         return Channels.newChannel(new LzopCompressorInputStream(Channels.newInputStream(channel)));
       } catch (IOException e) {
-        // TODO Auto-generated catch block
-        e = new IOException("try using lzo.");
+        if(e.getMessage().contains("Not an LZOP file"))
+          e = new IOException("Not an LZOP file. Please try using LZO Compression.");
         throw e;
       }
     }

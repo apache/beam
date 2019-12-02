@@ -338,34 +338,6 @@ public class CompressedSourceTest {
   }
 
   /**
-   * Using Lzop Codec. Concatenation of lzo files using Lzop codec.The current behavior is it only
-   * reads the contents of the first file.
-   *
-   * <p>A concatenation of lzo files as one file is a valid lzo file and should decompress to be the
-   * concatenation of those individual files.
-   */
-  @Test
-  public void testFailReadConcatenatedLzop() throws IOException {
-    byte[] header = "a,b,c\n".getBytes(StandardCharsets.UTF_8);
-    byte[] body = "1,2,3\n4,5,6\n7,8,9\n".getBytes(StandardCharsets.UTF_8);
-    byte[] expected = concat(header, body);
-    byte[] totalLzop = concat(compressLzop(header), compressLzop(body));
-    File tmpFile = tmpFolder.newFile();
-    try (FileOutputStream os = new FileOutputStream(tmpFile)) {
-      os.write(totalLzop);
-    }
-
-    CompressedSource<Byte> source =
-        CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
-            .withDecompression(CompressionMode.LZOP);
-    List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
-    // The current behavior is Lzop Codec only reads the contents of the first file.
-    // Expected and Actual value will not match
-    thrown.expectMessage("expected:");
-    assertEquals(Bytes.asList(expected), actual);
-  }
-
-  /**
    * Test a bzip2 file containing multiple streams is correctly decompressed.
    *
    * <p>A bzip2 file may contain multiple streams and should decompress as the concatenation of
@@ -516,7 +488,8 @@ public class CompressedSourceTest {
     byte[] input = generateInput(100);
     File tmpFile = tmpFolder.newFile("test.lzo");
     writeFile(tmpFile, input, CompressionMode.LZOP);
-    // By default LZO Codec is called
+    /* By default LZO Codec is called by the AUTO compression Enum and since the file is LZOP compressed, 
+    *it gives this exception */
     thrown.expectMessage("encountered EOF while reading block data");
     verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
   }
@@ -700,7 +673,7 @@ public class CompressedSourceTest {
     byte[] input = generateInput(1000);
     File tmpFile = tmpFolder.newFile("test.lzo");
     Files.write(input, tmpFile);
-    thrown.expectMessage("try using lzo.");
+    thrown.expectMessage("Not an LZOP file");
     verifyReadContents(input, tmpFile, CompressionMode.LZOP);
   }
 
