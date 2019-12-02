@@ -21,7 +21,7 @@ plugins {
     id 'ca.coglinc.javacc'
 }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.bigquery',
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider',
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'])
 provideIntegrationTestingDependencies()
@@ -33,40 +33,8 @@ ext.summary = "Performance tests for SQL IO sources"
 dependencies {
     javacc "net.java.dev.javacc:javacc:4.0"
 
-    compile library.java.google_api_services_bigquery
-    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-    testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
     testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
-
-    compile project(":sdks:java:extensions:sql")
-    javacc "net.java.dev.javacc:javacc:4.0"
-    compile project(":sdks:java:core")
-    compile project(":sdks:java:extensions:join-library")
-    compile project(path: ":runners:direct-java", configuration: "shadow")
-    compile library.java.commons_csv
-    compile library.java.vendored_calcite_1_20_0
-    compile "com.alibaba:fastjson:1.2.49"
-    compile "org.codehaus.janino:janino:3.0.11"
-    compile "org.codehaus.janino:commons-compiler:3.0.11"
-    provided project(":sdks:java:io:kafka")
-    provided project(":sdks:java:io:google-cloud-platform")
-    compile project(":sdks:java:io:mongodb")
-    provided project(":sdks:java:io:parquet")
-    provided library.java.kafka_clients
-    testCompile library.java.vendored_calcite_1_20_0
-    testCompile library.java.vendored_guava_26_0_jre
-    testCompile library.java.junit
-    testCompile library.java.hamcrest_core
-    testCompile library.java.hamcrest_library
-    testCompile library.java.mockito_core
-    testCompile library.java.quickcheck_core
-    testCompile library.java.jaxb_api
     testCompile project(path: ":sdks:java:extensions:sql", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
-    testRuntimeClasspath library.java.slf4j_jdk14
 }
 
 

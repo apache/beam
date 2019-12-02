@@ -26,15 +26,14 @@ def jobConfigs = [
         [
                 title        : 'SQL BigQueryIO with push-down Batch Performance Test Java',
                 triggerPhrase: 'Run SQLBigQueryIO Batch Performance Test Java',
-                name      : 'beam_SQLBiqQueryIO_Batch_Performance_Test_Java',
+                name      : 'beam_SQLBigQueryIO_Batch_Performance_Test_Java',
                 itClass      : 'org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryIOPushDownIT',
                 properties: [
                         project               : 'apache-beam-testing',
                         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                         tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
-                        writeMethod           : 'FILE_LOADS',
                         metricsBigQueryDataset: 'beam_performance',
-                        metricsBigQueryTable  : 'sql_bqio_read_results_java_batch',
+                        metricsBigQueryTable  : 'sql_bqio_read_java_batch',
                         runner                : "DataflowRunner",
                         maxNumWorkers         : '5',
                         numWorkers            : '5',
