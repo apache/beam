@@ -83,6 +83,7 @@ public class JdbcIOIT {
   private static String tableName;
   private static String bigQueryDataset;
   private static String bigQueryTable;
+  private static Long tableSize;
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
 
@@ -97,6 +98,7 @@ public class JdbcIOIT {
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
     executeWithRetry(JdbcIOIT::createTable);
+    tableSize = DatabaseTestHelper.getPostgresTableSize(dataSource, tableName);
   }
 
   private static void createTable() throws SQLException {
@@ -147,6 +149,18 @@ public class JdbcIOIT {
           long writeEnd = reader.getEndTimeMetric("write_time");
           return NamedTestResult.create(
               uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
+        });
+
+    suppliers.add(
+        ignore -> {
+          try {
+            Long tableSizeAfterWrite =
+                DatabaseTestHelper.getPostgresTableSize(dataSource, tableName);
+            return NamedTestResult.create(
+                uuid, timestamp, "total_size", tableSizeAfterWrite - tableSize);
+          } catch (SQLException e) {
+            return NamedTestResult.create(uuid, timestamp, "total_size", 0);
+          }
         });
     return suppliers;
   }

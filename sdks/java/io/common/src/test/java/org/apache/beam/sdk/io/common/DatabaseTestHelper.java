@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.common;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
@@ -77,6 +78,19 @@ public class DatabaseTestHelper {
         options.getPostgresServerName(),
         options.getPostgresPort(),
         options.getPostgresDatabaseName());
+  }
+
+  public static Long getPostgresTableSize(DataSource dataSource, String tableName)
+      throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        ResultSet resultSet =
+            statement.executeQuery(String.format("select pg_relation_size('%s')", tableName));
+        if (resultSet.next()) {
+          return resultSet.getLong(1);
+        } else return 0L;
+      }
+    }
   }
 
   public static void createTableWithStatement(DataSource dataSource, String stmt)
