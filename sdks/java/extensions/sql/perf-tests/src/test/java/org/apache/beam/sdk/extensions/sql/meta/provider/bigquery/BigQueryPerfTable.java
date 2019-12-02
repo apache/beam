@@ -37,6 +37,7 @@ public class BigQueryPerfTable extends BigQueryTable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
+    // TODO: add other metrics (bytes read)
     return super.buildIOReader(begin).apply(ParDo.of(new TimeMonitor<>(namespace, metric)));
   }
 }

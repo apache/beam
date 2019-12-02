@@ -40,6 +40,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
@@ -50,12 +52,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class BigQueryIOPushDownIT {
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOPushDownIT.class);
   private static final String READ_FROM_TABLE = "bigquery-public-data:hacker_news.full";
   private static final String NAMESPACE = BigQueryIOPushDownIT.class.getName();
   private static final String CREATE_TABLE_STATEMENT =
@@ -81,7 +80,7 @@ public class BigQueryIOPushDownIT {
           + "' \n"
           + "TBLPROPERTIES '{ method: \"%s\" }'";
   private static final String SELECT_STATEMENT =
-      "SELECT `by` as author, type, title, score from HACKER_NEWS where (type='story' or type='job') and score>100";
+      "SELECT `by` as author, type, title, score from HACKER_NEWS where (type='story' or type='job') and score>2";
 
   private static SQLBigQueryPerfTestOptions options;
   private static String metricsBigQueryDataset;
@@ -98,18 +97,17 @@ public class BigQueryIOPushDownIT {
 
   @Before
   public void before() {
-    sqlEnv = BeamSqlEnv.inMemory(new BigQueryPerfTableProvider(NAMESPACE, "read_time"));
+    sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
   }
 
   @Test
   public void readUsingDirectReadMethodPushDown() {
-    LOG.warn("\n\n\n*** RUNNING SQL PERFORMANCE TESTS ***\n\n\n");
-    LOG.warn("With following pipeline option: " + options.toString());
-
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, "DIRECT_READ"));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    PCollection<Row> output =
+        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -118,9 +116,6 @@ public class BigQueryIOPushDownIT {
 
   @Test
   public void readUsingDirectReadMethod() {
-    LOG.warn("\n\n\n*** RUNNING SQL PERFORMANCE TESTS ***\n\n\n");
-    LOG.warn("With following pipeline option: " + options.toString());
-
     List<RelOptRule> ruleList = new ArrayList<>();
     for (RuleSet x : getRuleSets()) {
       x.iterator().forEachRemaining(ruleList::add);
@@ -129,7 +124,7 @@ public class BigQueryIOPushDownIT {
     ruleList.remove(BeamIOPushDownRule.INSTANCE);
 
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
-    inMemoryMetaStore.registerProvider(new BigQueryPerfTableProvider(NAMESPACE, "read_time"));
+    inMemoryMetaStore.registerProvider(new BigQueryTableProvider());
     sqlEnv =
         BeamSqlEnv.builder(inMemoryMetaStore)
             .setPipelineOptions(PipelineOptionsFactory.create())
@@ -138,7 +133,9 @@ public class BigQueryIOPushDownIT {
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, "DIRECT_READ"));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    PCollection<Row> output =
+        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -147,13 +144,12 @@ public class BigQueryIOPushDownIT {
 
   @Test
   public void readUsingDefaultMethod() {
-    LOG.warn("\n\n\n*** RUNNING SQL PERFORMANCE TESTS ***\n\n\n");
-    LOG.warn("With following pipeline option: " + options.toString());
-
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, "DEFAULT"));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    PCollection<Row> output =
+        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -184,16 +180,6 @@ public class BigQueryIOPushDownIT {
 
   /** Options for this io performance test. */
   public interface SQLBigQueryPerfTestOptions extends IOTestPipelineOptions {
-    @Description("BQ dataset for the test data")
-    String getTestBigQueryDataset();
-
-    void setTestBigQueryDataset(String dataset);
-
-    @Description("BQ table for test data")
-    String getTestBigQueryTable();
-
-    void setTestBigQueryTable(String table);
-
     @Description("BQ dataset for the metrics data")
     String getMetricsBigQueryDataset();
 
@@ -203,10 +189,5 @@ public class BigQueryIOPushDownIT {
     String getMetricsBigQueryTable();
 
     void setMetricsBigQueryTable(String table);
-
-    @Description("Should test use streaming writes or batch loads to BQ")
-    String getWriteMethod();
-
-    void setWriteMethod(String value);
   }
 }
