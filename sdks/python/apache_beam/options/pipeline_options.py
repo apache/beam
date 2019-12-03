@@ -963,7 +963,9 @@ class FlinkRunnerOptions(PipelineOptions):
                         default=False,
                         action='store_true',
                         help='Create and upload an uberjar to the flink master'
-                             ' directly, rather than starting up a job server.')
+                             ' directly, rather than starting up a job server.'
+                             ' Only applies when flink_master is set to a'
+                             ' cluster address.  Requires Python 3.6+.')
 
 
 class TestOptions(PipelineOptions):
