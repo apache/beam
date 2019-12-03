@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 
 /** A representation of a split result. */
 @AutoValue
@@ -29,8 +30,10 @@ public abstract class SplitResult<RestrictionT> {
   }
 
   /** Returns the primary restriction. */
+  @Nullable
   public abstract RestrictionT getPrimary();
 
   /** Returns the residual restriction. */
+  @Nullable
   public abstract RestrictionT getResidual();
 }
