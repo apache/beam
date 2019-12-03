@@ -45,8 +45,9 @@ public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
   private static final List<String> HA_SCHEMES = Arrays.asList("hdfs", "webhdfs");
 
-  // Using hard-coded value for compatibility, because hadoop-dfs-client:2.7's DFSConfigKeys holds
-  // this value while it is HdfsClientConfigKeys that holds the value in version 2.8.
+  // Using hard-coded value to avoid incompatibility between HDFS client
+  // (org.apache.hadoop:hadoop-dfs-client) version 2.7's DFSConfigKeys and version 2.8's
+  // HdfsClientConfigKeys.
   private static final String CONFIG_KEY_DFS_NAMESERVICES = "dfs.nameservices";
 
   @Override
