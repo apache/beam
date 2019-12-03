@@ -17,9 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import java.util.List;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
-import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,7 +41,29 @@ public class BigQueryPerfTable extends BigQueryTable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    // TODO: add other metrics (bytes read)
-    return super.buildIOReader(begin).apply(ParDo.of(new TimeMonitor<>(namespace, metric)));
+    return super.buildIOReader(begin).apply(ParDo.of(new RowMonitor(namespace, metric)));
+  }
+
+  @Override
+  public PCollection<Row> buildIOReader(
+      PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+    return super.buildIOReader(begin, filters, fieldNames)
+        .apply(ParDo.of(new RowMonitor(namespace, metric)));
+  }
+
+  /** Monitor that records the number of Fields in each Row read from an IO. */
+  private static class RowMonitor extends DoFn<Row, Row> {
+
+    private Counter totalRows;
+
+    RowMonitor(String namespace, String name) {
+      this.totalRows = Metrics.counter(namespace, name);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      totalRows.inc(c.element().getFieldCount());
+      c.output(c.element());
+    }
   }
 }
