@@ -39,7 +39,7 @@ class RunnerTest(unittest.TestCase):
       '--project=test-project',
       '--staging_location=ignored',
       '--temp_location=/dev/null',
-      '--no_auth=True']
+      '--no_auth']
 
   def test_create_runner(self):
     self.assertTrue(
