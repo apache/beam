@@ -625,38 +625,38 @@ func (m *GetJobStateRequest) GetJobId() string {
 	return ""
 }
 
-type GetJobStateResponse struct {
+type JobStateEvent struct {
 	State                JobState_Enum `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
 }
 
-func (m *GetJobStateResponse) Reset()         { *m = GetJobStateResponse{} }
-func (m *GetJobStateResponse) String() string { return proto.CompactTextString(m) }
-func (*GetJobStateResponse) ProtoMessage()    {}
-func (*GetJobStateResponse) Descriptor() ([]byte, []int) {
+func (m *JobStateEvent) Reset()         { *m = JobStateEvent{} }
+func (m *JobStateEvent) String() string { return proto.CompactTextString(m) }
+func (*JobStateEvent) ProtoMessage()    {}
+func (*JobStateEvent) Descriptor() ([]byte, []int) {
 	return fileDescriptor_beam_job_api_cf64c696c499a6a1, []int{10}
 }
-func (m *GetJobStateResponse) XXX_Unmarshal(b []byte) error {
+func (m *JobStateEvent) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetJobStateResponse.Unmarshal(m, b)
 }
-func (m *GetJobStateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *JobStateEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetJobStateResponse.Marshal(b, m, deterministic)
 }
-func (dst *GetJobStateResponse) XXX_Merge(src proto.Message) {
+func (dst *JobStateEvent) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_GetJobStateResponse.Merge(dst, src)
 }
-func (m *GetJobStateResponse) XXX_Size() int {
+func (m *JobStateEvent) XXX_Size() int {
 	return xxx_messageInfo_GetJobStateResponse.Size(m)
 }
-func (m *GetJobStateResponse) XXX_DiscardUnknown() {
+func (m *JobStateEvent) XXX_DiscardUnknown() {
 	xxx_messageInfo_GetJobStateResponse.DiscardUnknown(m)
 }
 
 var xxx_messageInfo_GetJobStateResponse proto.InternalMessageInfo
 
-func (m *GetJobStateResponse) GetState() JobState_Enum {
+func (m *JobStateEvent) GetState() JobState_Enum {
 	if m != nil {
 		return m.State
 	}
@@ -888,7 +888,7 @@ type JobMessagesResponse_MessageResponse struct {
 	MessageResponse *JobMessage `protobuf:"bytes,1,opt,name=message_response,json=messageResponse,proto3,oneof"`
 }
 type JobMessagesResponse_StateResponse struct {
-	StateResponse *GetJobStateResponse `protobuf:"bytes,2,opt,name=state_response,json=stateResponse,proto3,oneof"`
+	StateResponse *JobStateEvent `protobuf:"bytes,2,opt,name=state_response,json=stateResponse,proto3,oneof"`
 }
 
 func (*JobMessagesResponse_MessageResponse) isJobMessagesResponse_Response() {}
@@ -908,7 +908,7 @@ func (m *JobMessagesResponse) GetMessageResponse() *JobMessage {
 	return nil
 }
 
-func (m *JobMessagesResponse) GetStateResponse() *GetJobStateResponse {
+func (m *JobMessagesResponse) GetStateResponse() *JobStateEvent {
 	if x, ok := m.GetResponse().(*JobMessagesResponse_StateResponse); ok {
 		return x.StateResponse
 	}
@@ -959,7 +959,7 @@ func _JobMessagesResponse_OneofUnmarshaler(msg proto.Message, tag, wire int, b *
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
-		msg := new(GetJobStateResponse)
+		msg := new(JobStateEvent)
 		err := b.DecodeMessage(msg)
 		m.Response = &JobMessagesResponse_StateResponse{msg}
 		return true, err
@@ -1345,7 +1345,7 @@ func init() {
 	proto.RegisterType((*GetJobsRequest)(nil), "org.apache.beam.model.job_management.v1.GetJobsRequest")
 	proto.RegisterType((*GetJobsResponse)(nil), "org.apache.beam.model.job_management.v1.GetJobsResponse")
 	proto.RegisterType((*GetJobStateRequest)(nil), "org.apache.beam.model.job_management.v1.GetJobStateRequest")
-	proto.RegisterType((*GetJobStateResponse)(nil), "org.apache.beam.model.job_management.v1.GetJobStateResponse")
+	proto.RegisterType((*JobStateEvent)(nil), "org.apache.beam.model.job_management.v1.JobStateEvent")
 	proto.RegisterType((*GetJobPipelineRequest)(nil), "org.apache.beam.model.job_management.v1.GetJobPipelineRequest")
 	proto.RegisterType((*GetJobPipelineResponse)(nil), "org.apache.beam.model.job_management.v1.GetJobPipelineResponse")
 	proto.RegisterType((*JobMessagesRequest)(nil), "org.apache.beam.model.job_management.v1.JobMessagesRequest")
@@ -1384,7 +1384,7 @@ type JobServiceClient interface {
 	// Get a list of all invoked jobs
 	GetJobs(ctx context.Context, in *GetJobsRequest, opts ...grpc.CallOption) (*GetJobsResponse, error)
 	// Get the current state of the job
-	GetState(ctx context.Context, in *GetJobStateRequest, opts ...grpc.CallOption) (*GetJobStateResponse, error)
+	GetState(ctx context.Context, in *GetJobStateRequest, opts ...grpc.CallOption) (*JobStateEvent, error)
 	// Get the job's pipeline
 	GetPipeline(ctx context.Context, in *GetJobPipelineRequest, opts ...grpc.CallOption) (*GetJobPipelineResponse, error)
 	// Cancel the job
@@ -1434,8 +1434,8 @@ func (c *jobServiceClient) GetJobs(ctx context.Context, in *GetJobsRequest, opts
 	return out, nil
 }
 
-func (c *jobServiceClient) GetState(ctx context.Context, in *GetJobStateRequest, opts ...grpc.CallOption) (*GetJobStateResponse, error) {
-	out := new(GetJobStateResponse)
+func (c *jobServiceClient) GetState(ctx context.Context, in *GetJobStateRequest, opts ...grpc.CallOption) (*JobStateEvent, error) {
+	out := new(JobStateEvent)
 	err := c.cc.Invoke(ctx, "/org.apache.beam.model.job_management.v1.JobService/GetState", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1477,7 +1477,7 @@ func (c *jobServiceClient) GetStateStream(ctx context.Context, in *GetJobStateRe
 }
 
 type JobService_GetStateStreamClient interface {
-	Recv() (*GetJobStateResponse, error)
+	Recv() (*JobStateEvent, error)
 	grpc.ClientStream
 }
 
@@ -1485,8 +1485,8 @@ type jobServiceGetStateStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *jobServiceGetStateStreamClient) Recv() (*GetJobStateResponse, error) {
-	m := new(GetJobStateResponse)
+func (x *jobServiceGetStateStreamClient) Recv() (*JobStateEvent, error) {
+	m := new(JobStateEvent)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -1553,7 +1553,7 @@ type JobServiceServer interface {
 	// Get a list of all invoked jobs
 	GetJobs(context.Context, *GetJobsRequest) (*GetJobsResponse, error)
 	// Get the current state of the job
-	GetState(context.Context, *GetJobStateRequest) (*GetJobStateResponse, error)
+	GetState(context.Context, *GetJobStateRequest) (*JobStateEvent, error)
 	// Get the job's pipeline
 	GetPipeline(context.Context, *GetJobPipelineRequest) (*GetJobPipelineResponse, error)
 	// Cancel the job
@@ -1689,7 +1689,7 @@ func _JobService_GetStateStream_Handler(srv interface{}, stream grpc.ServerStrea
 }
 
 type JobService_GetStateStreamServer interface {
-	Send(*GetJobStateResponse) error
+	Send(*JobStateEvent) error
 	grpc.ServerStream
 }
 
@@ -1697,7 +1697,7 @@ type jobServiceGetStateStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *jobServiceGetStateStreamServer) Send(m *GetJobStateResponse) error {
+func (x *jobServiceGetStateStreamServer) Send(m *JobStateEvent) error {
 	return x.ServerStream.SendMsg(m)
 }
 

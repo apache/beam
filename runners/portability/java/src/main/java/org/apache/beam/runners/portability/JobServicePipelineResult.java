@@ -26,7 +26,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
-import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingStub;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -61,7 +61,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
       return terminationState;
     }
     JobServiceBlockingStub stub = jobService.get();
-    GetJobStateResponse response =
+    JobStateEvent response =
         stub.getState(GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build());
     return getJavaState(response.getState());
   }
@@ -103,7 +103,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
     }
     JobServiceBlockingStub stub = jobService.get();
     GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build();
-    GetJobStateResponse response = stub.getState(request);
+    JobStateEvent response = stub.getState(request);
     State lastState = getJavaState(response.getState());
     while (!lastState.isTerminal()) {
       try {

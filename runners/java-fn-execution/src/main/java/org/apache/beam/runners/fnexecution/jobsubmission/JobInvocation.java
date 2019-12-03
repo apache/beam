@@ -31,10 +31,12 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Timestamps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
@@ -51,12 +53,12 @@ public class JobInvocation {
   private final PortablePipelineRunner pipelineRunner;
   private final JobInfo jobInfo;
   private final ListeningExecutorService executorService;
-  private List<Consumer<Enum>> stateObservers;
+  private List<Consumer<JobStateEvent>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
-  private JobState.Enum jobState;
   private JobApi.MetricResults metrics;
   private PortablePipelineResult resultHandle;
   @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
+  private List<JobStateEvent> stateHistory;
 
   public JobInvocation(
       JobInfo jobInfo,
@@ -70,8 +72,9 @@ public class JobInvocation {
     this.stateObservers = new ArrayList<>();
     this.messageObservers = new ArrayList<>();
     this.invocationFuture = null;
-    this.jobState = JobState.Enum.STOPPED;
+    this.stateHistory = new ArrayList<>();
     this.metrics = JobApi.MetricResults.newBuilder().build();
+    this.setState(JobState.Enum.STOPPED);
   }
 
   private PortablePipelineResult runPipeline() throws Exception {
@@ -191,7 +194,12 @@ public class JobInvocation {
 
   /** Retrieve the job's current state. */
   public JobState.Enum getState() {
-    return this.jobState;
+    return getStateEvent().getState();
+  }
+
+  /** Retrieve the job's current state. */
+  public JobStateEvent getStateEvent() {
+    return stateHistory.get(stateHistory.size() - 1);
   }
 
   /** Retrieve the job's pipeline. */
@@ -200,8 +208,10 @@ public class JobInvocation {
   }
 
   /** Listen for job state changes with a {@link Consumer}. */
-  public synchronized void addStateListener(Consumer<JobState.Enum> stateStreamObserver) {
-    stateStreamObserver.accept(getState());
+  public synchronized void addStateListener(Consumer<JobStateEvent> stateStreamObserver) {
+    for (JobStateEvent event : stateHistory) {
+      stateStreamObserver.accept(event);
+    }
     stateObservers.add(stateStreamObserver);
   }
 
@@ -221,9 +231,14 @@ public class JobInvocation {
   }
 
   private synchronized void setState(JobState.Enum state) {
-    this.jobState = state;
-    for (Consumer<JobState.Enum> observer : stateObservers) {
-      observer.accept(state);
+    JobStateEvent event =
+        JobStateEvent.newBuilder()
+            .setState(state)
+            .setTimestamp(Timestamps.fromMillis(System.currentTimeMillis()))
+            .build();
+    this.stateHistory.add(event);
+    for (Consumer<JobStateEvent> observer : stateObservers) {
+      observer.accept(event);
     }
   }
 
