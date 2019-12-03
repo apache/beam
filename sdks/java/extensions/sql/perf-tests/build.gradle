@@ -16,14 +16,8 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'org.apache.beam.module'
-    id 'ca.coglinc.javacc'
-}
-applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider',
-  // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann'])
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -31,8 +25,6 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: IO Performanc
 ext.summary = "Performance tests for SQL IO sources"
 
 dependencies {
-    javacc "net.java.dev.javacc:javacc:4.0"
-
     testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
     testCompile project(path: ":sdks:java:extensions:sql", configuration: "testRuntime")
 }

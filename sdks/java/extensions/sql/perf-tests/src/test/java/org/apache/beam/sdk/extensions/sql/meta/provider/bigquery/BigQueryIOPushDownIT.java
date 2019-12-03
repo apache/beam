@@ -97,7 +97,7 @@ public class BigQueryIOPushDownIT {
 
   @Before
   public void before() {
-    sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
+    sqlEnv = BeamSqlEnv.inMemory(new BigQueryPerfTableProvider(NAMESPACE, "fields_read"));
   }
 
   @Test
@@ -124,7 +124,7 @@ public class BigQueryIOPushDownIT {
     ruleList.remove(BeamIOPushDownRule.INSTANCE);
 
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
-    inMemoryMetaStore.registerProvider(new BigQueryTableProvider());
+    inMemoryMetaStore.registerProvider(new BigQueryPerfTableProvider(NAMESPACE, "fields_read"));
     sqlEnv =
         BeamSqlEnv.builder(inMemoryMetaStore)
             .setPipelineOptions(PipelineOptionsFactory.create())
@@ -174,6 +174,11 @@ public class BigQueryIOPushDownIT {
           long readStart = reader.getStartTimeMetric("read_time");
           long readEnd = reader.getEndTimeMetric("read_time");
           return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
+        });
+    suppliers.add(
+        reader -> {
+          long fieldsRead = reader.getCounterMetric("fields_read");
+          return NamedTestResult.create(uuid, timestamp, "fields_read", fieldsRead);
         });
     return suppliers;
   }
