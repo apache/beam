@@ -963,6 +963,13 @@ class FlinkRunnerOptions(PipelineOptions):
                         help='Flink version to use.')
     parser.add_argument('--flink_job_server_jar',
                         help='Path or URL to a flink jobserver jar.')
+    parser.add_argument('--flink_submit_uber_jar',
+                        default=False,
+                        action='store_true',
+                        help='Create and upload an uberjar to the flink master'
+                             ' directly, rather than starting up a job server.'
+                             ' Only applies when flink_master is set to a'
+                             ' cluster address.  Requires Python 3.6+.')
 
 
 class TestOptions(PipelineOptions):
