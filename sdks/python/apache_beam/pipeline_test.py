@@ -661,7 +661,6 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to(['a', 'b']))
     pipeline.run()
 
-  @attr('ValidatesRunner')
   def test_window_param(self):
     class TestDoFn(DoFn):
       def process(self, element, window=DoFn.WindowParam):
@@ -684,7 +683,6 @@ class DoFnTest(unittest.TestCase):
         label='doubled windows')
     pipeline.run()
 
-  @attr('ValidatesRunner')
   def test_timestamp_param(self):
     class TestDoFn(DoFn):
       def process(self, element, timestamp=DoFn.TimestampParam):
@@ -701,7 +699,6 @@ class DoFnTest(unittest.TestCase):
           p | Create([1, 2]) | beam.Map(lambda _, t=DoFn.TimestampParam: t),
           equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
 
-  @attr('ValidatesRunner')
   def test_pane_info_param(self):
     with TestPipeline() as p:
       pc = p | Create([(None, None)])
