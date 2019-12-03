@@ -36,17 +36,16 @@ import org.slf4j.LoggerFactory;
  * Client for handling requests and responses over Fn Worker Status Api between runner and SDK
  * Harness.
  */
-public class FnApiWorkerStatusClient implements Closeable {
+public class WorkerStatusClient implements Closeable {
 
-  public static final Logger LOG = LoggerFactory.getLogger(FnApiWorkerStatusClient.class);
+  public static final Logger LOG = LoggerFactory.getLogger(WorkerStatusClient.class);
   private final StreamObserver<WorkerStatusRequest> requestReceiver;
   private final Map<String, CompletableFuture<WorkerStatusResponse>> responseQueue =
       new ConcurrentHashMap<>();
   private final String workerId;
   private AtomicBoolean isClosed = new AtomicBoolean(false);
 
-  private FnApiWorkerStatusClient(
-      String workerId, StreamObserver<WorkerStatusRequest> requestReceiver) {
+  private WorkerStatusClient(String workerId, StreamObserver<WorkerStatusRequest> requestReceiver) {
     this.requestReceiver = SynchronizedStreamObserver.wrapping(requestReceiver);
     this.workerId = workerId;
   }
@@ -57,11 +56,11 @@ public class FnApiWorkerStatusClient implements Closeable {
    * @param workerId SDK Harness worker id.
    * @param requestObserver The outbound request observer this client uses to send new status
    *     requests to its corresponding SDK Harness.
-   * @return {@link FnApiWorkerStatusClient}
+   * @return {@link WorkerStatusClient}
    */
-  public static FnApiWorkerStatusClient forRequestObserver(
+  public static WorkerStatusClient forRequestObserver(
       String workerId, StreamObserver<WorkerStatusRequest> requestObserver) {
-    return new FnApiWorkerStatusClient(workerId, requestObserver);
+    return new WorkerStatusClient(workerId, requestObserver);
   }
 
   /**
@@ -72,7 +71,7 @@ public class FnApiWorkerStatusClient implements Closeable {
    */
   public CompletableFuture<WorkerStatusResponse> getWorkerStatus() {
     WorkerStatusRequest request =
-        WorkerStatusRequest.newBuilder().setRequestId(UUID.randomUUID().toString()).build();
+        WorkerStatusRequest.newBuilder().setId(UUID.randomUUID().toString()).build();
     return getWorkerStatus(request);
   }
 
@@ -86,7 +85,7 @@ public class FnApiWorkerStatusClient implements Closeable {
   public CompletableFuture<WorkerStatusResponse> getWorkerStatus(WorkerStatusRequest request) {
     CompletableFuture<WorkerStatusResponse> future = new CompletableFuture<>();
     this.requestReceiver.onNext(request);
-    this.responseQueue.put(request.getRequestId(), future);
+    this.responseQueue.put(request.getId(), future);
     return future;
   }
 
@@ -122,17 +121,17 @@ public class FnApiWorkerStatusClient implements Closeable {
 
     @Override
     public void onNext(WorkerStatusResponse response) {
-      if (!responseQueue.containsKey(response.getRequestId())) {
+      if (!responseQueue.containsKey(response.getId())) {
         return;
       }
       CompletableFuture<WorkerStatusResponse> responseFuture =
-          responseQueue.remove(response.getRequestId());
+          responseQueue.remove(response.getId());
       responseFuture.complete(response);
     }
 
     @Override
     public void onError(Throwable throwable) {
-      LOG.error("{} received error {}", FnApiWorkerStatusClient.class.getSimpleName(), throwable);
+      LOG.error("{} received error {}", WorkerStatusClient.class.getSimpleName(), throwable);
     }
 
     @Override

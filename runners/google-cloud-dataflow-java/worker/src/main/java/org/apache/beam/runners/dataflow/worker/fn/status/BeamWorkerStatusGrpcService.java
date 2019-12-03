@@ -31,7 +31,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc.BeamFnWorkerS
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.runners.fnexecution.status.FnApiWorkerStatusClient;
+import org.apache.beam.runners.fnexecution.status.WorkerStatusClient;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
@@ -41,30 +41,30 @@ import org.slf4j.LoggerFactory;
  * A Fn Status service which can collect run-time status information from SDK Harnesses for
  * debugging purpose
  */
-public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase implements FnService {
+public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase implements FnService {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnWorkerStatusGrpcService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamWorkerStatusGrpcService.class);
   private static final String UNKNOW_SDK_ID_PREFIX = "unknown_sdk";
   private final AtomicLong idGenerator = new AtomicLong();
   private final HeaderAccessor headerAccessor;
-  private final Map<String, FnApiWorkerStatusClient> connectedClient = new ConcurrentHashMap<>();
+  private final Map<String, WorkerStatusClient> connectedClient = new ConcurrentHashMap<>();
 
-  private BeamFnWorkerStatusGrpcService(
+  private BeamWorkerStatusGrpcService(
       ApiServiceDescriptor apiServiceDescriptor, HeaderAccessor headerAccessor) {
     this.headerAccessor = headerAccessor;
     LOG.info("Launched Beam Fn Status service at {}", apiServiceDescriptor);
   }
 
   /**
-   * Create new instance of {@link BeamFnWorkerStatusGrpcService}.
+   * Create new instance of {@link BeamWorkerStatusGrpcService}.
    *
    * @param apiServiceDescriptor ApiServiceDescriptor used for hosting to the server.
    * @param headerAccessor Grpc head accessor used to obtain SDK Harness worker id.
-   * @return {@link BeamFnWorkerStatusGrpcService} if apiServiceDescriptor is valid, otherwise
-   *     returns null.
+   * @return {@link BeamWorkerStatusGrpcService} if apiServiceDescriptor is valid, otherwise returns
+   *     null.
    */
   @Nullable
-  public static BeamFnWorkerStatusGrpcService create(
+  public static BeamWorkerStatusGrpcService create(
       ApiServiceDescriptor apiServiceDescriptor, HeaderAccessor headerAccessor) {
     if (apiServiceDescriptor == null || Strings.isNullOrEmpty(apiServiceDescriptor.getUrl())) {
       LOG.info(
@@ -72,12 +72,12 @@ public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase im
               + " the sdk status report will be skipped");
       return null;
     }
-    return new BeamFnWorkerStatusGrpcService(apiServiceDescriptor, headerAccessor);
+    return new BeamWorkerStatusGrpcService(apiServiceDescriptor, headerAccessor);
   }
 
   @Override
   public void close() throws Exception {
-    for (FnApiWorkerStatusClient client : this.connectedClient.values()) {
+    for (WorkerStatusClient client : this.connectedClient.values()) {
       client.close();
     }
     this.connectedClient.clear();
@@ -97,6 +97,8 @@ public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase im
     }
 
     LOG.info("Beam Fn Status client connected with id {}", workerId);
+    WorkerStatusClient fnApiStatusClient =
+        WorkerStatusClient.forRequestObserver(workerId, requestObserver);
     FnApiWorkerStatusClient fnApiStatusClient =
         FnApiWorkerStatusClient.forRequestObserver(workerId, requestObserver);
     if (connectedClient.containsKey(workerId)) {
@@ -121,10 +123,9 @@ public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase im
    * @return {@link Optional} containing the client, if there is no connected SDK Harness with the
    *     specified workerId, Optional of null will be returned.
    */
-  public Optional<FnApiWorkerStatusClient> getStatusClient(
-      String workerId, long maxWaitTimeInMills) {
+  public Optional<WorkerStatusClient> getStatusClient(String workerId, long maxWaitTimeInMills) {
     long timeout = System.currentTimeMillis() + maxWaitTimeInMills;
-    FnApiWorkerStatusClient client = null;
+    WorkerStatusClient client = null;
     try {
       while ((client = this.connectedClient.getOrDefault(workerId, null)) == null
           && System.currentTimeMillis() < timeout) {

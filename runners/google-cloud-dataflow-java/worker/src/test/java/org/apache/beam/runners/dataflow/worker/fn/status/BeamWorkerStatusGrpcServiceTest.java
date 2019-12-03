@@ -33,7 +33,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.status.FnApiWorkerStatusClient;
+import org.apache.beam.runners.fnexecution.status.WorkerStatusClient;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
@@ -48,11 +48,11 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
-public class BeamFnWorkerStatusGrpcServiceTest {
+public class BeamWorkerStatusGrpcServiceTest {
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  private BeamFnWorkerStatusGrpcService service;
-  private GrpcFnServer<BeamFnWorkerStatusGrpcService> server;
+  private BeamWorkerStatusGrpcService service;
+  private GrpcFnServer<BeamWorkerStatusGrpcService> server;
   private ManagedChannel channel;
   private BeamFnWorkerStatusStub stub;
   @Mock private StreamObserver<WorkerStatusRequest> mockObserver;
@@ -61,7 +61,7 @@ public class BeamFnWorkerStatusGrpcServiceTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     service =
-        BeamFnWorkerStatusGrpcService.create(
+        BeamWorkerStatusGrpcService.create(
             ApiServiceDescriptor.newBuilder().setUrl(UUID.randomUUID().toString()).build(),
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
     server = GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create());
@@ -83,10 +83,10 @@ public class BeamFnWorkerStatusGrpcServiceTest {
   @Test
   public void testCreateFromNullApiServiceDescriptor() {
     assertNull(
-        BeamFnWorkerStatusGrpcService.create(
+        BeamWorkerStatusGrpcService.create(
             null, GrpcContextHeaderAccessorProvider.getHeaderAccessor()));
     assertNull(
-        BeamFnWorkerStatusGrpcService.create(
+        BeamWorkerStatusGrpcService.create(
             ApiServiceDescriptor.newBuilder().build(),
             GrpcContextHeaderAccessorProvider.getHeaderAccessor()));
   }
@@ -95,7 +95,7 @@ public class BeamFnWorkerStatusGrpcServiceTest {
   public void testClientConnected() throws Exception {
     StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
         stub.workerStatus(mockObserver);
-    FnApiWorkerStatusClient client = service.getStatusClient("id", 5000).get();
+    WorkerStatusClient client = service.getStatusClient("id", 5000).get();
     assertNotNull(client);
     service.close();
   }
@@ -105,7 +105,7 @@ public class BeamFnWorkerStatusGrpcServiceTest {
     BeamFnWorkerStatusStub workerStatusStub = BeamFnWorkerStatusGrpc.newStub(channel);
     StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
         workerStatusStub.workerStatus(mockObserver);
-    FnApiWorkerStatusClient client = service.getStatusClient("unknown_sdk0", 5000).get();
+    WorkerStatusClient client = service.getStatusClient("unknown_sdk0", 5000).get();
     assertNotNull(client);
   }
 
@@ -114,11 +114,11 @@ public class BeamFnWorkerStatusGrpcServiceTest {
     final String requestId = "requestId";
     StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
         stub.workerStatus(mockObserver);
-    FnApiWorkerStatusClient client = service.getStatusClient("id", 5000).get();
+    WorkerStatusClient client = service.getStatusClient("id", 5000).get();
     CompletableFuture<WorkerStatusResponse> workerStatus =
-        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setRequestId(requestId).build());
+        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setId(requestId).build());
     workerStatusResponseStreamObserver.onNext(
-        WorkerStatusResponse.newBuilder().setRequestId(requestId).setStatusInfo("status").build());
+        WorkerStatusResponse.newBuilder().setId(requestId).setStatusInfo("status").build());
     assertEquals("status", workerStatus.get(5, TimeUnit.SECONDS).getStatusInfo());
   }
 
