@@ -45,6 +45,10 @@ public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
   private static final List<String> HA_SCHEMES = Arrays.asList("hdfs", "webhdfs");
 
+  // Using hard-coded value for compatibility, because hadoop-dfs-client:2.7's DFSConfigKeys holds
+  // this value while it is HdfsClientConfigKeys that holds the value in version 2.8.
+  private static final String CONFIG_KEY_DFS_NAMESERVICES = "dfs.nameservices";
+
   @Override
   public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
     final List<Configuration> configurations =
@@ -75,7 +79,7 @@ public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
       builder.add(new HadoopFileSystem(scheme, configuration));
       registeredSchemes.add(scheme);
     }
-    final String nameServices = configuration.get(HdfsClientConfigKeys.DFS_NAMESERVICES);
+    final String nameServices = configuration.get(CONFIG_KEY_DFS_NAMESERVICES);
     if (nameServices != null && !nameServices.isEmpty()) {
       // we can register schemes that are support by HA cluster
       for (String scheme : HA_SCHEMES) {
