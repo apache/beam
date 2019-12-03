@@ -123,6 +123,13 @@ public class ExecutionStateSamplerTest {
     assertThat(step1act1.lullReported, equalTo(true));
   }
 
+  @Test
+  public void testReset() throws Exception {
+    sampler.lastSampleTimeMillis = 100L;
+    sampler.reset();
+    assertThat(sampler.lastSampleTimeMillis, equalTo(0L));
+  }
+
   private ExecutionStateTracker createTracker() {
     return new ExecutionStateTracker(sampler);
   }

@@ -24,8 +24,6 @@ to transform original pipeline into a one-shot pipeline with interactivity.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.io.external.gcp.pubsub import ReadFromPubSub as ExternalReadFromPubSub
-from apache_beam.io.external.kafka import ReadFromKafka
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -39,8 +37,6 @@ WRITE_CACHE = "_WriteCache_"
 # to correctly find all the unbounded sources in the SDF world. This is
 # because SDF allows the source to dynamically create sources at runtime.
 REPLACEABLE_UNBOUNDED_SOURCES = (
-    ExternalReadFromPubSub,
-    ReadFromKafka,
     ReadFromPubSub,
 )
 
@@ -236,7 +232,7 @@ class PipelineInstrument(object):
     return pipeline_to_execute
 
   @property
-  def has_unbounded_sources(self):
+  def has_unbounded_source(self):
     """Returns whether the pipeline has any `REPLACEABLE_UNBOUNDED_SOURCES`.
     """
     return len(self._unbounded_sources) > 0
@@ -530,15 +526,10 @@ def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):
   return '_'.join((pcoll_version, pcoll_id))
 
 
-def has_unbounded_sources(pipeline):
-  """Checks if a given pipeline has replaceable unbounded sources."""
-  return len(unbounded_sources(pipeline)) > 0
-
-
-def unbounded_sources(pipeline):
+def has_unbounded_source(pipeline):
   """Checks if a given pipeline has replaceable unbounded sources."""
 
-  class GetUnboundedSourcesVisitor(PipelineVisitor):
+  class CheckUnboundednessVisitor(PipelineVisitor):
     """Visitor checks if there are any unbounded read sources in the Pipeline.
 
     Visitor visits all nodes and checks if it is an instance of
@@ -552,8 +543,8 @@ def unbounded_sources(pipeline):
       self.visit_transform(transform_node)
 
     def visit_transform(self, transform_node):
-      if isinstance(transform_node.transform, REPLACEABLE_UNBOUNDED_SOURCES):
-        self.unbounded_sources.append(transform_node)
+      self.has_unbounded_source |= isinstance(transform_node.transform,
+                                              REPLACEABLE_UNBOUNDED_SOURCES)
 
   v = GetUnboundedSourcesVisitor()
   pipeline.visit(v)

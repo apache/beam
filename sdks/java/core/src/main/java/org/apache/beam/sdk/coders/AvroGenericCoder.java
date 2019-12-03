@@ -15,22 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.coders;
 
-import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Schema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 
-/** An interface to implement a custom resolution strategy. */
-interface TableResolver {
+/** AvroCoder specialisation for GenericRecord. */
+public class AvroGenericCoder extends AvroCoder<GenericRecord> {
+  AvroGenericCoder(Schema schema) {
+    super(GenericRecord.class, schema);
+  }
 
-  TableResolver DEFAULT_ASSUME_LEAF_IS_TABLE = TableResolverImpl::assumeLeafIsTable;
-  TableResolver JOIN_INTO_COMPOUND_ID = TableResolverImpl::joinIntoCompoundId;
-
-  /**
-   * Returns a resolved table given a table path.
-   *
-   * <p>Returns null if table is not found.
-   */
-  Table resolveCalciteTable(Schema calciteSchema, List<String> tablePath);
+  public static AvroGenericCoder of(Schema schema) {
+    return new AvroGenericCoder(schema);
+  }
 }

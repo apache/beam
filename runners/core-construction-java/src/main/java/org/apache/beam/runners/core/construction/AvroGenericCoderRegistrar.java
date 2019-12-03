@@ -19,22 +19,22 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.AvroGenericCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** Coder registrar for AvroCoder. */
+/** Coder registrar for AvroGenericCoder. */
 @AutoService(CoderTranslatorRegistrar.class)
-public class AvroCoderRegistrar implements CoderTranslatorRegistrar {
-  public static final String AVRO_CODER_URN = "beam:coder:avro:v1";
+public class AvroGenericCoderRegistrar implements CoderTranslatorRegistrar {
+  public static final String AVRO_CODER_URN = "beam:coder:avro:generic:v1";
 
   @Override
   public Map<Class<? extends Coder>, String> getCoderURNs() {
-    return ImmutableMap.of(AvroCoder.class, AVRO_CODER_URN);
+    return ImmutableMap.of(AvroGenericCoder.class, AVRO_CODER_URN);
   }
 
   @Override
   public Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators() {
-    return ImmutableMap.of(AvroCoder.class, new AvroCoderTranslator());
+    return ImmutableMap.of(AvroGenericCoder.class, new AvroGenericCoderTranslator());
   }
 }

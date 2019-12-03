@@ -51,6 +51,12 @@ public class CounterCell implements Counter, MetricCell<Long> {
     this.name = name;
   }
 
+  @Override
+  public void reset() {
+    dirty.afterModification();
+    value.set(0L);
+  }
+
   /**
    * Increment the counter by the given amount.
    *

@@ -24,6 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -34,9 +35,10 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
@@ -114,7 +116,11 @@ public class AutoValueUtils {
         .map(
             c ->
                 JavaBeanUtils.getConstructorCreator(
-                    generatedClass, c, schema, fieldValueTypeSupplier))
+                    generatedClass,
+                    c,
+                    schema,
+                    fieldValueTypeSupplier,
+                    new DefaultTypeConversionsFactory()))
         .orElse(null);
   }
 
@@ -236,6 +242,7 @@ public class AutoValueUtils {
 
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
+      TypeConversionsFactory typeConversionsFactory = new DefaultTypeConversionsFactory();
       ForLoadedType loadedBuilder = new ForLoadedType(builderClass);
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
         // this + method parameters.
@@ -252,13 +259,13 @@ public class AutoValueUtils {
                             ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
                         .getOnly()));
 
-        ConvertType convertType = new ConvertType(true);
+        TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
         for (int i = 0; i < setters.size(); ++i) {
           Method setterMethod = checkNotNull(setters.get(i).getMethod());
           Parameter parameter = setterMethod.getParameters()[0];
           ForLoadedType convertedType =
               new ForLoadedType(
-                  (Class) convertType.convert(TypeDescriptor.of(parameter.getType())));
+                  (Class) convertType.convert(TypeDescriptor.of(parameter.getParameterizedType())));
 
           StackManipulation readParameter =
               new StackManipulation.Compound(
@@ -271,7 +278,8 @@ public class AutoValueUtils {
               new StackManipulation.Compound(
                   stackManipulation,
                   Duplication.SINGLE,
-                  new ConvertValueForSetter(readParameter)
+                  typeConversionsFactory
+                      .createSetterConversions(readParameter)
                       .convert(TypeDescriptor.of(parameter.getType())),
                   MethodInvocation.invoke(new ForLoadedMethod(setterMethod)),
                   Removal.SINGLE);

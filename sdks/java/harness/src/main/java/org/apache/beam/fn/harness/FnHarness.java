@@ -206,6 +206,7 @@ public class FnHarness {
 
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(executorService);
+      processBundleHandler.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");
       executorService.shutdown();
