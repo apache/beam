@@ -46,14 +46,19 @@ class FlinkRunner(portable_runner.PortableRunner):
     flink_master = self.add_http_scheme(
         options.view_as(FlinkRunnerOptions).flink_master)
     options.view_as(FlinkRunnerOptions).flink_master = flink_master
-    if flink_master in MAGIC_HOST_NAMES or sys.version_info < (3, 6):
-      return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
-    else:
+    if (options.view_as(FlinkRunnerOptions).flink_submit_uber_jar
+        and flink_master not in MAGIC_HOST_NAMES):
+      if sys.version_info < (3, 6):
+        raise ValueError(
+            'flink_submit_uber_jar requires Python 3.6+, current version %s'
+            % sys.version)
       # This has to be changed [auto], otherwise we will attempt to submit a
       # the pipeline remotely on the Flink JobMaster which will _fail_.
       # DO NOT CHANGE the following line, unless you have tested this.
       options.view_as(FlinkRunnerOptions).flink_master = '[auto]'
       return flink_uber_jar_job_server.FlinkUberJarJobServer(flink_master)
+    else:
+      return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
 
   @staticmethod
   def add_http_scheme(flink_master):
@@ -84,6 +89,13 @@ class FlinkRunnerOptions(pipeline_options.PipelineOptions):
     parser.add_argument('--flink_job_server_jar',
                         help='Path or URL to a flink jobserver jar.')
     parser.add_argument('--artifacts_dir', default=None)
+    parser.add_argument('--flink_submit_uber_jar',
+                        default=False,
+                        action='store_true',
+                        help='Create and upload an uberjar to the flink master'
+                             ' directly, rather than starting up a job server.'
+                             ' Only applies when flink_master is set to a'
+                             ' cluster address.  Requires Python 3.6+.')
 
 
 class FlinkJarJobServer(job_server.JavaJarJobServer):
