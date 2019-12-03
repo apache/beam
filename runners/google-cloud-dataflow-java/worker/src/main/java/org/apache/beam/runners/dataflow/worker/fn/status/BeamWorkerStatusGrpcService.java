@@ -99,8 +99,6 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
     LOG.info("Beam Fn Status client connected with id {}", workerId);
     WorkerStatusClient fnApiStatusClient =
         WorkerStatusClient.forRequestObserver(workerId, requestObserver);
-    FnApiWorkerStatusClient fnApiStatusClient =
-        FnApiWorkerStatusClient.forRequestObserver(workerId, requestObserver);
     if (connectedClient.containsKey(workerId)) {
       LOG.info(
           "SDK Worker {} was connected to status server previously, disconnecting the old client",
