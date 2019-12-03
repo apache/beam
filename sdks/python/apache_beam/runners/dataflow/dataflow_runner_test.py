@@ -96,7 +96,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--project=test-project',
         '--staging_location=ignored',
         '--temp_location=/dev/null',
-        '--no_auth=True',
+        '--no_auth',
         '--dry_run=True']
 
   @mock.patch('time.sleep', return_value=None)
@@ -295,7 +295,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                      '--project=test-project',
                      '--staging_location=ignored',
                      '--temp_location=/dev/null',
-                     '--no_auth=True'
+                     '--no_auth'
                  ]))
     rows = p | beam.io.Read(beam.io.BigQuerySource('dataset.faketable'))
     with self.assertRaises(ValueError,

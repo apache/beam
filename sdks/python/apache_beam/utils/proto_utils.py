@@ -18,9 +18,11 @@
 """For internal use only; no backwards-compatibility guarantees."""
 
 from __future__ import absolute_import
+from __future__ import division
 
 from google.protobuf import any_pb2
 from google.protobuf import struct_pb2
+from google.protobuf import timestamp_pb2
 
 
 def pack_Any(msg):
@@ -72,3 +74,17 @@ def from_micros(cls, micros):
   result = cls()
   result.FromMicroseconds(micros)
   return result
+
+
+def to_Timestamp(time):
+  """Convert a float returned by time.time() to a Timestamp.
+  """
+  seconds = int(time)
+  nanos = int((time - seconds) * 10**9)
+  return timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
+
+
+def from_Timestamp(timestamp):
+  """Convert a Timestamp to a float expressed as seconds since the epoch.
+  """
+  return timestamp.seconds + float(timestamp.nanos) / 10**9
