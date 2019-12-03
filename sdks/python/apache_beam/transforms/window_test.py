@@ -22,6 +22,8 @@ from __future__ import division
 import unittest
 from builtins import range
 
+from nose.plugins.attrib import attr
+
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.runners import pipeline_context
@@ -300,6 +302,7 @@ class WindowTest(unittest.TestCase):
       assert_that(mean_per_window, equal_to([(0, 2.0), (1, 7.0)]),
                   label='assert:mean')
 
+  @attr('ValidatesRunner')
   def test_custom_windows(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 1, 2, 3, 4, 5, 6)
@@ -313,6 +316,7 @@ class WindowTest(unittest.TestCase):
                                     ('key', [5]),
                                     ('key', [6])]))
 
+  @attr('ValidatesRunner')
   def test_window_assignment_idempotency(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 2, 4)
@@ -326,6 +330,7 @@ class WindowTest(unittest.TestCase):
                                     ('key', [2]),
                                     ('key', [4])]))
 
+  @attr('ValidatesRunner')
   def test_window_assignment_through_multiple_gbk_idempotency(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 2, 4)
