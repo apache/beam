@@ -24,7 +24,6 @@ to transform original pipeline into a one-shot pipeline with interactivity.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.io.external.kafka import ReadFromKafka
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import cache_manager as cache
@@ -37,7 +36,6 @@ WRITE_CACHE = "_WriteCache_"
 # to correctly find all the unbounded sources in the SDF world. This is
 # because SDF allows the source to dynamically create sources at runtime.
 REPLACEABLE_UNBOUNDED_SOURCES = (
-    ReadFromKafka,
     ReadFromPubSub,
 )
 
