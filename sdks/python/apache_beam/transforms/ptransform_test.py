@@ -313,7 +313,6 @@ class PTransformTest(unittest.TestCase):
     expected_error_prefix = 'FlatMap and ParDo must return an iterable.'
     self.assertStartswith(cm.exception.args[0], expected_error_prefix)
 
-  @attr('ValidatesRunner')
   def test_do_fn_with_finish(self):
     class MyDoFn(beam.DoFn):
       def process(self, element):
@@ -336,7 +335,6 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, matcher())
     pipeline.run()
 
-  @attr('ValidatesRunner')
   def test_do_fn_with_windowing_in_finish_bundle(self):
     windowfn = window.FixedWindows(2)
 
@@ -362,7 +360,6 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to(expected_process + expected_finish))
     pipeline.run()
 
-  @attr('ValidatesRunner')
   def test_do_fn_with_start(self):
     class MyDoFn(beam.DoFn):
       def __init__(self):
