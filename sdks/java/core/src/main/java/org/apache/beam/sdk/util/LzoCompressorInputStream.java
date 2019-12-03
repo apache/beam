@@ -26,8 +26,8 @@ import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.compress.utils.InputStreamStatistics;
 
 /**
- * {@link CompressorInputStream} implementation to create LZO encoded stream.
- * Library relies on <a href="https://github.com/airlift/aircompressor/">LZO</a>
+ * {@link CompressorInputStream} implementation to create LZO encoded stream. Library relies on <a
+ * href="https://github.com/airlift/aircompressor/">LZO</a>
  *
  * @since 1.18
  */
@@ -38,10 +38,11 @@ public class LzoCompressorInputStream extends CompressorInputStream
   private final InputStream lzoIS;
 
   /**
-     * Wraps the given stream into a aircompressor's HadoopLzoInputStream using the LzoCodec
-     * @param outStream the stream to write to
-     * @throws IOException if aircompressor does
-     */
+   * Wraps the given stream into a aircompressor's HadoopLzoInputStream using the LzoCodec
+   *
+   * @param outStream the stream to write to
+   * @throws IOException if aircompressor does
+   */
   public LzoCompressorInputStream(final InputStream in) throws IOException {
     this.lzoIS = new LzoCodec().createInputStream(countingStream = new CountingInputStream(in));
   }

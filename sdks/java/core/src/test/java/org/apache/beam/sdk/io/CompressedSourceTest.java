@@ -28,8 +28,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import io.airlift.compress.lzo.LzoCodec;
-import io.airlift.compress.lzo.LzopCodec;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -72,7 +70,6 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
-import org.apache.hadoop.io.compress.CompressionOutputStream;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -142,6 +139,11 @@ public class CompressedSourceTest {
     assertFalse(source.isSplittable());
 
     // LZO files are not splittable
+    source = CompressedSource.from(new ByteSource("input.lzo_deflate", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.LZO_DEFLATE", 1));
+    assertFalse(source.isSplittable());
+    // LZOP files are not splittable
     source = CompressedSource.from(new ByteSource("input.lzo", 1));
     assertFalse(source.isSplittable());
     source = CompressedSource.from(new ByteSource("input.LZO", 1));
@@ -194,7 +196,7 @@ public class CompressedSourceTest {
 
     // LZO files are not splittable
     source =
-        CompressedSource.from(new ByteSource("input.lzo", 1))
+        CompressedSource.from(new ByteSource("input.lzo_deflate", 1))
             .withDecompression(CompressionMode.LZO);
     assertFalse(source.isSplittable());
 
@@ -268,7 +270,7 @@ public class CompressedSourceTest {
 
   private static byte[] compressLzo(byte[] input) throws IOException {
     ByteArrayOutputStream res = new ByteArrayOutputStream();
-    try (CompressionOutputStream lzoStream = new LzoCodec().createOutputStream(res)) {
+    try (LzoCompressorOutputStream lzoStream = new LzoCompressorOutputStream(res)) {
       lzoStream.write(input);
     }
     return res.toByteArray();
@@ -276,7 +278,7 @@ public class CompressedSourceTest {
 
   private static byte[] compressLzop(byte[] input) throws IOException {
     ByteArrayOutputStream res = new ByteArrayOutputStream();
-    try (CompressionOutputStream lzopStream = new LzopCodec().createOutputStream(res)) {
+    try (LzopCompressorOutputStream lzopStream = new LzopCompressorOutputStream(res)) {
       lzopStream.write(input);
     }
     return res.toByteArray();
@@ -477,20 +479,17 @@ public class CompressedSourceTest {
   @Test
   public void testCompressedAccordingToFilepatternLzo() throws Exception {
     byte[] input = generateInput(100);
-    File tmpFile = tmpFolder.newFile("test.lzo");
+    File tmpFile = tmpFolder.newFile("test.lzo_deflate");
     writeFile(tmpFile, input, CompressionMode.LZO);
     verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
   }
 
   /** Test reading according to filepattern when the file is lzo compressed using LZOP Codec. */
   @Test
-  public void testFailCompressedAccordingToFilepatternLzop() throws Exception {
+  public void testCompressedAccordingToFilepatternLzop() throws Exception {
     byte[] input = generateInput(100);
     File tmpFile = tmpFolder.newFile("test.lzo");
     writeFile(tmpFile, input, CompressionMode.LZOP);
-    /* By default LZO Codec is called by the AUTO compression Enum and since the file is LZOP compressed, 
-    *it gives this exception */
-    thrown.expectMessage("encountered EOF while reading block data");
     verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
   }
 
@@ -524,7 +523,7 @@ public class CompressedSourceTest {
     writeFile(zstdFile, generated, CompressionMode.ZSTD);
     expected.addAll(Bytes.asList(generated));
 
-    File lzoFile = tmpFolder.newFile(baseName + ".lzo");
+    File lzoFile = tmpFolder.newFile(baseName + ".lzo_deflate");
     generated = generateInput(1000, 4);
     writeFile(lzoFile, generated, CompressionMode.LZO);
     expected.addAll(Bytes.asList(generated));
@@ -603,7 +602,7 @@ public class CompressedSourceTest {
   public void testLzoFileIsNotSplittable() throws Exception {
     String baseName = "test-input";
 
-    File compressedFile = tmpFolder.newFile(baseName + ".lzo");
+    File compressedFile = tmpFolder.newFile(baseName + ".lzo_deflate");
     writeFile(compressedFile, generateInput(10), CompressionMode.LZO);
 
     CompressedSource<Byte> source =
@@ -661,7 +660,7 @@ public class CompressedSourceTest {
   @Test
   public void testFalseLzoStream() throws Exception {
     byte[] input = generateInput(1000);
-    File tmpFile = tmpFolder.newFile("test.lzo");
+    File tmpFile = tmpFolder.newFile("test.lzo_deflate");
     Files.write(input, tmpFile);
     thrown.expectMessage("expected:");
     verifyReadContents(input, tmpFile, CompressionMode.LZO);
@@ -1046,7 +1045,7 @@ public class CompressedSourceTest {
 
   @Test
   public void testEmptyLzoProgress() throws IOException {
-    File tmpFile = tmpFolder.newFile("empty.lzo");
+    File tmpFile = tmpFolder.newFile("empty.lzo_deflate");
     String filename = tmpFile.toPath().toString();
     writeFile(tmpFile, new byte[0], CompressionMode.LZO);
 
