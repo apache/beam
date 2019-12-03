@@ -201,7 +201,8 @@
 
 
 <ul class="nav">
-  <li><a href="#portability">Portability</a></li>
+  <li><a href="#three-flavors-of-the-spark-runner">Three flavors of the Spark runner</a></li>
+  <li><a href="#which-runner-to-use-portable-or-non-portable-runner">Which runner to use: portable or non portable runner?</a></li>
   <li><a href="#spark-runner-prerequisites-and-setup">Spark Runner prerequisites and setup</a>
     <ul>
       <li><a href="#deploying-spark-with-your-application">Deploying Spark with your application</a></li>
@@ -253,44 +254,50 @@ The Spark Runner can execute Spark pipelines just like a native Spark applicatio
 
 <p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the currently supported capabilities of the Spark Runner.</p>
 
-<p><em><strong>Note:</strong></em> <em>support for the Beam Model in streaming is currently experimental, follow-up in the <a href="/get-started/support/">mailing list</a> for status updates.</em></p>
-
-<h2 id="portability">Portability</h2>
-
-<p>The Spark runner comes in two flavors:</p>
+<h2 id="three-flavors-of-the-spark-runner">Three flavors of the Spark runner</h2>
+<p>The Spark runner comes in three flavors:</p>
 
 <ol>
-  <li>A <em>legacy Runner</em> which supports only Java (and other JVM-based languages)</li>
+  <li>A <em>legacy Runner</em> which supports only Java (and other JVM-based languages) and that is based on Spark RDD/DStream</li>
+  <li>An <em>Structured Streaming Spark Runner</em> which supports only Java (and other JVM-based languages) and that is based on Spark Datasets and the <a href="https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html">Apache Spark Structured Streaming</a> framework.
+    <blockquote>
+      <p><strong>Note:</strong> It is still experimental, its coverage of the Beam model is partial. As for now it only supports batch mode.</p>
+    </blockquote>
+  </li>
   <li>A <em>portable Runner</em> which supports Java, Python, and Go</li>
 </ol>
+
+<p>This guide is split into two parts to document the non-portable and
+the portable functionality of the Spark Runner. Please use the switcher below to
+select the appropriate Runner:</p>
+
+<h2 id="which-runner-to-use-portable-or-non-portable-runner">Which runner to use: portable or non portable runner?</h2>
 
 <p>Beam and its Runners originally only supported JVM-based languages
 (e.g. Java/Scala/Kotlin). Python and Go SDKs were added later on. The
 architecture of the Runners had to be changed significantly to support executing
 pipelines written in other languages.</p>
 
-<p>If your applications only use Java, then you should currently go with the legacy
-Runner. If you want to run Python or Go pipelines with Beam on Spark, you need to use
+<p>If your applications only use Java, then you should currently go with one of the java based runners.
+If you want to run Python or Go pipelines with Beam on Spark, you need to use
 the portable Runner. For more information on portability, please visit the
 <a href="/roadmap/portability/">Portability page</a>.</p>
-
-<p>This guide is split into two parts to document the legacy and
-the portable functionality of the Spark Runner. Please use the switcher below to
-select the appropriate Runner:</p>
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java">Legacy (Java)</li>
+    <li data-type="language-java">Non portable (Java)</li>
     <li data-type="language-py">Portable (Java/Python/Go)</li>
   </ul>
 </nav>
 
 <h2 id="spark-runner-prerequisites-and-setup">Spark Runner prerequisites and setup</h2>
 
-<p>The Spark runner currently supports Spark’s 2.x branch, and more specifically any version greater than 2.2.0.</p>
+<p>The Spark runner currently supports Spark’s 2.x branch, and more specifically any version greater than 2.4.0.</p>
 
-<p><span class="language-java">You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:</span></p>
+<p><span class="language-java">
+You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:
+</span></p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
@@ -301,22 +308,26 @@ select the appropriate Runner:</p>
 
 <h3 id="deploying-spark-with-your-application">Deploying Spark with your application</h3>
 
-<p><span class="language-java">In some cases, such as running in local mode/Standalone, your (self-contained) application would be required to pack Spark by explicitly adding the following dependencies in your pom.xml:</span></p>
+<p><span class="language-java">
+In some cases, such as running in local mode/Standalone, your (self-contained) application would be required to pack Spark by explicitly adding the following dependencies in your pom.xml:
+</span></p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">spark</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
-  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">spark</span><span class="o">-</span><span class="n">core_2</span><span class="o">.</span><span class="mi">10</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">spark</span><span class="o">-</span><span class="n">core_2</span><span class="o">.</span><span class="mi">11</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">spark</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
 
 <span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">spark</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
-  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">spark</span><span class="o">-</span><span class="n">streaming_2</span><span class="o">.</span><span class="mi">10</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">spark</span><span class="o">-</span><span class="n">streaming_2</span><span class="o">.</span><span class="mi">11</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">spark</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
 </code></pre></div></div>
 
-<p><span class="language-java">And shading the application jar using the maven shade plugin:</span></p>
+<p><span class="language-java">
+And shading the application jar using the maven shade plugin:
+</span></p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">plugin</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">maven</span><span class="o">.</span><span class="na">plugins</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
@@ -353,17 +364,30 @@ select the appropriate Runner:</p>
 <span class="o">&lt;/</span><span class="n">plugin</span><span class="o">&gt;</span>
 </code></pre></div></div>
 
-<p><span class="language-java">After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is <code class="highlighter-rouge">beam-examples</code> and the version is <code class="highlighter-rouge">1.0.0</code>):</span></p>
+<p><span class="language-java">
+After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is <code class="highlighter-rouge">beam-examples</code> and the version is <code class="highlighter-rouge">1.0.0</code>):
+</span></p>
 
-<p><code class="language-java">
-beam-examples-1.0.0-shaded.jar
-</code></p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">beam</span><span class="o">-</span><span class="n">examples</span><span class="o">-</span><span class="mf">1.0</span><span class="o">.</span><span class="mi">0</span><span class="o">-</span><span class="n">shaded</span><span class="o">.</span><span class="na">jar</span>
+</code></pre></div></div>
 
-<p><span class="language-java">To run against a Standalone cluster simply run:</span></p>
+<p><span class="language-java">
+To run against a Standalone cluster simply run:
+</span></p>
 
-<p><code class="language-java">
-spark-submit --class com.beam.examples.BeamPipeline --master spark://HOST:PORT target/beam-examples-1.0.0-shaded.jar --runner=SparkRunner
-</code></p>
+<p><span class="language-java">
+<br /><b>For RDD/DStream based runner:</b><br />
+</span></p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">spark</span><span class="o">-</span><span class="n">submit</span> <span class="o">--</span><span class="kd">class</span> <span class="nc">com</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">BeamPipeline</span> <span class="o">--</span><span class="n">master</span> <span class="nl">spark:</span><span class="c1">//HOST:PORT target/beam-examples-1.0.0-shaded.jar --runner=SparkRunner</span>
+</code></pre></div></div>
+
+<p><span class="language-java">
+<br /><b>For Structured Streaming based runner:</b><br />
+</span></p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">spark</span><span class="o">-</span><span class="n">submit</span> <span class="o">--</span><span class="kd">class</span> <span class="nc">com</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">BeamPipeline</span> <span class="o">--</span><span class="n">master</span> <span class="nl">spark:</span><span class="c1">//HOST:PORT target/beam-examples-1.0.0-shaded.jar --runner=SparkStructuredStreamingRunner</span>
+</code></pre></div></div>
 
 <p><span class="language-py">
 You will need Docker to be installed in your execution environment. To develop
@@ -381,8 +405,7 @@ download it on the <a href="/get-started/downloads/">Downloads page</a>. In the 
 available.
 </span></p>
 
-<p><span class="language-py">1. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:spark:job-server:runShadow</code>
-</span></p>
+<p><span class="language-py">1. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:spark:job-server:runShadow</code></span></p>
 
 <p><span class="language-py">
 The JobService is the central instance where you submit your Beam pipeline.
@@ -391,8 +414,7 @@ job. To execute the job on a Spark cluster, the Beam JobService needs to be
 provided with the Spark master address.
 </span></p>
 
-<p><span class="language-py">2. Submit the Python pipeline to the above endpoint by using the <code class="highlighter-rouge">PortableRunner</code>, <code class="highlighter-rouge">job_endpoint</code> set to <code class="highlighter-rouge">localhost:8099</code> (this is the default address of the JobService), and <code class="highlighter-rouge">environment_type</code> set to <code class="highlighter-rouge">LOOPBACK</code>. For example:
-</span></p>
+<p><span class="language-py">2. Submit the Python pipeline to the above endpoint by using the <code class="highlighter-rouge">PortableRunner</code>, <code class="highlighter-rouge">job_endpoint</code> set to <code class="highlighter-rouge">localhost:8099</code> (this is the default address of the JobService), and <code class="highlighter-rouge">environment_type</code> set to <code class="highlighter-rouge">LOOPBACK</code>. For example:</span></p>
 
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
@@ -411,16 +433,13 @@ provided with the Spark master address.
 <p>Deploying your Beam pipeline on a cluster that already has a Spark deployment (Spark classes are available in container classpath) does not require any additional dependencies.
 For more details on the different deployment modes see: <a href="http://spark.apache.org/docs/latest/spark-standalone.html">Standalone</a>, <a href="http://spark.apache.org/docs/latest/running-on-yarn.html">YARN</a>, or <a href="http://spark.apache.org/docs/latest/running-on-mesos.html">Mesos</a>.</p>
 
-<p><span class="language-py">1. Start a Spark cluster which exposes the master on port 7077 by default.
-</span></p>
+<p><span class="language-py">1. Start a Spark cluster which exposes the master on port 7077 by default.</span></p>
 
-<p><span class="language-py">2. Start JobService that will connect with the Spark master: <code class="highlighter-rouge">./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077</code>.
-</span></p>
+<p><span class="language-py">2. Start JobService that will connect with the Spark master: <code class="highlighter-rouge">./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077</code>.</span></p>
 
 <p><span class="language-py">3. Submit the pipeline as above.
 Note however that <code class="highlighter-rouge">environment_type=LOOPBACK</code> is only intended for local testing.
-See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.
-</span></p>
+See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.</span></p>
 
 <p><span class="language-py">
 (Note that, depending on your cluster setup, you may need to change the <code class="highlighter-rouge">environment_type</code> option.
@@ -430,6 +449,10 @@ See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.)
 <h2 id="pipeline-options-for-the-spark-runner">Pipeline options for the Spark Runner</h2>
 
 <p>When executing your pipeline with the Spark Runner, you should consider the following pipeline options.</p>
+
+<p><span class="language-java">
+<br /><b>For RDD/DStream based runner:</b><br />
+</span></p>
 
 <table class="language-java table table-bordered">
 <tr>
@@ -466,6 +489,53 @@ See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.)
   <td><code>cacheDisabled</code></td>
   <td>Disable caching of reused PCollections for whole Pipeline. It's useful when it's faster to recompute RDD rather than save.</td>
   <td>false</td>
+</tr>
+</table>
+
+<p><span class="language-java">
+<br /><b>For Structured Streaming based runner:</b><br />
+</span></p>
+
+<table class="language-java table table-bordered">
+<tr>
+  <th>Field</th>
+  <th>Description</th>
+  <th>Default Value</th>
+</tr>
+<tr>
+  <td><code>runner</code></td>
+  <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
+  <td>Set to <code>SparkStructuredStreamingRunner</code> to run using Spark Structured Streaming.</td>
+</tr>
+<tr>
+  <td><code>sparkMaster</code></td>
+  <td>The url of the Spark Master. This is the equivalent of setting <code>SparkConf#setMaster(String)</code> and can either be <code>local[x]</code> to run local with x cores, <code>spark://host:port</code> to connect to a Spark Standalone cluster, <code>mesos://host:port</code> to connect to a Mesos cluster, or <code>yarn</code> to connect to a yarn cluster.</td>
+  <td><code>local[4]</code></td>
+</tr>
+<tr>
+  <td><code>testMode</code></td>
+  <td>Enable test mode that gives useful debugging information: catalyst execution plans and Beam DAG printing</td>
+  <td>false</td>
+</tr>
+<tr>
+  <td><code>enableSparkMetricSinks</code></td>
+  <td>Enable reporting metrics to Spark's metrics Sinks.</td>
+  <td>true</td>
+</tr>
+<tr>
+  <td><code>checkpointDir</code></td>
+  <td>A checkpoint directory for streaming resilience, ignored in batch. For durability, a reliable filesystem such as HDFS/S3/GS is necessary.</td>
+  <td>local dir in /tmp</td>
+</tr>
+<tr>
+  <td><code>filesToStage</code></td>
+  <td>Jar-Files to send to all workers and put on the classpath.</td>
+  <td>all files from the classpath</td>
+</tr>
+<tr>
+  <td><code>EnableSparkMetricSinks</code></td>
+  <td>Enable/disable sending aggregator values to Spark's metric sinks</td>
+  <td>true</td>
 </tr>
 </table>
 
@@ -509,17 +579,31 @@ Spark provides a <a href="http://spark.apache.org/docs/latest/monitoring.html#me
 <h3 id="streaming-execution">Streaming Execution</h3>
 
 <p><span class="language-java">
+<br /><b>For RDD/DStream based runner:</b><br />
 If your pipeline uses an <code>UnboundedSource</code> the Spark Runner will automatically set streaming mode. Forcing streaming mode is mostly used for testing and is not recommended.
-</span>
-<span class="language-py">Streaming is not yet supported on the Spark portable runner.</span></p>
+<br />
+<br /><b>For Structured Streaming based runner:</b><br />
+Streaming mode is not implemented yet in the Spark Structured Streaming runner.
+</span></p>
+
+<p><span class="language-py">
+Streaming is not yet supported on the Spark portable runner.
+</span></p>
 
 <h3 id="using-a-provided-sparkcontext-and-streaminglisteners">Using a provided SparkContext and StreamingListeners</h3>
 
 <p><span class="language-java">
+<br /><b>For RDD/DStream based runner:</b><br />
 If you would like to execute your Spark job with a provided <code>SparkContext</code>, such as when using the <a href="https://github.com/spark-jobserver/spark-jobserver">spark-jobserver</a>, or use <code>StreamingListeners</code>, you can’t use <code>SparkPipelineOptions</code> (the context or a listener cannot be passed as a command-line argument anyway).
 Instead, you should use <code>SparkContextOptions</code> which can only be used programmatically and is not a common <code>PipelineOptions</code> implementation.
-</span>
-<span class="language-py">Provided SparkContext and StreamingListeners are not supported on the Spark portable runner.</span></p>
+<br />
+<br /><b>For Structured Streaming based runner:</b><br />
+Provided SparkSession and StreamingListeners are not supported on the Spark Structured Streaming runner
+</span></p>
+
+<p><span class="language-py">
+Provided SparkContext and StreamingListeners are not supported on the Spark portable runner.
+</span></p>
 
       </div>
     </div>
