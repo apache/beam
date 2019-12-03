@@ -437,7 +437,6 @@ public class RabbitMqIO {
       for (Long sessionId : sessionIds) {
         channel.basicAck(sessionId, false);
       }
-      channel.txCommit();
       latestTimestamp = Instant.now();
       sessionIds.clear();
     }
@@ -528,7 +527,6 @@ public class RabbitMqIO {
           channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
         }
         checkpointMark.channel = channel;
-        channel.txSelect();
       } catch (IOException e) {
         throw e;
       } catch (Exception e) {
