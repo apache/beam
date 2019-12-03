@@ -260,7 +260,7 @@ class DoOutputsTuple(object):
 
     if tag is not None:
       self._transform.output_tags.add(tag)
-      pcoll = PCollection(self._pipeline, tag=tag)
+      pcoll = PCollection(self._pipeline, tag=tag, element_type=typehints.Any)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
       pcoll.producer = self.producer.parts[0]
