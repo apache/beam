@@ -60,7 +60,7 @@ except ImportError:
 
 __all__ = [
     'Coder',
-    'AvroCoder', 'BooleanCoder', 'BytesCoder', 'DillCoder',
+    'AvroGenericCoder', 'BooleanCoder', 'BytesCoder', 'DillCoder',
     'FastPrimitivesCoder', 'FloatCoder', 'IterableCoder', 'PickleCoder',
     'ProtoCoder', 'SingletonCoder', 'StrUtf8Coder', 'TimestampCoder',
     'TupleCoder', 'TupleSequenceCoder', 'VarIntCoder',
@@ -819,10 +819,10 @@ class DeterministicProtoCoder(ProtoCoder):
     return self
 
 
-AVRO_CODER_URN = "beam:coder:avro:v1"
+AVRO_GENERIC_CODER_URN = "beam:coder:avro:generic:v1"
 
 
-class AvroCoder(FastCoder):
+class AvroGenericCoder(FastCoder):
   """A coder used for AvroRecord values."""
 
   def __init__(self, schema):
@@ -846,11 +846,11 @@ class AvroCoder(FastCoder):
     return AvroRecord
 
   def to_runner_api_parameter(self, context):
-    return AVRO_CODER_URN, self.schema, ()
+    return AVRO_GENERIC_CODER_URN, self.schema, ()
 
-  @Coder.register_urn(AVRO_CODER_URN, bytes)
+  @Coder.register_urn(AVRO_GENERIC_CODER_URN, bytes)
   def from_runner_api_parameter(payload, unused_components, unused_context):
-    return AvroCoder(payload)
+    return AvroGenericCoder(payload)
 
 
 class TupleCoder(FastCoder):

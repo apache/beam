@@ -97,9 +97,10 @@ type propertiesWithPubSubMessage struct {
 }
 
 type output struct {
-	UserName   string           `json:"user_name,omitempty"`
-	OutputName string           `json:"output_name,omitempty"`
-	Encoding   *graphx.CoderRef `json:"encoding,omitempty"`
+	UserName         string           `json:"user_name,omitempty"`
+	OutputName       string           `json:"output_name,omitempty"`
+	Encoding         *graphx.CoderRef `json:"encoding,omitempty"`
+	UseIndexedFormat bool             `json:"use_indexed_format,omitempty"`
 }
 
 type integer struct {

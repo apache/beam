@@ -117,6 +117,7 @@ class PropertyNames(object):
   SOURCE_STEP_INPUT = 'custom_source_step_input'
   SERIALIZED_TEST_STREAM = 'serialized_test_stream'
   STEP_NAME = 'step_name'
+  USE_INDEXED_FORMAT = 'use_indexed_format'
   USER_FN = 'user_fn'
   USER_NAME = 'user_name'
   VALIDATE_SINK = 'validate_sink'
