@@ -17,69 +17,35 @@
  */
 package org.apache.beam.runners.core.construction.resources;
 
+import io.github.classgraph.ClassGraph;
 import java.io.File;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.stream.Stream;
 
 /**
- * Attempts to detect all the resources to be staged using either URLClassLoader (if it is
- * available) or via the "java.class.path" system property. URLClassLoader is not available for Java
- * 9 and above, hence the alternative approach was introduced.
+ * Attempts to detect all the resources to be staged using classgraph library.
+ *
+ * <p>See <a
+ * href="https://github.com/classgraph/classgraph">https://github.com/classgraph/classgraph</a>
  */
 public class ClasspathScanningResourcesDetector implements PipelineResourcesDetector {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ClasspathScanningResourcesDetector.class);
+  private transient ClassGraph classGraph;
+
+  public ClasspathScanningResourcesDetector(ClassGraph classGraph) {
+    this.classGraph = classGraph;
+  }
 
   /**
-   * Detects classpath resources by either using URLClassLoader or java.class.path env variable.
+   * Detects classpath resources and returns a list of absolute paths to them.
    *
    * @param classLoader The classloader to use to detect resources to stage (optional).
-   * @throws IllegalArgumentException If one of the resources the class loader exposes is not a file
-   *     resource.
    * @return A list of absolute paths to the resources the class loader uses.
    */
   @Override
-  public List<String> detect(ClassLoader classLoader) {
-    if (classLoader instanceof URLClassLoader) {
-      return scanClasspathForResourcesToStage((URLClassLoader) classLoader);
-    } else {
-      return scanClasspathForResourcesToStage();
-    }
-  }
+  public Stream<String> detect(ClassLoader classLoader) {
+    List<File> classpathContents = classGraph.addClassLoader(classLoader).getClasspathFiles();
 
-  private static List<String> scanClasspathForResourcesToStage() {
-    LOG.info("Scanning classpath for resources to stage via the java.class.path system property.");
-
-    Iterable<String> classpathEntries =
-        Splitter.on(File.pathSeparator).split(System.getProperty("java.class.path"));
-
-    return StreamSupport.stream(classpathEntries.spliterator(), false)
-        .map(File::new)
-        .map(File::getAbsolutePath)
-        .collect(Collectors.toList());
-  }
-
-  private static List<String> scanClasspathForResourcesToStage(URLClassLoader classLoader) {
-    LOG.info("Scanning classpath for resources to stage via the URLClassLoader.");
-
-    List<String> files = new ArrayList<>();
-    for (URL url : classLoader.getURLs()) {
-      try {
-        files.add(new File(url.toURI()).getAbsolutePath());
-      } catch (IllegalArgumentException | URISyntaxException e) {
-        String message = String.format("Unable to convert url (%s) to file.", url);
-        throw new IllegalArgumentException(message, e);
-      }
-    }
-    return files;
+    return classpathContents.stream().map(File::getAbsolutePath);
   }
 }

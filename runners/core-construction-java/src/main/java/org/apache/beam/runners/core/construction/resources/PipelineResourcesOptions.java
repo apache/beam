@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction.resources;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.github.classgraph.ClassGraph;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -70,7 +71,7 @@ public interface PipelineResourcesOptions extends PipelineOptions {
 
     @Override
     public PipelineResourcesDetector getPipelineResourcesDetector() {
-      return new ClasspathScanningResourcesDetector();
+      return new ClasspathScanningResourcesDetector(new ClassGraph());
     }
   }
 }

@@ -19,7 +19,9 @@ package org.apache.beam.runners.core.construction.resources;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
@@ -53,7 +55,21 @@ public class PipelineResourcesTest {
     List<String> detectedResources =
         PipelineResources.detectClassPathResourcesToStage(classLoader, options);
 
-    assertThat(detectedResources, hasSize(1));
+    assertThat(detectedResources, not(empty()));
+  }
+
+  @Test
+  public void testDetectedResourcesListDoNotContainNotStageableResources() throws IOException {
+    File unstageableResource = tmpFolder.newFolder(".gradle/wrapper/unstageableResource");
+    URLClassLoader classLoader =
+        new URLClassLoader(new URL[] {unstageableResource.toURI().toURL()});
+    PipelineResourcesOptions options =
+        PipelineOptionsFactory.create().as(PipelineResourcesOptions.class);
+
+    List<String> detectedResources =
+        PipelineResources.detectClassPathResourcesToStage(classLoader, options);
+
+    assertThat(detectedResources, not(contains(unstageableResource.getAbsolutePath())));
   }
 
   @Test
