@@ -37,14 +37,17 @@ import threading
 import traceback
 import types
 import zlib
-from contextlib import contextmanager
 
 import dill
 
 
-@contextmanager
-def noop_context(enter_result=None):
-  yield enter_result
+class _NoOpContextManager(object):
+  def __enter__(self):
+    pass
+
+  def __exit__(self, *unused_exc_info):
+    pass
+
 
 if sys.version_info[0] > 2:
   # Pickling, especially unpickling, causes broken module imports on Python 3
@@ -52,7 +55,7 @@ if sys.version_info[0] > 2:
   pickle_lock_unless_py2 = threading.RLock()
 else:
   # Avoid slow reentrant locks on Py2.
-  pickle_lock_unless_py2 = noop_context()
+  pickle_lock_unless_py2 = _NoOpContextManager()
 # Dill 0.28.0 renamed dill.dill to dill._dill:
 # https://github.com/uqfoundation/dill/commit/f0972ecc7a41d0b8acada6042d557068cac69baa
 # TODO: Remove this once Beam depends on dill >= 0.2.8
