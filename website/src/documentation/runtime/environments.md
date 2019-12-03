@@ -99,7 +99,9 @@ python -m apache_beam.examples.wordcount \
 --environment_config=path/to/container/image
 ```
 
-To test a customized image on the Google Cloud Dataflow runner, use the `DataflowRunner` option and the `worker_harness_container_image` flag:
+To test a customized image on the Google Cloud Dataflow runner, use
+`DataflowRunner` with the `beam_fn_api` experiment and set
+`worker_harness_container_image` to the custom container:
 
 ```
 python -m apache_beam.examples.wordcount \ 
