@@ -58,11 +58,11 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
-from apache_beam.runners.utils import is_interactive
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
+from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
 
 try:                    # Python 3
@@ -376,8 +376,7 @@ class DataflowRunner(PipelineRunner):
   def run_pipeline(self, pipeline, options):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Label goog-dataflow-notebook if job is started from notebook.
-    _, is_in_notebook = is_interactive()
-    if is_in_notebook:
+    if is_in_notebook():
       notebook_version = ('goog-dataflow-notebook=' +
                           beam.version.__version__.replace('.', '_'))
       if options.view_as(GoogleCloudOptions).labels:
