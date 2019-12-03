@@ -647,6 +647,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                method='FILE_LOADS'))
 
   @attr('IT')
+  @unittest.skip('BEAM-8842: Disabled due to reliance on old retry behavior.')
   def test_multiple_destinations_transform(self):
     streaming = self.test_pipeline.options.view_as(StandardOptions).streaming
     if streaming and isinstance(self.test_pipeline.runner, TestDataflowRunner):
