@@ -40,10 +40,3 @@ task cancelStaleDataflowJobs(type: com.github.blindpirate.gogradle.Go) {
   go('get google.golang.org/api/dataflow/v1b3')
   go('run stale_dataflow_jobs_cleaner.go')
 }
-
-dependencies {
-    golang {
-        build(['name':'golang.org/x/oauth2'])
-        build(['name':'google.golang.org/api'])
-    }
-}

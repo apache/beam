@@ -156,11 +156,14 @@ public enum Compression {
     }
   },
 
-  /** LZO compression. */
-  LZO(".lzo", ".lzo") {
+  /**
+   * LZO compression using LZO Codec. .lzo_deflate extension is specified for the files which just
+   * use the LZO algorithm without headers.
+   */
+  LZO(".lzo_deflate", ".lzo_deflate") {
     @Override
     public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
-        return Channels.newChannel(new LzoCompressorInputStream(Channels.newInputStream(channel)));
+      return Channels.newChannel(new LzoCompressorInputStream(Channels.newInputStream(channel)));
     }
 
     @Override
@@ -169,17 +172,14 @@ public enum Compression {
     }
   },
 
-  /** LZOP compression. */
+  /**
+   * LZOP compression using LZOP Codec. .lzo extension is specified for the files with magic bytes
+   * and headers.
+   */
   LZOP(".lzo", ".lzo") {
     @Override
     public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
-      try {
-        return Channels.newChannel(new LzopCompressorInputStream(Channels.newInputStream(channel)));
-      } catch (IOException e) {
-        if(e.getMessage().contains("Not an LZOP file"))
-          e = new IOException("Not an LZOP file. Please try using LZO Compression.");
-        throw e;
-      }
+      return Channels.newChannel(new LzopCompressorInputStream(Channels.newInputStream(channel)));
     }
 
     @Override

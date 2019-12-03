@@ -23,8 +23,8 @@ import java.io.OutputStream;
 import org.apache.commons.compress.compressors.CompressorOutputStream;
 
 /**
- * {@link CompressorOutputStream} implementation to create LZO encoded stream.
- * Library relies on <a href="https://github.com/airlift/aircompressor/">LZO</a>
+ * {@link CompressorOutputStream} implementation to create LZO encoded stream. Library relies on <a
+ * href="https://github.com/airlift/aircompressor/">LZO</a>
  *
  * @since 1.18
  */
@@ -33,10 +33,11 @@ public class LzopCompressorOutputStream extends CompressorOutputStream {
   private final OutputStream lzoOS;
 
   /**
-     * Wraps the given stream into a aircompressor's HadoopLzopOutputStream using the LzopCodec
-     * @param outStream the stream to write to
-     * @throws IOException if aircompressor does
-     */
+   * Wraps the given stream into a aircompressor's HadoopLzopOutputStream using the LzopCodec
+   *
+   * @param outStream the stream to write to
+   * @throws IOException if aircompressor does
+   */
   public LzopCompressorOutputStream(final OutputStream outStream) throws IOException {
     this.lzoOS = new LzopCodec().createOutputStream(outStream);
   }
