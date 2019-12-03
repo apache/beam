@@ -22,8 +22,6 @@ from __future__ import division
 import unittest
 from builtins import range
 
-from nose.plugins.attrib import attr
-
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.runners import pipeline_context
