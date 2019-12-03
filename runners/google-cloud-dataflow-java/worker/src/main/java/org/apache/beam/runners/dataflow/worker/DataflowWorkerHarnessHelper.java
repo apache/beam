@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -117,13 +118,13 @@ public final class DataflowWorkerHarnessHelper {
   @Nullable
   public static Endpoints.ApiServiceDescriptor getStatusDescriptor()
       throws TextFormat.ParseException {
-    try {
-      return parseApiServiceDescriptorFromText(System.getenv().get(STATUS_API_SERVICE_DESCRIPTOR));
-    } catch (NullPointerException e) {
+    String statusApiDescriptor = System.getenv().get(STATUS_API_SERVICE_DESCRIPTOR);
+    if (Strings.isNullOrEmpty(statusApiDescriptor)) {
       // Missing STATUS_API_SERVICE_DESCRIPTOR env var is a signal that the fn worker status api
       // server should be skipped.
       return null;
     }
+    return parseApiServiceDescriptorFromText(statusApiDescriptor);
   }
 
   // TODO: make env logic private to main() so it is never done outside of initializing the process

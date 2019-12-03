@@ -122,10 +122,6 @@ func main() {
 		"--semi_persist_dir=" + *semiPersistDir,
 		"--options=" + options,
 	}
-	if info.GetStatusEndpoint() != nil {
-		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
-	}
-
 	log.Fatalf("User program exited: %v", execx.Execute(prog, args...))
 }
 
