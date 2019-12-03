@@ -207,7 +207,12 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
         _LOGGER.info(
             'Error deleting jar %s' % self._flink_jar_id, exc_info=True)
 
-  def get_state(self):
+  def _get_state(self):
+    """Query flink to get the current state.
+
+    :return: tuple of int and Timestamp or None
+      timestamp will be None if the state has not changed since the last query.
+    """
     # For just getting the status, execution-result seems cheaper.
     flink_status = self.get(
         'v1/jobs/%s/execution-result' % self._flink_job_id)['status']['id']
@@ -218,7 +223,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
         'RUNNING': beam_job_api_pb2.JobState.RUNNING,
         'FAILING': beam_job_api_pb2.JobState.RUNNING,
         'FAILED': beam_job_api_pb2.JobState.FAILED,
-        'CANCELLING': beam_job_api_pb2.JobState.RUNNING,
+        'CANCELLING': beam_job_api_pb2.JobState.CANCELLING,
         'CANCELED': beam_job_api_pb2.JobState.CANCELLED,
         'FINISHED': beam_job_api_pb2.JobState.DONE,
         'RESTARTING': beam_job_api_pb2.JobState.RUNNING,
@@ -229,21 +234,35 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
     }.get(flink_status, beam_job_api_pb2.JobState.UNSPECIFIED)
     if self.is_terminal_state(beam_state):
       self.delete_jar()
-    return beam_state
+    # update the state history if it has changed
+    return beam_state, self.set_state(beam_state)
+
+  def get_state(self):
+    state, timestamp = self._get_state()
+    if timestamp is None:
+      # state has not changed since it was last checked: use previous timestamp
+      return super(FlinkBeamJob, self).get_state()
+    else:
+      return state, timestamp
 
   def get_state_stream(self):
-    sleep_secs = 1.0
-    current_state = self.get_state()
-    yield current_state
-    while not self.is_terminal_state(current_state):
-      sleep_secs = min(60, sleep_secs * 1.2)
-      time.sleep(sleep_secs)
-      previous_state, current_state = current_state, self.get_state()
-      if previous_state != current_state:
-        yield current_state
+    def _state_iter():
+      sleep_secs = 1.0
+      while True:
+        current_state, timestamp = self._get_state()
+        if timestamp is not None:
+          # non-None indicates that the state has changed
+          yield current_state, timestamp
+        sleep_secs = min(60, sleep_secs * 1.2)
+        time.sleep(sleep_secs)
+
+    for state, timestamp in self.with_state_history(_state_iter()):
+      yield state, timestamp
+      if self.is_terminal_state(state):
+        break
 
   def get_message_stream(self):
-    for state in self.get_state_stream():
+    for state, timestamp in self.get_state_stream():
       if self.is_terminal_state(state):
         response = self.get('v1/jobs/%s/exceptions' % self._flink_job_id)
         for ix, exc in enumerate(response['all-exceptions']):
@@ -253,4 +272,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
               importance=
               beam_job_api_pb2.JobMessage.MessageImportance.JOB_MESSAGE_ERROR,
               message_text=exc['exception'])
-      yield state
+        yield state, timestamp
+        break
+      else:
+        yield state, timestamp
