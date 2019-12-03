@@ -32,6 +32,7 @@ option java_outer_classname = "JobApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 import "metrics.proto";
 
 // Job Service for running RunnerAPI pipelines
@@ -47,7 +48,7 @@ service JobService {
   rpc GetJobs (GetJobsRequest) returns (GetJobsResponse);
 
   // Get the current state of the job
-  rpc GetState (GetJobStateRequest) returns (GetJobStateResponse);
+  rpc GetState (GetJobStateRequest) returns (JobStateEvent);
 
   // Get the job's pipeline
   rpc GetPipeline (GetJobPipelineRequest) returns (GetJobPipelineResponse);
@@ -56,7 +57,7 @@ service JobService {
   rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
 
   // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
-  rpc GetStateStream (GetJobStateRequest) returns (stream GetJobStateResponse);
+  rpc GetStateStream (GetJobStateRequest) returns (stream JobStateEvent);
 
   // Subscribe to a stream of state changes and messages from the job
   rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
@@ -151,8 +152,9 @@ message GetJobStateRequest {
 
 }
 
-message GetJobStateResponse {
+message JobStateEvent {
   JobState.Enum state = 1; // (required)
+  google.protobuf.Timestamp timestamp = 2; // (required)
 }
 
 
@@ -196,7 +198,7 @@ message JobMessage {
 message JobMessagesResponse {
   oneof response {
     JobMessage message_response = 1;
-    GetJobStateResponse state_response = 2;
+    JobStateEvent state_response = 2;
   }
 }
 
