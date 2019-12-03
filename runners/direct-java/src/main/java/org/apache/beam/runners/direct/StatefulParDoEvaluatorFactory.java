@@ -302,7 +302,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     public TransformResult<KeyedWorkItem<K, KV<K, InputT>>> finishBundle() throws Exception {
 
       TransformResult<KV<K, InputT>> delegateResult = delegateEvaluator.finishBundle();
-      Boolean isTimerDeclared = false;
+      boolean isTimerDeclared = false;
       for (TimerData timerData : delegateResult.getTimerUpdate().getSetTimers()) {
         StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timerData);
 
