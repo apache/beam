@@ -33,7 +33,7 @@ public class LzoCompressorOutputStream extends CompressorOutputStream {
   private final OutputStream lzoOS;
 
   /**
-   * Wraps the given stream into a aircompressor's HadoopLzoOutputStream using the LzoCodec
+   * Wraps the given stream into a aircompressor's HadoopLzoOutputStream using the LzoCodec.
    *
    * @param outStream the stream to write to
    * @throws IOException if aircompressor does

@@ -38,13 +38,14 @@ public class LzoCompressorInputStream extends CompressorInputStream
   private final InputStream lzoIS;
 
   /**
-   * Wraps the given stream into a aircompressor's HadoopLzoInputStream using the LzoCodec
+   * Wraps the given stream into a aircompressor's HadoopLzoInputStream using the LzoCodec.
    *
-   * @param outStream the stream to write to
+   * @param inStream the stream to write to
    * @throws IOException if aircompressor does
    */
-  public LzoCompressorInputStream(final InputStream in) throws IOException {
-    this.lzoIS = new LzoCodec().createInputStream(countingStream = new CountingInputStream(in));
+  public LzoCompressorInputStream(final InputStream inStream) throws IOException {
+    this.lzoIS =
+        new LzoCodec().createInputStream(countingStream = new CountingInputStream(inStream));
   }
 
   @Override
