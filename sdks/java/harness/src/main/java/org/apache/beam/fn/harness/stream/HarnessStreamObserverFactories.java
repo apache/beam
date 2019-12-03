@@ -29,6 +29,11 @@ import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
  * to use in the java SDK harness.
  */
 public abstract class HarnessStreamObserverFactories {
+
+  /**
+   * Creates a {@link OutboundObserverFactory} for client-side RPCs, which adds synchronization to
+   * provide thread safety of access to the returned observer.
+   */
   public static OutboundObserverFactory fromOptions(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     if (experiments != null && experiments.contains("beam_fn_api_buffered_stream")) {

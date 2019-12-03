@@ -28,7 +28,8 @@ import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 public abstract class OutboundObserverFactory {
   /**
    * Create a buffering {@link OutboundObserverFactory} for client-side RPCs with the specified
-   * {@link ExecutorService} and the default buffer size.
+   * {@link ExecutorService} and the default buffer size. It adds synchronization to provide thread
+   * safety of access to the returned observer.
    */
   public static OutboundObserverFactory clientBuffered(ExecutorService executorService) {
     return new Buffered(executorService, Buffered.DEFAULT_BUFFER_SIZE);
@@ -36,7 +37,8 @@ public abstract class OutboundObserverFactory {
 
   /**
    * Create a buffering {@link OutboundObserverFactory} for client-side RPCs with the specified
-   * {@link ExecutorService} and buffer size.
+   * {@link ExecutorService} and buffer size. It adds synchronization to provide thread safety of
+   * access to the returned observer.
    */
   public static OutboundObserverFactory clientBuffered(
       ExecutorService executorService, int bufferSize) {
