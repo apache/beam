@@ -73,7 +73,7 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *
    * <p>The API is required to be implemented for a streaming pipeline.
    *
-   * @param fractionOfRemainder: A hint as to the fraction of work the primary restriction should
+   * @param fractionOfRemainder A hint as to the fraction of work the primary restriction should
    *     represent based upon the current known remaining amount of work.
    * @return a {@link SplitResult} if a split was possible, otherwise returns {@code null}.
    */

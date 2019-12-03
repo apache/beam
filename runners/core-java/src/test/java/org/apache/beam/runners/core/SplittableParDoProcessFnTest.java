@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -105,8 +106,8 @@ public class SplittableParDoProcessFnTest {
     }
 
     @Override
-    public SomeRestriction checkpoint() {
-      return someRestriction;
+    public SplitResult<SomeRestriction> trySplit(double fractionOfRemainder) {
+      return SplitResult.of(null, someRestriction);
     }
 
     @Override
