@@ -101,6 +101,10 @@ if __name__ == '__main__':
       # Skip until Spark runner supports SDF.
       raise unittest.SkipTest("BEAM-7222")
 
+    def test_sdf_with_watermark_tracking(self):
+      # Skip until Spark runner supports SDF.
+      raise unittest.SkipTest("BEAM-7222")
+
     def test_sdf_with_sdf_initiated_checkpointing(self):
       # Skip until Spark runner supports SDF.
       raise unittest.SkipTest("BEAM-7222")
