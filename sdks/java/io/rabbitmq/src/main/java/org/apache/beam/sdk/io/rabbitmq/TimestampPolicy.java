@@ -18,36 +18,35 @@
 package org.apache.beam.sdk.io.rabbitmq;
 
 import java.io.Serializable;
-import java.util.function.Function;
 import org.joda.time.Instant;
 
 /**
  * A timestamp policy to assign event time for messages from a RabbitMq queue and watermark for it.
  *
  * @todo use singletons for processing time and timestamp property
+ * @todo timestamp policy should include logic for determining watermark (consider accepting 'last
+ *     attempted at' wall clock time and 'last element timestamp' as function arguments) OR:
+ *     separate TimestampPolicy from WatermarkPolicy SEE:
+ *     https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/CustomTimestampPolicyWithLimitedDelay.java
  */
-@FunctionalInterface
-public interface TimestampPolicy extends Function<RabbitMqMessage, Instant>, Serializable {
+public abstract class TimestampPolicy {
 
-  static TimestampPolicy processingTime() {
-    return new ProcessingTimePolicy();
+  // analagous to KafkaIO TimestampPolicy.PartitionContext
+  public abstract static class LastRead implements Serializable {
+    /**
+     * @return {@code true} if the last read from rabbit resulted in a message being delivered,
+     *     {@code false} if the last read was from an empty queue
+     */
+    public abstract boolean hasBacklog();
+
+    /**
+     * @return the timestamp (wall clock) at which the last read was attempted, regardless of
+     *     whether a message was available
+     */
+    public abstract Instant lastCheckedAt();
   }
 
-  static TimestampPolicy timestampProperty() {
-    return new TimestampPropertyPolicy();
-  }
+  public abstract Instant getTimestampForRecord(RabbitMqMessage record);
 
-  class ProcessingTimePolicy implements TimestampPolicy {
-    @Override
-    public Instant apply(RabbitMqMessage rabbitMqMessage) {
-      return Instant.now();
-    }
-  }
-
-  class TimestampPropertyPolicy implements TimestampPolicy {
-    @Override
-    public Instant apply(RabbitMqMessage rabbitMqMessage) {
-      return new Instant(rabbitMqMessage.getTimestamp());
-    }
-  }
+  public abstract Instant getWatermark(LastRead context, RabbitMqMessage record);
 }

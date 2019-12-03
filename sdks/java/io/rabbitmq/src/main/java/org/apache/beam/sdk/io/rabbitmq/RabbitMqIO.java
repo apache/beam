@@ -32,9 +32,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -46,6 +46,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -124,9 +125,11 @@ public class RabbitMqIO {
     return new AutoValue_RabbitMqIO_Read.Builder()
         .setQueueDeclare(false)
         .setExchangeDeclare(false)
+        // this is not a great policy, this should be set to something more sensible
+        .setRecordIdPolicy(RecordIdPolicy.alwaysUnique())
         .setMaxReadTime(null)
         .setMaxNumRecords(Long.MAX_VALUE)
-        .setUseCorrelationId(false)
+        .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .build();
   }
 
@@ -206,12 +209,14 @@ public class RabbitMqIO {
     @Nullable
     abstract String routingKey();
 
-    abstract boolean useCorrelationId();
+    abstract RecordIdPolicy recordIdPolicy();
 
     abstract long maxNumRecords();
 
     @Nullable
     abstract Duration maxReadTime();
+
+    abstract TimestampPolicyFactory timestampPolicyFactory();
 
     abstract Builder builder();
 
@@ -231,11 +236,13 @@ public class RabbitMqIO {
 
       abstract Builder setRoutingKey(String routingKey);
 
-      abstract Builder setUseCorrelationId(boolean useCorrelationId);
+      abstract Builder setRecordIdPolicy(RecordIdPolicy recordIdPolicy);
 
       abstract Builder setMaxNumRecords(long maxNumRecords);
 
       abstract Builder setMaxReadTime(Duration maxReadTime);
+
+      abstract Builder setTimestampPolicyFactory(TimestampPolicyFactory timestampPolicyFactory);
 
       abstract Read build();
     }
@@ -290,8 +297,8 @@ public class RabbitMqIO {
      * <p>To use an exchange without declaring it, especially for cases when the exchange is shared
      * with other applications or already exists, use {@link #withExchange(String, String)} instead.
      *
-     * @see
-     *     "https://www.cloudamqp.com/blog/2015-09-03-part4-rabbitmq-for-beginners-exchanges-routing-keys-bindings.html"
+     * @see <a
+     *     href="https://www.cloudamqp.com/blog/2015-09-03-part4-rabbitmq-for-beginners-exchanges-routing-keys-bindings.html"/>
      *     for a write-up on exchange types and routing semantics
      */
     public Read withExchange(String name, String type, @Nullable String routingKey) {
@@ -346,18 +353,42 @@ public class RabbitMqIO {
       return builder().setMaxReadTime(maxReadTime).build();
     }
 
+    public Read withRecordIdPolicy(RecordIdPolicy policy) {
+      return builder().setRecordIdPolicy(policy).build();
+    }
+
     /**
-     * Toggles deduplication of messages based on the amqp correlation-id property on incoming
-     * messages.
-     *
-     * <p>When set to {@code true} all read messages will require the amqp correlation-id property
-     * to be set.
-     *
-     * <p>When set to {@code false} the correlation-id property will not be used by the Reader and
-     * no automatic deduplication will occur.
+     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}. This is
+     * the default timestamp policy. It assigns processing time to each record. Specifically, this
+     * is the timestamp when the record becomes 'current' in the reader. The watermark aways
+     * advances to current time. If messages are delivered to the rabbit queue with the Timestamp
+     * property set, {@link #withTimestampPropertyTime(Duration)}} is recommended over this.
      */
-    public Read withUseCorrelationId(boolean useCorrelationId) {
-      return builder().setUseCorrelationId(useCorrelationId).build();
+    public Read withProcessingTime() {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+    }
+
+    /**
+     * Sets the timestamps policy based on the amqp basic "timestamp" property of the message. It is
+     * an error if a record's timestamp property is not populated. The timestamps within a queue are
+     * expected to be roughly monotonically increasing with a cap on out of order delays (e.g. 'max
+     * delay' of 1 minute). The watermark at any time is '({@code Min(now(), Max(event timestamp so
+     * far)) - max delay})'. However, watermark is never set in future and capped to 'now - max
+     * delay'. In addition, watermark advanced to 'now - max delay' when a partition is idle.
+     *
+     * @param maxDelay For any record in the queue partition, the timestamp of any subsequent record
+     *     is expected to be after {@code current record timestamp - maxDelay}.
+     * @see <a href="https://github.com/rabbitmq/rabbitmq-message-timestamp">the RabbitMq Message
+     *     Timestamp Plugin</a>
+     * @see <a href="https://www.rabbitmq.com/amqp-0-9-1-reference.html#class.basic">basic Timestamp
+     *     property</a>
+     */
+    public Read withTimestampPropertyTime(Duration maxDelay) {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withTimestampProperty(maxDelay));
+    }
+
+    public Read withTimestampPolicyFactory(TimestampPolicyFactory timestampPolicyFactory) {
+      return builder().setTimestampPolicyFactory(timestampPolicyFactory).build();
     }
 
     @Override
@@ -410,10 +441,11 @@ public class RabbitMqIO {
 
     @Override
     public boolean requiresDeduping() {
-      return spec.useCorrelationId();
+      return true;
     }
   }
 
+  // TODO: wire up TimestampPolicyContext and use it
   private static class RabbitMQCheckpointMark
       implements UnboundedSource.CheckpointMark, Serializable {
     transient Channel channel;
@@ -442,12 +474,35 @@ public class RabbitMqIO {
     }
   }
 
+  private static class TimestampPolicyContext extends TimestampPolicy.LastRead {
+    private final boolean hasBacklog;
+    private final Instant lastCheckedAt;
+
+    public TimestampPolicyContext(boolean hasBacklog, Instant lastCheckedAt) {
+      this.hasBacklog = hasBacklog;
+      this.lastCheckedAt = lastCheckedAt;
+    }
+
+    @Override
+    public boolean hasBacklog() {
+      return hasBacklog;
+    }
+
+    @Override
+    public Instant lastCheckedAt() {
+      return lastCheckedAt;
+    }
+  }
+
   private static class UnboundedRabbitMqReader
       extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
     private final RabbitMQSource source;
 
+    private transient TimestampPolicy timestampPolicy;
+    private TimestampPolicyContext context;
     private RabbitMqMessage current;
     private byte[] currentRecordId;
+    // TODO: get rid of ConnectionHandler here; it isn't Serializable
     private ConnectionHandler connectionHandler;
     private String queueName;
     private Instant currentTimestamp;
@@ -457,7 +512,18 @@ public class RabbitMqIO {
         throws IOException {
       this.source = source;
       this.current = null;
+      this.context = new TimestampPolicyContext(true, BoundedWindow.TIMESTAMP_MIN_VALUE);
       this.checkpointMark = checkpointMark != null ? checkpointMark : new RabbitMQCheckpointMark();
+      mkTimestampPolicy();
+    }
+
+    private TimestampPolicy mkTimestampPolicy() {
+      if (this.timestampPolicy == null) {
+        // TODO: hard-coded Optional.empty is likely insufficient
+        this.timestampPolicy =
+            source.spec.timestampPolicyFactory().createTimestampPolicy(Optional.empty());
+      }
+      return this.timestampPolicy;
     }
 
     @Override
@@ -545,26 +611,21 @@ public class RabbitMqIO {
           current = null;
           currentRecordId = null;
           currentTimestamp = null;
+          context = new TimestampPolicyContext(false, Instant.now());
+          // queue is empty, so there is no backlog
           checkpointMark.advanceWatermark(Instant.now());
           return false;
         }
-        if (source.spec.useCorrelationId()) {
-          String correlationId = delivery.getProps().getCorrelationId();
-          if (correlationId == null) {
-            throw new IOException(
-                "RabbitMqIO.Read uses message correlation ID, but received "
-                    + "message has a null correlation ID");
-          }
-          currentRecordId = correlationId.getBytes(StandardCharsets.UTF_8);
-        }
+
+        context = new TimestampPolicyContext(true, Instant.now());
+
+        current = new RabbitMqMessage(delivery);
+        currentRecordId = source.spec.recordIdPolicy().apply(current);
+        currentTimestamp = mkTimestampPolicy().getTimestampForRecord(current);
+
         long deliveryTag = delivery.getEnvelope().getDeliveryTag();
         checkpointMark.sessionIds.add(deliveryTag);
-
-        current = new RabbitMqMessage(source.spec.routingKey(), delivery);
-        Date deliveryTimestamp = delivery.getProps().getTimestamp();
-        currentTimestamp =
-            (deliveryTimestamp != null) ? new Instant(deliveryTimestamp) : Instant.now();
-        checkpointMark.advanceWatermark(currentTimestamp);
+        checkpointMark.advanceWatermark(timestampPolicy.getWatermark(context, current));
       } catch (IOException e) {
         throw e;
       } catch (Exception e) {

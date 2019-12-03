@@ -29,6 +29,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import javax.annotation.Nullable;
 
 /**
@@ -135,9 +136,10 @@ public class RabbitMqMessage implements Serializable {
     clusterId = null;
   }
 
-  public RabbitMqMessage(String routingKey, GetResponse delivery) {
-    this.routingKey = routingKey;
+  public RabbitMqMessage(GetResponse delivery) {
     delivery = serializableDeliveryOf(delivery);
+    this.routingKey =
+        Optional.ofNullable(delivery.getEnvelope()).map(Envelope::getRoutingKey).orElse(null);
     body = delivery.getBody();
     contentType = delivery.getProps().getContentType();
     contentEncoding = delivery.getProps().getContentEncoding();
@@ -281,6 +283,7 @@ public class RabbitMqMessage implements Serializable {
         Arrays.hashCode(body),
         contentType,
         contentEncoding,
+        Objects.hashCode(headers),
         deliveryMode,
         priority,
         correlationId,
@@ -302,6 +305,7 @@ public class RabbitMqMessage implements Serializable {
           && Arrays.equals(body, other.body)
           && Objects.equals(contentType, other.contentType)
           && Objects.equals(contentEncoding, other.contentEncoding)
+          && Objects.equals(headers, other.headers)
           && Objects.equals(deliveryMode, other.deliveryMode)
           && Objects.equals(priority, other.priority)
           && Objects.equals(correlationId, other.correlationId)

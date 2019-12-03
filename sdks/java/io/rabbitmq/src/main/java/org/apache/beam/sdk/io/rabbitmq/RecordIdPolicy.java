@@ -17,13 +17,15 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 
-/**
- *  @todo use singletons for common policies
- */
+/** @todo use singletons for common policies */
 @FunctionalInterface
 public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
 
@@ -41,6 +43,10 @@ public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
 
   static RecordIdPolicy bodySha256() {
     return new BodySha256Policy();
+  }
+
+  static RecordIdPolicy alwaysUnique() {
+    return new AlwaysUniquePolicy();
   }
 
   abstract class StringPolicy implements RecordIdPolicy {
@@ -77,6 +83,23 @@ public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
     @Override
     public byte[] apply(RabbitMqMessage rabbitMqMessage) {
       return Hashing.sha256().hashBytes(rabbitMqMessage.getBody()).asBytes();
+    }
+  }
+
+  class AlwaysUniquePolicy implements RecordIdPolicy {
+    @Override
+    public byte[] apply(RabbitMqMessage rabbitMqMessage) {
+      try (ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+          DataOutputStream outStream = new DataOutputStream(bytesOut)) {
+
+        UUID uuid = UUID.randomUUID();
+        outStream.writeLong(uuid.getMostSignificantBits());
+        outStream.writeLong(uuid.getLeastSignificantBits());
+        outStream.flush();
+        return bytesOut.toByteArray();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }
