@@ -54,17 +54,10 @@ class PipelineInstrument(object):
 
   def __init__(self, pipeline, options=None):
     self._pipeline = pipeline
-    # The cache manager should be initiated outside of this module and outside
-    # of run_pipeline() from interactive runner so that its lifespan could cover
-    # multiple runs in the interactive environment. Owned by
-    # interactive_environment module. Not owned by this module.
-    # TODO(BEAM-7760): change the scope of cache to be owned by runner or
-    # pipeline result instances because a pipeline is not 1:1 correlated to a
-    # running job. Only complete and read-only cache is valid across multiple
-    # jobs. Other cache instances should have their own scopes. Some design
-    # change should support only runner.run(pipeline) pattern rather than
-    # pipeline.run([runner]) and a runner can only run at most one pipeline at a
-    # time. Otherwise, result returned by run() is the only 1:1 anchor.
+    # The global cache manager is lazily initiated outside of this module by any
+    # interactive runner so that its lifespan could cover multiple runs in
+    # the interactive environment. Owned by interactive_environment module. Not
+    # owned by this module.
     self._cache_manager = ie.current_env().cache_manager()
 
     # Invoke a round trip through the runner API. This makes sure the Pipeline
@@ -444,12 +437,15 @@ class PipelineInstrument(object):
     cache. It doesn't mean that there would definitely be such cache already.
     Also, the pcoll can come from the original user defined pipeline object or
     an equivalent pcoll from a transformed copy of the original pipeline.
+
+    'pcoll_id' of cacheable is not stable for cache_key, thus not included in
+    cache key. A combination of 'var', 'version' and 'producer_version' is
+    sufficient to identify a cached PCollection.
     """
     cacheable = self.cacheables.get(self._cacheable_key(pcoll), None)
     if cacheable:
       return '_'.join((cacheable['var'],
                        cacheable['version'],
-                       cacheable['pcoll_id'],
                        cacheable['producer_version']))
     return ''
 
