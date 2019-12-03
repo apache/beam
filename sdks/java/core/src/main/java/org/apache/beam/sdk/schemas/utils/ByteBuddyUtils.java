@@ -31,7 +31,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.avro.generic.GenericFixed;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -75,7 +74,7 @@ import org.joda.time.ReadableInstant;
 import org.joda.time.ReadablePartial;
 import org.joda.time.base.BaseLocal;
 
-class ByteBuddyUtils {
+public class ByteBuddyUtils {
   private static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
   private static final ForLoadedType ARRAY_UTILS_TYPE = new ForLoadedType(ArrayUtils.class);
   private static final ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
@@ -122,6 +121,31 @@ class ByteBuddyUtils {
     }
   };
 
+  public interface TypeConversionsFactory {
+    TypeConversion<Type> createTypeConversion(boolean returnRawTypes);
+
+    TypeConversion<StackManipulation> createGetterConversions(StackManipulation readValue);
+
+    TypeConversion<StackManipulation> createSetterConversions(StackManipulation readValue);
+  }
+
+  public static class DefaultTypeConversionsFactory implements TypeConversionsFactory {
+    @Override
+    public TypeConversion<Type> createTypeConversion(boolean returnRawTypes) {
+      return new ConvertType(returnRawTypes);
+    }
+
+    @Override
+    public TypeConversion<StackManipulation> createGetterConversions(StackManipulation readValue) {
+      return new ConvertValueForGetter(readValue);
+    }
+
+    @Override
+    public TypeConversion<StackManipulation> createSetterConversions(StackManipulation readValue) {
+      return new ConvertValueForSetter(readValue);
+    }
+  }
+
   // Create a new FieldValueGetter subclass.
   @SuppressWarnings("unchecked")
   static DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
@@ -148,7 +172,7 @@ class ByteBuddyUtils {
 
   // Base class used below to convert types.
   @SuppressWarnings("unchecked")
-  abstract static class TypeConversion<T> {
+  public abstract static class TypeConversion<T> {
     public T convert(TypeDescriptor typeDescriptor) {
       if (typeDescriptor.isArray()
           && !typeDescriptor.getComponentType().getRawType().equals(byte.class)) {
@@ -162,9 +186,6 @@ class ByteBuddyUtils {
         return convertDateTime(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
         return convertByteBuffer(typeDescriptor);
-      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
-        // TODO: Refactor AVRO-specific check into separate class.
-        return convertGenericFixed(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
         return convertCharSequence(typeDescriptor);
       } else if (typeDescriptor.getRawType().isPrimitive()) {
@@ -194,8 +215,6 @@ class ByteBuddyUtils {
 
     protected abstract T convertByteBuffer(TypeDescriptor<?> type);
 
-    protected abstract T convertGenericFixed(TypeDescriptor<?> type);
-
     protected abstract T convertCharSequence(TypeDescriptor<?> type);
 
     protected abstract T convertPrimitive(TypeDescriptor<?> type);
@@ -223,10 +242,10 @@ class ByteBuddyUtils {
    *
    * <pre><code>{@literal FieldValueGetter<POJO, List<Integer>>}</code></pre>
    */
-  static class ConvertType extends TypeConversion<Type> {
+  public static class ConvertType extends TypeConversion<Type> {
     private boolean returnRawTypes;
 
-    public ConvertType(boolean returnRawTypes) {
+    protected ConvertType(boolean returnRawTypes) {
       this.returnRawTypes = returnRawTypes;
     }
 
@@ -258,11 +277,6 @@ class ByteBuddyUtils {
 
     @Override
     protected Type convertByteBuffer(TypeDescriptor<?> type) {
-      return byte[].class;
-    }
-
-    @Override
-    protected Type convertGenericFixed(TypeDescriptor<?> type) {
       return byte[].class;
     }
 
@@ -302,12 +316,16 @@ class ByteBuddyUtils {
    * these types before returning. These conversions correspond to the ones defined in {@link
    * ConvertType}. This class generates the code to do these conversion.
    */
-  static class ConvertValueForGetter extends TypeConversion<StackManipulation> {
+  public static class ConvertValueForGetter extends TypeConversion<StackManipulation> {
     // The code that reads the value.
-    private final StackManipulation readValue;
+    protected final StackManipulation readValue;
 
-    ConvertValueForGetter(StackManipulation readValue) {
+    protected ConvertValueForGetter(StackManipulation readValue) {
       this.readValue = readValue;
+    }
+
+    protected TypeConversionsFactory getFactory() {
+      return new DefaultTypeConversionsFactory();
     }
 
     @Override
@@ -452,23 +470,6 @@ class ByteBuddyUtils {
     }
 
     @Override
-    protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
-      // TODO: Refactor AVRO-specific code into separate class.
-
-      // Generate the following code:
-      // return value.bytes();
-
-      return new Compound(
-          readValue,
-          MethodInvocation.invoke(
-              new ForLoadedType(GenericFixed.class)
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
-                  .getOnly()));
-    }
-
-    @Override
     protected StackManipulation convertCharSequence(TypeDescriptor<?> type) {
       // If the member is a String, then return it.
       if (type.isSubtypeOf(TypeDescriptor.of(String.class))) {
@@ -519,11 +520,15 @@ class ByteBuddyUtils {
    * String} type (for string fields), but the user type might have a {@link StringBuffer} member
    * there. This class generates code to convert between these types.
    */
-  static class ConvertValueForSetter extends TypeConversion<StackManipulation> {
+  public static class ConvertValueForSetter extends TypeConversion<StackManipulation> {
     StackManipulation readValue;
 
-    ConvertValueForSetter(StackManipulation readValue) {
+    protected ConvertValueForSetter(StackManipulation readValue) {
       this.readValue = readValue;
+    }
+
+    protected TypeConversionsFactory getFactory() {
+      return new DefaultTypeConversionsFactory();
     }
 
     @Override
@@ -605,7 +610,7 @@ class ByteBuddyUtils {
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
       List<StackManipulation> stackManipulations = new ArrayList<>();
 
-      // Create a new instance of the target ype.
+      // Create a new instance of the target type.
       stackManipulations.add(TypeCreation.of(loadedType));
       stackManipulations.add(Duplication.SINGLE);
       // Load the parameter and cast it to a ReadableInstant.
@@ -671,29 +676,6 @@ class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(
                       ElementMatchers.named("wrap")
-                          .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
-                  .getOnly()));
-    }
-
-    @Override
-    protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
-      // Generate the following code:
-      // return new T((byte[]) value);
-
-      // TODO: Refactor AVRO-specific code out of this class.
-      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-      return new Compound(
-          TypeCreation.of(loadedType),
-          Duplication.SINGLE,
-          // Load the parameter and cast it to a byte[].
-          readValue,
-          TypeCasting.to(BYTE_ARRAY_TYPE),
-          // Create a new instance that wraps this byte[].
-          MethodInvocation.invoke(
-              loadedType
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.isConstructor()
                           .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
                   .getOnly()));
     }
@@ -769,8 +751,15 @@ class ByteBuddyUtils {
     private final Constructor constructor;
 
     ConstructorCreateInstruction(
-        List<FieldValueTypeInformation> fields, Class targetClass, Constructor constructor) {
-      super(fields, targetClass, Lists.newArrayList(constructor.getParameters()));
+        List<FieldValueTypeInformation> fields,
+        Class targetClass,
+        Constructor constructor,
+        TypeConversionsFactory typeConversionsFactory) {
+      super(
+          fields,
+          targetClass,
+          Lists.newArrayList(constructor.getParameters()),
+          typeConversionsFactory);
       this.constructor = constructor;
     }
 
@@ -801,8 +790,12 @@ class ByteBuddyUtils {
     private final Method creator;
 
     StaticFactoryMethodInstruction(
-        List<FieldValueTypeInformation> fields, Class targetClass, Method creator) {
-      super(fields, targetClass, Lists.newArrayList(creator.getParameters()));
+        List<FieldValueTypeInformation> fields,
+        Class targetClass,
+        Method creator,
+        TypeConversionsFactory typeConversionsFactory) {
+      super(
+          fields, targetClass, Lists.newArrayList(creator.getParameters()), typeConversionsFactory);
       if (!Modifier.isStatic(creator.getModifiers())) {
         throw new IllegalArgumentException("Method " + creator + " is not static");
       }
@@ -825,12 +818,17 @@ class ByteBuddyUtils {
     protected final Class targetClass;
     protected final List<Parameter> parameters;
     protected final Map<Integer, Integer> fieldMapping;
+    private final TypeConversionsFactory typeConversionsFactory;
 
     protected InvokeUserCreateInstruction(
-        List<FieldValueTypeInformation> fields, Class targetClass, List<Parameter> parameters) {
+        List<FieldValueTypeInformation> fields,
+        Class targetClass,
+        List<Parameter> parameters,
+        TypeConversionsFactory typeConversionsFactory) {
       this.fields = fields;
       this.targetClass = targetClass;
       this.parameters = parameters;
+      this.typeConversionsFactory = typeConversionsFactory;
 
       // Method parameters might not be in the same order as the schema fields, and the input
       // array to SchemaUserTypeCreator.create is in schema order. Examine the parameter names
@@ -880,7 +878,7 @@ class ByteBuddyUtils {
         StackManipulation stackManipulation = beforePushingParameters();
 
         // Push all creator parameters on the stack.
-        ConvertType convertType = new ConvertType(true);
+        TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
         for (int i = 0; i < parameters.size(); i++) {
           Parameter parameter = parameters.get(i);
           ForLoadedType convertedType =
@@ -898,7 +896,8 @@ class ByteBuddyUtils {
           stackManipulation =
               new StackManipulation.Compound(
                   stackManipulation,
-                  new ConvertValueForSetter(readParameter)
+                  typeConversionsFactory
+                      .createSetterConversions(readParameter)
                       .convert(TypeDescriptor.of(parameter.getType())));
         }
         stackManipulation =

@@ -23,6 +23,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -150,7 +151,8 @@ public class Convert {
                 converted.outputSchemaCoder.getFromRowFunction());
       } else {
         SerializableFunction<?, OutputT> convertPrimitive =
-            ConvertHelpers.getConvertPrimitive(converted.unboxedType, outputTypeDescriptor);
+            ConvertHelpers.getConvertPrimitive(
+                converted.unboxedType, outputTypeDescriptor, new DefaultTypeConversionsFactory());
         output =
             input.apply(
                 ParDo.of(
