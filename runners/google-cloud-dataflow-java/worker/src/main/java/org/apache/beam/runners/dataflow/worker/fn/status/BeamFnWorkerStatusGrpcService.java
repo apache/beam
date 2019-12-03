@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.status;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -98,6 +99,16 @@ public class BeamFnWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase im
     LOG.info("Beam Fn Status client connected with id {}", workerId);
     FnApiWorkerStatusClient fnApiStatusClient =
         FnApiWorkerStatusClient.forRequestObserver(workerId, requestObserver);
+    if (connectedClient.containsKey(workerId)) {
+      LOG.info(
+          "SDK Worker {} was connected to status server previously, disconnecting the old client",
+          workerId);
+      try {
+        connectedClient.get(workerId).close();
+      } catch (IOException e) {
+        LOG.warn("Error closing worker status client", e);
+      }
+    }
     connectedClient.put(workerId, fnApiStatusClient);
     return fnApiStatusClient.getResponseObserver();
   }
