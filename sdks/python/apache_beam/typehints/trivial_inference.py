@@ -65,21 +65,21 @@ def instance_to_type(o):
   elif t == tuple:
     return typehints.Tuple[[instance_to_type(item) for item in o]]
   elif t == list:
-    if len(o):
+    if len(o) > 0:
       return typehints.List[
           typehints.Union[[instance_to_type(item) for item in o]]
       ]
     else:
       return typehints.List[typehints.Any]
   elif t == set:
-    if len(o):
+    if len(o) > 0:
       return typehints.Set[
           typehints.Union[[instance_to_type(item) for item in o]]
       ]
     else:
       return typehints.Set[typehints.Any]
   elif t == dict:
-    if len(o):
+    if len(o) > 0:
       return typehints.Dict[
           typehints.Union[[instance_to_type(k) for k, v in o.items()]],
           typehints.Union[[instance_to_type(v) for k, v in o.items()]],
