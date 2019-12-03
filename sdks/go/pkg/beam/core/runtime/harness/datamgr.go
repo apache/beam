@@ -155,11 +155,13 @@ type DataChannel struct {
 	readErr error
 	// a closure that forces the data manager to recreate this stream.
 	forceRecreate func(id string, err error)
+	cancelFn      context.CancelFunc // Allows writers to stop the grpc reading goroutine.
 
 	mu sync.Mutex // guards both the readers and writers maps.
 }
 
 func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
+	ctx, cancelFn := context.WithCancel(ctx)
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to data service at %v", port.URL)
@@ -169,15 +171,16 @@ func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 		cc.Close()
 		return nil, errors.Wrapf(err, "failed to create data client on %v", port.URL)
 	}
-	return makeDataChannel(ctx, port.URL, client), nil
+	return makeDataChannel(ctx, port.URL, client, cancelFn), nil
 }
 
-func makeDataChannel(ctx context.Context, id string, client dataClient) *DataChannel {
+func makeDataChannel(ctx context.Context, id string, client dataClient, cancelFn context.CancelFunc) *DataChannel {
 	ret := &DataChannel{
-		id:      id,
-		client:  client,
-		writers: make(map[clientID]*dataWriter),
-		readers: make(map[clientID]*dataReader),
+		id:       id,
+		client:   client,
+		writers:  make(map[clientID]*dataWriter),
+		readers:  make(map[clientID]*dataReader),
+		cancelFn: cancelFn,
 	}
 	go ret.read(ctx)
 
@@ -186,6 +189,7 @@ func makeDataChannel(ctx context.Context, id string, client dataClient) *DataCha
 
 // terminateStreamOnError requires the lock to be held.
 func (c *DataChannel) terminateStreamOnError(err error) {
+	c.cancelFn() // A context.CancelFunc is threadsafe and indempotent.
 	if c.forceRecreate != nil {
 		c.forceRecreate(c.id, err)
 		c.forceRecreate = nil
@@ -215,6 +219,10 @@ func (c *DataChannel) read(ctx context.Context) {
 			// This connection is bad, so we should close and delete all extant streams.
 			c.mu.Lock()
 			c.readErr = err // prevent not yet opened readers from hanging.
+			// Readers must be closed from this goroutine, since we can't
+			// close the r.buf channels twice, or send on a closed channel.
+			// Any other approach is racy, and may cause one of the above
+			// panics.
 			for _, r := range c.readers {
 				log.Errorf(ctx, "DataChannel.read %v reader %v closing due to error on channel", c.id, r.id)
 				if !r.completed {

@@ -23,6 +23,7 @@ import (
 	"log"
 	"strings"
 	"testing"
+	"time"
 
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
@@ -135,9 +136,10 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			done := make(chan bool, 1)
 			client := &fakeClient{t: t, done: done}
-			c := makeDataChannel(context.Background(), "id", client)
+			ctx, cancelFn := context.WithCancel(context.Background())
+			c := makeDataChannel(ctx, "id", client, cancelFn)
 
-			r := c.OpenRead(context.Background(), "ptr", "inst_ref")
+			r := c.OpenRead(ctx, "ptr", "inst_ref")
 
 			n, err := r.Read(make([]byte, 4))
 			if err != nil {
@@ -156,8 +158,15 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 				t.Errorf("Unexpected error from read %d: got %v, want %v", i, got, want)
 			}
 			// Verify that new readers return the same error on their reads after client.Recv is done.
-			if n, err := c.OpenRead(context.Background(), "ptr", "inst_ref").Read(make([]byte, 4)); err != test.expectedError {
+			if n, err := c.OpenRead(ctx, "ptr", "inst_ref").Read(make([]byte, 4)); err != test.expectedError {
 				t.Errorf("Unexpected error from read: got %v, want, %v read %d bytes.", err, test.expectedError, n)
+			}
+
+			select {
+			case <-ctx.Done(): // Assert that the context must have been cancelled on read failures.
+				return
+			case <-time.After(time.Second * 5):
+				t.Fatal("context wasn't cancelled")
 			}
 		})
 	}
@@ -197,9 +206,10 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			done := make(chan bool, 1)
 			client := &fakeClient{t: t, done: done, err: expectedError}
-			c := makeDataChannel(context.Background(), "id", client)
+			ctx, cancelFn := context.WithCancel(context.Background())
+			c := makeDataChannel(ctx, "id", client, cancelFn)
 
-			w := c.OpenWrite(context.Background(), "ptr", "inst_ref")
+			w := c.OpenWrite(ctx, "ptr", "inst_ref")
 
 			msg := []byte{'b', 'y', 't', 'e'}
 			var bufSize int
@@ -219,8 +229,14 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 			// Verify that new readers return the same error for writes after stream termination.
 			// TODO(lostluck) 2019.11.26: use the the go 1.13 errors package to check this rather
 			// than a strings.Contains check once testing infrastructure can use go 1.13.
-			if n, err := c.OpenWrite(context.Background(), "ptr", "inst_ref").Write(msg); err != nil && !strings.Contains(err.Error(), expectedError.Error()) {
+			if n, err := c.OpenWrite(ctx, "ptr", "inst_ref").Write(msg); err != nil && !strings.Contains(err.Error(), expectedError.Error()) {
 				t.Errorf("Unexpected error from write: got %v, want, %v read %d bytes.", err, expectedError, n)
+			}
+			select {
+			case <-ctx.Done(): // Assert that the context must have been cancelled on write failures.
+				return
+			case <-time.After(time.Second * 5):
+				t.Fatal("context wasn't cancelled")
 			}
 		})
 	}
