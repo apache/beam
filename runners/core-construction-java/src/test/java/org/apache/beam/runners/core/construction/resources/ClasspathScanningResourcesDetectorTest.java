@@ -17,23 +17,29 @@
  */
 package org.apache.beam.runners.core.construction.resources;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertFalse;
 
+import io.github.classgraph.ClassGraph;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 public class ClasspathScanningResourcesDetectorTest {
 
@@ -43,44 +49,81 @@ public class ClasspathScanningResourcesDetectorTest {
 
   private ClasspathScanningResourcesDetector detector;
 
+  private ClassLoader classLoader;
+
   @Before
-  public void setUp() throws Exception {
-    detector = new ClasspathScanningResourcesDetector();
+  public void setUp() {
+    detector = new ClasspathScanningResourcesDetector(new ClassGraph());
   }
 
   @Test
-  public void detectClassPathResourceWithFileResources() throws Exception {
-    File file = tmpFolder.newFile("file");
-    File file2 = tmpFolder.newFile("file2");
-    URLClassLoader classLoader =
-        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL()});
+  public void shouldDetectDirectories() throws Exception {
+    File folder = tmpFolder.newFolder("folder1");
+    classLoader = new URLClassLoader(new URL[] {folder.toURI().toURL()});
 
-    assertEquals(
-        ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
-        detector.detect(classLoader));
+    List<String> result = detector.detect(classLoader).collect(Collectors.toList());
+
+    assertThat(result, hasItem(containsString(folder.getAbsolutePath())));
   }
 
   @Test
-  public void detectClassPathResourceFromJavaClassPathWhenTheresNoClassLoader() throws IOException {
-    String path = tmpFolder.newFile("file").getAbsolutePath();
-    String path2 = tmpFolder.newFile("file2").getAbsolutePath();
-    String classpath = String.join(File.pathSeparator, path, path2);
-    System.setProperty("java.class.path", classpath);
+  public void shouldDetectJarFiles() throws Exception {
+    File jarFile = createTestTmpJarFile("test");
+    classLoader = new URLClassLoader(new URL[] {jarFile.toURI().toURL()});
 
-    List<String> resources = detector.detect(null);
+    List<String> result = detector.detect(classLoader).collect(Collectors.toList());
 
-    assertThat(resources, hasItems(path, path2));
-    assertThat(resources, hasSize(2));
+    assertThat(result, hasItem(containsString(jarFile.getAbsolutePath())));
+  }
+
+  private File createTestTmpJarFile(String name) throws IOException {
+    File jarFile = tmpFolder.newFile(name);
+    try (JarOutputStream os = new JarOutputStream(new FileOutputStream(jarFile), new Manifest())) {}
+    return jarFile;
   }
 
   @Test
-  public void throwWhenDetectingClassPathResourceWithNonFileResources() throws Exception {
+  public void shouldNotDetectOrdinaryFiles() throws Exception {
+    File textFile = tmpFolder.newFile("ordinaryTextFile.txt");
+    classLoader = new URLClassLoader(new URL[] {textFile.toURI().toURL()});
+
+    List<String> result = detector.detect(classLoader).collect(Collectors.toList());
+
+    assertThat(result, not(hasItem(containsString(textFile.getAbsolutePath()))));
+  }
+
+  @Test
+  public void shouldDetectClassPathResourceFromJavaClassPathEnvVariable() throws IOException {
+    String path = tmpFolder.newFolder("folder").getAbsolutePath();
+    System.setProperty("java.class.path", path);
+
+    List<String> resources = detector.detect(null).collect(Collectors.toList());
+
+    assertThat(resources, hasItems(containsString(path)));
+  }
+
+  @Test
+  public void shouldNotDetectClassPathResourceThatIsNotAFile() throws Exception {
     String url = "http://www.google.com/all-the-secrets.jar";
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
+    classLoader = new URLClassLoader(new URL[] {new URL(url)});
 
-    IllegalArgumentException exeption =
-        assertThrows(IllegalArgumentException.class, () -> detector.detect(classLoader));
+    List<String> result = detector.detect(classLoader).collect(Collectors.toList());
 
-    assertEquals("Unable to convert url (" + url + ") to file.", exeption.getMessage());
+    assertThat(result, not(hasItem(containsString(url))));
+  }
+
+  /*
+   * ClassGraph library that is used in the tested algorithm can still detect resources from
+   * "java.class.path" env variable. Even in case the classloader that is passed is of no use we
+   * will still be able to detect and load resource paths from the env variable.
+   */
+  @Test
+  public void shouldStillDetectResourcesEvenIfClassloaderIsUseless() {
+    ClassLoader uselessClassLoader = Mockito.mock(ClassLoader.class);
+
+    List<String> detectedResources =
+        detector.detect(uselessClassLoader).collect(Collectors.toList());
+
+    assertFalse(detectedResources.isEmpty());
   }
 }
