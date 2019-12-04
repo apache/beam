@@ -915,7 +915,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
   # Maximum number of elements that will be produced by a Splittable DoFn before
   # a checkpoint is requested by the runner.
-  DEFAULT_MAX_NUM_OUTPUTS = 100
+  DEFAULT_MAX_NUM_OUTPUTS = None
   # Maximum duration a Splittable DoFn will process an element before a
   # checkpoint is requested by the runner.
   DEFAULT_MAX_DURATION = 1

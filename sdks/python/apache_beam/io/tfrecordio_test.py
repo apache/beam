@@ -218,7 +218,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
     with TempDir() as temp_dir:
       file_path_prefix = temp_dir.create_temp_file('result')
       with TestPipeline() as p:
-        input_data = [b'foo', b'bar']
+        input_data = [b'bar', b'foo']
         _ = p | beam.Create(input_data) | WriteToTFRecord(
             file_path_prefix, compression_type=CompressionTypes.GZIP)
 
@@ -228,13 +228,13 @@ class TestWriteToTFRecord(TestTFRecordSink):
           file_name, options=tf.python_io.TFRecordOptions(
               tf.python_io.TFRecordCompressionType.GZIP)):
         actual.append(r)
-      self.assertEqual(actual, input_data)
+      self.assertEqual(sorted(actual), input_data)
 
   def test_write_record_auto(self):
     with TempDir() as temp_dir:
       file_path_prefix = temp_dir.create_temp_file('result')
       with TestPipeline() as p:
-        input_data = [b'foo', b'bar']
+        input_data = [b'bar', b'foo']
         _ = p | beam.Create(input_data) | WriteToTFRecord(
             file_path_prefix, file_name_suffix='.gz')
 
@@ -244,7 +244,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
           file_name, options=tf.python_io.TFRecordOptions(
               tf.python_io.TFRecordCompressionType.GZIP)):
         actual.append(r)
-      self.assertEqual(actual, input_data)
+      self.assertEqual(sorted(actual), input_data)
 
 
 class TestReadFromTFRecord(unittest.TestCase):
