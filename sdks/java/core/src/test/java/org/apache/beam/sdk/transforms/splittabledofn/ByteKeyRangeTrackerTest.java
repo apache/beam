@@ -57,7 +57,7 @@ public class ByteKeyRangeTrackerTest {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
 
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     // We expect to get the original range back and that the current restriction
     // is effectively made empty.
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), checkpoint);
@@ -68,7 +68,7 @@ public class ByteKeyRangeTrackerTest {
   public void testCheckpointUnstartedForAllKeysRange() throws Exception {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
 
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     // We expect to get the original range back and that the current restriction
     // is effectively made empty.
     assertEquals(ByteKeyRange.ALL_KEYS, checkpoint);
@@ -80,7 +80,7 @@ public class ByteKeyRangeTrackerTest {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xd0)));
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
     assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
   }
@@ -90,7 +90,7 @@ public class ByteKeyRangeTrackerTest {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x10)));
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(
         ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10, 0x00)), tracker.currentRestriction());
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10, 0x00), ByteKey.of(0xc0)), checkpoint);
@@ -102,7 +102,7 @@ public class ByteKeyRangeTrackerTest {
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(
         ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x90, 0x00)), tracker.currentRestriction());
     assertEquals(ByteKeyRange.of(ByteKey.of(0x90, 0x00), ByteKey.of(0xc0)), checkpoint);
@@ -115,7 +115,7 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xc0)));
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
     assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
   }
@@ -126,7 +126,7 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertFalse(tracker.tryClaim(ByteKey.EMPTY));
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(ByteKeyRange.ALL_KEYS, tracker.currentRestriction());
     assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
   }
@@ -139,7 +139,7 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertTrue(tracker.tryClaim(ByteKey.of(0xa0)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xd0)));
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
     assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
   }
@@ -152,7 +152,7 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertTrue(tracker.tryClaim(ByteKey.of(0xa0)));
     assertFalse(tracker.tryClaim(ByteKey.EMPTY));
-    ByteKeyRange checkpoint = tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
     assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
   }
