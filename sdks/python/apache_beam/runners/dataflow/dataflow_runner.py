@@ -509,10 +509,10 @@ class DataflowRunner(PipelineRunner):
     result.metric_results = self._metrics
     return result
 
-  def _get_typehint_based_encoding(self, typehint, window_coder, use_fnapi):
+  def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
     return self._get_cloud_encoding(
-        self._get_coder(typehint, window_coder=window_coder), use_fnapi)
+        self._get_coder(typehint, window_coder=window_coder))
 
   @staticmethod
   def _get_coder(typehint, window_coder):
@@ -523,13 +523,12 @@ class DataflowRunner(PipelineRunner):
           window_coder=window_coder)
     return coders.registry.get_coder(typehint)
 
-  def _get_cloud_encoding(self, coder, use_fnapi):
+  def _get_cloud_encoding(self, coder, unused=None):
     """Returns an encoding based on a coder object."""
     if not isinstance(coder, coders.Coder):
       raise TypeError('Coder object must inherit from coders.Coder: %s.' %
                       str(coder))
-    return coder.as_cloud_object(self.proto_context
-                                 .coders if use_fnapi else None)
+    return coder.as_cloud_object(self.proto_context.coders)
 
   def _get_side_input_encoding(self, input_encoding):
     """Returns an encoding for the output of a view transform.
@@ -572,11 +571,7 @@ class DataflowRunner(PipelineRunner):
               output_tag].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
-    from apache_beam.runners.dataflow.internal import apiclient
-    use_fnapi = apiclient._use_fnapi(
-        list(transform_node.outputs.values())[0].pipeline._options)
-    return self._get_typehint_based_encoding(element_type, window_coder,
-                                             use_fnapi)
+    return self._get_typehint_based_encoding(element_type, window_coder)
 
   def _add_step(self, step_kind, step_label, transform_node, side_tags=()):
     """Creates a Step object and adds it to the cache."""
@@ -941,10 +936,9 @@ class DataflowRunner(PipelineRunner):
     # Add the restriction encoding if we are a splittable DoFn
     # and are using the Fn API on the unified worker.
     restriction_coder = transform.get_restriction_coder()
-    if (use_fnapi and use_unified_worker and restriction_coder):
+    if restriction_coder:
       step.add_property(PropertyNames.RESTRICTION_ENCODING,
-                        self._get_cloud_encoding(
-                            restriction_coder, use_fnapi))
+                        self._get_cloud_encoding(restriction_coder))
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
@@ -992,7 +986,7 @@ class DataflowRunner(PipelineRunner):
     # Note that the accumulator must not have a WindowedValue encoding, while
     # the output of this step does in fact have a WindowedValue encoding.
     accumulator_encoding = self._get_cloud_encoding(
-        transform_node.transform.fn.get_accumulator_coder(), use_fnapi)
+        transform_node.transform.fn.get_accumulator_coder())
     output_encoding = self._get_encoded_output_coder(transform_node)
 
     step.encoding = output_encoding
@@ -1123,8 +1117,7 @@ class DataflowRunner(PipelineRunner):
         coders.coders.GlobalWindowCoder())
 
     from apache_beam.runners.dataflow.internal import apiclient
-    use_fnapi = apiclient._use_fnapi(options)
-    step.encoding = self._get_cloud_encoding(coder, use_fnapi)
+    step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
@@ -1210,8 +1203,7 @@ class DataflowRunner(PipelineRunner):
     coder = coders.WindowedValueCoder(transform.sink.coder,
                                       coders.coders.GlobalWindowCoder())
     from apache_beam.runners.dataflow.internal import apiclient
-    use_fnapi = apiclient._use_fnapi(options)
-    step.encoding = self._get_cloud_encoding(coder, use_fnapi)
+    step.encoding = self._get_cloud_encoding(coder)
     step.add_property(PropertyNames.ENCODING, step.encoding)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
