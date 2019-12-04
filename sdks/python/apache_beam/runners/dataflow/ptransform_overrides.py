@@ -56,11 +56,19 @@ class ReadPTransformOverride(PTransformOverride):
     from apache_beam.io import Read
     from apache_beam.io.iobase import BoundedSource
     # Only overrides Read(BoundedSource) transform
-    if isinstance(applied_ptransform.transform, Read):
+    if (isinstance(applied_ptransform.transform, Read)
+        and not getattr(applied_ptransform.transform, 'override', False)):
       if isinstance(applied_ptransform.transform.source, BoundedSource):
         return True
     return False
 
   def get_replacement_transform(self, ptransform):
-    from apache_beam.io.iobase import _SDFBoundedSourceWrapper
-    return _SDFBoundedSourceWrapper(ptransform.source)
+    from apache_beam import pvalue
+    from apache_beam.io import iobase
+    class Read(iobase.Read):
+      override = True
+      def expand(self, pbegin):
+        return pvalue.PCollection(
+            self.pipeline, is_bounded=self.source.is_bounded())
+    return Read(ptransform.source).with_output_types(
+        ptransform.get_type_hints().simple_output_type('Read'))

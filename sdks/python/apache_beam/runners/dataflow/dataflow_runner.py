@@ -106,13 +106,13 @@ class DataflowRunner(PipelineRunner):
   ]
 
   _SDF_PTRANSFORM_OVERRIDES = [
-      ReadPTransformOverride(),
   ]
 
   # These overrides should be applied after the proto representation of the
   # graph is created.
   _NON_PORTABLE_PTRANSFORM_OVERRIDES = [
       CreatePTransformOverride(),
+      ReadPTransformOverride(),
   ]
 
   def __init__(self, cache=None):
@@ -1015,16 +1015,7 @@ class DataflowRunner(PipelineRunner):
       # Consider native Read to be a primitive for dataflow.
       return beam.pvalue.PCollection.from_(pbegin)
     else:
-      debug_options = options.view_as(DebugOptions)
-      if (
-          debug_options.experiments and
-          'beam_fn_api' in debug_options.experiments
-      ):
-        # Expand according to FnAPI primitives.
-        return self.apply_PTransform(transform, pbegin, options)
-      else:
-        # Custom Read is also a primitive for non-FnAPI on dataflow.
-        return beam.pvalue.PCollection.from_(pbegin)
+      return self.apply_PTransform(transform, pbegin, options)
 
   def run_Read(self, transform_node, options):
     transform = transform_node.transform
