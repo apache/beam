@@ -1598,6 +1598,9 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
     # TODO(BEAM-7514): Support checkpointing for SDF on multiple workers.
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_split_crazy_sdf(self, seed=None):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiBasedLullLoggingTest(unittest.TestCase):
   def create_pipeline(self):
