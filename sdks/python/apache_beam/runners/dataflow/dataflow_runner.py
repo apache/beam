@@ -103,11 +103,16 @@ class DataflowRunner(PipelineRunner):
   from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
 
   _PTRANSFORM_OVERRIDES = [
-      CreatePTransformOverride(),
   ]
 
   _SDF_PTRANSFORM_OVERRIDES = [
       ReadPTransformOverride(),
+  ]
+
+  # These overrides should be applied after the proto representation of the
+  # graph is created.
+  _NON_PORTABLE_PTRANSFORM_OVERRIDES = [
+      CreatePTransformOverride(),
   ]
 
   def __init__(self, cache=None):
@@ -423,6 +428,11 @@ class DataflowRunner(PipelineRunner):
       # We need to generate a new context that maps to the new pipeline object.
       self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
           return_context=True, default_environment=default_environment)
+
+    else:
+      # Performing configured PTransform overrides which should not be reflected
+      # in the proto representation of the graph.
+      pipeline.replace_all(DataflowRunner._NON_PORTABLE_PTRANSFORM_OVERRIDES)
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = options.view_as(SetupOptions)
