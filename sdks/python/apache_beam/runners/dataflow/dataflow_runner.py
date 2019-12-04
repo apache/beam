@@ -105,9 +105,6 @@ class DataflowRunner(PipelineRunner):
   _PTRANSFORM_OVERRIDES = [
   ]
 
-  _SDF_PTRANSFORM_OVERRIDES = [
-  ]
-
   # These overrides should be applied after the proto representation of the
   # graph is created.
   _NON_PORTABLE_PTRANSFORM_OVERRIDES = [
@@ -400,8 +397,6 @@ class DataflowRunner(PipelineRunner):
     # done before Runner API serialization, since the new proto needs to contain
     # any added PTransforms.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
-    if apiclient._use_sdf_bounded_source(options):
-      pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
 
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.transforms import environments
