@@ -72,15 +72,19 @@ class TestStreamServiceTest(unittest.TestCase):
 
     done = False
     while not done:
+      a_is_done = False
+      b_is_done = False
       try:
         events_a.append(next(resp_a))
       except StopIteration:
-        done |= True
+        a_is_done = True
 
       try:
         events_b.append(next(resp_b))
       except StopIteration:
-        done |= True
+        b_is_done = True
+
+      done = a_is_done and b_is_done
 
     expected_events = [e for e in self.events()]
 
