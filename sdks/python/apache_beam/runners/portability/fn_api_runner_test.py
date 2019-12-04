@@ -1580,8 +1580,33 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
         '.*There has been a processing lull of over.*',
         'Unable to find a lull logged for this job.')
 
+class StateBackedTestElementType(object):
+  element_count = 0
+
+  def __init__(self, num_elems):
+    self.num_elems = num_elems
+    self.value = ['a' for _ in range(num_elems)]
+    StateBackedTestElementType.element_count += 1
+    # Due to using state backed iterable, we expect there is a few instances
+    # alive at any given time.
+    if StateBackedTestElementType.element_count > 5:
+      raise RuntimeError('Too many live instances.')
+
+  def __del__(self):
+    StateBackedTestElementType.element_count -= 1
+
+  def __reduce__(self):
+    return (self.__class__, (self.num_elems, ))
+
 @attr('ValidatesRunner')
 class FnApiBasedStateBackedCoderTest(unittest.TestCase):
+
+  class ElementDoFn(beam.DoFn):
+    def process(self, elements):
+      unused_key, ts = elements
+
+      yield sum([item.num_elems for item in ts])
+
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(use_state_iterables=True))
@@ -1592,11 +1617,12 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
       # different runners' default settings on page size.
       main = (p
               | beam.Create([None])
-              | beam.FlatMap(lambda x: ((x, 1) for _ in range(20000)))
+              | beam.FlatMap(lambda x: ((1, StateBackedTestElementType(300))
+                                        for _ in range(200)))
               | beam.GroupByKey()
-              | 'Sum' >> beam.MapTuple(lambda key, values: sum(values)))
+              | beam.ParDo(self.ElementDoFn()))
 
-    assert_that(main, equal_to(['a', 20000]))
+    assert_that(main, equal_to(['a', 60000]))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
