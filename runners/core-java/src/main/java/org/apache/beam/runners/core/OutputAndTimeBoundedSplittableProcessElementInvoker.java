@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -342,7 +343,10 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       // Only one of them "wins" - tracker.checkpoint() must be called only once.
       if (checkpoint == null) {
         residualWatermark = lastReportedWatermark;
-        checkpoint = checkNotNull(tracker.checkpoint());
+        SplitResult<RestrictionT> split = tracker.trySplit(0);
+        if (split != null) {
+          checkpoint = checkNotNull(split.getResidual());
+        }
       }
       return getTakenCheckpoint();
     }

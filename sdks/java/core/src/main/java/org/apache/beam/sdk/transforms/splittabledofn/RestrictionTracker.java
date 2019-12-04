@@ -47,17 +47,37 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
   public abstract RestrictionT currentRestriction();
 
   /**
-   * Signals that the current {@link DoFn.ProcessElement} call should terminate as soon as possible:
-   * after this method returns, the tracker MUST refuse all future claim calls, and {@link
-   * #checkDone} MUST succeed.
+   * Splits current restriction based on {@code fractionOfRemainder}.
    *
-   * <p>Modifies {@link #currentRestriction}. Returns a restriction representing the rest of the
-   * work: the old value of {@link #currentRestriction} is equivalent to the new value and the
-   * return value of this method combined.
+   * <p>If splitting the current restriction is possible, the current restriction is split into a
+   * primary and residual restriction pair. This invocation updates the {@link
+   * #currentRestriction()} to be the primary restriction effectively having the current {@link
+   * DoFn.ProcessElement} execution responsible for performing the work that the primary restriction
+   * represents. The residual restriction will be executed in a separate {@link DoFn.ProcessElement}
+   * invocation (likely in a different process). The work performed by executing the primary and
+   * residual restrictions as separate {@link DoFn.ProcessElement} invocations MUST be equivalent to
+   * the work performed as if this split never occurred.
    *
-   * <p>Must be called at most once on a given object.
+   * <p>The {@code fractionOfRemainder} should be used in a best effort manner to choose a primary
+   * and residual restriction based upon the fraction of the remaining work that the current {@link
+   * DoFn.ProcessElement} invocation is responsible for. For example, if a {@link
+   * DoFn.ProcessElement} was reading a file with a restriction representing the offset range {@code
+   * [100, 200)} and has processed up to offset 130 with a {@code fractionOfRemainder} of {@code
+   * 0.7}, the primary and residual restrictions returned would be {@code [100, 179), [179, 200)}
+   * (note: {@code currentOffset + fractionOfRemainder * remainingWork = 130 + 0.7 * 70 = 179}).
+   *
+   * <p>{@code fractionOfRemainder = 0} means a checkpoint is required.
+   *
+   * <p>The API is recommended to be implemented for batch pipeline given that it is very important
+   * for pipeline scaling and end to end pipeline execution.
+   *
+   * <p>The API is required to be implemented for a streaming pipeline.
+   *
+   * @param fractionOfRemainder A hint as to the fraction of work the primary restriction should
+   *     represent based upon the current known remaining amount of work.
+   * @return a {@link SplitResult} if a split was possible, otherwise returns {@code null}.
    */
-  public abstract RestrictionT checkpoint();
+  public abstract SplitResult<RestrictionT> trySplit(double fractionOfRemainder);
 
   /**
    * Called by the runner after {@link DoFn.ProcessElement} returns.
@@ -66,6 +86,4 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * work remaining in the restriction.
    */
   public abstract void checkDone() throws IllegalStateException;
-
-  // TODO: Add the more general splitRemainderAfterFraction() and other methods.
 }
