@@ -2523,8 +2523,8 @@ class Create(PTransform):
     return (
         pbegin
         | Impulse()
-        | FlatMap(lambda _: serialized_values)
-        | MaybeReshuffle()
+        | FlatMap(lambda _: serialized_values).with_output_types(bytes)
+        | MaybeReshuffle().with_output_types(bytes)
         | Map(coder.decode).with_output_types(self.get_output_type()))
 
   def as_read(self):
@@ -2547,6 +2547,7 @@ class Create(PTransform):
     return _CreateSource(serialized_values, coder)
 
 
+@typehints.with_output_types(bytes)
 class Impulse(PTransform):
   """Impulse primitive."""
 
