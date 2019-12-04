@@ -24,6 +24,7 @@ import com.google.cloud.Timestamp;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -98,7 +99,7 @@ public class JdbcIOIT {
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
     executeWithRetry(JdbcIOIT::createTable);
-    tableSize = DatabaseTestHelper.getPostgresTableSize(dataSource, tableName);
+    tableSize = DatabaseTestHelper.getPostgresTableSize(dataSource, tableName).orElse(0L);
   }
 
   private static void createTable() throws SQLException {
@@ -143,6 +144,9 @@ public class JdbcIOIT {
   private Set<Function<MetricsReader, NamedTestResult>> getWriteMetricSuppliers(
       String uuid, String timestamp) {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    Optional<Long> postgresTableSize =
+        DatabaseTestHelper.getPostgresTableSize(dataSource, tableName);
+
     suppliers.add(
         reader -> {
           long writeStart = reader.getStartTimeMetric("write_time");
@@ -151,17 +155,12 @@ public class JdbcIOIT {
               uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
         });
 
-    suppliers.add(
-        ignore -> {
-          try {
-            Long tableSizeAfterWrite =
-                DatabaseTestHelper.getPostgresTableSize(dataSource, tableName);
-            return NamedTestResult.create(
-                uuid, timestamp, "total_size", tableSizeAfterWrite - tableSize);
-          } catch (SQLException e) {
-            return NamedTestResult.create(uuid, timestamp, "total_size", 0);
-          }
-        });
+    postgresTableSize.ifPresent(
+        tableFinalSize ->
+            suppliers.add(
+                ignore ->
+                    NamedTestResult.create(
+                        uuid, timestamp, "total_size", tableFinalSize - tableSize)));
     return suppliers;
   }
 

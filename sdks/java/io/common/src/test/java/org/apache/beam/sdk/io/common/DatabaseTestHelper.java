@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Optional;
 import javax.sql.DataSource;
 import org.postgresql.ds.PGSimpleDataSource;
 
@@ -80,17 +81,19 @@ public class DatabaseTestHelper {
         options.getPostgresDatabaseName());
   }
 
-  public static Long getPostgresTableSize(DataSource dataSource, String tableName)
-      throws SQLException {
+  public static Optional<Long> getPostgresTableSize(DataSource dataSource, String tableName) {
     try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
         ResultSet resultSet =
             statement.executeQuery(String.format("select pg_relation_size('%s')", tableName));
         if (resultSet.next()) {
-          return resultSet.getLong(1);
-        } else return 0L;
+          return Optional.of(resultSet.getLong(1));
+        }
       }
+    } catch (SQLException e) {
+      return Optional.empty();
     }
+    return Optional.empty();
   }
 
   public static void createTableWithStatement(DataSource dataSource, String stmt)
