@@ -575,7 +575,6 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
   def test_flatten_no_pcollections(self):
     pipeline = TestPipeline()
     with self.assertRaises(ValueError):
