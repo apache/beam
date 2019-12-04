@@ -30,7 +30,11 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
@@ -53,6 +57,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.bson.Document;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -139,6 +144,8 @@ public class MongoDbReadWriteIT {
   @Before
   public void init() {
     sqlEnv = BeamSqlEnv.inMemory(new MongoDbTableProvider());
+    MongoDatabase db = client.getDatabase(database);
+    Document r = db.runCommand(new BasicDBObject().append("profile", 2));
   }
 
   @After
@@ -264,6 +271,28 @@ public class MongoDbReadWriteIT {
     PAssert.that(output).containsInAnyOrder(testRow);
 
     readPipeline.run().waitUntilFinish();
+
+    MongoDatabase db = client.getDatabase(database);
+    MongoCollection coll = db.getCollection("system.profile");
+    // Find the last executed query.
+    Object query =
+        coll.find()
+            .filter(Filters.eq("op", "query"))
+            .sort(new BasicDBObject().append("ts", -1))
+            .iterator()
+            .next();
+
+    // Retrieve a projection parameters.
+    assertThat(query, instanceOf(Document.class));
+    Object command = ((Document) query).get("command");
+    assertThat(command, instanceOf(Document.class));
+    Object projection = ((Document) command).get("projection");
+    assertThat(projection, instanceOf(Document.class));
+
+    // Validate projected fields.
+    assertThat(
+        ((Document) projection).keySet(),
+        containsInAnyOrder("c_varchar", "c_boolean", "c_integer"));
   }
 
   private Row row(Schema schema, Object... values) {

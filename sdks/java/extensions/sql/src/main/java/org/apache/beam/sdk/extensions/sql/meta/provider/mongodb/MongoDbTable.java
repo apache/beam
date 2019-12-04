@@ -94,7 +94,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
-    MongoDbIO.Read readBuilder =
+    MongoDbIO.Read readInstance =
         MongoDbIO.read().withUri(dbUri).withDatabase(dbName).withCollection(dbCollection);
 
     final FieldAccessDescriptor resolved =
@@ -108,10 +108,10 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     }
 
     if (!fieldNames.isEmpty()) {
-      readBuilder.withQueryFn(FindQuery.create().withProjection(fieldNames));
+      readInstance = readInstance.withQueryFn(FindQuery.create().withProjection(fieldNames));
     }
 
-    return readBuilder.expand(begin).apply(DocumentToRow.withSchema(newSchema));
+    return readInstance.expand(begin).apply(DocumentToRow.withSchema(newSchema));
   }
 
   @Override
