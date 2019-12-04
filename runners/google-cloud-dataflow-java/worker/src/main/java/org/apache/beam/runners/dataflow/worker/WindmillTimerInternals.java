@@ -60,7 +60,6 @@ class WindmillTimerInternals implements TimerInternals {
   @Nullable private Instant synchronizedProcessingTime;
   private String stateFamily;
   private WindmillNamespacePrefix prefix;
-  private Windmill.WorkItemCommitRequest.Builder outputBuilder;
 
   public WindmillTimerInternals(
       String stateFamily, // unique identifies a step
@@ -68,15 +67,13 @@ class WindmillTimerInternals implements TimerInternals {
       Instant inputDataWatermark,
       Instant processingTime,
       @Nullable Instant outputDataWatermark,
-      @Nullable Instant synchronizedProcessingTime,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+      @Nullable Instant synchronizedProcessingTime) {
     this.inputDataWatermark = checkNotNull(inputDataWatermark);
     this.processingTime = checkNotNull(processingTime);
     this.outputDataWatermark = outputDataWatermark;
     this.synchronizedProcessingTime = synchronizedProcessingTime;
     this.stateFamily = stateFamily;
     this.prefix = prefix;
-    this.outputBuilder = outputBuilder;
   }
 
   public WindmillTimerInternals withPrefix(WindmillNamespacePrefix prefix) {
@@ -86,8 +83,7 @@ class WindmillTimerInternals implements TimerInternals {
         inputDataWatermark,
         processingTime,
         outputDataWatermark,
-        synchronizedProcessingTime,
-        outputBuilder);
+        synchronizedProcessingTime);
   }
 
   @Override
@@ -104,19 +100,10 @@ class WindmillTimerInternals implements TimerInternals {
       Instant outputTimestamp,
       TimeDomain timeDomain) {
 
-    TimerData timerData = TimerData.of(timerId, namespace, timestamp, outputTimestamp, timeDomain);
-
-    if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
-      outputBuilder
-          .addWatermarkHoldsBuilder()
-          .setTag(timerHoldTag(prefix, timerData))
-          .setStateFamily(stateFamily)
-          .setReset(true)
-          .addTimestamps(
-              WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
-    }
-
-    timers.put(timerId, namespace, timerData);
+    timers.put(
+        timerId,
+        namespace,
+        TimerData.of(timerId, namespace, timestamp, outputTimestamp, timeDomain));
     timerStillPresent.put(timerId, namespace, true);
   }
 
@@ -197,7 +184,7 @@ class WindmillTimerInternals implements TimerInternals {
               .setStateFamily(stateFamily)
               .setReset(true)
               .addTimestamps(
-                  WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getTimestamp()));
+                  WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
         }
       } else {
         // Deleting a timer. If it is a user timer, clear the hold
