@@ -232,7 +232,7 @@ class PipelineInstrument(object):
     return pipeline_to_execute
 
   @property
-  def has_unbounded_source(self):
+  def has_unbounded_sources(self):
     """Returns whether the pipeline has any `REPLACEABLE_UNBOUNDED_SOURCES`.
     """
     return len(self._unbounded_sources) > 0
@@ -526,8 +526,13 @@ def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):
   return '_'.join((pcoll_version, pcoll_id))
 
 
-def has_unbounded_source(pipeline):
+def has_unbounded_sources(pipeline):
   """Checks if a given pipeline has replaceable unbounded sources."""
+  return len(unbounded_sources(pipeline)) > 0
+
+
+def unbounded_sources(pipeline):
+  """Returns a pipeline's replaceable unbounded sources."""
 
   class CheckUnboundednessVisitor(PipelineVisitor):
     """Visitor checks if there are any unbounded read sources in the Pipeline.
@@ -543,10 +548,10 @@ def has_unbounded_source(pipeline):
       self.visit_transform(transform_node)
 
     def visit_transform(self, transform_node):
-      self.has_unbounded_source |= isinstance(transform_node.transform,
-                                              REPLACEABLE_UNBOUNDED_SOURCES)
+      if isinstance(transform_node.transform, REPLACEABLE_UNBOUNDED_SOURCES):
+        self.unbounded_sources.append(transform_node)
 
-  v = GetUnboundedSourcesVisitor()
+  v = CheckUnboundednessVisitor()
   pipeline.visit(v)
   return v.unbounded_sources
 
