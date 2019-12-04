@@ -225,7 +225,6 @@ class ExternalTransform(ptransform.PTransform):
   _namespace_counter = 0
   _namespace = threading.local()
 
-  _EXPANDED_TRANSFORM_UNIQUE_NAME = 'root'
   _IMPULSE_PREFIX = 'impulse'
 
   def __init__(self, urn, payload, expansion_service=None):
@@ -294,7 +293,7 @@ class ExternalTransform(ptransform.PTransform):
         else pvalueish.pipeline)
     context = pipeline_context.PipelineContext()
     transform_proto = beam_runner_api_pb2.PTransform(
-        unique_name=self._EXPANDED_TRANSFORM_UNIQUE_NAME,
+        unique_name=pipeline._current_transform().full_label,
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=self._urn, payload=self._payload))
     for tag, pcoll in self._inputs.items():
@@ -398,8 +397,7 @@ class ExternalTransform(ptransform.PTransform):
         continue
       assert id.startswith(self._namespace), (id, self._namespace)
       new_proto = beam_runner_api_pb2.PTransform(
-          unique_name=full_label + proto.unique_name[
-              len(self._EXPANDED_TRANSFORM_UNIQUE_NAME):],
+          unique_name=proto.unique_name,
           spec=proto.spec,
           subtransforms=proto.subtransforms,
           inputs={tag: pcoll_renames.get(pcoll, pcoll)

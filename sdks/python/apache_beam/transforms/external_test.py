@@ -320,6 +320,17 @@ class ExternalTransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
 
+  def test_unique_name(self):
+    p = beam.Pipeline()
+    _ = p | FibTransform(6)
+    proto = p.to_runner_api()
+    xforms = [x.unique_name for x in proto.components.transforms.values()]
+    self.assertEqual(
+        len(set(xforms)), len(xforms), msg='Transform names are not unique.')
+    pcolls = [x.unique_name for x in proto.components.pcollections.values()]
+    self.assertEqual(
+        len(set(pcolls)), len(pcolls), msg='PCollection names are not unique.')
+
   def test_java_expansion_portable_runner(self):
     ExternalTransformTest.expansion_service_port = os.environ.get(
         'EXPANSION_PORT')
