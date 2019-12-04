@@ -860,31 +860,11 @@ class Read(ptransform.PTransform):
     return chunk_size
 
   def expand(self, pbegin):
-    from apache_beam.options.pipeline_options import DebugOptions
-    from apache_beam.transforms import util
-
-    assert isinstance(pbegin, pvalue.PBegin)
-    self.pipeline = pbegin.pipeline
-
-    debug_options = self.pipeline._options.view_as(DebugOptions)
-    if debug_options.experiments and 'beam_fn_api' in debug_options.experiments:
-      source = self.source
-
-      def split_source(unused_impulse):
-        return source.split(
-            self.get_desired_chunk_size(self.source.estimate_size()))
-
-      return (
-          pbegin
-          | core.Impulse()
-          | 'Split' >> core.FlatMap(split_source)
-          | util.Reshuffle()
-          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
-              split.source.get_range_tracker(
-                  split.start_position, split.stop_position))))
+    if isinstance(self.source, BoundedSource):
+      return pbegin | _SDFBoundedSourceWrapper(self.source)
     else:
       # Treat Read itself as a primitive.
-      return pvalue.PCollection(self.pipeline,
+      return pvalue.PCollection(pbegin.pipeline,
                                 is_bounded=self.source.is_bounded())
 
   def get_windowing(self, unused_inputs):
@@ -1534,7 +1514,10 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
   def _create_sdf_bounded_source_dofn(self):
     source = self.source
-    chunk_size = Read.get_desired_chunk_size(source.estimate_size())
+    try:
+      chunk_size = Read.get_desired_chunk_size(source.estimate_size())
+    except NotImplementedError:
+      chunk_size = None
 
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, read_source):
