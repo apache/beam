@@ -110,9 +110,12 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
       state_stream = job_server.GetStateStream(
           beam_job_api_pb2.GetJobStateRequest(
               job_id=prepare_response.preparation_id))
+
       self.assertEqual(
           [s.state for s in state_stream],
-          [beam_job_api_pb2.JobState.RUNNING, beam_job_api_pb2.JobState.DONE])
+          [beam_job_api_pb2.JobState.STOPPED,
+           beam_job_api_pb2.JobState.RUNNING,
+           beam_job_api_pb2.JobState.DONE])
 
       http_mock.get(
           'http://flink/v1/jobs/some_job_id/exceptions',
@@ -120,19 +123,25 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
       message_stream = job_server.GetMessageStream(
           beam_job_api_pb2.JobMessagesRequest(
               job_id=prepare_response.preparation_id))
+
+      def get_item(x):
+        if x.HasField('message_response'):
+          return x.message_response
+        else:
+          return x.state_response.state
+
       self.assertEqual(
-          [m for m in message_stream],
+          [get_item(m) for m in message_stream],
           [
-              beam_job_api_pb2.JobMessagesResponse(
-                  message_response=beam_job_api_pb2.JobMessage(
-                      message_id='message0',
-                      time='0',
-                      importance=beam_job_api_pb2.JobMessage.MessageImportance
-                      .JOB_MESSAGE_ERROR,
-                      message_text='exc_text')),
-              beam_job_api_pb2.JobMessagesResponse(
-                  state_response=beam_job_api_pb2.GetJobStateResponse(
-                      state=beam_job_api_pb2.JobState.DONE)),
+              beam_job_api_pb2.JobState.STOPPED,
+              beam_job_api_pb2.JobState.RUNNING,
+              beam_job_api_pb2.JobMessage(
+                  message_id='message0',
+                  time='0',
+                  importance=beam_job_api_pb2.JobMessage.MessageImportance
+                  .JOB_MESSAGE_ERROR,
+                  message_text='exc_text'),
+              beam_job_api_pb2.JobState.DONE,
           ])
 
 

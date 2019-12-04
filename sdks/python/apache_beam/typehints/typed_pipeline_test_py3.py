@@ -245,7 +245,7 @@ class AnnotationsTest(unittest.TestCase):
 
     th = beam.Filter(filter_fn).get_type_hints()
     self.assertEqual(th.input_types, ((int,), {}))
-    self.assertEqual(th.output_types, ((bool,), {}))
+    self.assertEqual(th.output_types, ((int,), {}))
 
 
 if __name__ == '__main__':

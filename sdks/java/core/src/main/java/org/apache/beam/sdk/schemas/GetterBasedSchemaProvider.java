@@ -32,14 +32,14 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Experimental(Kind.SCHEMAS)
 public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   /** Implementing class should override to return FieldValueGetters. */
-  abstract List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema);
+  public abstract List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema);
 
   /** Implementing class should override to return a list of type-informations. */
-  abstract List<FieldValueTypeInformation> fieldValueTypeInformations(
+  public abstract List<FieldValueTypeInformation> fieldValueTypeInformations(
       Class<?> targetClass, Schema schema);
 
   /** Implementing class should override to return a constructor. */
-  abstract SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema);
+  public abstract SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema);
 
   private class ToRowWithValueGetters<T> implements SerializableFunction<T, Row> {
     private final Schema schema;

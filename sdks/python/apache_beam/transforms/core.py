@@ -1611,10 +1611,16 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # TODO: What about callable classes?
   if hasattr(fn, '__name__'):
     wrapper.__name__ = fn.__name__
+
+  # Get type hints from this instance or the callable. Do not use output type
+  # hints from the callable (which should be bool if set).
+  fn_type_hints = typehints.decorators.IOTypeHints.from_callable(fn)
+  if fn_type_hints is not None:
+    fn_type_hints.output_types = None
+  type_hints = get_type_hints(fn).with_defaults(fn_type_hints)
+
   # Proxy the type-hint information from the function being wrapped, setting the
   # output type to be the same as the input type.
-  type_hints = get_type_hints(fn).with_defaults(
-      typehints.decorators.IOTypeHints.from_callable(fn))
   get_type_hints(wrapper).input_types = type_hints.input_types
   output_hint = type_hints.simple_output_type(label)
   if (output_hint is None

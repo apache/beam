@@ -122,10 +122,11 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Returns an {@code AvroCoder} instance for the Avro schema. The implicit type is GenericRecord.
+   * Returns an {@code AvroGenericCoder} instance for the Avro schema. The implicit type is
+   * GenericRecord.
    */
-  public static AvroCoder<GenericRecord> of(Schema schema) {
-    return new AvroCoder<>(GenericRecord.class, schema);
+  public static AvroGenericCoder of(Schema schema) {
+    return AvroGenericCoder.of(schema);
   }
 
   /**
