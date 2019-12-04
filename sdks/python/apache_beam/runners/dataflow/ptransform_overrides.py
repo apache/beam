@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-from apache_beam.coders import typecoders
 from apache_beam.pipeline import PTransformOverride
 
 
@@ -30,24 +29,24 @@ class CreatePTransformOverride(PTransformOverride):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import Create
-    from apache_beam.options.pipeline_options import StandardOptions
+    from apache_beam.runners.dataflow.internal import apiclient
 
     if isinstance(applied_ptransform.transform, Create):
-      standard_options = (applied_ptransform
-                          .outputs[None]
-                          .pipeline._options
-                          .view_as(StandardOptions))
-      return standard_options.streaming
+      return not apiclient._use_fnapi(
+          applied_ptransform.outputs[None].pipeline._options)
     else:
       return False
 
   def get_replacement_transform(self, ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.native_io.streaming_create import \
-      StreamingCreate
-    coder = typecoders.registry.get_coder(ptransform.get_output_type())
-    return StreamingCreate(ptransform.values, coder)
+    from apache_beam import PTransform
+    # Return a wrapper rather than ptransform.as_read() directly to
+    # ensure backwards compatibility of the pipeline structure.
+    class LegacyCreate(PTransform):
+      def expand(self, pbegin):
+        return pbegin | ptransform.as_read()
+    return LegacyCreate().with_output_types(ptransform.get_output_type())
 
 
 class ReadPTransformOverride(PTransformOverride):
