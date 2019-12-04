@@ -83,6 +83,7 @@ class TransformEvaluatorRegistry(object):
         io.Read: _BoundedReadEvaluator,
         _DirectReadFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
+        core.Impulse: _ImpulseEvaluator,
         core.ParDo: _ParDoEvaluator,
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _StreamingGroupByKeyOnly: _StreamingGroupByKeyOnlyEvaluator,
@@ -515,6 +516,17 @@ class _FlattenEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = [self.bundle]
     return TransformResult(self, bundles, [], None, None)
+
+
+class _ImpulseEvaluator(_TransformEvaluator):
+  """TransformEvaluator for Impulse transform."""
+
+  def finish_bundle(self):
+    assert len(self._outputs) == 1
+    output_pcollection = list(self._outputs)[0]
+    bundle = self._evaluation_context.create_bundle(output_pcollection)
+    bundle.output(GlobalWindows.windowed_value(b''))
+    return TransformResult(self, [bundle], [], None, None)
 
 
 class _TaggedReceivers(dict):

@@ -132,6 +132,10 @@ class BundleBasedRunnerTest(unittest.TestCase):
            | beam.Create([[]]).with_output_types(beam.typehints.List[int])
            | beam.combiners.Count.Globally())
 
+  def test_impulse(self):
+    with test_pipeline.TestPipeline(runner='BundleBasedDirectRunner') as p:
+      assert_that(p | beam.Impulse(), equal_to([b'']))
+
 
 class DirectRunnerRetryTests(unittest.TestCase):
 
