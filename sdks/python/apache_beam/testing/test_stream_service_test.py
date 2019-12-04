@@ -38,14 +38,16 @@ TestStreamFileRecord.__test__ = False
 
 class TestStreamServiceTest(unittest.TestCase):
   def events(self):
+    events = []
     for i in range(10):
       e = TestStreamPayload.Event()
       e.element_event.elements.append(
           TestStreamPayload.TimestampedElement(timestamp=i))
-      yield e
+      events.append(e)
+    return events
 
   def setUp(self):
-    self.controller = TestStreamServiceController(self.events)
+    self.controller = TestStreamServiceController(self.events())
     self.controller.start()
 
     channel = grpc.insecure_channel(self.controller.endpoint)

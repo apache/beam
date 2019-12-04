@@ -50,6 +50,5 @@ class TestStreamServiceController(TestStreamServiceServicer):
   def Events(self, request, context):
     """Streams back all of the events from the streaming cache."""
 
-    events = self._events()
-    for e in events:
+    for e in self._events:
       yield e
