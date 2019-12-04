@@ -884,6 +884,7 @@ class DataflowRunner(PipelineRunner):
       serialized_data = pickler.dumps(
           self._pardo_fn_data(transform_node, lookup_label))
     step.add_property(PropertyNames.SERIALIZED_FN, serialized_data)
+    step.add_property(PropertyNames.PIPELINE_PROTO_TRANSFORM_ID, transform_id)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
@@ -963,6 +964,7 @@ class DataflowRunner(PipelineRunner):
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
     step = self._add_step(
         TransformNames.COMBINE, transform_node.full_label, transform_node)
+    transform_id = self.proto_context.transforms.get_id(transform_node.parent)
 
     # The data transmitted in SERIALIZED_FN is different depending on whether
     # this is a fnapi pipeline or not.
@@ -972,8 +974,7 @@ class DataflowRunner(PipelineRunner):
       # Fnapi pipelines send the transform ID of the CombineValues transform's
       # parent composite because Dataflow expects the ID of a CombinePerKey
       # transform.
-      serialized_data = self.proto_context.transforms.get_id(
-          transform_node.parent)
+      serialized_data = transform_id
     else:
       # Combiner functions do not take deferred side-inputs (i.e. PValues) and
       # therefore the code to handle extra args/kwargs is simpler than for the
@@ -982,6 +983,7 @@ class DataflowRunner(PipelineRunner):
       serialized_data = pickler.dumps((transform.fn, transform.args,
                                        transform.kwargs, ()))
     step.add_property(PropertyNames.SERIALIZED_FN, serialized_data)
+    step.add_property(PropertyNames.PIPELINE_PROTO_TRANSFORM_ID, transform_id)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
