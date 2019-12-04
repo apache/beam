@@ -125,7 +125,8 @@ class _MockMongoDb(object):
     # by default.
     return {
         'splitKeys':
-        [x['_id'] for x in self.docs[start_index:end_index:maxChunkSize]][1:]
+          [{'_id': x['_id']} for x in
+           self.docs[start_index:end_index:maxChunkSize]][1:]
     }
 
 
