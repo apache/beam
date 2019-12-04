@@ -31,8 +31,8 @@ import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 public abstract class HarnessStreamObserverFactories {
 
   /**
-   * Creates a {@link OutboundObserverFactory} for client-side RPCs, which adds synchronization to
-   * provide thread safety of access to the returned observer.
+   * Creates an {@link OutboundObserverFactory} for client-side RPCs. All {@link StreamObserver}s
+   * created by this factory are thread safe.
    */
   public static OutboundObserverFactory fromOptions(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
