@@ -79,7 +79,7 @@ class DirectPipelineResultTest(unittest.TestCase):
         return [element]
 
     p = Pipeline(DirectRunner())
-    pcoll = (p | beam.Create([1, 2, 3, 4, 5])
+    pcoll = (p | beam.Create([1, 2, 3, 4, 5], reshuffle=False)
              | 'Do' >> beam.ParDo(MyDoFn()))
     assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
     result = p.run()
