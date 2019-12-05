@@ -62,6 +62,15 @@ public class FlinkJobServerDriver extends JobServerDriver {
     String getFlinkConfDir() {
       return flinkConfDir;
     }
+
+    @Option(
+        name = "--reuse-flink-local-execution-environment",
+        usage = "Reusing Flink local execution environment for reducing memory consumption.")
+    private boolean reuseFlinkLocalExecutionEnvironment = false;
+
+    boolean getReuseFlinkLocalExecutionEnvironment() {
+      return reuseFlinkLocalExecutionEnvironment;
+    }
   }
 
   public static void main(String[] args) throws Exception {

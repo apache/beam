@@ -29,6 +29,7 @@ import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineJarCreator;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
@@ -67,6 +68,11 @@ public class FlinkJobInvoker extends JobInvoker {
 
     if (FlinkPipelineOptions.AUTO.equals(flinkOptions.getFlinkMaster())) {
       flinkOptions.setFlinkMaster(serverConfig.getFlinkMaster());
+    }
+
+    if (serverConfig.getReuseFlinkLocalExecutionEnvironment()) {
+      ExperimentalOptions.addExperiment(
+          flinkOptions.as(ExperimentalOptions.class), "reuseFlinkLocalExecutionEnvironment");
     }
 
     PortablePipelineOptions portableOptions = flinkOptions.as(PortablePipelineOptions.class);

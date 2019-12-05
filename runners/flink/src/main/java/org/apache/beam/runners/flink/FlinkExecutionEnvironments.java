@@ -23,6 +23,7 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
@@ -31,6 +32,7 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -56,6 +58,8 @@ public class FlinkExecutionEnvironments {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutionEnvironments.class);
 
+  private static LocalEnvironment singletonLocalBatchEnvironment;
+
   /**
    * If the submitted job is a batch processing job, this method creates the adequate Flink {@link
    * org.apache.flink.api.java.ExecutionEnvironment} depending on the user-specified options.
@@ -77,7 +81,16 @@ public class FlinkExecutionEnvironments {
 
     // depending on the master, create the right environment.
     if ("[local]".equals(flinkMasterHostPort)) {
-      flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
+      if (ExperimentalOptions.hasExperiment(
+          options.as(ExperimentalOptions.class), "reuseFlinkLocalExecutionEnvironment")) {
+        if (singletonLocalBatchEnvironment == null) {
+          singletonLocalBatchEnvironment =
+              ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
+        }
+        flinkBatchEnv = singletonLocalBatchEnvironment;
+      } else {
+        flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
+      }
     } else if ("[collection]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = new CollectionEnvironment();
     } else if ("[auto]".equals(flinkMasterHostPort)) {
