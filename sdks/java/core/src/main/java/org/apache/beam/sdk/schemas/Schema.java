@@ -75,6 +75,11 @@ public class Schema implements Serializable {
     public int hashCode() {
       return Arrays.hashCode(array);
     }
+
+    @Override
+    public String toString() {
+      return Arrays.toString(array);
+    }
   }
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();

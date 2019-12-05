@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -187,7 +188,7 @@ public abstract class Row implements Serializable {
    * match.
    */
   @Nullable
-  public <T> List<T> getArray(String fieldName) {
+  public <T> Collection<T> getArray(String fieldName) {
     return getArray(getSchema().indexOf(fieldName));
   }
 
@@ -332,7 +333,7 @@ public abstract class Row implements Serializable {
    * match.
    */
   @Nullable
-  public <T> List<T> getArray(int idx) {
+  public <T> Collection<T> getArray(int idx) {
     return getValue(idx);
   }
 
@@ -421,8 +422,8 @@ public abstract class Row implements Serializable {
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
       } else if (fieldType.getTypeName() == TypeName.ARRAY) {
-        return deepEqualsForList(
-            (List<Object>) a, (List<Object>) b, fieldType.getCollectionElementType());
+        return deepEqualsForCollection(
+            (Collection<Object>) a, (Collection<Object>) b, fieldType.getCollectionElementType());
       } else if (fieldType.getTypeName() == TypeName.ITERABLE) {
         return deepEqualsForIterable(
             (Iterable<Object>) a, (Iterable<Object>) b, fieldType.getCollectionElementType());
@@ -493,7 +494,8 @@ public abstract class Row implements Serializable {
       return h;
     }
 
-    static boolean deepEqualsForList(List<Object> a, List<Object> b, Schema.FieldType elementType) {
+    static boolean deepEqualsForCollection(
+        Collection<Object> a, Collection<Object> b, Schema.FieldType elementType) {
       if (a == b) {
         return true;
       }
@@ -584,7 +586,7 @@ public abstract class Row implements Serializable {
       return addValues(Arrays.asList(values));
     }
 
-    public <T> Builder addArray(List<T> values) {
+    public <T> Builder addArray(Collection<T> values) {
       this.values.add(values);
       return this;
     }
@@ -662,16 +664,16 @@ public abstract class Row implements Serializable {
     private List<Object> verifyArray(
         Object value, FieldType collectionElementType, String fieldName) {
       boolean collectionElementTypeNullable = collectionElementType.getNullable();
-      if (!(value instanceof List)) {
+      if (!(value instanceof Collection)) {
         throw new IllegalArgumentException(
             String.format(
-                "For field name %s and array type expected List class. Instead "
+                "For field name %s and array type expected Collection class. Instead "
                     + "class type was %s.",
                 fieldName, value.getClass()));
       }
-      List<Object> valueList = (List<Object>) value;
-      List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
-      for (Object listValue : valueList) {
+      Collection<Object> valueCollection = (Collection<Object>) value;
+      List<Object> verifiedList = Lists.newArrayListWithCapacity(valueCollection.size());
+      for (Object listValue : valueCollection) {
         if (listValue == null) {
           if (!collectionElementTypeNullable) {
             throw new IllegalArgumentException(
@@ -696,8 +698,8 @@ public abstract class Row implements Serializable {
                     + "class type was %s.",
                 fieldName, value.getClass()));
       }
-      Iterable<Object> valueList = (Iterable<Object>) value;
-      for (Object listValue : valueList) {
+      Iterable<Object> valueIterable = (Iterable<Object>) value;
+      for (Object listValue : valueIterable) {
         if (listValue == null) {
           if (!collectionElementTypeNullable) {
             throw new IllegalArgumentException(
@@ -708,7 +710,7 @@ public abstract class Row implements Serializable {
           verify(listValue, collectionElementType, fieldName);
         }
       }
-      return valueList;
+      return valueIterable;
     }
 
     private Map<Object, Object> verifyMap(
