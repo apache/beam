@@ -278,7 +278,7 @@ __all__ = [
     'BigQuerySource',
     'BigQuerySink',
     'WriteToBigQuery',
-    'ReadFromBigQuery',
+    '_ReadFromBigQuery',
     'SCHEMA_AUTODETECT',
     ]
 
@@ -585,7 +585,7 @@ class _JsonToDictCoder(coders.Coder):
     return dict
 
 
-class _BigQuerySource(BoundedSource):
+class _CustomBigQuerySource(BoundedSource):
   def __init__(self, gcs_location=None, table=None, dataset=None,
                project=None, query=None, validate=False, coder=None,
                use_standard_sql=False, flatten_results=True, kms_key=None):
@@ -1469,8 +1469,7 @@ bigquery_v2_messages.TableSchema):
     return res
 
 
-@experimental()
-class PassThroughThenCleanup(PTransform):
+class _PassThroughThenCleanup(PTransform):
   """A PTransform that invokes a DoFn after the input PCollection has been
     processed.
   """
@@ -1496,7 +1495,7 @@ class PassThroughThenCleanup(PTransform):
 
 
 @experimental()
-class ReadFromBigQuery(PTransform):
+class _ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
@@ -1600,7 +1599,7 @@ class ReadFromBigQuery(PTransform):
     gcs_location = self._get_destination_uri(temp_location)
 
     return (pcoll
-            | beam.io.Read(_BigQuerySource(gcs_location=gcs_location,
-                                           validate=self.validate,
-                                           *self._args, **self._kwargs))
-            | PassThroughThenCleanup(RemoveJsonFiles(gcs_location)))
+            | beam.io.Read(_CustomBigQuerySource(gcs_location=gcs_location,
+                                                 validate=self.validate,
+                                                 *self._args, **self._kwargs))
+            | _PassThroughThenCleanup(RemoveJsonFiles(gcs_location)))

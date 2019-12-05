@@ -151,7 +151,7 @@ class ReadTests(BigQueryReadIntegrationTests):
   @attr('IT')
   def test_iobase_source(self):
     with beam.Pipeline(argv=self.args) as p:
-      result = (p | 'read' >> beam.io.ReadFromBigQuery(
+      result = (p | 'read' >> beam.io._ReadFromBigQuery(
           query=self.query, use_standard_sql=True, project=self.project))
       assert_that(result, equal_to(self.TABLE_DATA))
 
@@ -257,7 +257,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
   @attr('IT')
   def test_iobase_source(self):
     with beam.Pipeline(argv=self.args) as p:
-      result = (p | 'read' >> beam.io.ReadFromBigQuery(
+      result = (p | 'read' >> beam.io._ReadFromBigQuery(
           query=self.query, use_standard_sql=True, project=self.project))
       assert_that(result, equal_to(self.get_expected_data()))
 
