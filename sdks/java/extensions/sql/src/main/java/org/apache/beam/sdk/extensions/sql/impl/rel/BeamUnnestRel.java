@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Collection;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
