@@ -21,12 +21,14 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.util.Text;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.CachingFactory;
 import org.apache.beam.sdk.schemas.Factory;
@@ -46,6 +48,8 @@ public class ArrowUtils {
   }
 
   public static class VectorSchemaRootRowIterator implements Iterator<Row> {
+    private static final ArrowValueConverterVisitor valueConverterVisitor =
+        new ArrowValueConverterVisitor();
     private final Schema schema;
     private final VectorSchemaRoot vectorSchemaRoot;
     private final Factory<List<FieldValueGetter>> fieldValueGetters;
@@ -68,24 +72,130 @@ public class ArrowUtils {
         return this.fieldVectors.stream()
             .map(
                 (fieldVector) -> {
-                  // TODO: Modify behavior based on type, perhaps by using a ArrowTypeVisitor on
-                  // fieldVector.getField().getFieldType()?
-                  // e.g. if type is UTF-8, #getObject returns a `Text` instance, need to convert to
-                  // a String
-                  return new FieldValueGetter<Integer, Object>() {
-                    @Nullable
-                    @Override
-                    public Object get(Integer rowIndex) {
-                      return fieldVector.getObject(rowIndex);
-                    }
+                  Function<Object, Object> conversionFunction =
+                      fieldVector.getField().getFieldType().getType().accept(valueConverterVisitor);
+                  if (conversionFunction == null) {
+                    return new FieldValueGetter<Integer, Object>() {
+                      @Nullable
+                      @Override
+                      public Object get(Integer rowIndex) {
+                        return fieldVector.getObject(rowIndex);
+                      }
 
-                    @Override
-                    public String name() {
-                      return fieldVector.getField().getName();
-                    }
-                  };
+                      @Override
+                      public String name() {
+                        return fieldVector.getField().getName();
+                      }
+                    };
+                  } else {
+                    return new FieldValueGetter<Integer, Object>() {
+                      @Nullable
+                      @Override
+                      public Object get(Integer rowIndex) {
+                        return conversionFunction.apply(fieldVector.getObject(rowIndex));
+                      }
+
+                      @Override
+                      public String name() {
+                        return fieldVector.getField().getName();
+                      }
+                    };
+                  }
                 })
             .collect(Collectors.toList());
+      }
+    }
+
+    private static class ArrowValueConverterVisitor
+        implements ArrowType.ArrowTypeVisitor<Function<Object, Object>> {
+      @Override
+      public Function<Object, Object> visit(ArrowType.Null type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Struct type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.List type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.FixedSizeList type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Union type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Map type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Int type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.FloatingPoint type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Utf8 type) {
+        return (Object text) -> ((Text) text).toString();
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Binary type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.FixedSizeBinary type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Bool type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Decimal type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Date type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Time type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Timestamp type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Interval type) {
+        return null;
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Duration type) {
+        return null;
       }
     }
 
