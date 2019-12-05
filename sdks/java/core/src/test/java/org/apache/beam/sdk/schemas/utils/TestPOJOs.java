@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -860,4 +861,44 @@ public class TestPOJOs {
   /** The schema for {@link PojoWithNestedArray}. */
   public static final Schema POJO_WITH_ITERABLE =
       Schema.builder().addIterableField("strings", FieldType.STRING).build();
+
+  /** A Pojo containing an enum type. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class PojoWithEnum {
+    public enum Color {
+      RED,
+      GREEN,
+      BLUE
+    };
+
+    public final Color color;
+
+    @SchemaCreate
+    public PojoWithEnum(Color color) {
+      this.color = color;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PojoWithEnum that = (PojoWithEnum) o;
+      return color == that.color;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(color);
+    }
+  }
+
+  /** The schema for {@link PojoWithEnum}. */
+  public static final Schema POJO_WITH_ENUM_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
+          .build();
 }

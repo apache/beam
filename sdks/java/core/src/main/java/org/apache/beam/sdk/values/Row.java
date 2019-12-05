@@ -209,6 +209,16 @@ public abstract class Row implements Serializable {
   }
 
   /**
+   * Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
+   * schema doesn't match.
+   */
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  public <T> T getLogicalTypeValue(String fieldName) {
+    return getLogicalTypeValue(getSchema().indexOf(fieldName));
+  }
+
+  /**
    * Get a {@link TypeName#ROW} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
@@ -345,6 +355,17 @@ public abstract class Row implements Serializable {
   }
 
   /**
+   * Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
+   * schema doesn't match.
+   */
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  public <T> T getLogicalTypeValue(int idx) {
+    LogicalType logicalType = checkNotNull(getSchema().getField(idx).getType().getLogicalType());
+    return (T) logicalType.toInputType(getValue(idx));
+  }
+
+  /**
    * Get a {@link Row} value by field index, {@link IllegalStateException} is thrown if schema
    * doesn't match.
    */
@@ -391,8 +412,8 @@ public abstract class Row implements Serializable {
     return h;
   }
 
-  static class Equals {
-    static boolean deepEquals(Object a, Object b, Schema.FieldType fieldType) {
+  public static class Equals {
+    public static boolean deepEquals(Object a, Object b, Schema.FieldType fieldType) {
       if (a == null || b == null) {
         return a == b;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {

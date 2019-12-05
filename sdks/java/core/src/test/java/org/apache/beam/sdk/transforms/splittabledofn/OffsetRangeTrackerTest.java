@@ -48,7 +48,7 @@ public class OffsetRangeTrackerTest {
   public void testCheckpointUnstarted() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     expected.expect(IllegalStateException.class);
-    tracker.checkpoint();
+    tracker.trySplit(0).getResidual();
   }
 
   @Test
@@ -56,14 +56,14 @@ public class OffsetRangeTrackerTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     assertFalse(tracker.tryClaim(250L));
     expected.expect(IllegalStateException.class);
-    OffsetRange checkpoint = tracker.checkpoint();
+    OffsetRange checkpoint = tracker.trySplit(0).getResidual();
   }
 
   @Test
   public void testCheckpointJustStarted() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     assertTrue(tracker.tryClaim(100L));
-    OffsetRange checkpoint = tracker.checkpoint();
+    OffsetRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(new OffsetRange(100, 101), tracker.currentRestriction());
     assertEquals(new OffsetRange(101, 200), checkpoint);
   }
@@ -73,7 +73,7 @@ public class OffsetRangeTrackerTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     assertTrue(tracker.tryClaim(105L));
     assertTrue(tracker.tryClaim(110L));
-    OffsetRange checkpoint = tracker.checkpoint();
+    OffsetRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(new OffsetRange(100, 111), tracker.currentRestriction());
     assertEquals(new OffsetRange(111, 200), checkpoint);
   }
@@ -84,7 +84,7 @@ public class OffsetRangeTrackerTest {
     assertTrue(tracker.tryClaim(105L));
     assertTrue(tracker.tryClaim(110L));
     assertTrue(tracker.tryClaim(199L));
-    OffsetRange checkpoint = tracker.checkpoint();
+    OffsetRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(new OffsetRange(100, 200), tracker.currentRestriction());
     assertEquals(new OffsetRange(200, 200), checkpoint);
   }
@@ -96,7 +96,7 @@ public class OffsetRangeTrackerTest {
     assertTrue(tracker.tryClaim(110L));
     assertTrue(tracker.tryClaim(160L));
     assertFalse(tracker.tryClaim(240L));
-    OffsetRange checkpoint = tracker.checkpoint();
+    OffsetRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(new OffsetRange(100, 161), tracker.currentRestriction());
     assertEquals(new OffsetRange(161, 200), checkpoint);
   }

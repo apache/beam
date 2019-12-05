@@ -148,7 +148,7 @@ public class SplittableParDoNaiveBounded {
         ProcessContinuation continuation =
             invoker.invokeProcessElement(new NestedProcessContext<>(fn, c, element, w, tracker));
         if (continuation.shouldResume()) {
-          restriction = tracker.checkpoint();
+          restriction = tracker.currentRestriction();
           Uninterruptibles.sleepUninterruptibly(
               continuation.resumeDelay().getMillis(), TimeUnit.MILLISECONDS);
         } else {

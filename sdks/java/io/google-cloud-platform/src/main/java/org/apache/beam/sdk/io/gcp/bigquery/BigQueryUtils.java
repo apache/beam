@@ -36,11 +36,11 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
@@ -237,16 +237,16 @@ public class BigQueryUtils {
         return FieldType.DATETIME;
       case "TIME":
         return FieldType.logicalType(
-            new LogicalTypes.PassThroughLogicalType<Instant>(
-                "SqlTimeType", "", FieldType.DATETIME) {});
+            new PassThroughLogicalType<Instant>(
+                "SqlTimeType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "DATE":
         return FieldType.logicalType(
-            new LogicalTypes.PassThroughLogicalType<Instant>(
-                "SqlDateType", "", FieldType.DATETIME) {});
+            new PassThroughLogicalType<Instant>(
+                "SqlDateType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "DATETIME":
         return FieldType.logicalType(
-            new LogicalTypes.PassThroughLogicalType<Instant>(
-                "SqlTimestampWithLocalTzType", "", FieldType.DATETIME) {});
+            new PassThroughLogicalType<Instant>(
+                "SqlTimestampWithLocalTzType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "STRUCT":
       case "RECORD":
         Schema rowSchema = fromTableFieldSchema(nestedFields);

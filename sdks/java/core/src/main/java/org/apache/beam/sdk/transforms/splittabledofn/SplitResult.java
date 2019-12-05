@@ -15,17 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static org.junit.Assert.assertTrue;
+import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 
-import org.apache.beam.sdk.schemas.Schema;
-
-/** Utilities for testing schemas. */
-public class SchemaTestUtils {
-  // Assert that two schemas are equivalent, ignoring field order. This tests that both schemas
-  // (recursively) contain the same fields with the same names, but possibly different orders.
-  public static void assertSchemaEquivalent(Schema expected, Schema actual) {
-    assertTrue("Expected: " + expected + "  Got: " + actual, actual.equivalent(expected));
+/** A representation of a split result. */
+@AutoValue
+public abstract class SplitResult<RestrictionT> {
+  /** Returns a {@link SplitResult} for the specified primary and residual restrictions. */
+  public static <RestrictionT> SplitResult<RestrictionT> of(
+      RestrictionT primary, RestrictionT residual) {
+    return new AutoValue_SplitResult(primary, residual);
   }
+
+  /** Returns the primary restriction. */
+  @Nullable
+  public abstract RestrictionT getPrimary();
+
+  /** Returns the residual restriction. */
+  @Nullable
+  public abstract RestrictionT getResidual();
 }

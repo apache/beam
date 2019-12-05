@@ -15,17 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.testing;
 
-import static org.junit.Assert.assertTrue;
-
-import org.apache.beam.sdk.schemas.Schema;
-
-/** Utilities for testing schemas. */
-public class SchemaTestUtils {
-  // Assert that two schemas are equivalent, ignoring field order. This tests that both schemas
-  // (recursively) contain the same fields with the same names, but possibly different orders.
-  public static void assertSchemaEquivalent(Schema expected, Schema actual) {
-    assertTrue("Expected: " + expected + "  Got: " + actual, actual.equivalent(expected));
-  }
-}
+/**
+ * Category tag for tests that use System metrics. These metrics are available only in portable
+ * runners.
+ */
+public interface UsesSystemMetrics {}
