@@ -851,7 +851,6 @@ class Read(ptransform.PTransform):
 
   @staticmethod
   def get_desired_chunk_size(total_size):
-    total_size
     if total_size:
       # 1MB = 1 shard, 1GB = 32 shards, 1TB = 1000 shards, 1PB = 32k shards
       chunk_size = max(1 << 20, 1000 * int(math.sqrt(total_size)))
@@ -1515,9 +1514,10 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
   def _create_sdf_bounded_source_dofn(self):
     source = self.source
     try:
-      chunk_size = Read.get_desired_chunk_size(source.estimate_size())
+      estimated_size = source.estimate_size()
     except NotImplementedError:
-      chunk_size = None
+      estimated_size = None
+    chunk_size = Read.get_desired_chunk_size(estimated_size)
 
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, read_source):
