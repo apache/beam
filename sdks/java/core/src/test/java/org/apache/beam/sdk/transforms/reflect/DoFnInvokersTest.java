@@ -55,7 +55,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -507,7 +506,7 @@ public class DoFnInvokersTest {
     }
 
     @Override
-    public SplitResult<RestrictionWithDefaultTracker> trySplit(double fractionOfRemainder) {
+    public RestrictionWithDefaultTracker checkpoint() {
       throw new UnsupportedOperationException();
     }
 

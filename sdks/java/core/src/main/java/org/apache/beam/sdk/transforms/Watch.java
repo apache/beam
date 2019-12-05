@@ -57,7 +57,6 @@ import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
@@ -1029,10 +1028,7 @@ public class Watch {
     }
 
     @Override
-    public SplitResult<GrowthState> trySplit(double fractionOfRemainder) {
-      // TODO(BEAM-8873): Add support for splitting off a fixed amount of work for this restriction
-      // instead of only supporting checkpointing.
-
+    public GrowthState checkpoint() {
       // residual should contain exactly the work *not* claimed in the current ProcessElement call -
       // unclaimed pending outputs or future polling output
       GrowthState residual;
@@ -1065,7 +1061,7 @@ public class Watch {
       }
 
       shouldStop = true;
-      return SplitResult.of(state, residual);
+      return residual;
     }
 
     private HashCode hash128(OutputT value) {

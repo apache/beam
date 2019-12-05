@@ -27,7 +27,6 @@ import java.util.List;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers.ClaimObserver;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
-import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,7 +50,7 @@ public class RestrictionTrackersTest {
           }
 
           @Override
-          public SplitResult<Object> trySplit(double fractionOfRemainder) {
+          public Object checkpoint() {
             throw new UnsupportedOperationException();
           }
 
@@ -104,7 +103,7 @@ public class RestrictionTrackersTest {
     }
 
     @Override
-    public SplitResult<Object> trySplit(double fractionOfRemainder) {
+    public Object checkpoint() {
       return null;
     }
 
