@@ -88,6 +88,8 @@ public class ByteBuddyUtils {
   private static final ForLoadedType READABLE_PARTIAL_TYPE =
       new ForLoadedType(ReadablePartial.class);
   private static final ForLoadedType OBJECT_TYPE = new ForLoadedType(Object.class);
+  private static final ForLoadedType INTEGER_TYPE = new ForLoadedType(Integer.class);
+  private static final ForLoadedType ENUM_TYPE = new ForLoadedType(Enum.class);
 
   /**
    * A naming strategy for ByteBuddy classes.
@@ -292,7 +294,9 @@ public class ByteBuddyUtils {
 
     @Override
     protected Type convertEnum(TypeDescriptor<?> type) {
-      return String.class;
+      // We represent enums in the Row as Integers. The EnumerationType handles the mapping to the
+      // actual enum type.
+      return Integer.class;
     }
 
     @Override
@@ -502,10 +506,14 @@ public class ByteBuddyUtils {
       return new Compound(
           readValue,
           MethodInvocation.invoke(
-              OBJECT_TYPE
+              ENUM_TYPE
                   .getDeclaredMethods()
-                  .filter(ElementMatchers.named("toString").and(ElementMatchers.takesArguments(0)))
-                  .getOnly()));
+                  .filter(ElementMatchers.named("ordinal").and(ElementMatchers.takesArguments(0)))
+                  .getOnly()),
+          Assigner.DEFAULT.assign(
+              INTEGER_TYPE.asUnboxed().asGenericType(),
+              INTEGER_TYPE.asGenericType(),
+              Typing.STATIC));
     }
 
     @Override
@@ -723,17 +731,25 @@ public class ByteBuddyUtils {
     protected StackManipulation convertEnum(TypeDescriptor<?> type) {
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
 
+      // Convert the stored ordinal back to the Java enum constant.
       return new Compound(
-          readValue,
+          // Call EnumType::values() to get an array of all enum constants.
           MethodInvocation.invoke(
               loadedType
                   .getDeclaredMethods()
                   .filter(
-                      ElementMatchers.named("valueOf")
-                          .and(
-                              ElementMatchers.isStatic()
-                                  .and(ElementMatchers.takesArguments(String.class))))
-                  .getOnly()));
+                      ElementMatchers.named("values")
+                          .and(ElementMatchers.isStatic().and(ElementMatchers.takesArguments(0))))
+                  .getOnly()),
+          // Read the integer enum value.
+          readValue,
+          // Unbox Integer -> int before accessing the array.
+          Assigner.DEFAULT.assign(
+              INTEGER_TYPE.asBoxed().asGenericType(),
+              INTEGER_TYPE.asUnboxed().asGenericType(),
+              Typing.STATIC),
+          // Access the array to return the Java enum type.
+          ArrayAccess.REFERENCE.load());
     }
 
     @Override

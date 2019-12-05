@@ -21,10 +21,11 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -75,8 +76,7 @@ public class SchemaTranslationTest {
           .add(
               Schema.of(
                   Field.of("decimal", FieldType.DECIMAL), Field.of("datetime", FieldType.DATETIME)))
-          .add(
-              Schema.of(Field.of("logical", FieldType.logicalType(LogicalTypes.FixedBytes.of(24)))))
+          .add(Schema.of(Field.of("logical", FieldType.logicalType(FixedBytes.of(24)))))
           .build();
     }
 
