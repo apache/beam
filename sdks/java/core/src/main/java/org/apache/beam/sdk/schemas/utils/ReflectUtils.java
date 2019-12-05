@@ -84,7 +84,9 @@ public class ReflectUtils {
         clazz,
         c -> {
           return Arrays.stream(c.getDeclaredMethods())
-              .filter(m -> !m.isBridge()) // Covariant overloads insert bridge functions, which we must ignore.
+              .filter(
+                  m -> !m.isBridge()) // Covariant overloads insert bridge functions, which we must
+              // ignore.
               .filter(m -> !Modifier.isPrivate(m.getModifiers()))
               .filter(m -> !Modifier.isProtected(m.getModifiers()))
               .filter(m -> !Modifier.isStatic(m.getModifiers()))

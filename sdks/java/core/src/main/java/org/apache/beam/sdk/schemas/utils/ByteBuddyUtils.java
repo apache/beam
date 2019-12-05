@@ -346,8 +346,10 @@ public class ByteBuddyUtils {
 
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
-  // When processing a container (e.g. List<T>) we need to recursively process the element type. This function
-  // generates a subclass of Function that can be used to recursively transform each element of the container.
+  // When processing a container (e.g. List<T>) we need to recursively process the element type.
+  // This function
+  // generates a subclass of Function that can be used to recursively transform each element of the
+  // container.
   static Class createCollectionTransformFunction(
       Type fromType, Type toType, Function<StackManipulation, StackManipulation> convertElement) {
     // Generate a TypeDescription for the class we want to generate.
@@ -392,14 +394,15 @@ public class ByteBuddyUtils {
         .getLoaded();
   }
 
-  // A function to transform a container, special casing List and Collection types. This is used in byte-buddy
+  // A function to transform a container, special casing List and Collection types. This is used in
+  // byte-buddy
   // generated code.
-  public static <F, T> Iterable<T> transformContainer(
-      Iterable<F> iterable, Function<F, T> function) {
+  public static <FromT, DestT> Iterable<DestT> transformContainer(
+      Iterable<FromT> iterable, Function<FromT, DestT> function) {
     if (iterable instanceof List) {
-      return Lists.transform((List<F>) iterable, function);
+      return Lists.transform((List<FromT>) iterable, function);
     } else if (iterable instanceof Collection) {
-      return Collections2.transform((Collection<F>) iterable, function);
+      return Collections2.transform((Collection<FromT>) iterable, function);
     } else {
       return Iterables.transform(iterable, function);
     }

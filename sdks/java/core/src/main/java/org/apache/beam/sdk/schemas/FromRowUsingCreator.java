@@ -131,10 +131,11 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
     }
   }
 
-  private static <F, T> Collection<T> transformCollection(
-      Collection<F> collection, Function<F, T> function) {
+  private static <SourceT, DestT> Collection<DestT> transformCollection(
+      Collection<SourceT> collection, Function<SourceT, DestT> function) {
     if (collection instanceof List) {
-      // For performance reasons if the input is a list, make sure that we produce a list. Otherwise Row unwrapping
+      // For performance reasons if the input is a list, make sure that we produce a list. Otherwise
+      // Row unwrapping
       // is forced to physically copy the collection into a new List object.
       return Lists.transform((List) collection, function);
     } else {

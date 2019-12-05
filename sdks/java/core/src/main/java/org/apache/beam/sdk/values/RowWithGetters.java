@@ -74,7 +74,8 @@ public class RowWithGetters extends Row {
   private Collection getCollectionValue(FieldType elementType, Object fieldValue) {
     Collection collection = (Collection) fieldValue;
     if (collection instanceof List) {
-      // For performance reasons if the input is a list, make sure that we produce a list. Otherwise Row forwarding
+      // For performance reasons if the input is a list, make sure that we produce a list. Otherwise
+      // Row forwarding
       // is forced to physically copy the collection into a new List object.
       return Lists.transform((List) collection, v -> getValue(elementType, v, null));
     } else {
