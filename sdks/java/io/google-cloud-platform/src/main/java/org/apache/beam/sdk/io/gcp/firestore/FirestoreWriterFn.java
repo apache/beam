@@ -107,13 +107,14 @@ public class FirestoreWriterFn<T> extends DoFn<T, Void> {
 
     /**
      * Writes a batch of mutations to Cloud Firestore.
+     * <p>
+     * A batch of writes completes atomically and can write to multiple documents.
+     * If a commit fails, all mutations in the batch will fail and it will be retried up to {@link #MAX_RETRIES} times.
+     * If the retry limit is exceeded, the last exception from Cloud Firestore will be thrown.
+     * <p>
+     * Learn more in [Firestore docs](https://cloud.google.com/firestore/docs/manage-data/transactions#batched-writes).
      *
-     * <p>If a commit fails, it will be retried up to {@link #MAX_RETRIES} times. All mutations in
-     * the batch will be committed again, even if the commit was partially successful. If the retry
-     * limit is exceeded, the last exception from Cloud Firestore will be thrown.
-     *
-     * @throws FirestoreException if the commit fails or IOException or InterruptedException if
-     *                            backing off between retries fails.
+     * @throws FirestoreException if the commit fails or IOException or InterruptedException if backing off between retries fails.
      */
     private void flushBatch() throws FirestoreException, IOException, InterruptedException, ExecutionException {
         LOG.debug("Writing batch of {} mutations", mutations.size());
