@@ -96,7 +96,8 @@ class FnApiLogRecordHandler(logging.Handler):
     log_entry.severity = self.map_log_level(record.levelno)
     log_entry.message = self.format(record)
     log_entry.thread = record.threadName
-    log_entry.log_location = record.module + '.' + record.funcName
+    log_entry.log_location = '%s:%s' % (
+        record.pathname or record.module, record.lineno or record.funcName)
     (fraction, seconds) = math.modf(record.created)
     nanoseconds = 1e9 * fraction
     log_entry.timestamp.seconds = int(seconds)
