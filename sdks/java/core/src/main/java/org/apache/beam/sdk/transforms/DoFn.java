@@ -436,7 +436,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
-  /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
+    /** Parameter annotation for the TimerMap for a {@link ProcessElement} method. */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.FIELD, ElementType.PARAMETER})
+    @Experimental(Kind.TIMERS)
+    public @interface TimerFamily {
+        /** The TimerMap tag ID. */
+        String value();
+    }
+
+
+    /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
   @Experimental(Kind.SCHEMAS)

@@ -29,11 +29,7 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.state.State;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -370,6 +366,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       throw new UnsupportedOperationException(
           "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
     }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      throw new UnsupportedOperationException(
+              "Cannot access timer family outside of @ProcessElement and @OnTimer methods");
+    }
+
   }
 
   /** B A concrete implementation of {@link DoFn.FinishBundleContext}. */
@@ -489,6 +492,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Timer timer(String timerId) {
       throw new UnsupportedOperationException(
           "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      throw new UnsupportedOperationException(
+              "Cannot access timerFamily outside of @ProcessElement and @OnTimer methods.");
     }
 
     @Override
@@ -718,6 +727,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         throw new RuntimeException(e);
       }
     }
+
+    @Override
+    public TimerMap timerFamily(String timerFamilyId) {
+      try {
+        TimerSpec spec =
+            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
+        return new TimerInternalsTimerMap();
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   /**
@@ -804,6 +824,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Object sideInput(String tagId) {
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
       throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 
@@ -1008,5 +1033,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
               String.format("Timer created for unknown time domain %s", spec.getTimeDomain()));
       }
     }
+  }
+
+  private static class TimerInternalsTimerMap implements TimerMap {
+
+
+    public TimerInternalsTimerMap() {}
+
+
   }
 }

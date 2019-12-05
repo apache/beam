@@ -30,6 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
@@ -211,6 +212,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               public Timer timer(String timerId) {
                 throw new UnsupportedOperationException(
                     "Access to timers not supported in Splittable DoFn");
+              }
+
+              @Override
+              public TimerMap timerFamily(String tagId) {
+                throw new UnsupportedOperationException(
+                    "Access to timerFamily not supported in Splittable DoFn");
               }
             });
     processContext.cancelScheduledCheckpoint();

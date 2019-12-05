@@ -33,26 +33,11 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.*;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -114,6 +99,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String STATE_PARAMETER_METHOD = "state";
   public static final String TIMER_PARAMETER_METHOD = "timer";
   public static final String SIDE_INPUT_PARAMETER_METHOD = "sideInput";
+  public static final String TIMER_FAMILY_PARAMETER_METHOD = "timerFamily";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -784,6 +770,17 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     getExtraContextFactoryMethodDescription(TIMER_PARAMETER_METHOD, String.class)),
                 TypeCasting.to(new TypeDescription.ForLoadedType(Timer.class)));
           }
+
+            @Override
+            public StackManipulation dispatch(TimerFamilyParameter p) {
+                return new StackManipulation.Compound(
+                        new TextConstant(p.referent().id()),
+                        MethodInvocation.invoke(
+                                getExtraContextFactoryMethodDescription(
+                                        TIMER_FAMILY_PARAMETER_METHOD, String.class)),
+                        TypeCasting.to(new TypeDescription.ForLoadedType(TimerMap.class)));
+            }
+
 
           @Override
           public StackManipulation dispatch(DoFnSignature.Parameter.PipelineOptionsParameter p) {

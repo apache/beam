@@ -23,6 +23,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
@@ -170,6 +171,10 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     /** Returns the timer for the given {@link TimerId}. */
     Timer timer(String timerId);
+
+    /** Returns the timer for the given {@link org.apache.beam.sdk.transforms.DoFn.TimerFamily}. */
+    TimerMap timerFamily(String tagId);
+
   }
 
   /**
@@ -195,6 +200,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public InputT sideInput(String tagId) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

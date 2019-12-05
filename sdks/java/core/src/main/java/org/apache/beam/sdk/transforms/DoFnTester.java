@@ -33,6 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
@@ -306,6 +307,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public Timer timer(String timerId) {
               throw new UnsupportedOperationException("DoFnTester doesn't support timers yet");
+            }
+
+            @Override
+            public TimerMap timerFamily(String tagId) {
+              throw new UnsupportedOperationException(
+                      "DoFnTester doesn't support timerFamily yet");
             }
           });
     } catch (UserCodeException e) {

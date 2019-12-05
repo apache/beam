@@ -68,19 +68,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.CombiningState;
-import org.apache.beam.sdk.state.GroupingState;
-import org.apache.beam.sdk.state.MapState;
-import org.apache.beam.sdk.state.ReadableState;
-import org.apache.beam.sdk.state.SetState;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
-import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -4207,6 +4195,49 @@ public class ParDoTest implements Serializable {
     @OnTimer("timer")
     public void onTimer(OutputReceiver<String> r, @TimerId("timer") Timer timer) {
       r.output("It works");
+    }
+  }
+
+  /** Tests to validate ParDo timerFamily. */
+  @RunWith(JUnit4.class)
+  public static class TimerFamilyTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({ValidatesRunner.class})
+    public void testTimerFamily() {
+
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerFamily(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerFamily(timerId) TimerMap timerFamily,
+                OutputReceiver<Integer> r) {
+              System.out.println("timer: " + timerFamily.toString());
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @TimerFamily(timerId) TimerMap timerFamily,
+                OutputReceiver<Integer> r) {
+              System.out.println("OnTimer timer: " + timerFamily.toString());
+              r.output(42);
+            }
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .advanceWatermarkTo(new Instant(0))
+              .addElements(KV.of("hello", 37))
+              .advanceWatermarkToInfinity();
+
+      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      pipeline.run();
     }
   }
 }

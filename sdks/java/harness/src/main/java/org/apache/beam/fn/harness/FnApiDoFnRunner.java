@@ -36,9 +36,7 @@ import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.state.State;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -361,6 +359,10 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
   }
 
+  private static class FnApiTimerMap implements TimerMap {
+    FnApiTimerMap() {}
+  }
+
   /**
    * Provides arguments for a {@link DoFnInvoker} for {@link DoFn.ProcessElement @ProcessElement}.
    */
@@ -473,6 +475,12 @@ public class FnApiDoFnRunner<InputT, OutputT>
           currentElement.getValue());
 
       return new FnApiTimer(timerId, (WindowedValue) currentElement);
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      //TODO: implement timerFamily
+      return null;
     }
 
     @Override
@@ -659,6 +667,12 @@ public class FnApiDoFnRunner<InputT, OutputT>
           currentTimer);
 
       return new FnApiTimer(timerId, (WindowedValue) currentTimer);
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      //TODO: implement timerFamily
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 
     @Override
