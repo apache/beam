@@ -20,16 +20,14 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.*;
+import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -732,7 +730,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       try {
         TimerSpec spec =
             (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
-        return new TimerInternalsTimerMap();
+        return new TimerInternalsTimerMap(
+            window(), getNamespace(), spec, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -1034,8 +1033,34 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
   }
 
-  private static class TimerInternalsTimerMap implements TimerMap {
+  private class TimerInternalsTimerMap implements TimerMap {
 
-    public TimerInternalsTimerMap() {}
+    Map<String, Timer> timers = new HashMap<>();
+    private final TimerInternals timerInternals;
+    private final BoundedWindow window;
+    private final StateNamespace namespace;
+    private final TimerSpec spec;
+
+    public TimerInternalsTimerMap(
+        BoundedWindow window,
+        StateNamespace namespace,
+        TimerSpec spec,
+        TimerInternals timerInternals) {
+      this.window = window;
+      this.namespace = namespace;
+      this.spec = spec;
+      this.timerInternals = timerInternals;
+    }
+
+    @Override
+    public void set(String timerId, Instant absoluteTime) {
+      Timer timer = new TimerInternalsTimer(window, namespace, timerId, spec, timerInternals);
+      timers.put(timerId, timer);
+    }
+
+    @Override
+    public Timer get(String timerId) {
+      return timers.get(timerId);
+    }
   }
 }

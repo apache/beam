@@ -361,6 +361,14 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
   private static class FnApiTimerMap implements TimerMap {
     FnApiTimerMap() {}
+
+    @Override
+    public void set(String timerId, Instant absoluteTime) {}
+
+    @Override
+    public org.apache.beam.sdk.state.Timer get(String timerId) {
+      return null;
+    }
   }
 
   /**

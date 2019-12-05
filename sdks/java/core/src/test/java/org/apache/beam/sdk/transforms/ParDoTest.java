@@ -4218,6 +4218,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 @TimerFamily(timerId) TimerMap timerFamily, OutputReceiver<Integer> r) {
               System.out.println("timer: " + timerFamily.toString());
+              timerFamily.set("timer1", new Instant(4));
             }
 
             @OnTimer(timerId)
@@ -4230,7 +4231,7 @@ public class ParDoTest implements Serializable {
 
       TestStream<KV<String, Integer>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
+              .advanceWatermarkTo(new Instant(100))
               .addElements(KV.of("hello", 37))
               .advanceWatermarkToInfinity();
 
