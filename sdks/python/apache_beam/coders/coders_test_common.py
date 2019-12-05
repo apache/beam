@@ -382,6 +382,62 @@ class CodersTest(unittest.TestCase):
         (windowed_value.WindowedValue(1.5, 0, ()),
          windowed_value.WindowedValue("abc", 10, ('window',))))
 
+  def test_param_windowed_value_coder(self):
+    from apache_beam.transforms.window import IntervalWindow
+    from apache_beam.utils.windowed_value import PaneInfo
+    wv = windowed_value.create(
+        b'',
+        # Milliseconds to microseconds
+        1000 * 1000,
+        (IntervalWindow(11, 21),),
+        PaneInfo(True, False, 1, 2, 3))
+    windowed_value_coder = coders.WindowedValueCoder(
+        coders.BytesCoder(), coders.IntervalWindowCoder())
+    payload = windowed_value_coder.encode(wv)
+    coder = coders.ParamWindowedValueCoder(
+        payload, [coders.VarIntCoder(), coders.IntervalWindowCoder()])
+
+    # Test binary representation
+    self.assertEqual(b'\x01',
+                     coder.encode(window.GlobalWindows.windowed_value(1)))
+
+    # Test unnested
+    self.check_coder(
+        coders.ParamWindowedValueCoder(
+            payload, [coders.VarIntCoder(), coders.IntervalWindowCoder()]),
+        windowed_value.WindowedValue(
+            3,
+            1,
+            (window.IntervalWindow(11, 21),),
+            PaneInfo(True, False, 1, 2, 3)),
+        windowed_value.WindowedValue(
+            1,
+            1,
+            (window.IntervalWindow(11, 21),),
+            PaneInfo(True, False, 1, 2, 3)))
+
+    # Test nested
+    self.check_coder(
+        coders.TupleCoder((
+            coders.ParamWindowedValueCoder(
+                payload, [
+                    coders.FloatCoder(),
+                    coders.IntervalWindowCoder()]),
+            coders.ParamWindowedValueCoder(
+                payload, [
+                    coders.StrUtf8Coder(),
+                    coders.IntervalWindowCoder()]))),
+        (windowed_value.WindowedValue(
+            1.5,
+            1,
+            (window.IntervalWindow(11, 21),),
+            PaneInfo(True, False, 1, 2, 3)),
+         windowed_value.WindowedValue(
+             "abc",
+             1,
+             (window.IntervalWindow(11, 21),),
+             PaneInfo(True, False, 1, 2, 3))))
+
   def test_proto_coder(self):
     # For instructions on how these test proto message were generated,
     # see coders_test.py
