@@ -174,7 +174,6 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     /** Returns the timer for the given {@link org.apache.beam.sdk.transforms.DoFn.TimerFamily}. */
     TimerMap timerFamily(String tagId);
-
   }
 
   /**

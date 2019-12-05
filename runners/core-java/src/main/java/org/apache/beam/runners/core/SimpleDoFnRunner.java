@@ -370,9 +370,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public TimerMap timerFamily(String tagId) {
       throw new UnsupportedOperationException(
-              "Cannot access timer family outside of @ProcessElement and @OnTimer methods");
+          "Cannot access timer family outside of @ProcessElement and @OnTimer methods");
     }
-
   }
 
   /** B A concrete implementation of {@link DoFn.FinishBundleContext}. */
@@ -497,7 +496,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public TimerMap timerFamily(String tagId) {
       throw new UnsupportedOperationException(
-              "Cannot access timerFamily outside of @ProcessElement and @OnTimer methods.");
+          "Cannot access timerFamily outside of @ProcessElement and @OnTimer methods.");
     }
 
     @Override
@@ -1037,9 +1036,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private static class TimerInternalsTimerMap implements TimerMap {
 
-
     public TimerInternalsTimerMap() {}
-
-
   }
 }

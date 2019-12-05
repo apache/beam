@@ -311,8 +311,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
             @Override
             public TimerMap timerFamily(String tagId) {
-              throw new UnsupportedOperationException(
-                      "DoFnTester doesn't support timerFamily yet");
+              throw new UnsupportedOperationException("DoFnTester doesn't support timerFamily yet");
             }
           });
     } catch (UserCodeException e) {

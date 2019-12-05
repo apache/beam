@@ -4216,15 +4216,13 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @TimerFamily(timerId) TimerMap timerFamily,
-                OutputReceiver<Integer> r) {
+                @TimerFamily(timerId) TimerMap timerFamily, OutputReceiver<Integer> r) {
               System.out.println("timer: " + timerFamily.toString());
             }
 
             @OnTimer(timerId)
             public void onTimer(
-                @TimerFamily(timerId) TimerMap timerFamily,
-                OutputReceiver<Integer> r) {
+                @TimerFamily(timerId) TimerMap timerFamily, OutputReceiver<Integer> r) {
               System.out.println("OnTimer timer: " + timerFamily.toString());
               r.output(42);
             }

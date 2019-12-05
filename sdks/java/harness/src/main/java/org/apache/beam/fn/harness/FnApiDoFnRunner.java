@@ -479,7 +479,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
     @Override
     public TimerMap timerFamily(String tagId) {
-      //TODO: implement timerFamily
+      // TODO: implement timerFamily
       return null;
     }
 
@@ -671,7 +671,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
     @Override
     public TimerMap timerFamily(String tagId) {
-      //TODO: implement timerFamily
+      // TODO: implement timerFamily
       throw new UnsupportedOperationException("SideInput parameters are not supported.");
     }
 

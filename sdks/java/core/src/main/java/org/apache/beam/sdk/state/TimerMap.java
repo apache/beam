@@ -20,7 +20,4 @@ package org.apache.beam.sdk.state;
 import org.apache.beam.sdk.annotations.Experimental;
 
 @Experimental(Experimental.Kind.TIMERS)
-public interface TimerMap {
-
-
-}
+public interface TimerMap {}

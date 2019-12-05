@@ -491,11 +491,9 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_TimerParameter(decl);
     }
 
-
     public static TimerFamilyParameter timerFamilyParameter(TimerFamilyDeclaration decl) {
       return new AutoValue_DoFnSignature_Parameter_TimerFamilyParameter(decl);
     }
-
 
     /** Descriptor for a {@link Parameter} of a subtype of {@link PipelineOptions}. */
     @AutoValue
@@ -719,8 +717,6 @@ public abstract class DoFnSignature {
 
       public abstract TimerFamilyDeclaration referent();
     }
-
-
   }
 
   /** Describes a {@link DoFn.ProcessElement} method. */

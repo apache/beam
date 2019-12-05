@@ -771,16 +771,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 TypeCasting.to(new TypeDescription.ForLoadedType(Timer.class)));
           }
 
-            @Override
-            public StackManipulation dispatch(TimerFamilyParameter p) {
-                return new StackManipulation.Compound(
-                        new TextConstant(p.referent().id()),
-                        MethodInvocation.invoke(
-                                getExtraContextFactoryMethodDescription(
-                                        TIMER_FAMILY_PARAMETER_METHOD, String.class)),
-                        TypeCasting.to(new TypeDescription.ForLoadedType(TimerMap.class)));
-            }
-
+          @Override
+          public StackManipulation dispatch(TimerFamilyParameter p) {
+            return new StackManipulation.Compound(
+                new TextConstant(p.referent().id()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        TIMER_FAMILY_PARAMETER_METHOD, String.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(TimerMap.class)));
+          }
 
           @Override
           public StackManipulation dispatch(DoFnSignature.Parameter.PipelineOptionsParameter p) {

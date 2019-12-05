@@ -169,7 +169,10 @@ public class DoFnSignatures {
       return Collections.unmodifiableMap(timerDeclarations);
     }
 
-    /** TimerMap parameters declared in this context, keyed by {@link org.apache.beam.sdk.transforms.DoFn.TimerFamily}. Unmodifiable. */
+    /**
+     * TimerMap parameters declared in this context, keyed by {@link
+     * org.apache.beam.sdk.transforms.DoFn.TimerFamily}. Unmodifiable.
+     */
     public Map<String, TimerFamilyDeclaration> getTimerFamilyDeclarations() {
       return Collections.unmodifiableMap(timerFamilyDeclarations);
     }
@@ -270,7 +273,10 @@ public class DoFnSignatures {
     public Map<String, TimerParameter> getTimerParameters() {
       return Collections.unmodifiableMap(timerParameters);
     }
-    /** TimerMap parameters declared in this context, keyed by {@link org.apache.beam.sdk.transforms.DoFn.TimerFamily}. */
+    /**
+     * TimerMap parameters declared in this context, keyed by {@link
+     * org.apache.beam.sdk.transforms.DoFn.TimerFamily}.
+     */
     public Map<String, TimerFamilyParameter> getTimerFamilyParameters() {
       return Collections.unmodifiableMap(timerFamilyParameters);
     }
@@ -390,7 +396,10 @@ public class DoFnSignatures {
           fnContext.getTimerDeclarations().containsKey(id)
               || fnContext.getTimerFamilyDeclarations().containsKey(id);
       errors.checkArgument(
-          isTimerOrTimerFamilyDeclared, "Callback %s is for undeclared timer %s", onTimerMethod, id);
+          isTimerOrTimerFamilyDeclared,
+          "Callback %s is for undeclared timer %s",
+          onTimerMethod,
+          id);
 
       TimerDeclaration timerDecl = fnContext.getTimerDeclarations().get(id);
       TimerFamilyDeclaration timerFamilyDec1 = fnContext.getTimerFamilyDeclarations().get(id);
@@ -1025,31 +1034,31 @@ public class DoFnSignatures {
       String id = getTimerFamilyId(param.getAnnotations());
 
       paramErrors.checkArgument(
-              id != null,
-              "%s missing %s annotation",
-              TimerMap.class.getSimpleName(),
-              DoFn.TimerFamily.class.getSimpleName());
+          id != null,
+          "%s missing %s annotation",
+          TimerMap.class.getSimpleName(),
+          DoFn.TimerFamily.class.getSimpleName());
 
       paramErrors.checkArgument(
-              !methodContext.getTimerFamilyParameters().containsKey(id),
-              "duplicate %s: \"%s\"",
-              DoFn.TimerFamily.class.getSimpleName(),
-              id);
+          !methodContext.getTimerFamilyParameters().containsKey(id),
+          "duplicate %s: \"%s\"",
+          DoFn.TimerFamily.class.getSimpleName(),
+          id);
 
       TimerFamilyDeclaration timerDecl = fnContext.getTimerFamilyDeclarations().get(id);
       paramErrors.checkArgument(
-              timerDecl != null,
-              "reference to undeclared %s: \"%s\"",
-              DoFn.TimerFamily.class.getSimpleName(),
-              id);
+          timerDecl != null,
+          "reference to undeclared %s: \"%s\"",
+          DoFn.TimerFamily.class.getSimpleName(),
+          id);
 
       paramErrors.checkArgument(
-              timerDecl.field().getDeclaringClass().equals(getDeclaringClass(param.getMethod())),
-              "%s %s declared in a different class %s."
-                      + " Timers may be referenced only in the lexical scope where they are declared.",
-              DoFn.TimerFamily.class.getSimpleName(),
-              id,
-              timerDecl.field().getDeclaringClass().getName());
+          timerDecl.field().getDeclaringClass().equals(getDeclaringClass(param.getMethod())),
+          "%s %s declared in a different class %s."
+              + " Timers may be referenced only in the lexical scope where they are declared.",
+          DoFn.TimerFamily.class.getSimpleName(),
+          id,
+          timerDecl.field().getDeclaringClass().getName());
 
       return Parameter.timerFamilyParameter(timerDecl);
     } else if (State.class.isAssignableFrom(rawType)) {
@@ -1347,26 +1356,27 @@ public class DoFnSignatures {
 
     if (declarations.containsKey(id)) {
       errors.throwIllegalArgument(
-              "Duplicate %s \"%s\", used on both of [%s] and [%s]",
-              DoFn.TimerFamily.class.getSimpleName(),
-              id,
-              field.toString(),
-              declarations.get(id).field().toString());
+          "Duplicate %s \"%s\", used on both of [%s] and [%s]",
+          DoFn.TimerFamily.class.getSimpleName(),
+          id,
+          field.toString(),
+          declarations.get(id).field().toString());
     }
 
     Class<?> timerSpecRawType = field.getType();
     if (!(timerSpecRawType.equals(TimerSpec.class))) {
       errors.throwIllegalArgument(
-              "%s annotation on non-%s field [%s]",
-              DoFn.TimerFamily.class.getSimpleName(), TimerSpec.class.getSimpleName(), field.toString());
+          "%s annotation on non-%s field [%s]",
+          DoFn.TimerFamily.class.getSimpleName(),
+          TimerSpec.class.getSimpleName(),
+          field.toString());
     }
 
     if (!Modifier.isFinal(field.getModifiers())) {
       errors.throwIllegalArgument(
-              "Non-final field %s annotated with %s. TimerMap declarations must be final.",
-              field.toString(), DoFn.TimerFamily.class.getSimpleName());
+          "Non-final field %s annotated with %s. TimerMap declarations must be final.",
+          field.toString(), DoFn.TimerFamily.class.getSimpleName());
     }
-
   }
 
   /** Generates a {@link TypeDescriptor} for {@code Coder<T>} given {@code T}. */
