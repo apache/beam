@@ -50,13 +50,14 @@ from apache_beam.utils.windowed_value import WindowedValue
 class NameContext(object):
   """Holds the name information for a step."""
 
-  def __init__(self, step_name):
+  def __init__(self, step_name, transform_id=None):
     """Creates a new step NameContext.
 
     Args:
       step_name: The name of the step.
     """
     self.step_name = step_name
+    self.transform_id = transform_id
 
   def __eq__(self, other):
     return self.step_name == other.step_name
