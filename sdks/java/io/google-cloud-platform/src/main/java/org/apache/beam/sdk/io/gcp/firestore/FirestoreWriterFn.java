@@ -152,7 +152,7 @@ public class FirestoreWriterFn<T> extends DoFn<T, Void> {
                 // Break if the commit threw no exception.
                 break;
             } catch (FirestoreException exception) {
-                if (exception.getCode() == 4) {
+                if (exception.getCode() == Code.DEADLINE_EXCEEDED.getNumber()) {
                     /* Most errors are not related to request size, and should not change our expectation of
                      * the latency of successful requests. DEADLINE_EXCEEDED can be taken into
                      * consideration, though. */
