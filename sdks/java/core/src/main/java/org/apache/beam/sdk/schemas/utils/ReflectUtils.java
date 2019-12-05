@@ -23,8 +23,11 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.security.InvalidParameterException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,16 +36,19 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 
 /** A set of reflection helper methods. */
 public class ReflectUtils {
-  static class ClassWithSchema {
+  /** Represents a class and a schema. */
+  public static class ClassWithSchema {
     private final Class clazz;
     private final Schema schema;
 
-    ClassWithSchema(Class clazz, Schema schema) {
+    public ClassWithSchema(Class clazz, Schema schema) {
       this.clazz = clazz;
       this.schema = schema;
     }
@@ -78,6 +84,9 @@ public class ReflectUtils {
         clazz,
         c -> {
           return Arrays.stream(c.getDeclaredMethods())
+              .filter(
+                  m -> !m.isBridge()) // Covariant overloads insert bridge functions, which we must
+              // ignore.
               .filter(m -> !Modifier.isPrivate(m.getModifiers()))
               .filter(m -> !Modifier.isProtected(m.getModifiers()))
               .filter(m -> !Modifier.isStatic(m.getModifiers()))
@@ -182,5 +191,50 @@ public class ReflectUtils {
 
   public static String stripSetterPrefix(String method) {
     return stripPrefix(method, "set");
+  }
+
+  /** For an array T[] or a subclass of Iterable<T>, return a TypeDescriptor describing T. */
+  @Nullable
+  public static TypeDescriptor getIterableComponentType(TypeDescriptor valueType) {
+    TypeDescriptor componentType = null;
+    if (valueType.isArray()) {
+      Type component = valueType.getComponentType().getType();
+      if (!component.equals(byte.class)) {
+        // Byte arrays are special cased since we have a schema type corresponding to them.
+        componentType = TypeDescriptor.of(component);
+      }
+    } else if (valueType.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
+      TypeDescriptor<Iterable<?>> collection = valueType.getSupertype(Iterable.class);
+      if (collection.getType() instanceof ParameterizedType) {
+        ParameterizedType ptype = (ParameterizedType) collection.getType();
+        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
+        checkArgument(params.length == 1);
+        componentType = TypeDescriptor.of(params[0]);
+      } else {
+        throw new RuntimeException("Collection parameter is not parameterized!");
+      }
+    }
+    return componentType;
+  }
+
+  public static TypeDescriptor getMapType(TypeDescriptor valueType, int index) {
+    TypeDescriptor mapType = null;
+    if (valueType.isSubtypeOf(TypeDescriptor.of(Map.class))) {
+      TypeDescriptor<Collection<?>> map = valueType.getSupertype(Map.class);
+      if (map.getType() instanceof ParameterizedType) {
+        ParameterizedType ptype = (ParameterizedType) map.getType();
+        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
+        mapType = TypeDescriptor.of(params[index]);
+      } else {
+        throw new RuntimeException("Map type is not parameterized! " + map);
+      }
+    }
+    return mapType;
+  }
+
+  public static TypeDescriptor boxIfPrimitive(TypeDescriptor typeDescriptor) {
+    return typeDescriptor.getRawType().isPrimitive()
+        ? TypeDescriptor.of(Primitives.wrap(typeDescriptor.getRawType()))
+        : typeDescriptor;
   }
 }

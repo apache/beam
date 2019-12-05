@@ -305,7 +305,7 @@ public class JavaFieldSchemaTest {
 
     NestedArrayPOJO pojo = new NestedArrayPOJO(simple1, simple2, simple3);
     Row row = registry.getToRowFunction(NestedArrayPOJO.class).apply(pojo);
-    List<Row> rows = row.getArray("pojos");
+    List<Row> rows = (List) row.getArray("pojos");
     assertSame(simple1, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(0)));
     assertSame(simple2, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(1)));
     assertSame(simple3, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(2)));
