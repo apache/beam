@@ -118,7 +118,8 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
 
   def start_grpc_server(self, port=0):
     self._server = grpc.server(UnboundedThreadPoolExecutor())
-    port = self._server.add_insecure_port('%s:%d' % (self.get_bind_address(), port))
+    port = self._server.add_insecure_port(
+        '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         self._artifact_service, self._server)
