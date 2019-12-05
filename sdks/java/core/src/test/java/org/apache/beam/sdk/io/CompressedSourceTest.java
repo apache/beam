@@ -211,6 +211,28 @@ public class CompressedSourceTest {
     assertFalse(source.isSplittable());
   }
 
+  /** Test splittability of files in LZOP mode -- none should be splittable. */
+  @Test
+  public void testLzopSplittable() throws Exception {
+    CompressedSource<Byte> source;
+
+    // LZO files are not splittable
+    source =
+        CompressedSource.from(new ByteSource("input.lzo", 1))
+            .withDecompression(CompressionMode.LZOP);
+    assertFalse(source.isSplittable());
+
+    // Other extensions are also not splittable.
+    source =
+        CompressedSource.from(new ByteSource("input.txt", 1))
+            .withDecompression(CompressionMode.LZOP);
+    assertFalse(source.isSplittable());
+    source =
+        CompressedSource.from(new ByteSource("input.csv", 1))
+            .withDecompression(CompressionMode.LZOP);
+    assertFalse(source.isSplittable());
+  }
+
   /** Test reading nonempty input with bzip2. */
   @Test
   public void testReadBzip2() throws Exception {
