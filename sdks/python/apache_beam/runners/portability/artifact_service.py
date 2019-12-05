@@ -146,12 +146,12 @@ class ZipFileArtifactService(AbstractArtifactService):
   Writing to zip files requires Python 3.6+.
   """
 
-  def __init__(self, path, chunk_size=None):
+  def __init__(self, path, internal_root, chunk_size=None):
     if sys.version_info < (3, 6):
       raise RuntimeError(
           'Writing to zip files requires Python 3.6+, '
           'but current version is %s' % sys.version)
-    super(ZipFileArtifactService, self).__init__('', chunk_size)
+    super(ZipFileArtifactService, self).__init__(internal_root, chunk_size)
     self._zipfile = zipfile.ZipFile(path, 'a')
     self._lock = threading.Lock()
 
