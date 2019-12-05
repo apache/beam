@@ -101,8 +101,13 @@ class DataflowRunner(PipelineRunner):
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
 
   _PTRANSFORM_OVERRIDES = [
+  ]
+
+  _JRH_PTRANSFORM_OVERRIDES = [
+      JrhReadPTransformOverride(),
   ]
 
   # These overrides should be applied after the proto representation of the
@@ -397,6 +402,10 @@ class DataflowRunner(PipelineRunner):
     # done before Runner API serialization, since the new proto needs to contain
     # any added PTransforms.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+
+    if (apiclient._use_fnapi(options)
+        and not apiclient._use_unified_worker(options)):
+      pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
 
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.transforms import environments

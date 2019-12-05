@@ -72,3 +72,35 @@ class ReadPTransformOverride(PTransformOverride):
             self.pipeline, is_bounded=self.source.is_bounded())
     return Read(ptransform.source).with_output_types(
         ptransform.get_type_hints().simple_output_type('Read'))
+
+
+class JrhReadPTransformOverride(PTransformOverride):
+  """A ``PTransformOverride`` for ``Read(BoundedSource)``"""
+
+  def matches(self, applied_ptransform):
+    from apache_beam.io import Read
+    from apache_beam.io.iobase import BoundedSource
+    return (isinstance(applied_ptransform.transform, Read)
+            and isinstance(applied_ptransform.transform.source, BoundedSource))
+
+  def get_replacement_transform(self, ptransform):
+    from apache_beam.io import Read
+    from apache_beam.transforms import core
+    from apache_beam.transforms import util
+    # Make this a local to narrow what's captured in the closure.
+    source = ptransform.source
+
+    class JrhRead(core.PTransform):
+      def expand(self, pbegin):
+        return (
+            pbegin
+            | core.Impulse()
+            | 'Split' >> core.FlatMap(lambda _: source.split(
+                Read.get_desired_chunk_size(source.estimate_size())))
+            | util.Reshuffle()
+            | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
+                split.source.get_range_tracker(
+                    split.start_position, split.stop_position))))
+
+    return JrhRead().with_output_types(
+        ptransform.get_type_hints().simple_output_type('Read'))
