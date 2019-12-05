@@ -100,7 +100,7 @@ public class BigQueryIOIT {
     metricsBigQueryDataset = options.getMetricsBigQueryDataset();
     metricsBigQueryTable = options.getMetricsBigQueryTable();
     testBigQueryDataset = options.getTestBigQueryDataset();
-    testBigQueryTable = String.format("%s_%s", options.getTestBigQueryTable(), TEST_ID);
+    testBigQueryTable = options.getTestBigQueryTable();
     BigQueryOptions bigQueryOptions = BigQueryOptions.newBuilder().build();
     tableQualifier =
         String.format(

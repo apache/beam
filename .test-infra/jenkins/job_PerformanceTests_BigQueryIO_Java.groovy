@@ -34,7 +34,7 @@ def jobConfigs = [
                         tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
                         writeMethod           : 'STREAMING_INSERTS',
                         testBigQueryDataset   : 'beam_performance',
-                        testBigQueryTable     : 'bqio_write_10GB_java',
+                        testBigQueryTable     : 'bqio_write_10GB_java_' + now,
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
                         sourceOptions         : """
@@ -61,7 +61,7 @@ def jobConfigs = [
                         tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
                         writeMethod           : 'FILE_LOADS',
                         testBigQueryDataset   : 'beam_performance',
-                        testBigQueryTable     : 'bqio_write_10GB_java',
+                        testBigQueryTable     : 'bqio_write_10GB_java_' + now,
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_batch',
                         sourceOptions         : """
