@@ -123,7 +123,9 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
       _LOGGER.info('message c')
 
       self.fn_log_handler.close()
-      a, b, c = self.test_logging_service.log_records_received[0].log_entries
+      a, b, c = sum(
+          [list(logs.log_entries)
+           for logs in self.test_logging_service.log_records_received], [])
 
       self.assertEqual(a.instruction_id, 'A')
       self.assertEqual(b.instruction_id, 'B')
