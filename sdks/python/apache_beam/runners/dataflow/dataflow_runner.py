@@ -879,7 +879,8 @@ class DataflowRunner(PipelineRunner):
       serialized_data = pickler.dumps(
           self._pardo_fn_data(transform_node, lookup_label))
     step.add_property(PropertyNames.SERIALIZED_FN, serialized_data)
-    step.add_property(PropertyNames.PIPELINE_PROTO_TRANSFORM_ID, transform_id)
+    # TODO(BEAM-8882): Enable once dataflow service doesn't reject this.
+    # step.add_property(PropertyNames.PIPELINE_PROTO_TRANSFORM_ID, transform_id)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
@@ -977,7 +978,8 @@ class DataflowRunner(PipelineRunner):
       serialized_data = pickler.dumps((transform.fn, transform.args,
                                        transform.kwargs, ()))
     step.add_property(PropertyNames.SERIALIZED_FN, serialized_data)
-    step.add_property(PropertyNames.PIPELINE_PROTO_TRANSFORM_ID, transform_id)
+    # TODO(BEAM-8882): Enable once dataflow service doesn't reject this.
+    # step.add_property(PropertyNames.PIPELINE_PROTO_TRANSFORM_ID, transform_id)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
