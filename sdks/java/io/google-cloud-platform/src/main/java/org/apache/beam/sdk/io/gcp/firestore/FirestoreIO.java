@@ -18,12 +18,14 @@
 
 package org.apache.beam.sdk.io.gcp.firestore;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ValueProvider;
 
 import javax.annotation.Nullable;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class FirestoreIO {
 
     public Write write() {
@@ -52,7 +54,7 @@ public class FirestoreIO {
         }
 
         /**
-         * Returns a new {@link Write} that writes to the Cloud Firestore for the specified collection.
+         * Returns a new {@link Write} that writes to the Cloud Firestore for the specified [collection](https://cloud.google.com/firestore/docs/data-model).
          */
         public Write withCollectionId(String collectionId) {
             checkArgument(collectionId != null, "collectionId can not be null");
@@ -60,7 +62,7 @@ public class FirestoreIO {
         }
 
         /**
-         * Returns a new {@link Write} that writes to the Cloud Firestore for the specified collection key.
+         * Returns a new {@link Write} that writes to the Cloud Firestore for the specified [collection key](https://cloud.google.com/firestore/docs/data-model).
          */
         public Write withKeyId(String keyId) {
             checkArgument(keyId != null, "keyId can not be null");

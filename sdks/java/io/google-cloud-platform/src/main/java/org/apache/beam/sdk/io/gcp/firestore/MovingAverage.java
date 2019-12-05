@@ -21,29 +21,22 @@ package org.apache.beam.sdk.io.gcp.firestore;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.MovingFunction;
 
+/**
+ * MovingAverage {@link MovingAverage} is used to implement concept of adaptive throttling, useful when overload is present to the service acting as sink.
+ * <p>
+ * In other words, it keeps track of average request latency per entity, based on current sliding window.
+ * <p>
+ * This is helpful when determining future batch sizes for commit RPCs.
+ * <p>
+ * Learn more in [Google SRE Guide](https://landing.google.com/sre/sre-book/chapters/handling-overload/).
+ */
 class MovingAverage {
     private final MovingFunction sum;
     private final MovingFunction count;
 
-    public MovingAverage(
-            long samplePeriodMs,
-            long sampleUpdateMs,
-            int numSignificantBuckets,
-            int numSignificantSamples) {
-        sum =
-                new MovingFunction(
-                        samplePeriodMs,
-                        sampleUpdateMs,
-                        numSignificantBuckets,
-                        numSignificantSamples,
-                        Sum.ofLongs());
-        count =
-                new MovingFunction(
-                        samplePeriodMs,
-                        sampleUpdateMs,
-                        numSignificantBuckets,
-                        numSignificantSamples,
-                        Sum.ofLongs());
+    public MovingAverage(long samplePeriodMs, long sampleUpdateMs, int numSignificantBuckets, int numSignificantSamples) {
+        sum = new MovingFunction(samplePeriodMs, sampleUpdateMs, numSignificantBuckets, numSignificantSamples, Sum.ofLongs());
+        count = new MovingFunction(samplePeriodMs, sampleUpdateMs, numSignificantBuckets, numSignificantSamples, Sum.ofLongs());
     }
 
     public void add(long nowMsSinceEpoch, long value) {

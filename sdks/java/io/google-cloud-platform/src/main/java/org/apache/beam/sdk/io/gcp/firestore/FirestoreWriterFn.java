@@ -141,7 +141,7 @@ public class FirestoreWriterFn<T> extends DoFn<T, Void> {
                 }
 
                 for (WriteResult result : future.get()) {
-                    LOG.info("Update time : " + result.getUpdateTime());
+                    LOG.info("Update time : " + result.getUpdateTime() + " Firestore key : " + firestoreKey);
                 }
                 endTime = System.currentTimeMillis();
 
@@ -162,8 +162,9 @@ public class FirestoreWriterFn<T> extends DoFn<T, Void> {
                 // Only log the code and message for potentially-transient errors. The entire exception
                 // will be propagated upon the last retry.
                 LOG.error(
-                        "Error writing batch of {} mutations to Firestore ({}): {}",
+                        "Error writing batch of {} mutations to Firestore with key {} ({}): {}",
                         mutations.size(),
+                        firestoreKey,
                         exception.getCode(),
                         exception.getMessage());
                 rpcErrors.inc();
