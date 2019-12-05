@@ -17,17 +17,11 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -129,9 +123,13 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forSetter(Method method) {
+    return forSetter(method, "set");
+  }
+
+  public static FieldValueTypeInformation forSetter(Method method, String setterPrefix) {
     String name;
-    if (method.getName().startsWith("set")) {
-      name = ReflectUtils.stripPrefix(method.getName(), "set");
+    if (method.getName().startsWith(setterPrefix)) {
+      name = ReflectUtils.stripPrefix(method.getName(), setterPrefix);
     } else {
       throw new RuntimeException("Setter has wrong prefix " + method.getName());
     }
@@ -162,25 +160,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   @Nullable
-  private static FieldValueTypeInformation getIterableComponentType(TypeDescriptor valueType) {
+  static FieldValueTypeInformation getIterableComponentType(TypeDescriptor valueType) {
     // TODO: Figure out nullable elements.
-    TypeDescriptor componentType = null;
-    if (valueType.isArray()) {
-      Type component = valueType.getComponentType().getType();
-      if (!component.equals(byte.class)) {
-        componentType = TypeDescriptor.of(component);
-      }
-    } else if (valueType.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
-      TypeDescriptor<Iterable<?>> collection = valueType.getSupertype(Iterable.class);
-      if (collection.getType() instanceof ParameterizedType) {
-        ParameterizedType ptype = (ParameterizedType) collection.getType();
-        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        checkArgument(params.length == 1);
-        componentType = TypeDescriptor.of(params[0]);
-      } else {
-        throw new RuntimeException("Collection parameter is not parameterized!");
-      }
-    }
+    TypeDescriptor componentType = ReflectUtils.getIterableComponentType(valueType);
     if (componentType == null) {
       return null;
     }
@@ -223,17 +205,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
   @SuppressWarnings("unchecked")
   @Nullable
   private static FieldValueTypeInformation getMapType(TypeDescriptor valueType, int index) {
-    TypeDescriptor mapType = null;
-    if (valueType.isSubtypeOf(TypeDescriptor.of(Map.class))) {
-      TypeDescriptor<Collection<?>> map = valueType.getSupertype(Map.class);
-      if (map.getType() instanceof ParameterizedType) {
-        ParameterizedType ptype = (ParameterizedType) map.getType();
-        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        mapType = TypeDescriptor.of(params[index]);
-      } else {
-        throw new RuntimeException("Map type is not parameterized! " + map);
-      }
-    }
+    TypeDescriptor mapType = ReflectUtils.getMapType(valueType, index);
     if (mapType == null) {
       return null;
     }

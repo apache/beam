@@ -424,12 +424,17 @@ public class SelectTest {
         return false;
       }
       PartialRowMultipleArray that = (PartialRowMultipleArray) o;
-      return Objects.equals(field1, that.field1);
+      return Objects.equals(field1, that.field1) && Objects.equals(field3, that.field3);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(field1);
+      return Objects.hash(field1, field3);
+    }
+
+    @Override
+    public String toString() {
+      return "PartialRowMultipleArray{" + "field1=" + field1 + ", field3=" + field3 + '}';
     }
   }
 
