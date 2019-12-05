@@ -78,9 +78,8 @@ public class ArrowUtilsTest {
         new org.apache.arrow.vector.types.pojo.Schema(
             asList(
                 field("int32", new ArrowType.Int(32, true)),
-                field("float64", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
-                // field("string", new ArrowType.Utf8())
-                ));
+                field("float64", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+                field("string", new ArrowType.Utf8())));
 
     Schema beamSchema = ArrowUtils.toBeamSchema(schema);
 
@@ -91,14 +90,14 @@ public class ArrowUtilsTest {
     }
     IntVector intVector = (IntVector) expectedSchemaRoot.getFieldVectors().get(0);
     Float8Vector floatVector = (Float8Vector) expectedSchemaRoot.getFieldVectors().get(1);
-    // VarCharVector strVector = (VarCharVector)expectedSchemaRoot.getFieldVectors().get(2);
+    VarCharVector strVector = (VarCharVector) expectedSchemaRoot.getFieldVectors().get(2);
 
     ArrayList<Row> expectedRows = new ArrayList<>();
     for (int i = 0; i < 16; i++) {
-      expectedRows.add(Row.withSchema(beamSchema).addValues(i, i + .1 * i).build());
+      expectedRows.add(Row.withSchema(beamSchema).addValues(i, i + .1 * i, "" + i).build());
       intVector.set(i, i);
       floatVector.set(i, i + .1 * i);
-      // strVector.set(i, new Text("" + i));
+      strVector.set(i, new Text("" + i));
     }
 
     Iterable<Row> rowIterator = ArrowUtils.rowsFromRecordBatch(beamSchema, expectedSchemaRoot);
