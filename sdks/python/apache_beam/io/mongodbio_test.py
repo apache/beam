@@ -123,10 +123,8 @@ class _MockMongoDb(object):
     # Return ids of elements in the range with chunk size skip and exclude
     # head element. For simplicity of tests every document is considered 1Mb
     # by default.
-    return {
-        'splitKeys':
-        [x['_id'] for x in self.docs[start_index:end_index:maxChunkSize]][1:]
-    }
+    return {'splitKeys': [{'_id': x['_id']} for x in
+                          self.docs[start_index:end_index:maxChunkSize]][1:]}
 
 
 class _MockMongoClient(object):
