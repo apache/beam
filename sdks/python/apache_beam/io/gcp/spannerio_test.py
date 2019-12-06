@@ -300,7 +300,7 @@ class SpannerWriteTest(unittest.TestCase):
     res.wait_until_finish()
 
     metric_results = res.metrics().query(
-      MetricsFilter().with_name("SpannerBatches"))
+        MetricsFilter().with_name("SpannerBatches"))
     batches_counter = metric_results['counters'][0]
 
     self.assertEqual(batches_counter.committed, 2)
@@ -328,7 +328,7 @@ class SpannerWriteTest(unittest.TestCase):
     res.wait_until_finish()
 
     metric_results = res.metrics().query(
-      MetricsFilter().with_name('SpannerBatches'))
+        MetricsFilter().with_name('SpannerBatches'))
     batches_counter = metric_results['counters'][0]
 
     self.assertEqual(batches_counter.committed, 53)
@@ -366,7 +366,7 @@ class SpannerWriteTest(unittest.TestCase):
     res.wait_until_finish()
 
     metric_results = res.metrics().query(
-      MetricsFilter().with_name('SpannerBatches'))
+        MetricsFilter().with_name('SpannerBatches'))
     batches_counter = metric_results['counters'][0]
 
     self.assertEqual(batches_counter.committed, 3)
