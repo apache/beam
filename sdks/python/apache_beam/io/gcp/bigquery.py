@@ -621,15 +621,11 @@ class _CustomBigQuerySource(BoundedSource):
                            self.table_reference.tableId)
       return int(table.numBytes)
     else:
-      self._setup_temporary_dataset(bq)
       job = bq._start_query_job(self.project, self.query,
                                 self.use_legacy_sql, self.flatten_results,
                                 job_id=uuid.uuid4().hex, dry_run=True,
                                 kms_key=self.kms_key)
       size = int(job.statistics.totalBytesProcessed)
-
-      bq.clean_up_temporary_dataset(self.project)
-
       return size
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
