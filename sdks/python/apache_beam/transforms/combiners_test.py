@@ -531,10 +531,10 @@ class CombineTest(unittest.TestCase):
     # The result of concatenating all values regardless of key.
     global_concat = (input
                      | beam.Values()
-                     | beam.CombineGlobally(ConcatIntCombineFn()))
+                     | beam.CombineGlobally(CounterIncrememtingCombineFn()))
 
     # The (key, concatenated_int_to_string) pairs for all keys.
-    concat_per_key = (input | beam.CombinePerKey(ConcatIntCombineFn()))
+    concat_per_key = (input | beam.CombinePerKey(CounterIncrememtingCombineFn()))
 
     result = p.run()
     result.wait_until_finish()
@@ -577,10 +577,10 @@ class CombineTest(unittest.TestCase):
     # The result of concatenating all values regardless of key.
     global_concat = (input
                      | beam.Values()
-                     | beam.CombineGlobally(ConcatIntCombineFn()))
+                     | beam.CombineGlobally(CounterIncrememtingCombineFn()))
 
     # The (key, concatenated_int_to_string) pairs for all keys.
-    concat_per_key = (input | beam.CombinePerKey(ConcatIntCombineFn()))
+    concat_per_key = (input | beam.CombinePerKey(CounterIncrememtingCombineFn()))
 
     result = p.run()
     result.wait_until_finish()
