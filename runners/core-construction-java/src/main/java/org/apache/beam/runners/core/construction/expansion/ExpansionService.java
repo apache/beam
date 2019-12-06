@@ -277,7 +277,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       } else if (output instanceof PCollectionTuple) {
         return ((PCollectionTuple) output)
             .getAll().entrySet().stream()
-                .collect(Collectors.toMap(entry -> entry.getKey().toString(), Map.Entry::getValue));
+                .collect(Collectors.toMap(entry -> entry.getKey().getId(), Map.Entry::getValue));
       } else if (output instanceof PCollectionList<?>) {
         PCollectionList<?> listOutput = (PCollectionList<?>) output;
         return IntStream.range(0, listOutput.size())
@@ -334,18 +334,31 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       throw new UnsupportedOperationException(
           "Unknown urn: " + request.getTransform().getSpec().getUrn());
     }
-    registeredTransforms
-        .get(request.getTransform().getSpec().getUrn())
-        .apply(
-            pipeline,
-            request.getTransform().getUniqueName(),
-            request.getTransform().getSpec(),
-            inputs);
+    Map<String, PCollection<?>> outputs =
+        registeredTransforms
+            .get(request.getTransform().getSpec().getUrn())
+            .apply(
+                pipeline,
+                request.getTransform().getUniqueName(),
+                request.getTransform().getSpec(),
+                inputs);
 
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
         rehydratedComponents.getSdkComponents().withNewIdPrefix(request.getNamespace());
     sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+    Map<String, String> outputMap =
+        outputs.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    output -> {
+                      try {
+                        return sdkComponents.registerPCollection(output.getValue());
+                      } catch (IOException exn) {
+                        throw new RuntimeException(exn);
+                      }
+                    }));
     pipeline.replaceAll(ImmutableList.of(JavaReadViaImpulse.boundedOverride()));
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents);
     String expandedTransformId =
@@ -359,6 +372,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             .getTransformsOrThrow(expandedTransformId)
             .toBuilder()
             .setUniqueName(expandedTransformId)
+            .clearOutputs()
+            .putAllOutputs(outputMap)
             .build();
     LOG.debug("Expanded to {}", expandedTransform);
 
