@@ -33,6 +33,8 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.metrics import Metrics
+from apache_beam.metrics import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -50,14 +52,29 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
 
 
-class ConcatIntCombineFn(beam.CombineFn):
-  """ CombineFn for concatenating string representations of integers. """
+class CounterIncrememtingCombineFn(beam.CombineFn):
+  """CombineFn for incrementing three different counters:
+     counter, distribution, gauge,
+     at the same time concatenating words."""
+
+  def __init__(self):
+    beam.CombineFn.__init__(self)
+    self.word_counter = Metrics.counter(self.__class__, 'word_counter')
+    self.word_lengths_counter = Metrics.counter(
+        self.__class__, 'word_lengths')
+    self.word_lengths_dist = Metrics.distribution(
+        self.__class__, 'word_len_dist')
+    self.last_word_len = Metrics.gauge(self.__class__, 'last_word_len')
 
   def create_accumulator(self):
     return ''
 
   def add_input(self, acc, element):
-    return acc + str(element)
+    self.word_counter.inc(1)
+    self.word_lengths_counter.inc(len(element))
+    self.word_lengths_dist.update(len(element))
+    self.last_word_len.set(len(element))
+    return acc + element
 
   def merge_accumulators(self, accs):
     return ''.join(accs)
@@ -501,46 +518,99 @@ class CombineTest(unittest.TestCase):
                   equal_to([('c', 3), ('c', 10), ('d', 5), ('d', 17)]),
                   label='sum per key')
 
-  # Test that CombinePerKey works with the customized ConcatIntCombineFn.
+  # Test that three different counters work with the customized CombineFn.
   def test_simple_combine(self):
-    with TestPipeline() as p:
-      input = (p
-               | beam.Create([('a', 1),
-                              ('a', 1),
-                              ('a', 4),
-                              ('b', 1),
-                              ('b', 13)]))
+    p = TestPipeline()
+    input = (p
+             | beam.Create([('a', 'b'),
+                            ('a', 'be'),
+                            ('a', 'bea'),
+                            ('b', 'beam'),
+                            ('b', 'apache')]))
 
-      # The sum of all values regardless of key.
-      global_sum = (input
-                    | beam.Values()
-                    | beam.CombineGlobally(sum))
+    # The result of concatenating all values regardless of key.
+    global_concat = (input
+                     | beam.Values()
+                     | beam.CombineGlobally(CounterIncrememtingCombineFn()))
 
-      # The (key, concatenated_int_to_string) pairs for all keys.
-      concat_per_key = (input | beam.CombinePerKey(ConcatIntCombineFn()))
+    # The (key, concatenated_int_to_string) pairs for all keys.
+    concat_per_key = (input | beam.CombinePerKey(CounterIncrememtingCombineFn()))
 
-      expected_concat_per_key = [('a', '114'), ('b', '113')]
-      assert_that(global_sum, equal_to([20]), label='global sum')
-      assert_that(concat_per_key, equal_to(expected_concat_per_key),
-                  label='concat per key')
+    result = p.run()
+    result.wait_until_finish()
 
-  # Test that CombinePerKey works with the customized ConcatIntCombineFn
+    expected_concat_per_key = [('a', 'bbebea'), ('b', 'beamapache')]
+    assert_that(global_concat, equal_to(['bbebeabeamapache']), label='global concat')
+    assert_that(concat_per_key, equal_to(expected_concat_per_key),
+                label='concat per key')
+
+    word_counter_filter = MetricsFilter().with_name('word_counter')
+    query_result = result.metrics().query(word_counter_filter)
+    if query_result['counters']:
+      word_counter = query_result['counters'][0]
+      self.assertEqual(word_counter.result, 5)
+
+    word_lengths_filter = MetricsFilter().with_name('word_lengths')
+    query_result = result.metrics().query(word_lengths_filter)
+    if query_result['counters']:
+      word_lengths = query_result['counters'][0]
+      self.assertEqual(word_lengths.result, 16)
+
+    word_len_dist_filter = MetricsFilter().with_name('word_len_dist')
+    query_result = result.metrics().query(word_len_dist_filter)
+    if query_result['distributions']:
+      word_len_dist = query_result['distributions'][0]
+      self.assertEqual(word_len_dist.result.mean, 3.2)
+
+    last_word_len_filter = MetricsFilter().with_name('last_word_len')
+    query_result = result.metrics().query(last_word_len_filter)
+    if query_result['counters']:
+      last_word_len = query_result['counters'][0]
+      self.assertEqual(last_word_len.result, 5)
+
+  # Test that three different counters work with the customized CombineFn
   # when the PCollection is empty.
   def test_simple_combine_empty(self):
-    with TestPipeline() as p:
-      input = (p | beam.Create([]))
+    p = TestPipeline()
+    input = p | beam.Create([])
 
-      # The sum of all values regardless of key.
-      global_sum = (input
-                    | beam.Values()
-                    | beam.CombineGlobally(sum))
+    # The result of concatenating all values regardless of key.
+    global_concat = (input
+                     | beam.Values()
+                     | beam.CombineGlobally(CounterIncrememtingCombineFn()))
 
-      # The (key, concatenated_int_to_string) pairs for all keys.
-      concat_per_key = (input | beam.CombinePerKey(ConcatIntCombineFn()))
+    # The (key, concatenated_int_to_string) pairs for all keys.
+    concat_per_key = (input | beam.CombinePerKey(CounterIncrememtingCombineFn()))
 
-      assert_that(global_sum, equal_to([0]), label='global sum')
-      assert_that(concat_per_key, equal_to([]), label='concat per key')
+    result = p.run()
+    result.wait_until_finish()
 
+    assert_that(global_concat, equal_to(['']), label='global concat')
+    assert_that(concat_per_key, equal_to([]), label='concat per key')
+
+    word_counter_filter = MetricsFilter().with_name('word_counter')
+    query_result = result.metrics().query(word_counter_filter)
+    if query_result['counters']:
+      word_counter = query_result['counters'][0]
+      self.assertEqual(word_counter.result, 0)
+
+    word_lengths_filter = MetricsFilter().with_name('word_lengths')
+    query_result = result.metrics().query(word_lengths_filter)
+    if query_result['counters']:
+      word_lengths = query_result['counters'][0]
+      self.assertEqual(word_lengths.result, 0)
+
+    word_len_dist_filter = MetricsFilter().with_name('word_len_dist')
+    query_result = result.metrics().query(word_len_dist_filter)
+    if query_result['distributions']:
+      word_len_dist = query_result['distributions'][0]
+      self.assertEqual(word_len_dist.result.mean, 0)
+
+    last_word_len_filter = MetricsFilter().with_name('last_word_len')
+    query_result = result.metrics().query(last_word_len_filter)
+    if query_result['counters']:
+      last_word_len = query_result['counters'][0]
+      self.assertEqual(last_word_len.result, 0)
 
 class LatestTest(unittest.TestCase):
 
