@@ -335,7 +335,7 @@ Write Mode supports writing to a collection.
 
 ### Schema
 
-Only simple types are supported. MongoDB documents are mapped to Beam SQL types via `JsonToRow` transform.
+Only simple types are supported. MongoDB documents are mapped to Beam SQL types via [`JsonToRow`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/JsonToRow.html) transform.
 
 ### Example
 
