@@ -33,8 +33,6 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.metrics import Metrics
-from apache_beam.metrics import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -434,6 +432,7 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
+<<<<<<< HEAD
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
       input = (p
@@ -519,31 +518,39 @@ class CombineTest(unittest.TestCase):
                   label='sum per key')
 
   # Test that three different counters work with the customized CombineFn.
+=======
+  # Test that three different kinds of metrics work with a customized
+  # CounterIncrememtingCombineFn.
+>>>>>>> b70d276ffe... Fixed Lint errors.
   def test_simple_combine(self):
     p = TestPipeline()
     input = (p
-             | beam.Create([('a', 'b'),
-                            ('a', 'be'),
-                            ('a', 'bea'),
-                            ('b', 'beam'),
-                            ('b', 'apache')]))
+             | beam.Create([('c', 'b'),
+                            ('c', 'be'),
+                            ('c', 'bea'),
+                            ('d', 'beam'),
+                            ('d', 'apache')]))
 
     # The result of concatenating all values regardless of key.
     global_concat = (input
                      | beam.Values()
                      | beam.CombineGlobally(CounterIncrememtingCombineFn()))
 
-    # The (key, concatenated_int_to_string) pairs for all keys.
-    concat_per_key = (input | beam.CombinePerKey(CounterIncrememtingCombineFn()))
+    # The (key, concatenated_string) pairs for all keys.
+    concat_per_key = (input | beam.CombinePerKey(
+                      CounterIncrememtingCombineFn()))
 
     result = p.run()
     result.wait_until_finish()
 
-    expected_concat_per_key = [('a', 'bbebea'), ('b', 'beamapache')]
-    assert_that(global_concat, equal_to(['bbebeabeamapache']), label='global concat')
+    # Verify the concatenated strings are correct.
+    expected_concat_per_key = [('c', 'bbebea'), ('d', 'beamapache')]
+    assert_that(global_concat, equal_to(['bbebeabeamapache']),
+                label='global concat')
     assert_that(concat_per_key, equal_to(expected_concat_per_key),
                 label='concat per key')
 
+    # Verify the values of metrics are correct.
     word_counter_filter = MetricsFilter().with_name('word_counter')
     query_result = result.metrics().query(word_counter_filter)
     if query_result['counters']:
@@ -568,8 +575,8 @@ class CombineTest(unittest.TestCase):
       last_word_len = query_result['gauges'][0]
       self.assertEqual(last_word_len.result.value, 6)
 
-  # Test that three different counters work with the customized CombineFn
-  # when the PCollection is empty.
+  # Test that three different kinds of metrics work with the customized
+  # CounterIncrememtingCombineFn when the PCollection is empty.
   def test_simple_combine_empty(self):
     p = TestPipeline()
     input = p | beam.Create([])
@@ -579,15 +586,18 @@ class CombineTest(unittest.TestCase):
                      | beam.Values()
                      | beam.CombineGlobally(CounterIncrememtingCombineFn()))
 
-    # The (key, concatenated_int_to_string) pairs for all keys.
-    concat_per_key = (input | beam.CombinePerKey(CounterIncrememtingCombineFn()))
+    # The (key, concatenated_string) pairs for all keys.
+    concat_per_key = (input | beam.CombinePerKey(
+                      CounterIncrememtingCombineFn()))
 
     result = p.run()
     result.wait_until_finish()
 
+    # Verify the concatenated strings are correct.
     assert_that(global_concat, equal_to(['']), label='global concat')
     assert_that(concat_per_key, equal_to([]), label='concat per key')
 
+    # Verify the values of metrics are correct.
     word_counter_filter = MetricsFilter().with_name('word_counter')
     query_result = result.metrics().query(word_counter_filter)
     if query_result['counters']:
