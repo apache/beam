@@ -172,6 +172,10 @@ class ZipFileArtifactService(AbstractArtifactService):
     pass
 
   def _open(self, path, mode):
+    if path.startswith('/'):
+      raise ValueError(
+          'ZIP file entry %s invalid: '
+          'path must not contain a leading slash.' % path)
     return self._zipfile.open(path, mode, force_zip64=True)
 
   def PutArtifact(self, request_iterator, context=None):
