@@ -1581,31 +1581,24 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
         'Unable to find a lull logged for this job.')
 
 class StateBackedTestElementType(object):
-  element_count = 0
+  live_element_count = 0
 
-  def __init__(self, num_elems):
-    self.num_elems = num_elems
-    self.value = ['a' for _ in range(num_elems)]
-    StateBackedTestElementType.element_count += 1
+  def __init__(self, num_elements, unused):
+    self.num_elements = num_elements
+    StateBackedTestElementType.live_element_count += 1
     # Due to using state backed iterable, we expect there is a few instances
     # alive at any given time.
-    if StateBackedTestElementType.element_count > 5:
+    if StateBackedTestElementType.live_element_count > 5:
       raise RuntimeError('Too many live instances.')
 
   def __del__(self):
-    StateBackedTestElementType.element_count -= 1
+    StateBackedTestElementType.live_element_count -= 1
 
   def __reduce__(self):
-    return (self.__class__, (self.num_elems, ))
+    return (self.__class__, (self.num_elements, 'x' * self.num_elements))
 
 @attr('ValidatesRunner')
 class FnApiBasedStateBackedCoderTest(unittest.TestCase):
-
-  class ElementDoFn(beam.DoFn):
-    def process(self, elements):
-      unused_key, ts = elements
-
-      yield sum([item.num_elems for item in ts])
 
   def create_pipeline(self):
     return beam.Pipeline(
@@ -1615,14 +1608,18 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
     with self.create_pipeline() as p:
       # The number of integers could be a knob to test against
       # different runners' default settings on page size.
-      main = (p
-              | beam.Create([None])
-              | beam.FlatMap(lambda x: ((1, StateBackedTestElementType(300))
-                                        for _ in range(200)))
-              | beam.GroupByKey()
-              | beam.ParDo(self.ElementDoFn()))
+      VALUES_PER_ELEMENT = 300
+      NUM_OF_ELEMENTS = 200
 
-    assert_that(main, equal_to(['a', 60000]))
+      r = (p
+           | beam.Create([None])
+           | beam.FlatMap(
+               lambda x: ((1, StateBackedTestElementType(VALUES_PER_ELEMENT, _))
+                          for _ in range(NUM_OF_ELEMENTS)))
+           | beam.GroupByKey()
+           | beam.MapTuple(lambda _, vs: sum(e.num_elements for e in vs)))
+
+      assert_that(r, equal_to([VALUES_PER_ELEMENT * NUM_OF_ELEMENTS]))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
