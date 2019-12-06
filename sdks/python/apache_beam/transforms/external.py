@@ -418,7 +418,8 @@ class ExternalTransform(ptransform.PTransform):
         unique_name=full_label,
         spec=self._expanded_transform.spec,
         subtransforms=self._expanded_transform.subtransforms,
-        inputs=self._expanded_transform.inputs,
+        inputs={tag: pcoll_renames.get(pcoll, pcoll)
+                for tag, pcoll in self._expanded_transform.inputs.items()},
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
             for tag, pcoll in self._expanded_transform.outputs.items()},
