@@ -29,6 +29,8 @@ option go_package = "jobmanagement_v1";
 option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "ArtifactApi";
 
+import "beam_runner_api.proto";
+
 // A service to stage artifacts for use in a Job.
 service ArtifactStagingService {
   // Stage an artifact to be available during job execution. The first request must contain the
@@ -142,6 +144,10 @@ message CommitManifestRequest {
 
 // The result of committing a manifest.
 message CommitManifestResponse {
+  enum Constants {
+    // Token indicating that no artifacts were staged and therefore no retrieval attempt is necessary.
+    NO_ARTIFACTS_STAGED_TOKEN = 0 [(org.apache.beam.model.pipeline.v1.beam_constant) = "__no_artifacts_staged__"];
+  }
   // (Required) An opaque token representing the entirety of the staged artifacts.
   // This can be used to retrieve the manifest and artifacts from an associated
   // ArtifactRetrievalService.
