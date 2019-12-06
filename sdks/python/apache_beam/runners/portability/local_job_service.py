@@ -98,16 +98,36 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
         provision_info,
         self._artifact_staging_endpoint)
 
+  def get_bind_address(self):
+    """Return the address used to open the port on the gRPC server.
+
+    This is often, but not always the same as the service address.  For
+    example, to make the service accessible to external machines, override this
+    to return '[::]' and override `get_service_address()` to return a publicly
+    accessible host name.
+    """
+    return self.get_service_address()
+
+  def get_service_address(self):
+    """Return the host name at which this server will be accessible.
+
+    In particular, this is provided to the client upon connection as the
+    artifact staging endpoint.
+    """
+    return 'localhost'
+
   def start_grpc_server(self, port=0):
     self._server = grpc.server(UnboundedThreadPoolExecutor())
-    port = self._server.add_insecure_port('localhost:%d' % port)
+    port = self._server.add_insecure_port(
+        '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         self._artifact_service, self._server)
+    hostname = self.get_service_address()
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%d' % port)
+        url='%s:%d' % (hostname, port))
     self._server.start()
-    _LOGGER.info('Grpc server started on port %s', port)
+    _LOGGER.info('Grpc server started at %s on port %d' % (hostname, port))
     return port
 
   def stop(self, timeout=1):

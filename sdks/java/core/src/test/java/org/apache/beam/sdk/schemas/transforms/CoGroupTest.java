@@ -23,6 +23,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.TestUtils.KvMatcher;
 import org.apache.beam.sdk.schemas.Schema;
@@ -691,7 +692,7 @@ public class CoGroupTest {
       Schema valueSchema = value.getSchema();
       for (int i = 0; i < valueSchema.getFieldCount(); ++i) {
         assertEquals(TypeName.ARRAY, valueSchema.getField(i).getType().getTypeName());
-        fieldMatchers.add(new ArrayFieldMatchesAnyOrder(i, value.getArray(i)));
+        fieldMatchers.add(new ArrayFieldMatchesAnyOrder(i, (List) value.getArray(i)));
       }
       matchers.add(
           KvMatcher.isKv(equalTo(row.getKey()), allOf(fieldMatchers.toArray(new Matcher[0]))));
@@ -715,7 +716,7 @@ public class CoGroupTest {
         return false;
       }
       Row row = (Row) item;
-      List<Row> actual = row.getArray(fieldIndex);
+      Collection<Row> actual = row.getArray(fieldIndex);
       return containsInAnyOrder(expected).matches(actual);
     }
 
