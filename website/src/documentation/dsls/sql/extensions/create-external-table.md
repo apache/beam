@@ -308,6 +308,43 @@ Write Mode supports writing to a topic.
 
 Only simple types are supported.
 
+## MongoDB
+
+### Syntax
+
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE mongodb
+LOCATION 'mongodb://[HOST]:[PORT]/[DATABASE]/[COLLECTION]'
+```
+*   `LOCATION`: Location of the collection.
+    *   `HOST`: Location of the MongoDB server. Can be localhost or an ip address.
+         When authentication is required username and password can be specified
+         as follows: `username:password@localhost`.
+    *   `PORT`: Port on which MongoDB server is listening.
+    *   `DATABASE`: Database to connect to.
+    *   `COLLECTION`: Collection within the database.
+
+### Read Mode
+
+Read Mode supports reading from a collection.
+
+### Write Mode
+
+Write Mode supports writing to a collection.
+
+### Schema
+
+Only simple types are supported. MongoDB documents are mapped to Beam SQL types via [`JsonToRow`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/JsonToRow.html) transform.
+
+### Example
+
+```
+CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
+TYPE mongodb
+LOCATION 'mongodb://localhost:27017/apache/users'
+```
+
 ## Text
 
 TextIO is experimental in Beam SQL. Read Mode and Write Mode do not currently
