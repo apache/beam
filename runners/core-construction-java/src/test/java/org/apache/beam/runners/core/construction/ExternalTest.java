@@ -17,12 +17,17 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.expansion.ExpansionService;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
@@ -32,18 +37,15 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ConnectivityState;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -56,19 +58,22 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExternalTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
+  private PipelineResult pipelineResult;
 
   private static final String TEST_URN_SIMPLE = "simple";
   private static final String TEST_URN_LE = "le";
   private static final String TEST_URN_MULTI = "multi";
 
-  private static Integer expansionPort;
   private static String localExpansionAddr;
   private static Server localExpansionServer;
 
   @BeforeClass
-  public static void setUp() throws IOException {
-    expansionPort = Integer.valueOf(System.getProperty("expansionPort"));
-    int localExpansionPort = expansionPort + 100;
+  public static void setUpClass() throws IOException {
+    int localExpansionPort;
+    try (ServerSocket socket = new ServerSocket(0)) {
+      socket.setReuseAddress(true);
+      localExpansionPort = socket.getLocalPort();
+    }
     localExpansionAddr = String.format("localhost:%s", localExpansionPort);
 
     localExpansionServer =
@@ -77,8 +82,14 @@ public class ExternalTest implements Serializable {
   }
 
   @AfterClass
-  public static void tearDown() {
+  public static void tearDownClass() {
     localExpansionServer.shutdownNow();
+  }
+
+  @After
+  public void tearDown() {
+    pipelineResult.waitUntilFinish();
+    assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
   }
 
   @Test
@@ -88,8 +99,8 @@ public class ExternalTest implements Serializable {
         testPipeline
             .apply(Create.of("1", "2", "3"))
             .apply(External.of(TEST_URN_SIMPLE, new byte[] {}, localExpansionAddr));
-    PAssert.that(col).containsInAnyOrder("Simple(1)", "Simple(2)", "Simple(3)");
-    testPipeline.run();
+    PAssert.that(col).containsInAnyOrder("11", "22", "33");
+    pipelineResult = testPipeline.run();
   }
 
   @Test
@@ -104,8 +115,8 @@ public class ExternalTest implements Serializable {
             .apply(MapElements.into(TypeDescriptors.strings()).via(Object::toString))
             .apply("put simple", External.of(TEST_URN_SIMPLE, new byte[] {}, localExpansionAddr));
 
-    PAssert.that(pcol).containsInAnyOrder("Simple(1)", "Simple(2)", "Simple(3)");
-    testPipeline.run();
+    PAssert.that(pcol).containsInAnyOrder("11", "22", "33");
+    pipelineResult = testPipeline.run();
   }
 
   @Test
@@ -119,38 +130,7 @@ public class ExternalTest implements Serializable {
 
     PAssert.that(pTuple.get(new TupleTag<Integer>("even") {})).containsInAnyOrder(2, 4, 6);
     PAssert.that(pTuple.get(new TupleTag<Integer>("odd") {})).containsInAnyOrder(1, 3, 5);
-    testPipeline.run();
-  }
-
-  @Test
-  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
-  public void expandPythonTest() {
-    String target = String.format("localhost:%s", expansionPort);
-    try {
-      ManagedChannel channel = ManagedChannelBuilder.forTarget(target).build();
-      ConnectivityState state = channel.getState(true);
-      for (int retry = 0; retry < 30 && state != ConnectivityState.READY; retry++) {
-        Thread.sleep(500);
-        state = channel.getState(true);
-      }
-      channel.shutdownNow();
-
-      PCollection<String> pCol =
-          testPipeline
-              .apply(Create.of("1", "2", "2", "3", "3", "3"))
-              .apply(
-                  External.of("beam:transforms:xlang:count", new byte[] {}, target)
-                      .<KV<String, Long>>withOutputType())
-              .apply(
-                  "toString",
-                  MapElements.into(TypeDescriptors.strings())
-                      .via(x -> String.format("%s->%s", x.getKey(), x.getValue())));
-
-      PAssert.that(pCol).containsInAnyOrder("1->1", "2->2", "3->3");
-      testPipeline.run();
-    } catch (InterruptedException e) {
-      throw new RuntimeException("interrupted.");
-    }
+    pipelineResult = testPipeline.run();
   }
 
   /** Test TransformProvider. */
@@ -164,9 +144,7 @@ public class ExternalTest implements Serializable {
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(
           TEST_URN_SIMPLE,
-              spec ->
-                  MapElements.into(TypeDescriptors.strings())
-                      .via((String x) -> String.format("Simple(%s)", x)),
+              spec -> MapElements.into(TypeDescriptors.strings()).via((String x) -> x + x),
           TEST_URN_LE,
               spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
           TEST_URN_MULTI,
