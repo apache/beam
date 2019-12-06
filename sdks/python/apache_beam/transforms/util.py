@@ -237,8 +237,8 @@ class _BatchSizeEstimator(object):
 
   def __init__(self,
                min_batch_size=1,
-               max_batch_size=1000,
-               target_batch_overhead=.1,
+               max_batch_size=10000,
+               target_batch_overhead=.05,
                target_batch_duration_secs=1,
                variance=0.25,
                clock=time.time,
