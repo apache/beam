@@ -301,7 +301,6 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
         label='assert per window')
 
     p.run()
@@ -309,8 +308,9 @@ class TestStreamTest(unittest.TestCase):
   def test_gbk_execution_after_watermark_trigger(self):
     test_stream = (TestStream()
                    .advance_watermark_to(10)
-                   .add_elements(['a'])
+                   .add_elements([TimestampedValue('a', 11)])
                    .advance_watermark_to(20)
+                   .add_elements([TimestampedValue('b', 21)])
                    .advance_watermark_to_infinity())
 
     options = PipelineOptions()
@@ -331,15 +331,18 @@ class TestStreamTest(unittest.TestCase):
 
     # assert per window
     expected_window_to_elements = {
-        window.IntervalWindow(15, 30): [
+        window.IntervalWindow(0, 15): [
             ('k', ['a']),
-            ('k', []),
+            ('k', [])
+        ],
+        window.IntervalWindow(15, 30): [
+            ('k', ['b']),
+            ('k', [])
         ],
     }
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
         label='assert per window')
 
     p.run()
@@ -379,7 +382,6 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
         label='assert per window')
 
     p.run()
@@ -481,7 +483,6 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
         label='assert per window')
 
     p.run()
@@ -535,7 +536,6 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         records,
         equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
         label='assert per window')
 
     p.run()

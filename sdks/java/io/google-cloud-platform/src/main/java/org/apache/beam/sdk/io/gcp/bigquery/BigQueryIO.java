@@ -43,8 +43,10 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -1635,6 +1637,7 @@ public class BigQueryIO {
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
+        .setSchemaUpdateOptions(Collections.emptySet())
         .setNumFileShards(0)
         .setMethod(Write.Method.DEFAULT)
         .setExtendedErrorInfo(false)
@@ -1729,6 +1732,8 @@ public class BigQueryIO {
     abstract CreateDisposition getCreateDisposition();
 
     abstract WriteDisposition getWriteDisposition();
+
+    abstract Set<SchemaUpdateOption> getSchemaUpdateOptions();
     /** Table description. Default is empty. */
     @Nullable
     abstract String getTableDescription();
@@ -1806,6 +1811,8 @@ public class BigQueryIO {
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
+
+      abstract Builder<T> setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions);
 
       abstract Builder<T> setTableDescription(String tableDescription);
 
@@ -1908,6 +1915,25 @@ public class BigQueryIO {
        * possible for both to succeed.
        */
       WRITE_EMPTY
+    }
+
+    /**
+     * An enumeration type for the BigQuery schema update options strings.
+     *
+     * <p>Note from the BigQuery API doc -- Schema update options are supported in two cases: when
+     * writeDisposition is WRITE_APPEND; when writeDisposition is WRITE_TRUNCATE and the destination
+     * table is a partition of a table, specified by partition decorators.
+     *
+     * @see <a
+     *     href="https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationquery">
+     *     <code>configuration.query.schemaUpdateOptions</code> in the BigQuery Jobs API</a>
+     */
+    public enum SchemaUpdateOption {
+      /** Allow adding a nullable field to the schema. */
+      ALLOW_FIELD_ADDITION,
+
+      /** Allow relaxing a required field in the original schema to nullable. */
+      ALLOW_FIELD_RELAXATION
     }
 
     /**
@@ -2096,6 +2122,12 @@ public class BigQueryIO {
     public Write<T> withWriteDisposition(WriteDisposition writeDisposition) {
       checkArgument(writeDisposition != null, "writeDisposition can not be null");
       return toBuilder().setWriteDisposition(writeDisposition).build();
+    }
+
+    /** Allows the schema of the destination table to be updated as a side effect of the write. */
+    public Write<T> withSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
+      checkArgument(schemaUpdateOptions != null, "schemaUpdateOptions can not be null");
+      return toBuilder().setSchemaUpdateOptions(schemaUpdateOptions).build();
     }
 
     /** Specifies the table description. */
@@ -2589,6 +2621,9 @@ public class BigQueryIO {
                 rowWriterFactory,
                 getKmsKey());
         batchLoads.setTestServices(getBigQueryServices());
+        if (getSchemaUpdateOptions() != null) {
+          batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());
+        }
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
         }
@@ -2634,6 +2669,9 @@ public class BigQueryIO {
           .add(
               DisplayData.item("writeDisposition", getWriteDisposition().toString())
                   .withLabel("Table WriteDisposition"))
+          .add(
+              DisplayData.item("schemaUpdateOptions", getSchemaUpdateOptions().toString())
+                  .withLabel("Table SchemaUpdateOptions"))
           .addIfNotDefault(
               DisplayData.item("validation", getValidate()).withLabel("Validation Enabled"), true)
           .addIfNotNull(

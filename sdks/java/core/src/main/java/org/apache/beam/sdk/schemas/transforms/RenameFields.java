@@ -89,6 +89,8 @@ public class RenameFields {
         return FieldType.row(renameSchema(inputType.getRowSchema(), renames));
       case ARRAY:
         return FieldType.array(renameFieldType(inputType.getCollectionElementType(), renames));
+      case ITERABLE:
+        return FieldType.iterable(renameFieldType(inputType.getCollectionElementType(), renames));
       case MAP:
         return FieldType.map(
             renameFieldType(inputType.getMapKeyType(), renames),

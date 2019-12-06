@@ -24,12 +24,20 @@ to transform original pipeline into a one-shot pipeline with interactivity.
 from __future__ import absolute_import
 
 import apache_beam as beam
+from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 
 READ_CACHE = "_ReadCache_"
 WRITE_CACHE = "_WriteCache_"
+
+# Use a tuple to define the list of unbounded sources. It is not always feasible
+# to correctly find all the unbounded sources in the SDF world. This is
+# because SDF allows the source to dynamically create sources at runtime.
+REPLACEABLE_UNBOUNDED_SOURCES = (
+    ReadFromPubSub,
+)
 
 
 class PipelineInstrument(object):
@@ -80,7 +88,10 @@ class PipelineInstrument(object):
     # A mapping from PCollection id to python id() value in user defined
     # pipeline instance.
     (self._pcoll_version_map,
-     self._cacheables) = cacheables(self.pcolls_to_pcoll_id)
+     self._cacheables,
+     # A dict from pcoll_id to variable name of the referenced PCollection.
+     # (Dict[str, str])
+     self._cacheable_var_by_pcoll_id) = cacheables(self.pcolls_to_pcoll_id)
 
     # A dict from cache key to PCollection that is read from cache.
     # If exists, caller should reuse the PCollection read. If not, caller
@@ -94,13 +105,7 @@ class PipelineInstrument(object):
 
   @property
   def has_unbounded_source(self):
-    """Checks if a given pipeline has any source that is unbounded.
-
-    The function directly checks the source transform definition instead
-    of pvalues in the pipeline. Thus manually setting is_bounded field of
-    a PCollection or switching streaming mode will not affect this
-    function's result. The result is always deterministic when the source
-    code of a pipeline is defined.
+    """Returns whether the pipeline has any `REPLACEABLE_UNBOUNDED_SOURCES`.
     """
     return self._has_unbounded_source
 
@@ -109,10 +114,10 @@ class PipelineInstrument(object):
     """Finds cacheable PCollections from the pipeline.
 
     The function only treats the result as cacheables since there is no
-    guarantee whether the cache desired PCollection has been cached or
-    not. A PCollection desires caching when it's bound to a user defined
-    variable in source code. Otherwise, the PCollection is not reusale
-    nor introspectable which nullifying the need of cache.
+    guarantee whether PCollections that need to be cached have been cached or
+    not. A PCollection needs to be cached when it's bound to a user defined
+    variable in the source code. Otherwise, the PCollection is not reusable
+    nor introspectable which nullifies the need of cache.
     """
     return self._cacheables
 
@@ -142,7 +147,6 @@ class PipelineInstrument(object):
     Modifies:
       self._pipeline
     """
-    self._preprocess()
     cacheable_inputs = set()
 
     class InstrumentVisitor(PipelineVisitor):
@@ -169,7 +173,7 @@ class PipelineInstrument(object):
       self._write_cache(cacheable['pcoll'])
     # TODO(BEAM-7760): prune sub graphs that doesn't need to be executed.
 
-  def _preprocess(self):
+  def preprocess(self):
     """Pre-processes the pipeline.
 
     Since the pipeline instance in the class might not be the same instance
@@ -314,29 +318,48 @@ class PipelineInstrument(object):
                        cacheable['producer_version']))
     return ''
 
+  def cacheable_var_by_pcoll_id(self, pcoll_id):
+    """Retrieves the variable name of a PCollection.
+
+    In source code, PCollection variables are defined in the user pipeline. When
+    it's converted to the runner api representation, each PCollection referenced
+    in the user pipeline is assigned a unique-within-pipeline pcoll_id. Given
+    such pcoll_id, retrieves the str variable name defined in user pipeline for
+    that referenced PCollection. If the PCollection is not watched, return None.
+    """
+    return self._cacheable_var_by_pcoll_id.get(pcoll_id, None)
+
 
 def pin(pipeline, options=None):
-  """Creates PipelineInstrument for a pipeline and its options with cache."""
+  """Creates PipelineInstrument for a pipeline and its options with cache.
+
+  This is the shorthand for doing 3 steps: 1) compute once for metadata of the
+  given runner pipeline and everything watched from user pipelines; 2) associate
+  info between the runner pipeline and its corresponding user pipeline,
+  eliminate data from other user pipelines if there are any; 3) mutate the
+  runner pipeline to apply interactivity.
+  """
   pi = PipelineInstrument(pipeline, options)
+  pi.preprocess()
   pi.instrument()  # Instruments the pipeline only once.
   return pi
 
 
 def cacheables(pcolls_to_pcoll_id):
-  """Finds cache desired PCollections from the instrumented pipeline.
+  """Finds PCollections that need to be cached for analyzed PCollections.
 
-  The function only treats the result as cacheables since whether the cache
-  desired PCollection has been cached depends on whether the pipeline has been
-  executed in current interactive environment. A PCollection desires caching
-  when it's bound to a user defined variable in source code. Otherwise, the
-  PCollection is not reusable nor introspectable which nullifies the need of
-  cache. There might be multiple pipelines defined and watched, this will
-  return for PCollections from the ones with pcolls_to_pcoll_id analyzed. The
-  check is not strict because pcoll_id is not unique across multiple pipelines.
-  Additional check needs to be done during instrument.
+  The function only treats the result as cacheables since there is no guarantee
+  whether PCollections that need to be cached have been cached or not. A
+  PCollection needs to be cached when it's bound to a user defined variable in
+  the source code. Otherwise, the PCollection is not reusable nor introspectable
+  which nullifies the need of cache. There might be multiple pipelines defined
+  and watched, this will only return for PCollections with pcolls_to_pcoll_id
+  analyzed. The check is not strict because pcoll_id is not unique across
+  multiple pipelines. Additional check needs to be done during instrument.
   """
   pcoll_version_map = {}
   cacheables = {}
+  cacheable_var_by_pcoll_id = {}
   for watching in ie.current_env().watching():
     for key, val in watching:
       # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
@@ -353,7 +376,8 @@ def cacheables(pcolls_to_pcoll_id):
         cacheable['producer_version'] = str(id(val.producer))
         cacheables[cacheable_key(val, pcolls_to_pcoll_id)] = cacheable
         pcoll_version_map[cacheable['pcoll_id']] = cacheable['version']
-  return pcoll_version_map, cacheables
+        cacheable_var_by_pcoll_id[cacheable['pcoll_id']] = key
+  return pcoll_version_map, cacheables, cacheable_var_by_pcoll_id
 
 
 def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):
@@ -367,15 +391,13 @@ def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):
 
 
 def has_unbounded_source(pipeline):
-  """Checks if a given pipeline has any source that is unbounded."""
+  """Checks if a given pipeline has replaceable unbounded sources."""
 
   class CheckUnboundednessVisitor(PipelineVisitor):
-    """Vsitor checks if there is any unbouned read source in the Pipeline.
+    """Visitor checks if there are any unbounded read sources in the Pipeline.
 
-    Visitor visits all nodes and check is_bounded() for all sources of read
-    PTransform. As long as there is at least 1 source introduces unbounded
-    data, returns True. We don't check the is_bounded field from proto based
-    PCollection since they may not be correctly set with to_runner_api.
+    Visitor visits all nodes and checks if it is an instance of
+    `REPLACEABLE_UNBOUNDED_SOURCES`.
     """
 
     def __init__(self):
@@ -385,11 +407,8 @@ def has_unbounded_source(pipeline):
       self.visit_transform(transform_node)
 
     def visit_transform(self, transform_node):
-      if (not self.has_unbounded_source and
-          isinstance(transform_node, beam.pipeline.AppliedPTransform) and
-          isinstance(transform_node.transform, beam.io.iobase.Read) and
-          not transform_node.transform.source.is_bounded()):
-        self.has_unbounded_source = True
+      self.has_unbounded_source |= isinstance(transform_node.transform,
+                                              REPLACEABLE_UNBOUNDED_SOURCES)
 
   v = CheckUnboundednessVisitor()
   pipeline.visit(v)

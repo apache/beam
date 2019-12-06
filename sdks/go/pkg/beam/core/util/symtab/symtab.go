@@ -154,7 +154,7 @@ func (s *SymbolTable) Sym2Addr(symbol string) (uintptr, error) {
 			break
 		}
 
-		if e.Tag == dwarf.TagSubprogram {
+		if e.Tag == dwarf.TagSubprogram && len(e.Field) >= 2 {
 			nf := e.Field[0]
 			if nf.Attr.String() == "Name" && nf.Val.(string) == symbol {
 				addr := e.Field[1].Val.(uint64)

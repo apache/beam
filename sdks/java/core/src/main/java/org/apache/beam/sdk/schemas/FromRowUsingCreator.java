@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.lang.reflect.Type;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,6 +31,9 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
@@ -106,8 +110,14 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       return (ValueT) fromRow((Row) value, (Class) fieldType, typeFactory);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
       return (ValueT)
-          fromListValue(type.getCollectionElementType(), (List) value, elementType, typeFactory);
-    } else if (TypeName.MAP.equals(type.getTypeName())) {
+          fromCollectionValue(
+              type.getCollectionElementType(), (Collection) value, elementType, typeFactory);
+    } else if (TypeName.ITERABLE.equals(type.getTypeName())) {
+      return (ValueT)
+          fromIterableValue(
+              type.getCollectionElementType(), (Iterable) value, elementType, typeFactory);
+    }
+    if (TypeName.MAP.equals(type.getTypeName())) {
       return (ValueT)
           fromMapValue(
               type.getMapKeyType(),
@@ -121,25 +131,54 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
     }
   }
 
+  private static <SourceT, DestT> Collection<DestT> transformCollection(
+      Collection<SourceT> collection, Function<SourceT, DestT> function) {
+    if (collection instanceof List) {
+      // For performance reasons if the input is a list, make sure that we produce a list. Otherwise
+      // Row unwrapping
+      // is forced to physically copy the collection into a new List object.
+      return Lists.transform((List) collection, function);
+    } else {
+      return Collections2.transform(collection, function);
+    }
+  }
+
   @SuppressWarnings("unchecked")
-  private <ElementT> List fromListValue(
+  private <ElementT> Collection fromCollectionValue(
       FieldType elementType,
-      List<ElementT> rowList,
+      Collection<ElementT> rowCollection,
       FieldValueTypeInformation elementTypeInformation,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
-    List list = Lists.newArrayList();
-    for (ElementT element : rowList) {
-      list.add(
-          fromValue(
-              elementType,
-              element,
-              elementTypeInformation.getType().getType(),
-              elementTypeInformation.getElementType(),
-              elementTypeInformation.getMapKeyType(),
-              elementTypeInformation.getMapValueType(),
-              typeFactory));
-    }
-    return list;
+    return transformCollection(
+        rowCollection,
+        element ->
+            fromValue(
+                elementType,
+                element,
+                elementTypeInformation.getType().getType(),
+                elementTypeInformation.getElementType(),
+                elementTypeInformation.getMapKeyType(),
+                elementTypeInformation.getMapValueType(),
+                typeFactory));
+  }
+
+  @SuppressWarnings("unchecked")
+  private <ElementT> Iterable fromIterableValue(
+      FieldType elementType,
+      Iterable<ElementT> rowIterable,
+      FieldValueTypeInformation elementTypeInformation,
+      Factory<List<FieldValueTypeInformation>> typeFactory) {
+    return Iterables.transform(
+        rowIterable,
+        element ->
+            fromValue(
+                elementType,
+                element,
+                elementTypeInformation.getType().getType(),
+                elementTypeInformation.getElementType(),
+                elementTypeInformation.getMapKeyType(),
+                elementTypeInformation.getMapValueType(),
+                typeFactory));
   }
 
   @SuppressWarnings("unchecked")

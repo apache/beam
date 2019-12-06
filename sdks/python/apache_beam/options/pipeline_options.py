@@ -465,7 +465,11 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--service_account_email',
                         default=None,
                         help='Identity to run virtual machines as.')
-    parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
+    parser.add_argument('--no_auth',
+                        dest='no_auth',
+                        action='store_true',
+                        default=False,
+                        help='Skips authorizing credentials with Google Cloud.')
     # Option to run templated pipelines
     parser.add_argument('--template_location',
                         default=None,
@@ -917,6 +921,55 @@ class PortableOptions(PipelineOptions):
         '--output_executable_path', default=None,
         help=('Create an executable jar at this path rather than running '
               'the pipeline.'))
+
+
+class JobServerOptions(PipelineOptions):
+  """Options for starting a Beam job server. Roughly corresponds to
+  JobServerDriver.ServerConfiguration in Java.
+  """
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--artifacts_dir', default=None,
+                        help='The location to store staged artifact files. '
+                             'Any Beam-supported file system is allowed. '
+                             'If unset, the local temp dir will be used.')
+    parser.add_argument('--job_port', default=0,
+                        help='Port to use for the job service. 0 to use a '
+                             'dynamic port.')
+    parser.add_argument('--artifact_port', default=0,
+                        help='Port to use for artifact staging. 0 to use a '
+                             'dynamic port.')
+    parser.add_argument('--expansion_port', default=0,
+                        help='Port to use for artifact staging. 0 to use a '
+                             'dynamic port.')
+
+
+class FlinkRunnerOptions(PipelineOptions):
+
+  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--flink_master',
+                        default='[auto]',
+                        help='Flink master address (http://host:port)'
+                             ' Use "[local]" to start a local cluster'
+                             ' for the execution. Use "[auto]" if you'
+                             ' plan to either execute locally or let the'
+                             ' Flink job server infer the cluster address.')
+    parser.add_argument('--flink_version',
+                        default=cls.PUBLISHED_FLINK_VERSIONS[-1],
+                        choices=cls.PUBLISHED_FLINK_VERSIONS,
+                        help='Flink version to use.')
+    parser.add_argument('--flink_job_server_jar',
+                        help='Path or URL to a flink jobserver jar.')
+    parser.add_argument('--flink_submit_uber_jar',
+                        default=False,
+                        action='store_true',
+                        help='Create and upload an uberjar to the flink master'
+                             ' directly, rather than starting up a job server.'
+                             ' Only applies when flink_master is set to a'
+                             ' cluster address.  Requires Python 3.6+.')
 
 
 class TestOptions(PipelineOptions):

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.List;
+import java.util.Collection;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
@@ -129,7 +129,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
     @ProcessElement
     public void process(@Element Row row, OutputReceiver<Row> out) {
 
-      @Nullable List<Object> rawValues = row.getArray(unnestIndex);
+      @Nullable Collection<Object> rawValues = row.getArray(unnestIndex);
 
       if (rawValues == null) {
         return;

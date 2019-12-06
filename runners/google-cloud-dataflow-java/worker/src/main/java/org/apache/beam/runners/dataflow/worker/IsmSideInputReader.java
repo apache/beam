@@ -46,6 +46,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
@@ -585,7 +586,7 @@ public class IsmSideInputReader implements SideInputReader {
     List<IsmReader<V>> readers = (List) tagToIsmReaderMap.get(tag);
 
     if (readers.isEmpty()) {
-      return k -> Collections.emptyList();
+      return InMemoryMultimapSideInputView.empty();
     }
 
     return new IsmMultimapView<>(window, readers);
@@ -603,6 +604,11 @@ public class IsmSideInputReader implements SideInputReader {
     private IsmMultimapView(BoundedWindow window, List<IsmReader<V>> readers) {
       this.window = window;
       this.readers = readers;
+    }
+
+    @Override
+    public Iterable<K> get() {
+      throw new UnsupportedOperationException("TODO: Support enumerating the keys.");
     }
 
     @Override

@@ -26,6 +26,6 @@ public class SchemaTestUtils {
   // Assert that two schemas are equivalent, ignoring field order. This tests that both schemas
   // (recursively) contain the same fields with the same names, but possibly different orders.
   public static void assertSchemaEquivalent(Schema expected, Schema actual) {
-    assertTrue(actual.equivalent(expected));
+    assertTrue("Expected: " + expected + "  Got: " + actual, actual.equivalent(expected));
   }
 }

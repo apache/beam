@@ -297,7 +297,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.18.0'
+    project.version = '2.19.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -373,7 +373,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_spanner_version = "1.6.0"
     def grpc_version = "1.17.1"
     def guava_version = "20.0"
-    def hadoop_version = "2.7.3"
+    def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
     def jackson_version = "2.9.10"
     def jaxb_api_version = "2.2.12"
@@ -386,6 +386,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.6.0"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.4"
+    def spark_structured_streaming_version = "2.4.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -420,6 +421,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
         aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
+        aws_java_sdk2_sqs                           : "software.amazon.awssdk:sqs:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
@@ -516,6 +518,7 @@ class BeamModulePlugin implements Plugin<Project> {
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
+        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
         vendored_bytebuddy_1_9_3                    : "org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1",
@@ -1231,9 +1234,14 @@ class BeamModulePlugin implements Plugin<Project> {
       // TODO: Figure out whether we should force all dependency conflict resolution
       // to occur in the "shadow" and "shadowTest" configurations.
       project.configurations.all { config ->
+        // When running beam_Dependency_Check, resolutionStrategy should not be used; otherwise
+        // gradle-versions-plugin does not report the latest versions of the dependencies.
+        def startTasks = project.gradle.startParameter.taskNames
+        def inDependencyUpdates = 'dependencyUpdates' in startTasks || 'runBeamDependencyCheck' in startTasks
+
         // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
         // has different dependencies than our project.
-        if (config.getName() != "errorprone") {
+        if (config.getName() != "errorprone" && !inDependencyUpdates) {
           config.resolutionStrategy {
             force project.library.java.values()
           }
@@ -1917,7 +1925,6 @@ class BeamModulePlugin implements Plugin<Project> {
               "--input=/etc/profile",
               "--output=/tmp/py-wordcount-direct",
               "--runner=${runner}",
-              "--experiments=worker_threads=100",
               "--parallelism=2",
               "--shutdown_sources_on_final_watermark",
               "--sdk_worker_parallelism=1",

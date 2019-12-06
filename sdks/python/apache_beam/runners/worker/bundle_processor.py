@@ -238,20 +238,25 @@ class StateBackedSideInputMap(object):
   def __getitem__(self, window):
     target_window = self._side_input_data.window_mapping_fn(window)
     if target_window not in self._cache:
-      state_key = beam_fn_api_pb2.StateKey(
-          multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-              transform_id=self._transform_id,
-              side_input_id=self._tag,
-              window=self._target_window_coder.encode(target_window),
-              key=b''))
       state_handler = self._state_handler
       access_pattern = self._side_input_data.access_pattern
 
       if access_pattern == common_urns.side_inputs.ITERABLE.urn:
+        state_key = beam_fn_api_pb2.StateKey(
+            iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
+                transform_id=self._transform_id,
+                side_input_id=self._tag,
+                window=self._target_window_coder.encode(target_window)))
         raw_view = _StateBackedIterable(
             state_handler, state_key, self._element_coder)
 
       elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
+        state_key = beam_fn_api_pb2.StateKey(
+            multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
+                transform_id=self._transform_id,
+                side_input_id=self._tag,
+                window=self._target_window_coder.encode(target_window),
+                key=b''))
         cache = {}
         key_coder_impl = self._element_coder.key_coder().get_impl()
         value_coder = self._element_coder.value_coder()

@@ -147,6 +147,10 @@ class Environment(object):
         self.google_cloud_options.temp_location.replace(
             'gs:/',
             GoogleCloudOptions.STORAGE_API_SERVICE))
+    if self.worker_options.worker_region:
+      self.proto.workerRegion = self.worker_options.worker_region
+    if self.worker_options.worker_zone:
+      self.proto.workerZone = self.worker_options.worker_zone
     # User agent information.
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint

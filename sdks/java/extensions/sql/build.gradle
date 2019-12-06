@@ -158,7 +158,6 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/KafkaCSVTableIT.java'
-  exclude '**/MongoDbReadWriteIT.java'
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
           .sourceSets

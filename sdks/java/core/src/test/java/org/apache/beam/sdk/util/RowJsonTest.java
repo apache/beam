@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.testing.JsonMatcher.jsonStringLike;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.stringContainsInOrder;
-import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -28,9 +30,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -124,8 +126,8 @@ public class RowJsonTest {
           Schema.builder()
               .addLogicalTypeField(
                   "f_passThroughString",
-                  new LogicalTypes.PassThroughLogicalType<String>(
-                      "SqlCharType", "", FieldType.STRING) {})
+                  new PassThroughLogicalType<String>(
+                      "SqlCharType", FieldType.STRING, "", FieldType.STRING) {})
               .build();
 
       String rowString = "{\n" + "\"f_passThroughString\" : \"hello\"\n" + "}";
@@ -239,18 +241,22 @@ public class RowJsonTest {
     public void testDeserialize() throws IOException {
       Row parsedRow = newObjectMapperFor(schema).readValue(serializedString, Row.class);
 
-      assertEquals(row, parsedRow);
+      assertThat(row, equalTo(parsedRow));
     }
 
-    // This serves to validate RowJsonSerializer. We don't have tests to check that the output
-    // string matches exactly what we expect, just that the string we produced can be deserialized
-    // again into an equal row.
+    @Test
+    public void testSerialize() throws IOException {
+      String str = newObjectMapperFor(schema).writeValueAsString(row);
+
+      assertThat(str, jsonStringLike(serializedString));
+    }
+
     @Test
     public void testRoundTrip() throws IOException {
       ObjectMapper objectMapper = newObjectMapperFor(schema);
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
-      assertEquals(row, parsedRow);
+      assertThat(row, equalTo(parsedRow));
     }
   }
 
@@ -416,7 +422,7 @@ public class RowJsonTest {
 
       Row parsedRow = jsonParser.readValue(jsonObjectWith(fieldName, jsonFieldValue), Row.class);
 
-      assertEquals(expectedRow, parsedRow);
+      assertThat(expectedRow, equalTo(parsedRow));
     }
 
     @Test

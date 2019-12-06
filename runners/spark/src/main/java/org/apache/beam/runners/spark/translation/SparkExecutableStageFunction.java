@@ -271,7 +271,9 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       userStateHandler = StateRequestHandler.unsupported();
     }
 
+    handlerMap.put(StateKey.TypeCase.ITERABLE_SIDE_INPUT, sideInputHandler);
     handlerMap.put(StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+    handlerMap.put(StateKey.TypeCase.MULTIMAP_KEYS_SIDE_INPUT, sideInputHandler);
     handlerMap.put(StateKey.TypeCase.BAG_USER_STATE, userStateHandler);
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
