@@ -316,14 +316,23 @@
       <li><a href="#schema-2">Schema</a></li>
     </ul>
   </li>
-  <li><a href="#text">Text</a>
+  <li><a href="#mongodb">MongoDB</a>
     <ul>
       <li><a href="#syntax-4">Syntax</a></li>
       <li><a href="#read-mode-3">Read Mode</a></li>
       <li><a href="#write-mode-3">Write Mode</a></li>
-      <li><a href="#supported-payload-2">Supported Payload</a></li>
       <li><a href="#schema-3">Schema</a></li>
       <li><a href="#example-2">Example</a></li>
+    </ul>
+  </li>
+  <li><a href="#text">Text</a>
+    <ul>
+      <li><a href="#syntax-5">Syntax</a></li>
+      <li><a href="#read-mode-4">Read Mode</a></li>
+      <li><a href="#write-mode-4">Write Mode</a></li>
+      <li><a href="#supported-payload-2">Supported Payload</a></li>
+      <li><a href="#schema-4">Schema</a></li>
+      <li><a href="#example-3">Example</a></li>
     </ul>
   </li>
 </ul>
@@ -668,12 +677,52 @@ types specified in the schema.</li>
 
 <p>Only simple types are supported.</p>
 
+<h2 id="mongodb">MongoDB</h2>
+
+<h3 id="syntax-4">Syntax</h3>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE mongodb
+LOCATION 'mongodb://[HOST]:[PORT]/[DATABASE]/[COLLECTION]'
+</code></pre></div></div>
+<ul>
+  <li><code class="highlighter-rouge">LOCATION</code>: Location of the collection.
+    <ul>
+      <li><code class="highlighter-rouge">HOST</code>: Location of the MongoDB server. Can be localhost or an ip address.
+ When authentication is required username and password can be specified
+ as follows: <code class="highlighter-rouge">username:password@localhost</code>.</li>
+      <li><code class="highlighter-rouge">PORT</code>: Port on which MongoDB server is listening.</li>
+      <li><code class="highlighter-rouge">DATABASE</code>: Database to connect to.</li>
+      <li><code class="highlighter-rouge">COLLECTION</code>: Collection within the database.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="read-mode-3">Read Mode</h3>
+
+<p>Read Mode supports reading from a collection.</p>
+
+<h3 id="write-mode-3">Write Mode</h3>
+
+<p>Write Mode supports writing to a collection.</p>
+
+<h3 id="schema-3">Schema</h3>
+
+<p>Only simple types are supported. MongoDB documents are mapped to Beam SQL types via <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/JsonToRow.html"><code class="highlighter-rouge">JsonToRow</code></a> transform.</p>
+
+<h3 id="example-2">Example</h3>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
+TYPE mongodb
+LOCATION 'mongodb://localhost:27017/apache/users'
+</code></pre></div></div>
+
 <h2 id="text">Text</h2>
 
 <p>TextIO is experimental in Beam SQL. Read Mode and Write Mode do not currently
 access the same underlying data.</p>
 
-<h3 id="syntax-4">Syntax</h3>
+<h3 id="syntax-5">Syntax</h3>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE text
@@ -747,11 +796,11 @@ See the following table:</li>
   </tbody>
 </table>
 
-<h3 id="read-mode-3">Read Mode</h3>
+<h3 id="read-mode-4">Read Mode</h3>
 
 <p>Read Mode supports reading from a file.</p>
 
-<h3 id="write-mode-3">Write Mode</h3>
+<h3 id="write-mode-4">Write Mode</h3>
 
 <p>Write Mode supports writing to a set of files. TextIO creates file on writes.</p>
 
@@ -766,11 +815,11 @@ types specified in the schema using org.apache.commons.csv.</li>
   </li>
 </ul>
 
-<h3 id="schema-3">Schema</h3>
+<h3 id="schema-4">Schema</h3>
 
 <p>Only simple types are supported.</p>
 
-<h3 id="example-2">Example</h3>
+<h3 id="example-3">Example</h3>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
 TYPE text
