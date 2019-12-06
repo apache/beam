@@ -135,9 +135,9 @@ class TestStreamTest(unittest.TestCase):
         TimestampedValue('c', 8),
     ]
     numbers_elements = [
-        TimestampedValue('a', 11),
-        TimestampedValue('b', 12),
-        TimestampedValue('c', 13),
+        TimestampedValue('1', 11),
+        TimestampedValue('2', 12),
+        TimestampedValue('3', 13),
     ]
     test_stream = (TestStream()
                    .advance_watermark_to(5, tag='letters')
@@ -187,11 +187,13 @@ class TestStreamTest(unittest.TestCase):
         TimestampedValue('c', 8),
     ]
     numbers_elements = [
-        TimestampedValue('a', 11),
-        TimestampedValue('b', 12),
-        TimestampedValue('c', 13),
+        TimestampedValue('1', 21),
+        TimestampedValue('2', 22),
+        TimestampedValue('3', 23),
     ]
     test_stream = (TestStream()
+                   .advance_watermark_to(0, tag='letters')
+                   .advance_watermark_to(0, tag='numbers')
                    .advance_watermark_to(20, tag='numbers')
                    .advance_watermark_to(5, tag='letters')
                    .add_elements(letters_elements, tag='letters')
@@ -247,14 +249,10 @@ class TestStreamTest(unittest.TestCase):
     assert_that(
         letters,
         equal_to_per_window(expected_letters),
-        use_global_window=True,
-        reify_windows=True,
         label='letters assert per window')
     assert_that(
         numbers,
         equal_to_per_window(expected_numbers),
-        use_global_window=True,
-        reify_windows=True,
         label='numbers assert per window')
 
     p.run()
