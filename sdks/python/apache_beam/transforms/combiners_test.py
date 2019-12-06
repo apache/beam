@@ -83,22 +83,6 @@ class CounterIncrememtingCombineFn(beam.CombineFn):
     return acc
 
 
-class ConcatIntCombineFn(beam.CombineFn):
-  """ CombineFn for concatenating string representations of integers. """
-
-  def create_accumulator(self):
-    return ''
-
-  def add_input(self, acc, element):
-    return acc + str(element)
-
-  def merge_accumulators(self, accs):
-    return ''.join(accs)
-
-  def extract_output(self, acc):
-    return acc
-
-
 class CombineTest(unittest.TestCase):
 
   def test_builtin_combines(self):
@@ -547,10 +531,10 @@ class CombineTest(unittest.TestCase):
     # The result of concatenating all values regardless of key.
     global_concat = (input
                      | beam.Values()
-                     | beam.CombineGlobally(CounterIncrememtingCombineFn()))
+                     | beam.CombineGlobally(ConcatIntCombineFn()))
 
     # The (key, concatenated_int_to_string) pairs for all keys.
-    concat_per_key = (input | beam.CombinePerKey(CounterIncrememtingCombineFn()))
+    concat_per_key = (input | beam.CombinePerKey(ConcatIntCombineFn()))
 
     result = p.run()
     result.wait_until_finish()
@@ -593,10 +577,10 @@ class CombineTest(unittest.TestCase):
     # The result of concatenating all values regardless of key.
     global_concat = (input
                      | beam.Values()
-                     | beam.CombineGlobally(CounterIncrememtingCombineFn()))
+                     | beam.CombineGlobally(ConcatIntCombineFn()))
 
     # The (key, concatenated_int_to_string) pairs for all keys.
-    concat_per_key = (input | beam.CombinePerKey(CounterIncrememtingCombineFn()))
+    concat_per_key = (input | beam.CombinePerKey(ConcatIntCombineFn()))
 
     result = p.run()
     result.wait_until_finish()
