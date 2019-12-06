@@ -47,6 +47,7 @@ except ImportError:
 class PCollectionVisualizationTest(unittest.TestCase):
 
   def setUp(self):
+    ie.new_env()
     # Allow unit test to run outside of ipython kernel since we don't test the
     # frontend rendering in unit tests.
     pv._pcoll_visualization_ready = True
@@ -143,7 +144,8 @@ class PCollectionVisualizationTest(unittest.TestCase):
   @patch('pandas.DataFrame.sample')
   def test_display_plain_text_when_kernel_has_no_frontend(self,
                                                           _mocked_sample):
-    ie.new_env()  # Resets the notebook check. Should be False in unit tests.
+    # Resets the notebook check to False.
+    ie.current_env()._is_in_notebook = False
     self.assertIsNone(pv.visualize(self._pcoll))
     _mocked_sample.assert_called_once()
 
