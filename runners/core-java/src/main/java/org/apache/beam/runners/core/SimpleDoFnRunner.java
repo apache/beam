@@ -1055,6 +1055,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public void set(String timerId, Instant absoluteTime) {
       Timer timer = new TimerInternalsTimer(window, namespace, timerId, spec, timerInternals);
+      timer.set(absoluteTime);
       timers.put(timerId, timer);
     }
 

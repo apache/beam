@@ -4203,9 +4203,8 @@ public class ParDoTest implements Serializable {
   public static class TimerFamilyTests extends SharedTestBase implements Serializable {
 
     @Test
-    @Category({ValidatesRunner.class})
-    public void testTimerFamily() {
-
+    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    public void testTimerFamilyEventTime() throws Exception {
       final String timerId = "foo";
 
       DoFn<KV<String, Integer>, Integer> fn =
@@ -4216,26 +4215,26 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @TimerFamily(timerId) TimerMap timerFamily, OutputReceiver<Integer> r) {
-              System.out.println("timer: " + timerFamily.toString());
-              timerFamily.set("timer1", new Instant(4));
+                @TimerFamily(timerId) TimerMap timers, OutputReceiver<Integer> r) {
+              timers.set("timer1", new Instant(1));
+              r.output(3);
             }
 
             @OnTimer(timerId)
-            public void onTimer(
-                @TimerFamily(timerId) TimerMap timerFamily, OutputReceiver<Integer> r) {
-              System.out.println("OnTimer timer: " + timerFamily.toString());
+            public void onTimer(OutputReceiver<Integer> r) {
               r.output(42);
             }
           };
 
       TestStream<KV<String, Integer>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(100))
+              .advanceWatermarkTo(new Instant(0))
               .addElements(KV.of("hello", 37))
+              .advanceWatermarkTo(new Instant(3))
               .advanceWatermarkToInfinity();
 
       PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(3, 42);
       pipeline.run();
     }
   }
