@@ -74,7 +74,7 @@ def default_encoder(obj):
     return str(obj)
   elif isinstance(obj, bytes):
     # on python 3 base64-encoded bytes are decoded to strings
-    # before being send to bq
+    # before being sent to BigQuery
     return obj.decode('utf-8')
   raise TypeError(
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
