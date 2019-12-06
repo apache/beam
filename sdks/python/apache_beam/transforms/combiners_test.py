@@ -538,7 +538,7 @@ class CombineTest(unittest.TestCase):
 
     # The (key, concatenated_string) pairs for all keys.
     concat_per_key = (input | beam.CombinePerKey(
-                      CounterIncrememtingCombineFn()))
+        CounterIncrememtingCombineFn()))
 
     result = p.run()
     result.wait_until_finish()
@@ -588,7 +588,7 @@ class CombineTest(unittest.TestCase):
 
     # The (key, concatenated_string) pairs for all keys.
     concat_per_key = (input | beam.CombinePerKey(
-                      CounterIncrememtingCombineFn()))
+        CounterIncrememtingCombineFn()))
 
     result = p.run()
     result.wait_until_finish()
