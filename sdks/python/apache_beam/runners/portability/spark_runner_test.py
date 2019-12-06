@@ -42,7 +42,7 @@ if __name__ == '__main__':
   parser.add_argument('--environment_type', default='docker',
                       help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
-  parser.add_argument('--environment_cache_millis', default=0,
+  parser.add_argument('--environment_cache_millis',
                       help='Environment cache TTL in milliseconds.')
   parser.add_argument('--extra_experiments', default=[], action='append',
                       help='Beam experiments config.')
@@ -93,7 +93,8 @@ if __name__ == '__main__':
       portable_options.environment_type = environment_type.upper()
       if environment_config:
         portable_options.environment_config = environment_config
-      portable_options.environment_cache_millis = environment_cache_millis
+      if environment_cache_millis:
+        portable_options.environment_cache_millis = environment_cache_millis
 
       return options
 
