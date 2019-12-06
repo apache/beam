@@ -382,8 +382,9 @@ class BigQueryWrapper(object):
                 query=bigquery.JobConfigurationQuery(
                     query=query,
                     useLegacySql=use_legacy_sql,
-                    allowLargeResults=True,
-                    destinationTable=self._get_temp_table(project_id),
+                    allowLargeResults=not dry_run,
+                    destinationTable=self._get_temp_table(project_id) if not
+                    dry_run else None,
                     flattenResults=flatten_results,
                     destinationEncryptionConfiguration=bigquery
                     .EncryptionConfiguration(kmsKeyName=kms_key))),
