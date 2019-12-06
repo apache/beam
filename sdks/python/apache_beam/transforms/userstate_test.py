@@ -521,7 +521,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                               ('key', 2),
                               ('key', 3),
                               ('key', 4),
-                              ('key', 3)])
+                              ('key', 3)], reshuffle=False)
     actual_values = (values
                      | beam.ParDo(SetStatefulDoFn()))
 

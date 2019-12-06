@@ -385,9 +385,6 @@ class FnApiRunner(runner.PipelineRunner):
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
 
-    if 'use_sdf_bounded_source' in experiments:
-      pipeline.replace_all(DataflowRunner._SDF_PTRANSFORM_OVERRIDES)
-
     self._latest_run_result = self.run_via_runner_api(pipeline.to_runner_api(
         default_environment=self._default_environment))
     return self._latest_run_result

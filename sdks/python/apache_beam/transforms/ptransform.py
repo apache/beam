@@ -506,9 +506,10 @@ class PTransform(WithTypeHints, HasDisplayData):
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
     # pylint: enable=wrong-import-order, wrong-import-position
-    replacements = {id(v): p | 'CreatePInput%s' % ix >> Create(v)
-                    for ix, v in enumerate(pvalues)
-                    if not isinstance(v, pvalue.PValue) and v is not None}
+    replacements = {
+        id(v): p | 'CreatePInput%s' % ix >> Create(v, reshuffle=False)
+        for ix, v in enumerate(pvalues)
+        if not isinstance(v, pvalue.PValue) and v is not None}
     pvalueish = _SetInputPValues().visit(pvalueish, replacements)
     self.pipeline = p
     result = p.apply(self, pvalueish, label)
