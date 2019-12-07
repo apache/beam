@@ -453,6 +453,9 @@ class PipelineExecutionContext(object):
         k: [subv[1] for subv in v]
         for k, v in self._compute_pcoll_consumer_per_buffer_id(stages).items()}
 
+    self.pcoll_producers = self._compute_producer_per_pcollection_name(
+        stages)
+
     self.pcoll_to_side_input_info = self._compute_side_input_to_consumer_map(
         stages)
 
@@ -520,6 +523,33 @@ class PipelineExecutionContext(object):
       logging.debug('Due to upstream holds, watermark could not be '
                     'updated to value desired. Set to: %s',
                     self.watermark_manager.get_watermark(pcoll_name))
+
+  @staticmethod
+  def _compute_producer_per_pcollection_name(
+      stages  # type: List[Stage]
+  ):
+    # type: (...) -> Dict[str, str]
+    pcollection_name_to_producer = {}
+    for s in stages:
+      for t in s.transforms:
+        if (t.spec.urn == bundle_processor.DATA_INPUT_URN and
+            t.spec.payload != IMPULSE_BUFFER):
+          _, input_pcoll = split_buffer_id(t.spec.payload)
+          # Adding PCollections that may not have a producer.
+          # This is necessary, for example, for the case where we pass an empty
+          # list of PCollections into a Flatten transform.
+          if input_pcoll not in pcollection_name_to_producer:
+            pcollection_name_to_producer[input_pcoll] = None
+        elif (t.spec.urn == bundle_processor.DATA_INPUT_URN and
+              t.spec.payload == IMPULSE_BUFFER):
+          # Impulse data is not produced by any PTransform.
+          pcollection_name_to_producer[IMPULSE_BUFFER] = None
+        elif t.spec.urn == bundle_processor.DATA_OUTPUT_URN:
+          _, output_pcoll = split_buffer_id(t.spec.payload)
+          pcollection_name_to_producer[output_pcoll] = t.unique_name
+
+
+    return pcollection_name_to_producer
 
   @staticmethod
   def _compute_pcoll_consumer_per_buffer_id(

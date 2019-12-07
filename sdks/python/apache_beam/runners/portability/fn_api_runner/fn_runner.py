@@ -576,7 +576,7 @@ class _FnApiRunnerExecution(object):
         'No IO transform feeds %s' % transform_id)
 
   @staticmethod
-  def _store_side_inputs_in_state(self,
+  def _store_side_inputs_in_state(
       worker_handler,  # type: WorkerHandler
       context,  # type: pipeline_context.PipelineContext
       pipeline_components,  # type: beam_runner_api_pb2.Components
@@ -673,7 +673,10 @@ class _ProcessingQueueManager(object):
       if key in self._keyed_elements:
         existing_inputs = self._keyed_elements[key][1]
         for pcoll in incoming_inputs:
-          existing_inputs[pcoll].extend(incoming_inputs[pcoll])
+          if incoming_inputs[pcoll] and pcoll in existing_inputs:
+            existing_inputs[pcoll].extend(incoming_inputs[pcoll])
+          elif incoming_inputs[pcoll]:
+            existing_inputs[pcoll] = incoming_inputs[pcoll]
       else:
         self._keyed_elements[key] = elm
         self._q.appendleft(elm)
@@ -920,7 +923,8 @@ class FnApiRunner(runner.PipelineRunner):
   @staticmethod
   def _enqueue_all_initial_inputs(
       stages,  # type: List[fn_api_runner_transforms.Stage]
-      input_queue_manager  # type: _ProcessingQueueManager
+      input_queue_manager,  # type: _ProcessingQueueManager
+      execution_context  # type: PipelineExecutionContext
   ):
     # type: (...) -> None
     """Put all initial inputs to the pipeline in the input queue."""
@@ -937,6 +941,13 @@ class FnApiRunner(runner.PipelineRunner):
           # encoded input.
           data_inputs[transform.unique_name] = _ListBuffer(
               [ENCODED_IMPULSE_VALUE])
+        elif transform.spec.urn == bundle_processor.DATA_INPUT_URN:
+          _, pcoll_name = split_buffer_id(transform.spec.payload)
+          producer = execution_context.pcoll_producers[pcoll_name]
+          # If there isn't any producer for this PCollection, then
+          # this is an empty PCollection to be consumed by the runner.
+          if not producer:
+            data_inputs[transform.unique_name] = _ListBuffer([])
         elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
@@ -978,7 +989,9 @@ class FnApiRunner(runner.PipelineRunner):
                                                  stages)
     #execution_context.show()
 
-    self._enqueue_all_initial_inputs(stages, input_queue_manager)
+    self._enqueue_all_initial_inputs(stages,
+                                     input_queue_manager,
+                                     execution_context)
     try:
       with self.maybe_profile():
         while len(input_queue_manager.ready_inputs) > 0:
