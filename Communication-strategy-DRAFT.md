@@ -20,6 +20,8 @@ A [logic model](https://en.wikipedia.org/wiki/Logic_model) is a hypothesized des
 
 ![Beam communications logic model](/comms-logic-model.svg)
 
+If you have any questions or comments about this logic model, please add them [here](https://github.com/macruzbar/beam/issues/4). 
+
 ## Step 3: Describe communications strategy
 In this section, we are going to describe what areas to focus on and how to use content in a more strategic way. 
 Due: December 17.
