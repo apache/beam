@@ -16,7 +16,7 @@ With the feedback received over email and on the issues, this is the revised dia
 ![Beam online content map fina version](/comms-mapV2.svg)
 
 ## Step 2: Create the Apache Beam communications logic model 
-A [logic model](https://en.wikipedia.org/wiki/Logic_model) is a hypothesized description of the chain of causes and effects leading to an outcome of interest. Here, you can see the channels we mapped out on step 1 at the bottom, and how they work towards shared goals. 
+A [logic model](https://en.wikipedia.org/wiki/Logic_model) is a hypothesized description of the chain of causes and effects leading to an outcome of interest. Here, you can see how the channels mapped out on step 1 at the bottom work towards shared goals. 
 
 ![Beam communications logic model](/comms-logic-model.svg)
 
