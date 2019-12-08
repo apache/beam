@@ -36,6 +36,7 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
+from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
@@ -43,16 +44,30 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.window import TimestampCombiner
-from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterAll
 from apache_beam.transforms.trigger import AfterCount
-from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
 
 
 class CombineTest(unittest.TestCase):
+
+  def setUp(self):
+    # Use state on the TestCase class, since other references would be pickled
+    # into a closure and not have the desired side effects.
+    CombineTest.all_records = []
+
+  def record_dofn(self):
+    # Record the firing panes
+    class RecordDoFn(beam.DoFn):
+
+      def process(self, element):
+        CombineTest.all_records.append(element)
+
+    return RecordDoFn()
 
   def test_builtin_combines(self):
     pipeline = TestPipeline()
@@ -402,6 +417,44 @@ class CombineTest(unittest.TestCase):
           | beam.Create(range(100))
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
+
+  def test_hot_key_combining_with_accumulation_mode(self):
+    # PCollection will contain elements from 1 to 5.
+    elements = [i for i in range(1, 6)]
+
+    ts = TestStream().advance_watermark_to(0)
+    for i in elements:
+      ts.add_elements([i])
+    ts.advance_watermark_to_infinity()
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    # with TestPipeline(options=options) as p:
+    with TestPipeline() as p:
+      result = (p
+                | ts
+                | beam.WindowInto(
+                    GlobalWindows(),
+                    accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+                    trigger=AfterWatermark(early=AfterAll(AfterCount(1)))
+                    )
+                | beam.CombineGlobally(sum).without_defaults().with_fanout(2)
+                | beam.ParDo(self.record_dofn()))
+
+    # The trigger should fire repeatedly for each newly added element,
+    # and at least once for advancing the watermark to infinity.
+    # The firings should accumulate the output.
+    # First firing: 1 = 1
+    # Second firing: 3 = 1 + 2
+    # Third firing: 6 = 1 + 2 + 3
+    # Fourth firing: 10 = 1 + 2 + 3 + 4
+    # Fifth firing: 15 = 1 + 2 + 3 + 4 + 5
+    # Next firings: 15 = 15 + 0  (advancing the watermark to infinity)
+    # The exact number of firings may vary,
+    # so we only compare the first 5 firings.
+    firings = [1, 3, 6, 10, 15]
+    self.assertListEqual(firings, CombineTest.all_records[:5])
+    assert_that(result, equal_to([15]))
 
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
