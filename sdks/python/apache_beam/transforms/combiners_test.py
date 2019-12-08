@@ -418,7 +418,7 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
-  def test_hot_key_combining_with_accumulation_mode(self):
+  def test_combining_with_accumulation_mode(self):
     # PCollection will contain elements from 1 to 5.
     elements = [i for i in range(1, 6)]
 
