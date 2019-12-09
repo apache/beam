@@ -83,6 +83,7 @@ class TransformEvaluatorRegistry(object):
         io.Read: _BoundedReadEvaluator,
         _DirectReadFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
+        core.Impulse: _ImpulseEvaluator,
         core.ParDo: _ParDoEvaluator,
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _StreamingGroupByKeyOnly: _StreamingGroupByKeyOnlyEvaluator,
@@ -517,6 +518,17 @@ class _FlattenEvaluator(_TransformEvaluator):
     return TransformResult(self, bundles, [], None, None)
 
 
+class _ImpulseEvaluator(_TransformEvaluator):
+  """TransformEvaluator for Impulse transform."""
+
+  def finish_bundle(self):
+    assert len(self._outputs) == 1
+    output_pcollection = list(self._outputs)[0]
+    bundle = self._evaluation_context.create_bundle(output_pcollection)
+    bundle.output(GlobalWindows.windowed_value(b''))
+    return TransformResult(self, [bundle], [], None, None)
+
+
 class _TaggedReceivers(dict):
   """Received ParDo output and redirect to the associated output bundle."""
 
@@ -903,7 +915,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
   # Maximum number of elements that will be produced by a Splittable DoFn before
   # a checkpoint is requested by the runner.
-  DEFAULT_MAX_NUM_OUTPUTS = 100
+  DEFAULT_MAX_NUM_OUTPUTS = None
   # Maximum duration a Splittable DoFn will process an element before a
   # checkpoint is requested by the runner.
   DEFAULT_MAX_DURATION = 1

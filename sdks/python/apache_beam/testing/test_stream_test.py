@@ -272,12 +272,12 @@ class TestStreamTest(unittest.TestCase):
                   elm=beam.DoFn.ElementParam,
                   ts=beam.DoFn.TimestampParam,
                   side=beam.DoFn.SideInputParam):
-        yield (elm, ts, side)
+        yield (elm, ts, sorted(side))
 
     records = (main_stream     # pylint: disable=unused-variable
                | beam.ParDo(RecordFn(), beam.pvalue.AsList(side)))
 
-    assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 4])]))
+    assert_that(records, equal_to([('e', Timestamp(10), [1, 2, 4])]))
 
     p.run()
 
