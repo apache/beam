@@ -404,7 +404,7 @@ class CombineTest(unittest.TestCase):
       input = (
           p
           | beam.Create([('c', 1), ('c', 9), ('c', 12), ('d', 2), ('d', 4)])
-          | beam.Map(lambda (k, v): window.TimestampedValue((k, v), v))
+          | beam.MapTuple(lambda k, v: window.TimestampedValue((k, v), v))
           | beam.WindowInto(window.Sessions(4)))
 
       global_sum = (input
@@ -424,7 +424,7 @@ class CombineTest(unittest.TestCase):
           p
           | beam.Create([('c', 1), ('c', 2), ('c', 10),
                          ('d', 5), ('d', 8), ('d', 9)])
-          | beam.Map(lambda (k, v): window.TimestampedValue((k, v), v))
+          | beam.MapTuple(lambda k, v: window.TimestampedValue((k, v), v))
           | beam.WindowInto(window.FixedWindows(4)))
 
       global_sum = (input
