@@ -62,6 +62,7 @@ if [[ $confirmation = "y" ]]; then
   docker push apachebeam/go_sdk:latest
 
   echo '-------------Generating and Pushing Flink job server images-------------'
+  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
   for ver in "${FLINK_VER[@]}"; do
      ./gradlew ":runners:flink:${ver}:job-server-container:docker" -Pdocker-tag="${RELEASE}"
      FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
