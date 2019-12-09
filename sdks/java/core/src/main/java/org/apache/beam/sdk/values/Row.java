@@ -512,7 +512,6 @@ public abstract class Row implements Serializable {
       if (a == b) {
         return true;
       }
-
       Iterator<Object> bIter = b.iterator();
       for (Object currentA : a) {
         if (!bIter.hasNext()) {
