@@ -660,7 +660,7 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-    ungrouped = pcoll | Map(reify_timestamps).with_output_types(typing.Any)
+    ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
 
     # TODO(BEAM-8104) Using global window as one of the standard window.
     # This is to mitigate the Dataflow Java Runner Harness limitation to
@@ -672,7 +672,7 @@ class ReshufflePerKey(PTransform):
         timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
     result = (ungrouped
               | GroupByKey()
-              | FlatMap(restore_timestamps).with_output_types(typing.Any))
+              | FlatMap(restore_timestamps).with_output_types(Any))
     result._windowing = windowing_saved
     return result
 
@@ -694,9 +694,9 @@ class Reshuffle(PTransform):
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
     if sys.version_info >= (3,):
-      KeyedT = typing.Tuple[int, T]
+      KeyedT = Tuple[int, T]
     else:
-      KeyedT = typing.Tuple[long, T]  # pylint: disable=long-builtin
+      KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (pcoll
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
             .with_input_types(T).with_output_types(KeyedT)
