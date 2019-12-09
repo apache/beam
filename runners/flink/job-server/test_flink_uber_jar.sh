@@ -16,7 +16,7 @@
 #    limitations under the License.
 #
 
-# test_python_flink_runner.sh tests the Python FlinkRunner class.
+# test_flink_uber_jar.sh tests the Python FlinkRunner class.
 
 set -e
 set -v

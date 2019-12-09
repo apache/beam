@@ -221,9 +221,9 @@ task miniCluster(type: Jar, dependsOn: shadowJar) {
   zip64 true // jar needs to contain more than 65535 files
 }
 
-def addTestFlinkRunnerPy(String pyVersion) {
+def addTestFlinkUberJarPy(String pyVersion) {
   def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
-  project.tasks.create(name: "testFlinkRunnerPy${pyBuildPath}") {
+  project.tasks.create(name: "testFlinkUberJarPy${pyBuildPath}") {
     dependsOn miniCluster
     dependsOn shadowJar
     dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
@@ -238,7 +238,7 @@ def addTestFlinkRunnerPy(String pyVersion) {
                 "--python_version ${pyVersion}",
                 "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
         ]
-        args "-c", "../../job-server/test_python_flink_runner.sh ${options.join(' ')}"
+        args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
       }
     }
   }
@@ -246,11 +246,11 @@ def addTestFlinkRunnerPy(String pyVersion) {
 
 ["2.7", "3.5", "3.6", "3.7"].each{ pyVersion ->
   addTestJavaJarCreator(pyVersion)
-  addTestFlinkRunnerPy(pyVersion)
+  addTestFlinkUberJarPy(pyVersion)
 }
 
 task testPipelineJar() {
   dependsOn testJavaJarCreatorPy37
-  dependsOn testFlinkRunnerPy36
-  dependsOn testFlinkRunnerPy37
+  dependsOn testFlinkUberJarPy36
+  dependsOn testFlinkUberJarPy37
 }
