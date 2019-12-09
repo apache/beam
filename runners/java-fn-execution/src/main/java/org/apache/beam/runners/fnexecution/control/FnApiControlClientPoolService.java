@@ -99,9 +99,6 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       // We do not attempt to transactionally add the client to our internal list and offer it to
       // the sink.
       clientSink.put(headerAccessor.getSdkWorkerId(), newClient);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
