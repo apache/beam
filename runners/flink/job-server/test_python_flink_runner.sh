@@ -30,6 +30,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --flink_mini_cluster_jar)
+        FLINK_MINI_CLUSTER_JAR="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --env_dir)
         ENV_DIR="$2"
         shift # past argument
@@ -86,9 +91,7 @@ s.close()
 FLINK_PORT=$(python -c "$SOCKET_SCRIPT")
 
 echo "Starting Flink mini cluster listening on port $FLINK_PORT"
-java \
-  -cp "$FLINK_JOB_SERVER_JAR" org.apache.beam.runners.flink.FlinkMiniClusterEntryPoint \
-  --rest-port "$FLINK_PORT" &
+java -jar "$FLINK_MINI_CLUSTER_JAR" --rest-port "$FLINK_PORT" &
 
 PIPELINE_PY="
 import apache_beam as beam
@@ -123,6 +126,7 @@ result.wait_until_finish()
   --environment_type DOCKER \
   --environment_config "$PYTHON_CONTAINER_IMAGE" \
   --flink_master "localhost:$FLINK_PORT" \
+  --flink_submit_uber_jar \
 ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
 
 kill %1 || echo "Failed to shut down Flink mini cluster"
