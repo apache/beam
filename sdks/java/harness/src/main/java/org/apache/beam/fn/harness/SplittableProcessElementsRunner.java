@@ -50,7 +50,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -246,10 +246,8 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
           ImmutableList.of(
               DelayedBundleApplication.newBuilder()
                   .setApplication(residualApplication)
-                  .setRequestedExecutionTime(
-                      Timestamps.fromMillis(
-                          System.currentTimeMillis()
-                              + result.getContinuation().resumeDelay().getMillis()))
+                  .setRequestedTimeDelay(
+                      Durations.fromMillis(result.getContinuation().resumeDelay().getMillis()))
                   .build()));
     }
   }
