@@ -48,6 +48,7 @@ dependencies {
   compile project(":runners:direct-java")
   compile library.java.commons_codec
   compile library.java.commons_csv
+  compile library.java.joda_time
   compile library.java.vendored_calcite_1_20_0
   compile "com.alibaba:fastjson:1.2.49"
   compile "org.codehaus.janino:janino:3.0.11"
