@@ -19,7 +19,7 @@
 # This script builds a Docker container with the user specified requirements on top of
 # an existing Python worker Docker container (either one you build from source as
 # described in CONTAINERS.md or from a released Docker container).
-set -e
+set -euo pipefail
 echo Starting distributed TFDV stats computation and schema generation...
 
 if [[ -z "$1" ]]; then
@@ -138,7 +138,7 @@ WORKING_DIR=${TRAIN_OUTPUT_PATH}/working_dir
 MODEL_DIR=${TRAIN_OUTPUT_PATH}/model_dir
 # Inputs
 TRAIN_FILE=${TFT_OUTPUT_PATH}/train_transformed-*
-TF_VERSION=1.13
+TF_VERSION=1.14
 #workaround for boto in virtualenv, required for the gsutil commands to work:
 export BOTO_CONFIG=/dev/null
 # Start clean, but don't fail if the path does not exist yet.
@@ -160,7 +160,7 @@ gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
                                     -- \
                                     --train-files ${TRAIN_FILE} \
                                     --train-steps ${TRAIN_STEPS} \
-                                   --eval-files ${EVAL_FILE} \
+                                    --eval-files ${EVAL_FILE} \
                                     --eval-steps ${EVAL_STEPS} \
                                     --output-dir ${WORKING_DIR} \
                                     --schema-file ${SCHEMA_PATH} \

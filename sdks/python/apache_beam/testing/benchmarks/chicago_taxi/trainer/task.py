@@ -175,10 +175,10 @@ def main():
   args = parser.parse_args()
 
   # Set python level verbosity
-  tf.logging.set_verbosity(args.verbosity)
+  tf.compat.v1.logging.set_verbosity(args.verbosity)
   # Set C++ Graph Execution level verbosity
   os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(
-      tf.logging.__dict__[args.verbosity] / 10)
+      getattr(tf.compat.v1.logging, args.verbosity) / 10)
 
   # Run the training job
   hparams = tf.contrib.training.HParams(**args.__dict__)
