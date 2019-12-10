@@ -31,6 +31,8 @@ from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
+from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
 
 # Work around nose tests using Python2 without unittest.mock module.
 try:
@@ -43,47 +45,6 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def setUp(self):
     ie.new_env(cache_manager=cache.FileBasedCacheManager())
-
-  def assertPipelineProtoEqual(self, actual_pipeline_proto,
-                               expected_pipeline_proto):
-    components1 = actual_pipeline_proto.components
-    components2 = expected_pipeline_proto.components
-    self.assertEqual(len(components1.transforms), len(components2.transforms))
-    self.assertEqual(len(components1.pcollections),
-                     len(components2.pcollections))
-
-    # GreatEqual instead of Equal because the pipeline_proto_to_execute could
-    # include more windowing_stratagies and coders than necessary.
-    self.assertGreaterEqual(len(components1.windowing_strategies),
-                            len(components2.windowing_strategies))
-    self.assertGreaterEqual(len(components1.coders), len(components2.coders))
-    self.assertTransformEqual(actual_pipeline_proto,
-                              actual_pipeline_proto.root_transform_ids[0],
-                              expected_pipeline_proto,
-                              expected_pipeline_proto.root_transform_ids[0])
-
-  def assertPipelineEqual(self, actual_pipeline, expected_pipeline):
-    actual_pipeline_proto = actual_pipeline.to_runner_api(use_fake_coders=True)
-    expected_pipeline_proto = expected_pipeline.to_runner_api(
-        use_fake_coders=True)
-    self.assertPipelineProtoEqual(actual_pipeline_proto,
-                                  expected_pipeline_proto)
-
-  def assertTransformEqual(self, actual_pipeline_proto, actual_transform_id,
-                           expected_pipeline_proto, expected_transform_id):
-    transform_proto1 = actual_pipeline_proto.components.transforms[
-        actual_transform_id]
-    transform_proto2 = expected_pipeline_proto.components.transforms[
-        expected_transform_id]
-    self.assertEqual(transform_proto1.spec.urn, transform_proto2.spec.urn)
-    # Skipping payload checking because PTransforms of the same functionality
-    # could generate different payloads.
-    self.assertEqual(len(transform_proto1.subtransforms),
-                     len(transform_proto2.subtransforms))
-    self.assertSetEqual(set(transform_proto1.inputs),
-                        set(transform_proto2.inputs))
-    self.assertSetEqual(set(transform_proto1.outputs),
-                        set(transform_proto2.outputs))
 
   def test_pcolls_to_pcoll_id(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -137,14 +98,11 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     pin = instr.pin(p)
     self.assertEqual(pin.cache_key(init_pcoll), 'init_pcoll_' + str(
-        id(init_pcoll)) + '_ref_PCollection_PCollection_10_' + str(id(
-            init_pcoll.producer)))
+        id(init_pcoll)) + '_' + str(id(init_pcoll.producer)))
     self.assertEqual(pin.cache_key(squares), 'squares_' + str(
-        id(squares)) + '_ref_PCollection_PCollection_11_' + str(id(
-            squares.producer)))
+        id(squares)) + '_' + str(id(squares.producer)))
     self.assertEqual(pin.cache_key(cubes), 'cubes_' + str(
-        id(cubes)) + '_ref_PCollection_PCollection_12_' + str(id(
-            cubes.producer)))
+        id(cubes)) + '_' + str(id(cubes.producer)))
 
   def test_cacheables(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -224,7 +182,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     expected_pipeline = p.to_runner_api(return_context=False,
                                         use_fake_coders=True)
 
-    self.assertPipelineProtoEqual(actual_pipeline, expected_pipeline)
+    assert_pipeline_proto_equal(self, expected_pipeline, actual_pipeline)
 
   def _example_pipeline(self, watch=True):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -275,7 +233,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         ('_WriteCache_' + second_pcoll_cache_key) >> cache.WriteCache(
             ie.current_env().cache_manager(), second_pcoll_cache_key))
     # The 2 pipelines should be the same now.
-    self.assertPipelineEqual(p_copy, p_origin)
+    assert_pipeline_equal(self, p_copy, p_origin)
 
   def test_instrument_example_pipeline_to_read_cache(self):
     p_origin, init_pcoll, second_pcoll = self._example_pipeline()
@@ -283,12 +241,10 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Mock as if cacheable PCollections are cached.
     init_pcoll_cache_key = 'init_pcoll_' + str(
-        id(init_pcoll)) + '_ref_PCollection_PCollection_10_' + str(id(
-            init_pcoll.producer))
+        id(init_pcoll)) + '_' + str(id(init_pcoll.producer))
     self._mock_write_cache(init_pcoll, init_pcoll_cache_key)
     second_pcoll_cache_key = 'second_pcoll_' + str(
-        id(second_pcoll)) + '_ref_PCollection_PCollection_11_' + str(id(
-            second_pcoll.producer))
+        id(second_pcoll)) + '_' + str(id(second_pcoll.producer))
     self._mock_write_cache(second_pcoll, second_pcoll_cache_key)
     ie.current_env().cache_manager().exists = MagicMock(return_value=True)
     instr.pin(p_copy)
@@ -315,7 +271,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     v = TestReadCacheWireVisitor()
     p_origin.visit(v)
-    self.assertPipelineEqual(p_origin, p_copy)
+    assert_pipeline_equal(self, p_origin, p_copy)
 
 
 if __name__ == '__main__':

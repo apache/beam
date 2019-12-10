@@ -74,6 +74,7 @@ from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.interactive_utils import alter_label_if_ipython
 
 __all__ = ['Pipeline', 'PTransformOverride']
 
@@ -490,6 +491,12 @@ class Pipeline(object):
         return self.apply(transform, pvalueish)
       finally:
         transform.label = old_label
+
+    # Attempts to alter the label of the transform to be applied only when it's
+    # a top-level transform so that the cell number will not be prepended to
+    # every child transform in a composite.
+    if self._current_transform() is self._root_transform():
+      alter_label_if_ipython(transform, pvalueish)
 
     full_label = '/'.join([self._current_transform().full_label,
                            label or transform.label]).lstrip('/')
