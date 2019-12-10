@@ -61,11 +61,8 @@ class SideInputMap(object):
   def __getitem__(self, window):
     if window not in self._cache:
       target_window = self._window_mapping_fn(window)
-      print('iterable,', self._iterable)
       self._cache[window] = self._view_class._from_runtime_iterable(
           _FilteringIterable(self._iterable, target_window), self._view_options)
-    print('window', window)
-    print(self._cache[window])
     return self._cache[window]
 
   def is_globally_windowed(self):

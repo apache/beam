@@ -323,59 +323,32 @@ class SideInputsTest(unittest.TestCase):
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
 
-    """
-    main_stream = (p
-                   | 'main TestStream' >> TestStream()
-                   .advance_watermark_to(3)
-                   .add_elements(['a1'])
-                   .advance_watermark_to(8)
-                   .add_elements(['a2'])
-                   | 'main windowInto' >> beam.WindowInto(
-                       window.FixedWindows(5),
-                       accumulation_mode=trigger.AccumulationMode.DISCARDING))
-
-    emit_vals = Map(lambda k_vs: k_vs[1])
-
-    side_stream = (p
-                   | 'side TestStream' >> TestStream()
-                   .add_elements([window.TimestampedValue(('k', 100), 2)])
-                   .add_elements([window.TimestampedValue(('k', 400), 7)])
-                   | 'side windowInto' >> beam.WindowInto(
-                       window.FixedWindows(5),
-                       trigger=trigger.AfterWatermark(
-                           early=trigger.AfterCount(1)),
-                       accumulation_mode=trigger.AccumulationMode.DISCARDING)
-                   | 'Sum' >> beam.Combine()
-                   | 'Values' >> emit_vals)
-    """
-
-    class ProcessData(beam.DoFn):
-      def process(self, element):
-        print(element)
-        if len(element) == 2:
-          yield beam.pvalue.TaggedOutput('side_input', element)
-        else:
-          yield element
-
     test_stream = (p
-                   | 'main TestStream' >> TestStream()
-                   .advance_watermark_to(3)
-                   .add_elements(['a1'])
-                   .advance_watermark_to(8)
-                   .add_elements(['a2'])
-                   .add_elements([window.TimestampedValue(('k', 100), 2)])
-                   .add_elements([window.TimestampedValue(('k', 400), 7)])
-                   .advance_watermark_to_infinity()
-                   | 'side windowInto' >> beam.WindowInto(
-                      window.FixedWindows(5),
-                      trigger=trigger.AfterWatermark(
-                          early=trigger.AfterCount(1)),
-                      accumulation_mode=trigger.AccumulationMode.DISCARDING)
-                   | beam.ParDo(ProcessData())
-                     .with_outputs('side_input', main='main_input'))
+                   | 'Mixed TestStream' >> TestStream()
+                   .advance_watermark_to(3, tag='main')
+                   .add_elements(['a1'], tag='main')
+                   .advance_watermark_to(8, tag='main')
+                   .add_elements(['a2'], tag='main')
+                   .add_elements([window.TimestampedValue(('k', 100), 2)],
+                                 tag='side')
+                   .add_elements([window.TimestampedValue(('k', 400), 7)],
+                                 tag='side')
+                   .advance_watermark_to_infinity(tag='main')
+                   .advance_watermark_to_infinity(tag='side'))
 
-    main_data = test_stream['main_input']
-    side_data = test_stream['side_input']
+    main_data = (test_stream['main']
+                 | 'Main windowInto' >> beam.WindowInto(
+                     window.FixedWindows(5),
+                     accumulation_mode=trigger.AccumulationMode.DISCARDING))
+
+    side_data = (test_stream['side']
+                 | 'Side windowInto' >> beam.WindowInto(
+                     window.FixedWindows(5),
+                     trigger=trigger.AfterWatermark(
+                         early=trigger.AfterCount(1)),
+                     accumulation_mode=trigger.AccumulationMode.DISCARDING)
+                 | beam.CombinePerKey(sum)
+                 | 'Values' >> Map(lambda k_vs: k_vs[1]))
 
     class RecordFn(beam.DoFn):
       def process(self,
@@ -389,10 +362,10 @@ class SideInputsTest(unittest.TestCase):
 
     expected_window_to_elements = {
         window.IntervalWindow(0, 5): [
-            ('a1', Timestamp(3), [[100]]),
+            ('a1', Timestamp(3), [100, 0]),
         ],
         window.IntervalWindow(5, 10): [
-            ('a2', Timestamp(8), [[400], []])
+            ('a2', Timestamp(8), [400, 0])
         ],
     }
 
