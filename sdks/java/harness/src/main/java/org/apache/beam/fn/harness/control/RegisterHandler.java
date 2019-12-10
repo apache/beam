@@ -73,14 +73,15 @@ public class RegisterHandler {
     BeamFnApi.RegisterRequest registerRequest = request.getRegister();
     for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor :
         registerRequest.getProcessBundleDescriptorList()) {
-      LOG.debug(
-          "Registering {} with type {}",
-          processBundleDescriptor.getId(),
-          processBundleDescriptor.getClass());
+      //      LOG.debug(
+      //          "Registering {} with type {}",
+      //          processBundleDescriptor.getId(),
+      //          processBundleDescriptor.getClass());
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
       for (Map.Entry<String, RunnerApi.Coder> entry :
           processBundleDescriptor.getCodersMap().entrySet()) {
-        LOG.debug("Registering {} with type {}", entry.getKey(), entry.getValue().getClass());
+        //        LOG.debug("Registering {} with type {}", entry.getKey(),
+        // entry.getValue().getClass());
         computeIfAbsent(entry.getKey()).complete(entry.getValue());
       }
     }

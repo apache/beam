@@ -166,21 +166,21 @@ public class BeamFnControlClient {
           .setInstructionId(value.getInstructionId())
           .build();
     } catch (Exception e) {
-      LOG.error(
-          "Exception while trying to handle {} {}",
-          BeamFnApi.InstructionRequest.class.getSimpleName(),
-          value.getInstructionId(),
-          e);
+      //      LOG.error(
+      //          "Exception while trying to handle {} {}",
+      //          BeamFnApi.InstructionRequest.class.getSimpleName(),
+      //          value.getInstructionId(),
+      //          e);
       return BeamFnApi.InstructionResponse.newBuilder()
           .setInstructionId(value.getInstructionId())
           .setError(getStackTraceAsString(e))
           .build();
     } catch (Error e) {
-      LOG.error(
-          "Error thrown when handling {} {}",
-          BeamFnApi.InstructionRequest.class.getSimpleName(),
-          value.getInstructionId(),
-          e);
+      //      LOG.error(
+      //          "Error thrown when handling {} {}",
+      //          BeamFnApi.InstructionRequest.class.getSimpleName(),
+      //          value.getInstructionId(),
+      //          e);
       throw e;
     }
   }
