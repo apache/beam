@@ -1847,7 +1847,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env ->
         project.tasks.create(name) {
           dependsOn 'setupVirtualenv'
-          dependsOn ':sdks:python:sdist'
 
           doLast {
             // Python source directory is also tox execution workspace, We want
