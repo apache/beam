@@ -25,7 +25,6 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -319,8 +318,7 @@ class SideInputsTest(unittest.TestCase):
   @attr('ValidatesRunner')
   def test_multi_triggered_gbk_side_input(self):
     """Test a GBK sideinput, with multiple triggering."""
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
+    options = StandardOptions(streaming=True)
     p = TestPipeline(options=options)
 
     test_stream = (p
