@@ -37,7 +37,8 @@ class CommonTestProperties {
                         DATAFLOW: ":runners:google-cloud-dataflow-java",
                         SPARK: ":runners:spark",
                         FLINK: ":runners:flink:1.9",
-                        DIRECT: ":runners:direct-java"
+                        DIRECT: ":runners:direct-java",
+                        PORTABLE: ":runners:portability:java"
                 ],
                 PYTHON: [
                         DATAFLOW: "TestDataflowRunner",

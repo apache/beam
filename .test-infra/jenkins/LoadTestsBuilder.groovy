@@ -24,7 +24,7 @@ import CommonTestProperties.TriggeringContext
 class LoadTestsBuilder {
   final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam_portability'
 
-  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode){
+  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode, String extraSwitch = ''){
     scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
