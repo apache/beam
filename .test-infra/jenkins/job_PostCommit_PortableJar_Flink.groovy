@@ -25,7 +25,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_PortableJar_Flink',
   description('Tests creation and execution of portable pipeline Jars on the Flink runner.')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
   // Gradle goals for this job.
   steps {
