@@ -367,8 +367,13 @@ public static void main(String[] args) {
 }
 ```
 ```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_pcollection
-%}
+with beam.Pipeline(options=PipelineOptions()) as p:
+  lines = (p
+           | beam.Create([
+               'To be, or not to be: that is the question: ',
+               'Whether \'tis nobler in the mind to suffer ',
+               'The slings and arrows of outrageous fortune, ',
+               'Or to take arms against a sea of troubles, ']))
 ```
 
 ### 3.2. PCollection characteristics {#pcollection-characteristics}
