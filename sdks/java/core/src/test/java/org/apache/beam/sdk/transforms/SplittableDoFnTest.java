@@ -122,6 +122,7 @@ public class SplittableDoFnTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-8938")
   public void testPairWithIndexBasicBounded() {
     testPairWithIndexBasic(IsBounded.BOUNDED);
   }
@@ -155,6 +156,7 @@ public class SplittableDoFnTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-8938")
   public void testPairWithIndexWindowedTimestampedBounded() {
     testPairWithIndexWindowedTimestamped(IsBounded.BOUNDED);
   }
