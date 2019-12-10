@@ -368,7 +368,6 @@ public static void main(String[] args) {
 ```
 ```py
 with beam.Pipeline(options=PipelineOptions()) as p:
-
     lines = (p
              | beam.Create([
                  'To be, or not to be: that is the question: ',
