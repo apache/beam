@@ -254,6 +254,16 @@ public class ParDoTranslation {
                   translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
               timerSpecs.put(timer.getKey(), spec);
             }
+
+            for (Map.Entry<String, DoFnSignature.TimerFamilyDeclaration> timerFamily :
+                signature.timerFamilyDeclarations().entrySet()) {
+              RunnerApi.TimerSpec spec =
+                  translateTimerSpec(
+                      DoFnSignatures.getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn),
+                      newComponents);
+              timerSpecs.put(timerFamily.getKey(), spec);
+            }
+
             return timerSpecs;
           }
 

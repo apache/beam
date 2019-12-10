@@ -739,7 +739,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         TimerSpec spec =
             (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
         return new TimerInternalsTimerMap(
-            window(), getNamespace(), spec, stepContext.timerInternals());
+            timerFamilyId, window(), getNamespace(), spec, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -1048,8 +1048,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final StateNamespace namespace;
     private final TimerSpec spec;
+    private final String timerFamilyId;
 
     public TimerInternalsTimerMap(
+        String timerFamilyId,
         BoundedWindow window,
         StateNamespace namespace,
         TimerSpec spec,
@@ -1058,11 +1060,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.namespace = namespace;
       this.spec = spec;
       this.timerInternals = timerInternals;
+      this.timerFamilyId = timerFamilyId;
     }
 
     @Override
     public void set(String timerId, Instant absoluteTime) {
-      Timer timer = new TimerInternalsTimer(window, namespace, timerId, spec, timerInternals);
+      Timer timer = new TimerInternalsTimer(window, namespace, timerFamilyId, spec, timerInternals);
       timer.set(absoluteTime);
       timers.put(timerId, timer);
     }

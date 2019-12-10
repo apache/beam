@@ -586,6 +586,15 @@ public class ParDo {
               "%s is splittable and uses timers, but these are not compatible",
               fn.getClass().getName()));
     }
+
+    // TimerFamily is semantically incompatible with splitting
+    if (!signature.timerFamilyDeclarations().isEmpty()
+        && signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is splittable and uses timer family, but these are not compatible",
+              fn.getClass().getName()));
+    }
   }
   /**
    * Extract information on how the DoFn uses schemas. In particular, if the schema of an element

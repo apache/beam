@@ -4222,6 +4222,7 @@ public class ParDoTest implements Serializable {
 
             @OnTimer(timerId)
             public void onTimer(OutputReceiver<Integer> r) {
+              System.out.println("\n\n\nOntimer: ");
               r.output(42);
             }
           };
@@ -4231,6 +4232,7 @@ public class ParDoTest implements Serializable {
               .advanceWatermarkTo(new Instant(0))
               .addElements(KV.of("hello", 37))
               .advanceWatermarkTo(new Instant(3))
+              .advanceWatermarkTo(new Instant(9))
               .advanceWatermarkToInfinity();
 
       PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));

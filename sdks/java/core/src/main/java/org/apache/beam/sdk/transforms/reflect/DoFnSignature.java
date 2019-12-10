@@ -133,7 +133,7 @@ public abstract class DoFnSignature {
 
   /** Whether the {@link DoFn} described by this signature uses timers. */
   public boolean usesTimers() {
-    return timerDeclarations().size() > 0;
+    return timerDeclarations().size() > 0 || timerFamilyDeclarations().size() > 0;
   }
 
   static Builder builder() {

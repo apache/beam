@@ -441,6 +441,16 @@ public class DoFnSignatures {
           decl.id());
     }
 
+    // Check the converse - that all timer family have a callback.
+
+    for (TimerFamilyDeclaration decl : fnContext.getTimerFamilyDeclarations().values()) {
+      errors.checkArgument(
+          onTimerMethodMap.containsKey(decl.id()),
+          "No callback registered via %s for timer %s",
+          DoFn.OnTimer.class.getSimpleName(),
+          decl.id());
+    }
+
     ErrorReporter processElementErrors =
         errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
     DoFnSignature.ProcessElementMethod processElement =
@@ -1709,6 +1719,29 @@ public class DoFnSignatures {
               DoFn.class.getSimpleName(),
               target.getClass().getName(),
               timerDeclaration.field().getName()));
+    }
+  }
+
+  public static TimerSpec getTimerFamilySpecOrThrow(
+      TimerFamilyDeclaration timerFamilyDeclaration, DoFn<?, ?> target) {
+    try {
+      Object fieldValue = timerFamilyDeclaration.field().get(target);
+      checkState(
+          fieldValue instanceof TimerSpec,
+          "Malformed %s class %s: timer declaration field %s does not have type %s.",
+          DoFn.class.getSimpleName(),
+          target.getClass().getName(),
+          timerFamilyDeclaration.field().getName(),
+          TimerSpec.class);
+
+      return (TimerSpec) timerFamilyDeclaration.field().get(target);
+    } catch (IllegalAccessException exc) {
+      throw new RuntimeException(
+          String.format(
+              "Malformed %s class %s: timer declaration field %s is not accessible.",
+              DoFn.class.getSimpleName(),
+              target.getClass().getName(),
+              timerFamilyDeclaration.field().getName()));
     }
   }
 }
