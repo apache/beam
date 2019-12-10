@@ -118,7 +118,7 @@ public class PubsubJsonIT implements Serializable {
             + "' \n"
             + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
 
-    String queryString = "SELECT message.payload.id, message.payload.name from message";
+    String queryString = "SELECT * from message";
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
@@ -129,7 +129,7 @@ public class PubsubJsonIT implements Serializable {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
     sqlEnv.executeDdl(createTableString);
 
-    // Apply the PTransform to query the pubsub topic
+    // Apply the PTransform to query the pubsub topicgoogle.com:clouddfe
     PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
 
     // Observe the query results and send success signal after seeing the expected messages
