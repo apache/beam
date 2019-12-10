@@ -484,6 +484,7 @@ class ReshuffleTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
+  @unittest.skip('https://issues.apache.org/jira/browse/BEAM-8938')
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
 

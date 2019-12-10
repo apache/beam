@@ -593,6 +593,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
+  @unittest.skip('https://issues.apache.org/jira/browse/BEAM-8938')
   def test_flatten_same_pcollections(self):
     pipeline = TestPipeline()
     pc = pipeline | beam.Create(['a', 'b'])
