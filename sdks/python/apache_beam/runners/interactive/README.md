@@ -237,11 +237,10 @@ You can choose to run Interactive Beam on Flink with the following settings.
     to the pipeline as follows.
 
     ```python
-    options = pipeline_options.PipelineOptions([
-        "--runner=PortableRunner",
-        "--job_endpoint=localhost:8099",
-        "--environment_type=LOOPBACK"
-    ])
+    options = pipeline_options.PipelineOptions(
+        runner='PortableRunner',
+        job_endpoint='localhost:8099',
+        environment_type='LOOPBACK')
   
     # Change it to a GCS bucket you can access.
     cache_dir = 'gs://bucket-name/dir'
