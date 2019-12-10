@@ -21,24 +21,10 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.MessageProperties;
 import java.io.IOException;
-import java.io.Serializable;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -46,11 +32,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 /**
  * A IO to publish or consume messages with a RabbitMQ broker.
@@ -119,7 +103,7 @@ import org.joda.time.Instant;
  *   .apply(RabbitMqIO.write().withUri("amqp://user:password@localhost:5672").withQueue("QUEUE"));
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class RabbitMqIO {
   public static Read read() {
     return new AutoValue_RabbitMqIO_Read.Builder()
@@ -141,51 +125,6 @@ public class RabbitMqIO {
   }
 
   private RabbitMqIO() {}
-
-  private static class ConnectionHandler {
-
-    private final ConnectionFactory connectionFactory;
-    private Connection connection;
-    private Channel channel;
-
-    public ConnectionHandler(String uri)
-        throws URISyntaxException, NoSuchAlgorithmException, KeyManagementException {
-      connectionFactory = new ConnectionFactory();
-      connectionFactory.setUri(uri);
-      connectionFactory.setAutomaticRecoveryEnabled(true);
-      connectionFactory.setConnectionTimeout(60000);
-      connectionFactory.setNetworkRecoveryInterval(5000);
-      connectionFactory.setRequestedHeartbeat(60);
-      connectionFactory.setTopologyRecoveryEnabled(true);
-      connectionFactory.setRequestedChannelMax(0);
-      connectionFactory.setRequestedFrameMax(0);
-    }
-
-    public void start() throws TimeoutException, IOException {
-      connection = connectionFactory.newConnection();
-      channel = connection.createChannel();
-      if (channel == null) {
-        throw new IOException("No RabbitMQ channel available");
-      }
-    }
-
-    public Channel getChannel() {
-      return this.channel;
-    }
-
-    public void stop() throws IOException {
-      if (channel != null) {
-        try {
-          channel.close();
-        } catch (Exception e) {
-          // ignore
-        }
-      }
-      if (connection != null) {
-        connection.close();
-      }
-    }
-  }
 
   /** A {@link PTransform} to consume messages from RabbitMQ server. */
   @AutoValue
@@ -406,242 +345,6 @@ public class RabbitMqIO {
     }
   }
 
-  static class RabbitMQSource extends UnboundedSource<RabbitMqMessage, RabbitMQCheckpointMark> {
-    final Read spec;
-
-    RabbitMQSource(Read spec) {
-      this.spec = spec;
-    }
-
-    @Override
-    public Coder<RabbitMqMessage> getOutputCoder() {
-      return SerializableCoder.of(RabbitMqMessage.class);
-    }
-
-    @Override
-    public List<RabbitMQSource> split(int desiredNumSplits, PipelineOptions options) {
-      // RabbitMQ uses queue, so, we can have several concurrent consumers as source
-      List<RabbitMQSource> sources = new ArrayList<>();
-      for (int i = 0; i < desiredNumSplits; i++) {
-        sources.add(this);
-      }
-      return sources;
-    }
-
-    @Override
-    public UnboundedReader<RabbitMqMessage> createReader(
-        PipelineOptions options, RabbitMQCheckpointMark checkpointMark) throws IOException {
-      return new UnboundedRabbitMqReader(this, checkpointMark);
-    }
-
-    @Override
-    public Coder<RabbitMQCheckpointMark> getCheckpointMarkCoder() {
-      return SerializableCoder.of(RabbitMQCheckpointMark.class);
-    }
-
-    @Override
-    public boolean requiresDeduping() {
-      return true;
-    }
-  }
-
-  // TODO: wire up TimestampPolicyContext and use it
-  private static class RabbitMQCheckpointMark
-      implements UnboundedSource.CheckpointMark, Serializable {
-    transient Channel channel;
-    Instant latestTimestamp = Instant.now();
-    final List<Long> sessionIds = new ArrayList<>();
-
-    /**
-     * Advances the watermark to the provided time, provided said time is after the current
-     * watermark. If the provided time is before the latest, this function no-ops.
-     *
-     * @param time The time to advance the watermark to
-     */
-    public void advanceWatermark(Instant time) {
-      if (time.isAfter(latestTimestamp)) {
-        latestTimestamp = time;
-      }
-    }
-
-    @Override
-    public void finalizeCheckpoint() throws IOException {
-      for (Long sessionId : sessionIds) {
-        channel.basicAck(sessionId, false);
-      }
-      latestTimestamp = Instant.now();
-      sessionIds.clear();
-    }
-  }
-
-  private static class TimestampPolicyContext extends TimestampPolicy.LastRead {
-    private final boolean hasBacklog;
-    private final Instant lastCheckedAt;
-
-    public TimestampPolicyContext(boolean hasBacklog, Instant lastCheckedAt) {
-      this.hasBacklog = hasBacklog;
-      this.lastCheckedAt = lastCheckedAt;
-    }
-
-    @Override
-    public boolean hasBacklog() {
-      return hasBacklog;
-    }
-
-    @Override
-    public Instant lastCheckedAt() {
-      return lastCheckedAt;
-    }
-  }
-
-  private static class UnboundedRabbitMqReader
-      extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
-    private final RabbitMQSource source;
-
-    private transient TimestampPolicy timestampPolicy;
-    private TimestampPolicyContext context;
-    private RabbitMqMessage current;
-    private byte[] currentRecordId;
-    // TODO: get rid of ConnectionHandler here; it isn't Serializable
-    private ConnectionHandler connectionHandler;
-    private String queueName;
-    private Instant currentTimestamp;
-    private final RabbitMQCheckpointMark checkpointMark;
-
-    UnboundedRabbitMqReader(RabbitMQSource source, RabbitMQCheckpointMark checkpointMark)
-        throws IOException {
-      this.source = source;
-      this.current = null;
-      this.context = new TimestampPolicyContext(true, BoundedWindow.TIMESTAMP_MIN_VALUE);
-      this.checkpointMark = checkpointMark != null ? checkpointMark : new RabbitMQCheckpointMark();
-      mkTimestampPolicy();
-    }
-
-    private TimestampPolicy mkTimestampPolicy() {
-      if (this.timestampPolicy == null) {
-        // TODO: hard-coded Optional.empty is likely insufficient
-        this.timestampPolicy =
-            source.spec.timestampPolicyFactory().createTimestampPolicy(Optional.empty());
-      }
-      return this.timestampPolicy;
-    }
-
-    @Override
-    public Instant getWatermark() {
-      return checkpointMark.latestTimestamp;
-    }
-
-    @Override
-    public UnboundedSource.CheckpointMark getCheckpointMark() {
-      return checkpointMark;
-    }
-
-    @Override
-    public RabbitMQSource getCurrentSource() {
-      return source;
-    }
-
-    @Override
-    public byte[] getCurrentRecordId() {
-      if (current == null) {
-        throw new NoSuchElementException();
-      }
-      if (currentRecordId != null) {
-        return currentRecordId;
-      } else {
-        return "".getBytes(StandardCharsets.UTF_8);
-      }
-    }
-
-    @Override
-    public Instant getCurrentTimestamp() {
-      if (currentTimestamp == null) {
-        throw new NoSuchElementException();
-      }
-      return currentTimestamp;
-    }
-
-    @Override
-    public RabbitMqMessage getCurrent() {
-      if (current == null) {
-        throw new NoSuchElementException();
-      }
-      return current;
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      try {
-        connectionHandler = new ConnectionHandler(source.spec.uri());
-        connectionHandler.start();
-
-        Channel channel = connectionHandler.getChannel();
-
-        queueName = source.spec.queue();
-        if (source.spec.queueDeclare()) {
-          // declare the queue (if not done by another application)
-          // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
-          channel.queueDeclare(queueName, false, false, false, null);
-        }
-        if (source.spec.exchange() != null) {
-          if (source.spec.exchangeDeclare()) {
-            channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
-          }
-          if (queueName == null) {
-            queueName = channel.queueDeclare().getQueue();
-          }
-          channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
-        }
-        checkpointMark.channel = channel;
-      } catch (IOException e) {
-        throw e;
-      } catch (Exception e) {
-        throw new IOException(e);
-      }
-      return advance();
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      try {
-        Channel channel = connectionHandler.getChannel();
-        // we consume message without autoAck (we want to do the ack ourselves)
-        GetResponse delivery = channel.basicGet(queueName, false);
-        if (delivery == null) {
-          current = null;
-          currentRecordId = null;
-          currentTimestamp = null;
-          context = new TimestampPolicyContext(false, Instant.now());
-          // queue is empty, so there is no backlog
-          checkpointMark.advanceWatermark(Instant.now());
-          return false;
-        }
-
-        context = new TimestampPolicyContext(true, Instant.now());
-
-        current = new RabbitMqMessage(delivery);
-        currentRecordId = source.spec.recordIdPolicy().apply(current);
-        currentTimestamp = mkTimestampPolicy().getTimestampForRecord(current);
-
-        long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-        checkpointMark.sessionIds.add(deliveryTag);
-        checkpointMark.advanceWatermark(timestampPolicy.getWatermark(context, current));
-      } catch (IOException e) {
-        throw e;
-      } catch (Exception e) {
-        throw new IOException(e);
-      }
-      return true;
-    }
-
-    @Override
-    public void close() throws IOException {
-      if (connectionHandler != null) {
-        connectionHandler.stop();
-      }
-    }
-  }
-
   /** A {@link PTransform} to publish messages to a RabbitMQ server. */
   @AutoValue
   public abstract static class Write
@@ -759,6 +462,8 @@ public class RabbitMqIO {
     private static class WriteFn extends DoFn<RabbitMqMessage, Void> {
       private final Write spec;
 
+      // TODO: for beam, make the connection static (like jdbc) but use
+      // separate channels
       private transient ConnectionHandler connectionHandler;
 
       WriteFn(Write spec) {
@@ -768,7 +473,6 @@ public class RabbitMqIO {
       @Setup
       public void setup() throws Exception {
         connectionHandler = new ConnectionHandler(spec.uri());
-        connectionHandler.start();
 
         Channel channel = connectionHandler.getChannel();
 
@@ -785,6 +489,7 @@ public class RabbitMqIO {
         RabbitMqMessage message = c.element();
         Channel channel = connectionHandler.getChannel();
 
+        // TODO: get rid of 'exchange' vs 'queue'
         if (spec.exchange() != null) {
           channel.basicPublish(
               spec.exchange(),
@@ -793,6 +498,7 @@ public class RabbitMqIO {
               message.getBody());
         }
         if (spec.queue() != null) {
+          // TODO: what's with this ridiculous hard-coding of message props?
           channel.basicPublish(
               "", spec.queue(), MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBody());
         }
@@ -801,7 +507,7 @@ public class RabbitMqIO {
       @Teardown
       public void teardown() throws Exception {
         if (connectionHandler != null) {
-          connectionHandler.stop();
+          connectionHandler.close();
         }
       }
     }

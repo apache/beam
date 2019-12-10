@@ -23,11 +23,13 @@ import org.joda.time.Instant;
 /**
  * A timestamp policy to assign event time for messages from a RabbitMq queue and watermark for it.
  *
- * @todo use singletons for processing time and timestamp property
- * @todo timestamp policy should include logic for determining watermark (consider accepting 'last
- *     attempted at' wall clock time and 'last element timestamp' as function arguments) OR:
- *     separate TimestampPolicy from WatermarkPolicy SEE:
- *     https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/CustomTimestampPolicyWithLimitedDelay.java
+ * <p>TODO use singletons for processing time and timestamp property TODO timestamp policy should
+ * include logic for determining watermark (consider accepting 'last attempted at' wall clock time
+ * and 'last element timestamp' as function arguments) OR: separate TimestampPolicy from
+ * WatermarkPolicy
+ *
+ * @see <a
+ *     href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/CustomTimestampPolicyWithLimitedDelay.java"/>
  */
 public abstract class TimestampPolicy {
 

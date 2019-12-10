@@ -25,7 +25,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 
-/** @todo use singletons for common policies */
+/** TODO use singletons for common policies. */
 @FunctionalInterface
 public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
 

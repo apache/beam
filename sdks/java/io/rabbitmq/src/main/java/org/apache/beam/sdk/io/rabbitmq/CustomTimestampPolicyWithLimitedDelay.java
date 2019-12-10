@@ -34,7 +34,7 @@ import org.joda.time.Instant;
  *
  * @see <a
  *     href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/CustomTimestampPolicyWithLimitedDelay.java">
- *     corresponding KafkaIO timestamp policy</
+ *     corresponding KafkaIO timestamp policy</a>
  */
 public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   private final Duration maxDelay;
