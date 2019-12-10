@@ -594,7 +594,6 @@ class ReadFromSpanner(PTransform):
       p = (pcoll
            | 'Generate Partitions' >> ParDo(_CreateReadPartitions(
                spanner_configuration=self._configuration))
-           #.with_input_types(ReadOperation)
            | 'Reshuffle' >> Reshuffle()
            | 'Read From Partitions' >> ParDo(_ReadFromPartitionFn(
                spanner_configuration=self._configuration)))
