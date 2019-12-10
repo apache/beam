@@ -46,6 +46,10 @@ BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
+FLINK_VER=("$(ls -1 runners/flink | awk '/^[0-9]+\.[0-9]+$/{print}')")
+if [[ "${#FLINK_VER[@]}" = 0 ]]; then
+  echo "WARNING: Failed to list Flink versions. Are you in the root directory?"
+fi
 
 echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "
@@ -229,6 +233,12 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Generating and Pushing Go images-----------------'
   ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
+  echo '-------------Generating and Pushing Flink job server images-------------'
+  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
+  for ver in "${FLINK_VER[@]}"; do
+     ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+  done
+
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
 
   echo '-------------------Clean up images at local-----------------'
@@ -237,6 +247,9 @@ if [[ $confirmation = "y" ]]; then
   done
   docker rmi -f apachebeam/java_sdk:${RELEASE}_rc${RC_NUM}
   docker rmi -f apachebeam/go_sdk:${RELEASE}_rc${RC_NUM}
+  for ver in "${FLINK_VER[@]}"; do
+    docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
+  done
 fi
 
 echo "[Current Step]: Update beam-site"
