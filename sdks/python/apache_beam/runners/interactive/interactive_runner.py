@@ -48,14 +48,15 @@ class InteractiveRunner(runners.PipelineRunner):
 
   Allows interactively building and running Beam Python pipelines.
   """
-  def __init__(
-      self,
-      underlying_runner=None,
-      cache_dir=None,
-      cache_format='text',
-      render_option=None,
-      skip_display=False,
-      force_compute=True):
+
+  def __init__(self,
+               underlying_runner=None,
+               cache_dir=None,
+               cache_format='text',
+               render_option=None,
+               skip_display=False,
+               force_compute=True,
+               blocking=True):
     """Constructor of InteractiveRunner.
 
     Args:
@@ -74,6 +75,7 @@ class InteractiveRunner(runners.PipelineRunner):
           pipeline and compute data for PCollections forcefully. If False, use
           available data and run minimum pipeline fragment to only compute data
           not available.
+      blocking: (bool) whether the pipeline run should be blocking or not.
     """
     self._underlying_runner = (
         underlying_runner or direct_runner.DirectRunner())
@@ -85,6 +87,7 @@ class InteractiveRunner(runners.PipelineRunner):
     self._in_session = False
     self._skip_display = skip_display
     self._force_compute = force_compute
+    self._blocking = blocking
 
   def is_fnapi_compatible(self):
     # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
@@ -136,7 +139,7 @@ class InteractiveRunner(runners.PipelineRunner):
     if self._force_compute:
       ie.current_env().evict_computed_pcollections()
 
-    pipeline_instrument = inst.pin(pipeline, options)
+    pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
 
     # The user_pipeline analyzed might be None if the pipeline given has nothing
     # to be cached and tracing back to the user defined pipeline is impossible.
@@ -168,7 +171,9 @@ class InteractiveRunner(runners.PipelineRunner):
     if user_pipeline:
       ie.current_env().set_pipeline_result(
           user_pipeline, main_job_result, is_main_job=True)
-    main_job_result.wait_until_finish()
+
+    if self._blocking:
+      main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
       # pylint: disable=dict-values-not-iterating

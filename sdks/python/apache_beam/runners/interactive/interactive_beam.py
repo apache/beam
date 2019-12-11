@@ -33,7 +33,14 @@ this module in your notebook or application code.
 
 from __future__ import absolute_import
 
+import re
+
+import apache_beam as beam
+from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive import interactive_runner as ir
+from apache_beam.runners.interactive import pipeline_fragment as pf
+from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 
 
 def watch(watchable):
@@ -82,7 +89,100 @@ def watch(watchable):
   ie.current_env().watch(watchable)
 
 
-def visualize(pcoll):
-  """Visualizes a PCollection."""
-  # TODO(BEAM-7926)
-  pass
+def show(*pcolls):
+  """Visualizes given PCollections in an interactive exploratory way if used
+  within a notebook, or prints a heading sampled data if used within an ipython
+  shell. Noop if used in a non-interactive environment.
+
+  Ad hoc builds a pipeline fragment including only transforms that are
+  necessary to produce data for given PCollections pcolls, runs the pipeline
+  fragment to compute data for those pcolls and then visualizes the data.
+
+  The function is always blocking. If used within a notebook, the data
+  visualized might be dynamically updated before the function returns as more
+  and more data could getting processed and emitted when the pipeline fragment
+  is being executed. If used within an ipython shell, there will be no dynamic
+  plotting but a static plotting in the end of pipeline fragment execution.
+
+  The PCollections given must belong to the same pipeline and be watched by
+  Interactive Beam (PCollections defined in __main__ are automatically watched).
+
+    For example::
+
+      p = beam.Pipeline(InteractiveRunner())
+      init = p | 'Init' >> beam.Create(range(1000))
+      square = init | 'Square' >> beam.Map(lambda x: x * x)
+      cube = init | 'Cube' >> beam.Map(lambda x: x ** 3)
+
+      # Below builds a pipeline fragment from the defined pipeline `p` that
+      # contains only applied transforms of `Init` and `Square`. Then the
+      # interactive runner runs the pipeline fragment implicitly to compute data
+      # represented by PCollection `square` and visualizes it.
+      show(square)
+
+      # This is equivalent to `show(square)` because `square` depends on `init`
+      # and `init` is included in the pipeline fragment and computed anyway.
+      show(init, square)
+
+      # Below is similar to running `p.run()`. It computes data for both
+      # PCollection `square` and PCollection `cube`, then visualizes them.
+      show(square, cube)
+  """
+  assert len(pcolls) > 0, (
+      'Need at least 1 PCollection to show data visualization.')
+  for pcoll in pcolls:
+    assert isinstance(pcoll, beam.pvalue.PCollection), (
+        '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
+  user_pipeline = pcolls[0].pipeline
+  for pcoll in pcolls:
+    assert pcoll.pipeline is user_pipeline, (
+        '{} belongs to a different user-defined pipeline ({}) than that of'
+        ' other PCollections ({}).'.format(
+            pcoll, pcoll.pipeline, user_pipeline))
+  runner = user_pipeline.runner
+  if isinstance(runner, ir.InteractiveRunner):
+    runner = runner._underlying_runner
+
+  # Make sure that all PCollections to be shown are watched. If a PCollection
+  # has not been watched, make up a variable name for that PCollection and watch
+  # it. No validation is needed here because the watch logic can handle
+  # arbitrary variables.
+  watched_pcollections = set()
+  for watching in ie.current_env().watching():
+    for key, val in watching:
+      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
+        watched_pcollections.add(val)
+  for pcoll in pcolls:
+    if pcoll not in watched_pcollections:
+      watch({re.sub(r'[\[\]\(\)]', '_', str(pcoll)): pcoll})
+
+  # Attempt to run background caching job since we have the reference to the
+  # user-defined pipeline.
+  bcj.attempt_to_run_background_caching_job(runner, user_pipeline)
+
+  # Build a pipeline fragment for the PCollections and run it.
+  result = pf.PipelineFragment(list(pcolls)).run()
+  ie.current_env().set_pipeline_result(
+      user_pipeline,
+      result,
+      is_main_job=True)
+
+  # If in notebook, dynamic plotting as computation goes.
+  if ie.current_env().is_in_notebook:
+    for pcoll in pcolls:
+      visualize(pcoll, dynamic_plotting_interval=1)
+
+  # Invoke wait_until_finish to ensure the blocking nature of this API without
+  # relying on the run to be blocking.
+  result.wait_until_finish()
+
+  # If just in ipython shell, plotting once when the computation is completed.
+  if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
+    for pcoll in pcolls:
+      visualize(pcoll)
+
+  # If the pipeline execution is successful at this stage, mark the computation
+  # completeness for the given PCollections so that when further `show`
+  # invocation occurs, Interactive Beam wouldn't need to re-compute them.
+  if result.state is beam.runners.runner.PipelineState.DONE:
+    ie.current_env().mark_pcollection_computed(pcolls)
