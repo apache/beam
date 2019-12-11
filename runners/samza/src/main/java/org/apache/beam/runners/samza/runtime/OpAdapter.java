@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
@@ -49,7 +48,7 @@ public class OpAdapter<InT, OutT, K>
 
   private final Op<InT, OutT, K> op;
   private transient List<OpMessage<OutT>> outputList;
-  private transient List<CompletionStage<OpMessage<OutT>>> outputFutures;
+  private transient CompletionStage<Collection<OpMessage<OutT>>> outputFuture;
   private transient Instant outputWatermark;
   private transient OpEmitter<OutT> emitter;
   private transient Config config;
@@ -66,7 +65,6 @@ public class OpAdapter<InT, OutT, K>
 
   @Override
   public final void init(Context context) {
-    this.outputFutures = new ArrayList<>();
     this.outputList = new ArrayList<>();
     this.emitter = new OpEmitterImpl();
     this.config = context.getJobContext().getConfig();
@@ -83,7 +81,6 @@ public class OpAdapter<InT, OutT, K>
   @Override
   public CompletionStage<Collection<OpMessage<OutT>>> apply(OpMessage<InT> message) {
     assert outputList.isEmpty();
-    assert outputFutures.isEmpty();
 
     try {
       switch (message.getType()) {
@@ -105,29 +102,22 @@ public class OpAdapter<InT, OutT, K>
       throw UserCodeException.wrap(e);
     }
 
-    final List<OpMessage<OutT>> results = new ArrayList<>(outputList);
-    final CompletionStage<Collection<OpMessage<OutT>>> resultFuture =
-        flattenOutputFutures()
-            .thenApply(
-                futureResults -> {
-                  futureResults.addAll(results);
-                  return futureResults;
-                });
-    outputFutures.clear();
+    CompletionStage<Collection<OpMessage<OutT>>> resultFuture =
+        CompletableFuture.completedFuture(new ArrayList<>(outputList));
+
+    if (outputFuture != null) {
+      resultFuture =
+          resultFuture.thenCombine(
+              outputFuture,
+              (res1, res2) -> {
+                res1.addAll(res2);
+                return res1;
+              });
+    }
+
     outputList.clear();
+    outputFuture = null;
     return resultFuture;
-  }
-
-  private CompletionStage<Collection<OpMessage<OutT>>> flattenOutputFutures() {
-    CompletableFuture<OpMessage<OutT>>[] futures = outputFutures.toArray(new CompletableFuture[0]);
-
-    return CompletableFuture.allOf(futures)
-        .thenApply(
-            ignored -> {
-              final List<OpMessage<OutT>> result =
-                  Stream.of(futures).map(CompletableFuture::join).collect(Collectors.toList());
-              return result;
-            });
   }
 
   @Override
@@ -180,8 +170,10 @@ public class OpAdapter<InT, OutT, K>
     }
 
     @Override
-    public void emitFuture(CompletionStage<WindowedValue<OutT>> futureElement) {
-      outputFutures.add(futureElement.thenApply(OpMessage::ofElement));
+    public void emitFuture(CompletionStage<Collection<WindowedValue<OutT>>> resultFuture) {
+      outputFuture =
+          resultFuture.thenApply(
+              res -> res.stream().map(OpMessage::ofElement).collect(Collectors.toList()));
     }
 
     @Override

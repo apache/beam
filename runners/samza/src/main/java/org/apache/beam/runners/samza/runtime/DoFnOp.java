@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -28,7 +29,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -44,9 +44,9 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -64,7 +64,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterator
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +71,6 @@ import org.slf4j.LoggerFactory;
 /** Samza operator for {@link DoFn}. */
 public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOp.class);
-  private static final long MIN_BUNDLE_CHECK_TIME_MS = 10L;
 
   private final TupleTag<FnOutT> mainOutputTag;
   private final DoFn<InT, FnOutT> doFn;
@@ -113,17 +111,12 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   // TODO: add this to checkpointable state
   private transient Instant inputWatermark;
-  private transient Instant bundleWatermarkHold;
+  private transient BundleManager<OutT> bundleManager;
   private transient Instant sideInputWatermark;
   private transient List<WindowedValue<InT>> pushbackValues;
   private transient StageBundleFactory stageBundleFactory;
-  private transient long maxBundleSize;
-  private transient long maxBundleTimeMs;
-  private transient AtomicLong currentBundleElementCount;
-  private transient AtomicLong bundleStartTime;
-  private transient AtomicBoolean isBundleStarted;
-  private transient Scheduler<KeyedTimerData<Void>> bundleTimerScheduler;
   private DoFnSchemaInformation doFnSchemaInformation;
+  private transient boolean bundleDisabled;
   private Map<String, PCollectionView<?>> sideInputMapping;
 
   public DoFnOp(
@@ -178,26 +171,27 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    this.currentBundleElementCount = new AtomicLong(0L);
-    this.bundleStartTime = new AtomicLong(Long.MAX_VALUE);
-    this.isBundleStarted = new AtomicBoolean(false);
-    this.bundleWatermarkHold = null;
 
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final SamzaExecutionContext samzaExecutionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
     this.samzaPipelineOptions = samzaExecutionContext.getPipelineOptions();
-    this.maxBundleSize = samzaPipelineOptions.getMaxBundleSize();
-    this.maxBundleTimeMs = samzaPipelineOptions.getMaxBundleTimeMs();
-    this.bundleTimerScheduler = timerRegistry;
+    this.bundleDisabled = samzaPipelineOptions.getMaxBundleSize() <= 1;
 
-    if (this.maxBundleSize > 1) {
-      scheduleNextBundleCheck();
-    }
-
+    final String stateId = "pardo-" + transformId;
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            transformId, null, context.getTaskContext(), samzaPipelineOptions, signature);
+            stateId, null, context.getTaskContext(), samzaPipelineOptions, signature);
+    final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
+
+    this.bundleManager =
+        new BundleManager<>(
+            createBundleProgressListener(),
+            outputFutureCollector,
+            samzaPipelineOptions.getMaxBundleSize(),
+            samzaPipelineOptions.getMaxBundleTimeMs(),
+            timerRegistry,
+            bundleCheckTimerId);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
@@ -224,7 +218,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
           SamzaDoFnRunners.createPortable(
               samzaPipelineOptions,
               bundledEventsBagState,
-              outputManagerFactory.create(emitter),
+              outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
               mainOutputTag,
               idToTupleTagMap,
@@ -237,13 +231,13 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               doFn,
               windowingStrategy,
               transformFullName,
-              transformId,
+              stateId,
               context,
               mainOutputTag,
               sideInputHandler,
               timerInternalsFactory,
               keyCoder,
-              outputManagerFactory.create(emitter),
+              outputManagerFactory.create(emitter, outputFutureCollector),
               inputCoder,
               sideOutputTags,
               outputCoders,
@@ -267,23 +261,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     doFnInvoker.invokeSetup();
   }
 
-  /*
-   * Schedule in processing time to check whether the current bundle should be closed. Note that
-   * we only approximately achieve max bundle time by checking as frequent as half of the max bundle
-   * time set by users. This would violate the max bundle time by up to half of it but should
-   * acceptable in most cases (and cheaper than scheduling a timer at the beginning of every bundle).
-   */
-  private void scheduleNextBundleCheck() {
-    final Instant nextBundleCheckTime =
-        Instant.now().plus(Duration.millis(maxBundleTimeMs / 2 + MIN_BUNDLE_CHECK_TIME_MS));
-    final TimerInternals.TimerData timerData =
-        TimerInternals.TimerData.of(
-            bundleCheckTimerId,
-            StateNamespaces.global(),
-            nextBundleCheckTime,
-            TimeDomain.PROCESSING_TIME);
-    bundleTimerScheduler.schedule(
-        new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());
+  /*package private*/ FutureCollector<OutT> createFutureCollector() {
+    return new FutureCollectorImpl<>();
   }
 
   private String getTimerStateId(DoFnSignature signature) {
@@ -294,39 +273,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     return builder.toString();
   }
 
-  private void attemptStartBundle() {
-    if (isBundleStarted.compareAndSet(false, true)) {
-      currentBundleElementCount.set(0L);
-      bundleStartTime.set(System.currentTimeMillis());
-      pushbackFnRunner.startBundle();
-    }
-  }
-
-  private void finishBundle(OpEmitter<OutT> emitter) {
-    if (isBundleStarted.compareAndSet(true, false)) {
-      currentBundleElementCount.set(0L);
-      bundleStartTime.set(Long.MAX_VALUE);
-      pushbackFnRunner.finishBundle();
-      if (bundleWatermarkHold != null) {
-        doProcessWatermark(bundleWatermarkHold, emitter);
-      }
-      bundleWatermarkHold = null;
-    }
-  }
-
-  private void attemptFinishBundle(OpEmitter<OutT> emitter) {
-    if (!isBundleStarted.get()) {
-      return;
-    }
-    if (currentBundleElementCount.get() >= maxBundleSize
-        || System.currentTimeMillis() - bundleStartTime.get() > maxBundleTimeMs) {
-      finishBundle(emitter);
-    }
-  }
-
   @Override
   public void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter) {
-    attemptStartBundle();
+    bundleManager.tryStartBundle();
 
     final Iterable<WindowedValue<InT>> rejectedValues =
         pushbackFnRunner.processElementInReadyWindows(inputElement);
@@ -337,8 +286,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       pushbackValues.add(rejectedValue);
     }
 
-    currentBundleElementCount.incrementAndGet();
-    attemptFinishBundle(emitter);
+    bundleManager.tryFinishBundle(emitter);
   }
 
   private void doProcessWatermark(Instant watermark, OpEmitter<OutT> emitter) {
@@ -369,24 +317,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   @Override
   public void processWatermark(Instant watermark, OpEmitter<OutT> emitter) {
-    if (!isBundleStarted.get()) {
-      doProcessWatermark(watermark, emitter);
-    } else {
-      // if there is a bundle in progress, hold back the watermark until end of the bundle
-      this.bundleWatermarkHold = watermark;
-      if (watermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-        // for batch mode, the max watermark should force the bundle to close
-        finishBundle(emitter);
-      }
-    }
+    bundleManager.processWatermark(watermark, emitter);
   }
 
   @Override
   public void processSideInput(
       String id, WindowedValue<? extends Iterable<?>> elements, OpEmitter<OutT> emitter) {
     checkState(
-        !isBundleStarted.get(),
-        "Side input not supported in bundling mode. Please disable bundling.");
+        bundleDisabled, "Side input not supported in bundling mode. Please disable bundling.");
     @SuppressWarnings("unchecked")
     final WindowedValue<Iterable<?>> retypedElements = (WindowedValue<Iterable<?>>) elements;
 
@@ -413,8 +351,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void processSideInputWatermark(Instant watermark, OpEmitter<OutT> emitter) {
     checkState(
-        !isBundleStarted.get(),
-        "Side input not supported in bundling mode. Please disable bundling.");
+        bundleDisabled, "Side input not supported in bundling mode. Please disable bundling.");
     sideInputWatermark = watermark;
 
     if (sideInputWatermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
@@ -427,14 +364,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   public void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter) {
     // this is internal timer in processing time to check whether a bundle should be closed
     if (bundleCheckTimerId.equals(keyedTimerData.getTimerData().getTimerId())) {
-      attemptFinishBundle(emitter);
-      scheduleNextBundleCheck();
+      bundleManager.processTimer(keyedTimerData, emitter);
       return;
     }
-
-    checkState(
-        !isBundleStarted.get(),
-        "Timer not yet supported in bundling mode. Please disable bundling.");
 
     pushbackFnRunner.startBundle();
     fireTimer(keyedTimerData);
@@ -445,7 +377,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   @Override
   public void close() {
-    bundleWatermarkHold = null;
     doFnInvoker.invokeTeardown();
     try (AutoCloseable closer = stageBundleFactory) {
       // do nothing
@@ -476,6 +407,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
   }
 
+  // todo: should this go through bundle manager to start and finish the bundle?
   private void emitAllPushbackValues() {
     if (!pushbackValues.isEmpty()) {
       pushbackFnRunner.startBundle();
@@ -492,6 +424,25 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
   }
 
+  private BundleManager.BundleProgressListener<OutT> createBundleProgressListener() {
+    return new BundleManager.BundleProgressListener<OutT>() {
+      @Override
+      public void onBundleStarted() {
+        pushbackFnRunner.startBundle();
+      }
+
+      @Override
+      public void onBundleFinished(OpEmitter<OutT> emitter) {
+        pushbackFnRunner.finishBundle();
+      }
+
+      @Override
+      public void onWatermark(Instant watermark, OpEmitter<OutT> emitter) {
+        doProcessWatermark(watermark, emitter);
+      }
+    };
+  }
+
   static <T, OutT> CompletionStage<WindowedValue<OutT>> createOutputFuture(
       WindowedValue<T> windowedValue,
       CompletionStage<T> valueFuture,
@@ -505,6 +456,50 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
                 windowedValue.getPane()));
   }
 
+  static class FutureCollectorImpl<OutT> implements FutureCollector<OutT> {
+    private final List<CompletionStage<WindowedValue<OutT>>> outputFutures;
+    private AtomicBoolean collectorSealed;
+
+    FutureCollectorImpl() {
+      /*
+       * Choosing synchronized list here since the concurrency is low as the message dispatch thread is single threaded.
+       * We need this guard against scenarios when watermark/finish bundle trigger outputs.
+       */
+      outputFutures = Collections.synchronizedList(new ArrayList<>());
+      collectorSealed = new AtomicBoolean(true);
+    }
+
+    @Override
+    public void prepare() {
+      boolean isCollectorSealed = collectorSealed.compareAndSet(true, false);
+      checkState(
+          isCollectorSealed,
+          "Failed to prepare the collector. Collector needs to be sealed before prepare() is invoked.");
+    }
+
+    @Override
+    public void add(CompletionStage<WindowedValue<OutT>> element) {
+      checkState(
+          !collectorSealed.get(),
+          "Cannot add elements to an unprepared collector. Make sure prepare() is invoked before adding elements.");
+      outputFutures.add(element);
+    }
+
+    @Override
+    public CompletionStage<Collection<WindowedValue<OutT>>> finish() {
+      /*
+       * We can ignore the results here because its okay to call finish without invoking prepare. It will be a no-op
+       * and an empty collection will be returned.
+       */
+      collectorSealed.compareAndSet(false, true);
+
+      CompletionStage<Collection<WindowedValue<OutT>>> sealedOutputFuture =
+          FutureUtils.flattenFutures(outputFutures);
+      outputFutures.clear();
+      return sealedOutputFuture;
+    }
+  }
+
   /**
    * Factory class to create an {@link org.apache.beam.runners.core.DoFnRunners.OutputManager} that
    * emits values to the main output only, which is a single {@link
@@ -515,6 +510,17 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   public static class SingleOutputManagerFactory<OutT> implements OutputManagerFactory<OutT> {
     @Override
     public DoFnRunners.OutputManager create(OpEmitter<OutT> emitter) {
+      return createOutputManager(emitter, null);
+    }
+
+    @Override
+    public DoFnRunners.OutputManager create(
+        OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
+      return createOutputManager(emitter, collector);
+    }
+
+    private DoFnRunners.OutputManager createOutputManager(
+        OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
       return new DoFnRunners.OutputManager() {
         @Override
         @SuppressWarnings("unchecked")
@@ -522,8 +528,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
           // With only one input we know that T is of type OutT.
           if (windowedValue.getValue() instanceof CompletionStage) {
             CompletionStage<T> valueFuture = (CompletionStage<T>) windowedValue.getValue();
-            emitter.emitFuture(
-                createOutputFuture(windowedValue, valueFuture, value -> (OutT) value));
+            if (collector != null) {
+              collector.add(createOutputFuture(windowedValue, valueFuture, value -> (OutT) value));
+            }
           } else {
             final WindowedValue<OutT> retypedWindowedValue = (WindowedValue<OutT>) windowedValue;
             emitter.emitElement(retypedWindowedValue);
@@ -547,6 +554,17 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     @Override
     public DoFnRunners.OutputManager create(OpEmitter<RawUnionValue> emitter) {
+      return createOutputManager(emitter, null);
+    }
+
+    @Override
+    public DoFnRunners.OutputManager create(
+        OpEmitter<RawUnionValue> emitter, FutureCollector<RawUnionValue> collector) {
+      return createOutputManager(emitter, collector);
+    }
+
+    private DoFnRunners.OutputManager createOutputManager(
+        OpEmitter<RawUnionValue> emitter, FutureCollector<RawUnionValue> collector) {
       return new DoFnRunners.OutputManager() {
         @Override
         @SuppressWarnings("unchecked")
@@ -555,9 +573,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
           final T rawValue = windowedValue.getValue();
           if (rawValue instanceof CompletionStage) {
             CompletionStage<T> valueFuture = (CompletionStage<T>) rawValue;
-            emitter.emitFuture(
-                createOutputFuture(
-                    windowedValue, valueFuture, res -> new RawUnionValue(index, res)));
+            if (collector != null) {
+              collector.add(
+                  createOutputFuture(
+                      windowedValue, valueFuture, res -> new RawUnionValue(index, res)));
+            }
           } else {
             final RawUnionValue rawUnionValue = new RawUnionValue(index, rawValue);
             emitter.emitElement(windowedValue.withValue(rawUnionValue));
