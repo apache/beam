@@ -431,14 +431,26 @@ See the I/O specific sections for <code class="highlighter-rouge">tblProperties<
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
 LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
+TBLPROPERTIES '{"method": "DEFAULT"}'
 </code></pre></div></div>
 
 <ul>
-  <li><code class="highlighter-rouge">LOCATION:</code>Location of the table in the BigQuery CLI format.
+  <li><code class="highlighter-rouge">LOCATION</code>: Location of the table in the BigQuery CLI format.
     <ul>
-      <li><code class="highlighter-rouge">PROJECT_ID</code>: ID of the Google Cloud Project</li>
-      <li><code class="highlighter-rouge">DATASET</code>: BigQuery Dataset ID</li>
-      <li><code class="highlighter-rouge">TABLE</code>: BigQuery Table ID within the Dataset</li>
+      <li><code class="highlighter-rouge">PROJECT_ID</code>: ID of the Google Cloud Project.</li>
+      <li><code class="highlighter-rouge">DATASET</code>: BigQuery Dataset ID.</li>
+      <li><code class="highlighter-rouge">TABLE</code>: BigQuery Table ID within the Dataset.</li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">TBLPROPERTIES</code>:
+    <ul>
+      <li><code class="highlighter-rouge">method</code>: Optional. Read method to use. Following options are available:
+        <ul>
+          <li><code class="highlighter-rouge">DEFAULT</code>: If no property is set, will be used as default. Currently uses <code class="highlighter-rouge">EXPORT</code>.</li>
+          <li><code class="highlighter-rouge">DIRECT_READ</code>: Use the BigQuery Storage API.</li>
+          <li><code class="highlighter-rouge">EXPORT</code>: Export data to Google Cloud Storage in Avro format and read data files from that location.</li>
+        </ul>
+      </li>
     </ul>
   </li>
 </ul>
@@ -447,6 +459,17 @@ LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
 
 <p>Beam SQL supports reading columns with simple types (<code class="highlighter-rouge">simpleType</code>) and arrays of simple
 types (<code class="highlighter-rouge">ARRAY&lt;simpleType&gt;</code>).</p>
+
+<p>When reading using <code class="highlighter-rouge">EXPORT</code> method the following pipeline options should be set:</p>
+<ul>
+  <li><code class="highlighter-rouge">project</code>: ID of the Google Cloud Project.</li>
+  <li><code class="highlighter-rouge">tempLocation</code>: Bucket to store intermediate data in. Ex: <code class="highlighter-rouge">gs://temp-storage/temp</code>.</li>
+</ul>
+
+<p>When reading using <code class="highlighter-rouge">DIRECT_READ</code> method, an optimizer will attempt to perform
+project and predicate push-down, potentially reducing the time requited to read the data from BigQuery.</p>
+
+<p>More information about the BigQuery Storage API can be found <a href="https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api">here</a>.</p>
 
 <h3 id="write-mode">Write Mode</h3>
 
