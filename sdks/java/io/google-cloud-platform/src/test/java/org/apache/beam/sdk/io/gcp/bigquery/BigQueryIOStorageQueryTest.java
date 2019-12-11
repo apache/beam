@@ -45,11 +45,11 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ShardingStrategy;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamStatus;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.UnknownFieldSet;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.List;
@@ -387,12 +387,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(requestedStreamCount)
-            // TODO(aryann): Once we rebuild the generated client code, we should change this to
-            // use setShardingStrategy().
-            .setUnknownFields(
-                UnknownFieldSet.newBuilder()
-                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
-                    .build())
+            .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
     ReadSession.Builder builder = ReadSession.newBuilder();
@@ -463,12 +458,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(1024)
-            // TODO(aryann): Once we rebuild the generated client code, we should change this to
-            // use setShardingStrategy().
-            .setUnknownFields(
-                UnknownFieldSet.newBuilder()
-                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
-                    .build())
+            .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
     ReadSession.Builder builder = ReadSession.newBuilder();
@@ -544,19 +534,7 @@ public class BigQueryIOStorageQueryTest {
             AvroRows.newBuilder()
                 .setSerializedBinaryRows(ByteString.copyFrom(outputStream.toByteArray()))
                 .setRowCount(genericRecords.size()))
-        .setStatus(
-            StreamStatus.newBuilder()
-                // TODO(aryann): Once we rebuild the generated client code, we should change this to
-                // use setFractionConsumed().
-                .setUnknownFields(
-                    UnknownFieldSet.newBuilder()
-                        .addField(
-                            2,
-                            UnknownFieldSet.Field.newBuilder()
-                                .addFixed32(
-                                    java.lang.Float.floatToIntBits((float) fractionConsumed))
-                                .build())
-                        .build()))
+        .setStatus(StreamStatus.newBuilder().setFractionConsumed((float) fractionConsumed))
         .build();
   }
 
@@ -616,12 +594,7 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
             .setRequestedStreams(10)
-            // TODO(aryann): Once we rebuild the generated client code, we should change this to
-            // use setShardingStrategy().
-            .setUnknownFields(
-                UnknownFieldSet.newBuilder()
-                    .addField(7, UnknownFieldSet.Field.newBuilder().addVarint(2).build())
-                    .build())
+            .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
     ReadSession emptyReadSession = ReadSession.newBuilder().build();
