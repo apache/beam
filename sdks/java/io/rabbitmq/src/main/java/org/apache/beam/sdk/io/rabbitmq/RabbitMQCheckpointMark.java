@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -33,25 +34,18 @@ import org.joda.time.Instant;
 class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
   private static final Instant MIN_WATERMARK_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  private final String uri;
+  private final UUID checkpointId;
   private final List<Long> sessionIds = new ArrayList<>();
   private boolean reading;
   private Instant watermark = MIN_WATERMARK_MILLIS;
 
-  private transient ConnectionHandler connectionHandler;
+  private transient ChannelLeaser channelLeaser;
+  private transient Channel channel;
 
-  public RabbitMQCheckpointMark(String uri) {
-    this.uri = uri;
-    this.connectionHandler = new ConnectionHandler(uri);
+  public RabbitMQCheckpointMark(ChannelLeaser channelLeaser) {
+    this.checkpointId = UUID.randomUUID();
     this.reading = false;
-  }
-
-  public Channel getChannel() throws IOException {
-    // may be null after deserialization
-    if (connectionHandler == null) {
-      connectionHandler = new ConnectionHandler(uri);
-    }
-    return connectionHandler.getChannel();
+    this.channelLeaser = channelLeaser;
   }
 
   public void startReading() {
@@ -60,6 +54,18 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
 
   public void stopReading() {
     reading = false;
+  }
+
+  public void setChannelLeaser(ChannelLeaser leaser) {
+    this.channelLeaser = leaser;
+    this.channel = null;
+  }
+
+  public Channel getChannel() throws IOException {
+    if (channel == null) {
+      channel = channelLeaser.acquireChannel(checkpointId);
+    }
+    return channel;
   }
 
   @Nullable
@@ -83,7 +89,8 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
     }
     sessionIds.clear();
     if (!reading) {
-      connectionHandler.close();
+      channel = null;
+      channelLeaser.returnChannel(checkpointId);
     }
   }
 }

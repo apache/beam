@@ -36,14 +36,22 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
   private RabbitMqMessage currentRecord;
   private String queueName;
   private final RabbitMQCheckpointMark checkpointMark;
+  private final ConnectionHandler connectionHandler;
 
   UnboundedRabbitMqReader(RabbitMQSource source, RabbitMQCheckpointMark checkpointMark) {
     this.source = source;
     this.currentRecord = null;
     this.recordIdPolicy = source.spec.recordIdPolicy();
     this.context = new TimestampPolicyContext(true, BoundedWindow.TIMESTAMP_MIN_VALUE);
-    this.checkpointMark =
-        checkpointMark != null ? checkpointMark : new RabbitMQCheckpointMark(source.spec.uri());
+    this.connectionHandler = this.source.spec.connectionHandlerProviderFn().apply(null);
+
+    RabbitMQCheckpointMark cpMark = checkpointMark;
+    if (cpMark == null) {
+      cpMark = new RabbitMQCheckpointMark(this.connectionHandler);
+    } else {
+      cpMark.setChannelLeaser(this.connectionHandler);
+    }
+    this.checkpointMark = cpMark;
     mkTimestampPolicy(
         Optional.ofNullable(checkpointMark).map(RabbitMQCheckpointMark::getWatermark));
   }
@@ -58,7 +66,9 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
 
   @Override
   public Instant getWatermark() {
-    return timestampPolicy.getWatermark(context, currentRecord);
+    Instant watermark = timestampPolicy.getWatermark(context, currentRecord);
+    checkpointMark.setWatermark(watermark);
+    return watermark;
   }
 
   @Override

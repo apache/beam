@@ -25,21 +25,38 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.concurrent.NotThreadSafe;
 
-@NotThreadSafe
-class ConnectionHandler implements Closeable {
-
+class ConnectionHandler implements ChannelLeaser, Closeable {
+  private final Map<UUID, Channel> channelsByLessee = new ConcurrentHashMap<>();
   private final String uri;
   private Connection connection;
-  private Channel channel;
 
   public ConnectionHandler(String uri) {
     this.uri = uri;
   }
 
-  public Channel getChannel() throws IOException {
+  @Override
+  public Channel acquireChannel(UUID lesseeId) throws IOException {
+    return getChannel(lesseeId);
+  }
+
+  @Override
+  public void returnChannel(UUID lessee) {
+    Channel toClose = channelsByLessee.remove(lessee);
+    if (toClose != null) {
+      try {
+        toClose.close();
+      } catch (IOException | TimeoutException e) {
+        // ignore
+      }
+    }
+  }
+
+  public Channel getChannel(UUID lessee) throws IOException {
     if (connection == null) {
       ConnectionFactory connectionFactory = new ConnectionFactory();
       try {
@@ -65,25 +82,30 @@ class ConnectionHandler implements Closeable {
       }
     }
 
-    if (channel == null) {
-      channel = connection.createChannel();
-    }
-
-    if (channel == null) {
-      throw new IOException("No RabitMQ channel available");
-    }
-    return channel;
+    return channelsByLessee.computeIfAbsent(
+        lessee,
+        (uuid) -> {
+          try {
+            return connection
+                .openChannel()
+                .orElseThrow(() -> new RuntimeException("No RabitMQ channel available"));
+          } catch (IOException e) {
+            throw new RuntimeException("No RabitMQ channel available");
+          }
+        });
   }
 
   @Override
-  public void close() throws IOException {
-    if (channel != null) {
-      try {
-        channel.close();
-      } catch (Exception e) {
-        // ignore
-      }
-    }
+  public synchronized void close() throws IOException {
+    channelsByLessee.forEach(
+        (id, channel) -> {
+          try {
+            channel.close();
+          } catch (Exception e) {
+            /* ignore */
+          }
+        });
+
     if (connection != null) {
       connection.close();
     }
