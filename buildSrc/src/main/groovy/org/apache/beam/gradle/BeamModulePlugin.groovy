@@ -729,9 +729,6 @@ class BeamModulePlugin implements Plugin<Project> {
       // Note that these plugins specifically use the compileOnly and testCompileOnly
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
-      // Special case for jsr305 (a transitive dependency of spotbugs-annotations): sdks/java/core's
-      // FieldValueTypeInformation needs javax.annotations.Nullable at runtime. Therefore, the java
-      // core module declares jsr305 dependency (BSD license) as "compile".
       def compileOnlyAnnotationDeps = [
         "com.google.auto.value:auto-value-annotations:1.6.3",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
@@ -742,6 +739,10 @@ class BeamModulePlugin implements Plugin<Project> {
         // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
+        // Special case for jsr305 (a transitive dependency of spotbugs-annotations):
+        // sdks/java/core's FieldValueTypeInformation needs javax.annotations.Nullable at runtime.
+        // Therefore, the java core module declares jsr305 dependency (BSD license) as "compile".
+        // https://github.com/findbugsproject/findbugs/blob/master/findbugs/licenses/LICENSE-jsr305.txt
         "com.github.spotbugs:spotbugs-annotations:3.1.12",
         "net.jcip:jcip-annotations:1.0",
       ]
