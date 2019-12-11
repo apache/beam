@@ -58,10 +58,13 @@ class PCollectionVisualizationTest(unittest.TestCase):
     ie.current_env()._is_in_notebook = True
 
     self._p = beam.Pipeline(ir.InteractiveRunner())
-    ib.watch(self)
+    # Watch the pipeline defined immediately so that implicit transform label
+    # alternation will be carried out by Interactive Beam when applying below
+    # transforms if the code is executed in an ipython environment.
+    ib.watch({'p': self._p})
     # pylint: disable=range-builtin-not-iterating
     self._pcoll = self._p | 'Create' >> beam.Create(range(1000))
-    ib.watch(self)
+    ib.watch({'pcoll': self._pcoll})
 
   def test_raise_error_for_non_pcoll_input(self):
     class Foo(object):
