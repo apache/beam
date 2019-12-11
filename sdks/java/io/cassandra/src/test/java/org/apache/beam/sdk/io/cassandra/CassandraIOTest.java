@@ -102,6 +102,7 @@ public class CassandraIOTest implements Serializable {
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
   private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final int FLUSH_TIMEOUT = 30000;
+  private static final int JMX_CONF_TIMEOUT = 1000;
   private static int jmxPort;
   private static int cassandraPort;
 
@@ -146,8 +147,8 @@ public class CassandraIOTest implements Serializable {
 
     cassandraPort = cluster.getConfiguration().getProtocolOptions().getPort();
     session = CassandraIOTest.cluster.newSession();
-
     insertData();
+    disableAutoCompaction();
   }
 
   private static Cluster buildCluster(CassandraEmbeddedServerBuilder builder) {
@@ -238,6 +239,27 @@ public class CassandraIOTest implements Serializable {
     mBeanProxy.forceKeyspaceFlush(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
     jmxConnector.close();
     Thread.sleep(FLUSH_TIMEOUT);
+  }
+
+  /**
+   * Disable auto compaction on embedded cassandra host, to avoid race condition in temporary files
+   * cleaning.
+   */
+  @SuppressWarnings("unused")
+  private static void disableAutoCompaction() throws Exception {
+    JMXServiceURL url =
+        new JMXServiceURL(
+            String.format(
+                "service:jmx:rmi://%s/jndi/rmi://%s:%s/jmxrmi",
+                CASSANDRA_HOST, CASSANDRA_HOST, jmxPort));
+    JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
+    MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
+    ObjectName objectName = new ObjectName(STORAGE_SERVICE_MBEAN);
+    StorageServiceMBean mBeanProxy =
+        JMX.newMBeanProxy(mBeanServerConnection, objectName, StorageServiceMBean.class);
+    mBeanProxy.disableAutoCompaction(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+    jmxConnector.close();
+    Thread.sleep(JMX_CONF_TIMEOUT);
   }
 
   @Test
