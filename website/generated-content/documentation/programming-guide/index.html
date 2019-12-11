@@ -1031,9 +1031,7 @@ nested within (called <a href="#composite-transforms">composite transforms</a> i
 SDKs).</p>
 
 <p>How you apply your pipeline’s transforms determines the structure of your
-pipeline. The best way to think of your pipeline is as a directed acyclic graph,
-where the nodes are <code class="highlighter-rouge">PCollection</code>s and the edges are transforms. For example,
-you can chain transforms to create a sequential pipeline, like this one:</p>
+pipeline. The best way to think of your pipeline is as a directed acyclic graph, where <code class="highlighter-rouge">PTransform</code> nodes are subroutines that accept <code class="highlighter-rouge">PCollection</code> nodes as inputs and emit <code class="highlighter-rouge">PCollection</code> nodes as outputs. For example, you can chain together transforms to create a pipeline that successively modifies input data:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">[</span><span class="n">Final</span> <span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Initial</span> <span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">First</span> <span class="n">Transform</span><span class="o">])</span>
 <span class="o">.</span><span class="na">apply</span><span class="o">([</span><span class="n">Second</span> <span class="n">Transform</span><span class="o">])</span>
@@ -1044,12 +1042,12 @@ you can chain transforms to create a sequential pipeline, like this one:</p>
               <span class="o">|</span> <span class="p">[</span><span class="n">Third</span> <span class="n">Transform</span><span class="p">])</span>
 </code></pre></div></div>
 
-<p>The resulting workflow graph of the above pipeline looks like this.</p>
+<p>The graph of this pipeline looks like the following:</p>
 
-<p><img src="/images/design-your-pipeline-linear.png" alt="This linear pipeline starts with one input collection, sequentially applies
+<p><img src="/images/design-your-pipeline-linear.svg" alt="This linear pipeline starts with one input collection, sequentially applies
   three transforms, and ends with one output collection." /></p>
 
-<p><em>Figure: A linear pipeline with three sequential transforms.</em></p>
+<p><em>Figure 1: A linear pipeline with three sequential transforms.</em></p>
 
 <p>However, note that a transform <em>does not consume or otherwise alter</em> the input
 collection–remember that a <code class="highlighter-rouge">PCollection</code> is immutable by definition. This means
@@ -1065,12 +1063,12 @@ a branching pipeline, like so:</p>
 <span class="p">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="s">'B'</span> <span class="n">names</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">PCollection</span> <span class="n">of</span> <span class="n">database</span> <span class="n">table</span> <span class="n">rows</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Transform</span> <span class="n">B</span><span class="p">]</span>
 </code></pre></div></div>
 
-<p>The resulting workflow graph from the branching pipeline above looks like this.</p>
+<p>The graph of this branching pipeline looks like the following:</p>
 
-<p><img src="/images/design-your-pipeline-multiple-pcollections.png" alt="This pipeline applies two transforms to a single input collection. Each
+<p><img src="/images/design-your-pipeline-multiple-pcollections.svg" alt="This pipeline applies two transforms to a single input collection. Each
   transform produces an output collection." /></p>
 
-<p><em>Figure: A branching pipeline. Two transforms are applied to a single
+<p><em>Figure 2: A branching pipeline. Two transforms are applied to a single
 PCollection of database table rows.</em></p>
 
 <p>You can also build your own <a href="#composite-transforms">composite transforms</a> that
@@ -2990,9 +2988,9 @@ windows are not considered until <code class="highlighter-rouge">GroupByKey</cod
 window and key. This can have different effects on your pipeline.  Consider the
 example pipeline in the figure below:</p>
 
-<p><img src="/images/windowing-pipeline-unbounded.png" alt="Diagram of pipeline applying windowing" title="Pipeline applying windowing" /></p>
+<p><img src="/images/windowing-pipeline-unbounded.svg" alt="Diagram of pipeline applying windowing" title="Pipeline applying windowing" /></p>
 
-<p><strong>Figure:</strong> Pipeline applying windowing</p>
+<p><strong>Figure 3:</strong> Pipeline applying windowing</p>
 
 <p>In the above pipeline, we create an unbounded <code class="highlighter-rouge">PCollection</code> by reading a set of
 key/value pairs using <code class="highlighter-rouge">KafkaIO</code>, and then apply a windowing function to that
@@ -3020,9 +3018,9 @@ transform in the Beam SDK for Java).</p>
 <p>To illustrate how windowing with a bounded <code class="highlighter-rouge">PCollection</code> can affect how your
 pipeline processes data, consider the following pipeline:</p>
 
-<p><img src="/images/unwindowed-pipeline-bounded.png" alt="Diagram of GroupByKey and ParDo without windowing, on a bounded collection" title="GroupByKey and ParDo without windowing, on a bounded collection" /></p>
+<p><img src="/images/unwindowed-pipeline-bounded.svg" alt="Diagram of GroupByKey and ParDo without windowing, on a bounded collection" title="GroupByKey and ParDo without windowing, on a bounded collection" /></p>
 
-<p><strong>Figure:</strong> <code class="highlighter-rouge">GroupByKey</code> and <code class="highlighter-rouge">ParDo</code> without windowing, on a bounded collection.</p>
+<p><strong>Figure 4:</strong> <code class="highlighter-rouge">GroupByKey</code> and <code class="highlighter-rouge">ParDo</code> without windowing, on a bounded collection.</p>
 
 <p>In the above pipeline, we create a bounded <code class="highlighter-rouge">PCollection</code> by reading a set of
 key/value pairs using <code class="highlighter-rouge">TextIO</code>. We then group the collection using <code class="highlighter-rouge">GroupByKey</code>,
@@ -3035,9 +3033,9 @@ all elements in your <code class="highlighter-rouge">PCollection</code> are assi
 
 <p>Now, consider the same pipeline, but using a windowing function:</p>
 
-<p><img src="/images/windowing-pipeline-bounded.png" alt="Diagram of GroupByKey and ParDo with windowing, on a bounded collection" title="GroupByKey and ParDo with windowing, on a bounded collection" /></p>
+<p><img src="/images/windowing-pipeline-bounded.svg" alt="Diagram of GroupByKey and ParDo with windowing, on a bounded collection" title="GroupByKey and ParDo with windowing, on a bounded collection" /></p>
 
-<p><strong>Figure:</strong> <code class="highlighter-rouge">GroupByKey</code> and <code class="highlighter-rouge">ParDo</code> with windowing, on a bounded collection.</p>
+<p><strong>Figure 5:</strong> <code class="highlighter-rouge">GroupByKey</code> and <code class="highlighter-rouge">ParDo</code> with windowing, on a bounded collection.</p>
 
 <p>As before, the pipeline creates a bounded <code class="highlighter-rouge">PCollection</code> of key/value pairs. We
 then set a <a href="#setting-your-pcollections-windowing-function">windowing function</a>
@@ -3082,7 +3080,7 @@ the second window, and so on.</p>
 
 <p><img src="/images/fixed-time-windows.png" alt="Diagram of fixed time windows, 30s in duration" title="Fixed time windows, 30s in duration" /></p>
 
-<p><strong>Figure:</strong> Fixed time windows, 30s in duration.</p>
+<p><strong>Figure 6:</strong> Fixed time windows, 30s in duration.</p>
 
 <h4 id="sliding-time-windows">7.2.2. Sliding time windows</h4>
 
@@ -3101,7 +3099,7 @@ example.</p>
 
 <p><img src="/images/sliding-time-windows.png" alt="Diagram of sliding time windows, with 1 minute window duration and 30s window period" title="Sliding time windows, with 1 minute window duration and 30s window period" /></p>
 
-<p><strong>Figure:</strong> Sliding time windows, with 1 minute window duration and 30s window
+<p><strong>Figure 7:</strong> Sliding time windows, with 1 minute window duration and 30s window
 period.</p>
 
 <h4 id="session-windows">7.2.3. Session windows</h4>
@@ -3116,7 +3114,7 @@ the start of a new window.</p>
 
 <p><img src="/images/session-windows.png" alt="Diagram of session windows with a minimum gap duration" title="Session windows, with a minimum gap duration" /></p>
 
-<p><strong>Figure:</strong> Session windows, with a minimum gap duration. Note how each data key
+<p><strong>Figure 8:</strong> Session windows, with a minimum gap duration. Note how each data key
 has different windows, according to its data distribution.</p>
 
 <h4 id="single-global-window">7.2.4. The single global window</h4>
