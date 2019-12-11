@@ -277,16 +277,16 @@ class TestProtoSchemas {
           .build();
 
   // The schema for the OneOf proto.
-  static List<Field> ONEOF_FIELDS =
+  private static final List<Field> ONEOF_FIELDS =
       ImmutableList.of(
           Field.of("oneof_int32", withFieldNumber(FieldType.INT32, 2)),
           Field.of("oneof_bool", withFieldNumber(FieldType.BOOLEAN, 3)),
           Field.of("oneof_string", withFieldNumber(FieldType.STRING, 4)),
           Field.of("oneof_primitive", withFieldNumber(FieldType.row(PRIMITIVE_SCHEMA), 5)));
-  private static Map<String, Integer> ONE_OF_ENUM_MAP =
+  private static final Map<String, Integer> ONE_OF_ENUM_MAP =
       ONEOF_FIELDS.stream()
           .collect(Collectors.toMap(Field::getName, f -> getFieldNumber(f.getType())));
-  static OneOfType ONE_OF_TYPE = OneOfType.create(ONEOF_FIELDS, ONE_OF_ENUM_MAP);
+  static final OneOfType ONE_OF_TYPE = OneOfType.create(ONEOF_FIELDS, ONE_OF_ENUM_MAP);
   static final Schema ONEOF_SCHEMA =
       Schema.builder()
           .addField("special_oneof", FieldType.logicalType(ONE_OF_TYPE))
@@ -323,14 +323,15 @@ class TestProtoSchemas {
       OneOf.newBuilder().setOneofPrimitive(PRIMITIVE_PROTO).setPlace1("foo").setPlace2(0).build();
 
   // The schema for the OuterOneOf proto.
-  static List<Field> OUTER_ONEOF_FIELDS =
+  private static final List<Field> OUTER_ONEOF_FIELDS =
       ImmutableList.of(
           Field.of("oneof_oneof", withFieldNumber(FieldType.row(ONEOF_SCHEMA), 1)),
           Field.of("oneof_int32", withFieldNumber(FieldType.INT32, 2)));
-  static Map<String, Integer> OUTER_ONE_OF_ENUM_MAP =
+  private static final Map<String, Integer> OUTER_ONE_OF_ENUM_MAP =
       OUTER_ONEOF_FIELDS.stream()
           .collect(Collectors.toMap(Field::getName, f -> getFieldNumber(f.getType())));
-  static OneOfType OUTER_ONEOF_TYPE = OneOfType.create(OUTER_ONEOF_FIELDS, OUTER_ONE_OF_ENUM_MAP);
+  static final OneOfType OUTER_ONEOF_TYPE =
+      OneOfType.create(OUTER_ONEOF_FIELDS, OUTER_ONE_OF_ENUM_MAP);
   static final Schema OUTER_ONEOF_SCHEMA =
       Schema.builder().addField("outer_oneof", FieldType.logicalType(OUTER_ONEOF_TYPE)).build();
 

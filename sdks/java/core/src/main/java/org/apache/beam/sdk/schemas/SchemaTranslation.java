@@ -316,7 +316,7 @@ public class SchemaTranslation {
     for (Map.Entry entry : map.entrySet()) {
       MapTypeEntry mapProtoEntry =
           MapTypeEntry.newBuilder()
-              .setKey(rowFieldToProto(keyType, entry.getValue()))
+              .setKey(rowFieldToProto(keyType, entry.getKey()))
               .setValue(rowFieldToProto(valueType, entry.getValue()))
               .build();
       builder.addEntries(mapProtoEntry);

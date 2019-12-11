@@ -31,7 +31,7 @@ public class ProtoSchemaLogicalTypes {
   public abstract static class NanosType<T> implements LogicalType<T, Row> {
     private final String identifier;
 
-    private static Schema SCHEMA =
+    private static final Schema SCHEMA =
         Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
 
     protected NanosType(String identifier) {
