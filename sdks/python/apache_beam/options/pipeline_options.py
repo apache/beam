@@ -991,6 +991,26 @@ class FlinkRunnerOptions(PipelineOptions):
                              ' cluster address.  Requires Python 3.6+.')
 
 
+class SparkRunnerOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--spark_master_url',
+                        default='local[4]',
+                        help='Spark master URL (spark://HOST:PORT). '
+                             'Use "local" (single-threaded) or "local[*]" '
+                             '(multi-threaded) to start a local cluster for '
+                             'the execution.')
+    parser.add_argument('--spark_job_server_jar',
+                        help='Path or URL to a Beam Spark jobserver jar.')
+    parser.add_argument('--spark_submit_uber_jar',
+                        default=False,
+                        action='store_true',
+                        help='Create and upload an uber jar to the Spark master'
+                             ' directly, rather than starting up a job server.'
+                             ' Only applies when Spark master is set to a'
+                             ' cluster address. Requires Python 3.6+.')
+
+
 class TestOptions(PipelineOptions):
 
   @classmethod
