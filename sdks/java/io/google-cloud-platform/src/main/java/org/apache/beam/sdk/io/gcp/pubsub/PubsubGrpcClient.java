@@ -51,6 +51,8 @@ import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -63,25 +65,54 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** A helper class for talking to Pubsub via grpc. */
 public class PubsubGrpcClient extends PubsubClient {
-  private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
-  private static final int PUBSUB_PORT = 443;
   private static final int LIST_BATCH_SIZE = 1000;
 
   private static final int DEFAULT_TIMEOUT_S = 15;
+
+  private static ManagedChannel channelForRootUrl(String urlString) throws IOException {
+    URL url;
+    try {
+      url = new URL(urlString);
+    } catch (MalformedURLException e) {
+      throw new IllegalArgumentException(
+          String.format("Could not parse pubsub root url \"%s\"", urlString), e);
+    }
+
+    int port = url.getPort();
+
+    if (port < 0) {
+      switch (url.getProtocol()) {
+        case "https":
+          port = 443;
+          break;
+        case "http":
+          port = 80;
+          break;
+        default:
+          throw new IllegalArgumentException(
+              String.format(
+                  "Could not determine port for pubsub root url \"%s\". You must either specify the port or use the protocol \"https\" or \"http\"",
+                  urlString));
+      }
+    }
+
+    return NettyChannelBuilder.forAddress(url.getHost(), port)
+        .negotiationType(NegotiationType.TLS)
+        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
+        .build();
+  }
 
   private static class PubsubGrpcClientFactory implements PubsubClientFactory {
     @Override
     public PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
-      ManagedChannel channel =
-          NettyChannelBuilder.forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
-              .negotiationType(NegotiationType.TLS)
-              .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-              .build();
-
       return new PubsubGrpcClient(
-          timestampAttribute, idAttribute, DEFAULT_TIMEOUT_S, channel, options.getGcpCredential());
+          timestampAttribute,
+          idAttribute,
+          DEFAULT_TIMEOUT_S,
+          channelForRootUrl(options.getPubsubRootUrl()),
+          options.getGcpCredential());
     }
 
     @Override
