@@ -480,6 +480,7 @@ public class RabbitMqIO {
       private final Write spec;
 
       private UUID writerId;
+      private transient Channel channel;
       private transient ChannelLeaser channelLeaser;
 
       WriteFn(Write spec) {
@@ -494,8 +495,9 @@ public class RabbitMqIO {
         if (channelLeaser == null) {
           channelLeaser = spec.connectionHandlerProviderFn().apply(null);
         }
-
-        Channel channel = channelLeaser.acquireChannel(writerId);
+        if (channel == null) {
+          channel = channelLeaser.acquireChannel(writerId);
+        }
 
         if (spec.exchange() != null && spec.exchangeDeclare()) {
           channel.exchangeDeclare(spec.exchange(), spec.exchangeType());
@@ -508,7 +510,6 @@ public class RabbitMqIO {
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
         RabbitMqMessage message = c.element();
-        Channel channel = channelLeaser.acquireChannel(writerId);
 
         // TODO: get rid of 'exchange' vs 'queue'
         if (spec.exchange() != null) {
@@ -526,7 +527,11 @@ public class RabbitMqIO {
       }
 
       @Teardown
-      public void teardown() throws Exception {}
+      public void teardown() throws Exception {
+        if (channelLeaser != null && writerId != null) {
+          channelLeaser.returnChannel(writerId);
+        }
+      }
     }
   }
 }
