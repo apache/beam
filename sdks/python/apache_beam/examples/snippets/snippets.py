@@ -174,15 +174,6 @@ def model_pipelines(argv):
 
 def model_pcollection(argv):
   """Creating a PCollection from data in local memory."""
-  class MyOptions(PipelineOptions):
-
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_argument('--output',
-                          dest='output',
-                          required=True,
-                          help='Output file to write results to.')
-
   # [START model_pcollection]
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
@@ -200,6 +191,14 @@ def model_pcollection(argv):
         ])
     )
     # [END model_pcollection]
+
+    class MyOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument('--output',
+                            dest='output',
+                            required=True,
+                            help='Output file to write results to.')
 
     my_options = pipeline_options.view_as(MyOptions)
     lines | beam.io.WriteToText(my_options.output)
