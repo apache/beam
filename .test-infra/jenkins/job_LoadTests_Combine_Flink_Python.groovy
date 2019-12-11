@@ -105,9 +105,9 @@ def batchLoadTestJob = { scope, triggeringContext ->
     List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
     publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
-    publisher.publish(':runners:flink:1.9:job-server-container:docker', 'flink-job-server')
+    publisher.publish(':runners:flink:1.9:job-server-container:docker', 'flink1.9_job_server')
     def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
-    flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
+    flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink1.9_job_server'))
 
     defineTestSteps(scope, testScenarios, [
             'Combine Python Load test: 2GB Fanout 4',
