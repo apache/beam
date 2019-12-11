@@ -89,17 +89,32 @@ tableElement: columnName fieldType [ NOT NULL ]
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
 LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
+TBLPROPERTIES '{"method": "DEFAULT"}'
 ```
 
-*   `LOCATION:`Location of the table in the BigQuery CLI format.
-    *   `PROJECT_ID`: ID of the Google Cloud Project
-    *   `DATASET`: BigQuery Dataset ID
-    *   `TABLE`: BigQuery Table ID within the Dataset
+*   `LOCATION`: Location of the table in the BigQuery CLI format.
+    *   `PROJECT_ID`: ID of the Google Cloud Project.
+    *   `DATASET`: BigQuery Dataset ID.
+    *   `TABLE`: BigQuery Table ID within the Dataset.
+*   `TBLPROPERTIES`:
+    *   `method`: Optional. Read method to use. Following options are available:
+        *   `DEFAULT`: If no property is set, will be used as default. Currently uses `EXPORT`.
+        *   `DIRECT_READ`: Use the BigQuery Storage API.
+        *   `EXPORT`: Export data to Google Cloud Storage in Avro format and read data files from that location.
 
 ### Read Mode
 
 Beam SQL supports reading columns with simple types (`simpleType`) and arrays of simple
 types (`ARRAY<simpleType>`).
+
+When reading using `EXPORT` method the following pipeline options should be set:
+*   `project`: ID of the Google Cloud Project.
+*   `tempLocation`: Bucket to store intermediate data in. Ex: `gs://temp-storage/temp`.
+
+When reading using `DIRECT_READ` method, an optimizer will attempt to perform
+project and predicate push-down, potentially reducing the time requited to read the data from BigQuery.
+
+More information about the BigQuery Storage API can be found [here](https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api).
 
 ### Write Mode
 
