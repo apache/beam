@@ -24,11 +24,25 @@ from __future__ import absolute_import
 
 import types
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Callable
+from typing import Iterable
+from typing import Optional
+from typing import Set
+from typing import Tuple
+from typing import TypeVar
 
 from apache_beam.coders import Coder
 from apache_beam.coders import coders
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
+
+if TYPE_CHECKING:
+  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.transforms.core import CombineFn
+
+CallableT = TypeVar('CallableT', bound=Callable)
 
 
 class StateSpec(object):
@@ -48,12 +62,14 @@ class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
 
   def __init__(self, name, coder):
+    # type: (str, Coder) -> None
     assert isinstance(name, str)
     assert isinstance(coder, Coder)
     self.name = name
     self.coder = coder
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
             element_coder_id=context.coders.get_id(self.coder)))
@@ -63,6 +79,7 @@ class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
 
   def __init__(self, name, coder):
+    # type: (str, Coder) -> None
     if not isinstance(name, str):
       raise TypeError("SetState name is not a string")
     if not isinstance(coder, Coder):
@@ -80,6 +97,7 @@ class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
 
   def __init__(self, name, coder=None, combine_fn=None):
+    # type: (str, Optional[Coder], Any) -> None
     """Initialize the specification for CombiningValue state.
 
     CombiningValueStateSpec(name, combine_fn) -> Coder-inferred combining value
@@ -118,6 +136,7 @@ class CombiningValueStateSpec(StateSpec):
     self.coder = coder
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
@@ -138,6 +157,7 @@ class TimerSpec(object):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.TimerSpec
     return beam_runner_api_pb2.TimerSpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_coder_id=context.coders.get_id(
@@ -145,6 +165,7 @@ class TimerSpec(object):
 
 
 def on_timer(timer_spec):
+  # type: (TimerSpec) -> Callable[[CallableT], CallableT]
   """Decorator for timer firing DoFn method.
 
   This decorator allows a user to specify an on_timer processing method
@@ -174,6 +195,7 @@ def on_timer(timer_spec):
 
 
 def get_dofn_specs(dofn):
+  # type: (...) -> Tuple[Set[StateSpec], Set[TimerSpec]]
   """Gets the state and timer specs for a DoFn, if any.
 
   Args:
@@ -274,12 +296,19 @@ class RuntimeState(object):
 
 class AccumulatingRuntimeState(RuntimeState):
   def read(self):
+    # type: () -> Iterable[Any]
     raise NotImplementedError(type(self))
 
   def add(self, value):
+    # type: (Any) -> None
     raise NotImplementedError(type(self))
 
   def clear(self):
+    # type: () -> None
+    raise NotImplementedError(type(self))
+
+  def commit(self):
+    # type: () -> None
     raise NotImplementedError(type(self))
 
 

@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 from builtins import object
+from typing import Tuple
 
 from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
@@ -66,6 +67,7 @@ class OffsetRange(object):
       current_split_start = current_split_stop
 
   def split_at(self, split_pos):
+    # type: (...) -> Tuple[OffsetRange, OffsetRange]
     return OffsetRange(self.start, split_pos), OffsetRange(split_pos, self.stop)
 
   def new_tracker(self):
@@ -82,6 +84,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
   """
 
   def __init__(self, offset_range):
+    # type: (OffsetRange) -> None
     assert isinstance(offset_range, OffsetRange)
     self._range = offset_range
     self._current_position = None
@@ -101,6 +104,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
     return self._range
 
   def current_progress(self):
+    # type: () -> RestrictionProgress
     if self._current_position is None:
       fraction = 0.0
     elif self._range.stop == self._range.start:

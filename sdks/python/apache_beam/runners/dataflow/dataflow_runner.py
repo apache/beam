@@ -65,13 +65,12 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
 
-try:                    # Python 3
+if sys.version_info[0] > 2:
   unquote_to_bytes = urllib.parse.unquote_to_bytes
   quote = urllib.parse.quote
-except AttributeError:  # Python 2
-  # pylint: disable=deprecated-urllib-function
-  unquote_to_bytes = urllib.unquote
-  quote = urllib.quote
+else:
+  unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
+  quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 
 
 __all__ = ['DataflowRunner']
@@ -493,8 +492,8 @@ class DataflowRunner(PipelineRunner):
     # inputs, hence we enforce that here.
     pipeline.visit(self.flatten_input_visitor())
 
-    # The superclass's run will trigger a traversal of all reachable nodes.
-    super(DataflowRunner, self).run_pipeline(pipeline, options)
+    # Trigger a traversal of all reachable nodes.
+    self.visit_transforms(pipeline, options)
 
     test_options = options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.

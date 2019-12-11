@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from future.utils import iteritems
 
@@ -139,6 +140,7 @@ class GCSFileSystem(FileSystem):
 
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a write channel for the given file path.
 
     Args:
@@ -152,6 +154,7 @@ class GCSFileSystem(FileSystem):
 
   def open(self, path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a read channel for the given file path.
 
     Args:

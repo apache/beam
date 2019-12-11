@@ -19,8 +19,16 @@
 
 from __future__ import absolute_import
 
+from typing import TYPE_CHECKING
+from typing import Dict
+from typing import List
+from typing import Set
+
 from apache_beam import pvalue
 from apache_beam.pipeline import PipelineVisitor
+
+if TYPE_CHECKING:
+  from apache_beam.pipeline import AppliedPTransform
 
 
 class ConsumerTrackingPipelineVisitor(PipelineVisitor):
@@ -34,14 +42,15 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
   """
 
   def __init__(self):
-    self.value_to_consumers = {}  # Map from PValue to [AppliedPTransform].
-    self.root_transforms = set()  # set of (root) AppliedPTransforms.
-    self.views = []               # list of side inputs.
-    self.step_names = {}          # Map from AppliedPTransform to String.
+    self.value_to_consumers = {}  # type: Dict[pvalue.PValue, List[AppliedPTransform]]
+    self.root_transforms = set()  # type: Set[AppliedPTransform]
+    self.views = []  # type: List[pvalue.AsSideInput]
+    self.step_names = {}  # type: Dict[AppliedPTransform, str]
 
     self._num_transforms = 0
 
   def visit_transform(self, applied_ptransform):
+    # type: (AppliedPTransform) -> None
     inputs = list(applied_ptransform.inputs)
     if inputs:
       for input_value in inputs:

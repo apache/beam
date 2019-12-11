@@ -250,6 +250,7 @@ class _DirectReadFromPubSub(PTransform):
 
   def _infer_output_coder(self, unused_input_type=None,
                           unused_input_coder=None):
+    # type: (...) -> typing.Optional[coders.Coder]
     return coders.BytesCoder()
 
   def get_windowing(self, inputs):

@@ -82,7 +82,7 @@ class Variant(object):
 
   Each object corresponds to a single record in a VCF file.
   """
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __init__(self,
                reference_name=None,
@@ -202,7 +202,7 @@ class VariantCall(object):
   variant. It may include associated information such as quality and phasing.
   """
 
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __init__(self, name=None, genotype=None, phaseset=None, info=None):
     """Initialize the :class:`VariantCall` object.

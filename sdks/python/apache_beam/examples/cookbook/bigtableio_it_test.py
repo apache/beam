@@ -24,6 +24,8 @@ import random
 import string
 import unittest
 import uuid
+from typing import TYPE_CHECKING
+from typing import List
 
 import pytz
 
@@ -47,8 +49,10 @@ except ImportError:
   _microseconds_from_datetime = lambda label_stamp: label_stamp
   _datetime_from_microseconds = lambda micro: micro
 
+if TYPE_CHECKING:
+  import google.cloud.bigtable.instance
 
-EXISTING_INSTANCES = []
+EXISTING_INSTANCES = []  # type: List[google.cloud.bigtable.instance.Instance]
 LABEL_KEY = u'python-bigtable-beam'
 label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
 label_stamp_micros = _microseconds_from_datetime(label_stamp)
