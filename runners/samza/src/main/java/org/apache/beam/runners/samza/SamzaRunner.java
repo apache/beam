@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
+  private static final String BEAM_DOT_GRAPH = "beamDotGraph";
 
   public static SamzaRunner fromOptions(PipelineOptions opts) {
     final SamzaPipelineOptions samzaOptions =
@@ -74,8 +75,12 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   }
 
   public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
+    final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
+    LOG.info("Portable pipeline to run:\n{}", dotGraph);
+
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder, options);
+    configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);
@@ -109,12 +114,14 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
 
-    LOG.info("Beam pipeline DOT graph:\n{}", PipelineDotRenderer.toDotString(pipeline));
+    final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
+    LOG.info("Beam pipeline DOT graph:\n{}", dotGraph);
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
-
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
+
     SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);
