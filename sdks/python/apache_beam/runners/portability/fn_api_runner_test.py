@@ -31,6 +31,7 @@ import typing
 import unittest
 import uuid
 from builtins import range
+from typing import Dict
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
@@ -1485,7 +1486,7 @@ class ElementCounter(object):
     return _unpickle_element_counter, (name,)
 
 
-_pickled_element_counters = {}
+_pickled_element_counters = {}  # type: Dict[str, ElementCounter]
 
 
 def _unpickle_element_counter(name):

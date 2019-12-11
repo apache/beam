@@ -30,11 +30,11 @@ from future.utils import with_metaclass
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam import core
 from apache_beam import pvalue
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import PTransform
+from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
@@ -50,7 +50,7 @@ __all__ = [
 
 
 @total_ordering
-class Event(with_metaclass(ABCMeta, object)):
+class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   """Test stream event to be emitted during execution of a TestStream."""
 
   @abstractmethod

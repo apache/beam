@@ -32,6 +32,9 @@ check.dependsOn lint
 toxTask "lintPy37", "py37-lint"
 lint.dependsOn lintPy37
 
+toxTask "mypyPy37", "py37-mypy"
+lint.dependsOn mypyPy37
+
 toxTask "testPython37", "py37"
 test.dependsOn testPython37
 

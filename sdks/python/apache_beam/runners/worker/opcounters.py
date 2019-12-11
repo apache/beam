@@ -27,10 +27,16 @@ import math
 import random
 from builtins import hex
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Optional
 
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
+
+if TYPE_CHECKING:
+  from apache_beam.utils import windowed_value
+  from apache_beam.runners.worker.statesampler import StateSampler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -122,8 +128,12 @@ class SideInputReadCounter(TransformIOCounter):
   not be the only step that spends time reading from this side input.
   """
 
-  def __init__(self, counter_factory, state_sampler, declaring_step,
-               input_index):
+  def __init__(self,
+               counter_factory,
+               state_sampler,  # type: StateSampler
+               declaring_step,
+               input_index
+              ):
     """Create a side input read counter.
 
     Args:
@@ -177,7 +187,12 @@ class SumAccumulator(object):
 class OperationCounters(object):
   """The set of basic counters to attach to an Operation."""
 
-  def __init__(self, counter_factory, step_name, coder, output_index):
+  def __init__(self,
+               counter_factory,
+               step_name,  # type: str
+               coder,
+               output_index
+              ):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
         '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
@@ -185,12 +200,13 @@ class OperationCounters(object):
         '%s-out%s-MeanByteCount' % (step_name, output_index),
         Counter.BEAM_DISTRIBUTION)
     self.coder_impl = coder.get_impl() if coder else None
-    self.active_accumulator = None
-    self.current_size = None
+    self.active_accumulator = None  # type: Optional[SumAccumulator]
+    self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
 
   def update_from(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
     """Add one value to this counter."""
     if self._should_sample():
       self.do_sample(windowed_value)
@@ -210,6 +226,7 @@ class OperationCounters(object):
     return _observable_callback_inner
 
   def do_sample(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
     if not observables:
