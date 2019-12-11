@@ -208,18 +208,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
       }
       // The thread that sends log records should never perform a blocking publish and
       // only insert log records best effort.
-      if (Thread.currentThread() != logEntryHandlerThread) {
-        // Blocks caller till enough space exists to publish this log entry.
-        try {
-          bufferedLogEntries.put(builder.build());
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
-        }
-      } else {
-        // Never blocks caller, will drop log message if buffer is full.
-        bufferedLogEntries.offer(builder.build());
-      }
+      bufferedLogEntries.offer(builder.build());
     }
 
     @Override
