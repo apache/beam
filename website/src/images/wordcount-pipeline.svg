@@ -26,7 +26,7 @@
 	        </text>
 	        <circle id="PCollection-symbol" fill="#FFFFFF" stroke="#757575" stroke-width="2" cx="7.5" cy="45.5" r="7.5"></circle>
 	        <text id="Aggregation" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
-	            <tspan x="162" y="17">Aggregation</tspan>
+	            <tspan x="162" y="17">Aggregating PTransform</tspan>
 	        </text>
 	        <path d="M143.364341,4 L154,11.4782609 L143.364341,19 L133,11.5217391 L143.364341,4 Z" id="Aggregation-PTransform-symbol" fill="#3062A8"></path>
 	        <text id="PTransform" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">

@@ -108,7 +108,7 @@
 	            <tspan x="22" y="17">PTransform</tspan>
 	        </text>
 	        <text id="Aggregation" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
-	            <tspan x="162" y="17">Aggregation</tspan>
+	            <tspan x="162" y="17">Aggregating PTransform</tspan>
 	        </text>
 	        <text id="PCollection" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
 	            <tspan x="22" y="52">PCollection</tspan>
