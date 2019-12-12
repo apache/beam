@@ -26,26 +26,20 @@ import org.apache.beam.sdk.values.Row;
  * table (or query) it was generated from.
  */
 public class SchemaAndRecord {
-  private final GenericRecord record;
-  private final Row row;
+  private final Object record;
   private final TableSchema tableSchema;
 
-  public SchemaAndRecord(GenericRecord record, Row row, TableSchema tableSchema) {
+  public SchemaAndRecord(Object record, TableSchema tableSchema) {
     this.record = record;
-    this.row = row;
     this.tableSchema = tableSchema;
   }
 
-  public SchemaAndRecord(GenericRecord record, TableSchema tableSchema) {
-    this(record, null, tableSchema);
-  }
-
   public GenericRecord getRecord() {
-    return record;
+    return record instanceof GenericRecord ? (GenericRecord) record : null;
   }
 
   public Row getRow() {
-    return row;
+    return record instanceof Row ? (Row) record : null;
   }
 
   public TableSchema getTableSchema() {

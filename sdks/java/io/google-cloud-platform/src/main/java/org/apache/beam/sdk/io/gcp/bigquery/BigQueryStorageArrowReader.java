@@ -70,6 +70,11 @@ public class BigQueryStorageArrowReader implements BigQueryStorageReader {
   }
 
   @Override
+  public void resetBuffer() {
+    recordBatchIterable = null;
+  }
+
+  @Override
   public void close() {
     vectorRoot.close();
     alloc.close();

@@ -34,8 +34,6 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryDecoder;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -45,7 +43,6 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -157,8 +154,6 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private BigQueryStorageStreamSource<T> source;
     private BigQueryServerStream<ReadRowsResponse> responseStream;
     private Iterator<ReadRowsResponse> responseIterator;
-    private BinaryDecoder decoder;
-    private GenericRecord record;
     private T current;
     private long currentOffset;
 
@@ -172,10 +167,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
       this.source = source;
-
-      // Universal
       this.reader = BigQueryStorageReaderFactory.getReader(source.readSession);
-
       this.parseFn = source.parseFn;
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
@@ -241,11 +233,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
             fractionConsumedFromPreviousResponse);
       }
 
-      Object obj = reader.readSingleRecord();
-      GenericRecord record = obj instanceof GenericRecord ? (GenericRecord) obj : null;
-      Row row = obj instanceof Row ? (Row) obj : null;
-
-      current = parseFn.apply(new SchemaAndRecord(record, row, tableSchema));
+      current = parseFn.apply(new SchemaAndRecord(reader.readSingleRecord(), tableSchema));
 
       // Updates the fraction consumed value. This value is calculated by interpolating between
       // the fraction consumed value from the previous server response (or zero if we're consuming
@@ -360,7 +348,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         // easier to perform as state from the previous response will not need to be maintained.
         fractionConsumedFromCurrentResponse = fractionConsumed;
 
-        decoder = null;
+        reader.resetBuffer();
       }
 
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
