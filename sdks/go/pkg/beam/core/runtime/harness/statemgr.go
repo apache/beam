@@ -347,16 +347,17 @@ func (c *StateChannel) read(ctx context.Context) {
 func (c *StateChannel) write(ctx context.Context) {
 	var err error
 	var id string
-	for req := range c.requests {
+	for {
+		var req *pb.StateRequest
+		select {
+		case req = <-c.requests:
+		case <-c.DoneCh: // Close the goroutine on context cancel.
+			return
+		}
 		err = c.client.Send(req)
 		if err != nil {
 			id = req.Id
 			break // non-nil errors mean the stream is broken and can't be re-used.
-		}
-		select {
-		case <-c.DoneCh: // Close the goroutine on context cancel.
-			return
-		default: // Continue around the loop here.
 		}
 	}
 
