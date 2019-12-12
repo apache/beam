@@ -22,7 +22,12 @@ import java.io.IOException;
 import java.util.UUID;
 
 public interface ChannelLeaser {
-  Channel acquireChannel(UUID lesseeId) throws IOException;
+  @FunctionalInterface
+  interface UseChannelFunction<T> {
+    T apply(Channel channel) throws IOException;
+  }
 
-  void returnChannel(UUID lessee);
+  <T> T useChannel(UUID lesseeId, UseChannelFunction<T> f) throws IOException;
+
+  void closeChannel(UUID lessee);
 }

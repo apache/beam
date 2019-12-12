@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.rabbitmq;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.MessageProperties;
 import java.io.IOException;
 import java.util.UUID;
@@ -480,7 +479,6 @@ public class RabbitMqIO {
       private final Write spec;
 
       private UUID writerId;
-      private transient Channel channel;
       private transient ChannelLeaser channelLeaser;
 
       WriteFn(Write spec) {
@@ -495,16 +493,19 @@ public class RabbitMqIO {
         if (channelLeaser == null) {
           channelLeaser = spec.connectionHandlerProviderFn().apply(null);
         }
-        if (channel == null) {
-          channel = channelLeaser.acquireChannel(writerId);
-        }
 
-        if (spec.exchange() != null && spec.exchangeDeclare()) {
-          channel.exchangeDeclare(spec.exchange(), spec.exchangeType());
-        }
-        if (spec.queue() != null && spec.queueDeclare()) {
-          channel.queueDeclare(spec.queue(), true, false, false, null);
-        }
+        ChannelLeaser.UseChannelFunction<Void> setupFn =
+            (channel) -> {
+              if (spec.exchange() != null && spec.exchangeDeclare()) {
+                channel.exchangeDeclare(spec.exchange(), spec.exchangeType());
+              }
+              if (spec.queue() != null && spec.queueDeclare()) {
+                channel.queueDeclare(spec.queue(), true, false, false, null);
+              }
+              return null;
+            };
+
+        channelLeaser.useChannel(writerId, setupFn);
       }
 
       @ProcessElement
@@ -513,23 +514,37 @@ public class RabbitMqIO {
 
         // TODO: get rid of 'exchange' vs 'queue'
         if (spec.exchange() != null) {
-          channel.basicPublish(
-              spec.exchange(),
-              message.getRoutingKey(),
-              message.createProperties(),
-              message.getBody());
+          ChannelLeaser.UseChannelFunction<Void> basicPublishFn =
+              (channel) -> {
+                channel.basicPublish(
+                    spec.exchange(),
+                    message.getRoutingKey(),
+                    message.createProperties(),
+                    message.getBody());
+                return null;
+              };
+
+          channelLeaser.useChannel(writerId, basicPublishFn);
         }
+
         if (spec.queue() != null) {
-          // TODO: what's with this ridiculous hard-coding of message props?
-          channel.basicPublish(
-              "", spec.queue(), MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBody());
+
+          ChannelLeaser.UseChannelFunction<Void> basicPublishFn =
+              (channel) -> {
+                // TODO: what's with this ridiculous hard-coding of message props?
+                channel.basicPublish(
+                    "", spec.queue(), MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBody());
+                return null;
+              };
+
+          channelLeaser.useChannel(writerId, basicPublishFn);
         }
       }
 
       @Teardown
       public void teardown() throws Exception {
-        if (channelLeaser != null && writerId != null) {
-          channelLeaser.returnChannel(writerId);
+        if (writerId != null && channelLeaser != null) {
+          channelLeaser.closeChannel(writerId);
         }
       }
     }

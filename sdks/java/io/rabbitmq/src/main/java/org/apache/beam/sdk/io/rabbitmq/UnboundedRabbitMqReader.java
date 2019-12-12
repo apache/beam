@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
-import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.GetResponse;
 import java.io.IOException;
 import java.util.NoSuchElementException;
@@ -102,25 +101,31 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
   @Override
   public boolean start() throws IOException {
     try {
-      Channel channel = checkpointMark.getChannel();
       checkpointMark.startReading();
 
       // TODO: rework all of this
       queueName = source.spec.queue();
-      if (source.spec.queueDeclare()) {
-        // declare the queue (if not done by another application)
-        // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
-        channel.queueDeclare(queueName, false, false, false, null);
-      }
-      if (source.spec.exchange() != null) {
-        if (source.spec.exchangeDeclare()) {
-          channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
-        }
-        if (queueName == null) {
-          queueName = channel.queueDeclare().getQueue();
-        }
-        channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
-      }
+
+      ChannelLeaser.UseChannelFunction<Void> setupFn =
+          (channel) -> {
+            if (source.spec.queueDeclare()) {
+              // declare the queue (if not done by another application)
+              // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
+              channel.queueDeclare(queueName, false, false, false, null);
+            }
+            if (source.spec.exchange() != null) {
+              if (source.spec.exchangeDeclare()) {
+                channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
+              }
+              if (queueName == null) {
+                queueName = channel.queueDeclare().getQueue();
+              }
+              channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
+            }
+            return null;
+          };
+
+      connectionHandler.useChannel(checkpointMark.getCheckpointId(), setupFn);
     } catch (IOException e) {
       checkpointMark.stopReading();
       throw e;
@@ -134,9 +139,11 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
   @Override
   public boolean advance() throws IOException {
     try {
-      Channel channel = checkpointMark.getChannel();
       // we consume message without autoAck (we want to do the ack ourselves)
-      GetResponse delivery = channel.basicGet(queueName, false);
+      GetResponse delivery =
+          connectionHandler.useChannel(
+              checkpointMark.getCheckpointId(), (channel) -> channel.basicGet(queueName, false));
+
       if (delivery == null) {
         currentRecord = null;
         // queue is empty, so there is no backlog

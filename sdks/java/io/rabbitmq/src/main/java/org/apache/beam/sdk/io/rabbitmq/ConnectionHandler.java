@@ -20,8 +20,12 @@ package org.apache.beam.sdk.io.rabbitmq;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.MissedHeartbeatException;
+import com.rabbitmq.client.PossibleAuthenticationFailureException;
+import com.rabbitmq.client.ShutdownSignalException;
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.ProtocolException;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -33,19 +37,38 @@ import java.util.concurrent.TimeoutException;
 class ConnectionHandler implements ChannelLeaser, Closeable {
   private final Map<UUID, Channel> channelsByLessee = new ConcurrentHashMap<>();
   private final String uri;
-  private Connection connection;
+  private volatile Connection connection;
 
   public ConnectionHandler(String uri) {
     this.uri = uri;
   }
 
   @Override
-  public Channel acquireChannel(UUID lesseeId) throws IOException {
-    return getChannel(lesseeId);
+  public <T> T useChannel(UUID lesseeId, ChannelLeaser.UseChannelFunction<T> f) throws IOException {
+    try {
+      Channel channel = getChannel(lesseeId);
+      return f.apply(channel);
+    } catch (PossibleAuthenticationFailureException
+        | ProtocolException
+        | MissedHeartbeatException e) {
+      // full Connection-level problem
+      close();
+      throw e;
+    } catch (ShutdownSignalException e) {
+      // Connection- or Channel-level, depending
+      Object cause = e.getReference();
+      if (cause instanceof Channel) {
+        closeChannel(lesseeId);
+      }
+      if (cause instanceof Connection) {
+        close();
+      }
+      throw e;
+    }
   }
 
   @Override
-  public void returnChannel(UUID lessee) {
+  public void closeChannel(UUID lessee) {
     Channel toClose = channelsByLessee.remove(lessee);
     if (toClose != null) {
       try {
@@ -58,27 +81,29 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
 
   public Channel getChannel(UUID lessee) throws IOException {
     if (connection == null) {
-      ConnectionFactory connectionFactory = new ConnectionFactory();
-      try {
-        connectionFactory.setUri(uri);
-        connectionFactory.setAutomaticRecoveryEnabled(true);
-        connectionFactory.setConnectionTimeout(60000);
-        connectionFactory.setNetworkRecoveryInterval(5000);
-        connectionFactory.setRequestedHeartbeat(60);
-        connectionFactory.setTopologyRecoveryEnabled(true);
-        connectionFactory.setRequestedChannelMax(0);
-        connectionFactory.setRequestedFrameMax(0);
-      } catch (URISyntaxException e) {
-        // full URI excluded lest it contain user/pass
-        throw new IOException("Unable to connect to rabbit; invalid URI", e);
-      } catch (NoSuchAlgorithmException | KeyManagementException e) {
-        throw new IOException("Security issue while connecting to rabbit: " + e.getMessage(), e);
-      }
+      synchronized (this) {
+        ConnectionFactory connectionFactory = new ConnectionFactory();
+        try {
+          connectionFactory.setUri(uri);
+          connectionFactory.setAutomaticRecoveryEnabled(true);
+          connectionFactory.setConnectionTimeout(60000);
+          connectionFactory.setNetworkRecoveryInterval(5000);
+          connectionFactory.setRequestedHeartbeat(60);
+          connectionFactory.setTopologyRecoveryEnabled(true);
+          connectionFactory.setRequestedChannelMax(0);
+          connectionFactory.setRequestedFrameMax(0);
+        } catch (URISyntaxException e) {
+          // full URI excluded lest it contain user/pass
+          throw new IOException("Unable to connect to rabbit; invalid URI", e);
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+          throw new IOException("Security issue while connecting to rabbit: " + e.getMessage(), e);
+        }
 
-      try {
-        connection = connectionFactory.newConnection();
-      } catch (TimeoutException e) {
-        throw new IOException("Timed out attempting to connect to rabbit", e);
+        try {
+          connection = connectionFactory.newConnection();
+        } catch (TimeoutException e) {
+          throw new IOException("Timed out attempting to connect to rabbit", e);
+        }
       }
     }
 
@@ -105,9 +130,11 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
             /* ignore */
           }
         });
+    channelsByLessee.clear();
 
     if (connection != null) {
       connection.close();
+      connection = null;
     }
   }
 }

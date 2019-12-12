@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
-import com.rabbitmq.client.Channel;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -40,7 +39,6 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
   private Instant watermark = MIN_WATERMARK_MILLIS;
 
   private transient ChannelLeaser channelLeaser;
-  private transient Channel channel;
 
   public RabbitMQCheckpointMark(ChannelLeaser channelLeaser) {
     this.checkpointId = UUID.randomUUID();
@@ -58,14 +56,6 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
 
   public void setChannelLeaser(ChannelLeaser leaser) {
     this.channelLeaser = leaser;
-    this.channel = null;
-  }
-
-  public Channel getChannel() throws IOException {
-    if (channel == null) {
-      channel = channelLeaser.acquireChannel(checkpointId);
-    }
-    return channel;
   }
 
   @Nullable
@@ -81,16 +71,25 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
     sessionIds.add(sessionId);
   }
 
+  public UUID getCheckpointId() {
+    return this.checkpointId;
+  }
+
   @Override
   public void finalizeCheckpoint() throws IOException {
-    Channel channel = getChannel();
-    for (Long sessionId : sessionIds) {
-      channel.basicAck(sessionId, false);
-    }
-    sessionIds.clear();
+    ChannelLeaser.UseChannelFunction<Void> finalizeFn =
+        (channel) -> {
+          for (Long sessionId : sessionIds) {
+            channel.basicAck(sessionId, false);
+          }
+          sessionIds.clear();
+          return null;
+        };
+
+    channelLeaser.useChannel(checkpointId, finalizeFn);
+
     if (!reading) {
-      channel = null;
-      channelLeaser.returnChannel(checkpointId);
+      channelLeaser.closeChannel(checkpointId);
     }
   }
 }
