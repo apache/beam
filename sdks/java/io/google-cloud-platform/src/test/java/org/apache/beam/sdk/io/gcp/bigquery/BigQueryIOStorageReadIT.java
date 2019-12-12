@@ -21,6 +21,7 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.DataFormat;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -93,9 +94,29 @@ public class BigQueryIOStorageReadIT {
     p.run().waitUntilFinish();
   }
 
+  private void runBigQueryIOStorageReadPipeline_inArrowFormat() {
+    Pipeline p = Pipeline.create(options);
+    PCollection<Long> count =
+        p.apply(
+            "Read",
+            BigQueryIO.read(TableRowParser.INSTANCE)
+                .from(options.getInputTable())
+                .withMethod(Method.DIRECT_READ)
+                .withFormat(DataFormat.ARROW))
+            .apply("Count", Count.globally());
+    PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());
+    p.run().waitUntilFinish();
+  }
+
   @Test
   public void testBigQueryStorageRead1G() throws Exception {
     setUpTestEnvironment("1G");
     runBigQueryIOStorageReadPipeline();
+  }
+
+  @Test
+  public void testBigQueryStorageRead1G_inArrowFormat() throws Exception {
+    setUpTestEnvironment("1G");
+    runBigQueryIOStorageReadPipeline_inArrowFormat();
   }
 }
