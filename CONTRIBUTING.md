@@ -27,8 +27,19 @@ for details, such as:
 * Development setup and testing your changes
 * Submitting a pull request and finding a reviewer
 
-To build and install the whole project from the source distribution, you may need some additional tools installed in your system.
-In a Debian-based distribution:
+To build and install the whole project from the source distribution,
+you need additional tools installed in your system including:
+
+* JDK 8 or later
+* Python 3
+* pip
+* setuptools
+* Go 1.12 or later
+* virtualenv
+* tox
+* Docker
+
+To install these in a Debian-based distribution:
 
 ```
 sudo apt-get install \
@@ -40,5 +51,5 @@ sudo apt-get install \
     docker-ce
 ```
 
-Then please use the standard `./gradlew build` command.
+Then use the standard `./gradlew build` command.
 
