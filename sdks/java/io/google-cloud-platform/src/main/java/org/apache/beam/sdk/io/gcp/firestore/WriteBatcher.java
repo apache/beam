@@ -20,10 +20,16 @@ package org.apache.beam.sdk.io.gcp.firestore;
 
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
-/** Determines batch sizes for commit RPCs. */
+import java.io.Serializable;
+
+/**
+ * Determines batch sizes for commit RPCs.
+ */
 @VisibleForTesting
-interface WriteBatcher {
-    /** Call before using this WriteBatcher. */
+interface WriteBatcher extends Serializable {
+    /**
+     * Call before using this WriteBatcher.
+     */
     void start();
 
     /**
@@ -31,7 +37,9 @@ interface WriteBatcher {
      */
     void addRequestLatency(long timeSinceEpochMillis, long latencyMillis, int numMutations);
 
-    /** Returns the number of entities to include in the next CommitRequest. */
+    /**
+     * Returns the number of entities to include in the next CommitRequest.
+     */
     int nextBatchSize(long timeSinceEpochMillis);
 }
 

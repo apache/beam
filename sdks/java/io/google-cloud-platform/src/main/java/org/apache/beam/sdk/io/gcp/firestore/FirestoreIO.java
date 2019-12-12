@@ -15,62 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.firestore;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.options.ValueProvider;
 
-import javax.annotation.Nullable;
-
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
+/**
+ * {@link FirestoreIO} provides an API for reading from and writing to <a
+ * href="https://developers.google.com/firestore/">Google Cloud Firestore</a> over different
+ * versions of the Cloud Firestore Client libraries.
+ *
+ * <p>To use the v1 version see {@link FirestoreV1}.
+ */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class FirestoreIO {
 
-    public Write write() {
-        return new Write(null, null, null);
+    private FirestoreIO() {
     }
 
-    public static class Write extends Mutate {
-        Write(@Nullable ValueProvider<String> projectId, String collectionId, @Nullable String keyId) {
-            super(projectId, collectionId, keyId);
-        }
-
-        /**
-         * Returns a new {@link Write} that writes to the Cloud Firestore for the specified project.
-         */
-        public Write withProjectId(String projectId) {
-            checkArgument(projectId != null, "projectId can not be null");
-            return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
-        }
-
-        /**
-         * Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}.
-         */
-        public Write withProjectId(ValueProvider<String> projectId) {
-            checkArgument(projectId != null, "projectId can not be null");
-            return new Write(projectId, collectionId, keyId);
-        }
-
-        /**
-         * Returns a new {@link Write} that writes to the Cloud Firestore for the specified [collection](https://cloud.google.com/firestore/docs/data-model).
-         */
-        public Write withCollectionId(String collectionId) {
-            checkArgument(collectionId != null, "collectionId can not be null");
-            return new Write(projectId, collectionId, keyId);
-        }
-
-        /**
-         * Returns a new {@link Write} that writes to the Cloud Firestore for the specified [collection key](https://cloud.google.com/firestore/docs/data-model).
-         */
-        public Write withKeyId(String keyId) {
-            checkArgument(keyId != null, "keyId can not be null");
-            return new Write(projectId, collectionId, keyId);
-        }
-
-        public Write build() {
-            return new Write(projectId, collectionId, keyId);
-        }
+    /**
+     * Returns a {@link FirestoreV1} that provides an API for accessing Cloud Firestore through v1
+     * version of Firestore Client library.
+     */
+    public static FirestoreV1 v1() {
+        return new FirestoreV1();
     }
 }
