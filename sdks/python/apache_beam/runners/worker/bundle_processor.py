@@ -160,7 +160,7 @@ class DataInputOperation(RunnerIOOperation):
   """A source-like operation that gathers input from the runner."""
 
   def __init__(self,
-               operation_name,  # type: str
+               operation_name,  # type: Union[str, common.NameContext]
                step_name,
                consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
                counter_factory,
