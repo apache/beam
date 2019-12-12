@@ -116,7 +116,7 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 		return nil, err
 	}
 	ch.forceRecreate = func(id string, err error) {
-		log.Warnf(ctx, "forcing channel[%v] reconnection on port %v due to %v", id, port, err)
+		log.Warnf(ctx, "forcing DataChannel[%v] reconnection on port %v due to %v", id, port, err)
 		m.mu.Lock()
 		delete(m.ports, port.URL)
 		m.mu.Unlock()
@@ -392,7 +392,7 @@ func (w *dataWriter) send(msg *pb.Elements) error {
 	recordStreamSend(msg)
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
-			log.Warnf(context.TODO(), "dataWriter[%v;%v].Close EOF on send; fetching real error", w.id, w.ch.id)
+			log.Warnf(context.TODO(), "dataWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)
 			err = nil
 			for err == nil {
 				// Per GRPC stream documentation, if there's an EOF, we must call Recv
@@ -401,7 +401,7 @@ func (w *dataWriter) send(msg *pb.Elements) error {
 				_, err = w.ch.client.Recv()
 			}
 		}
-		log.Warnf(context.TODO(), "dataWriter[%v;%v].Close error on send: %v", w.id, w.ch.id, err)
+		log.Warnf(context.TODO(), "dataWriter[%v;%v] error on send: %v", w.id, w.ch.id, err)
 		w.ch.terminateStreamOnError(err)
 		return err
 	}
