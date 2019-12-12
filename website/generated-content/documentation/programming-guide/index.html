@@ -895,14 +895,21 @@ itself.</p>
     <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">LINES</span><span class="o">)).</span><span class="na">setCoder</span><span class="o">(</span><span class="n">StringUtf8Coder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
 <span class="o">}</span>
 </code></pre></div></div>
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
-  <span class="n">lines</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-           <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-               <span class="s">'To be, or not to be: that is the question: '</span><span class="p">,</span>
-               <span class="s">'Whether </span><span class="se">\'</span><span class="s">tis nobler in the mind to suffer '</span><span class="p">,</span>
-               <span class="s">'The slings and arrows of outrageous fortune, '</span><span class="p">,</span>
-               <span class="s">'Or to take arms against a sea of troubles, '</span><span class="p">]))</span>
+<span class="c"># argv = None  # if None, uses sys.argv</span>
+<span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+  <span class="n">lines</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">pipeline</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s">'To be, or not to be: that is the question: '</span><span class="p">,</span>
+          <span class="s">"Whether 'tis nobler in the mind to suffer "</span><span class="p">,</span>
+          <span class="s">'The slings and arrows of outrageous fortune, '</span><span class="p">,</span>
+          <span class="s">'Or to take arms against a sea of troubles, '</span><span class="p">,</span>
+      <span class="p">])</span>
+  <span class="p">)</span>
 
 </code></pre></div></div>
 
