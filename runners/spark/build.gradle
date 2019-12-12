@@ -202,6 +202,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
   }
   filter {
     // Combine with context not implemented
