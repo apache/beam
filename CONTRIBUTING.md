@@ -36,10 +36,9 @@ sudo apt-get install \
     python-setuptools \
     python-pip \
     virtualenv \
-    tox
+    tox \
+    docker-ce
 ```
-
-You also need to install Docker.
 
 Then please use the standard `./gradlew build` command.
 
