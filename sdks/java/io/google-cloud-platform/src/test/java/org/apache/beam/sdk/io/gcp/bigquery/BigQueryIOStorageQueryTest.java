@@ -534,9 +534,7 @@ public class BigQueryIOStorageQueryTest {
             AvroRows.newBuilder()
                 .setSerializedBinaryRows(ByteString.copyFrom(outputStream.toByteArray()))
                 .setRowCount(genericRecords.size()))
-        .setStatus(
-            StreamStatus.newBuilder()
-                .setFractionConsumed((float) fractionConsumed))
+        .setStatus(StreamStatus.newBuilder().setFractionConsumed((float) fractionConsumed))
         .build();
   }
 

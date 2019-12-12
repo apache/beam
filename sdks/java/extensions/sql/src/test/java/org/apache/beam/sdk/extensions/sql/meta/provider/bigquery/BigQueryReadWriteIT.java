@@ -375,9 +375,18 @@ public class BigQueryReadWriteIT implements Serializable {
 
     PCollection<TableRow> result = pipeline.apply(typedRead);
 
-    Schema schema = Schema.builder().addInt64Field("num").addStringField("str").addDateTimeField("event_timestamp").build();
-    PAssert.that(result).containsInAnyOrder(BigQueryUtils.toTableRow(row(schema, 2L, "nice!", parseTimestampWithUTCTimeZone("2019-12-11 01:56:17.660"))),
-        BigQueryUtils.toTableRow(row(schema, 1L, "foo", parseTimestampWithUTCTimeZone("2019-12-11 01:54:36.086"))));
+    Schema schema =
+        Schema.builder()
+            .addInt64Field("num")
+            .addStringField("str")
+            .addDateTimeField("event_timestamp")
+            .build();
+    PAssert.that(result)
+        .containsInAnyOrder(
+            BigQueryUtils.toTableRow(
+                row(schema, 2L, "nice!", parseTimestampWithUTCTimeZone("2019-12-11 01:56:17.660"))),
+            BigQueryUtils.toTableRow(
+                row(schema, 1L, "foo", parseTimestampWithUTCTimeZone("2019-12-11 01:54:36.086"))));
 
     pipeline.run().waitUntilFinish();
   }

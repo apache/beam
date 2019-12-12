@@ -571,7 +571,8 @@ public class BigQueryIO {
         return BigQueryUtils.toTableRow().apply(schemaAndRecord.getRow());
       }
 
-      throw new IllegalStateException("Record should be of instance GenericRecord (for Avro format) or of instance Row (for Arrow format), but it is not.");
+      throw new IllegalStateException(
+          "Record should be of instance GenericRecord (for Avro format) or of instance Row (for Arrow format), but it is not.");
     }
   }
 
