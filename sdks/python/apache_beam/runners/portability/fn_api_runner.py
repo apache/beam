@@ -390,7 +390,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   def __init__(
       self,
-      default_environment=None,  # type: Optional[beam_runner_api_pb2.Environment]
+      default_environment=None,  # type: Optional[environments.Environment]
       bundle_repeat=0,
       use_state_iterables=False,
       provision_info=None,  # type: Optional[ExtendedProvisionInfo]

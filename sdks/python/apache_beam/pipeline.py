@@ -91,6 +91,7 @@ if TYPE_CHECKING:
   from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.runners.runner import PipelineResult
+  from apache_beam.transforms import environments
 
 __all__ = ['Pipeline', 'PTransformOverride']
 
@@ -679,7 +680,7 @@ class Pipeline(object):
                     return_context=False,
                     context=None,  # type: Optional[PipelineContext]
                     use_fake_coders=False,
-                    default_environment=None  # type: Optional[beam_runner_api_pb2.Environment]
+                    default_environment=None  # type: Optional[environments.Environment]
                    ):
     # type: (...) -> beam_runner_api_pb2.Pipeline
     """For internal use only; no backwards-compatibility guarantees."""

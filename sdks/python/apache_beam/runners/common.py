@@ -525,8 +525,8 @@ class PerWindowInvoker(DoFnInvoker):
     self.watermark_estimator_param = (
         self.signature.process_method.watermark_estimator_arg_name
         if self.watermark_estimator else None)
-    self.threadsafe_restriction_tracker = None
-    self.current_windowed_value = None
+    self.threadsafe_restriction_tracker = None  # type: Optional[iobase.ThreadsafeRestrictionTracker]
+    self.current_windowed_value = None  # type: Optional[WindowedValue]
     self.bundle_finalizer_param = bundle_finalizer_param
     self.is_key_param_required = False
 

@@ -421,9 +421,10 @@ class WatermarkEstimator(object):
   TODO(BEAM-8537): Create WatermarkEstimatorProvider to support different types.
   """
   def __init__(self):
-    self._watermark = None
+    self._watermark = None  # type: typing.Optional[timestamp.Timestamp]
 
   def set_watermark(self, watermark):
+    # type: (timestamp.Timestamp) -> None
     """Update tracking output_watermark with latest output_watermark.
     This function is called inside an SDF.Process() to track the watermark of
     output element.
@@ -439,6 +440,7 @@ class WatermarkEstimator(object):
       self._watermark = min(self._watermark, watermark)
 
   def current_watermark(self):
+    # type: () -> typing.Optional[timestamp.Timestamp]
     """Get current output_watermark. This function is called by system."""
     return self._watermark
 
