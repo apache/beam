@@ -21,4 +21,4 @@
 #Create an ELK (Elasticsearch Logstash Kibana) container for ES v6.4.0 and compatible Logstash and Kibana versions,
 #bind then on host ports, allow shell access to container and mount current directory on /home/$USER inside the container
 
-docker create -p 5601:5601 -p 9200:9200 -p 5044:5044 -p 5000:5000 -p 9300:9300 -it -v $(pwd):/home/$USER/ --name elk-7.4.0  sebp/elk:740
+docker create -p 5601:5601 -p 9200:9200 -p 5044:5044 -p 5000:5000 -p 9300:9300 -it -v $(pwd):/home/$USER/ --name elk-7.5.0  sebp/elk:740
