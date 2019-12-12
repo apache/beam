@@ -18,6 +18,10 @@
 package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.samza.config.JobConfig.JOB_ID;
+import static org.apache.samza.config.JobConfig.JOB_NAME;
+import static org.apache.samza.config.TaskConfig.COMMIT_MS;
+import static org.apache.samza.config.TaskConfig.GROUPER_FACTORY;
 
 import java.io.File;
 import java.net.URI;
@@ -29,16 +33,15 @@ import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.container.BeamContainerRunner;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.ConfigFactory;
-import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.JobCoordinatorConfig;
 import org.apache.samza.config.MapConfig;
-import org.apache.samza.config.TaskConfig;
 import org.apache.samza.config.ZkConfig;
 import org.apache.samza.config.factories.PropertiesConfigFactory;
 import org.apache.samza.container.grouper.task.SingleContainerGrouperFactory;
@@ -84,8 +87,8 @@ public class ConfigBuilder {
 
       config.put(ApplicationConfig.APP_NAME, options.getJobName());
       config.put(ApplicationConfig.APP_ID, options.getJobInstance());
-      config.put(JobConfig.JOB_NAME(), options.getJobName());
-      config.put(JobConfig.JOB_ID(), options.getJobInstance());
+      config.put(JOB_NAME, options.getJobName());
+      config.put(JOB_ID, options.getJobInstance());
 
       config.put(
           "beamPipelineOptions",
@@ -196,8 +199,8 @@ public class ConfigBuilder {
         .put(
             JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
             PassthroughJobCoordinatorFactory.class.getName())
-        .put(TaskConfig.GROUPER_FACTORY(), SingleContainerGrouperFactory.class.getName())
-        .put(TaskConfig.COMMIT_MS(), "-1")
+        .put(GROUPER_FACTORY, SingleContainerGrouperFactory.class.getName())
+        .put(COMMIT_MS, "-1")
         .put("processor.id", "1")
         .put(
             // TODO: remove after SAMZA-1531 is resolved
@@ -231,9 +234,12 @@ public class ConfigBuilder {
             .put(
                 "stores.beamStore.factory",
                 "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
-            .put("stores.beamStore.key.serde", "byteSerde")
+            .put("stores.beamStore.key.serde", "byteArraySerde")
             .put("stores.beamStore.msg.serde", "byteSerde")
-            .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
+            .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName())
+            .put(
+                "serializers.registry.byteArraySerde.class",
+                SamzaStoreStateInternals.ByteArraySerdeFactory.class.getName());
 
     if (options.getStateDurable()) {
       LOG.info("stateDurable is enabled");
