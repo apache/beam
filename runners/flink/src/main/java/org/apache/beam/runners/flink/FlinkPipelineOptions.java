@@ -159,6 +159,15 @@ public interface FlinkPipelineOptions
 
   void setEnableMetrics(Boolean enableMetrics);
 
+  @Description(
+      "By default, uses Flink accumulators to store the metrics which allows to query metrics from the PipelineResult. "
+          + "If set to true, metrics will still be reported but can't be queried via PipelineResult. "
+          + "This saves network and memory.")
+  @Default.Boolean(false)
+  Boolean getDisableMetricAccumulator();
+
+  void setDisableMetricAccumulator(Boolean disableMetricAccumulator);
+
   /** Enables or disables externalized checkpoints. */
   @Description(
       "Enables or disables externalized checkpoints. "

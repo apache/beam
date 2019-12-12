@@ -439,7 +439,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
-      flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
+      flinkMetricContainer =
+          new FlinkMetricContainer(getRuntimeContext(), options.getDisableMetricAccumulator());
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
     }
 
