@@ -40,6 +40,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * A generic grouping transform for schema {@link PCollection}s.
@@ -707,8 +708,7 @@ public class Group {
                     public void process(@Element KV<Row, Iterable<Row>> e, OutputReceiver<Row> o) {
                       o.output(
                           Row.withSchema(outputSchema)
-                              .addValue(e.getKey())
-                              .addIterable(e.getValue())
+                              .attachValues(Lists.newArrayList(e.getKey(), e.getValue()))
                               .build());
                     }
                   }))
@@ -929,7 +929,8 @@ public class Group {
                     public void process(@Element KV<Row, Row> element, OutputReceiver<Row> o) {
                       o.output(
                           Row.withSchema(outputSchema)
-                              .addValues(element.getKey(), element.getValue())
+                              .attachValues(
+                                  Lists.newArrayList(element.getKey(), element.getValue()))
                               .build());
                     }
                   }))
