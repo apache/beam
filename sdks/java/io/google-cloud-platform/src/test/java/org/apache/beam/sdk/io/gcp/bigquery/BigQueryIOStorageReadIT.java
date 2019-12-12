@@ -98,11 +98,11 @@ public class BigQueryIOStorageReadIT {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> count =
         p.apply(
-            "Read",
-            BigQueryIO.read(TableRowParser.INSTANCE)
-                .from(options.getInputTable())
-                .withMethod(Method.DIRECT_READ)
-                .withFormat(DataFormat.ARROW))
+                "Read",
+                BigQueryIO.read(TableRowParser.INSTANCE)
+                    .from(options.getInputTable())
+                    .withMethod(Method.DIRECT_READ)
+                    .withFormat(DataFormat.ARROW))
             .apply("Count", Count.globally());
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());
     p.run().waitUntilFinish();
