@@ -184,7 +184,7 @@ class PipelineContext(object):
   def coder_id_from_element_type(self, element_type):
     # type: (Any) -> str
     if self.use_fake_coders:
-      return pickler.dumps(element_type)
+      return pickler.dumps(element_type).decode('ascii')
     else:
       return self.coders.get_id(coders.registry.get_coder(element_type))
 
