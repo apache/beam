@@ -312,6 +312,7 @@ func makeStateChannel(ctx context.Context, cancelFn context.CancelFunc, id strin
 
 func (c *StateChannel) read(ctx context.Context) {
 	for {
+		// Closing the context will have an error return from this call.
 		msg, err := c.client.Recv()
 		if err != nil {
 			c.terminateStreamOnError(err)
@@ -351,6 +352,11 @@ func (c *StateChannel) write(ctx context.Context) {
 		if err != nil {
 			id = req.Id
 			break // non-nil errors mean the stream is broken and can't be re-used.
+		}
+		select {
+		case <-c.DoneCh: // Close the goroutine on context cancel.
+			return
+		default: // Continue around the loop here.
 		}
 	}
 
