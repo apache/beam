@@ -27,22 +27,16 @@ import org.joda.time.Instant;
  */
 public abstract class TimestampPolicy {
 
-  /**
-   * Analgous to KafkaIO's TimestampPolicy.PartitionContext but the backlog is a backwards-looking
-   * boolean rather than forwards-looking, depth-aware metric.
-   */
+  /** Analgous to KafkaIO's TimestampPolicy.PartitionContext */
   public abstract static class LastRead implements Serializable {
-    /**
-     * @return {@code true} if the last read from rabbit resulted in a message being delivered,
-     *     {@code false} if the last read was from an empty queue
-     */
-    public abstract boolean hasBacklog();
+    /** Estimate of current queue depth per {@code GetResponse.messageCount}. */
+    public abstract int getMessageBacklog();
 
     /**
      * @return the timestamp (wall clock) at which the last read was attempted, regardless of
      *     whether a message was available
      */
-    public abstract Instant lastCheckedAt();
+    public abstract Instant getBacklogCheckTime();
   }
 
   public abstract Instant getTimestampForRecord(RabbitMqMessage record);

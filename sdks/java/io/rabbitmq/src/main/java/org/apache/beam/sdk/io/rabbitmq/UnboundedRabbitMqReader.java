@@ -41,7 +41,10 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
     this.source = source;
     this.currentRecord = null;
     this.recordIdPolicy = source.spec.recordIdPolicy();
-    this.context = new TimestampPolicyContext(true, BoundedWindow.TIMESTAMP_MIN_VALUE);
+    this.context =
+        new TimestampPolicyContext(
+            Long.valueOf(UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN).intValue(),
+            BoundedWindow.TIMESTAMP_MIN_VALUE);
     this.connectionHandler = this.source.spec.connectionHandlerProviderFn().apply(null);
 
     RabbitMQCheckpointMark cpMark = checkpointMark;
@@ -147,12 +150,12 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
       if (delivery == null) {
         currentRecord = null;
         // queue is empty, so there is no backlog
-        context = new TimestampPolicyContext(false, Instant.now());
+        context = new TimestampPolicyContext(0, Instant.now());
         return false;
       }
 
       currentRecord = new RabbitMqMessage(delivery);
-      context = new TimestampPolicyContext(true, Instant.now());
+      context = new TimestampPolicyContext(delivery.getMessageCount(), Instant.now());
       long deliveryTag = delivery.getEnvelope().getDeliveryTag();
       checkpointMark.appendDeliveryTag(deliveryTag);
     } catch (IOException e) {
@@ -169,22 +172,22 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
   }
 
   private static class TimestampPolicyContext extends TimestampPolicy.LastRead {
-    private final boolean hasBacklog;
-    private final Instant lastCheckedAt;
+    private final int messageBacklog;
+    private final Instant backlogCheckTime;
 
-    public TimestampPolicyContext(boolean hasBacklog, Instant lastCheckedAt) {
-      this.hasBacklog = hasBacklog;
-      this.lastCheckedAt = lastCheckedAt;
+    public TimestampPolicyContext(int messageBacklog, Instant backlogCheckTime) {
+      this.messageBacklog = messageBacklog;
+      this.backlogCheckTime = backlogCheckTime;
     }
 
     @Override
-    public boolean hasBacklog() {
-      return hasBacklog;
+    public int getMessageBacklog() {
+      return messageBacklog;
     }
 
     @Override
-    public Instant lastCheckedAt() {
-      return lastCheckedAt;
+    public Instant getBacklogCheckTime() {
+      return backlogCheckTime;
     }
   }
 }

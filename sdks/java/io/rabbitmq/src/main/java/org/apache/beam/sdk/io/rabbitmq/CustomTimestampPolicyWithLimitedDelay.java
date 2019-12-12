@@ -32,8 +32,8 @@ import org.joda.time.Instant;
  * advanced to 'now - max delay' when the queue has caught up (previous read attempt returned no
  * message)
  *
- * @see {@link org.apache.beam.sdk.io.kafka.CustomTimestampPolicyWithLimitedDelay} for the
- *     inspiration and corresponding KafkaIO policy
+ * @see "org.apache.beam.sdk.io.kafka.CustomTimestampPolicyWithLimitedDelay for the inspiration and
+ *     corresponding KafkaIO policy"
  */
 public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   private final Duration maxDelay;
@@ -87,10 +87,10 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   Instant getWatermark(LastRead ctx, Instant now) {
     if (maxEventTimestamp.isAfter(now)) {
       return now.minus(maxDelay); // (a) above.
-    } else if (!ctx.hasBacklog()
-        && ctx.lastCheckedAt().minus(maxDelay).isAfter(maxEventTimestamp) // Idle
+    } else if (ctx.getMessageBacklog() == 0
+        && ctx.getBacklogCheckTime().minus(maxDelay).isAfter(maxEventTimestamp) // Idle
         && maxEventTimestamp.getMillis() > 0) { // Read at least one record with positive timestamp.
-      return ctx.lastCheckedAt().minus(maxDelay);
+      return ctx.getBacklogCheckTime().minus(maxDelay);
     } else {
       return maxEventTimestamp.minus(maxDelay);
     }
