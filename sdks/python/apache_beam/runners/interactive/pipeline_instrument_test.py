@@ -33,10 +33,12 @@ from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.caching import streaming_cache
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
+from apache_beam.testing.test_stream import TestStream
 
-# Work around nose tests using Python2 without unittest.mock module.
+#Work around nose tests using Python2 without unittest.mock module.
 try:
   from unittest.mock import MagicMock
 except ImportError:
@@ -50,7 +52,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def test_pcolls_to_pcoll_id(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+# pylint: disable=range-builtin-not-iterating
     init_pcoll = p | 'Init Create' >> beam.Impulse()
     _, ctx = p.to_runner_api(use_fake_coders=True, return_context=True)
     self.assertEqual(instr.pcolls_to_pcoll_id(p, ctx), {
@@ -186,10 +188,16 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     assert_pipeline_proto_equal(self, expected_pipeline, actual_pipeline)
 
-  def _example_pipeline(self, watch=True):
+  def _example_pipeline(self, watch=True, bounded=True):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
-    init_pcoll = p | 'Init Create' >> beam.Create(range(10))
+    if bounded:
+      source = beam.Create(range(10))
+    else:
+      source = beam.io.ReadFromPubSub(
+          subscription='projects/fake-project/subscriptions/fake_sub')
+
+    init_pcoll = p | 'Init Source' >> source
     second_pcoll = init_pcoll | 'Second' >> beam.Map(lambda x: x * x)
     if watch:
       ib.watch(locals())
@@ -291,6 +299,47 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Build instrument from the runner pipeline.
     pipeline_instrument = instr.pin(runner_pipeline)
     self.assertIs(pipeline_instrument.user_pipeline, user_pipeline)
+
+  def test_instrument_example_unbounded_pipeline_to_read_cache(self):
+    p_origin, init_pcoll, second_pcoll = self._example_pipeline(watch=True,
+                                                                bounded=False)
+    p_copy, _, _ = self._example_pipeline(watch=False, bounded=False)
+
+    # Mock as if cacheable PCollections are cached.
+    init_pcoll_cache_key = 'init_pcoll_' + str(
+        id(init_pcoll)) + '_' + str(id(init_pcoll.producer))
+    self._mock_write_cache(init_pcoll, init_pcoll_cache_key)
+    second_pcoll_cache_key = 'second_pcoll_' + str(
+        id(second_pcoll)) + '_' + str(id(second_pcoll.producer))
+    self._mock_write_cache(second_pcoll, second_pcoll_cache_key)
+    ie.current_env().cache_manager().exists = MagicMock(return_value=True)
+    instr.pin(p_copy)
+
+    # Add the caching transforms.
+    key = '_ReadCache_' + init_pcoll_cache_key
+    cached_init_pcoll = (p_origin
+                         | key >> streaming_cache.StreamingCacheReceiver())
+    cached_init_pcoll = p_origin | TestStream(output_tags=[key])
+
+    # second_pcoll is never used as input and there is no need to read cache.
+
+    class TestReadCacheWireVisitor(PipelineVisitor):
+      """Replace init_pcoll with cached_init_pcoll for all occuring inputs."""
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if transform_node.inputs:
+          input_list = list(transform_node.inputs)
+          for i in range(len(input_list)):
+            if input_list[i] == init_pcoll:
+              input_list[i] = cached_init_pcoll
+          transform_node.inputs = tuple(input_list)
+
+    v = TestReadCacheWireVisitor()
+    p_origin.visit(v)
+    assert_pipeline_equal(self, p_origin, p_copy)
 
 
 if __name__ == '__main__':

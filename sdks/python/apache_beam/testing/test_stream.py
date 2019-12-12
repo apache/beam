@@ -172,13 +172,14 @@ class TestStream(PTransform):
   output.
   """
 
-  def __init__(self, coder=coders.FastPrimitivesCoder(), events=None):
+  def __init__(self, coder=coders.FastPrimitivesCoder(), events=None,
+               output_tags=None):
     super(TestStream, self).__init__()
     assert coder is not None
     self.coder = coder
     self.watermarks = {None: timestamp.MIN_TIMESTAMP}
-    self._events = [] if events is None else list(events)
-    self.output_tags = set()
+    self._events = list(events) if events is not None else []
+    self.output_tags = set(output_tags) if output_tags is not None else set()
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
