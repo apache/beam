@@ -534,13 +534,14 @@ public class CoGroup {
       public void process(@Element KV<Row, CoGbkResult> kv, OutputReceiver<Row> o) {
         Row key = kv.getKey();
         CoGbkResult result = kv.getValue();
-        List<Object> fields = Lists.newArrayListWithCapacity(sortedTags.size());
+        List<Object> fields = Lists.newArrayListWithCapacity(sortedTags.size() + 1);
+        fields.add(key);
         for (int i = 0; i < sortedTags.size(); ++i) {
           String tupleTag = tagToKeyedTag.get(i);
           SerializableFunction<Object, Row> toRow = toRows.get(i);
           fields.add(new Result(result.getAll(tupleTag), toRow));
         }
-        Row row = Row.withSchema(outputSchema).addValue(key).addValues(fields).build();
+        Row row = Row.withSchema(outputSchema).attachValues(fields).build();
         o.output(row);
       }
     }
@@ -681,7 +682,7 @@ public class CoGroup {
       }
 
       private Row buildOutputRow(List rows) {
-        return Row.withSchema(outputSchema).addValues(rows).build();
+        return Row.withSchema(outputSchema).attachValues(Lists.newArrayList(rows)).build();
       }
     }
   }
