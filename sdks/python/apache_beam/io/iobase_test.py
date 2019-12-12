@@ -198,8 +198,6 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
       experiments = (p._options.view_as(DebugOptions).experiments or [])
 
       # Setup experiment option to enable using SDFBoundedSourceWrapper
-      if 'use_sdf_bounded_source' not in experiments:
-        experiments.append('use_sdf_bounded_source')
       if 'beam_fn_api' not in experiments:
         # Required so mocking below doesn't mock Create used in assert_that.
         experiments.append('beam_fn_api')

@@ -28,7 +28,7 @@ from apache_beam.testing.util import open_shards
 
 # Patch group_with_coder.PlayerCoder.decode(). To test that the PlayerCoder was
 # used, we do not strip the prepended 'x:' string when decoding a Player object.
-group_with_coder.PlayerCoder.decode = lambda self, s: group_with_coder.Player(
+group_with_coder.PlayerCoder.decode = lambda self, s: group_with_coder.Player(  # type: ignore[assignment]
     s.decode('utf-8'))
 
 

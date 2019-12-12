@@ -363,11 +363,13 @@ class GaugeData(object):
     return GaugeData(value, timestamp=timestamp)
 
   def to_runner_api(self):
+    # type: () -> beam_fn_api_pb2.Metrics.User.GaugeData
     return beam_fn_api_pb2.Metrics.User.GaugeData(
         value=self.value, timestamp=proto_utils.to_Timestamp(self.timestamp))
 
   @staticmethod
   def from_runner_api(proto):
+    # type: (beam_fn_api_pb2.Metrics.User.GaugeData) -> GaugeData
     return GaugeData(proto.value,
                      timestamp=proto_utils.from_Timestamp(proto.timestamp))
 
@@ -440,11 +442,13 @@ class DistributionData(object):
     return DistributionData(value, 1, value, value)
 
   def to_runner_api(self):
+    # type: () -> beam_fn_api_pb2.Metrics.User.DistributionData
     return beam_fn_api_pb2.Metrics.User.DistributionData(
         count=self.count, sum=self.sum, min=self.min, max=self.max)
 
   @staticmethod
   def from_runner_api(proto):
+    # type: (beam_fn_api_pb2.Metrics.User.DistributionData) -> DistributionData
     return DistributionData(proto.sum, proto.count, proto.min, proto.max)
 
   def to_runner_api_monitoring_info(self):

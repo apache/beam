@@ -31,6 +31,7 @@ import typing
 import unittest
 import uuid
 from builtins import range
+from typing import Dict
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
@@ -271,8 +272,10 @@ class FnApiRunnerTest(unittest.TestCase):
                 ('B', 'b', 3)]
 
     with self.create_pipeline() as p:
-      assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
-                  equal_to(expected))
+      # TODO(BEAM-8893): Allow the reshuffle.
+      assert_that(
+          p | beam.Create(inputs, reshuffle=False) | beam.ParDo(AddIndex()),
+          equal_to(expected))
 
   @unittest.skip('TestStream not yet supported')
   def test_teststream_pardo_timers(self):
@@ -417,7 +420,8 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       actual = (
           p
-          | beam.Create(elements)
+          # TODO(BEAM-8893): Allow the reshuffle.
+          | beam.Create(elements, reshuffle=False)
           # Send even and odd elements to different windows.
           | beam.Map(lambda e: window.TimestampedValue(e, ord(e) % 2))
           | beam.WindowInto(window.FixedWindows(1) if windowed
@@ -777,8 +781,10 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       self, monitoring_infos, urn, labels, value=None, ge_value=None):
     # TODO(ajamato): Consider adding a matcher framework
     found = 0
+    matches = []
     for mi in monitoring_infos:
       if has_urn_and_labels(mi, urn, labels):
+        matches.append(mi.metric.counter_data.int64_value)
         if ge_value is not None:
           if mi.metric.counter_data.int64_value >= ge_value:
             found = found + 1
@@ -790,8 +796,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     ge_value_str = {'ge_value' : ge_value} if ge_value else ''
     value_str = {'value' : value} if value else ''
     self.assertEqual(
-        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-        (found, (urn, labels, value_str, ge_value_str),))
+        1, found, "Found (%s, %s) Expected only 1 monitoring_info for %s." %
+        (found, matches, (urn, labels, value_str, ge_value_str),))
 
   def assert_has_distribution(
       self, monitoring_infos, urn, labels,
@@ -833,10 +839,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         (found, (urn, labels, str(description)),))
 
   def create_pipeline(self):
-    p = beam.Pipeline(runner=fn_api_runner.FnApiRunner())
-    # TODO(BEAM-8448): Fix these tests.
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
-    return p
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
   def test_element_count_metrics(self):
     class GenerateTwoOutputs(beam.DoFn):
@@ -854,7 +857,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
     # Produce enough elements to make sure byte sampling occurs.
     num_source_elems = 100
-    pcoll = p | beam.Create(['a%d' % i for i in range(num_source_elems)])
+    pcoll = p | beam.Create(
+        ['a%d' % i for i in range(num_source_elems)], reshuffle=False)
 
     # pylint: disable=expression-not-assigned
     pardo = ('StepThatDoesTwoOutputs' >> beam.ParDo(
@@ -883,13 +887,14 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
                       and
                       monitoring_infos.PCOLLECTION_LABEL not in x.labels])
     try:
-      labels = {monitoring_infos.PCOLLECTION_LABEL : 'Impulse'}
+      labels = {
+          monitoring_infos.PCOLLECTION_LABEL : 'ref_PCollection_PCollection_1'}
       self.assert_has_counter(
           counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 1)
 
-      # Create/Read, "out" output.
+      # Create output.
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_1'}
+                    'ref_PCollection_PCollection_3'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
@@ -902,7 +907,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
       # GenerateTwoOutputs, main output.
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_2'}
+                    'ref_PCollection_PCollection_4'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
@@ -915,7 +920,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
       # GenerateTwoOutputs, "SecondOutput" output.
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_3'}
+                    'ref_PCollection_PCollection_5'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, 2 * num_source_elems)
@@ -928,7 +933,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
       # GenerateTwoOutputs, "ThirdOutput" output.
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_4'}
+                    'ref_PCollection_PCollection_6'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
@@ -943,7 +948,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       # outputs.
       # Flatten/Read, main output.
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_5'}
+                    'ref_PCollection_PCollection_7'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
@@ -956,7 +961,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
       # PassThrough, main output
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_6'}
+                    'ref_PCollection_PCollection_8'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
@@ -969,7 +974,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
       # PassThrough2, main output
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                    'ref_PCollection_PCollection_7'}
+                    'ref_PCollection_PCollection_9'}
       self.assert_has_counter(
           counters,
           monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
@@ -1014,7 +1019,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       namespace = split[0]
       name = ':'.join(split[1:])
       assert_counter_exists(
-          all_metrics_via_montoring_infos, namespace, name, step='Create/Read')
+          all_metrics_via_montoring_infos, namespace, name,
+          step='Create/Impulse')
       assert_counter_exists(
           all_metrics_via_montoring_infos, namespace, name, step='MyStep')
 
@@ -1027,7 +1033,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     p = self.create_pipeline()
 
     _ = (p
-         | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])
+         | beam.Create(
+             [0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS], reshuffle=False)
          | beam.Map(time.sleep)
          | beam.Map(lambda x: ('key', x))
          | beam.GroupByKey()
@@ -1051,13 +1058,13 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       # Test the DEPRECATED legacy metrics
       pregbk_metrics, postgbk_metrics = list(
           res._metrics_by_stage.values())
-      if 'Create/Read' not in pregbk_metrics.ptransforms:
+      if 'Create/Map(decode)' not in pregbk_metrics.ptransforms:
         # The metrics above are actually unordered. Swap.
         pregbk_metrics, postgbk_metrics = postgbk_metrics, pregbk_metrics
       self.assertEqual(
           4,
-          pregbk_metrics.ptransforms['Create/Read']
-          .processed_elements.measured.output_element_counts['out'])
+          pregbk_metrics.ptransforms['Create/Map(decode)']
+          .processed_elements.measured.output_element_counts['None'])
       self.assertEqual(
           4,
           pregbk_metrics.ptransforms['Map(sleep)']
@@ -1089,20 +1096,20 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       self.assertEqual(2, len(res._monitoring_infos_by_stage))
       pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
 
-      if not has_mi_for_ptransform(pregbk_mis, 'Create/Read'):
+      if not has_mi_for_ptransform(pregbk_mis, 'Create/Map(decode)'):
         # The monitoring infos above are actually unordered. Swap.
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
       # pregbk monitoring infos
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                'ref_PCollection_PCollection_1'}
+                'ref_PCollection_PCollection_3'}
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       self.assert_has_distribution(
           pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                'ref_PCollection_PCollection_2'}
+                'ref_PCollection_PCollection_4'}
       self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       self.assert_has_distribution(
@@ -1115,14 +1122,14 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
       # postgbk monitoring infos
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                'ref_PCollection_PCollection_6'}
+                'ref_PCollection_PCollection_8'}
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
       self.assert_has_distribution(
           postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
       labels = {monitoring_infos.PCOLLECTION_LABEL :
-                'ref_PCollection_PCollection_7'}
+                'ref_PCollection_PCollection_9'}
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
       self.assert_has_distribution(
@@ -1406,7 +1413,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
       with self.create_pipeline() as p:
         grouped = (
             p
-            | beam.Create(elements)
+            | beam.Create(elements, reshuffle=False)
             | 'SDF' >> beam.ParDo(EnumerateSdf()))
         flat = grouped | beam.FlatMap(lambda x: x)
         assert_that(flat, equal_to(expected))
@@ -1479,7 +1486,7 @@ class ElementCounter(object):
     return _unpickle_element_counter, (name,)
 
 
-_pickled_element_counters = {}
+_pickled_element_counters = {}  # type: Dict[str, ElementCounter]
 
 
 def _unpickle_element_counter(name):

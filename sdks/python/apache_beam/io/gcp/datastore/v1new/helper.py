@@ -26,6 +26,8 @@ from __future__ import absolute_import
 import os
 import uuid
 from builtins import range
+from typing import List
+from typing import Union
 
 from google.api_core import exceptions
 from google.cloud import environment_vars
@@ -61,7 +63,7 @@ def retry_on_rpc_error(exception):
 def create_entities(count, id_or_name=False):
   """Creates a list of entities with random keys."""
   if id_or_name:
-    ids_or_names = [uuid.uuid4().int & ((1 << 63) - 1) for _ in range(count)]
+    ids_or_names = [uuid.uuid4().int & ((1 << 63) - 1) for _ in range(count)]  # type: List[Union[str, int]]
   else:
     ids_or_names = [str(uuid.uuid4()) for _ in range(count)]
 

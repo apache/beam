@@ -228,7 +228,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
           file_name, options=tf.python_io.TFRecordOptions(
               tf.python_io.TFRecordCompressionType.GZIP)):
         actual.append(r)
-      self.assertEqual(actual, input_data)
+      self.assertEqual(sorted(actual), sorted(input_data))
 
   def test_write_record_auto(self):
     with TempDir() as temp_dir:
@@ -244,7 +244,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
           file_name, options=tf.python_io.TFRecordOptions(
               tf.python_io.TFRecordCompressionType.GZIP)):
         actual.append(r)
-      self.assertEqual(actual, input_data)
+      self.assertEqual(sorted(actual), sorted(input_data))
 
 
 class TestReadFromTFRecord(unittest.TestCase):
