@@ -282,7 +282,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         PCollectionList<?> listOutput = (PCollectionList<?>) output;
         return IntStream.range(0, listOutput.size())
             .boxed()
-            .collect(Collectors.toMap(index -> "output_" + index, listOutput::get));
+            .collect(Collectors.toMap(Object::toString, listOutput::get));
       } else {
         throw new UnsupportedOperationException("Unknown output type: " + output.getClass());
       }
