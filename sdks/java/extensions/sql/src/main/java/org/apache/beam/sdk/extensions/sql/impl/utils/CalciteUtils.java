@@ -21,10 +21,10 @@ import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
@@ -48,7 +48,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlDateType";
 
     public DateType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -57,7 +57,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeType";
 
     public TimeType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -66,7 +66,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeWithLocalTzType";
 
     public TimeWithLocalTzType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -75,7 +75,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimestampWithLocalTzType";
 
     public TimestampWithLocalTzType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -84,7 +84,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlCharType";
 
     public CharType() {
-      super(IDENTIFIER, "", FieldType.STRING);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.STRING);
     }
   }
 

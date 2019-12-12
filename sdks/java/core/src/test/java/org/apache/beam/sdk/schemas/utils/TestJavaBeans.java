@@ -972,4 +972,45 @@ public class TestJavaBeans {
   /** The schema for {@link NestedArrayBean}. * */
   public static final Schema ITERABLE_BEAM_SCHEMA =
       Schema.builder().addIterableField("strings", FieldType.STRING).build();
+
+  /** A bean containing an Array of ByteArray. * */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class ArrayOfByteArray {
+    private List<ByteBuffer> byteBuffers;
+
+    public ArrayOfByteArray(List<ByteBuffer> byteBuffers) {
+      this.byteBuffers = byteBuffers;
+    }
+
+    public ArrayOfByteArray() {}
+
+    public List<ByteBuffer> getByteBuffers() {
+      return byteBuffers;
+    }
+
+    public void setByteBuffers(List<ByteBuffer> byteBuffers) {
+      this.byteBuffers = byteBuffers;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ArrayOfByteArray that = (ArrayOfByteArray) o;
+      return Objects.equals(byteBuffers, that.byteBuffers);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(byteBuffers);
+    }
+  }
+
+  /** The schema for {@link NestedArrayBean}. * */
+  public static final Schema ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA =
+      Schema.builder().addArrayField("byteBuffers", FieldType.BYTES).build();
 }

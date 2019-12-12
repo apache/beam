@@ -26,6 +26,7 @@ from builtins import object
 from builtins import range
 
 import mock
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -253,7 +254,7 @@ class PipelineTest(unittest.TestCase):
 
   def test_visit_entire_graph(self):
     pipeline = Pipeline()
-    pcoll1 = pipeline | 'pcoll' >> Create([1, 2, 3])
+    pcoll1 = pipeline | 'pcoll' >> beam.Impulse()
     pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
     pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
     pcoll4 = pcoll2 | 'do3' >> FlatMap(lambda x: [x + 1])
@@ -266,9 +267,9 @@ class PipelineTest(unittest.TestCase):
                      set(visitor.visited))
     self.assertEqual(set(visitor.enter_composite),
                      set(visitor.leave_composite))
-    self.assertEqual(3, len(visitor.enter_composite))
-    self.assertEqual(visitor.enter_composite[2].transform, transform)
-    self.assertEqual(visitor.leave_composite[1].transform, transform)
+    self.assertEqual(2, len(visitor.enter_composite))
+    self.assertEqual(visitor.enter_composite[1].transform, transform)
+    self.assertEqual(visitor.leave_composite[0].transform, transform)
 
   def test_apply_custom_transform(self):
     pipeline = TestPipeline()
@@ -639,6 +640,25 @@ class DoFnTest(unittest.TestCase):
     result = words | 'DecorateWordsDoFnNoTag' >> ParDo(
         TestDoFn(), prefix, suffix=AsSingleton(suffix))
     assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_element_param(self):
+    pipeline = TestPipeline()
+    input = [1, 2]
+    pcoll = (pipeline
+             | 'Create' >> Create(input)
+             | 'Ele param' >> Map(lambda element=DoFn.ElementParam: element))
+    assert_that(pcoll, equal_to(input))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_key_param(self):
+    pipeline = TestPipeline()
+    pcoll = (pipeline
+             | 'Create' >> Create([('a', 1), ('b', 2)])
+             | 'Key param' >> Map(lambda _, key=DoFn.KeyParam: key))
+    assert_that(pcoll, equal_to(['a', 'b']))
     pipeline.run()
 
   def test_window_param(self):

@@ -52,6 +52,7 @@ class ExternalJobServer(JobServer):
     self._timeout = timeout
 
   def start(self):
+    # type: () -> beam_job_api_pb2_grpc.JobServiceStub
     channel = grpc.insecure_channel(self._endpoint)
     grpc.channel_ready_future(channel).result(timeout=self._timeout)
     return beam_job_api_pb2_grpc.JobServiceStub(channel)
@@ -62,6 +63,7 @@ class ExternalJobServer(JobServer):
 
 class EmbeddedJobServer(JobServer):
   def start(self):
+    # type: () -> local_job_service.LocalJobServicer
     return local_job_service.LocalJobServicer()
 
   def stop(self):
@@ -183,8 +185,7 @@ class DockerizedJobServer(SubprocessJobServer):
 
   def subprocess_cmd_and_endpoint(self):
     # TODO This is hardcoded to Flink at the moment but should be changed
-    job_server_image_name = os.environ['USER'] + \
-        "-docker-apache.bintray.io/beam/flink-job-server:latest"
+    job_server_image_name = "apachebeam/flink1.9_job_server:latest"
     docker_path = subprocess.check_output(
         ['which', 'docker']).strip().decode('utf-8')
     cmd = ["docker", "run",

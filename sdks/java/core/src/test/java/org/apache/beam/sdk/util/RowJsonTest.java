@@ -30,9 +30,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -126,8 +126,8 @@ public class RowJsonTest {
           Schema.builder()
               .addLogicalTypeField(
                   "f_passThroughString",
-                  new LogicalTypes.PassThroughLogicalType<String>(
-                      "SqlCharType", "", FieldType.STRING) {})
+                  new PassThroughLogicalType<String>(
+                      "SqlCharType", FieldType.STRING, "", FieldType.STRING) {})
               .build();
 
       String rowString = "{\n" + "\"f_passThroughString\" : \"hello\"\n" + "}";

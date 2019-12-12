@@ -28,6 +28,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCounterMetrics;
 import org.apache.beam.sdk.testing.UsesMetricsPusher;
+import org.apache.beam.sdk.testing.UsesSystemMetrics;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -73,7 +74,12 @@ public class MetricsPusherTest {
     assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(NUM_ELEMENTS));
   }
 
-  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesAttemptedMetrics.class,
+    UsesCounterMetrics.class,
+    UsesSystemMetrics.class
+  })
   @Test
   public void pushesSystemMetrics() throws InterruptedException {
     TestMetricsSink.clear();

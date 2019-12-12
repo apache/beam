@@ -40,7 +40,7 @@ from apache_beam.typehints import typehints
 try:                  # Python 2
   import __builtin__ as builtins
 except ImportError:   # Python 3
-  import builtins
+  import builtins  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 

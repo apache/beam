@@ -894,13 +894,6 @@ def _use_unified_worker(pipeline_options):
       'use_unified_worker' in debug_options.experiments)
 
 
-def _use_sdf_bounded_source(pipeline_options):
-  debug_options = pipeline_options.view_as(DebugOptions)
-  return _use_fnapi(pipeline_options) and (
-      debug_options.experiments and
-      'use_sdf_bounded_source' in debug_options.experiments)
-
-
 def _get_container_image_tag():
   base_version = pkg_resources.parse_version(
       beam_version.__version__).base_version

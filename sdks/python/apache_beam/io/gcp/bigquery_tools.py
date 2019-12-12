@@ -72,6 +72,10 @@ JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 def default_encoder(obj):
   if isinstance(obj, decimal.Decimal):
     return str(obj)
+  elif isinstance(obj, bytes):
+    # on python 3 base64-encoded bytes are decoded to strings
+    # before being sent to BigQuery
+    return obj.decode('utf-8')
   raise TypeError(
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
 
@@ -1017,12 +1021,6 @@ class RowAsDictJsonCoder(coders.Coder):
     # This code will catch this error to emit an error that explains
     # to the programmer that they have used NAN/INF values.
     try:
-      # on python 3 base64-encoded bytes are decoded to strings
-      # before being send to bq
-      if sys.version_info[0] > 2:
-        for field, value in iteritems(table_row):
-          if type(value) == bytes:
-            table_row[field] = value.decode('utf-8')
       return json.dumps(
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:

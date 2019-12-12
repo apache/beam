@@ -40,7 +40,6 @@ try:
   from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
   from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
   from apache_beam.io.gcp.datastore.v1new.types import Key
-  from apache_beam.testing.test_utils import patch_retry
   from google.cloud.datastore import client
   from google.cloud.datastore import entity
   from google.cloud.datastore import helpers
@@ -52,7 +51,7 @@ try:
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
-  DatastoreioTestBase = unittest.TestCase
+  DatastoreioTestBase = unittest.TestCase  # type: ignore
 
 
 class FakeMutation(object):
@@ -114,9 +113,6 @@ class FakeBatch(object):
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')
 class MutateTest(unittest.TestCase):
 
-  def setUp(self):
-    patch_retry(self, datastoreio)
-
   def test_write_mutations_no_errors(self):
     mock_batch = MagicMock()
     mock_throttler = MagicMock()
@@ -129,7 +125,8 @@ class MutateTest(unittest.TestCase):
         call(successes=1),
     ])
 
-  def test_write_mutations_reconstruct_on_error(self):
+  @patch('time.sleep', return_value=None)
+  def test_write_mutations_reconstruct_on_error(self, unused_sleep):
     mock_batch = MagicMock()
     mock_batch.begin.side_effect = [None, ValueError]
     mock_batch.commit.side_effect = [exceptions.DeadlineExceeded('retryable'),
@@ -149,7 +146,8 @@ class MutateTest(unittest.TestCase):
     ])
     self.assertEqual(1, mock_add_to_batch.call_count)
 
-  def test_write_mutations_throttle_delay_retryable_error(self):
+  @patch('time.sleep', return_value=None)
+  def test_write_mutations_throttle_delay_retryable_error(self, unused_sleep):
     mock_batch = MagicMock()
     mock_batch.commit.side_effect = [exceptions.DeadlineExceeded('retryable'),
                                      None]

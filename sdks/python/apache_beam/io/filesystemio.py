@@ -29,7 +29,7 @@ __all__ = ['Downloader', 'Uploader', 'DownloaderStream', 'UploaderStream',
            'PipeStream']
 
 
-class Downloader(with_metaclass(abc.ABCMeta, object)):
+class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """Download interface for a single file.
 
   Implementations should support random access reads.
@@ -55,7 +55,7 @@ class Downloader(with_metaclass(abc.ABCMeta, object)):
     """
 
 
-class Uploader(with_metaclass(abc.ABCMeta, object)):
+class Uploader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """Upload interface for a single file."""
 
   @abc.abstractmethod
