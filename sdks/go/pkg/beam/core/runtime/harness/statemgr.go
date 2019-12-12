@@ -361,10 +361,7 @@ func (c *StateChannel) write(ctx context.Context) {
 		}
 	}
 
-	if err == nil {
-		log.Warnf(ctx, "StateChannel[%v].write closed", c.id)
-		return
-	} else if err == io.EOF {
+	if err == io.EOF {
 		log.Warnf(ctx, "StateChannel[%v].write EOF on send; fetching real error", c.id)
 		err = nil
 		for err == nil {

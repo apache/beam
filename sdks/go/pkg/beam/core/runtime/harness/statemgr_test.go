@@ -222,7 +222,6 @@ func TestStateChannel(t *testing.T) {
 			if test.validateCancelled {
 				select {
 				case <-ctx.Done(): // Assert that the context must have been cancelled on read failures.
-					return
 				case <-time.After(time.Second * 5):
 					t.Fatal("context wasn't cancelled")
 				}
