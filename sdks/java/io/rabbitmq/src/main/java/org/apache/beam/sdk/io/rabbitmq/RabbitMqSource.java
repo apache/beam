@@ -25,10 +25,10 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-class RabbitMQSource extends UnboundedSource<RabbitMqMessage, RabbitMQCheckpointMark> {
+class RabbitMqSource extends UnboundedSource<RabbitMqMessage, RabbitMqCheckpointMark> {
   final RabbitMqIO.Read spec;
 
-  RabbitMQSource(RabbitMqIO.Read spec) {
+  RabbitMqSource(RabbitMqIO.Read spec) {
     this.spec = spec;
   }
 
@@ -38,9 +38,9 @@ class RabbitMQSource extends UnboundedSource<RabbitMqMessage, RabbitMQCheckpoint
   }
 
   @Override
-  public List<RabbitMQSource> split(int desiredNumSplits, PipelineOptions options) {
+  public List<RabbitMqSource> split(int desiredNumSplits, PipelineOptions options) {
     // RabbitMQ uses queue, so, we can have several concurrent consumers as source
-    List<RabbitMQSource> sources = new ArrayList<>();
+    List<RabbitMqSource> sources = new ArrayList<>();
     for (int i = 0; i < desiredNumSplits; i++) {
       sources.add(this);
     }
@@ -49,13 +49,13 @@ class RabbitMQSource extends UnboundedSource<RabbitMqMessage, RabbitMQCheckpoint
 
   @Override
   public UnboundedReader<RabbitMqMessage> createReader(
-      PipelineOptions options, RabbitMQCheckpointMark checkpointMark) throws IOException {
-    return new UnboundedRabbitMqReader(this, checkpointMark);
+      PipelineOptions options, RabbitMqCheckpointMark checkpointMark) throws IOException {
+    return new RabbitMqUnboundedReader(this, checkpointMark);
   }
 
   @Override
-  public Coder<RabbitMQCheckpointMark> getCheckpointMarkCoder() {
-    return SerializableCoder.of(RabbitMQCheckpointMark.class);
+  public Coder<RabbitMqCheckpointMark> getCheckpointMarkCoder() {
+    return SerializableCoder.of(RabbitMqCheckpointMark.class);
   }
 
   @Override

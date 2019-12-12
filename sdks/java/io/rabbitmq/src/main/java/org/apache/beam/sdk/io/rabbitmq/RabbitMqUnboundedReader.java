@@ -25,19 +25,19 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
-class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
+class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
 
-  private final RabbitMQSource source;
+  private final RabbitMqSource source;
 
   private TimestampPolicy timestampPolicy;
   private RecordIdPolicy recordIdPolicy;
   private TimestampPolicyContext context;
   private RabbitMqMessage currentRecord;
   private String queueName;
-  private final RabbitMQCheckpointMark checkpointMark;
+  private final RabbitMqCheckpointMark checkpointMark;
   private final ConnectionHandler connectionHandler;
 
-  UnboundedRabbitMqReader(RabbitMQSource source, RabbitMQCheckpointMark checkpointMark) {
+  RabbitMqUnboundedReader(RabbitMqSource source, RabbitMqCheckpointMark checkpointMark) {
     this.source = source;
     this.currentRecord = null;
     this.recordIdPolicy = source.spec.recordIdPolicy();
@@ -47,15 +47,15 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
             BoundedWindow.TIMESTAMP_MIN_VALUE);
     this.connectionHandler = this.source.spec.connectionHandlerProviderFn().apply(null);
 
-    RabbitMQCheckpointMark cpMark = checkpointMark;
+    RabbitMqCheckpointMark cpMark = checkpointMark;
     if (cpMark == null) {
-      cpMark = new RabbitMQCheckpointMark(this.connectionHandler);
+      cpMark = new RabbitMqCheckpointMark(this.connectionHandler);
     } else {
       cpMark.setChannelLeaser(this.connectionHandler);
     }
     this.checkpointMark = cpMark;
     mkTimestampPolicy(
-        Optional.ofNullable(checkpointMark).map(RabbitMQCheckpointMark::getWatermark));
+        Optional.ofNullable(checkpointMark).map(RabbitMqCheckpointMark::getWatermark));
   }
 
   private TimestampPolicy mkTimestampPolicy(Optional<Instant> prevWatermark) {
@@ -79,7 +79,7 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
   }
 
   @Override
-  public RabbitMQSource getCurrentSource() {
+  public RabbitMqSource getCurrentSource() {
     return source;
   }
 

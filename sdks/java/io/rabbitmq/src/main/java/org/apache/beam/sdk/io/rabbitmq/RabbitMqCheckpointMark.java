@@ -52,7 +52,7 @@ import org.joda.time.Instant;
  * </ul>
  */
 @DefaultCoder(SerializableCoder.class)
-class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
+class RabbitMqCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
   private static final Instant MIN_WATERMARK_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private final UUID checkpointId;
@@ -63,7 +63,7 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
 
   private transient ChannelLeaser channelLeaser;
 
-  public RabbitMQCheckpointMark(ChannelLeaser channelLeaser) {
+  public RabbitMqCheckpointMark(ChannelLeaser channelLeaser) {
     this.checkpointId = UUID.randomUUID();
     this.reading = false;
     this.channelLeaser = channelLeaser;

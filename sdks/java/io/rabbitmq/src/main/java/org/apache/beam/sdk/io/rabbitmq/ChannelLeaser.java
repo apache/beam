@@ -47,7 +47,7 @@ public interface ChannelLeaser {
    * need not worry about the state of the Channel based on the thrown Exception; the {@code
    * ChannelLeaser} implementation will be responsible for managing Connection/Channel state.
    */
-  <T> T useChannel(UUID lesseeId, UseChannelFunction<T> f) throws IOException;
+  <T> T useChannel(UUID lessee, UseChannelFunction<T> f) throws IOException;
 
   /**
    * Explicitly close a Channel for a given lessee. If the lessee has no such channel or does not

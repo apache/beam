@@ -357,7 +357,7 @@ public class RabbitMqIO {
     @Override
     public PCollection<RabbitMqMessage> expand(PBegin input) {
       org.apache.beam.sdk.io.Read.Unbounded<RabbitMqMessage> unbounded =
-          org.apache.beam.sdk.io.Read.from(new RabbitMQSource(this));
+          org.apache.beam.sdk.io.Read.from(new RabbitMqSource(this));
 
       PTransform<PBegin, PCollection<RabbitMqMessage>> transform = unbounded;
 
