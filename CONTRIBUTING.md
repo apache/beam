@@ -27,3 +27,18 @@ for details, such as:
 * Development setup and testing your changes
 * Submitting a pull request and finding a reviewer
 
+To build and install the whole project from the source distribution, you may need some additional tools installed in your system.
+In a Debian-based distribution:
+
+```
+sudo apt-get install \
+    openjdk-8-jdk \
+    python-setuptools \
+    python-pip \
+    virtualenv
+```
+
+You also need to install Docker.
+
+Then please use the standard `./gradlew build` command.
+
