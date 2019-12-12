@@ -98,10 +98,12 @@ class RabbitMqCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
    * be acknowledged.
    */
   public void setChannelLeaser(ChannelLeaser leaser) {
-    this.channelLeaser = leaser;
-    if (!deliveryTags.isEmpty()) {
-      hadPreviouslyUnacknowledgedMessages = true;
-      deliveryTags.clear();
+    if (leaser != this.channelLeaser) {
+      this.channelLeaser = leaser;
+      if (!deliveryTags.isEmpty()) {
+        hadPreviouslyUnacknowledgedMessages = true;
+        deliveryTags.clear();
+      }
     }
   }
 
