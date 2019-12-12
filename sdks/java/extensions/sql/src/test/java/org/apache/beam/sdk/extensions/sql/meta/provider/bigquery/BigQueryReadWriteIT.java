@@ -52,6 +52,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.DataFormat;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
@@ -369,7 +370,7 @@ public class BigQueryReadWriteIT implements Serializable {
         BigQueryIO.read(new TableRowParser())
             .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
-            //.withFormat(DataFormat.ARROW)
+            .withFormat(DataFormat.ARROW)
             .from("google.com:clouddfe:bhulette_test.dfsqltable_5a977b83_16ef2a2f628");
 
     PCollection<TableRow> result = pipeline.apply(typedRead);

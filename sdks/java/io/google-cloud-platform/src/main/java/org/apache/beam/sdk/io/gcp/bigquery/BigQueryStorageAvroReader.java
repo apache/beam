@@ -50,5 +50,10 @@ public class BigQueryStorageAvroReader implements BigQueryStorageReader {
   }
 
   @Override
+  public void resetBuffer() {
+    decoder = null;
+  }
+
+  @Override
   public void close() { }
 }

@@ -13,6 +13,8 @@ public interface BigQueryStorageReader extends AutoCloseable {
 
   boolean readyForNextReadResponse() throws IOException;
 
+  void resetBuffer();
+
   @Override
   void close();
 }
