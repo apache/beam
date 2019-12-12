@@ -40,6 +40,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Instant;
 
 /**
  * Utilities to create {@link Iterable}s of Beam {@link Row} instances backed by Arrow record
