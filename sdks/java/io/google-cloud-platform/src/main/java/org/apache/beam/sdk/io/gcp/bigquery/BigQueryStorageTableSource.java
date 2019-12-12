@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.DataFormat;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -46,6 +47,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
 
   public static <T> BigQueryStorageTableSource<T> create(
       ValueProvider<TableReference> tableRefProvider,
+      DataFormat format,
       @Nullable TableReadOptions readOptions,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
@@ -54,6 +56,26 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       BigQueryServices bqServices) {
     return new BigQueryStorageTableSource<>(
         tableRefProvider,
+        format,
+        readOptions,
+        selectedFields,
+        rowRestriction,
+        parseFn,
+        outputCoder,
+        bqServices);
+  }
+
+  public static <T> BigQueryStorageTableSource<T> create(
+      ValueProvider<TableReference> tableRefProvider,
+      @Nullable TableReadOptions readOptions,
+      @Nullable ValueProvider<List<String>> selectedFields,
+      @Nullable ValueProvider<String> rowRestriction,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
+      BigQueryServices bqServices) {
+    return new BigQueryStorageTableSource<>(
+        tableRefProvider,
+        null,
         readOptions,
         selectedFields,
         rowRestriction,
@@ -68,13 +90,14 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
 
   private BigQueryStorageTableSource(
       ValueProvider<TableReference> tableRefProvider,
+      DataFormat format,
       @Nullable TableReadOptions readOptions,
       @Nullable ValueProvider<List<String>> selectedFields,
       @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(readOptions, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+    super(format, readOptions, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
     this.tableReferenceProvider = checkNotNull(tableRefProvider, "tableRefProvider");
     cachedTable = new AtomicReference<>();
   }

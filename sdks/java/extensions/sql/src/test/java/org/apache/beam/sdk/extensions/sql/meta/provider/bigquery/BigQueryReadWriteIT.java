@@ -33,6 +33,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 
+import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -49,7 +50,12 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.DataFormat;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -356,6 +362,24 @@ public class BigQueryReadWriteIT implements Serializable {
                 Arrays.asList("123", "456")));
     PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
     assertThat(state, equalTo(State.DONE));
+  }
+
+  @Test
+  public void testBigQueryAvroRead() {
+    BigQueryIO.TypedRead<TableRow> typedRead =
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .withFormat(DataFormat.ARROW)
+            .from("google.com:clouddfe:bhulette_test.dfsqltable_5a977b83_16ef2a2f628");
+
+    PCollection<TableRow> result = pipeline.apply(typedRead);
+
+    Schema schema = Schema.builder().addInt64Field("num").addStringField("str").addDateTimeField("event_timestamp").build();
+    PAssert.that(result).containsInAnyOrder(BigQueryUtils.toTableRow(row(schema, 2L, "nice!", parseTimestampWithUTCTimeZone("2019-12-11 01:56:17.660"))),
+        BigQueryUtils.toTableRow(row(schema, 1L, "foo", parseTimestampWithUTCTimeZone("2019-12-11 01:54:36.086"))));
+
+    pipeline.run().waitUntilFinish();
   }
 
   @Test

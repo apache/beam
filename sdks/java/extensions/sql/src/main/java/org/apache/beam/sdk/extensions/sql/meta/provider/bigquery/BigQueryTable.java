@@ -209,7 +209,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
   private TypedRead<Row> getBigQueryTypedRead(Schema schema) {
     return BigQueryIO.read(
-            record -> BigQueryUtils.toBeamRow(record.getRecord(), schema, conversionOptions))
+            record -> (Row) record.getRecord())
         .withMethod(method)
         .from(bqLocation)
         .withCoder(SchemaCoder.of(schema));

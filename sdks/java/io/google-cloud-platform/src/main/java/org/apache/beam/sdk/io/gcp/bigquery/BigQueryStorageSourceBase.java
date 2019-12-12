@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.services.bigquery.model.Table;
 import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.DataFormat;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ShardingStrategy;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -63,6 +65,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
    */
   private static final int MIN_SPLIT_COUNT = 10;
 
+  protected final TypedRead.DataFormat format;
   protected final TableReadOptions tableReadOptions;
   protected final ValueProvider<List<String>> selectedFieldsProvider;
   protected final ValueProvider<String> rowRestrictionProvider;
@@ -71,6 +74,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final BigQueryServices bqServices;
 
   BigQueryStorageSourceBase(
+      TypedRead.DataFormat format,
       @Nullable TableReadOptions tableReadOptions,
       @Nullable ValueProvider<List<String>> selectedFieldsProvider,
       @Nullable ValueProvider<String> rowRestrictionProvider,
@@ -81,6 +85,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         tableReadOptions == null
             || (selectedFieldsProvider == null && rowRestrictionProvider == null),
         "tableReadOptions is mutually exclusive with selectedFieldsProvider and rowRestrictionProvider");
+    this.format = format;
     this.tableReadOptions = tableReadOptions;
     this.selectedFieldsProvider = selectedFieldsProvider;
     this.rowRestrictionProvider = rowRestrictionProvider;
@@ -131,6 +136,10 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       requestBuilder.setReadOptions(builder);
     } else if (tableReadOptions != null) {
       requestBuilder.setReadOptions(tableReadOptions);
+    }
+
+    if (format != null && format.equals(TypedRead.DataFormat.ARROW)) {
+      requestBuilder.setFormat(DataFormat.ARROW);
     }
 
     ReadSession readSession;
