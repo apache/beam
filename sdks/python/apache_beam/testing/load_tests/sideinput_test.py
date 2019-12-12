@@ -118,57 +118,40 @@ apache_beam.testing.load_tests.sideinput_test:SideInputTest.testSideInput \
 from __future__ import absolute_import
 
 import logging
-import os
-import unittest
 
 import apache_beam as beam
 from apache_beam.pvalue import AsIter
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class SideInputTest(LoadTest):
-  def _getSideInput(self):
-    side_input = self.parseTestPipelineOptions()
-    side_input['numRecords'] = side_input['numRecords']
-    side_input['keySizeBytes'] = side_input['keySizeBytes']
-    side_input['valueSizeBytes'] = side_input['valueSizeBytes']
-    return side_input
+  def __init__(self):
+    super(SideInputTest, self).__init__()
+    self.iterations = self.get_option_or_default(
+        'number_of_counter_operations', 1)
 
-  def setUp(self):
-    super(SideInputTest, self).setUp()
-
-    self.iterations = self.pipeline.get_option('number_of_counter_operations')
-    if not self.iterations:
-      self.iterations = 1
-    self.iterations = int(self.iterations)
-
-  def testSideInput(self):
+  def test(self):
     def join_fn(element, side_input, iterations):
-      list = []
+      result = []
       for i in range(iterations):
         for key, value in side_input:
           if i == iterations - 1:
-            list.append({key: element[1] + value})
-      yield list
+            result.append({key: element[1] + value})
+      yield result
 
     main_input = (
         self.pipeline
         | "Read pcoll 1" >> beam.io.Read(
-            synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions()))
+            SyntheticSource(self.parse_synthetic_source_options()))
         | 'Measure time: Start pcoll 1' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
     side_input = (
         self.pipeline
         | "Read pcoll 2" >> beam.io.Read(
-            synthetic_pipeline.SyntheticSource(self._getSideInput()))
+            SyntheticSource(self.parse_synthetic_source_options()))
         | 'Measure time: Start pcoll 2' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
     # pylint: disable=expression-not-assigned
@@ -179,5 +162,5 @@ class SideInputTest(LoadTest):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  SideInputTest().run()

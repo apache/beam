@@ -149,8 +149,6 @@ from __future__ import absolute_import
 
 import json
 import logging
-import os
-import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
@@ -160,15 +158,10 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 INPUT_TAG = 'pc1'
 CO_INPUT_TAG = 'pc2'
 
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
 
-
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class CoGroupByKeyTest(LoadTest):
-  def setUp(self):
-    super(CoGroupByKeyTest, self).setUp()
+  def __init__(self):
+    super(CoGroupByKeyTest, self).__init__()
     self.co_input_options = json.loads(
         self.pipeline.get_option('co_input_options'))
     self.iterations = self.get_option_or_default('iterations', 1)
@@ -191,7 +184,7 @@ class CoGroupByKeyTest(LoadTest):
         self.pipeline
         | 'Read ' + INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
-                self.parseTestPipelineOptions(self.input_options)))
+                self.parse_synthetic_source_options()))
         | 'Make ' + INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc1' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
@@ -200,7 +193,7 @@ class CoGroupByKeyTest(LoadTest):
         self.pipeline
         | 'Read ' + CO_INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
-                self.parseTestPipelineOptions(self.co_input_options)))
+                self.parse_synthetic_source_options(self.co_input_options)))
         | 'Make ' + CO_INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc2' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
@@ -215,5 +208,5 @@ class CoGroupByKeyTest(LoadTest):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  CoGroupByKeyTest().run()

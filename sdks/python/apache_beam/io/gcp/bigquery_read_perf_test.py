@@ -55,8 +55,6 @@ from __future__ import absolute_import
 
 import base64
 import logging
-import os
-import unittest
 
 from apache_beam import Map
 from apache_beam import ParDo
@@ -82,15 +80,10 @@ except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
 
-
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class BigQueryReadPerfTest(LoadTest):
-  def setUp(self):
-    super(BigQueryReadPerfTest, self).setUp()
+  def __init__(self):
+    super(BigQueryReadPerfTest, self).__init__()
     self.input_dataset = self.pipeline.get_option('input_dataset')
     self.input_table = self.pipeline.get_option('input_table')
     self._check_for_input_data()
@@ -118,8 +111,7 @@ class BigQueryReadPerfTest(LoadTest):
       return {'data': base64.b64encode(record[1])}
 
     with TestPipeline() as p:
-      # pylint: disable=expression-not-assigned
-      (
+      (  # pylint: disable=expression-not-assigned
           p
           | 'Produce rows' >> Read(
               SyntheticSource(self.parseTestPipelineOptions()))
@@ -143,5 +135,5 @@ class BigQueryReadPerfTest(LoadTest):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  BigQueryReadPerfTest().run()

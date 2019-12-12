@@ -19,19 +19,49 @@
 from __future__ import absolute_import
 
 import json
-import logging
-import unittest
 
 from apache_beam.metrics import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
-class LoadTest(unittest.TestCase):
-  def parseTestPipelineOptions(self, options=None):
+class LoadTest(object):
+  def __init__(self):
+    self.pipeline = TestPipeline(is_integration_test=True)
+    self.input_options = json.loads(
+        self.pipeline.get_option('input_options') or '{}')
+    self.project_id = self.pipeline.get_option('project')
+    self.metrics_namespace = self.pipeline.get_option('metrics_table')
+    self._metrics_monitor = MetricsReader(
+        publish_to_bq=self.pipeline.get_option('publish_to_big_query') ==
+        'true',
+        project_name=self.project_id,
+        bq_table=self.metrics_namespace,
+        bq_dataset=self.pipeline.get_option('metrics_dataset'),
+        # Apply filter to prevent system metrics from being published
+        filters=MetricsFilter().with_namespace(self.metrics_namespace))
+
+  def test(self):
+    """An abstract method where the pipeline definition should be put."""
+    pass
+
+  def cleanup(self):
+    """An abstract method that executes after the test method."""
+    pass
+
+  def run(self):
+    try:
+      self.test()
+      if not hasattr(self, 'result'):
+        self.result = self.pipeline.run()
+        self.result.wait_until_finish()
+      self._metrics_monitor.publish_metrics(self.result)
+    finally:
+      self.cleanup()
+
+  def parse_synthetic_source_options(self, options=None):
     if not options:
       options = self.input_options
-
     return {
         'numRecords': options.get('num_records'),
         'keySizeBytes': options.get('key_size'),
@@ -45,32 +75,6 @@ class LoadTest(unittest.TestCase):
         'forceNumInitialBundles': options.get('force_initial_num_bundles', 0)
     }
 
-  def setUp(self, pipeline_options=None):
-    self.pipeline = TestPipeline(pipeline_options)
-    input = self.pipeline.get_option('input_options') or '{}'
-    self.input_options = json.loads(input)
-    self.project_id = self.pipeline.get_option('project')
-
-    self.metrics_dataset = self.pipeline.get_option('metrics_dataset')
-    self.metrics_namespace = self.pipeline.get_option('metrics_table')
-
-    self.metrics_monitor = MetricsReader(
-        publish_to_bq=self.pipeline.get_option('publish_to_big_query') ==
-        'true',
-        project_name=self.project_id,
-        bq_table=self.metrics_namespace,
-        bq_dataset=self.metrics_dataset,
-        # Apply filter to prevent system metrics from being published
-        filters=MetricsFilter().with_namespace(self.metrics_namespace))
-
-  def tearDown(self):
-    if not hasattr(self, 'result'):
-      self.result = self.pipeline.run()
-      self.result.wait_until_finish()
-
-    if self.metrics_monitor:
-      self.metrics_monitor.publish_metrics(self.result)
-
   def get_option_or_default(self, opt_name, default=0):
     """Returns a pipeline option or a default value if it was not provided.
 
@@ -81,10 +85,3 @@ class LoadTest(unittest.TestCase):
       return int(option)
     except TypeError:
       return default
-    except ValueError as exc:
-      self.fail(str(exc))
-
-
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()

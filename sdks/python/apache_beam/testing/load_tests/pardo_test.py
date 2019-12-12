@@ -123,30 +123,23 @@ or:
 from __future__ import absolute_import
 
 import logging
-import os
-import unittest
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class ParDoTest(LoadTest):
-  def setUp(self):
-    super(ParDoTest, self).setUp()
+  def __init__(self):
+    super(ParDoTest, self).__init__()
     self.iterations = self.get_option_or_default('iterations')
     self.number_of_counters = self.get_option_or_default('number_of_counters')
     self.number_of_operations = self.get_option_or_default(
         'number_of_counter_operations')
 
-  def testParDo(self):
+  def test(self):
     class CounterOperation(beam.DoFn):
       def __init__(self, number_of_counters, number_of_operations):
         self.number_of_operations = number_of_operations
@@ -164,7 +157,7 @@ class ParDoTest(LoadTest):
     pc = (
         self.pipeline
         | 'Read synthetic' >> beam.io.Read(
-            synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions()))
+            SyntheticSource(self.parse_synthetic_source_options()))
         | 'Measure time: Start' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
@@ -183,5 +176,5 @@ class ParDoTest(LoadTest):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  ParDoTest().run()

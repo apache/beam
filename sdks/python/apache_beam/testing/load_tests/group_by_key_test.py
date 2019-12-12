@@ -124,34 +124,18 @@ apache_beam.testing.load_tests.group_by_key_test \
 from __future__ import absolute_import
 
 import logging
-import os
-import unittest
 
 import apache_beam as beam
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class GroupByKeyTest(LoadTest):
-  def setUp(self):
-    super(GroupByKeyTest, self).setUp()
-    self.fanout = self.pipeline.get_option('fanout')
-    if self.fanout is None:
-      self.fanout = 1
-    else:
-      self.fanout = int(self.fanout)
-
-    self.iterations = self.pipeline.get_option('iterations')
-    if self.iterations is None:
-      self.iterations = 1
-    else:
-      self.iterations = int(self.iterations)
+  def __init__(self):
+    super(GroupByKeyTest, self).__init__()
+    self.fanout = self.get_option_or_default('fanout', 1)
+    self.iterations = self.get_option_or_default('iterations', 1)
 
   class _UngroupAndReiterate(beam.DoFn):
     def process(self, element, iterations):
@@ -159,20 +143,18 @@ class GroupByKeyTest(LoadTest):
       for i in range(iterations):
         for v in value:
           if i == iterations - 1:
-            return (key, v)
+            return key, v
 
-  def testGroupByKey(self):
-    input = (
+  def test(self):
+    pc = (
         self.pipeline
-        | beam.io.Read(
-            synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions()))
+        | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
         | 'Measure time: Start' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
     for branch in range(self.fanout):
-      # pylint: disable=expression-not-assigned
-      (
-          input
+      (  # pylint: disable=expression-not-assigned
+          pc
           | 'GroupByKey %i' % branch >> beam.GroupByKey()
           | 'Ungroup %i' % branch >> beam.ParDo(
               self._UngroupAndReiterate(), self.iterations)
@@ -181,5 +163,5 @@ class GroupByKeyTest(LoadTest):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  GroupByKeyTest().run()

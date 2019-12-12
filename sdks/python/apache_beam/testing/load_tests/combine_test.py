@@ -123,33 +123,25 @@ TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
 from __future__ import absolute_import
 
 import logging
-import os
-import unittest
+import sys
 
 import apache_beam as beam
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class CombineTest(LoadTest):
-  def setUp(self):
-    super(CombineTest, self).setUp()
-    self.fanout = self.pipeline.get_option('fanout')
-    if self.fanout is None:
-      self.fanout = 1
-    else:
-      self.fanout = int(self.fanout)
-
+  def __init__(self):
+    super(CombineTest, self).__init__()
+    self.fanout = self.get_option_or_default('fanout', 1)
     try:
       self.top_count = int(self.pipeline.get_option('top_count'))
     except (TypeError, ValueError):
-      self.fail('You should set \"--top_count\" option to use TOP combiners')
+      logging.error(
+          'You should set \"--top_count\" option to use TOP '
+          'combiners')
+      sys.exit(1)
 
   class _GetElement(beam.DoFn):
     def process(self, element):
@@ -158,14 +150,12 @@ class CombineTest(LoadTest):
   def testCombineGlobally(self):
     input = (
         self.pipeline
-        | beam.io.Read(
-            synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions()))
+        | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
         | 'Measure time: Start' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
     for branch in range(self.fanout):
-      # pylint: disable=expression-not-assigned
-      (
+      (  # pylint: disable=expression-not-assigned
           input
           | 'Combine with Top %i' % branch >> beam.CombineGlobally(
               beam.combiners.TopCombineFn(self.top_count))
@@ -175,5 +165,5 @@ class CombineTest(LoadTest):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  CombineTest().run()

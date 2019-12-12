@@ -40,8 +40,6 @@ Optional pipeline options:
 from __future__ import absolute_import
 
 import logging
-import os
-import unittest
 import uuid
 
 from hamcrest.core.core.allof import all_of
@@ -51,10 +49,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing import test_utils
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.streaming import group_by_key_streaming_pipeline
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
 
 DEFAULT_TIMEOUT = 800
 WAIT_UNTIL_FINISH_DURATION = 1 * 60 * 1000
@@ -66,12 +60,11 @@ class TestOptions(PipelineOptions):
     parser.add_argument('--test-pipeline-options')
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phase triggering.')
 class GroupByKeyStreamingTest(LoadTest):
   ID_LABEL = 'id'
 
-  def setUp(self):
-    super(GroupByKeyStreamingTest, self).setUp()
+  def __init__(self):
+    super(GroupByKeyStreamingTest, self).__init__()
     self.topic_short_name = self.pipeline.get_option('pubsub_topic_name')
     self.setup_pubsub()
 
@@ -97,7 +90,7 @@ class GroupByKeyStreamingTest(LoadTest):
     # Set up PubSub environment.
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
-    input_topic_full_name = "projects/{}/topics/{}"\
+    input_topic_full_name = "projects/{}/topics/{}" \
       .format(self.project_id, self.topic_short_name)
     self.input_topic = self.pub_client.get_topic(input_topic_full_name)
     self.output_topic_name = self.topic_short_name + '_out_' + self.uuid
@@ -116,19 +109,18 @@ class GroupByKeyStreamingTest(LoadTest):
         self.output_topic.name,
         ack_deadline_seconds=60)
 
+  def test(self):
+    args = self.pipeline.get_full_options_as_args(**self.extra_opts)
+    self.result = group_by_key_streaming_pipeline.run(args)
+
   # If the test timeouts on Dataflow it may not cleanup pubsub after
-  def tearDown(self):
-    super(GroupByKeyStreamingTest, self).tearDown()
+  def cleanup(self):
     test_utils.cleanup_subscriptions(
         self.sub_client, [self.input_sub, self.output_sub])
     test_utils.cleanup_topics(
         self.pub_client, [self.input_topic, self.output_topic])
 
-  def testGroupByKey(self):
-    args = self.pipeline.get_full_options_as_args(**self.extra_opts)
-    self.result = group_by_key_streaming_pipeline.run(args)
-
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  GroupByKeyStreamingTest().run()
