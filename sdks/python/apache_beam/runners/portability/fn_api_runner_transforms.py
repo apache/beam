@@ -1440,4 +1440,5 @@ def create_buffer_id(name, kind='materialize'):
 def split_buffer_id(buffer_id):
   # type: (bytes) -> Tuple[str, str]
   """A buffer id is "kind:pcollection_id". Split into (kind, pcoll_id). """
-  return buffer_id.decode('utf-8').split(':', 1)
+  kind, pcoll_id = buffer_id.decode('utf-8').split(':', 1)
+  return kind, pcoll_id
