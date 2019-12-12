@@ -21,7 +21,7 @@
 
 ## Beam Jenkins
 
-Beam Jenkins overview page: [link](https://builds.apache.org/view/A-D/view/Beam/view)
+Beam Jenkins overview page: [link](https://builds.apache.org/view/A-D/view/Beam/view/All/)
 
 ### PreCommit Jobs
 
