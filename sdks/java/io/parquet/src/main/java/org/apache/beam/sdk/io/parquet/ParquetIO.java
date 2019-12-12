@@ -28,6 +28,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -127,11 +128,32 @@ public class ParquetIO {
   }
 
   /**
+   * Like {@link #read(Schema)}, with an additional {@link org.apache.avro.generic.GenericData}
+   * argument, allowing users to signal to the underlying AvroParquetReader the type of model to
+   * associate with the wrapped {@link org.apache.parquet.avro.AvroReadSupport} instance.
+   */
+  public static Read read(Schema schema, GenericData model) {
+    return new AutoValue_ParquetIO_Read.Builder().setSchema(schema).setAvroDataModel(model).build();
+  }
+
+  /**
    * Like {@link #read(Schema)}, but reads each file in a {@link PCollection} of {@link
    * org.apache.beam.sdk.io.FileIO.ReadableFile}, which allows more flexible usage.
    */
   public static ReadFiles readFiles(Schema schema) {
     return new AutoValue_ParquetIO_ReadFiles.Builder().setSchema(schema).build();
+  }
+
+  /**
+   * Like {@link #readFiles(Schema)}, with an additional {@link org.apache.avro.generic.GenericData}
+   * argument, allowing users to signal to the underlying AvroParquetReader the type of model to
+   * associate with the wrapped {@link org.apache.parquet.avro.AvroReadSupport} instance.
+   */
+  public static ReadFiles readFiles(Schema schema, GenericData model) {
+    return new AutoValue_ParquetIO_ReadFiles.Builder()
+        .setSchema(schema)
+        .setAvroDataModel(model)
+        .build();
   }
 
   /** Implementation of {@link #read(Schema)}. */
@@ -144,6 +166,9 @@ public class ParquetIO {
     @Nullable
     abstract Schema getSchema();
 
+    @Nullable
+    abstract GenericData getAvroDataModel();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -151,6 +176,8 @@ public class ParquetIO {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
       abstract Builder setSchema(Schema schema);
+
+      abstract Builder setAvroDataModel(GenericData model);
 
       abstract Read build();
     }
@@ -173,7 +200,7 @@ public class ParquetIO {
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply(FileIO.matchAll())
           .apply(FileIO.readMatches())
-          .apply(readFiles(getSchema()));
+          .apply(readFiles(getSchema(), getAvroDataModel()));
     }
 
     @Override
@@ -192,9 +219,14 @@ public class ParquetIO {
     @Nullable
     abstract Schema getSchema();
 
+    @Nullable
+    abstract GenericData getAvroDataModel();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setSchema(Schema schema);
+
+      abstract Builder setAvroDataModel(GenericData model);
 
       abstract ReadFiles build();
     }
@@ -202,10 +234,18 @@ public class ParquetIO {
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      return input.apply(ParDo.of(new ReadFn())).setCoder(AvroCoder.of(getSchema()));
+      return input
+          .apply(ParDo.of(new ReadFn(getAvroDataModel())))
+          .setCoder(AvroCoder.of(getSchema()));
     }
 
     static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
+
+      private Class<? extends GenericData> modelClass;
+
+      ReadFn(GenericData model) {
+        this.modelClass = model != null ? model.getClass() : null;
+      }
 
       @ProcessElement
       public void processElement(ProcessContext processContext) throws Exception {
@@ -218,9 +258,14 @@ public class ParquetIO {
 
         SeekableByteChannel seekableByteChannel = file.openSeekable();
 
-        try (ParquetReader<GenericRecord> reader =
-            AvroParquetReader.<GenericRecord>builder(new BeamParquetInputFile(seekableByteChannel))
-                .build()) {
+        AvroParquetReader.Builder builder =
+            AvroParquetReader.<GenericRecord>builder(new BeamParquetInputFile(seekableByteChannel));
+        if (modelClass != null) {
+          // all GenericData implementations have a static get method
+          builder = builder.withDataModel((GenericData) modelClass.getMethod("get").invoke(null));
+        }
+
+        try (ParquetReader<GenericRecord> reader = builder.build()) {
           GenericRecord read;
           while ((read = reader.read()) != null) {
             processContext.output(read);
