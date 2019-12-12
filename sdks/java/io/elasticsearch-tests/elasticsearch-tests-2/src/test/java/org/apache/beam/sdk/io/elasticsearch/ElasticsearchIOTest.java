@@ -87,7 +87,7 @@ public class ElasticsearchIOTest implements Serializable {
     connectionConfiguration =
         ConnectionConfiguration.create(
                 new String[] {"http://" + ES_IP + ":" + esHttpPort}, getEsIndex(), ES_TYPE)
-            .withSocketAndRetryTimeout(120000)
+            .withSocketTimeout(120000)
             .withConnectTimeout(5000);
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon =
