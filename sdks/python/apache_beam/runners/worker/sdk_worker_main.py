@@ -54,7 +54,8 @@ class StatusServer(object):
 
     for t in threading.enumerate():
       lines.append('--- Thread #%s name: %s ---\n' % (t.ident, t.name))
-      lines.append(''.join(traceback.format_stack(frames[t.ident])))
+      if t.ident in frames:
+        lines.append(''.join(traceback.format_stack(frames[t.ident])))
 
     return lines
 
@@ -151,6 +152,8 @@ def main(unused_argv):
         control_address=service_descriptor.url,
         worker_id=_worker_id,
         state_cache_size=_get_state_cache_size(sdk_pipeline_options),
+        data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(
+            sdk_pipeline_options),
         profiler_factory=profiler.Profile.factory_from_options(
             sdk_pipeline_options.view_as(ProfilingOptions))
     ).run()
@@ -197,6 +200,29 @@ def _get_state_cache_size(pipeline_options):
       return int(
           re.match(r'state_cache_size=(?P<state_cache_size>.*)',
                    experiment).group('state_cache_size'))
+  return 0
+
+
+def _get_data_buffer_time_limit_ms(pipeline_options):
+  """Defines the time limt of the outbound data buffering.
+
+  Note: data_buffer_time_limit_ms is an experimental flag and might
+  not be available in future releases.
+
+  Returns:
+    an int indicating the time limit in milliseconds of the the outbound
+      data buffering. Default is 0 (disabled)
+  """
+  experiments = pipeline_options.view_as(DebugOptions).experiments
+  experiments = experiments if experiments else []
+
+  for experiment in experiments:
+    # There should only be 1 match so returning from the loop
+    if re.match(r'data_buffer_time_limit_ms=', experiment):
+      return int(
+          re.match(
+              r'data_buffer_time_limit_ms=(?P<data_buffer_time_limit_ms>.*)',
+              experiment).group('data_buffer_time_limit_ms'))
   return 0
 
 

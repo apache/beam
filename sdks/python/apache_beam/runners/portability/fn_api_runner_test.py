@@ -597,7 +597,8 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       big = (p
              | beam.Create(['a', 'a', 'b'])
-             | beam.Map(lambda x: (x, x * data_plane._DEFAULT_FLUSH_THRESHOLD)))
+             | beam.Map(lambda x: (
+                 x, x * data_plane._DEFAULT_SIZE_FLUSH_THRESHOLD)))
 
       side_input_res = (
           big
@@ -1153,7 +1154,8 @@ class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(
-                state_cache_size=0)))
+                state_cache_size=0,
+                data_buffer_time_limit_ms=0)))
 
 
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
