@@ -35,7 +35,8 @@ sudo apt-get install \
     openjdk-8-jdk \
     python-setuptools \
     python-pip \
-    virtualenv
+    virtualenv \
+    tox
 ```
 
 You also need to install Docker.
