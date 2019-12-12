@@ -27,7 +27,7 @@ ext.summary = "Common test classes for ElasticsearchIO"
 
 def jna_version = "4.1.0"
 def log4j_version = "2.11.1"
-def elastic_search_version = "7.4.2"
+def elastic_search_version = "7.5.0"
 
 configurations.all {
   resolutionStrategy {
@@ -40,11 +40,6 @@ configurations.all {
 
 dependencies {
   testCompile library.java.jackson_databind
-  testCompile "org.apache.httpcomponents:httpasyncclient:4.1.4"
-  testCompile "org.apache.httpcomponents:httpcore-nio:4.4.10"
-  testCompile "org.apache.httpcomponents:httpcore:4.4.10"
-  testCompile "org.apache.httpcomponents:httpclient:4.5.6"
-
   testCompile project(path: ":sdks:java:core", configuration: "shadow")
   testCompile project(":sdks:java:io:elasticsearch")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
