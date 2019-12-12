@@ -146,7 +146,7 @@ import org.slf4j.LoggerFactory;
  * <p>When {withUsePartialUpdate()} is enabled, the input document must contain an id field and
  * {@code withIdFn()} must be used to allow its extraction by the ElasticsearchIO.
  *
- * <p>Optionally, {@code withSocketAndRetryTimeout()} can be used to override the default retry
+ * <p>Optionally, {@code withSocketTimeout()} can be used to override the default retry
  * timeout and socket timeout of 30000ms. {@code withConnectTimeout()} can be used to override the
  * default connect timeout of 1000ms.
  */
@@ -249,7 +249,7 @@ public class ElasticsearchIO {
     public abstract String getType();
 
     @Nullable
-    public abstract Integer getSocketAndRetryTimeout();
+    public abstract Integer getSocketTimeout();
 
     @Nullable
     public abstract Integer getConnectTimeout();
@@ -274,7 +274,7 @@ public class ElasticsearchIO {
 
       abstract Builder setType(String type);
 
-      abstract Builder setSocketAndRetryTimeout(Integer maxRetryTimeout);
+      abstract Builder setSocketTimeout(Integer maxRetryTimeout);
 
       abstract Builder setConnectTimeout(Integer connectTimeout);
 
@@ -374,13 +374,13 @@ public class ElasticsearchIO {
      * and the default socket timeout (30000ms) in the {@link RequestConfig} of the Elastic {@link
      * RestClient}.
      *
-     * @param socketAndRetryTimeout the socket and retry timeout in millis.
+     * @param socketTimeout the socket and retry timeout in millis.
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
      *     Elasticsearch.
      */
-    public ConnectionConfiguration withSocketAndRetryTimeout(Integer socketAndRetryTimeout) {
-      checkArgument(socketAndRetryTimeout != null, "socketAndRetryTimeout can not be null");
-      return builder().setSocketAndRetryTimeout(socketAndRetryTimeout).build();
+    public ConnectionConfiguration withSocketTimeout(Integer socketTimeout) {
+      checkArgument(socketTimeout != null, "socketTimeout can not be null");
+      return builder().setSocketTimeout(socketTimeout).build();
     }
 
     /**
@@ -402,7 +402,7 @@ public class ElasticsearchIO {
       builder.add(DisplayData.item("type", getType()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
       builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
-      builder.addIfNotNull(DisplayData.item("socketAndRetryTimeout", getSocketAndRetryTimeout()));
+      builder.addIfNotNull(DisplayData.item("socketTimeout", getSocketTimeout()));
       builder.addIfNotNull(DisplayData.item("connectTimeout", getConnectTimeout()));
       builder.addIfNotNull(DisplayData.item("trustSelfSignedCerts", isTrustSelfSignedCerts()));
     }
@@ -452,8 +452,8 @@ public class ElasticsearchIO {
               if (getConnectTimeout() != null) {
                 requestConfigBuilder.setConnectTimeout(getConnectTimeout());
               }
-              if (getSocketAndRetryTimeout() != null) {
-                requestConfigBuilder.setSocketTimeout(getSocketAndRetryTimeout());
+              if (getSocketTimeout() != null) {
+                requestConfigBuilder.setSocketTimeout(getSocketTimeout());
               }
               return requestConfigBuilder;
             }
