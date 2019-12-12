@@ -74,8 +74,10 @@ class SdkHarness(object):
                worker_id=None,  # type: Optional[str]
                # Caching is disabled by default
                state_cache_size=0,
+               # time-based data buffering is disabled by default
+               data_buffer_time_limit_ms=0,
                profiler_factory=None  # type: Optional[Callable[..., Profile]]
-              ):
+               ):
     self._alive = True
     self._worker_index = 0
     self._worker_id = worker_id
@@ -94,7 +96,7 @@ class SdkHarness(object):
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor(self._worker_id))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
-        credentials, self._worker_id)
+        credentials, self._worker_id, data_buffer_time_limit_ms)
     self._state_handler_factory = GrpcStateHandlerFactory(self._state_cache,
                                                           credentials)
     self._profiler_factory = profiler_factory
