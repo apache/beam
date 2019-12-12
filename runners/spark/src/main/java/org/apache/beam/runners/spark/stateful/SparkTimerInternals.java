@@ -155,7 +155,11 @@ public class SparkTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Setting a timer by ID not yet supported.");
   }
 

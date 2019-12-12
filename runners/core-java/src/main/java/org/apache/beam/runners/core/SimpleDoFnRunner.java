@@ -937,6 +937,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final StateNamespace namespace;
     private final String timerId;
+    private final String timerFamilyId;
     private final TimerSpec spec;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
@@ -950,6 +951,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.window = window;
       this.namespace = namespace;
       this.timerId = timerId;
+      this.timerFamilyId = timerId;
+      this.spec = spec;
+      this.timerInternals = timerInternals;
+    }
+
+    public TimerInternalsTimer(
+        BoundedWindow window,
+        StateNamespace namespace,
+        String timerId,
+        String timerFamilyId,
+        TimerSpec spec,
+        TimerInternals timerInternals) {
+      this.window = window;
+      this.namespace = namespace;
+      this.timerId = timerId;
+      this.timerFamilyId = timerFamilyId;
       this.spec = spec;
       this.timerInternals = timerInternals;
     }
@@ -1023,7 +1040,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      * user has no way to compute a good choice of time.
      */
     private void setUnderlyingTimer(Instant target) {
-      timerInternals.setTimer(namespace, timerId, target, spec.getTimeDomain());
+      timerInternals.setTimer(namespace, timerId, timerFamilyId, target, spec.getTimeDomain());
     }
 
     private Instant getCurrentTime() {
@@ -1065,7 +1082,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void set(String timerId, Instant absoluteTime) {
-      Timer timer = new TimerInternalsTimer(window, namespace, timerFamilyId, spec, timerInternals);
+      Timer timer =
+          new TimerInternalsTimer(window, namespace, timerId, timerFamilyId, spec, timerInternals);
       timer.set(absoluteTime);
       timers.put(timerId, timer);
     }

@@ -94,8 +94,13 @@ class WindmillTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant timestamp, TimeDomain timeDomain) {
-    timers.put(timerId, namespace, TimerData.of(timerId, namespace, timestamp, timeDomain));
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant timestamp,
+      TimeDomain timeDomain) {
+    timers.put(
+        timerId, namespace, TimerData.of(timerId, timerFamilyId, namespace, timestamp, timeDomain));
     timerStillPresent.put(timerId, namespace, true);
   }
 

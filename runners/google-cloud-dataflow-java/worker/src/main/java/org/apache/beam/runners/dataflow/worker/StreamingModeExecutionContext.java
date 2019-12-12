@@ -602,6 +602,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           .setTimer(
               StateNamespaces.window(windowCoder, window),
               timerId,
+              timerId,
               cleanupTime,
               TimeDomain.EVENT_TIME);
     }

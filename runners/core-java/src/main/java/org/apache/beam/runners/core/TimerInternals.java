@@ -54,9 +54,14 @@ public interface TimerInternals {
    *
    * <p>It is an error to set a timer for two different time domains.
    */
-  void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
+  void setTimer(
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      TimeDomain timeDomain);
 
-  /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+  /** @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, TimeDomain)}. */
   @Deprecated
   void setTimer(TimerData timerData);
 
@@ -161,6 +166,8 @@ public interface TimerInternals {
 
     public abstract String getTimerId();
 
+    public abstract String getTimerFamilyId();
+
     public abstract StateNamespace getNamespace();
 
     public abstract Instant getTimestamp();
@@ -175,7 +182,17 @@ public interface TimerInternals {
      */
     public static TimerData of(
         String timerId, StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      return new AutoValue_TimerInternals_TimerData(timerId, namespace, timestamp, domain);
+      return new AutoValue_TimerInternals_TimerData(timerId, timerId, namespace, timestamp, domain);
+    }
+
+    public static TimerData of(
+        String timerId,
+        String timerFamilyId,
+        StateNamespace namespace,
+        Instant timestamp,
+        TimeDomain domain) {
+      return new AutoValue_TimerInternals_TimerData(
+          timerId, timerFamilyId, namespace, timestamp, domain);
     }
 
     /**
@@ -208,7 +225,8 @@ public interface TimerInternals {
           ComparisonChain.start()
               .compare(this.getTimestamp(), that.getTimestamp())
               .compare(this.getDomain(), that.getDomain())
-              .compare(this.getTimerId(), that.getTimerId());
+              .compare(this.getTimerId(), that.getTimerId())
+              .compare(this.getTimerFamilyId(), that.getTimerFamilyId());
       if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
         // Obtaining the stringKey may be expensive; only do so if required
         chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
@@ -234,6 +252,7 @@ public interface TimerInternals {
     @Override
     public void encode(TimerData timer, OutputStream outStream) throws CoderException, IOException {
       STRING_CODER.encode(timer.getTimerId(), outStream);
+      STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream);
@@ -242,11 +261,12 @@ public interface TimerInternals {
     @Override
     public TimerData decode(InputStream inStream) throws CoderException, IOException {
       String timerId = STRING_CODER.decode(inStream);
+      String timerFamilyId = STRING_CODER.decode(inStream);
       StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, namespace, timestamp, domain);
+      return TimerData.of(timerId, timerFamilyId, namespace, timestamp, domain);
     }
 
     @Override

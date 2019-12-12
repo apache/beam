@@ -4230,12 +4230,12 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 @TimerFamily(timerId) TimerMap timers, OutputReceiver<Integer> r) {
               timers.set("timer1", new Instant(1));
+              timers.set("timer2", new Instant(2));
               r.output(3);
             }
 
             @OnTimer(timerId)
             public void onTimer(OutputReceiver<Integer> r) {
-              System.out.println("\n\n\nOntimer: ");
               r.output(42);
             }
           };
@@ -4249,7 +4249,7 @@ public class ParDoTest implements Serializable {
               .advanceWatermarkToInfinity();
 
       PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3, 42);
+      PAssert.that(output).containsInAnyOrder(3, 42, 42);
       pipeline.run();
     }
   }

@@ -812,7 +812,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     timerInternals.cleanupPendingTimer(timer.getNamespace());
     pushbackDoFnRunner.onTimer(
-        timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+        timerData.getTimerFamilyId(), window, timerData.getTimestamp(), timerData.getDomain());
   }
 
   private void setCurrentInputWatermark(long currentInputWatermark) {
@@ -1087,11 +1087,15 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     @Override
     public void setTimer(
-        StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-      setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+        StateNamespace namespace,
+        String timerId,
+        String timerFamilyId,
+        Instant target,
+        TimeDomain timeDomain) {
+      setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, timeDomain));
     }
 
-    /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+    /** @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, TimeDomain)}. */
     @Deprecated
     @Override
     public void setTimer(TimerData timer) {
