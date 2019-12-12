@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
@@ -25,9 +27,21 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 
-/** Modeled after JdbcIO.DataSourceProviderFromDataSourceConfiguration. */
+/**
+ * Modeled after {@link
+ * org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceProviderFromDataSourceConfiguration}, providing a
+ * means of obtaining a {@link ConnectionHandler} based on a static cache and a URI to promote
+ * re-use of existing connections rather than establishing a new connection for each RabbitMq
+ * interaction.
+ *
+ * <p>The cache is oriented around the full URI, which will not be parsed or validated until {@link
+ * #apply(Void)} is called.
+ *
+ * <p>Note that this can be shut down but it's unclear what aspect of the Beam runtime should be
+ * responsible for ensure this happens.
+ */
 public class ConnectionProviderFromUri
-    implements SerializableFunction<Void, ConnectionHandler>, HasDisplayData {
+    implements SerializableFunction<Void, ConnectionHandler>, HasDisplayData, Closeable {
   private static final ConcurrentHashMap<String, ConnectionHandler> instances =
       new ConcurrentHashMap<>();
 
@@ -68,5 +82,21 @@ public class ConnectionProviderFromUri
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     builder.add(DisplayData.item("rabbitUri", displayableUri));
+  }
+
+  public void shutdownAll() {
+    instances.forEach(
+        (uri, connectionHandler) -> {
+          try {
+            connectionHandler.close();
+          } catch (IOException e) {
+            /* ignore */
+          }
+        });
+  }
+
+  @Override
+  public void close() throws IOException {
+    shutdownAll();
   }
 }

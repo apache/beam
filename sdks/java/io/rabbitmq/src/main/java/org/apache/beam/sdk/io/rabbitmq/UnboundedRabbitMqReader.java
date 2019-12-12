@@ -154,7 +154,7 @@ class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<RabbitMqMe
       currentRecord = new RabbitMqMessage(delivery);
       context = new TimestampPolicyContext(true, Instant.now());
       long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-      checkpointMark.appendSessionId(deliveryTag);
+      checkpointMark.appendDeliveryTag(deliveryTag);
     } catch (IOException e) {
       throw e;
     } catch (Exception e) {

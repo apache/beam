@@ -33,7 +33,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.concurrent.ThreadSafe;
 
+/**
+ * RabbitMQ multiplexes over a single Connection using Channels so it should not be necessary to
+ * open multiple Connections to a single host. This class implements {@link ChannelLeaser} by
+ * maintaining a map of lessees and their associated Channels over a single Connection.
+ *
+ * <p>Note: it is unclear what, if anything, is ultimately responsible for calling close() here; it
+ * should only happen on Beam runner shutdown, or if it were knowable that there were no current
+ * Readers or Writers interacting with Rabbit.
+ */
+@ThreadSafe
 class ConnectionHandler implements ChannelLeaser, Closeable {
   private final Map<UUID, Channel> channelsByLessee = new ConcurrentHashMap<>();
   private final String uri;
@@ -79,7 +90,7 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
     }
   }
 
-  public Channel getChannel(UUID lessee) throws IOException {
+  private Channel getChannel(UUID lessee) throws IOException {
     if (connection == null) {
       synchronized (this) {
         ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -120,6 +131,12 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
         });
   }
 
+  /**
+   * Closes all Channels, closes the connection, and clears the mapping of Channels by lessee.
+   *
+   * @throws IOException if an error occurs closing the underlying Connection. exceptions thrown
+   *     while closing individual Channels are ignored
+   */
   @Override
   public synchronized void close() throws IOException {
     channelsByLessee.forEach(

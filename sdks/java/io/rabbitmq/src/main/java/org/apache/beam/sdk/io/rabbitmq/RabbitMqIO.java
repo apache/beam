@@ -188,11 +188,26 @@ public class RabbitMqIO {
       abstract Read build();
     }
 
+    /**
+     * Defines a means of obtaining a connection to RabbitMQ in terms of the provided URI. This url
+     * is expected to contain a UserInfo segment with username and password.
+     *
+     * @param uri URI to use to connect to rabbit
+     * @see ConnectionProviderFromUri for how the URI will be used to obtain a Connection. Use
+     *     {@link #withConnectionHandlerProviderFn(SerializableFunction)} if a different strategy is
+     *     required.
+     */
     public Read withUri(String uri) {
       checkArgument(uri != null, "uri can not be null");
       return withConnectionHandlerProviderFn(new ConnectionProviderFromUri(uri));
     }
 
+    /**
+     * Defines a means of obtaining a connection to RabbitMQ.
+     *
+     * <p>In most cases, {@link #withUri(String)} can be used instead of this more general
+     * mechanism.
+     */
     public Read withConnectionHandlerProviderFn(
         SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn) {
       checkArgument(
@@ -394,11 +409,26 @@ public class RabbitMqIO {
       abstract Write build();
     }
 
+    /**
+     * Defines a means of obtaining a connection to RabbitMQ in terms of the provided URI. This url
+     * is expected to contain a UserInfo segment with username and password.
+     *
+     * @param uri URI to use to connect to rabbit
+     * @see ConnectionProviderFromUri for how the URI will be used to obtain a Connection. Use
+     *     {@link #withConnectionHandlerProviderFn(SerializableFunction)} if a different strategy is
+     *     required.
+     */
     public Write withUri(String uri) {
       checkArgument(uri != null, "uri can not be null");
       return withConnectionHandlerProviderFn(new ConnectionProviderFromUri(uri));
     }
 
+    /**
+     * Defines a means of obtaining a connection to RabbitMQ.
+     *
+     * <p>In most cases, {@link #withUri(String)} can be used instead of this more general
+     * mechanism.
+     */
     public Write withConnectionHandlerProviderFn(
         SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn) {
       checkArgument(

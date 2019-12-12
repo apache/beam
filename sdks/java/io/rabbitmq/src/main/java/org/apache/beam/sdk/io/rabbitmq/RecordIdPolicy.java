@@ -25,30 +25,46 @@ import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 
-/** TODO use singletons for common policies. */
+/**
+ * Defines the approach for determining a unique identifier for a given incoming message, vital for
+ * deduping messages, especially if messages are re-delivered due to severed Connections or Channels.
+ */
 @FunctionalInterface
 public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
 
+  /** @return a policy that defines the message id by the amqp {@code correlation-id} property */
   static RecordIdPolicy correlationId() {
     return new CorrelationIdPropertyPolicy();
   }
 
+  /** @return a policy that defines the message id by the amqp {@code message-id} property */
   static RecordIdPolicy messageId() {
     return new MessageIdPropertyPolicy();
   }
 
+  /**
+   * @return a policy that defines the message id as the full body of the message. This is not a
+   *     good policy to use in production.
+   */
   static RecordIdPolicy body() {
     return new BodyPolicy();
   }
 
+  /** @return a policy that defines the message id by a Sha256 hash of the body of the message. */
   static RecordIdPolicy bodySha256() {
     return new BodySha256Policy();
   }
 
+  /**
+   * @return a policy that creates a unique id for every incoming message. This *will* result in
+   *     messages being replayed if the Connection or Channel is ever severed before messages are
+   *     acknowledged and should be considered unsafe.
+   */
   static RecordIdPolicy alwaysUnique() {
     return new AlwaysUniquePolicy();
   }
 
+  /** Abstraction for defining policies based on String values extracted from a RabbitMqMessage. */
   abstract class StringPolicy implements RecordIdPolicy {
     protected abstract String extractString(RabbitMqMessage rabbitMqMessage);
 

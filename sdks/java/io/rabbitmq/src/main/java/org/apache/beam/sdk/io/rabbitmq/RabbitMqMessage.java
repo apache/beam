@@ -33,8 +33,10 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 
 /**
- * It contains the message payload, and additional metadata like routing key or attributes. The main
- * reason of this class is that AMQP.BasicProperties doesn't provide a serializable public API.
+ * Serializable wrapper around rabbitmq's {@link GetResponse}.
+ *
+ * <p>The main purpose of this class is that AMQP.BasicProperties doesn't provide a serializable
+ * public API.
  */
 public class RabbitMqMessage implements Serializable {
 

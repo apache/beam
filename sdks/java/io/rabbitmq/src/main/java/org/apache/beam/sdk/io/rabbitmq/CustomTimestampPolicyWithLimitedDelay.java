@@ -32,9 +32,8 @@ import org.joda.time.Instant;
  * advanced to 'now - max delay' when the queue has caught up (previous read attempt returned no
  * message)
  *
- * @see <a
- *     href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/CustomTimestampPolicyWithLimitedDelay.java">
- *     corresponding KafkaIO timestamp policy</a>
+ * @see {@link org.apache.beam.sdk.io.kafka.CustomTimestampPolicyWithLimitedDelay} for the
+ *     inspiration and corresponding KafkaIO policy
  */
 public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   private final Duration maxDelay;

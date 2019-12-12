@@ -29,13 +29,36 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
+/**
+ * RabbitMQ manages state based on a persistent Channel within a Connection. If the Channel is
+ * broken, the state cannot be restored, and all un-acknowledged messages will be redelivered to
+ * another consumer. This has important implications for the interactions between a Reader and the
+ * CheckpointMark.
+ *
+ * <p>Importantly, for Beam:
+ *
+ * <ul>
+ *   <li>CheckpointMarks outlive Readers. A CheckpointMark may not be finalized until after a reader
+ *       is closed. Therefore any Channel with unacknowledged (non-"finalized") messages must remain
+ *       open after the reader is closed so that the checkpoint mark can successfully acknowledge
+ *       the messages later.
+ *   <li>CheckpointMarks are Serializable, but Channels are not. The Beam runner may close the
+ *       reader, serialize the CheckpointMark, deserialize it, and pass it into the constructor of a
+ *       new Reader. In this case, the CheckpointMark will be usable and valid provided there are no
+ *       unacknowledged messages. If there are, an exception will be the thrown the first time
+ *       finalization is attempted. The Beam runner should ultimately create a new CheckpointMark
+ *       and Reader, and the RabbitIO "dedupe" strategy should prevent redelivered messages from
+ *       impacting the pipeline.
+ * </ul>
+ */
 @DefaultCoder(SerializableCoder.class)
 class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
   private static final Instant MIN_WATERMARK_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private final UUID checkpointId;
-  private final List<Long> sessionIds = new ArrayList<>();
+  private final List<Long> deliveryTags = new ArrayList<>();
   private boolean reading;
+  private boolean hadPreviouslyUnacknowledgedMessages = false;
   private Instant watermark = MIN_WATERMARK_MILLIS;
 
   private transient ChannelLeaser channelLeaser;
@@ -46,16 +69,40 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
     this.channelLeaser = channelLeaser;
   }
 
+  /**
+   * Sets the internal state that the backing channel is in use by an object other than this
+   * CheckpointMark. If 'is reading' is set, then the Channel will remain open after {@link
+   * #finalizeCheckpoint()} is called, otherwise the Channel will be closed.
+   */
   public void startReading() {
     reading = true;
   }
 
+  /**
+   * Sets the internal state that the backing channel is no longer in use by an object other than
+   * this CheckpointMark. If 'is reading' is false, then the Channel will be closed after {@link
+   * #finalizeCheckpoint()} is called.
+   */
   public void stopReading() {
     reading = false;
   }
 
+  /**
+   * When a CheckpointMark is serialized, deserialized, and passed into the constructor of a new
+   * Reader, it's imperative the reader and the checkpoint mark utilize the same channel. This is
+   * called by the Reader to enforce this.
+   *
+   * <p>Note if any messages (delivery tags) exist that have not been acknowledged, an internal flag
+   * is set, the current set of delivery tags are cleared, and the next time {@link
+   * #finalizeCheckpoint()} is called, an exception will be thrown immediately and no messages will
+   * be acknowledged.
+   */
   public void setChannelLeaser(ChannelLeaser leaser) {
     this.channelLeaser = leaser;
+    if (!deliveryTags.isEmpty()) {
+      hadPreviouslyUnacknowledgedMessages = true;
+      deliveryTags.clear();
+    }
   }
 
   @Nullable
@@ -67,8 +114,8 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
     this.watermark = watermark;
   }
 
-  public void appendSessionId(long sessionId) {
-    sessionIds.add(sessionId);
+  public void appendDeliveryTag(long deliveryTag) {
+    deliveryTags.add(deliveryTag);
   }
 
   public UUID getCheckpointId() {
@@ -77,12 +124,17 @@ class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
 
   @Override
   public void finalizeCheckpoint() throws IOException {
+    if (hadPreviouslyUnacknowledgedMessages) {
+      throw new IOException(
+          "The ChannelLeaser was modified before previously-processed messages were acknowledged.");
+    }
+
     ChannelLeaser.UseChannelFunction<Void> finalizeFn =
         (channel) -> {
-          for (Long sessionId : sessionIds) {
-            channel.basicAck(sessionId, false);
+          for (Long deliveryTag : deliveryTags) {
+            channel.basicAck(deliveryTag, false);
           }
-          sessionIds.clear();
+          deliveryTags.clear();
           return null;
         };
 

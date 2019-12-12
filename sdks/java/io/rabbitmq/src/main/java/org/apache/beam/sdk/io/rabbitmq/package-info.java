@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-/** Transforms for reading and writing from RabbitMQ. */
+/** Transforms for reading and writing from RabbitMQ (AMQP 0.9). */
 @Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.rabbitmq;
 
