@@ -17,9 +17,27 @@
 
 from __future__ import absolute_import
 
+import apache_beam as beam
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import Timestamp
+
+
+class StreamingCacheReceiver(beam.transforms.PTransform):
+  """Marks a PCollection to be read from cache.
+
+  This class is used in the PipelineInstrument to mark that an unbounded
+  Pcollection should be read from cache. This is because the TestStream needs
+  to know all the PCollections before being created.
+  """
+  def expand(self, pbegin):
+    assert isinstance(pbegin, beam.pvalue.PBegin)
+    self.pipeline = pbegin.pipeline
+
+    return beam.pvalue.PCollection(self.pipeline, is_bounded=False)
+
+  def get_windowing(self, unused_inputs):
+    return beam.Windowing(beam.window.GlobalWindows())
 
 
 class StreamingCache(object):

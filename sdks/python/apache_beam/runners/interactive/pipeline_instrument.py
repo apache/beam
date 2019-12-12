@@ -29,6 +29,8 @@ from apache_beam.pipeline import PipelineVisitor
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.caching import streaming_cache
+from apache_beam.testing import test_stream
 
 READ_CACHE = "_ReadCache_"
 WRITE_CACHE = "_WriteCache_"
@@ -375,12 +377,15 @@ class PipelineInstrument(object):
     # Can only read from cache when the cache with expected key exists.
     if self._cache_manager.exists('full', key):
       if key not in self._cached_pcoll_read:
+        if pcoll.is_bounded:
+          read_transform = cache.ReadCache(self._cache_manager, key)
+        else:
+          read_transform = streaming_cache.StreamingCacheReceiver()
+
         # Mutates the pipeline with cache read transform attached
         # to root of the pipeline.
-        pcoll_from_cache = (
-            pipeline
-            | '{}{}'.format(READ_CACHE, key) >> cache.ReadCache(
-                self._cache_manager, key))
+        pcoll_from_cache = (pipeline
+                            | '{}{}'.format(READ_CACHE, key) >> read_transform)
         self._cached_pcoll_read[key] = pcoll_from_cache
     # else: NOOP when cache doesn't exist, just compute the original graph.
 
@@ -392,6 +397,45 @@ class PipelineInstrument(object):
     AppliedPtransform that sources pvalue from the cache. If there is no valid
     cache, noop.
     """
+
+    # Find all cached unbounded PCollections.
+    class CacheableUnboundedPCollectionVisitor(PipelineVisitor):
+      def __init__(self, pin):
+        self._pin = pin
+        self.unbounded_pcolls = set()
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if transform_node.inputs:
+          for input_pcoll in transform_node.inputs:
+            key = self._pin.cache_key(input_pcoll)
+            if (key in self._pin._cached_pcoll_read and
+                not input_pcoll.is_bounded):
+              self.unbounded_pcolls.add(key)
+
+    v = CacheableUnboundedPCollectionVisitor(self)
+    pipeline.visit(v)
+
+    # The set of keys from the cached unbounded PCollections will be used as the
+    # output tags for the TestStream. This is to remember what cache-key is
+    # associated with which PCollection.
+    unbounded_cacheables = v.unbounded_pcolls
+    output_tags = unbounded_cacheables
+
+    # Take the PCollections that will be read from the TestStream and insert
+    # them back into the dictionary of cached PCollections. The next step will
+    # replace the downstream consumer of the non-cached PCollections with these
+    # PCollections.
+    if output_tags:
+      output_pcolls = pipeline | test_stream.TestStream(output_tags=output_tags)
+      if len(output_tags) == 1:
+        self._cached_pcoll_read[None] = output_pcolls
+      else:
+        for tag, pcoll in output_pcolls.items():
+          self._cached_pcoll_read[tag] = pcoll
+
 
     class ReadCacheWireVisitor(PipelineVisitor):
       """Visitor wires cache read as inputs to replace corresponding original
@@ -408,10 +452,14 @@ class PipelineInstrument(object):
       def visit_transform(self, transform_node):
         if transform_node.inputs:
           input_list = list(transform_node.inputs)
-          for i in range(len(input_list)):
-            key = self._pin.cache_key(input_list[i])
+          for i, input_pcoll in enumerate(input_list):
+            key = self._pin.cache_key(input_pcoll)
+
+            # Replace the input pcollection with the cached pcollection (if it
+            # already cached).
             if key in self._pin._cached_pcoll_read:
               input_list[i] = self._pin._cached_pcoll_read[key]
+          # Update the transform with its new inputs.
           transform_node.inputs = tuple(input_list)
 
     v = ReadCacheWireVisitor(self)
