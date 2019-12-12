@@ -350,21 +350,21 @@ public class RabbitMqIOTest implements Serializable {
         new ExchangeTestPlan(
             RabbitMqIO.read()
                 .withExchange("CorrelationIdSuccess", "fanout")
-                .withUseCorrelationId(true),
+                .withRecordIdPolicy(RecordIdPolicy.correlationId()),
             messageCount,
             messageCount,
             publishProps));
   }
 
   @Test(expected = Pipeline.PipelineExecutionException.class)
-  public void testUseCorrelationIdFailsWhenIdsMissing() throws Exception {
+  public void testUseRecordIdFailsWhenIdsMissing() throws Exception {
     int messageCount = 1;
     AMQP.BasicProperties publishProps = null;
     doExchangeTest(
         new ExchangeTestPlan(
             RabbitMqIO.read()
                 .withExchange("CorrelationIdFailure", "fanout")
-                .withUseCorrelationId(true),
+                .withRecordIdPolicy(RecordIdPolicy.messageId()),
             messageCount,
             messageCount,
             publishProps));
