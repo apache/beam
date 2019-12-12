@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
@@ -26,15 +27,25 @@ import org.apache.avro.generic.GenericRecord;
  */
 public class SchemaAndRecord {
   private final GenericRecord record;
+  private final Row row;
   private final TableSchema tableSchema;
 
-  public SchemaAndRecord(GenericRecord record, TableSchema tableSchema) {
+  public SchemaAndRecord(GenericRecord record, Row row, TableSchema tableSchema) {
     this.record = record;
+    this.row = row;
     this.tableSchema = tableSchema;
+  }
+
+  public SchemaAndRecord(GenericRecord record, TableSchema tableSchema) {
+    this(record, null, tableSchema);
   }
 
   public GenericRecord getRecord() {
     return record;
+  }
+
+  public Row getRow() {
+    return row;
   }
 
   public TableSchema getTableSchema() {

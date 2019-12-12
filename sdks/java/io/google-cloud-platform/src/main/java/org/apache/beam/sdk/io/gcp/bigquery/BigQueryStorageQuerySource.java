@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.DataFormat;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -37,6 +38,32 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 /** A {@link org.apache.beam.sdk.io.Source} representing reading the results of a query. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
+
+  public static <T> BigQueryStorageQuerySource<T> create(
+      String stepUuid,
+      ValueProvider<String> queryProvider,
+      Boolean flattenResults,
+      Boolean useLegacySql,
+      QueryPriority priority,
+      @Nullable String location,
+      @Nullable String kmsKey,
+      DataFormat format,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
+      BigQueryServices bqServices) {
+    return new BigQueryStorageQuerySource<>(
+        stepUuid,
+        queryProvider,
+        flattenResults,
+        useLegacySql,
+        priority,
+        location,
+        kmsKey,
+        format,
+        parseFn,
+        outputCoder,
+        bqServices);
+  }
 
   public static <T> BigQueryStorageQuerySource<T> create(
       String stepUuid,
@@ -57,6 +84,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
         priority,
         location,
         kmsKey,
+        null,
         parseFn,
         outputCoder,
         bqServices);
@@ -80,10 +108,11 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
       QueryPriority priority,
       @Nullable String location,
       @Nullable String kmsKey,
+      DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(null, null, null, parseFn, outputCoder, bqServices);
+    super(format, null, null, null, parseFn, outputCoder, bqServices);
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.queryProvider = checkNotNull(queryProvider, "queryProvider");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");

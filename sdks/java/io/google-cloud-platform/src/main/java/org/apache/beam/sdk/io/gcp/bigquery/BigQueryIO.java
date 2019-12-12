@@ -73,6 +73,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.DataFormat;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
@@ -552,18 +553,25 @@ public class BigQueryIO {
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
         .setMethod(Method.DEFAULT)
+        .setFormat(DataFormat.AVRO)
         .build();
   }
 
   @VisibleForTesting
-  static class TableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
+  public static class TableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
 
     public static final TableRowParser INSTANCE = new TableRowParser();
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
-      return BigQueryAvroUtils.convertGenericRecordToTableRow(
-          schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
+      if (schemaAndRecord.getRecord() != null) {
+        return BigQueryAvroUtils.convertGenericRecordToTableRow(
+            schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
+      } else if (schemaAndRecord.getRow() != null) {
+        return BigQueryUtils.toTableRow().apply(schemaAndRecord.getRow());
+      }
+
+      throw new IllegalStateException("Record should be of instance GenericRecord (for Avro format) or of instance Row (for Arrow format), but it is not.");
     }
   }
 
@@ -713,6 +721,16 @@ public class BigQueryIO {
       DIRECT_READ,
     }
 
+    /** Determines the data format used when reading/writing in {@link Method#DIRECT_READ} mode. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public enum DataFormat {
+      /** Utilize Avro data format. */
+      AVRO,
+
+      /** Utilize Arrow data format. */
+      ARROW,
+    }
+
     interface ToBeamRowFunction<T>
         extends SerializableFunction<Schema, SerializableFunction<T, Row>> {}
 
@@ -743,6 +761,9 @@ public class BigQueryIO {
 
       @Experimental(Experimental.Kind.SOURCE_SINK)
       abstract Builder<T> setMethod(Method method);
+
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setFormat(DataFormat method);
 
       /**
        * @deprecated Use {@link #setSelectedFields(ValueProvider)} and {@link
@@ -804,6 +825,9 @@ public class BigQueryIO {
 
     @Experimental(Experimental.Kind.SOURCE_SINK)
     abstract Method getMethod();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    abstract DataFormat getFormat();
 
     /** @deprecated Use {@link #getSelectedFields()} and {@link #getRowRestriction()} instead. */
     @Deprecated
@@ -905,6 +929,7 @@ public class BigQueryIO {
           MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
           getQueryLocation(),
           getKmsKey(),
+          getFormat(),
           getParseFn(),
           outputCoder,
           getBigQueryServices());
@@ -1174,6 +1199,7 @@ public class BigQueryIO {
             org.apache.beam.sdk.io.Read.from(
                 BigQueryStorageTableSource.create(
                     tableProvider,
+                    getFormat(),
                     getReadOptions(),
                     getSelectedFields(),
                     getRowRestriction(),
@@ -1507,6 +1533,12 @@ public class BigQueryIO {
       return toBuilder().setMethod(method).build();
     }
 
+    /** See {@link DataFormat}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withFormat(DataFormat format) {
+      return toBuilder().setFormat(format).build();
+    }
+
     /**
      * @deprecated Use {@link #withSelectedFields(List)} and {@link #withRowRestriction(String)}
      *     instead.
@@ -1640,6 +1672,7 @@ public class BigQueryIO {
         .setSchemaUpdateOptions(Collections.emptySet())
         .setNumFileShards(0)
         .setMethod(Write.Method.DEFAULT)
+        .setFormat(DataFormat.AVRO)
         .setExtendedErrorInfo(false)
         .setSkipInvalidRows(false)
         .setIgnoreUnknownValues(false)
@@ -1760,6 +1793,8 @@ public class BigQueryIO {
 
     abstract Method getMethod();
 
+    abstract DataFormat getFormat();
+
     @Nullable
     abstract ValueProvider<String> getLoadJobProjectId();
 
@@ -1836,6 +1871,8 @@ public class BigQueryIO {
       abstract Builder<T> setTriggeringFrequency(Duration triggeringFrequency);
 
       abstract Builder<T> setMethod(Method method);
+
+      abstract Builder<T> setFormat(DataFormat format);
 
       abstract Builder<T> setLoadJobProjectId(ValueProvider<String> loadJobProjectId);
 
@@ -2166,6 +2203,15 @@ public class BigQueryIO {
     public Write<T> withMethod(Method method) {
       checkArgument(method != null, "method can not be null");
       return toBuilder().setMethod(method).build();
+    }
+
+    /**
+     * Choose the method used to write data to BigQuery. See the Javadoc on {@link Method} for
+     * information and restrictions of the different methods.
+     */
+    public Write<T> withFormat(DataFormat format) {
+      checkArgument(format != null, "format can not be null");
+      return toBuilder().setFormat(format).build();
     }
 
     /**
