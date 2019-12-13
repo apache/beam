@@ -72,10 +72,12 @@ class CounterIncrememtingCombineFn(beam.CombineFn):
     self.word_lengths_counter.inc(len(element))
     self.word_lengths_dist.update(len(element))
     self.last_word_len.set(len(element))
-    return acc + element
+
+    # ''.join() converts the list to a string.
+    return ''.join(sorted(acc + element))
 
   def merge_accumulators(self, accs):
-    return ''.join(accs)
+    return ''.join(sorted(''.join(accs)))
 
   def extract_output(self, acc):
     return acc
@@ -525,11 +527,11 @@ class CombineTest(unittest.TestCase):
   def test_simple_combine(self):
     p = TestPipeline()
     input = (p
-             | beam.Create([('c', 'b'),
-                            ('c', 'be'),
-                            ('c', 'bea'),
+             | beam.Create([('c', 'i'),
+                            ('c', 'go'),
+                            ('c', 'run'),
                             ('d', 'beam'),
-                            ('d', 'apache')]))
+                            ('d', 'tests')]))
 
     # The result of concatenating all values regardless of key.
     global_concat = (input
@@ -544,8 +546,8 @@ class CombineTest(unittest.TestCase):
     result.wait_until_finish()
 
     # Verify the concatenated strings are correct.
-    expected_concat_per_key = [('c', 'bbebea'), ('d', 'beamapache')]
-    assert_that(global_concat, equal_to(['bbebeabeamapache']),
+    expected_concat_per_key = [('c', 'ginoru'), ('d', 'abeemsstt')]
+    assert_that(global_concat, equal_to(['abeegimnorssttu']),
                 label='global concat')
     assert_that(concat_per_key, equal_to(expected_concat_per_key),
                 label='concat per key')
@@ -561,19 +563,19 @@ class CombineTest(unittest.TestCase):
     query_result = result.metrics().query(word_lengths_filter)
     if query_result['counters']:
       word_lengths = query_result['counters'][0]
-      self.assertEqual(word_lengths.result, 16)
+      self.assertEqual(word_lengths.result, 15)
 
     word_len_dist_filter = MetricsFilter().with_name('word_len_dist')
     query_result = result.metrics().query(word_len_dist_filter)
     if query_result['distributions']:
       word_len_dist = query_result['distributions'][0]
-      self.assertEqual(word_len_dist.result.mean, 3.2)
+      self.assertEqual(word_len_dist.result.mean, 3)
 
     last_word_len_filter = MetricsFilter().with_name('last_word_len')
     query_result = result.metrics().query(last_word_len_filter)
     if query_result['gauges']:
       last_word_len = query_result['gauges'][0]
-      self.assertEqual(last_word_len.result.value, 6)
+      self.assertIn(last_word_len.result.value, [1, 2, 3, 4, 5])
 
   # Test that three different kinds of metrics work with the customized
   # CounterIncrememtingCombineFn when the PCollection is empty.
@@ -614,13 +616,13 @@ class CombineTest(unittest.TestCase):
     query_result = result.metrics().query(word_len_dist_filter)
     if query_result['distributions']:
       word_len_dist = query_result['distributions'][0]
-      self.assertEqual(word_len_dist.result.mean, 0)
+      self.assertEqual(word_len_dist.result.count, 0)
 
     last_word_len_filter = MetricsFilter().with_name('last_word_len')
     query_result = result.metrics().query(last_word_len_filter)
     if query_result['gauges']:
       last_word_len = query_result['gauges'][0]
-      self.assertEqual(last_word_len.result.value, 0)
+      self.assertIn(last_word_len.result.value, [0])
 
 
 class LatestTest(unittest.TestCase):
