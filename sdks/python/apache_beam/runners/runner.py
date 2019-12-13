@@ -27,6 +27,7 @@ import tempfile
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
+from apache_beam.utils import log
 
 if TYPE_CHECKING:
   from apache_beam import pvalue
@@ -35,7 +36,6 @@ if TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
   from apache_beam.pipeline import Pipeline
   from apache_beam.pipeline import PipelineVisitor
-  from apache_beam.utils import log
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
