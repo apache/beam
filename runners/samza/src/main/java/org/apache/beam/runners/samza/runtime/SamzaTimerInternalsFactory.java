@@ -189,7 +189,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         String timerFamilyId,
         Instant target,
         TimeDomain timeDomain) {
-      setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, timeDomain));
+      setTimer(TimerData.of(timerId, namespace, target, timeDomain));
     }
 
     @Override
