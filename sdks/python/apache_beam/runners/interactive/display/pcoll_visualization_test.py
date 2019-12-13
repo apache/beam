@@ -58,13 +58,10 @@ class PCollectionVisualizationTest(unittest.TestCase):
     ie.current_env()._is_in_notebook = True
 
     self._p = beam.Pipeline(ir.InteractiveRunner())
-    # Watch the pipeline defined immediately so that implicit transform label
-    # alternation will be carried out by Interactive Beam when applying below
-    # transforms if the code is executed in an ipython environment.
-    ib.watch({'p': self._p})
     # pylint: disable=range-builtin-not-iterating
-    self._pcoll = self._p | 'Create' >> beam.Create(range(1000))
-    ib.watch({'pcoll': self._pcoll})
+    self._pcoll = self._p | 'Create' >> beam.Create(range(5))
+    ib.watch(self)
+    self._p.run()
 
   def test_raise_error_for_non_pcoll_input(self):
     class Foo(object):
@@ -82,23 +79,14 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self.assertNotEqual(pv_1._overview_display_id, pv_2._overview_display_id)
     self.assertNotEqual(pv_1._df_display_id, pv_2._df_display_id)
 
-  def _mock_to_element_list(self):
-    return [1, 2, 3, 4, 5, 6, 7, 8]
-
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   def test_one_shot_visualization_not_return_handle(self):
     self.assertIsNone(pv.visualize(self._pcoll))
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   def test_dynamic_plotting_return_handle(self):
     h = pv.visualize(self._pcoll, dynamic_plotting_interval=1)
     self.assertIsInstance(h, timeloop.Timeloop)
     h.stop()
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
          '.PCollectionVisualization.display_facets')
   def test_dynamic_plotting_update_same_display(self,
@@ -121,8 +109,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
       self.assertIs(kwargs['updating_pv'], updating_pv)
     h.stop()
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   @patch('timeloop.Timeloop.stop')
   def test_auto_stop_dynamic_plotting_when_job_is_terminated(
       self,
@@ -141,8 +127,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
     # "assert_called" is new in Python 3.6.
     mocked_timeloop.assert_called()
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   @patch('pandas.DataFrame.sample')
   def test_display_plain_text_when_kernel_has_no_frontend(self,
                                                           _mocked_sample):
