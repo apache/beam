@@ -446,8 +446,7 @@ class PipelineInstrument(object):
     # The set of keys from the cached unbounded PCollections will be used as the
     # output tags for the TestStream. This is to remember what cache-key is
     # associated with which PCollection.
-    unbounded_cacheables = v.unbounded_pcolls
-    output_tags = unbounded_cacheables
+    output_tags = v.unbounded_pcolls
 
     # Take the PCollections that will be read from the TestStream and insert
     # them back into the dictionary of cached PCollections. The next step will
@@ -458,8 +457,7 @@ class PipelineInstrument(object):
       if len(output_tags) == 1:
         self._cached_pcoll_read[None] = output_pcolls
       else:
-        for tag, pcoll in output_pcolls.items():
-          self._cached_pcoll_read[tag] = pcoll
+        self._cached_pcoll_read.update(output_pcolls)
 
 
     class ReadCacheWireVisitor(PipelineVisitor):
@@ -481,7 +479,7 @@ class PipelineInstrument(object):
             key = self._pin.cache_key(input_pcoll)
 
             # Replace the input pcollection with the cached pcollection (if it
-            # already cached).
+            # has been cached).
             if key in self._pin._cached_pcoll_read:
               input_list[i] = self._pin._cached_pcoll_read[key]
           # Update the transform with its new inputs.

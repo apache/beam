@@ -178,8 +178,8 @@ class TestStream(PTransform):
     assert coder is not None
     self.coder = coder
     self.watermarks = {None: timestamp.MIN_TIMESTAMP}
-    self._events = list(events) if events is not None else []
-    self.output_tags = set(output_tags) if output_tags is not None else set()
+    self._events = list(events) if events else list()
+    self.output_tags = set(output_tags) if output_tags else set()
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())

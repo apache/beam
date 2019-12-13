@@ -38,7 +38,7 @@ from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pi
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
 from apache_beam.testing.test_stream import TestStream
 
-#Work around nose tests using Python2 without unittest.mock module.
+# Work around nose tests using Python2 without unittest.mock module.
 try:
   from unittest.mock import MagicMock
 except ImportError:
@@ -52,7 +52,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def test_pcolls_to_pcoll_id(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
-# pylint: disable=range-builtin-not-iterating
+    # pylint: disable=range-builtin-not-iterating
     init_pcoll = p | 'Init Create' >> beam.Impulse()
     _, ctx = p.to_runner_api(use_fake_coders=True, return_context=True)
     self.assertEqual(instr.pcolls_to_pcoll_id(p, ctx), {
