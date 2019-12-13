@@ -421,6 +421,25 @@ class CombineTest(unittest.TestCase):
                    equal_to([('c', 3), ('c', 10), ('d', 5), ('d', 17)]),
                    label='sum per key')
 
+  def test_sessions_combine(self):
+    with TestPipeline() as p:
+      input = (
+          p
+          | beam.Create([('c', 1), ('c', 9), ('c', 12), ('d', 2), ('d', 4)])
+          | beam.MapTuple(lambda k, v: window.TimestampedValue((k, v), v))
+          | beam.WindowInto(window.Sessions(4)))
+
+      global_sum = (input
+                    | beam.Values()
+                    | beam.CombineGlobally(sum).without_defaults())
+      sum_per_key = input | beam.CombinePerKey(sum)
+
+      # The first window has 3 elements: ('c', 1), ('d', 2), ('d', 4).
+      # The second window has 2 elements: ('c', 9), ('c', 12).
+      assert_that(global_sum, equal_to([7, 21]), label='global sum')
+      assert_that(sum_per_key, equal_to([('c', 1), ('c', 21), ('d', 6)]),
+                  label='sum per key')
+
 
 class LatestTest(unittest.TestCase):
 
