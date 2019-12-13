@@ -620,9 +620,9 @@ class CombineTest(unittest.TestCase):
 
     last_word_len_filter = MetricsFilter().with_name('last_word_len')
     query_result = result.metrics().query(last_word_len_filter)
-    if query_result['gauges']:
-      last_word_len = query_result['gauges'][0]
-      self.assertIn(last_word_len.result.value, [0])
+
+    # No element has ever been recorded.
+    self.assertFalse(query_result['gauges'])
 
 
 class LatestTest(unittest.TestCase):
