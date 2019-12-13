@@ -423,7 +423,7 @@ class CombineTest(unittest.TestCase):
       input = (
           p
           | beam.Create([('c', 1), ('c', 2), ('c', 10),
-                      ('d', 5), ('d', 8), ('d', 9)])
+                         ('d', 5), ('d', 8), ('d', 9)])
           | beam.MapTuple(lambda k, v: window.TimestampedValue((k, v), v))
           | beam.WindowInto(window.FixedWindows(4)))
 
