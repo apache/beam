@@ -20,7 +20,8 @@ limitations under the License.
 
 # SDK Harness Configuration
 
-Beam allows configuration of the SDK harness to accommodate varying cluster setups.
+Beam allows configuration of the [SDK harness]({{ site.baseurl }}/roadmap/portability/) to
+accommodate varying cluster setups.
 (The options below are for Python, but much of this information should apply to the Java and Go SDKs
 as well.)
 
