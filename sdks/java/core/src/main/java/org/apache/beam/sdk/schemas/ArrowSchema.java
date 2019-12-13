@@ -108,31 +108,37 @@ public class ArrowSchema {
         implements ArrowType.ArrowTypeVisitor<Function<Object, Object>> {
       @Override
       public Function<Object, Object> visit(ArrowType.Null type) {
-        return null;
+        throw new IllegalArgumentException(
+            "Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Struct type) {
+        // TODO: code to create a row.
         return null;
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.List type) {
+        // TODO: test this
         return null;
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.FixedSizeList type) {
-        return null;
+        throw new IllegalArgumentException(
+            "Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Union type) {
-        return null;
+        throw new IllegalArgumentException(
+            "Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Map type) {
+        // TODO: test this
         return null;
       }
 
