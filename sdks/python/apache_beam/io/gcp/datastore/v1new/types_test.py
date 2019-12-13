@@ -26,7 +26,7 @@ import unittest
 import future.tests.base  # pylint: disable=unused-import
 import mock
 
-from apache_beam.utils import log
+from apache_beam.utils import log  # pylint: disable=ungrouped-imports
 
 # Protect against environments where datastore library is not available.
 try:
@@ -39,7 +39,6 @@ try:
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
-
 
 _LOGGER = log.get_logger(__name__)
 
