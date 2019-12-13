@@ -30,9 +30,9 @@ import (
 
 const extraData = 2
 
-// fakeClient attempts to mimic the semantics of a GRPC stream
+// fakeDataClient attempts to mimic the semantics of a GRPC stream
 // and also permit configurability.
-type fakeClient struct {
+type fakeDataClient struct {
 	t              *testing.T
 	done           chan bool
 	calls          int
@@ -40,7 +40,7 @@ type fakeClient struct {
 	skipFirstError bool
 }
 
-func (f *fakeClient) Recv() (*pb.Elements, error) {
+func (f *fakeDataClient) Recv() (*pb.Elements, error) {
 	f.calls++
 	data := []byte{1, 2, 3, 4}
 	elemData := pb.Elements_Data{
@@ -77,7 +77,7 @@ func (f *fakeClient) Recv() (*pb.Elements, error) {
 	}
 }
 
-func (f *fakeClient) Send(*pb.Elements) error {
+func (f *fakeDataClient) Send(*pb.Elements) error {
 	// We skip errors on the first call to test that  errors can be returned
 	// on the sentinel value send in dataWriter.Close
 	// Otherwise, we return an io.EOF similar to semantics documented
@@ -100,12 +100,12 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 	tests := []struct {
 		name          string
 		expectedError error
-		caseFn        func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel)
+		caseFn        func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel)
 	}{
 		{
 			name:          "onClose",
 			expectedError: io.EOF,
-			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel) {
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
 				// We don't read up all the buffered data, but immediately close the reader.
 				// Previously, since nothing was consuming the incoming gRPC data, the whole
 				// data channel would get stuck, and the client.Recv() call was eventually
@@ -119,13 +119,13 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 		}, {
 			name:          "onSentinel",
 			expectedError: io.EOF,
-			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel) {
-				// fakeClient eventually returns a sentinel element.
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				// fakeDataClient eventually returns a sentinel element.
 			},
 		}, {
 			name:          "onRecvError",
 			expectedError: expectedError,
-			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeClient, c *DataChannel) {
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
 				// The SDK starts reading in a goroutine immeadiately after open.
 				// Set the 2nd Recv call to have an error.
 				client.err = expectedError
@@ -135,7 +135,7 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			done := make(chan bool, 1)
-			client := &fakeClient{t: t, done: done}
+			client := &fakeDataClient{t: t, done: done}
 			ctx, cancelFn := context.WithCancel(context.Background())
 			c := makeDataChannel(ctx, "id", client, cancelFn)
 
@@ -181,22 +181,22 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		caseFn func(t *testing.T, w io.WriteCloser, client *fakeClient) error
+		caseFn func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error
 	}{
 		{
 			name: "onClose_Flush",
-			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeClient) error {
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
 				return w.Close()
 			},
 		}, {
 			name: "onClose_Sentinel",
-			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeClient) error {
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
 				client.skipFirstError = true
 				return w.Close()
 			},
 		}, {
 			name: "onWrite",
-			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeClient) error {
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
 				_, err := w.Write([]byte{'d', 'o', 'n', 'e'})
 				return err
 			},
@@ -205,7 +205,7 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			done := make(chan bool, 1)
-			client := &fakeClient{t: t, done: done, err: expectedError}
+			client := &fakeDataClient{t: t, done: done, err: expectedError}
 			ctx, cancelFn := context.WithCancel(context.Background())
 			c := makeDataChannel(ctx, "id", client, cancelFn)
 
