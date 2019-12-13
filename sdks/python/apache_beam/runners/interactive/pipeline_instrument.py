@@ -29,7 +29,6 @@ from apache_beam.pipeline import PipelineVisitor
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
-from apache_beam.runners.interactive.caching import streaming_cache
 from apache_beam.testing import test_stream
 
 READ_CACHE = "_ReadCache_"
@@ -377,15 +376,12 @@ class PipelineInstrument(object):
     # Can only read from cache when the cache with expected key exists.
     if self._cache_manager.exists('full', key):
       if key not in self._cached_pcoll_read:
-        if pcoll.is_bounded:
-          read_transform = cache.ReadCache(self._cache_manager, key)
-        else:
-          read_transform = streaming_cache.StreamingCacheReceiver()
-
         # Mutates the pipeline with cache read transform attached
         # to root of the pipeline.
-        pcoll_from_cache = (pipeline
-                            | '{}{}'.format(READ_CACHE, key) >> read_transform)
+        pcoll_from_cache = (
+            pipeline
+            | '{}{}'.format(READ_CACHE, key) >> cache.ReadCache(
+                self._cache_manager, key))
         self._cached_pcoll_read[key] = pcoll_from_cache
     # else: NOOP when cache doesn't exist, just compute the original graph.
 
@@ -456,7 +452,7 @@ class PipelineInstrument(object):
             key = self._pin.cache_key(input_pcoll)
 
             # Replace the input pcollection with the cached pcollection (if it
-            # already cached).
+            # has been cached).
             if key in self._pin._cached_pcoll_read:
               input_list[i] = self._pin._cached_pcoll_read[key]
           # Update the transform with its new inputs.

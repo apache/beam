@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import collections
 import datetime
+import itertools
 import os
 import sys
 import tempfile
@@ -68,7 +69,7 @@ class CacheManager(object):
       *labels: List of labels for PCollection instance.
 
     Returns:
-      Tuple[List[Any], int]: A tuple containing a list of items in the
+      Tuple[Generator[Any], int]: A tuple containing a list of items in the
         PCollection and the version number.
 
     It is possible that the version numbers from read() and_latest_version()
@@ -78,12 +79,21 @@ class CacheManager(object):
     """
     raise NotImplementedError
 
+  def write(self, value, *labels):
+    """Writes the value to the given cache.
+
+    Args:
+      value: An encodable (with corresponding PCoder) value
+      *labels: List of labels for PCollection instance
+    """
+    raise NotImplementedError
+
   def source(self, *labels):
-    """Returns a beam.io.Source that reads the PCollection cache."""
+    """Returns a PTransform that reads the PCollection cache."""
     raise NotImplementedError
 
   def sink(self, *labels):
-    """Returns a beam.io.Sink that writes the PCollection cache."""
+    """Returns a PTransform that writes the PCollection cache."""
     raise NotImplementedError
 
   def save_pcoder(self, pcoder, *labels):
@@ -165,20 +175,35 @@ class FileBasedCacheManager(CacheManager):
             self._saved_pcoders[self._path(*labels)])
 
   def read(self, *labels):
+    # Return an iterator to an empty list if it doesn't exist.
     if not self.exists(*labels):
-      return [], -1
+      return itertools.chain([]), -1
 
-    source = self.source(*labels)
+    # Otherwise, return a generator to the cached PCollection.
+    source = self._source(*labels)
     range_tracker = source.get_range_tracker(None, None)
-    result = list(source.read(range_tracker))
+    reader = source.read(range_tracker)
     version = self._latest_version(*labels)
-    return result, version
+    return reader, version
+
+  def write(self, values, *labels):
+    sink = self._sink(*labels)
+    path = self._path(*labels)
+    with open(path, 'wb') as f:
+      for v in values:
+        sink.write_record(f, v)
 
   def source(self, *labels):
+    return beam.io.Read(self._source(*labels))
+
+  def sink(self, *labels):
+    return beam.io.Write(self._sink(*labels))
+
+  def _source(self, *labels):
     return self._reader_class(
         self._glob_path(*labels), coder=self.load_pcoder(*labels))._source
 
-  def sink(self, *labels):
+  def _sink(self, *labels):
     return self._writer_class(
         self._path(*labels), coder=self.load_pcoder(*labels))._sink
 
@@ -228,8 +253,7 @@ class ReadCache(beam.PTransform):
 
   def expand(self, pbegin):
     # pylint: disable=expression-not-assigned
-    return pbegin | 'Read' >> beam.io.Read(
-        self._cache_manager.source('full', self._label))
+    return pbegin | 'Read' >> self._cache_manager.source('full', self._label)
 
 
 class WriteCache(beam.PTransform):
@@ -255,8 +279,7 @@ class WriteCache(beam.PTransform):
           combiners.Sample.FixedSizeGlobally(self._sample_size)
           | beam.FlatMap(lambda sample: sample))
     # pylint: disable=expression-not-assigned
-    return pcoll | 'Write' >> beam.io.Write(
-        self._cache_manager.sink(prefix, self._label))
+    return pcoll | 'Write' >> self._cache_manager.sink(prefix, self._label)
 
 
 class SafeFastPrimitivesCoder(coders.Coder):

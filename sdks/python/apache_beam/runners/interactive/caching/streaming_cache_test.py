@@ -17,12 +17,15 @@
 
 from __future__ import absolute_import
 
+import collections
+import itertools
 import unittest
 
 from apache_beam import coders
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive.cache_manager import CacheManager
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.utils.timestamp import Timestamp
 
@@ -34,7 +37,35 @@ TestStreamFileHeader.__test__ = False
 TestStreamFileRecord.__test__ = False
 
 
-class InMemoryReader(object):
+class InMemoryCache(CacheManager):
+  def __init__(self):
+    self._cached = collections.defaultdict(list)
+    self._pcoders = {}
+
+  def exists(self, *labels):
+    return self._key(*labels) in self._cached
+
+  def _latest_version(self, *labels):
+    return True
+
+  def read(self, *labels):
+    ret = itertools.chain(self._cached[self._key(*labels)])
+    return ret, None
+
+  def write(self, value, *labels):
+    self._cached[self._key(*labels)] += value
+
+  def save_pcoder(self, pcoder, *labels):
+    self._pcoders[self._key(*labels)] = pcoder
+
+  def load_pcoder(self, *labels):
+    return self._pcoders[self._key(*labels)]
+
+  def _key(self, *labels):
+    return ''.join([l for l in labels])
+
+
+class FileRecordsBuilder(object):
   def __init__(self, tag=None):
     self._header = TestStreamFileHeader(tag=tag)
     self._records = []
@@ -48,26 +79,17 @@ class InMemoryReader(object):
         element=element_payload,
         processing_time=Timestamp.of(processing_time).to_proto())
     self._records.append(record)
+    return self
 
   def advance_watermark(self, watermark, processing_time):
     record = TestStreamFileRecord(
         watermark=Timestamp.of(watermark).to_proto(),
         processing_time=Timestamp.of(processing_time).to_proto())
     self._records.append(record)
+    return self
 
-  def header(self):
-    return self._header
-
-  def read(self):
-    for r in self._records:
-      yield r
-
-
-def all_events(reader):
-  events = []
-  for e in reader.read():
-    events.append(e)
-  return events
+  def build(self):
+    return [self._header] + self._records
 
 
 class StreamingCacheTest(unittest.TestCase):
@@ -77,30 +99,37 @@ class StreamingCacheTest(unittest.TestCase):
   def test_single_reader(self):
     """Tests that we expect to see all the correctly emitted TestStreamPayloads.
     """
-    in_memory_reader = InMemoryReader()
-    in_memory_reader.add_element(
-        element=0,
-        event_time=0,
-        processing_time=0)
-    in_memory_reader.add_element(
-        element=1,
-        event_time=1,
-        processing_time=1)
-    in_memory_reader.add_element(
-        element=2,
-        event_time=2,
-        processing_time=2)
-    cache = StreamingCache([in_memory_reader])
-    reader = cache.reader()
+    CACHED_PCOLLECTION_KEY = 'arbitrary key'
+
+    builder = FileRecordsBuilder(tag=CACHED_PCOLLECTION_KEY)
+    (builder
+     .add_element(
+         element=0,
+         event_time=0,
+         processing_time=0)
+     .add_element(
+         element=1,
+         event_time=1,
+         processing_time=1)
+     .add_element(
+         element=2,
+         event_time=2,
+         processing_time=2))
+
+    cache = StreamingCache(InMemoryCache())
+    cache.write(builder.build(), CACHED_PCOLLECTION_KEY)
+
+    reader, _ = cache.read(CACHED_PCOLLECTION_KEY)
     coder = coders.FastPrimitivesCoder()
-    events = all_events(reader)
+    events = list(reader)
 
     expected = [
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode(0),
-                    timestamp=0)])),
+                    timestamp=0)],
+                tag=CACHED_PCOLLECTION_KEY)),
         TestStreamPayload.Event(
             processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
                 advance_duration=1 * 10**6)),
@@ -108,7 +137,8 @@ class StreamingCacheTest(unittest.TestCase):
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode(1),
-                    timestamp=1 * 10**6)])),
+                    timestamp=1 * 10**6)],
+                tag=CACHED_PCOLLECTION_KEY)),
         TestStreamPayload.Event(
             processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
                 advance_duration=1 * 10**6)),
@@ -116,49 +146,61 @@ class StreamingCacheTest(unittest.TestCase):
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode(2),
-                    timestamp=2 * 10**6)])),
+                    timestamp=2 * 10**6)],
+                tag=CACHED_PCOLLECTION_KEY)),
     ]
     self.assertSequenceEqual(events, expected)
+
 
   def test_multiple_readers(self):
     """Tests that the service advances the clock with multiple outputs."""
 
-    letters = InMemoryReader('letters')
-    letters.advance_watermark(0, 1)
-    letters.add_element(
-        element='a',
-        event_time=0,
-        processing_time=1)
-    letters.advance_watermark(10, 11)
-    letters.add_element(
-        element='b',
-        event_time=10,
-        processing_time=11)
+    CACHED_LETTERS = 'letters'
+    CACHED_NUMBERS = 'numbers'
+    CACHED_LATE = 'late'
 
-    numbers = InMemoryReader('numbers')
-    numbers.add_element(
-        element=1,
-        event_time=0,
-        processing_time=2)
-    numbers.add_element(
-        element=2,
-        event_time=0,
-        processing_time=3)
-    numbers.add_element(
-        element=2,
-        event_time=0,
-        processing_time=4)
+    letters = FileRecordsBuilder(CACHED_LETTERS)
+    (letters
+     .advance_watermark(0, 1)
+     .add_element(
+         element='a',
+         event_time=0,
+         processing_time=1)
+     .advance_watermark(10, 11)
+     .add_element(
+         element='b',
+         event_time=10,
+         processing_time=11))
 
-    late = InMemoryReader('late')
+    numbers = FileRecordsBuilder(CACHED_NUMBERS)
+    (numbers
+     .add_element(
+         element=1,
+         event_time=0,
+         processing_time=2)
+     .add_element(
+         element=2,
+         event_time=0,
+         processing_time=3)
+     .add_element(
+         element=2,
+         event_time=0,
+         processing_time=4))
+
+    late = FileRecordsBuilder(CACHED_LATE)
     late.add_element(
         element='late',
         event_time=0,
         processing_time=101)
 
-    cache = StreamingCache([letters, numbers, late])
-    reader = cache.reader()
+    cache = StreamingCache(InMemoryCache())
+    cache.write(letters.build(), CACHED_LETTERS)
+    cache.write(numbers.build(), CACHED_NUMBERS)
+    cache.write(late.build(), CACHED_LATE)
+
+    reader = cache.read_multiple([CACHED_LETTERS, CACHED_NUMBERS, CACHED_LATE])
     coder = coders.FastPrimitivesCoder()
-    events = all_events(reader)
+    events = list(reader)
 
     expected = [
         # Advances clock from 0 to 1
@@ -168,13 +210,13 @@ class StreamingCacheTest(unittest.TestCase):
         TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
                 new_watermark=0,
-                tag='letters')),
+                tag=CACHED_LETTERS)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode('a'),
                     timestamp=0)],
-                tag='letters')),
+                tag=CACHED_LETTERS)),
 
         # Advances clock from 1 to 2
         TestStreamPayload.Event(
@@ -185,7 +227,7 @@ class StreamingCacheTest(unittest.TestCase):
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode(1),
                     timestamp=0)],
-                tag='numbers')),
+                tag=CACHED_NUMBERS)),
 
         # Advances clock from 2 to 3
         TestStreamPayload.Event(
@@ -196,7 +238,7 @@ class StreamingCacheTest(unittest.TestCase):
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode(2),
                     timestamp=0)],
-                tag='numbers')),
+                tag=CACHED_NUMBERS)),
 
         # Advances clock from 3 to 4
         TestStreamPayload.Event(
@@ -207,7 +249,7 @@ class StreamingCacheTest(unittest.TestCase):
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode(2),
                     timestamp=0)],
-                tag='numbers')),
+                tag=CACHED_NUMBERS)),
 
         # Advances clock from 4 to 11
         TestStreamPayload.Event(
@@ -216,13 +258,13 @@ class StreamingCacheTest(unittest.TestCase):
         TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
                 new_watermark=10 * 10**6,
-                tag='letters')),
+                tag=CACHED_LETTERS)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode('b'),
                     timestamp=10 * 10**6)],
-                tag='letters')),
+                tag=CACHED_LETTERS)),
 
         # Advances clock from 11 to 101
         TestStreamPayload.Event(
@@ -233,7 +275,7 @@ class StreamingCacheTest(unittest.TestCase):
                 elements=[TestStreamPayload.TimestampedElement(
                     encoded_element=coder.encode('late'),
                     timestamp=0)],
-                tag='late')),
+                tag=CACHED_LATE)),
     ]
 
     self.assertSequenceEqual(events, expected)

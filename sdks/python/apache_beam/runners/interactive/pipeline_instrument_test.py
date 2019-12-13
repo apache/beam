@@ -18,39 +18,82 @@
 """Tests for apache_beam.runners.interactive.pipeline_instrument."""
 from __future__ import absolute_import
 
+import collections
+import itertools
 import tempfile
-import time
 import unittest
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.io import filesystems
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.cache_manager import CacheManager
 from apache_beam.runners.interactive.caching import streaming_cache
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
 from apache_beam.testing.test_stream import TestStream
 
-#Work around nose tests using Python2 without unittest.mock module.
-try:
-  from unittest.mock import MagicMock
-except ImportError:
-  from mock import MagicMock
+
+class InMemoryCache(CacheManager):
+  """A cache that stores all PCollections in an in-memory map.
+
+  This is only used for checking the pipeline shape. This can't be used for
+  running the pipeline isn't shared between the SDK and the Runner.
+  """
+  def __init__(self):
+    self._cached = {}
+    self._pcoders = {}
+
+  def exists(self, *labels):
+    return self._key(*labels) in self._cached
+
+  def _latest_version(self, *labels):
+    return True
+
+  def read(self, *labels):
+    if not self.exists(*labels):
+      return itertools.chain([]), -1
+    ret = itertools.chain(self._cached[self._key(*labels)])
+    return ret, None
+
+  def write(self, value, *labels):
+    if not self.exists(*labels):
+      self._cached[self._key(*labels)] = []
+    self._cached[self._key(*labels)] += value
+
+  def save_pcoder(self, pcoder, *labels):
+    self._pcoders[self._key(*labels)] = pcoder
+
+  def load_pcoder(self, *labels):
+    return self._pcoders[self._key(*labels)]
+
+  def cleanup(self):
+    self._cached = collections.defaultdict(list)
+    self._pcoders = {}
+
+  def source(self, *labels):
+    vals = self._cached[self._key(*labels)]
+    return beam.Create(vals)
+
+  def sink(self, *labels):
+    return beam.Map(lambda _: _)
+
+  def _key(self, *labels):
+    return '/'.join([l for l in labels])
 
 
 class PipelineInstrumentTest(unittest.TestCase):
 
   def setUp(self):
-    ie.new_env(cache_manager=cache.FileBasedCacheManager())
+    ie.new_env(cache_manager=InMemoryCache())
 
   def test_pcolls_to_pcoll_id(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
-# pylint: disable=range-builtin-not-iterating
+    # pylint: disable=range-builtin-not-iterating
     init_pcoll = p | 'Init Create' >> beam.Impulse()
     _, ctx = p.to_runner_api(use_fake_coders=True, return_context=True)
     self.assertEqual(instr.pcolls_to_pcoll_id(p, ctx), {
@@ -203,26 +246,10 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def _mock_write_cache(self, pcoll, cache_key):
     """Cache the PCollection where cache.WriteCache would write to."""
-    cache_path = filesystems.FileSystems.join(
-        ie.current_env().cache_manager()._cache_dir, 'full')
-    if not filesystems.FileSystems.exists(cache_path):
-      filesystems.FileSystems.mkdirs(cache_path)
-
-    # Pause for 0.1 sec, because the Jenkins test runs so fast that the file
-    # writes happen at the same timestamp.
-    time.sleep(0.1)
-
-    cache_file = cache_key + '-1-of-2'
-    labels = ['full', cache_key]
-
     # Usually, the pcoder will be inferred from `pcoll.element_type`
     pcoder = coders.registry.get_coder(object)
-    ie.current_env().cache_manager().save_pcoder(pcoder, *labels)
-    sink = ie.current_env().cache_manager().sink(*labels)
-
-    with open(ie.current_env().cache_manager()._path('full', cache_file),
-              'wb') as f:
-      sink.write_record(f, pcoll)
+    ie.current_env().cache_manager().save_pcoder(pcoder, 'full', cache_key)
+    ie.current_env().cache_manager().write([pcoll], 'full', cache_key)
 
   def test_instrument_example_pipeline_to_write_cache(self):
     # Original instance defined by user code has all variables handlers.
@@ -254,7 +281,6 @@ class PipelineInstrumentTest(unittest.TestCase):
     second_pcoll_cache_key = 'second_pcoll_' + str(
         id(second_pcoll)) + '_' + str(id(second_pcoll.producer))
     self._mock_write_cache(second_pcoll, second_pcoll_cache_key)
-    ie.current_env().cache_manager().exists = MagicMock(return_value=True)
     instr.pin(p_copy)
 
     cached_init_pcoll = p_origin | (
@@ -282,6 +308,8 @@ class PipelineInstrumentTest(unittest.TestCase):
     assert_pipeline_equal(self, p_origin, p_copy)
 
   def test_instrument_example_unbounded_pipeline_to_read_cache(self):
+    ie.new_env(cache_manager=streaming_cache.StreamingCache(InMemoryCache()))
+
     p_origin, init_pcoll, second_pcoll = self._example_pipeline(watch=True,
                                                                 bounded=False)
     p_copy, _, _ = self._example_pipeline(watch=False, bounded=False)
@@ -293,13 +321,12 @@ class PipelineInstrumentTest(unittest.TestCase):
     second_pcoll_cache_key = 'second_pcoll_' + str(
         id(second_pcoll)) + '_' + str(id(second_pcoll.producer))
     self._mock_write_cache(second_pcoll, second_pcoll_cache_key)
-    ie.current_env().cache_manager().exists = MagicMock(return_value=True)
     instr.pin(p_copy)
 
     # Add the caching transforms.
     key = '_ReadCache_' + init_pcoll_cache_key
-    cached_init_pcoll = (p_origin
-                         | key >> streaming_cache.StreamingCacheReceiver())
+    cached_init_pcoll = p_origin | key >> cache.ReadCache(
+        ie.current_env().cache_manager(), init_pcoll_cache_key)
     cached_init_pcoll = p_origin | TestStream(output_tags=[key])
 
     # second_pcoll is never used as input and there is no need to read cache.
