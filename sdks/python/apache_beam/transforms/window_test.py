@@ -196,6 +196,7 @@ class WindowTest(unittest.TestCase):
       result = (pcoll
                 | 'w' >> WindowInto(SlidingWindows(period=2, size=4))
                 | GroupByKey()
+                | beam.MapTuple(lambda k, vs: (k, sorted(vs)))
                 | reify_windows)
       expected = [('key @ [-2.0, 2.0)', [1]),
                   ('key @ [0.0, 4.0)', [1, 2, 3]),
@@ -222,7 +223,8 @@ class WindowTest(unittest.TestCase):
                 | Map(lambda x_t: TimestampedValue(x_t[0], x_t[1]))
                 | 'w' >> WindowInto(FixedWindows(5))
                 | Map(lambda v: ('key', v))
-                | GroupByKey())
+                | GroupByKey()
+                | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
       assert_that(result, equal_to([('key', [0, 1, 2, 3, 4]),
                                     ('key', [5, 6, 7, 8, 9])]))
 
@@ -237,7 +239,8 @@ class WindowTest(unittest.TestCase):
                 | 'rewindow' >> WindowInto(FixedWindows(5))
                 | 'rewindow2' >> WindowInto(FixedWindows(5))
                 | Map(lambda v: ('key', v))
-                | GroupByKey())
+                | GroupByKey()
+                | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
       assert_that(result, equal_to([('key', sorted([0, 1, 2, 3, 4] * 3)),
                                     ('key', sorted([5, 6, 7, 8, 9] * 3))]))
 

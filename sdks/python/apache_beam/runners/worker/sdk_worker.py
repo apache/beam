@@ -39,6 +39,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
@@ -132,17 +133,18 @@ class SdkHarness(object):
     _LOGGER.info('Done consuming work.')
 
   def _execute(self, task, request):
-    try:
-      response = task()
-    except Exception:  # pylint: disable=broad-except
-      traceback_string = traceback.format_exc()
-      print(traceback_string, file=sys.stderr)
-      _LOGGER.error(
-          'Error processing instruction %s. Original traceback is\n%s\n',
-          request.instruction_id, traceback_string)
-      response = beam_fn_api_pb2.InstructionResponse(
-          instruction_id=request.instruction_id, error=traceback_string)
-    self._responses.put(response)
+    with statesampler.instruction_id(request.instruction_id):
+      try:
+        response = task()
+      except Exception:  # pylint: disable=broad-except
+        traceback_string = traceback.format_exc()
+        print(traceback_string, file=sys.stderr)
+        _LOGGER.error(
+            'Error processing instruction %s. Original traceback is\n%s\n',
+            request.instruction_id, traceback_string)
+        response = beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id, error=traceback_string)
+      self._responses.put(response)
 
   def _request_register(self, request):
     # registration request is handled synchronously

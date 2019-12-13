@@ -21,9 +21,8 @@ from __future__ import absolute_import
 import logging
 import unittest
 
+import apache_beam as beam
 from apache_beam import pvalue
-from apache_beam.io import Read
-from apache_beam.io import iobase
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import AsList
 from apache_beam.runners.direct import DirectRunner
@@ -51,10 +50,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
       pass
 
   def test_root_transforms(self):
-    class DummySource(iobase.BoundedSource):
-      pass
-
-    root_read = Read(DummySource())
+    root_read = beam.Impulse()
     root_flatten = Flatten(pipeline=self.pipeline)
 
     pbegin = pvalue.PBegin(self.pipeline)
@@ -88,10 +84,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
       def process(self, element, negatives):
         yield element
 
-    class DummySource(iobase.BoundedSource):
-      pass
-
-    root_read = Read(DummySource())
+    root_read = beam.Impulse()
 
     result = (self.pipeline
               | 'read' >> root_read

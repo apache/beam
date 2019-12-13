@@ -978,7 +978,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
         transform_id)
     output_coder = factory.get_only_output_coder(transform_proto)
   return DataInputOperation(
-      transform_proto.unique_name,
+      common.NameContext(transform_proto.unique_name, transform_id),
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
@@ -1000,7 +1000,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
         transform_id)
     output_coder = factory.get_only_input_coder(transform_proto)
   return DataOutputOperation(
-      transform_proto.unique_name,
+      common.NameContext(transform_proto.unique_name, transform_id),
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
@@ -1019,7 +1019,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       [factory.get_only_output_coder(transform_proto)])
   return factory.augment_oldstyle_op(
       operations.ReadOperation(
-          transform_proto.unique_name,
+          common.NameContext(transform_proto.unique_name, transform_id),
           spec,
           factory.counter_factory,
           factory.state_sampler),
@@ -1036,7 +1036,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       [WindowedValueCoder(source.default_output_coder())])
   return factory.augment_oldstyle_op(
       operations.ReadOperation(
-          transform_proto.unique_name,
+          common.NameContext(transform_proto.unique_name, transform_id),
           spec,
           factory.counter_factory,
           factory.state_sampler),
@@ -1048,7 +1048,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
     python_urns.IMPULSE_READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   return operations.ImpulseReadOperation(
-      transform_proto.unique_name,
+      common.NameContext(transform_proto.unique_name, transform_id),
       factory.counter_factory,
       factory.state_sampler,
       consumers,
@@ -1227,7 +1227,7 @@ def _create_pardo_operation(
 
   result = factory.augment_oldstyle_op(
       operation_cls(
-          transform_proto.unique_name,
+          common.NameContext(transform_proto.unique_name, transform_id),
           spec,
           factory.counter_factory,
           factory.state_sampler,
@@ -1276,7 +1276,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 def create(factory, transform_id, transform_proto, unused_parameter, consumers):
   return factory.augment_oldstyle_op(
       operations.FlattenOperation(
-          transform_proto.unique_name,
+          common.NameContext(transform_proto.unique_name, transform_id),
           operation_specs.WorkerFlatten(
               None, [factory.get_only_output_coder(transform_proto)]),
           factory.counter_factory,
@@ -1294,7 +1294,7 @@ def create(factory, transform_id, transform_proto, payload, consumers):
        [], {}))
   return factory.augment_oldstyle_op(
       operations.PGBKCVOperation(
-          transform_proto.unique_name,
+          common.NameContext(transform_proto.unique_name, transform_id),
           operation_specs.WorkerPartialGroupByKey(
               serialized_combine_fn,
               None,
@@ -1310,7 +1310,7 @@ def create(factory, transform_id, transform_proto, payload, consumers):
     beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
-      factory, transform_proto, payload, consumers, 'merge')
+      factory, transform_id, transform_proto, payload, consumers, 'merge')
 
 
 @BeamTransformFactory.register_urn(
@@ -1318,7 +1318,7 @@ def create(factory, transform_id, transform_proto, payload, consumers):
     beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
-      factory, transform_proto, payload, consumers, 'extract')
+      factory, transform_id, transform_proto, payload, consumers, 'extract')
 
 
 @BeamTransformFactory.register_urn(
@@ -1326,17 +1326,17 @@ def create(factory, transform_id, transform_proto, payload, consumers):
     beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
-      factory, transform_proto, payload, consumers, 'all')
+      factory, transform_id, transform_proto, payload, consumers, 'all')
 
 
 def _create_combine_phase_operation(
-    factory, transform_proto, payload, consumers, phase):
+    factory, transform_id, transform_proto, payload, consumers, phase):
   serialized_combine_fn = pickler.dumps(
       (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
        [], {}))
   return factory.augment_oldstyle_op(
       operations.CombineOperation(
-          transform_proto.unique_name,
+          common.NameContext(transform_proto.unique_name, transform_id),
           operation_specs.WorkerCombineFn(
               serialized_combine_fn,
               phase,
@@ -1352,7 +1352,7 @@ def _create_combine_phase_operation(
 def create(factory, transform_id, transform_proto, unused_parameter, consumers):
   return factory.augment_oldstyle_op(
       operations.FlattenOperation(
-          transform_proto.unique_name,
+          common.NameContext(transform_proto.unique_name, transform_id),
           operation_specs.WorkerFlatten(
               None,
               [factory.get_only_output_coder(transform_proto)]),
