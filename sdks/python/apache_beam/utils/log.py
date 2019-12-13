@@ -17,7 +17,10 @@
 
 """Basic logging utilities for Apache Beam."""
 
+from __future__ import absolute_import
+
 import logging
+
 
 def get_logger(name):
   logging.basicConfig()

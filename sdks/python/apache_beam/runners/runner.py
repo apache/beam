@@ -27,6 +27,7 @@ import tempfile
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
+
 from apache_beam.utils import log
 
 if TYPE_CHECKING:
