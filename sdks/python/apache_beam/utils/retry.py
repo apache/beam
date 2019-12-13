@@ -28,7 +28,6 @@ needed right now use a @retry.no_retries decorator.
 from __future__ import absolute_import
 
 import functools
-import logging
 import random
 import sys
 import time

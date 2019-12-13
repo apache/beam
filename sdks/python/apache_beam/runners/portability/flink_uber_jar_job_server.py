@@ -21,7 +21,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import json
-import logging
 import os
 import shutil
 import tempfile
@@ -40,6 +39,7 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
+from apache_beam.utils import log
 
 _LOGGER = log.get_logger(__name__)
 

@@ -26,7 +26,6 @@ from __future__ import absolute_import
 
 import atexit
 import importlib
-import logging
 import sys
 
 import apache_beam as beam
