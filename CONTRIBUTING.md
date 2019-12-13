@@ -32,7 +32,7 @@ you need additional tools installed in your system including:
 
 * Go 1.12 or later
 * JDK 8 or later
-* Python 3
+* Python 3.5 or later
 * pip
 * setuptools
 * virtualenv
