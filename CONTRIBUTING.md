@@ -30,11 +30,11 @@ for details, such as:
 To build and install the whole project from the source distribution,
 you need additional tools installed in your system including:
 
+* Go 1.12 or later
 * JDK 8 or later
 * Python 3
 * pip
 * setuptools
-* Go 1.12 or later
 * virtualenv
 * tox
 * Docker
@@ -50,6 +50,8 @@ sudo apt-get install \
     tox \
     docker-ce
 ```
+
+You also need to [install Go](https://golang.org/doc/install]).
 
 Then use the standard `./gradlew build` command.
 
