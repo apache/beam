@@ -26,6 +26,8 @@ import unittest
 import future.tests.base  # pylint: disable=unused-import
 import mock
 
+from apache_beam.utils import log
+
 # Protect against environments where datastore library is not available.
 try:
   from google.cloud.datastore import client
@@ -34,7 +36,6 @@ try:
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query
   from apache_beam.options.value_provider import StaticValueProvider
-  from apache_beam.utils import log
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None

@@ -28,7 +28,7 @@ from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.util import log
+from apache_beam.utils import log
 
 SLEEP_TIME_SECS = 1
 
