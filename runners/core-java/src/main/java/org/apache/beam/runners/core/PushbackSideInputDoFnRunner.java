@@ -44,7 +44,11 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
 
   /** Calls the underlying {@link DoFn.OnTimer} method. */
   void onTimer(
-      String timerFamilyId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      TimeDomain timeDomain);
 
   /** Calls the underlying {@link DoFn.FinishBundle} method. */
   void finishBundle();

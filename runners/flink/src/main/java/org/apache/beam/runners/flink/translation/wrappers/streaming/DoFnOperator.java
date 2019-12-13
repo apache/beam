@@ -812,7 +812,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     timerInternals.cleanupPendingTimer(timer.getNamespace());
     pushbackDoFnRunner.onTimer(
-        timerData.getTimerFamilyId(), window, timerData.getTimestamp(), timerData.getDomain());
+        timerData.getTimerId(),
+        timerData.getTimerFamilyId(),
+        window,
+        timerData.getTimestamp(),
+        timerData.getDomain());
   }
 
   private void setCurrentInputWatermark(long currentInputWatermark) {

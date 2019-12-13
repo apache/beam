@@ -453,7 +453,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       ((DoFnRunnerWithKeyedInternals) fnRunner).onTimer(keyedTimerData, window);
     } else {
       pushbackFnRunner.onTimer(
-          timer.getTimerFamilyId(), window, timer.getTimestamp(), timer.getDomain());
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          window,
+          timer.getTimestamp(),
+          timer.getDomain());
     }
   }
 

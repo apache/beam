@@ -138,6 +138,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public String timerId(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Cannot access timerId outside of @OnTimer method.");
+              }
+
+              @Override
               public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
                 throw new UnsupportedOperationException(
                     "Access to time domain not supported in ProcessElement");

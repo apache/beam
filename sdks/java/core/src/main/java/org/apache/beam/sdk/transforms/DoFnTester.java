@@ -268,6 +268,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public String timerId(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Cannot access timerId outside of @OnTimer method.");
+            }
+
+            @Override
             public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
                   "Not expected to access TimeDomain from @ProcessElement");
@@ -690,6 +696,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             @Nullable
             public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.TimerIdParameter p) {
               return null;
             }
 

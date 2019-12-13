@@ -434,6 +434,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Cannot access timerId outside of @OnTimer method.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
@@ -625,6 +630,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp();
+    }
+
+    @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("TimerId parameters are not supported.");
     }
 
     @Override

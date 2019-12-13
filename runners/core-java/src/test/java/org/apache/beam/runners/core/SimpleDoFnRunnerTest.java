@@ -119,7 +119,11 @@ public class SimpleDoFnRunnerTest {
     thrown.expectCause(is(fn.exceptionToThrow));
 
     runner.onTimer(
-        ThrowingDoFn.TIMER_ID, GlobalWindow.INSTANCE, new Instant(0), TimeDomain.EVENT_TIME);
+        ThrowingDoFn.TIMER_ID,
+        ThrowingDoFn.TIMER_ID,
+        GlobalWindow.INSTANCE,
+        new Instant(0),
+        TimeDomain.EVENT_TIME);
   }
 
   /**
@@ -237,6 +241,7 @@ public class SimpleDoFnRunnerTest {
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
     runner.onTimer(
+        DoFnWithTimers.TIMER_ID,
         DoFnWithTimers.TIMER_ID,
         GlobalWindow.INSTANCE,
         currentTime.plus(offset),

@@ -174,6 +174,8 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     /** Returns the timer for the given {@link org.apache.beam.sdk.transforms.DoFn.TimerFamily}. */
     TimerMap timerFamily(String tagId);
+
+    String timerId(DoFn<InputT, OutputT> doFn);
   }
 
   /**
@@ -223,6 +225,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

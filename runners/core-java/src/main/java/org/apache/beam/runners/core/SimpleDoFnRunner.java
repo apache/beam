@@ -188,7 +188,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      TimeDomain timeDomain) {
 
     // The effective timestamp is when derived elements will have their timestamp set, if not
     // otherwise specified. If this is an event time timer, then they have the timestamp of the
@@ -210,8 +214,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     OnTimerArgumentProvider argumentProvider =
-        new OnTimerArgumentProvider(window, effectiveTimestamp, timeDomain);
-    invoker.invokeOnTimer(timerId, argumentProvider);
+        new OnTimerArgumentProvider(timerId, window, effectiveTimestamp, timeDomain);
+    invoker.invokeOnTimer(timerFamilyId, argumentProvider);
   }
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
@@ -323,6 +327,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timestamp outside of @ProcessElement method.");
+    }
+
+    @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Cannot access timerId outside of @OnTimer method.");
     }
 
     @Override
@@ -449,6 +458,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timestamp outside of @ProcessElement method.");
+    }
+
+    @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Cannot access timerId outside of @OnTimer method.");
     }
 
     @Override
@@ -678,6 +692,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Cannot access timerId outside of @OnTimer method.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
@@ -755,6 +774,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final Instant timestamp;
     private final TimeDomain timeDomain;
+    private final String timerId;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
@@ -774,8 +794,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     private OnTimerArgumentProvider(
-        BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
       fn.super();
+      this.timerId = timerId;
       this.window = window;
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
@@ -846,6 +867,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp();
+    }
+
+    @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      return timerId;
     }
 
     @Override

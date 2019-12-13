@@ -253,6 +253,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((SideInputParameter) this);
       } else if (this instanceof TimerFamilyParameter) {
         return cases.dispatch((TimerFamilyParameter) this);
+      } else if (this instanceof TimerIdParameter) {
+        return cases.dispatch((TimerIdParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -298,6 +300,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(SideInputParameter p);
 
       ResultT dispatch(TimerFamilyParameter p);
+
+      ResultT dispatch(TimerIdParameter p);
 
       /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -407,6 +411,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
     private static final TimestampParameter TIMESTAMP_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimestampParameter();
+    private static final TimerIdParameter TIMER_ID_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_TimerIdParameter();
     private static final PaneInfoParameter PANE_INFO_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_PaneInfoParameter();
     private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
@@ -436,6 +442,10 @@ public abstract class DoFnSignature {
 
     public static TimestampParameter timestampParameter() {
       return TIMESTAMP_PARAMETER;
+    }
+
+    public static TimerIdParameter timerIdParameter() {
+      return TIMER_ID_PARAMETER;
     }
 
     public static SideInputParameter sideInputParameter(
@@ -581,6 +591,11 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class TimestampParameter extends Parameter {
       TimestampParameter() {}
+    }
+
+    @AutoValue
+    public abstract static class TimerIdParameter extends Parameter {
+      TimerIdParameter() {}
     }
 
     /**

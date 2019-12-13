@@ -117,6 +117,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String TIMER_PARAMETER_METHOD = "timer";
   public static final String SIDE_INPUT_PARAMETER_METHOD = "sideInput";
   public static final String TIMER_FAMILY_PARAMETER_METHOD = "timerFamily";
+  public static final String TIMER_ID_PARAMETER_METHOD = "timerId";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -886,6 +887,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     getExtraContextFactoryMethodDescription(
                         SIDE_INPUT_PARAMETER_METHOD, String.class)),
                 TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(DoFnSignature.Parameter.TimerIdParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        TIMER_ID_PARAMETER_METHOD, DoFn.class)));
           }
         });
   }

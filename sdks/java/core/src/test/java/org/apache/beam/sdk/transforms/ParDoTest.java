@@ -4218,24 +4218,26 @@ public class ParDoTest implements Serializable {
     @Test
     @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testTimerFamilyEventTime() throws Exception {
-      final String timerId = "foo";
+      final String timerFamilyId = "foo";
 
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @TimerFamily(timerId)
+            @TimerFamily(timerFamilyId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @ProcessElement
             public void processElement(
-                @TimerFamily(timerId) TimerMap timers, OutputReceiver<Integer> r) {
+                @TimerFamily(timerFamilyId) TimerMap timers, OutputReceiver<Integer> r) {
               timers.set("timer1", new Instant(1));
               timers.set("timer2", new Instant(2));
               r.output(3);
             }
 
-            @OnTimer(timerId)
-            public void onTimer(OutputReceiver<Integer> r) {
+            @OnTimer(timerFamilyId)
+            public void onTimer(
+                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<Integer> r) {
+              System.out.println("timer Id : " + timerId);
               r.output(42);
             }
           };

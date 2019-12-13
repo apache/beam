@@ -82,8 +82,12 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
 
   @Override
   public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      TimeDomain timeDomain) {
+    doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, timeDomain);
   }
 
   @Override

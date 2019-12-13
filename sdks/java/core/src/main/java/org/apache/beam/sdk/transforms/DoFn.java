@@ -392,6 +392,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
+  public static final String DEFAULT_TIMER_ID = "DefaultTimerId";
   /**
    * Annotation for declaring and dereferencing timers.
    *
@@ -433,7 +434,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.TIMERS)
   public @interface TimerId {
     /** The timer ID. */
-    String value();
+    String value() default DEFAULT_TIMER_ID;
   }
 
   /** Parameter annotation for the TimerMap for a {@link ProcessElement} method. */

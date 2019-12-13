@@ -127,7 +127,8 @@ public class DoFnSignatures {
           Parameter.TaggedOutputReceiverParameter.class,
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class,
-          Parameter.TimerFamilyParameter.class);
+          Parameter.TimerFamilyParameter.class,
+          Parameter.TimerIdParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
@@ -1050,6 +1051,15 @@ public class DoFnSignatures {
 
       return Parameter.timerParameter(timerDecl);
 
+    } else if (hasTimerIdAnnotation(param.getAnnotations())) {
+      String timerId = getTimerId(param.getAnnotations());
+      boolean isValidTimerIdForTimerFamily =
+          DoFn.DEFAULT_TIMER_ID.equals(timerId)
+              && fnContext.getTimerFamilyDeclarations().size() > 0
+              && rawType.equals(String.class);
+      paramErrors.checkArgument(
+          isValidTimerIdForTimerFamily, "%s not allowed here", DoFn.TimerId.class.getSimpleName());
+      return Parameter.timerIdParameter();
     } else if (rawType.equals(TimerMap.class)) {
       String id = getTimerFamilyId(param.getAnnotations());
 
@@ -1179,6 +1189,10 @@ public class DoFnSignatures {
 
   private static boolean hasSideInputAnnotation(List<Annotation> annotations) {
     return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.SideInput.class));
+  }
+
+  private static boolean hasTimerIdAnnotation(List<Annotation> annotations) {
+    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.TimerId.class));
   }
 
   @Nullable

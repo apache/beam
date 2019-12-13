@@ -83,7 +83,11 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
 
   @Override
   public void onTimer(
-      String timerFamilyId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException("User timers unsupported in ProcessFn");
   }
 

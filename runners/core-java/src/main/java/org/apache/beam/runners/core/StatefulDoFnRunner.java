@@ -117,7 +117,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
   @Override
   public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      TimeDomain timeDomain) {
     if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
       stateCleaner.clearForWindow(window);
       // There should invoke the onWindowExpiration of DoFn
@@ -134,7 +138,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             window,
             cleanupTimer.currentInputWatermarkTime());
       } else {
-        doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
+        doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, timeDomain);
       }
     }
   }
