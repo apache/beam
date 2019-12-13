@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -29,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /** A factory able to instantiate an appropriate handler for a given PTransform. */
@@ -55,6 +57,7 @@ public interface PTransformRunnerFactory<T> {
    *     registered within this multimap.
    * @param startFunctionRegistry A class to register a start bundle handler with.
    * @param finishFunctionRegistry A class to register a finish bundle handler with.
+   * @param addTearDownFunction A consumer to register a tear down handler with.
    * @param splitListener A listener to be invoked when the PTransform splits itself.
    */
   T createRunnerForPTransform(
@@ -70,6 +73,7 @@ public interface PTransformRunnerFactory<T> {
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
+      Consumer<ThrowingRunnable> addTearDownFunction,
       BundleSplitListener splitListener)
       throws IOException;
 

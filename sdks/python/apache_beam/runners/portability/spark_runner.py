@@ -56,16 +56,14 @@ class SparkRunnerOptions(pipeline_options.PipelineOptions):
                              'the execution.')
     parser.add_argument('--spark_job_server_jar',
                         help='Path or URL to a Beam Spark jobserver jar.')
-    parser.add_argument('--artifacts_dir', default=None)
 
 
 class SparkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
-    super(SparkJarJobServer, self).__init__()
+    super(SparkJarJobServer, self).__init__(options)
     options = options.view_as(SparkRunnerOptions)
     self._jar = options.spark_job_server_jar
     self._master_url = options.spark_master_url
-    self._artifacts_dir = options.artifacts_dir
 
   def path_to_jar(self):
     if self._jar:
@@ -73,12 +71,12 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
     else:
       return self.path_to_beam_jar('runners:spark:job-server:shadowJar')
 
-  def java_arguments(self, job_port, artifacts_dir):
+  def java_arguments(
+      self, job_port, artifact_port, expansion_port, artifacts_dir):
     return [
         '--spark-master-url', self._master_url,
-        '--artifacts-dir', (self._artifacts_dir
-                            if self._artifacts_dir else artifacts_dir),
+        '--artifacts-dir', artifacts_dir,
         '--job-port', job_port,
-        '--artifact-port', 0,
-        '--expansion-port', 0
+        '--artifact-port', artifact_port,
+        '--expansion-port', expansion_port
     ]

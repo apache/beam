@@ -60,7 +60,7 @@ from apache_beam.typehints import typehints
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # SpecialParDo and SpecialDoFn are used in test_remote_runner_display_data.
@@ -96,7 +96,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--project=test-project',
         '--staging_location=ignored',
         '--temp_location=/dev/null',
-        '--no_auth=True',
+        '--no_auth',
         '--dry_run=True']
 
   @mock.patch('time.sleep', return_value=None)
@@ -238,13 +238,14 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     p.run()
     job_dict = json.loads(str(remote_runner.job))
-    self.assertEqual(len(job_dict[u'steps']), 2)
+    self.assertEqual(len(job_dict[u'steps']), 3)
 
     self.assertEqual(job_dict[u'steps'][0][u'kind'], u'ParallelRead')
     self.assertEqual(
         job_dict[u'steps'][0][u'properties'][u'pubsub_subscription'],
         '_starting_signal/')
     self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
+    self.assertEqual(job_dict[u'steps'][2][u'kind'], u'ParallelDo')
 
   def test_biqquery_read_streaming_fail(self):
     remote_runner = DataflowRunner()
@@ -295,7 +296,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                      '--project=test-project',
                      '--staging_location=ignored',
                      '--temp_location=/dev/null',
-                     '--no_auth=True'
+                     '--no_auth'
                  ]))
     rows = p | beam.io.Read(beam.io.BigQuerySource('dataset.faketable'))
     with self.assertRaises(ValueError,

@@ -105,7 +105,8 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
 
         fnDataServer =
             GrpcFnServer.allocatePortAndCreateFor(
-                GrpcDataService.create(dataExecutor, OutboundObserverFactory.serverDirect()),
+                GrpcDataService.create(
+                    options, dataExecutor, OutboundObserverFactory.serverDirect()),
                 ServerFactory.createDefault());
         LOG.info("Started data server on port {}", fnDataServer.getServer().getPort());
 

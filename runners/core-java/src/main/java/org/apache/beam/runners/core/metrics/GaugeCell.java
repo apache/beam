@@ -50,6 +50,12 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
     this.name = name;
   }
 
+  @Override
+  public void reset() {
+    dirty.afterModification();
+    gaugeValue.set(GaugeData.empty());
+  }
+
   /** Set the gauge to the given value. */
   @Override
   public void set(long value) {

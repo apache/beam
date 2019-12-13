@@ -109,6 +109,11 @@ public class PCollectionConsumerRegistry {
     pCollectionIdsToConsumers.put(pCollectionId, (FnDataReceiver) wrapAndEnableMetricContainer);
   }
 
+  /** Reset the execution states of the registered functions. */
+  public void reset() {
+    executionStates.reset();
+  }
+
   /** @return the list of pcollection ids. */
   public Set<String> keySet() {
     return pCollectionIdsToConsumers.keySet();

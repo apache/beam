@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
@@ -99,6 +101,13 @@ public class StaticSchemaInference {
       return primitiveType;
     }
 
+    if (type.getRawType().isEnum()) {
+      Map<String, Integer> enumValues =
+          Arrays.stream(type.getRawType().getEnumConstants())
+              .map(Enum.class::cast)
+              .collect(Collectors.toMap(Enum::toString, Enum::ordinal));
+      return FieldType.logicalType(EnumerationType.create(enumValues));
+    }
     if (type.isArray()) {
       // If the type is T[] where T is byte, this is a BYTES type.
       TypeDescriptor component = type.getComponentType();

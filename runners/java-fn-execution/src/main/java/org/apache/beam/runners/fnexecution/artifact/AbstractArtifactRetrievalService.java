@@ -95,15 +95,19 @@ public abstract class AbstractArtifactRetrievalService
 
     LOG.info("GetManifest for {}", token);
     try {
-      ArtifactApi.ProxyManifest proxyManifest = getManifestProxy(token);
+      final ArtifactApi.Manifest manifest;
+      if (AbstractArtifactStagingService.NO_ARTIFACTS_STAGED_TOKEN.equals(token)) {
+        manifest = ArtifactApi.Manifest.newBuilder().build();
+      } else {
+        ArtifactApi.ProxyManifest proxyManifest = getManifestProxy(token);
+        LOG.info(
+            "GetManifest for {} -> {} artifacts",
+            token,
+            proxyManifest.getManifest().getArtifactCount());
+        manifest = proxyManifest.getManifest();
+      }
       ArtifactApi.GetManifestResponse response =
-          ArtifactApi.GetManifestResponse.newBuilder()
-              .setManifest(proxyManifest.getManifest())
-              .build();
-      LOG.info(
-          "GetManifest for {} -> {} artifacts",
-          token,
-          proxyManifest.getManifest().getArtifactCount());
+          ArtifactApi.GetManifestResponse.newBuilder().setManifest(manifest).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {

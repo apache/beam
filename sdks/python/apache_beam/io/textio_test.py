@@ -20,7 +20,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 import bz2
-import datetime
 import glob
 import gzip
 import logging
@@ -101,17 +100,19 @@ def write_data(
     return f.name, [line.decode('utf-8') for line in all_data]
 
 
-def write_pattern(lines_per_file, no_data=False):
+def write_pattern(lines_per_file, no_data=False, return_filenames=False):
   """Writes a pattern of temporary files.
 
   Args:
     lines_per_file (List[int]): The number of lines to write per file.
     no_data (bool): If :data:`True`, empty lines will be written, otherwise
       each line will contain a concatenation of b'line' and the line number.
+    return_filenames (bool): If True, returned list will contain
+      (filename, data) pairs.
 
   Returns:
-    Tuple[str, List[str]]: A tuple of the filename pattern and a list of the
-      utf-8 decoded written data.
+    Tuple[str, List[Union[str, (str, str)]]]: A tuple of the filename pattern
+      and a list of the utf-8 decoded written data or (filename, data) pairs.
   """
   temp_dir = tempfile.mkdtemp()
 
@@ -121,7 +122,10 @@ def write_pattern(lines_per_file, no_data=False):
   for i in range(len(lines_per_file)):
     file_name, data = write_data(lines_per_file[i], no_data=no_data,
                                  directory=temp_dir, prefix='mytemp')
-    all_data.extend(data)
+    if return_filenames:
+      all_data.extend(zip([file_name] * len(data), data))
+    else:
+      all_data.extend(data)
     start_index += lines_per_file[i]
 
   assert file_name
@@ -502,14 +506,8 @@ class TextSourceTest(unittest.TestCase):
     pipeline.run()
 
   def test_read_from_text_with_file_name_file_pattern(self):
-    prefix = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    file_name_1, data_1 = write_data(5, prefix=prefix)
-    file_name_2, data_2 = write_data(5, prefix=prefix)
-    expected_data = []
-    expected_data.extend([(file_name_1, el) for el in data_1])
-    expected_data.extend([(file_name_2, el) for el in data_2])
-    folder = file_name_1[:file_name_1.rfind(os.path.sep)]
-    pattern = folder + os.path.sep + prefix + '*'
+    pattern, expected_data = write_pattern(
+        lines_per_file=[5, 5], return_filenames=True)
     assert len(expected_data) == 10
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromTextWithFilename(pattern)
@@ -1115,7 +1113,7 @@ class TextSinkTest(unittest.TestCase):
       with open(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
-    self.assertEqual(read_result, self.lines)
+    self.assertEqual(sorted(read_result), sorted(self.lines))
 
   def test_write_dataflow_auto_compression(self):
     pipeline = TestPipeline()
@@ -1128,7 +1126,7 @@ class TextSinkTest(unittest.TestCase):
       with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
-    self.assertEqual(read_result, self.lines)
+    self.assertEqual(sorted(read_result), sorted(self.lines))
 
   def test_write_dataflow_auto_compression_unsharded(self):
     pipeline = TestPipeline()
@@ -1144,7 +1142,7 @@ class TextSinkTest(unittest.TestCase):
       with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
-    self.assertEqual(read_result, self.lines)
+    self.assertEqual(sorted(read_result), sorted(self.lines))
 
   def test_write_dataflow_header(self):
     pipeline = TestPipeline()
@@ -1161,7 +1159,8 @@ class TextSinkTest(unittest.TestCase):
       with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
     # header_text is automatically encoded in WriteToText
-    self.assertEqual(read_result, [header_text.encode('utf-8')] + self.lines)
+    self.assertEqual(read_result[0], header_text.encode('utf-8'))
+    self.assertEqual(sorted(read_result[1:]), sorted(self.lines))
 
 
 if __name__ == '__main__':

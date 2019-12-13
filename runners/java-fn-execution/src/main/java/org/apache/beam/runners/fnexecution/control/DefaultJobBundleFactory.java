@@ -344,7 +344,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
    * now, there is a 1:1 relationship between data services and harness clients. The servers are
    * packaged here to tie server lifetimes to harness client lifetimes.
    */
-  protected static class WrappedSdkHarnessClient implements AutoCloseable {
+  protected static class WrappedSdkHarnessClient {
 
     private final RemoteEnvironment environment;
     private final SdkHarnessClient client;
@@ -374,17 +374,24 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       return serverInfo;
     }
 
-    @Override
-    public void close() throws Exception {
-      try (AutoCloseable envCloser = environment) {
-        // Wrap resources in try-with-resources to ensure all are cleaned up.
-      }
-      try (AutoCloseable stateServer = serverInfo.getStateServer();
+    public void close() {
+      // DO NOT ADD ANYTHING HERE WHICH MIGHT CAUSE THE BLOCK BELOW TO NOT BE EXECUTED.
+      // If we exit prematurely (e.g. due to an exception), resources won't be cleaned up properly.
+      // Please make an AutoCloseable and add it to the try statement below.
+      try (AutoCloseable envCloser = environment;
+          AutoCloseable stateServer = serverInfo.getStateServer();
           AutoCloseable dateServer = serverInfo.getDataServer();
           AutoCloseable controlServer = serverInfo.getControlServer();
           AutoCloseable loggingServer = serverInfo.getLoggingServer();
           AutoCloseable retrievalServer = serverInfo.getRetrievalServer();
-          AutoCloseable provisioningServer = serverInfo.getProvisioningServer()) {}
+          AutoCloseable provisioningServer = serverInfo.getProvisioningServer()) {
+        // Wrap resources in try-with-resources to ensure all are cleaned up.
+        // This will close _all_ of these even in the presence of exceptions.
+        // The first exception encountered will be the base exception,
+        // the next one will be added via Throwable#addSuppressed.
+      } catch (Exception e) {
+        LOG.warn("Error cleaning up servers {}", environment.getEnvironment(), e);
+      }
       // TODO: Wait for executor shutdown?
     }
 
@@ -397,11 +404,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       if (count == 0) {
         // Close environment after it was removed from cache and all bundles finished.
         LOG.info("Closing environment {}", environment.getEnvironment());
-        try {
-          close();
-        } catch (Exception e) {
-          LOG.warn("Error cleaning up environment {}", environment.getEnvironment(), e);
-        }
+        close();
       }
       return count;
     }
@@ -437,7 +440,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
     GrpcFnServer<GrpcDataService> dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            GrpcDataService.create(
+                portableOptions, executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
     GrpcFnServer<GrpcStateService> stateServer =
         GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);

@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 public class SparkMetricsPusherTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
+  private static final String COUNTER_NAME = "counter";
 
   @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
 
@@ -96,7 +97,7 @@ public class SparkMetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(6L));
   }
 
   private static class CountingDoFn extends DoFn<Integer, Integer> {
@@ -122,6 +123,6 @@ public class SparkMetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(6L));
   }
 }

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
@@ -68,7 +69,9 @@ public class GrpcDataServiceTest {
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
     GrpcDataService service =
         GrpcDataService.create(
-            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
+            PipelineOptionsFactory.create(),
+            Executors.newCachedThreadPool(),
+            OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
@@ -116,7 +119,9 @@ public class GrpcDataServiceTest {
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
     GrpcDataService service =
         GrpcDataService.create(
-            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
+            PipelineOptionsFactory.create(),
+            Executors.newCachedThreadPool(),
+            OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();

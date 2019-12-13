@@ -33,7 +33,7 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -61,7 +61,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                             '--staging_location=' + dummy_dir,
                             '--temp_location=/dev/null',
                             '--template_location=' + dummy_file_name,
-                            '--no_auth=True']))
+                            '--no_auth']))
 
     pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
     pipeline.run().wait_until_finish()
@@ -86,7 +86,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                             '--staging_location=ignored',
                             '--temp_location=/dev/null',
                             '--template_location=/bad/path',
-                            '--no_auth=True']))
+                            '--no_auth']))
     remote_runner.job = apiclient.Job(pipeline._options,
                                       pipeline.to_runner_api())
 

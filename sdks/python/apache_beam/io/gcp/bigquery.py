@@ -728,7 +728,7 @@ class BigQueryWriteFn(DoFn):
     self._max_buffered_rows = (max_buffered_rows
                                or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
     self._retry_strategy = (
-        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ON_TRANSIENT_ERROR)
+        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ALWAYS)
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
@@ -868,7 +868,9 @@ class BigQueryWriteFn(DoFn):
           insert_ids=insert_ids,
           skip_invalid_rows=True)
 
-      _LOGGER.debug("Passed: %s. Errors are %s", passed, errors)
+      if not passed:
+        _LOGGER.info("There were errors inserting to BigQuery: %s",
+                     errors)
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
           bigquery_tools.RetryStrategy.should_retry(
@@ -1066,6 +1068,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         FILE_LOADS on Batch pipelines.
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
+        Default is to retry always. This means that whenever there are rows
+        that fail to be inserted to BigQuery, they will be retried indefinitely.
+        Other retry strategy settings will produce a deadletter PCollection
+        as output.
       additional_bq_parameters (callable): A function that returns a dictionary
         with additional parameters to pass to BQ when creating / loading data
         into a table. These can be 'timePartitioning', 'clustering', etc. They

@@ -147,6 +147,10 @@ class Environment(object):
         self.google_cloud_options.temp_location.replace(
             'gs:/',
             GoogleCloudOptions.STORAGE_API_SERVICE))
+    if self.worker_options.worker_region:
+      self.proto.workerRegion = self.worker_options.worker_region
+    if self.worker_options.worker_zone:
+      self.proto.workerZone = self.worker_options.worker_zone
     # User agent information.
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
@@ -888,13 +892,6 @@ def _use_unified_worker(pipeline_options):
   return _use_fnapi(pipeline_options) and (
       debug_options.experiments and
       'use_unified_worker' in debug_options.experiments)
-
-
-def _use_sdf_bounded_source(pipeline_options):
-  debug_options = pipeline_options.view_as(DebugOptions)
-  return _use_fnapi(pipeline_options) and (
-      debug_options.experiments and
-      'use_sdf_bounded_source' in debug_options.experiments)
 
 
 def _get_container_image_tag():

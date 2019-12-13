@@ -36,6 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.function.ThrowingFunction;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -74,6 +75,7 @@ public class MapFnRunnersTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
     MapFnRunners.forValueMapFnFactory(factory)
@@ -90,10 +92,12 @@ public class MapFnRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(teardownFunctions, empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
@@ -117,6 +121,7 @@ public class MapFnRunnersTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
@@ -132,10 +137,12 @@ public class MapFnRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(teardownFunctions, empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
@@ -158,6 +165,7 @@ public class MapFnRunnersTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
@@ -173,10 +181,12 @@ public class MapFnRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
+    assertThat(teardownFunctions, empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 

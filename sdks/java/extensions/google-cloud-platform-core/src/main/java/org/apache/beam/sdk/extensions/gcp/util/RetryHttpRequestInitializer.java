@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Implements a request initializer that adds retry handlers to all HttpRequests.
  *
- * <p>Also can take a HttpResponseInterceptor to be applied to the responses.
+ * <p>Also can take an HttpResponseInterceptor to be applied to the responses.
  */
 public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 

@@ -105,7 +105,6 @@ task crossLanguagePythonJavaFlink {
     def testServiceExpansionJar = project(":sdks:java:testing:expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
         "--runner=PortableRunner",
-        "--experiments=worker_threads=100",
         "--parallelism=2",
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
@@ -132,7 +131,6 @@ task crossLanguagePortableWordCount {
         "--input=/etc/profile",
         "--output=/tmp/py-wordcount-portable",
         "--runner=PortableRunner",
-        "--experiments=worker_threads=100",
         "--parallelism=2",
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
@@ -186,6 +184,7 @@ task sparkValidatesRunner() {
         "environment_type"    : "PROCESS",
         "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
         "environment_config": environment_config,
+        "environment_cache_millis": 10000,
     ]
     def argString = mapToArgString(argMap)
 

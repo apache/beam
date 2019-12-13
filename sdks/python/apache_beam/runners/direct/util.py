@@ -64,9 +64,8 @@ class TimerFiring(object):
     self.timestamp = timestamp
 
   def __repr__(self):
-    return 'TimerFiring(%r, %r, %s, %s)' % (self.encoded_key,
-                                            self.name, self.time_domain,
-                                            self.timestamp)
+    return 'TimerFiring({!r}, {!r}, {}, {})'.format(
+        self.encoded_key, self.name, self.time_domain, self.timestamp)
 
 
 class KeyedWorkItem(object):
@@ -75,3 +74,7 @@ class KeyedWorkItem(object):
     self.encoded_key = encoded_key
     self.timer_firings = timer_firings or []
     self.elements = elements or []
+
+  def __repr__(self):
+    return 'KeyedWorkItem({!r}, {}, {})'.format(
+        self.encoded_key, self.timer_firings, self.elements)

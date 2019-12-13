@@ -32,6 +32,7 @@ from builtins import range
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import WindowInto
@@ -54,6 +55,8 @@ from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -97,7 +100,7 @@ class BatchElementsTest(unittest.TestCase):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create(range(47))
+          | beam.Create(range(47), reshuffle=False)
           | beam.Map(lambda t: window.TimestampedValue(t, t))
           | beam.WindowInto(window.FixedWindows(30))
           | util.BatchElements(
@@ -330,7 +333,6 @@ class IdentityWindowTest(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
       pipeline.run()
 
-
 class ReshuffleTest(unittest.TestCase):
 
   def test_reshuffle_contents_unchanged(self):
@@ -349,7 +351,8 @@ class ReshuffleTest(unittest.TestCase):
 
     after_gbk = (pipeline
                  | beam.Create(data)
-                 | beam.GroupByKey())
+                 | beam.GroupByKey()
+                 | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
     assert_that(after_gbk, equal_to(expected_result), label='after_gbk')
     after_reshuffle = after_gbk | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_result),
@@ -433,7 +436,8 @@ class ReshuffleTest(unittest.TestCase):
     before_reshuffle = (pipeline
                         | beam.Create(data)
                         | beam.WindowInto(GlobalWindows())
-                        | beam.GroupByKey())
+                        | beam.GroupByKey()
+                        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
     after_reshuffle = before_reshuffle | beam.Reshuffle()
@@ -450,7 +454,8 @@ class ReshuffleTest(unittest.TestCase):
                         | beam.Create(data)
                         | beam.WindowInto(SlidingWindows(
                             size=window_size, period=1))
-                        | beam.GroupByKey())
+                        | beam.GroupByKey()
+                        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
     after_reshuffle = before_reshuffle | beam.Reshuffle()
@@ -469,13 +474,67 @@ class ReshuffleTest(unittest.TestCase):
     before_reshuffle = (pipeline
                         | beam.Create(data)
                         | beam.WindowInto(GlobalWindows())
-                        | beam.GroupByKey())
+                        | beam.GroupByKey()
+                        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
     after_reshuffle = before_reshuffle | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_data),
                 label='after reshuffle')
     pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_reshuffle_preserves_timestamps(self):
+    with TestPipeline() as pipeline:
+
+      # Create a PCollection and assign each element with a different timestamp.
+      before_reshuffle = (pipeline
+                          | beam.Create([
+                              {'name': 'foo', 'timestamp': MIN_TIMESTAMP},
+                              {'name': 'foo', 'timestamp': 0},
+                              {'name': 'bar', 'timestamp': 33},
+                              {'name': 'bar', 'timestamp': MAX_TIMESTAMP},
+                          ])
+                          | beam.Map(
+                              lambda element: beam.window.TimestampedValue(
+                                  element, element['timestamp'])))
+
+      # Reshuffle the PCollection above and assign the timestamp of an element
+      # to that element again.
+      after_reshuffle = before_reshuffle | beam.Reshuffle()
+
+      # Given an element, emits a string which contains the timestamp and the
+      # name field of the element.
+      def format_with_timestamp(element, timestamp=beam.DoFn.TimestampParam):
+        t = str(timestamp)
+        if timestamp == MIN_TIMESTAMP:
+          t = 'MIN_TIMESTAMP'
+        elif timestamp == MAX_TIMESTAMP:
+          t = 'MAX_TIMESTAMP'
+        return '{} - {}'.format(t, element['name'])
+
+      # Combine each element in before_reshuffle with its timestamp.
+      formatted_before_reshuffle = (before_reshuffle
+                                    | "Get before_reshuffle timestamp" >>
+                                    beam.Map(format_with_timestamp))
+
+      # Combine each element in after_reshuffle with its timestamp.
+      formatted_after_reshuffle = (after_reshuffle
+                                   | "Get after_reshuffle timestamp" >>
+                                   beam.Map(format_with_timestamp))
+
+      expected_data = ['MIN_TIMESTAMP - foo',
+                       'Timestamp(0) - foo',
+                       'Timestamp(33) - bar',
+                       'MAX_TIMESTAMP - bar']
+
+      # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
+      # directly, because they are deferred PCollections while equal_to only
+      # takes a concrete argument.
+      assert_that(formatted_before_reshuffle, equal_to(expected_data),
+                  label="formatted_before_reshuffle")
+      assert_that(formatted_after_reshuffle, equal_to(expected_data),
+                  label="formatted_after_reshuffle")
 
 
 class WithKeysTest(unittest.TestCase):

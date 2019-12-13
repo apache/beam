@@ -29,6 +29,8 @@ import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -38,6 +40,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJob;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJobManager;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
@@ -90,6 +93,7 @@ class WriteTables<DestinationT>
   private final PCollectionView<String> loadJobIdPrefixView;
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
+  private final Set<SchemaUpdateOption> schemaUpdateOptions;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
@@ -219,7 +223,8 @@ class WriteTables<DestinationT>
               tableSchema,
               partitionFiles,
               writeDisposition,
-              createDisposition);
+              createDisposition,
+              schemaUpdateOptions);
       pendingJobs.add(
           new PendingJobData(window, retryJob, partitionFiles, tableDestination, tableReference));
     }
@@ -288,7 +293,9 @@ class WriteTables<DestinationT>
       int maxRetryJobs,
       boolean ignoreUnknownValues,
       String kmsKey,
-      String sourceFormat) {
+      String sourceFormat,
+      Set<SchemaUpdateOption> schemaUpdateOptions) {
+
     this.tempTable = tempTable;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -303,6 +310,7 @@ class WriteTables<DestinationT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.kmsKey = kmsKey;
     this.sourceFormat = sourceFormat;
+    this.schemaUpdateOptions = schemaUpdateOptions;
   }
 
   @Override
@@ -346,7 +354,8 @@ class WriteTables<DestinationT>
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
-      CreateDisposition createDisposition) {
+      CreateDisposition createDisposition,
+      Set<SchemaUpdateOption> schemaUpdateOptions) {
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
             .setDestinationTable(ref)
@@ -356,6 +365,11 @@ class WriteTables<DestinationT>
             .setCreateDisposition(createDisposition.name())
             .setSourceFormat(sourceFormat)
             .setIgnoreUnknownValues(ignoreUnknownValues);
+    if (schemaUpdateOptions != null) {
+      List<String> options =
+          schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+      loadConfig.setSchemaUpdateOptions(options);
+    }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
       // only set clustering if timePartitioning is set

@@ -79,6 +79,19 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     this.stepName = stepName;
   }
 
+  /** Reset the metrics. */
+  public void reset() {
+    reset(counters);
+    reset(distributions);
+    reset(gauges);
+  }
+
+  private void reset(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
+    for (MetricCell<?> cell : cells.values()) {
+      cell.reset();
+    }
+  }
+
   /**
    * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, create a {@code
    * Metric} with the specified name.

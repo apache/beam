@@ -31,7 +31,6 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Contexts;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
@@ -150,16 +149,10 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     final SqlOperatorTable opTab0 =
         connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
 
-    Object[] contexts =
-        org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList.of(
-                connection.config(), TableResolutionContext.joinCompoundIds("datacatalog"))
-            .toArray();
-
     return Frameworks.newConfigBuilder()
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
-        .context(Contexts.of(contexts))
         .ruleSets(ruleSets)
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())

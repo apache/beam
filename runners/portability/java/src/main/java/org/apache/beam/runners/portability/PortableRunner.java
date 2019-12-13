@@ -23,7 +23,10 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
@@ -45,6 +48,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -90,6 +94,15 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
     // Deduplicate artifacts.
     Set<String> pathsToStage = Sets.newHashSet();
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    if (experiments != null) {
+      Optional<String> jarPackages =
+          experiments.stream()
+              .filter((String flag) -> flag.startsWith("jar_packages="))
+              .findFirst();
+      jarPackages.ifPresent(
+          s -> pathsToStage.addAll(Arrays.asList(s.replaceFirst("jar_packages=", "").split(","))));
+    }
     if (portableOptions.getFilesToStage() == null) {
       pathsToStage.addAll(detectClassPathResourcesToStage(PortableRunner.class.getClassLoader()));
       if (pathsToStage.isEmpty()) {

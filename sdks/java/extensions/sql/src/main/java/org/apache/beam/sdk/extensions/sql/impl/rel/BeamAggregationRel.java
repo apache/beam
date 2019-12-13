@@ -30,6 +30,7 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineF
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -45,7 +46,6 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -261,18 +261,26 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         }
       }
 
-      PTransform<PCollection<Row>, PCollection<KV<Row, Row>>> combiner = combined;
+      PTransform<PCollection<Row>, PCollection<Row>> combiner = combined;
+      boolean ignoreValues = false;
       if (combiner == null) {
         // If no field aggregations were specified, we run a constant combiner that always returns
         // a single empty row for each key. This is used by the SELECT DISTINCT query plan - in this
         // case a group by is generated to determine unique keys, and a constant null combiner is
         // used.
-        combiner = byFields.aggregate(AggregationCombineFnAdapter.createConstantCombineFn());
+        combiner =
+            byFields.aggregateField(
+                "*",
+                AggregationCombineFnAdapter.createConstantCombineFn(),
+                Field.of(
+                    "e",
+                    FieldType.row(AggregationCombineFnAdapter.EMPTY_SCHEMA).withNullable(true)));
+        ignoreValues = true;
       }
 
       return windowedStream
           .apply(combiner)
-          .apply("mergeRecord", ParDo.of(mergeRecord(outputSchema, windowFieldIndex)))
+          .apply("mergeRecord", ParDo.of(mergeRecord(outputSchema, windowFieldIndex, ignoreValues)))
           .setRowSchema(outputSchema);
     }
 
@@ -313,17 +321,20 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       }
     }
 
-    static DoFn<KV<Row, Row>, Row> mergeRecord(Schema outputSchema, int windowStartFieldIndex) {
-      return new DoFn<KV<Row, Row>, Row>() {
+    static DoFn<Row, Row> mergeRecord(
+        Schema outputSchema, int windowStartFieldIndex, boolean ignoreValues) {
+      return new DoFn<Row, Row>() {
         @ProcessElement
         public void processElement(
-            @Element KV<Row, Row> kvRow, BoundedWindow window, OutputReceiver<Row> o) {
+            @Element Row kvRow, BoundedWindow window, OutputReceiver<Row> o) {
           List<Object> fieldValues =
               Lists.newArrayListWithCapacity(
-                  kvRow.getKey().getValues().size() + kvRow.getValue().getValues().size());
+                  kvRow.getRow(0).getValues().size() + kvRow.getRow(1).getValues().size());
 
-          fieldValues.addAll(kvRow.getKey().getValues());
-          fieldValues.addAll(kvRow.getValue().getValues());
+          fieldValues.addAll(kvRow.getRow(0).getValues());
+          if (!ignoreValues) {
+            fieldValues.addAll(kvRow.getRow(1).getValues());
+          }
 
           if (windowStartFieldIndex != -1) {
             fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());

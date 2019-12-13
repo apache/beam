@@ -86,6 +86,7 @@ class SqlAnalyzer {
   ResolvedStatement analyze(String sql) {
     AnalyzerOptions options = initAnalyzerOptions(builder.queryParams);
     List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
+
     SimpleCatalog catalog =
         createPopulatedCatalog(builder.topLevelSchema.getName(), options, tables);
 
@@ -177,8 +178,7 @@ class SqlAnalyzer {
     SimpleCatalog leafCatalog = createNestedCatalogs(topLevelCatalog, tablePath);
 
     org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table calciteTable =
-        TableResolution.resolveCalciteTable(
-            builder.calciteContext, builder.topLevelSchema, tablePath);
+        TableResolution.resolveCalciteTable(builder.topLevelSchema, tablePath);
 
     if (calciteTable == null) {
       throw new RuntimeException(
@@ -190,8 +190,7 @@ class SqlAnalyzer {
 
     RelDataType rowType = calciteTable.getRowType(builder.typeFactory);
 
-    SimpleTableWithPath tableWithPath =
-        SimpleTableWithPath.of(builder.topLevelSchema.getName(), tablePath);
+    SimpleTableWithPath tableWithPath = SimpleTableWithPath.of(tablePath);
     trait.addResolvedTable(tableWithPath);
 
     addFieldsToTable(tableWithPath, rowType);
@@ -236,7 +235,6 @@ class SqlAnalyzer {
 
     private Map<String, Value> queryParams;
     private QueryTrait queryTrait;
-    private Context calciteContext;
     private SchemaPlus topLevelSchema;
     private JavaTypeFactory typeFactory;
 
@@ -262,7 +260,6 @@ class SqlAnalyzer {
 
     /** Calcite parsing context, can have name resolution and other configuration. */
     Builder withCalciteContext(Context context) {
-      this.calciteContext = context;
       return this;
     }
 

@@ -20,7 +20,7 @@
 # 1. Generate images tagged with :{RELEASE}
 # 2. Publish images tagged with :{RELEASE}
 # 3. Tag images with :latest tag and publish.
-# 4. Clearn up images.
+# 4. Clean up images.
 
 set -e
 
@@ -61,6 +61,16 @@ if [[ $confirmation = "y" ]]; then
   docker tag apachebeam/go_sdk:${RELEASE} apachebeam/go_sdk:latest
   docker push apachebeam/go_sdk:latest
 
+  echo '-------------Generating and Pushing Flink job server images-------------'
+  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
+  for ver in "${FLINK_VER[@]}"; do
+     ./gradlew ":runners:flink:${ver}:job-server-container:docker" -Pdocker-tag="${RELEASE}"
+     FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
+     docker push "${FLINK_IMAGE_NAME}:${RELEASE}"
+     docker tag "${FLINK_IMAGE_NAME}:${RELEASE}" "${FLINK_IMAGE_NAME}:latest"
+     docker push "${FLINK_IMAGE_NAME}:latest"
+  done
+
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
 
   echo "-------------------Clean up SDK docker images at local-------------------"
@@ -74,4 +84,10 @@ if [[ $confirmation = "y" ]]; then
 
   docker rmi -f apachebeam/go_sdk:${RELEASE}
   docker rmi -f apachebeam/go_sdk:latest
+
+  for ver in "${FLINK_VER[@]}"; do
+    FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
+    docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}"
+    docker rmi -f "${FLINK_IMAGE_NAME}:latest"
+  done
 fi

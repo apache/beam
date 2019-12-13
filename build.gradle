@@ -294,3 +294,41 @@ release {
     pushToRemote = ''
   }
 }
+
+// Reports linkage errors across multiple Apache Beam artifact ids.
+//
+// To use (from the root of project):
+//    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=artifactId1,artifactId2,... :checkJavaLinkage
+//
+// For example:
+//    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=beam-sdks-java-core,beam-sdks-java-io-jdbc :checkJavaLinkage
+//
+// Note that this task publishes artifacts into your local Maven repository.
+if (project.hasProperty('javaLinkageArtifactIds')) {
+  if (!project.hasProperty('publishing')) {
+    throw new GradleException('You can only check linkage of Java artifacts if you specify -Ppublishing on the command line as well.')
+  }
+
+  configurations { linkageCheckerJava }
+  dependencies {
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.0.1"
+  }
+
+  // We need to evaluate all the projects first so that we can find depend on all the
+  // publishMavenJavaPublicationToMavenLocal tasks below.
+  for (p in rootProject.subprojects) {
+    if (!p.path.equals(project.path)) {
+      evaluationDependsOn(p.path)
+    }
+  }
+
+  project.task('checkJavaLinkage', type: JavaExec) {
+    dependsOn project.getTasksByName('publishMavenJavaPublicationToMavenLocal', true /* recursively */)
+    classpath = project.configurations.linkageCheckerJava
+    main = 'com.google.cloud.tools.opensource.classpath.LinkageCheckerMain'
+    args '-a', project.javaLinkageArtifactIds.split(',').collect({"${project.ext.mavenGroupId}:${it}:${project.version}"}).join(',')
+    doLast {
+      println "NOTE: This task published artifacts into your local Maven repository. You may want to remove them manually."
+    }
+  }
+}

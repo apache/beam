@@ -19,7 +19,12 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.SimpleTable;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
+import org.apache.beam.sdk.extensions.sql.meta.CustomTableResolver;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -28,34 +33,54 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 public class TableResolution {
 
   /**
-   * Returns Calcite Table by consulting the schema.
+   * Resolves {@code tablePath} according to the given {@code schemaPlus}.
    *
-   * <p>The way the schema is queried is defined by the name resolution strategey implemented by a
-   * TableResolver and stored as a TableResolutionContext in the context.
-   *
-   * <p>If no custom table resolution logic is provided, default one is used, which is: drill down
-   * the getSubschema() path until the second-to-last path element. We expect the path to be a table
-   * path, so the last element should be a valid table id, we don't expect anything else there.
-   *
-   * <p>This resembles a default Calcite planner strategy. One difference is that Calcite doesn't
-   * assume the last element is a table and will continue to call getSubschema(), making it
-   * impossible for a table provider to understand the context.
+   * <p>{@code tablePath} represents a structured table name where the last component is the name of
+   * the table and all the preceding components are sub-schemas / namespaces within {@code
+   * schemaPlus}.
    */
-  public static Table resolveCalciteTable(
-      Context context, SchemaPlus schemaPlus, List<String> tablePath) {
-    TableResolutionContext tableResolutionContext = context.unwrap(TableResolutionContext.class);
-    TableResolver tableResolver = getTableResolver(tableResolutionContext, schemaPlus.getName());
-    return tableResolver.resolveCalciteTable(schemaPlus, tablePath);
-  }
+  public static Table resolveCalciteTable(SchemaPlus schemaPlus, List<String> tablePath) {
+    Schema subSchema = schemaPlus;
 
-  static TableResolver getTableResolver(
-      TableResolutionContext tableResolutionContext, String schemaName) {
-    if (tableResolutionContext == null
-        || !tableResolutionContext.hasCustomResolutionFor(schemaName)) {
-      return TableResolver.DEFAULT_ASSUME_LEAF_IS_TABLE;
+    // subSchema.getSubschema() for all except last
+    for (int i = 0; i < tablePath.size() - 1; i++) {
+      subSchema = subSchema.getSubSchema(tablePath.get(i));
+      if (subSchema == null) {
+        throw new IllegalStateException(
+            String.format(
+                "While resolving table path %s, no sub-schema found for component %s (\"%s\")",
+                tablePath, i, tablePath.get(i)));
+      }
     }
 
-    return tableResolutionContext.getTableResolver(schemaName);
+    // for the final one call getTable()
+    return subSchema.getTable(Iterables.getLast(tablePath));
+  }
+
+  /**
+   * Registers tables that will be resolved during query analysis, so table providers can eagerly
+   * pre-load metadata.
+   */
+  // TODO(https://issues.apache.org/jira/browse/BEAM-8817): share this logic between dialects
+  public static void registerTables(SchemaPlus schemaPlus, List<List<String>> tables) {
+    Schema defaultSchema = CalciteSchema.from(schemaPlus).schema;
+    if (defaultSchema instanceof BeamCalciteSchema
+        && ((BeamCalciteSchema) defaultSchema).getTableProvider() instanceof CustomTableResolver) {
+      ((CustomTableResolver) ((BeamCalciteSchema) defaultSchema).getTableProvider())
+          .registerKnownTableNames(
+              tables.stream().map(TableName::create).collect(Collectors.toList()));
+    }
+
+    for (String subSchemaName : schemaPlus.getSubSchemaNames()) {
+      Schema subSchema = CalciteSchema.from(schemaPlus.getSubSchema(subSchemaName)).schema;
+
+      if (subSchema instanceof BeamCalciteSchema
+          && ((BeamCalciteSchema) subSchema).getTableProvider() instanceof CustomTableResolver) {
+        ((CustomTableResolver) ((BeamCalciteSchema) subSchema).getTableProvider())
+            .registerKnownTableNames(
+                tables.stream().map(TableName::create).collect(Collectors.toList()));
+      }
+    }
   }
 
   /**
@@ -66,13 +91,11 @@ public class TableResolution {
 
     SimpleTable table;
     List<String> path;
-    String topLevelSchema;
 
-    static SimpleTableWithPath of(String topLevelSchema, List<String> path) {
+    static SimpleTableWithPath of(List<String> path) {
       SimpleTableWithPath tableWithPath = new SimpleTableWithPath();
       tableWithPath.table = new SimpleTable(Iterables.getLast(path));
       tableWithPath.path = path;
-      tableWithPath.topLevelSchema = topLevelSchema;
       return tableWithPath;
     }
 
@@ -82,10 +105,6 @@ public class TableResolution {
 
     List<String> getPath() {
       return path;
-    }
-
-    String getTopLevelSchema() {
-      return topLevelSchema;
     }
   }
 }

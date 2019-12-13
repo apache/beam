@@ -449,11 +449,11 @@ public class ProcessBundleDescriptors {
   }
 
   /**
-   * A container type storing references to the key, value, and window {@link Coder} used when
-   * handling side input state requests.
+   * A container type storing references to the value, and window {@link Coder} used when handling
+   * side input state requests.
    */
   @AutoValue
-  public abstract static class SideInputSpec<K, T, W extends BoundedWindow> {
+  public abstract static class SideInputSpec<T, W extends BoundedWindow> {
     public static <T, W extends BoundedWindow> SideInputSpec of(
         String transformId,
         String sideInputId,

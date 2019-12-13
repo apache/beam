@@ -41,7 +41,8 @@ vice versa.  The framework introduces a new runner, the _Universal
 Local Runner (ULR)_, as a practical reference implementation that
 complements the direct runners. Finally, it enables cross-language
 pipelines (sharing I/O or transformations across SDKs) and
-user-customized execution environments ("custom containers").
+user-customized [execution environments]({{ site.baseurl }}/documentation/runtime/environments/)
+("custom containers").
 
 The portability API consists of a set of smaller contracts that
 isolate SDKs and runners for job submission, management and
@@ -167,21 +168,4 @@ Python streaming mode is not yet supported on Spark.
 
 ## SDK Harness Configuration {#sdk-harness-config}
 
-The Beam Python SDK allows configuration of the SDK harness to accommodate varying cluster setups.
-
-- `environment_type` determines where user code will be executed.
-  - `LOOPBACK`: User code is executed within the same process that submitted the pipeline. This
-    option is useful for local testing. However, it is not suitable for a production environment,
-    as it requires a connection between the original Python process and the worker nodes, and
-    performs work on the machine the job originated from, not the worker nodes.
-  - `PROCESS`: User code is executed by processes that are automatically started by the runner on
-    each worker node.
-  - `DOCKER` (default): User code is executed within a container started on each worker node.
-    This requires docker to be installed on worker nodes. For more information, see
-    [here]({{ site.baseurl }}/documentation/runtime/environments/).
-- `environment_config` configures the environment depending on the value of `environment_type`.
-  - When `environment_type=DOCKER`: URL for the Docker container image.
-  - When `environment_type=PROCESS`: JSON of the form `{"os": "<OS>", "arch": "<ARCHITECTURE>",
-    "command": "<process to execute>", "env":{"<Environment variables 1>": "<ENV_VAL>"} }`. All
-    fields in the JSON are optional except `command`.
-- `sdk_worker_parallelism` sets the number of SDK workers that will run on each worker node.
+See [here]({{ site.baseurl }}/documentation/runtime/sdk-harness-config/) for more information on SDK harness deployment options.

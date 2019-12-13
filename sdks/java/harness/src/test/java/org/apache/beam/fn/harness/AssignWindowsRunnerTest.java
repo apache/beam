@@ -205,6 +205,7 @@ public class AssignWindowsRunnerTest implements Serializable {
             pCollectionConsumerRegistry,
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
+            null, /* tearDownRegistry */
             null /* splitListener */);
 
     WindowedValue<Integer> value =

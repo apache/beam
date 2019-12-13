@@ -17,7 +17,7 @@ from __future__ import absolute_import
 import setuptools
 
 # LINT.IfChange
-TF_VERSION = '1.13.1'
+TF_VERSION = '1.14.0'
 # LINT.ThenChange(train_mlengine.sh, start_model_server_mlengine.sh)
 
 if __name__ == '__main__':
@@ -28,9 +28,7 @@ if __name__ == '__main__':
       install_requires=[
           'jupyter>=1.0,<2',
           'notebook>=5.7.8,<5.8',
-          'numpy>=1.14.5,<2',
-          'protobuf>=3.7.0,<3.8.0',
-          'tensorflow>=' + TF_VERSION,
+          'tensorflow==' + TF_VERSION,
           'tensorflow-data-validation>=0.13.1,<0.14',
           'tensorflow-metadata>=0.13.0,<0.14',
           'tensorflow-model-analysis>=0.13.2,<0.14',

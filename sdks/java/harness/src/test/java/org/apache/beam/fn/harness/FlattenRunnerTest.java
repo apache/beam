@@ -91,6 +91,7 @@ public class FlattenRunnerTest {
             consumers,
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
+            null, /* tearDownRegistry */
             null /* splitListener */);
 
     mainOutputValues.clear();
@@ -158,6 +159,7 @@ public class FlattenRunnerTest {
             consumers,
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
+            null, /* tearDownRegistry */
             null /* splitListener */);
 
     mainOutputValues.clear();

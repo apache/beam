@@ -22,7 +22,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableRow;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -115,6 +118,7 @@ class BatchLoads<DestinationT, ElementT>
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
+  private Set<SchemaUpdateOption> schemaUpdateOptions;
   private final boolean ignoreUnknownValues;
   // Indicates that we are writing to a constant single table. If this is the case, we will create
   // the table, even if there is no data in it.
@@ -166,6 +170,11 @@ class BatchLoads<DestinationT, ElementT>
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
     this.rowWriterFactory = rowWriterFactory;
+    schemaUpdateOptions = Collections.emptySet();
+  }
+
+  void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
+    this.schemaUpdateOptions = schemaUpdateOptions;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -587,7 +596,8 @@ class BatchLoads<DestinationT, ElementT>
                 maxRetryJobs,
                 ignoreUnknownValues,
                 kmsKey,
-                rowWriterFactory.getSourceFormat()));
+                rowWriterFactory.getSourceFormat(),
+                schemaUpdateOptions));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -621,7 +631,8 @@ class BatchLoads<DestinationT, ElementT>
                 maxRetryJobs,
                 ignoreUnknownValues,
                 kmsKey,
-                rowWriterFactory.getSourceFormat()));
+                rowWriterFactory.getSourceFormat(),
+                schemaUpdateOptions));
   }
 
   private WriteResult writeResult(Pipeline p) {

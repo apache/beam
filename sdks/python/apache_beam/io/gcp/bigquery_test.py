@@ -43,6 +43,7 @@ from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.tests import utils
@@ -734,6 +735,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                table_side_inputs=(table_record_pcv,),
                schema=lambda dest, table_map: table_map.get(dest, None),
                schema_side_inputs=(schema_table_pcv,),
+               insert_retry_strategy=RetryStrategy.RETRY_ON_TRANSIENT_ERROR,
                method='STREAMING_INSERTS'))
 
       assert_that(r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],

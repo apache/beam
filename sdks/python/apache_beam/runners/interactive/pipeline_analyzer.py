@@ -79,7 +79,7 @@ class PipelineAnalyzer(object):
       1. Start from target PCollections and recursively insert the producing
          PTransforms of those PCollections, where the producing PTransforms are
          either ReadCache or PTransforms in the original pipeline.
-      2. Append WriteCache PTransforsm in the pipeline.
+      2. Append WriteCache PTransforms in the pipeline.
 
     After running this function, the following variables will be set:
       self._pipeline_proto_to_execute
@@ -343,7 +343,7 @@ class PipelineAnalyzer(object):
       pcoll: (PCollection)
 
     Returns:
-      (PTransform) top level producing PTransform of pcoll.
+      (AppliedPTransform) top level producing AppliedPTransform of pcoll.
     """
     top_level_transform = pcoll.producer
     while top_level_transform.parent.parent:
@@ -354,10 +354,10 @@ class PipelineAnalyzer(object):
     """Depth-first yield the PTransform itself and its sub transforms.
 
     Args:
-      transform: (PTransform)
+      transform: (AppliedPTransform)
 
     Yields:
-      The input PTransform itself and all its sub transforms.
+      The input AppliedPTransform itself and all its sub transforms.
     """
     yield transform
     for subtransform in transform.parts[::-1]:

@@ -28,6 +28,7 @@ import threading
 
 import grpc
 
+from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.portability import local_job_service
 from apache_beam.utils import subprocess_server
@@ -51,6 +52,7 @@ class ExternalJobServer(JobServer):
     self._timeout = timeout
 
   def start(self):
+    # type: () -> beam_job_api_pb2_grpc.JobServiceStub
     channel = grpc.insecure_channel(self._endpoint)
     grpc.channel_ready_future(channel).result(timeout=self._timeout)
     return beam_job_api_pb2_grpc.JobServiceStub(channel)
@@ -61,6 +63,7 @@ class ExternalJobServer(JobServer):
 
 class EmbeddedJobServer(JobServer):
   def start(self):
+    # type: () -> local_job_service.LocalJobServicer
     return local_job_service.LocalJobServicer()
 
   def stop(self):
@@ -124,7 +127,16 @@ class JavaJarJobServer(SubprocessJobServer):
   MAVEN_REPOSITORY = 'https://repo.maven.apache.org/maven2/org/apache/beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache")
 
-  def java_arguments(self, job_port, artifacts_dir):
+  def __init__(self, options):
+    super(JavaJarJobServer, self).__init__()
+    options = options.view_as(pipeline_options.JobServerOptions)
+    self._job_port = options.job_port
+    self._artifact_port = options.artifact_port
+    self._expansion_port = options.expansion_port
+    self._artifacts_dir = options.artifacts_dir
+
+  def java_arguments(
+      self, job_port, artifact_port, expansion_port, artifacts_dir):
     raise NotImplementedError(type(self))
 
   def path_to_jar(self):
@@ -140,11 +152,15 @@ class JavaJarJobServer(SubprocessJobServer):
 
   def subprocess_cmd_and_endpoint(self):
     jar_path = self.local_jar(self.path_to_jar())
-    artifacts_dir = self.local_temp_dir(prefix='artifacts')
-    job_port, = subprocess_server.pick_port(None)
+    artifacts_dir = (self._artifacts_dir if self._artifacts_dir
+                     else self.local_temp_dir(prefix='artifacts'))
+    job_port, = subprocess_server.pick_port(self._job_port)
     return (
         ['java', '-jar', jar_path] + list(
-            self.java_arguments(job_port, artifacts_dir)),
+            self.java_arguments(job_port,
+                                self._artifact_port,
+                                self._expansion_port,
+                                artifacts_dir)),
         'localhost:%s' % job_port)
 
 
@@ -169,8 +185,7 @@ class DockerizedJobServer(SubprocessJobServer):
 
   def subprocess_cmd_and_endpoint(self):
     # TODO This is hardcoded to Flink at the moment but should be changed
-    job_server_image_name = os.environ['USER'] + \
-        "-docker-apache.bintray.io/beam/flink-job-server:latest"
+    job_server_image_name = "apachebeam/flink1.9_job_server:latest"
     docker_path = subprocess.check_output(
         ['which', 'docker']).strip().decode('utf-8')
     cmd = ["docker", "run",

@@ -25,6 +25,7 @@ import platform
 import sys
 import warnings
 from distutils import log
+from distutils.errors import DistutilsError
 from distutils.version import StrictVersion
 
 # Pylint and isort disagree here.
@@ -32,11 +33,42 @@ from distutils.version import StrictVersion
 import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
+from pkg_resources import normalize_path
+from pkg_resources import to_filename
+from setuptools import Command
 from setuptools.command.build_py import build_py
-# TODO: (BEAM-8411): re-enable lint check.
-from setuptools.command.develop import develop  # pylint: disable-all
+from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
 from setuptools.command.test import test
+
+
+class mypy(Command):
+  user_options = []
+
+  def initialize_options(self):
+    """Abstract method that is required to be overwritten"""
+
+  def finalize_options(self):
+    """Abstract method that is required to be overwritten"""
+
+  def get_project_path(self):
+    self.run_command('egg_info')
+
+    # Build extensions in-place
+    self.reinitialize_command('build_ext', inplace=1)
+    self.run_command('build_ext')
+
+    ei_cmd = self.get_finalized_command("egg_info")
+
+    project_path = normalize_path(ei_cmd.egg_base)
+    return os.path.join(project_path, to_filename(ei_cmd.egg_name))
+
+  def run(self):
+    import subprocess
+    args = ['mypy', self.get_project_path()]
+    result = subprocess.call(args)
+    if result != 0:
+      raise DistutilsError("mypy exited with status %d" % result)
 
 
 def get_version():
@@ -129,7 +161,9 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
-    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
+    # fixes and additions have been made since typing 3.5
+    'typing>=3.7.0,<3.8.0; python_version < "3.8.0"',
+    'typing-extensions>=3.7.0,<3.8.0; python_version < "3.8.0"',
     ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
@@ -227,11 +261,7 @@ setuptools.setup(
     install_requires=REQUIRED_PACKAGES,
     python_requires=python_requires,
     test_suite='nose.collector',
-    setup_requires=['pytest_runner'],
-    tests_require= [
-        REQUIRED_TEST_PACKAGES,
-        INTERACTIVE_BEAM,
-    ],
+    # BEAM-8840: Do NOT use tests_require or setup_requires.
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
@@ -262,5 +292,6 @@ setuptools.setup(
         'develop': generate_protos_first(develop),
         'egg_info': generate_protos_first(egg_info),
         'test': generate_protos_first(test),
+        'mypy': generate_protos_first(mypy),
     },
 )

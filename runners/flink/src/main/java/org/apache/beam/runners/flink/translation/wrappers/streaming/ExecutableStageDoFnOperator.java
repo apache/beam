@@ -255,7 +255,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     EnumMap<TypeCase, StateRequestHandler> handlerMap = new EnumMap<>(TypeCase.class);
+    handlerMap.put(TypeCase.ITERABLE_SIDE_INPUT, sideInputStateHandler);
     handlerMap.put(TypeCase.MULTIMAP_SIDE_INPUT, sideInputStateHandler);
+    handlerMap.put(TypeCase.MULTIMAP_KEYS_SIDE_INPUT, sideInputStateHandler);
     handlerMap.put(TypeCase.BAG_USER_STATE, userStateRequestHandler);
 
     return StateRequestHandlers.delegateBasedUponType(handlerMap);

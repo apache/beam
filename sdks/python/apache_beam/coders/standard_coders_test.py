@@ -27,6 +27,8 @@ import os.path
 import sys
 import unittest
 from builtins import map
+from typing import Dict
+from typing import Tuple
 
 import yaml
 
@@ -191,7 +193,7 @@ class StandardCodersTest(unittest.TestCase):
   # Used when --fix is passed.
 
   fix = False
-  to_fix = {}
+  to_fix = {}  # type: Dict[Tuple[int, bytes], bytes]
 
   @classmethod
   def tearDownClass(cls):
