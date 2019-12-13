@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -30,17 +30,15 @@ import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.schemas.CachingFactory;
-import org.apache.beam.sdk.schemas.Factory;
-import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
-/** Utils to convert AVRO records to Beam rows. */
+/** Utils to create Beam RowWithGetter instances backed by Arrow record batches. */
 @Experimental(Experimental.Kind.SCHEMAS)
-public class ArrowUtils {
+public class ArrowSchema {
   /** Get Beam Field from Arrow Field. */
   public static Field toBeamField(org.apache.arrow.vector.types.pojo.Field field) {
     FieldType beamFieldType = toFieldType(field.getFieldType(), field.getChildren());
@@ -185,7 +183,13 @@ public class ArrowUtils {
 
       @Override
       public Function<Object, Object> visit(ArrowType.Timestamp type) {
-        return null;
+        DateTimeZone tz = DateTimeZone.forID(type.getTimezone());
+        switch (type.getUnit()) {
+          case MICROSECOND: return (epochMicros) -> new DateTime((long)epochMicros/1000, tz);
+          case MILLISECOND: return (epochMills) -> new DateTime((long)epochMills, tz);
+          default:
+            throw new AssertionError("Encountered unrecognized TimeUnit: " + type.getUnit());
+        }
       }
 
       @Override
@@ -373,7 +377,7 @@ public class ArrowUtils {
 
                   @Override
                   public FieldType visit(ArrowType.Timestamp type) {
-                    if (type.getUnit() == TimeUnit.MILLISECOND) {
+                    if (type.getUnit() == TimeUnit.MILLISECOND || type.getUnit() == TimeUnit.MICROSECOND) {
                       return FieldType.DATETIME;
                     } else {
                       throw new IllegalArgumentException(
@@ -412,7 +416,7 @@ public class ArrowUtils {
   private static org.apache.arrow.vector.types.pojo.FieldType toArrowChildren(FieldType beam)
     */
 
-  private ArrowUtils() {}
+  private ArrowSchema() {}
 
   /** Converts Arrow schema to Beam row schema. */
   public static Schema toBeamSchema(org.apache.arrow.vector.types.pojo.Schema schema) {

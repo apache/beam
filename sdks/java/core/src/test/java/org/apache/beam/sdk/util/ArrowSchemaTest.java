@@ -27,16 +27,23 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeStampMicroTZVector;
+import org.apache.arrow.vector.TimeStampMilliTZVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.util.Text;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.utils.ArrowUtils;
+import org.apache.beam.sdk.schemas.ArrowSchema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.collection.IsIterableContainingInOrder;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,7 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class ArrowUtilsTest {
+public class ArrowSchemaTest {
 
   private BufferAllocator allocator;
 
@@ -69,7 +76,7 @@ public class ArrowUtilsTest {
                 field("int8", new ArrowType.Int(8, true)),
                 field("int16", new ArrowType.Int(16, true))));
 
-    assertThat(ArrowUtils.toBeamSchema(arrow_schema), equalTo(expected));
+    assertThat(ArrowSchema.toBeamSchema(arrow_schema), equalTo(expected));
   }
 
   @Test
@@ -79,9 +86,12 @@ public class ArrowUtilsTest {
             asList(
                 field("int32", new ArrowType.Int(32, true)),
                 field("float64", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
-                field("string", new ArrowType.Utf8())));
+                field("string", new ArrowType.Utf8()),
+                field("timestampMicroUTC", new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC")),
+                field("timestampMilliUTC", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")))
+            );
 
-    Schema beamSchema = ArrowUtils.toBeamSchema(schema);
+    Schema beamSchema = ArrowSchema.toBeamSchema(schema);
 
     VectorSchemaRoot expectedSchemaRoot = VectorSchemaRoot.create(schema, allocator);
     expectedSchemaRoot.setRowCount(16);
@@ -91,22 +101,28 @@ public class ArrowUtilsTest {
     IntVector intVector = (IntVector) expectedSchemaRoot.getFieldVectors().get(0);
     Float8Vector floatVector = (Float8Vector) expectedSchemaRoot.getFieldVectors().get(1);
     VarCharVector strVector = (VarCharVector) expectedSchemaRoot.getFieldVectors().get(2);
+    TimeStampMicroTZVector timestampMicroUtcVector = (TimeStampMicroTZVector) expectedSchemaRoot.getFieldVectors().get(3);
+    TimeStampMilliTZVector timeStampMilliTZVector = (TimeStampMilliTZVector) expectedSchemaRoot.getFieldVectors().get(4);
 
     ArrayList<Row> expectedRows = new ArrayList<>();
     for (int i = 0; i < 16; i++) {
-      expectedRows.add(Row.withSchema(beamSchema).addValues(i, i + .1 * i, "" + i).build());
+      DateTime dt = new DateTime(2019, 1, i + 1, i, i, i, DateTimeZone.UTC);
+      expectedRows.add(Row.withSchema(beamSchema).addValues(i, i + .1 * i, "" + i, dt, dt).build());
       intVector.set(i, i);
       floatVector.set(i, i + .1 * i);
       strVector.set(i, new Text("" + i));
+      timestampMicroUtcVector.set(i, dt.getMillis()*1000);
+      timeStampMilliTZVector.set(i, dt.getMillis());
     }
 
-    Iterable<Row> rowIterator = ArrowUtils.rowsFromRecordBatch(beamSchema, expectedSchemaRoot);
+    Iterable<Row> rowIterator = ArrowSchema.rowsFromRecordBatch(beamSchema, expectedSchemaRoot);
     for (Row row : rowIterator) {
       System.out.println(row);
     }
 
+    // TODO: assert that we can access Row values with the expected types
     assertThat(
-        ArrowUtils.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
+        ArrowSchema.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
         IsIterableContainingInOrder.contains(
             expectedRows.stream()
                 .map((row) -> equalTo(row))
