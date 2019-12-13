@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-import logging
 import unittest
 import uuid
 
@@ -35,6 +34,7 @@ from apache_beam.testing.metric_result_matchers import DistributionMatcher
 from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.util import log
 
 INPUT_TOPIC = 'exercise_streaming_metrics_topic_input'
 INPUT_SUB = 'exercise_streaming_metrics_subscription_input'
