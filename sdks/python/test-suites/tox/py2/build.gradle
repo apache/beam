@@ -42,9 +42,7 @@ test.dependsOn testPython2
 toxTask "testPy2Cython", "py27-cython-pytest"
 test.dependsOn testPy2Cython
 
-// Ensure that testPy2Cython runs exclusively to other tests. This line is not
-// actually required, since gradle doesn't do parallel execution within a
-// project.
+// TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy2Cython.mustRunAfter testPython2, testPy2Gcp
 
 toxTask "cover", "cover"
