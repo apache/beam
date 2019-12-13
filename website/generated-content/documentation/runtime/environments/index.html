@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Runtime environments</title>
+  <title>Container environments</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -419,7 +419,8 @@
 
   <ul class="section-nav-list">
     <li><a href="/documentation/runtime/model/">Execution model</a></li>
-    <li><a href="/documentation/runtime/environments/">Runtime environments</a></li>
+    <li><a href="/documentation/runtime/environments/">Container environments</a></li>
+    <li><a href="/documentation/runtime/sdk-harness-config/">SDK Harness Configuration</a></li>
   </ul>
 </li>
 
@@ -493,7 +494,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="runtime-environments">Runtime environments</h1>
+<h1 id="container-environments">Container environments</h1>
 
 <p>The Beam SDK runtime environment is isolated from other runtime systems because the SDK runtime environment is <a href="https://s.apache.org/beam-fn-api-container-contract">containerized</a> with <a href="https://www.docker.com/">Docker</a>. This means that any execution engine can run the Beam SDK.</p>
 

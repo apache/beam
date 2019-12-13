@@ -279,7 +279,8 @@ vice versa.  The framework introduces a new runner, the <em>Universal
 Local Runner (ULR)</em>, as a practical reference implementation that
 complements the direct runners. Finally, it enables cross-language
 pipelines (sharing I/O or transformations across SDKs) and
-user-customized execution environments (“custom containers”).</p>
+user-customized <a href="/documentation/runtime/environments/">execution environments</a>
+(“custom containers”).</p>
 
 <p>The portability API consists of a set of smaller contracts that
 isolate SDKs and runners for job submission, management and
@@ -417,32 +418,7 @@ how to run portable pipelines on top of Spark.</p>
 
 <h2 id="sdk-harness-config">SDK Harness Configuration</h2>
 
-<p>The Beam Python SDK allows configuration of the SDK harness to accommodate varying cluster setups.</p>
-
-<ul>
-  <li><code class="highlighter-rouge">environment_type</code> determines where user code will be executed.
-    <ul>
-      <li><code class="highlighter-rouge">LOOPBACK</code>: User code is executed within the same process that submitted the pipeline. This
-option is useful for local testing. However, it is not suitable for a production environment,
-as it requires a connection between the original Python process and the worker nodes, and
-performs work on the machine the job originated from, not the worker nodes.</li>
-      <li><code class="highlighter-rouge">PROCESS</code>: User code is executed by processes that are automatically started by the runner on
-each worker node.</li>
-      <li><code class="highlighter-rouge">DOCKER</code> (default): User code is executed within a container started on each worker node.
-This requires docker to be installed on worker nodes. For more information, see
-<a href="/documentation/runtime/environments/">here</a>.</li>
-    </ul>
-  </li>
-  <li><code class="highlighter-rouge">environment_config</code> configures the environment depending on the value of <code class="highlighter-rouge">environment_type</code>.
-    <ul>
-      <li>When <code class="highlighter-rouge">environment_type=DOCKER</code>: URL for the Docker container image.</li>
-      <li>When <code class="highlighter-rouge">environment_type=PROCESS</code>: JSON of the form <code class="highlighter-rouge">{"os": "&lt;OS&gt;", "arch": "&lt;ARCHITECTURE&gt;",
-"command": "&lt;process to execute&gt;", "env":{"&lt;Environment variables 1&gt;": "&lt;ENV_VAL&gt;"} }</code>. All
-fields in the JSON are optional except <code class="highlighter-rouge">command</code>.</li>
-    </ul>
-  </li>
-  <li><code class="highlighter-rouge">sdk_worker_parallelism</code> sets the number of SDK workers that will run on each worker node.</li>
-</ul>
+<p>See <a href="/documentation/runtime/sdk-harness-config/">here</a> for more information on SDK harness deployment options.</p>
 
       </div>
     </div>

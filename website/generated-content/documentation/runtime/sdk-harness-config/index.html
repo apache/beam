@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reshuffle</title>
+  <title>SDK Harness Configuration</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -42,7 +42,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/python/other/reshuffle/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/runtime/sdk-harness-config/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -144,7 +144,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/other/reshuffle.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runtime/sdk-harness-config.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -460,10 +460,6 @@
 
 
 
-<ul class="nav">
-  <li><a href="#examples">Examples</a></li>
-  <li><a href="#related-transforms">Related transforms</a></li>
-</ul>
 
 
       </nav>
@@ -483,25 +479,63 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="reshuffle">Reshuffle</h1>
-<table align="left">
-    <a target="_blank" class="button" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=reshuffle#apache_beam.transforms.util.Reshuffle">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px" alt="Pydoc" />
-     Pydoc
-    </a>
-</table>
-<p><br />
- Adds a temporary random key to each element in a collection, reshuffles
- these keys, and removes the temporary key. This redistributes the
- elements between workers and returns a collection equivalent to its
- input collection.  This is most useful for adjusting parallelism or
- preventing coupled failures.</p>
+<h1 id="sdk-harness-configuration">SDK Harness Configuration</h1>
 
-<h2 id="examples">Examples</h2>
-<p>See <a href="https://issues.apache.org/jira/browse/BEAM-7391">BEAM-7391</a> for updates.</p>
+<p>Beam allows configuration of the <a href="/roadmap/portability/">SDK harness</a> to
+accommodate varying cluster setups.
+(The options below are for Python, but much of this information should apply to the Java and Go SDKs
+as well.)</p>
 
-<h2 id="related-transforms">Related transforms</h2>
-<p>N/A</p>
+<ul>
+  <li><code class="highlighter-rouge">environment_type</code> determines where user code will be executed.
+<code class="highlighter-rouge">environment_config</code> configures the environment depending on the value of <code class="highlighter-rouge">environment_type</code>.
+    <ul>
+      <li><code class="highlighter-rouge">DOCKER</code> (default): User code is executed within a container started on each worker node.
+This requires docker to be installed on worker nodes.
+        <ul>
+          <li><code class="highlighter-rouge">environment_config</code>: URL for the Docker container image. Official Docker images
+are available <a href="https://hub.docker.com/u/apachebeam">here</a> and are used by default.
+Alternatively, you can build your own image by following the instructions
+<a href="/documentation/runtime/environments/">here</a>.</li>
+        </ul>
+      </li>
+      <li><code class="highlighter-rouge">PROCESS</code>: User code is executed by processes that are automatically started by the runner on
+each worker node.
+        <ul>
+          <li><code class="highlighter-rouge">environment_config</code>: JSON of the form <code class="highlighter-rouge">{"os": "&lt;OS&gt;", "arch": "&lt;ARCHITECTURE&gt;",
+"command": "&lt;process to execute&gt;", "env":{"&lt;Environment variables 1&gt;": "&lt;ENV_VAL&gt;"} }</code>. All
+fields in the JSON are optional except <code class="highlighter-rouge">command</code>.
+            <ul>
+              <li>For <code class="highlighter-rouge">command</code>, it is recommended to use the bootloader executable, which can be built from
+source with <code class="highlighter-rouge">./gradlew :sdks:python:container:build</code> and copied from
+<code class="highlighter-rouge">sdks/python/container/build/target/launcher/linux_amd64/boot</code> to worker machines.
+Note that the Python bootloader assumes Python and the <code class="highlighter-rouge">apache_beam</code> module are installed
+on each worker machine.</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li><code class="highlighter-rouge">EXTERNAL</code>: User code will be dispatched to an external service. For example, one can start
+an external service for Python workers by running
+<code class="highlighter-rouge">docker run -p=50000:50000 apachebeam/python3.6_sdk --worker_pool</code>.
+        <ul>
+          <li><code class="highlighter-rouge">environment_config</code>: Address for the external service, e.g. <code class="highlighter-rouge">localhost:50000</code>.</li>
+          <li>To access a Dockerized worker pool service from a Mac or Windows client, set the
+<code class="highlighter-rouge">BEAM_WORKER_POOL_IN_DOCKER_VM</code> environment variable on the client:
+<code class="highlighter-rouge">export BEAM_WORKER_POOL_IN_DOCKER_VM=1</code>.</li>
+        </ul>
+      </li>
+      <li><code class="highlighter-rouge">LOOPBACK</code>: User code is executed within the same process that submitted the pipeline. This
+option is useful for local testing. However, it is not suitable for a production environment,
+as it performs work on the machine the job originated from.
+        <ul>
+          <li><code class="highlighter-rouge">environment_config</code> is not used for the <code class="highlighter-rouge">LOOPBACK</code> environment.</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">sdk_worker_parallelism</code> sets the number of SDK workers that will run on each worker node.</li>
+</ul>
 
       </div>
     </div>
