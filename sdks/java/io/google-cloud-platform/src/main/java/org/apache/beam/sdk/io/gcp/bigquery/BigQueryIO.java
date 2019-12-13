@@ -1673,7 +1673,6 @@ public class BigQueryIO {
         .setSchemaUpdateOptions(Collections.emptySet())
         .setNumFileShards(0)
         .setMethod(Write.Method.DEFAULT)
-        .setFormat(DataFormat.AVRO)
         .setExtendedErrorInfo(false)
         .setSkipInvalidRows(false)
         .setIgnoreUnknownValues(false)
@@ -1794,8 +1793,6 @@ public class BigQueryIO {
 
     abstract Method getMethod();
 
-    abstract DataFormat getFormat();
-
     @Nullable
     abstract ValueProvider<String> getLoadJobProjectId();
 
@@ -1872,8 +1869,6 @@ public class BigQueryIO {
       abstract Builder<T> setTriggeringFrequency(Duration triggeringFrequency);
 
       abstract Builder<T> setMethod(Method method);
-
-      abstract Builder<T> setFormat(DataFormat format);
 
       abstract Builder<T> setLoadJobProjectId(ValueProvider<String> loadJobProjectId);
 
@@ -2204,15 +2199,6 @@ public class BigQueryIO {
     public Write<T> withMethod(Method method) {
       checkArgument(method != null, "method can not be null");
       return toBuilder().setMethod(method).build();
-    }
-
-    /**
-     * Choose the method used to write data to BigQuery. See the Javadoc on {@link Method} for
-     * information and restrictions of the different methods.
-     */
-    public Write<T> withFormat(DataFormat format) {
-      checkArgument(format != null, "format can not be null");
-      return toBuilder().setFormat(format).build();
     }
 
     /**
