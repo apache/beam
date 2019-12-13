@@ -35,34 +35,20 @@ lint.dependsOn lintPy37
 toxTask "mypyPy37", "py37-mypy"
 lint.dependsOn mypyPy37
 
+// TODO(BEAM-3713): Migrate to -pytest env variant.
 toxTask "testPython37", "py37"
 test.dependsOn testPython37
 
-toxTask "testPy37Gcp", "py37-gcp"
+toxTask "testPy37Gcp", "py37-gcp-pytest"
 test.dependsOn testPy37Gcp
 
-toxTask "testPy37Cython", "py37-cython"
+toxTask "testPy37Cython", "py37-cython-pytest"
 test.dependsOn testPy37Cython
 
-// Ensure that testPy37Cython runs exclusively to other tests. This line is not
-// actually required, since gradle doesn't do parallel execution within a
-// project.
+// TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy37Cython.mustRunAfter testPython37, testPy37Gcp
-
-// TODO(BEAM-3713): Temporary pytest tasks that should eventually replace
-//  nose-based test tasks.
-toxTask "testPy37GcpPytest", "py37-gcp-pytest"
-toxTask "testPython37Pytest", "py37-pytest"
-toxTask "testPy37CythonPytest", "py37-cython-pytest"
-// Ensure that cython tests run exclusively to other tests.
-testPy37CythonPytest.mustRunAfter testPython37Pytest, testPy37GcpPytest
 
 task preCommitPy37() {
     dependsOn "testPy37Gcp"
     dependsOn "testPy37Cython"
-}
-
-task preCommitPy37Pytest {
-  dependsOn "testPy37GcpPytest"
-  dependsOn "testPy37CythonPytest"
 }
