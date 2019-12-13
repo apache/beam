@@ -89,6 +89,7 @@ from apache_beam.transforms import environments
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import log
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
@@ -126,7 +127,7 @@ ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
 # The cache is disabled in production for other runners.
 STATE_CACHE_SIZE = 100
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class ControlConnection(object):

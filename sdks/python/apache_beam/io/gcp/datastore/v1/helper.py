@@ -23,7 +23,6 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import errno
-import logging
 import sys
 import time
 from builtins import object
@@ -34,6 +33,7 @@ from past.builtins import unicode
 
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 # Protect against environments where datastore library is not available.
@@ -54,7 +54,7 @@ except ImportError:
 # pylint: enable=ungrouped-imports
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def key_comparator(k1, k2):

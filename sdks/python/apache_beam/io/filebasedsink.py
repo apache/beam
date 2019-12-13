@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-import logging
 import os
 import re
 import time
@@ -39,13 +38,14 @@ from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import check_accessible
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils import log
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
 __all__ = ['FileBasedSink']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class FileBasedSink(iobase.Sink):

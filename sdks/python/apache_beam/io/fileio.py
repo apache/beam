@@ -91,7 +91,6 @@ No backward compatibility guarantees. Everything in this module is experimental.
 from __future__ import absolute_import
 
 import collections
-import logging
 import random
 import uuid
 from typing import TYPE_CHECKING
@@ -112,6 +111,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.utils import log
 from apache_beam.utils.annotations import experimental
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ __all__ = ['EmptyMatchTreatment',
            'ReadMatches']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class EmptyMatchTreatment(object):

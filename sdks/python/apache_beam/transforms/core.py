@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import copy
 import inspect
-import logging
 import random
 import re
 import types
@@ -62,6 +61,7 @@ from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.utils import log
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 
@@ -109,7 +109,7 @@ T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class DoFnContext(object):

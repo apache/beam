@@ -38,6 +38,7 @@ from apache_beam.runners.direct.test_direct_runner import TestDirectRunner
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.utils import log
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
@@ -46,7 +47,7 @@ except ImportError:
   pass
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 WAIT_UNTIL_FINISH_DURATION_MS = 15 * 60 * 1000
 

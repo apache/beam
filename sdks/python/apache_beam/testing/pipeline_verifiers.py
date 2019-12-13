@@ -24,7 +24,6 @@ of test pipeline job. Customized verifier should extend
 
 from __future__ import absolute_import
 
-import logging
 import time
 
 from hamcrest.core.base_matcher import BaseMatcher
@@ -32,6 +31,7 @@ from hamcrest.core.base_matcher import BaseMatcher
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils as utils
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 __all__ = [
@@ -48,7 +48,7 @@ except ImportError:
 
 MAX_RETRIES = 4
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class PipelineStateMatcher(BaseMatcher):

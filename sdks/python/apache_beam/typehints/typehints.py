@@ -67,7 +67,6 @@ from __future__ import absolute_import
 
 import collections
 import copy
-import logging
 import sys
 import types
 import typing
@@ -75,6 +74,8 @@ from builtins import next
 from builtins import zip
 
 from future.utils import with_metaclass
+
+from apache_beam.utils import log
 
 __all__ = [
     'Any',
@@ -97,7 +98,7 @@ __all__ = [
 # to templated (upper-case) versions instead.
 DISALLOWED_PRIMITIVE_TYPES = (list, set, tuple, dict)
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class SimpleTypeHintError(TypeError):

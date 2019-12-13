@@ -29,12 +29,13 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners.portability import expansion_service
 from apache_beam.transforms import ptransform
+from apache_beam.utils import log
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 # This script provides an expansion service and example ptransforms for running
 # external transform test cases. See external_test.py for details.
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 @ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)

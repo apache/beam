@@ -24,7 +24,6 @@ from __future__ import absolute_import
 
 import collections
 import copy
-import logging
 import numbers
 from abc import ABCMeta
 from abc import abstractmethod
@@ -45,6 +44,7 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils import log
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -67,7 +67,7 @@ __all__ = [
     ]
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class AccumulationMode(object):

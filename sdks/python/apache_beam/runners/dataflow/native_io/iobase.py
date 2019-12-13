@@ -22,15 +22,15 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
-import logging
 from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.io import iobase
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def _dict_printable_fields(dict_object, skip_fields):

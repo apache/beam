@@ -27,8 +27,9 @@ import unittest
 from builtins import range
 
 from apache_beam.io import filesystemio
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class FakeDownloader(filesystemio.Downloader):

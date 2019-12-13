@@ -21,7 +21,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 import codecs
-import logging
 import math
 import threading
 from builtins import zip
@@ -29,12 +28,13 @@ from builtins import zip
 from past.builtins import long
 
 from apache_beam.io import iobase
+from apache_beam.utils import log
 
 __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class OffsetRangeTracker(iobase.RangeTracker):

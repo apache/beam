@@ -23,7 +23,6 @@ from __future__ import print_function
 import abc
 import collections
 import contextlib
-import logging
 import queue
 import sys
 import threading
@@ -51,13 +50,14 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.utils import log
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 # This SDK harness will (by default), log a "lull" in processing if it sees no
 # transitions in over 5 minutes.

@@ -24,7 +24,6 @@ graph of transformations belonging to a pipeline on the local machine.
 from __future__ import absolute_import
 
 import itertools
-import logging
 import time
 import typing
 
@@ -52,6 +51,7 @@ from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.utils import log
 
 # Note that the BundleBasedDirectRunner and SwitchingDirectRunner names are
 # experimental and have no backwards compatibility guarantees.
@@ -60,7 +60,7 @@ __all__ = ['BundleBasedDirectRunner',
            'SwitchingDirectRunner']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class SwitchingDirectRunner(PipelineRunner):

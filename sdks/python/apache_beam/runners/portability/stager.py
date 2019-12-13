@@ -47,7 +47,6 @@ TODO(silviuc): We should allow customizing the exact command for setup build.
 from __future__ import absolute_import
 
 import glob
-import logging
 import os
 import shutil
 import sys
@@ -67,6 +66,7 @@ from apache_beam.options.pipeline_options import WorkerOptions
 # TODO(angoenka): Remove reference to dataflow internal names
 from apache_beam.runners.dataflow.internal.names import DATAFLOW_SDK_TARBALL_FILE
 from apache_beam.runners.internal import names
+from apache_beam.utils import log
 from apache_beam.utils import processes
 from apache_beam.utils import retry
 
@@ -79,7 +79,7 @@ REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def retry_on_non_zero_exit(exception):

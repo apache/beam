@@ -30,9 +30,10 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.common import NameContext
 from apache_beam.runners.worker import log_handler
 from apache_beam.runners.worker import statesampler
+from apache_beam.utils import log
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):

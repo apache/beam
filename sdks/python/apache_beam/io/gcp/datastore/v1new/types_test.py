@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import datetime
-import logging
 import unittest
 
 # patches unittest.TestCase to be python3 compatible
@@ -35,12 +34,13 @@ try:
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query
   from apache_beam.options.value_provider import StaticValueProvider
+  from apache_beam.utils import log
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')

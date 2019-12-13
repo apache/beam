@@ -29,13 +29,13 @@ Currently it is possible to have following metrics types:
 
 from __future__ import absolute_import
 
-import logging
 import time
 import uuid
 from typing import List
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+from apache_beam.utils import log
 
 try:
   from google.cloud import bigquery
@@ -73,7 +73,7 @@ SCHEMA = [
     }
 ]
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def parse_step(step_name):

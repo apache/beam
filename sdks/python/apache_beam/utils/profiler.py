@@ -24,7 +24,6 @@ from __future__ import absolute_import
 
 import cProfile  # pylint: disable=bad-python3-import
 import io
-import logging
 import os
 import pstats
 import random
@@ -37,8 +36,9 @@ from typing import Callable
 from typing import Optional
 
 from apache_beam.io import filesystems
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class Profile(object):

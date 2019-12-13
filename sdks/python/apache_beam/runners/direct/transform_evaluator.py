@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import atexit
 import collections
-import logging
 import random
 import time
 from builtins import object
@@ -71,6 +70,7 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.utils import counters
+from apache_beam.utils import log
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -80,7 +80,7 @@ if TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
   from apache_beam.runners.direct.evaluation_context import EvaluationContext
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class TransformEvaluatorRegistry(object):

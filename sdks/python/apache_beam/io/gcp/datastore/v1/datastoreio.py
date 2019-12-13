@@ -25,7 +25,6 @@ next Beam major release.
 from __future__ import absolute_import
 from __future__ import division
 
-import logging
 import sys
 import time
 import warnings
@@ -44,8 +43,9 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.util import Values
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 # Protect against environments where datastore library is not available.

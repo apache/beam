@@ -24,7 +24,6 @@ from __future__ import absolute_import
 
 import errno
 import io
-import logging
 import multiprocessing
 import re
 import sys
@@ -39,12 +38,13 @@ from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import PipeStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 __all__ = ['GcsIO']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 # Issue a friendlier error message if the storage library is not available.

@@ -19,12 +19,12 @@
 from __future__ import absolute_import
 
 import collections
-import logging
 import threading
 
 from apache_beam.metrics import monitoring_infos
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class Metrics(object):

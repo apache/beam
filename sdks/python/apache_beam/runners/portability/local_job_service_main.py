@@ -18,13 +18,13 @@
 from __future__ import absolute_import
 
 import argparse
-import logging
 import sys
 import time
 
 from apache_beam.runners.portability import local_job_service
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def run(argv):

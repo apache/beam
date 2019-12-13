@@ -24,8 +24,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import logging
-
 import apache_beam as beam
 from apache_beam import runners
 from apache_beam.runners.direct import direct_runner
@@ -33,12 +31,13 @@ from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive.display import pipeline_graph
+from apache_beam.utils import log
 
 # size of PCollection samples cached.
 SAMPLE_SIZE = 8
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class InteractiveRunner(runners.PipelineRunner):

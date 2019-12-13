@@ -23,7 +23,6 @@ from __future__ import print_function
 
 import abc
 import collections
-import logging
 import queue
 import sys
 import threading
@@ -47,6 +46,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.utils import log
 
 if TYPE_CHECKING:
   # TODO: remove from TYPE_CHECKING scope when we drop support for python < 3.6
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
 # This module is experimental. No backwards-compatibility guarantees.
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 _DEFAULT_FLUSH_THRESHOLD = 10 << 20  # 10MB
 

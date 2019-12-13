@@ -20,7 +20,6 @@
 
 from __future__ import absolute_import
 
-import logging
 import subprocess
 import time
 from builtins import object
@@ -28,8 +27,9 @@ from builtins import object
 import grpc
 
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class DockerRPCManager(object):

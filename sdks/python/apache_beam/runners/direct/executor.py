@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import collections
 import itertools
-import logging
 import sys
 import threading
 import traceback
@@ -42,6 +41,7 @@ from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
+from apache_beam.utils import log
 
 if TYPE_CHECKING:
   from apache_beam import pvalue
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.direct.evaluation_context import EvaluationContext
   from apache_beam.runners.direct.transform_evaluator import TransformEvaluatorRegistry
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class _ExecutorService(object):

@@ -25,7 +25,6 @@ from __future__ import division
 
 import base64
 import json
-import logging
 import sys
 import threading
 import time
@@ -61,6 +60,7 @@ from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
+from apache_beam.utils import log
 from apache_beam.utils import proto_utils
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
@@ -76,7 +76,7 @@ else:
 __all__ = ['DataflowRunner']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class DataflowRunner(PipelineRunner):

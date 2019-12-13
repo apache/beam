@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import logging
 import re
 import sys
 
@@ -28,10 +27,11 @@ from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import flink_uber_jar_job_server
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
+from apache_beam.utils import log
 
 MAGIC_HOST_NAMES = ['[local]', '[auto]']
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class FlinkRunner(portable_runner.PortableRunner):

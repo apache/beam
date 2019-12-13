@@ -234,7 +234,6 @@ from __future__ import absolute_import
 import collections
 import itertools
 import json
-import logging
 import time
 import uuid
 from builtins import object
@@ -260,6 +259,7 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import log
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
@@ -273,7 +273,7 @@ __all__ = [
     ]
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")

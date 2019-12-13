@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import collections
-import logging
 import queue
 import threading
 import traceback
@@ -31,6 +30,7 @@ from apache_beam.coders import observable
 from apache_beam.io import iobase
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
+from apache_beam.utils import log
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -53,7 +53,7 @@ READER_THREAD_IS_DONE_SENTINEL = object()
 _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class PrefetchingSourceSetIterable(object):

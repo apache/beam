@@ -55,7 +55,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 import json
-import logging
 import struct
 
 import apache_beam as beam
@@ -64,9 +63,10 @@ from apache_beam.io.range_trackers import OrderedPositionRangeTracker
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
+from apache_beam.utils import log
 from apache_beam.utils.annotations import experimental
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 try:

@@ -44,6 +44,7 @@ from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
 from apache_beam.transforms import environments
+from apache_beam.utils import log
 
 if TYPE_CHECKING:
   from apache_beam.options.pipeline_options import PipelineOptions
@@ -69,7 +70,7 @@ TERMINAL_STATES = [
 
 ENV_TYPE_ALIASES = {'LOOPBACK': 'EXTERNAL'}
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class PortableRunner(runner.PipelineRunner):

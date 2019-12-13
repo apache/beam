@@ -17,13 +17,12 @@
 
 from __future__ import absolute_import
 
-import logging
-
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metric import MetricName
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def from_monitoring_infos(monitoring_info_list, user_metrics_only=False):

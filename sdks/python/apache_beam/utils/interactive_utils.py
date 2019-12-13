@@ -21,9 +21,9 @@ For experimental usage only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 
-import logging
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def is_in_ipython():

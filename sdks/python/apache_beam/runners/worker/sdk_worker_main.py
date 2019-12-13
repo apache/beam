@@ -38,11 +38,12 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
+from apache_beam.utils import log
 from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class StatusServer(object):

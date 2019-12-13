@@ -17,16 +17,16 @@
 
 from __future__ import absolute_import
 
-import logging
 import math
 import time
 
 from apache_beam.metrics.metric import Metrics
+from apache_beam.utils import log
 from apitools.base.py import exceptions
 from apitools.base.py import http_wrapper
 from apitools.base.py import util
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class GcsIOOverrides(object):

@@ -20,12 +20,12 @@
 
 from __future__ import absolute_import
 
-import logging
 import random
 import time
 
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.pubsub import PubsubMessage
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -37,7 +37,7 @@ except ImportError:
   bigquery = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class GcpTestIOError(retry.PermanentException):

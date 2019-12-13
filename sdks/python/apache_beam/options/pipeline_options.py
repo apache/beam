@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import argparse
 import json
-import logging
 import os
 import subprocess
 from builtins import list
@@ -38,6 +37,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import log
 from apache_beam.utils import processes
 
 __all__ = [
@@ -57,7 +57,7 @@ __all__ = [
 PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def _static_value_provider_of(value_type):

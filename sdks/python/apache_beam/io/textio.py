@@ -20,7 +20,6 @@
 
 from __future__ import absolute_import
 
-import logging
 from builtins import object
 from builtins import range
 from functools import partial
@@ -38,12 +37,13 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils import log
 
 __all__ = ['ReadFromText', 'ReadFromTextWithFilename', 'ReadAllFromText',
            'WriteToText']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class _TextSource(filebasedsource.FileBasedSource):

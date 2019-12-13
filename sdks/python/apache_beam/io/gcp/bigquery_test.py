@@ -62,6 +62,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.utils import log
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -72,7 +73,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

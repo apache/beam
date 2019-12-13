@@ -31,7 +31,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 
 SLEEP_TIME_SECS = 1
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class StreamingUserMetricsDoFn(beam.DoFn):

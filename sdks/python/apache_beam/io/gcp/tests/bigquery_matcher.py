@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-import logging
 import sys
 import time
 
@@ -29,6 +28,7 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 __all__ = ['BigqueryMatcher', 'BigQueryTableMatcher']
@@ -45,7 +45,7 @@ except ImportError:
 
 MAX_RETRIES = 5
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def retry_on_http_and_value_error(exception):

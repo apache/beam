@@ -62,6 +62,7 @@ from apache_beam.transforms import core
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
+from apache_beam.utils import log
 from apache_beam.utils import timestamp
 
 if statesampler.FAST_SAMPLER:
@@ -69,7 +70,7 @@ if statesampler.FAST_SAMPLER:
 else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def _matcher_or_equal_to(value_or_matcher):

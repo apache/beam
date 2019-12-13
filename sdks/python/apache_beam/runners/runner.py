@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import importlib
-import logging
 import os
 import shelve
 import shutil
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
   from apache_beam.pipeline import Pipeline
   from apache_beam.pipeline import PipelineVisitor
+  from apache_beam.utils import log
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
@@ -63,7 +63,7 @@ _RUNNER_MAP['pythonrpcdirectrunner'] = (
     'apache_beam.runners.experimental'
     '.python_rpc_direct.python_rpc_direct_runner.PythonRPCDirectRunner')
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def create_runner(runner_name):

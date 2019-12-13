@@ -40,6 +40,7 @@ from builtins import range
 from future.utils import raise_with_traceback
 
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.utils import log
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -51,7 +52,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class PermanentException(Exception):

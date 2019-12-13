@@ -19,13 +19,13 @@
 
 from __future__ import absolute_import
 
-import logging
 import time
 from collections import Counter
 
 from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.io.gcp.pubsub import PubsubMessage
+from apache_beam.utils import log
 
 __all__ = ['PubSubMessageMatcher']
 
@@ -39,7 +39,7 @@ except ImportError:
 DEFAULT_TIMEOUT = 5 * 60
 MAX_MESSAGES_IN_ONE_PULL = 50
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class PubSubMessageMatcher(BaseMatcher):

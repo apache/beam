@@ -51,6 +51,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import combiners
 from apache_beam.typehints.typehints import Tuple
+from apache_beam.utils import log
 
 try:
   from apitools.base.py.exceptions import HttpError
@@ -58,7 +59,7 @@ except ImportError:
   HttpError = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 _DESTINATION_ELEMENT_PAIRS = [
     # DESTINATION 1

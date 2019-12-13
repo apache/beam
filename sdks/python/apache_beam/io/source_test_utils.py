@@ -46,7 +46,6 @@ For example usages, see the unit tests of modules such as
 from __future__ import absolute_import
 from __future__ import division
 
-import logging
 import threading
 import weakref
 from builtins import next
@@ -57,6 +56,7 @@ from multiprocessing.pool import ThreadPool
 
 from apache_beam.io import iobase
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import log
 
 __all__ = ['read_from_source',
            'assert_sources_equal_reference_source',
@@ -68,7 +68,7 @@ __all__ = ['read_from_source',
            'assert_split_at_fraction_succeeds_and_consistent']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class ExpectedSplitOutcome(object):

@@ -25,7 +25,6 @@ import codecs
 import getpass
 import io
 import json
-import logging
 import os
 import pkg_resources
 import re
@@ -59,6 +58,7 @@ from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 # Environment version information. It is passed to the service during a
@@ -67,7 +67,7 @@ from apache_beam.utils import retry
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class Step(object):

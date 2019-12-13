@@ -19,7 +19,6 @@
 from __future__ import absolute_import
 
 import codecs
-import logging
 import struct
 from builtins import object
 from functools import partial
@@ -34,11 +33,12 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
+from apache_beam.utils import log
 
 __all__ = ['ReadFromTFRecord', 'WriteToTFRecord']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def _default_crc32c_fn(value):

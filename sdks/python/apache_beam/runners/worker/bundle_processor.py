@@ -24,7 +24,6 @@ from __future__ import print_function
 import base64
 import collections
 import json
-import logging
 import random
 import re
 import threading
@@ -71,6 +70,7 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.utils import counters
+from apache_beam.utils import log
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
@@ -104,7 +104,7 @@ OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'beam:source:java:0.1'
 URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
                                  monitoring_infos.SAMPLED_BYTE_SIZE_URN])
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class RunnerIOOperation(operations.Operation):

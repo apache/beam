@@ -30,7 +30,6 @@ This module is experimental, no backwards compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
-import logging
 import time
 from builtins import round
 
@@ -46,12 +45,13 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 @typehints.with_output_types(types.Entity)

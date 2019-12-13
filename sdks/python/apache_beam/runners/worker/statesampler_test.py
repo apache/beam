@@ -28,10 +28,11 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 from apache_beam.runners.worker import statesampler
+from apache_beam.utils import log
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class StateSamplerTest(unittest.TestCase):

@@ -22,7 +22,6 @@ from __future__ import print_function
 
 import collections
 import functools
-import logging
 from builtins import object
 from typing import Container
 from typing import DefaultDict
@@ -43,13 +42,14 @@ from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import bundle_processor
+from apache_beam.utils import log
 from apache_beam.utils import proto_utils
 
 T = TypeVar('T')
 
 # This module is experimental. No backwards-compatibility guarantees.
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 KNOWN_COMPOSITES = frozenset([

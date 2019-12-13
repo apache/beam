@@ -30,7 +30,6 @@ from __future__ import absolute_import
 import datetime
 import decimal
 import json
-import logging
 import re
 import sys
 import time
@@ -49,6 +48,7 @@ from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -62,7 +62,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 MAX_RETRIES = 3
 

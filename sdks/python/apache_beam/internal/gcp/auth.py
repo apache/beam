@@ -25,6 +25,7 @@ import threading
 
 from oauth2client.client import GoogleCredentials
 
+from apache_beam.utils import log
 from apache_beam.utils import retry
 
 # Protect against environments where apitools library is not available.
@@ -41,7 +42,7 @@ is_running_in_gce = False
 executing_project = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 if GceAssertionCredentials is not None:

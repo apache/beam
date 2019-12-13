@@ -46,7 +46,7 @@ MESSAGES_TO_PUBLISH = ["message a", "message b b", "message c"]
 
 SLEEP_TIME_SECS = 1
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):

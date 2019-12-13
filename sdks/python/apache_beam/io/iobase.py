@@ -32,7 +32,6 @@ the sink.
 from __future__ import absolute_import
 from __future__ import division
 
-import logging
 import math
 import random
 import threading
@@ -58,6 +57,7 @@ from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import log
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
@@ -71,7 +71,7 @@ __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 # Encapsulates information about a bundle of a source generated when method

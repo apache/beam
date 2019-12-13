@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import logging
 import time
 
 from apache_beam.internal import pickler
@@ -29,6 +28,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.utils import log
 
 __all__ = ['TestDataflowRunner']
 
@@ -36,7 +36,7 @@ __all__ = ['TestDataflowRunner']
 # pool.
 WAIT_IN_STATE_TIMEOUT = 10 * 60
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 class TestDataflowRunner(DataflowRunner):

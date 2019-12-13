@@ -31,6 +31,7 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.utils import log
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
 
@@ -39,7 +40,7 @@ from apache_beam.utils.interactive_utils import is_in_notebook
 # implementation that enables interactivity.
 _interactive_beam_env = None
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def current_env(cache_manager=None):

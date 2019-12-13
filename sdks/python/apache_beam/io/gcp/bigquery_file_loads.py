@@ -30,7 +30,6 @@ from __future__ import absolute_import
 
 import datetime
 import hashlib
-import logging
 import random
 import time
 import uuid
@@ -45,8 +44,9 @@ from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import log
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 ONE_TERABYTE = (1 << 40)
 

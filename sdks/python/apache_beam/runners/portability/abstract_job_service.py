@@ -6,6 +6,7 @@
 # (the "License"); you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
 #
+
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -17,7 +18,6 @@
 from __future__ import absolute_import
 
 import itertools
-import logging
 import uuid
 from builtins import object
 from typing import TYPE_CHECKING
@@ -30,6 +30,7 @@ from google.protobuf import timestamp_pb2
 
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.utils import log
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
   from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.portability.api import endpoints_pb2
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def make_state_event(state, timestamp):

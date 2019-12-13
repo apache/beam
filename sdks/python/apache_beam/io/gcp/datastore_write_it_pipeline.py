@@ -43,6 +43,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import log
 
 # Protect against environments where Datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -57,7 +58,7 @@ except ImportError:
 # pylint: enable=ungrouped-imports
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = log.get_logger(__name__)
 
 
 def new_pipeline_with_job_name(pipeline_options, job_name, suffix):
