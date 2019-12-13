@@ -88,7 +88,7 @@ class SplittableParDo(PTransform):
         process_invocation=False)
 
     element_coder = typecoders.registry.get_coder(pcoll.element_type)
-    restriction_coder = invoker.invoke_restriction_coder()
+    restriction_coder = signature.get_restriction_coder()
 
     keyed_elements = (
         pcoll
