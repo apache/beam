@@ -399,6 +399,7 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
+<<<<<<< HEAD
   def test_fixed_windows_combine(self):
     with TestPipeline() as p:
       input = (
@@ -421,6 +422,9 @@ class CombineTest(unittest.TestCase):
                   equal_to([('c', 3), ('c', 10), ('d', 5), ('d', 17)]),
                   label='sum per key')
 
+=======
+<<<<<<< HEAD
+>>>>>>> [BEAM-8575] Added a unit test to test that Combine works with FixedWindows.
   def test_sessions_combine(self):
     with TestPipeline() as p:
       input = (
@@ -439,6 +443,29 @@ class CombineTest(unittest.TestCase):
       assert_that(global_sum, equal_to([7, 21]), label='global sum')
       assert_that(sum_per_key, equal_to([('c', 1), ('c', 21), ('d', 6)]),
                   label='sum per key')
+=======
+  def test_fixed_windows_combine(self):
+     with TestPipeline() as p:
+       input = (
+           p
+           | beam.Create([('c', 1), ('c', 2), ('c', 10),
+                          ('d', 5), ('d', 8), ('d', 9)])
+           | beam.MapTuple(lambda k, v: window.TimestampedValue((k, v), v))
+           | beam.WindowInto(window.FixedWindows(4)))
+
+       global_sum = (input
+                     | beam.Values()
+                     | beam.CombineGlobally(sum).without_defaults())
+       sum_per_key = input | beam.CombinePerKey(sum)
+
+       # The first window has 2 elements: ('c', 1), ('c', 2).
+       # The second window has 1 elements: ('d', 5).
+       # The third window has 3 elements: ('c', 10), ('d', 8), ('d', 9).
+       assert_that(global_sum, equal_to([3, 5, 27]), label='global sum')
+       assert_that(sum_per_key,
+                   equal_to([('c', 3), ('c', 10), ('d', 5), ('d', 17)]),
+                   label='sum per key')
+>>>>>>> [BEAM-8575] Added a unit test to test that Combine works with FixedWindows.
 
 
 class LatestTest(unittest.TestCase):
