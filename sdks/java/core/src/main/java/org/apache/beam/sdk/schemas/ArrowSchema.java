@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
-/** Utils to create Beam RowWithGetter instances backed by Arrow record batches. */
+/** Utilities to create Beam RowWithGetter instances backed by Arrow record batches. */
 @Experimental(Experimental.Kind.SCHEMAS)
 public class ArrowSchema {
   /** Get Beam Field from Arrow Field. */
@@ -91,7 +91,12 @@ public class ArrowSchema {
                       @Nullable
                       @Override
                       public Object get(Integer rowIndex) {
-                        return conversionFunction.apply(fieldVector.getObject(rowIndex));
+                        Object value = fieldVector.getObject(rowIndex);
+                        if (value == null) {
+                          return null;
+                        }
+
+                        return conversionFunction.apply(value);
                       }
 
                       @Override
@@ -121,7 +126,6 @@ public class ArrowSchema {
 
       @Override
       public Function<Object, Object> visit(ArrowType.List type) {
-        // TODO: test this
         return null;
       }
 
@@ -169,17 +173,20 @@ public class ArrowSchema {
 
       @Override
       public Function<Object, Object> visit(ArrowType.Decimal type) {
-        return null;
+        throw new IllegalArgumentException(
+            "Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Date type) {
-        return null;
+        throw new IllegalArgumentException(
+            "Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Time type) {
-        return null;
+        throw new IllegalArgumentException(
+            "Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
