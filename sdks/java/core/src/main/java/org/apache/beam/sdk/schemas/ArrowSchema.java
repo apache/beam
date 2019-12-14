@@ -32,6 +32,7 @@ import org.apache.arrow.vector.util.Text;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -343,7 +344,7 @@ public class ArrowSchema {
                   @Override
                   public FieldType visit(ArrowType.FixedSizeBinary type) {
                     return FieldType.logicalType(
-                        org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes.of(
+                        FixedBytes.of(
                             type.getByteWidth()));
                   }
 
