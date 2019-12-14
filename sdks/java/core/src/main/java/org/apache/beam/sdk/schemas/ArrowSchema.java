@@ -137,12 +137,6 @@ public class ArrowSchema {
       }
 
       @Override
-      public Function<Object, Object> visit(ArrowType.Map type) {
-        // TODO: test this
-        return null;
-      }
-
-      @Override
       public Function<Object, Object> visit(ArrowType.Int type) {
         return null;
       }
@@ -200,12 +194,8 @@ public class ArrowSchema {
 
       @Override
       public Function<Object, Object> visit(ArrowType.Interval type) {
-        return null;
-      }
-
-      @Override
-      public Function<Object, Object> visit(ArrowType.Duration type) {
-        return null;
+        throw new IllegalArgumentException(
+            "Type \'" + type.toString() + "\' not supported.");
       }
     }
 
@@ -293,6 +283,7 @@ public class ArrowSchema {
                         "Type \'" + type.toString() + "\' not supported.");
                   }
 
+                  /* Not supported in Arrow 0.10. Uncomment after upgrade
                   @Override
                   public FieldType visit(ArrowType.Map type) {
                     checkArgument(
@@ -304,6 +295,7 @@ public class ArrowSchema {
                         toBeamField(children_fields.get(0)).getType(),
                         toBeamField(children_fields.get(1)).getType());
                   }
+                  */
 
                   @Override
                   public FieldType visit(ArrowType.Int type) {
@@ -393,12 +385,6 @@ public class ArrowSchema {
 
                   @Override
                   public FieldType visit(ArrowType.Interval type) {
-                    throw new IllegalArgumentException(
-                        "Type \'" + type.toString() + "\' not supported.");
-                  }
-
-                  @Override
-                  public FieldType visit(ArrowType.Duration type) {
                     throw new IllegalArgumentException(
                         "Type \'" + type.toString() + "\' not supported.");
                   }
