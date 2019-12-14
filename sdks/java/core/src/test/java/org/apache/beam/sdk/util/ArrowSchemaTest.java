@@ -24,13 +24,16 @@ import static org.hamcrest.Matchers.equalTo;
 import java.util.ArrayList;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedSizeBinaryVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.TimeStampMicroTZVector;
 import org.apache.arrow.vector.TimeStampMilliTZVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -88,8 +91,11 @@ public class ArrowSchemaTest {
                 field("float64", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
                 field("string", new ArrowType.Utf8()),
                 field("timestampMicroUTC", new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC")),
-                field("timestampMilliUTC", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")))
-            );
+                field("timestampMilliUTC", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")),
+                field("int32_list", new ArrowType.List(), field("int32s", new ArrowType.Int(32, true))),
+                field("boolean", new ArrowType.Bool()),
+                field("fixed_size_binary", new ArrowType.FixedSizeBinary(3))
+            ));
 
     Schema beamSchema = ArrowSchema.toBeamSchema(schema);
 
@@ -103,24 +109,34 @@ public class ArrowSchemaTest {
     VarCharVector strVector = (VarCharVector) expectedSchemaRoot.getFieldVectors().get(2);
     TimeStampMicroTZVector timestampMicroUtcVector = (TimeStampMicroTZVector) expectedSchemaRoot.getFieldVectors().get(3);
     TimeStampMilliTZVector timeStampMilliTZVector = (TimeStampMilliTZVector) expectedSchemaRoot.getFieldVectors().get(4);
+    ListVector int32ListVector = (ListVector) expectedSchemaRoot.getFieldVectors().get(5);
+    IntVector int32ListElementVector = int32ListVector.<IntVector>addOrGetVector(new org.apache.arrow.vector.types.pojo.FieldType(false, new ArrowType.Int(32, true), null)).getVector();
+    BitVector boolVector = (BitVector) expectedSchemaRoot.getFieldVectors().get(6);
+    FixedSizeBinaryVector fixedSizeBinaryVector = (FixedSizeBinaryVector) expectedSchemaRoot.getFieldVectors().get(7);
 
     ArrayList<Row> expectedRows = new ArrayList<>();
     for (int i = 0; i < 16; i++) {
       DateTime dt = new DateTime(2019, 1, i + 1, i, i, i, DateTimeZone.UTC);
-      expectedRows.add(Row.withSchema(beamSchema).addValues(i, i + .1 * i, "" + i, dt, dt).build());
+      expectedRows.add(Row.withSchema(beamSchema).addValues(i, i + .1 * i, "" + i, dt, dt, ImmutableList.of(i), (i % 2) != 0, new byte[]{(byte)i, (byte)(i+1), (byte)(i+2)}).build());
+
       intVector.set(i, i);
       floatVector.set(i, i + .1 * i);
       strVector.set(i, new Text("" + i));
       timestampMicroUtcVector.set(i, dt.getMillis()*1000);
       timeStampMilliTZVector.set(i, dt.getMillis());
+      int32ListVector.startNewValue(i);
+      int32ListElementVector.set(i, i);
+      int32ListVector.endValue(i, 1);
+      boolVector.set(i, i % 2);
+      fixedSizeBinaryVector.set(i, new byte[]{(byte)i, (byte)(i+1), (byte)(i+2)});
     }
 
     Iterable<Row> rowIterator = ArrowSchema.rowsFromRecordBatch(beamSchema, expectedSchemaRoot);
-    for (Row row : rowIterator) {
-      System.out.println(row);
+
+    for (Row r : rowIterator) {
+      System.out.println(r);
     }
 
-    // TODO: assert that we can access Row values with the expected types
     assertThat(
         ArrowSchema.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
         IsIterableContainingInOrder.contains(
