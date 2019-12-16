@@ -16,9 +16,7 @@ from __future__ import absolute_import
 
 import setuptools
 
-# LINT.IfChange
 TF_VERSION = '1.14.0'
-# LINT.ThenChange(train_mlengine.sh, start_model_server_mlengine.sh)
 
 if __name__ == '__main__':
   setuptools.setup(
