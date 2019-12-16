@@ -23,6 +23,7 @@ import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 
 /** Accumulator of {@link MetricsContainerStepMap}. */
 public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerStepMap> {
+
   private MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
 
   @Override
