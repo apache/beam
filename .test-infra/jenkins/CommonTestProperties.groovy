@@ -39,7 +39,8 @@ class CommonTestProperties {
                         SPARK: ":runners:spark",
                         SPARK_STRUCTURED_STREAMING: ":runners:spark",
                         FLINK: ":runners:flink:1.10",
-                        DIRECT: ":runners:direct-java"
+                        DIRECT: ":runners:direct-java",
+                        PORTABLE: ":runners:portability:java"
                 ],
                 PYTHON: [
                         DATAFLOW: "TestDataflowRunner",
