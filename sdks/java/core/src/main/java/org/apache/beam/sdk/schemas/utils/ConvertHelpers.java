@@ -27,8 +27,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
@@ -126,7 +125,9 @@ public class ConvertHelpers {
    */
   @SuppressWarnings("unchecked")
   public static <OutputT> SerializableFunction<?, OutputT> getConvertPrimitive(
-      FieldType fieldType, TypeDescriptor<?> outputTypeDescriptor) {
+      FieldType fieldType,
+      TypeDescriptor<?> outputTypeDescriptor,
+      TypeConversionsFactory typeConversionsFactory) {
     FieldType expectedFieldType =
         StaticSchemaInference.fieldFromType(outputTypeDescriptor, JavaFieldTypeSupplier.INSTANCE);
     if (!expectedFieldType.equals(fieldType)) {
@@ -137,7 +138,8 @@ public class ConvertHelpers {
               + fieldType);
     }
 
-    Type expectedInputType = new ConvertType(true).convert(outputTypeDescriptor);
+    Type expectedInputType =
+        typeConversionsFactory.createTypeConversion(true).convert(outputTypeDescriptor);
 
     TypeDescriptor<?> outputType = outputTypeDescriptor;
     if (outputType.getRawType().isPrimitive()) {
@@ -156,7 +158,7 @@ public class ConvertHelpers {
     try {
       return builder
           .method(ElementMatchers.named("apply"))
-          .intercept(new ConvertPrimitiveInstruction(outputType))
+          .intercept(new ConvertPrimitiveInstruction(outputType, typeConversionsFactory))
           .make()
           .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
@@ -172,9 +174,12 @@ public class ConvertHelpers {
 
   static class ConvertPrimitiveInstruction implements Implementation {
     private final TypeDescriptor<?> outputFieldType;
+    private final TypeConversionsFactory typeConversionsFactory;
 
-    public ConvertPrimitiveInstruction(TypeDescriptor<?> outputFieldType) {
+    public ConvertPrimitiveInstruction(
+        TypeDescriptor<?> outputFieldType, TypeConversionsFactory typeConversionsFactory) {
       this.outputFieldType = outputFieldType;
+      this.typeConversionsFactory = typeConversionsFactory;
     }
 
     @Override
@@ -191,7 +196,7 @@ public class ConvertHelpers {
         StackManipulation readValue = MethodVariableAccess.REFERENCE.loadFrom(1);
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
-                new ConvertValueForSetter(readValue).convert(outputFieldType),
+                typeConversionsFactory.createSetterConversions(readValue).convert(outputFieldType),
                 MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);

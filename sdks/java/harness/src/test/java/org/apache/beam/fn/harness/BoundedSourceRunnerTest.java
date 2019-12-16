@@ -38,6 +38,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -141,6 +142,7 @@ public class BoundedSourceRunnerTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
@@ -170,6 +172,7 @@ public class BoundedSourceRunnerTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     // This is testing a deprecated way of running sources and should be removed
@@ -188,6 +191,7 @@ public class BoundedSourceRunnerTest {
     assertThat(outputValues, contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L)));
 
     assertThat(finishFunctionRegistry.getFunctions(), Matchers.empty());
+    assertThat(teardownFunctions, Matchers.empty());
   }
 
   @Test

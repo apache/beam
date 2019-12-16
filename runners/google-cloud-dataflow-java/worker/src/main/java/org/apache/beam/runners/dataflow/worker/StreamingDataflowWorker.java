@@ -1148,6 +1148,15 @@ public class StreamingDataflowWorker {
     }
   }
 
+  private Windmill.WorkItemCommitRequest.Builder initializeOutputBuilder(
+      final ByteString key, final Windmill.WorkItem workItem) {
+    return Windmill.WorkItemCommitRequest.newBuilder()
+        .setKey(key)
+        .setShardingKey(workItem.getShardingKey())
+        .setWorkToken(workItem.getWorkToken())
+        .setCacheToken(workItem.getCacheToken());
+  }
+
   private void process(
       final SdkWorkerHarness worker,
       final ComputationState computationState,
@@ -1164,12 +1173,7 @@ public class StreamingDataflowWorker {
     DataflowWorkerLoggingMDC.setStageName(computationId);
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder()
-            .setKey(key)
-            .setShardingKey(workItem.getShardingKey())
-            .setWorkToken(workItem.getWorkToken())
-            .setCacheToken(workItem.getCacheToken());
+    Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
 
     // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
     // cleanup should be done before this, since we might exit early here.
@@ -1334,20 +1338,22 @@ public class StreamingDataflowWorker {
       WorkItemCommitRequest commitRequest = outputBuilder.build();
       int byteLimit = maxWorkItemCommitBytes;
       int commitSize = commitRequest.getSerializedSize();
+      int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
+
       // Detect overflow of integer serialized size or if the byte limit was exceeded.
-      windmillMaxObservedWorkItemCommitBytes.addValue(
-          commitSize < 0 ? Integer.MAX_VALUE : commitSize);
-      if (commitSize < 0) {
-        throw KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
-      } else if (commitSize > byteLimit) {
-        // Once supported, we should communicate the desired truncation for the commit to the
-        // streaming engine. For now we report the error but attempt the commit so that it will be
-        // truncated by the streaming engine backend.
+      windmillMaxObservedWorkItemCommitBytes.addValue(estimatedCommitSize);
+      if (estimatedCommitSize > byteLimit) {
         KeyCommitTooLargeException e =
             KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
         reportFailure(computationId, workItem, e);
         LOG.error(e.toString());
+
+        // Drop the current request in favor of a new, minimal one requesting truncation.
+        // Messages, timers, counters, and other commit content will not be used by the service
+        // so we're purposefully dropping them here
+        commitRequest = buildWorkItemTruncationRequest(key, workItem, estimatedCommitSize);
       }
+
       commitQueue.put(new Commit(commitRequest, computationState, work));
 
       // Compute shuffle and state byte statistics these will be flushed asynchronously.
@@ -1440,6 +1446,14 @@ public class StreamingDataflowWorker {
       DataflowWorkerLoggingMDC.setWorkId(null);
       DataflowWorkerLoggingMDC.setStageName(null);
     }
+  }
+
+  private WorkItemCommitRequest buildWorkItemTruncationRequest(
+      final ByteString key, final Windmill.WorkItem workItem, final int estimatedCommitSize) {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
+    outputBuilder.setExceedsMaxWorkItemCommitBytes(true);
+    outputBuilder.setEstimatedWorkItemCommitBytes(estimatedCommitSize);
+    return outputBuilder.build();
   }
 
   private void commitLoop() {

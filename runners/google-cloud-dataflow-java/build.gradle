@@ -216,7 +216,8 @@ task buildAndPushDockerContainer() {
   finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(
           name: "java_sdk",
-          root: "apachebeam")
+          root: "apachebeam",
+          tag: project.version)
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"

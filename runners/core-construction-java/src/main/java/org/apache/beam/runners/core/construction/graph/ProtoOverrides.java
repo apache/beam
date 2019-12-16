@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ComponentsOrBuilder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
@@ -32,10 +33,9 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 /**
  * A way to apply a Proto-based {@link PTransformOverride}.
  *
- * <p>This should generally be used to replace runner-executed transforms with runner-executed
- * composites and simpler runner-executed primitives. It is generically less powerful than the
- * native {@link org.apache.beam.sdk.Pipeline#replaceAll(List)} and more error-prone, so should only
- * be used for relatively simple replacements.
+ * <p>This should generally be used by runners to replace transforms within graphs. SDK construction
+ * code should rely on the more powerful and native {@link
+ * org.apache.beam.sdk.Pipeline#replaceAll(List)}.
  */
 @Experimental
 public class ProtoOverrides {
@@ -51,6 +51,10 @@ public class ProtoOverrides {
       if (pt.getValue().getSpec() != null && urn.equals(pt.getValue().getSpec().getUrn())) {
         MessageWithComponents updated =
             compositeBuilder.getReplacement(pt.getKey(), originalPipeline.getComponents());
+        if (updated == null) {
+          continue;
+        }
+
         checkArgument(
             updated.getPtransform().getOutputsMap().equals(pt.getValue().getOutputsMap()),
             "A %s must produce all of the outputs of the original %s",
@@ -66,8 +70,8 @@ public class ProtoOverrides {
   }
 
   /**
-   * Remove all subtransforms of the provided transform recursively.A {@link PTransform} can be the
-   * subtransform of only one enclosing transform.
+   * Remove all sub-transforms of the provided transform recursively. A {@link PTransform} can be
+   * the sub-transform of only one enclosing transform.
    */
   private static void removeSubtransforms(PTransform pt, Components.Builder target) {
     for (String subtransformId : pt.getSubtransformsList()) {
@@ -87,14 +91,16 @@ public class ProtoOverrides {
     /**
      * Returns the updated composite structure for the provided {@link PTransform}.
      *
-     * <p>The returned {@link MessageWithComponents} must contain a single {@link PTransform}. The
-     * result {@link Components} will be merged into the existing components, and the result {@link
-     * PTransform} will be set as a replacement of the original {@link PTransform}. Notably, this
-     * does not require that the {@code existingComponents} are present in the returned {@link
+     * <p>If the return is null, then no replacement is performed, otherwise the returned {@link
+     * MessageWithComponents} must contain a single {@link PTransform}. The result {@link
+     * Components} will be merged into the existing components, and the result {@link PTransform}
+     * will be set as a replacement of the original {@link PTransform}. Notably, this does not
+     * require that the {@code existingComponents} are present in the returned {@link
      * MessageWithComponents}.
      *
      * <p>Introduced components must not collide with any components in the existing components.
      */
+    @Nullable
     MessageWithComponents getReplacement(
         String transformId, ComponentsOrBuilder existingComponents);
   }

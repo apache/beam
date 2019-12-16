@@ -221,6 +221,7 @@ class SchemaUtil {
     Schema.TypeName typeName = fieldType.getTypeName();
     switch (typeName) {
       case ARRAY:
+      case ITERABLE:
         Schema.FieldType elementType = fieldType.getCollectionElementType();
         ResultSetFieldExtractor elementExtractor = createFieldExtractor(elementType);
         return createArrayExtractor(elementExtractor);

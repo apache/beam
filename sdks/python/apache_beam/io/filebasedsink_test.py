@@ -43,6 +43,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
+_LOGGER = logging.getLogger(__name__)
+
 
 # TODO: Refactor code so all io tests are using same library
 # TestCaseWithTempDirCleanup class.
@@ -247,7 +249,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
           'gs://aaa/bbb', 'gs://aaa/bbb/', 'gs://aaa', 'gs://aaa/', 'gs://',
           '/')
     except ValueError:
-      logging.debug('Ignoring test since GCP module is not installed')
+      _LOGGER.debug('Ignoring test since GCP module is not installed')
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_temp_dir_local(self, filesystem_os_mock):

@@ -43,6 +43,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
@@ -50,12 +51,17 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.file.FileReader;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -260,6 +266,12 @@ public class FakeJobService implements JobService, Serializable {
     throw new UnsupportedOperationException();
   }
 
+  public Collection<Job> getAllJobs() {
+    synchronized (allJobs) {
+      return allJobs.values().stream().map(j -> j.job).collect(Collectors.toList());
+    }
+  }
+
   @Override
   public Job getJob(JobReference jobRef) {
     try {
@@ -351,7 +363,7 @@ public class FakeJobService implements JobService, Serializable {
     List<ResourceId> sourceFiles = filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
     WriteDisposition writeDisposition = WriteDisposition.valueOf(load.getWriteDisposition());
     CreateDisposition createDisposition = CreateDisposition.valueOf(load.getCreateDisposition());
-    checkArgument("NEWLINE_DELIMITED_JSON".equals(load.getSourceFormat()));
+
     Table existingTable = datasetService.getTable(destination);
     if (!validateDispositions(existingTable, createDisposition, writeDisposition)) {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
@@ -373,8 +385,13 @@ public class FakeJobService implements JobService, Serializable {
 
     List<TableRow> rows = Lists.newArrayList();
     for (ResourceId filename : sourceFiles) {
-      rows.addAll(readRows(filename.toString()));
+      if (load.getSourceFormat().equals("NEWLINE_DELIMITED_JSON")) {
+        rows.addAll(readJsonTableRows(filename.toString()));
+      } else if (load.getSourceFormat().equals("AVRO")) {
+        rows.addAll(readAvroTableRows(filename.toString(), schema));
+      }
     }
+
     datasetService.insertAll(destination, rows, null);
     FileSystems.delete(sourceFiles);
     return new JobStatus().setState("DONE");
@@ -453,7 +470,7 @@ public class FakeJobService implements JobService, Serializable {
     return new JobStatus().setState("DONE");
   }
 
-  private List<TableRow> readRows(String filename) throws IOException {
+  private List<TableRow> readJsonTableRows(String filename) throws IOException {
     Coder<TableRow> coder = TableRowJsonCoder.of();
     List<TableRow> tableRows = Lists.newArrayList();
     try (BufferedReader reader =
@@ -465,6 +482,19 @@ public class FakeJobService implements JobService, Serializable {
                 new ByteArrayInputStream(line.getBytes(StandardCharsets.UTF_8)), Context.OUTER);
         tableRows.add(tableRow);
       }
+    }
+    return tableRows;
+  }
+
+  private List<TableRow> readAvroTableRows(String filename, TableSchema tableSchema)
+      throws IOException {
+    List<TableRow> tableRows = Lists.newArrayList();
+    FileReader<GenericRecord> dfr =
+        DataFileReader.openReader(new File(filename), new GenericDatumReader<>());
+
+    while (dfr.hasNext()) {
+      GenericRecord record = dfr.next(null);
+      tableRows.add(BigQueryUtils.convertGenericRecordToTableRow(record, tableSchema));
     }
     return tableRows;
   }

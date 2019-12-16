@@ -101,6 +101,37 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   void setZone(String value);
 
   /**
+   * The Compute Engine region (https://cloud.google.com/compute/docs/regions-zones/regions-zones)
+   * in which worker processing should occur, e.g. "us-west1". Mutually exclusive with {@link
+   * #getWorkerZone()}. If neither workerRegion nor workerZone is specified, default to same value
+   * as region.
+   */
+  @Description(
+      "The Compute Engine region "
+          + "(https://cloud.google.com/compute/docs/regions-zones/regions-zones) in which worker "
+          + "processing should occur, e.g. \"us-west1\". Mutually exclusive with workerZone. If "
+          + "neither workerRegion nor workerZone is specified, default to same value as region.")
+  String getWorkerRegion();
+
+  void setWorkerRegion(String workerRegion);
+
+  /**
+   * The Compute Engine zone (https://cloud.google.com/compute/docs/regions-zones/regions-zones) in
+   * which worker processing should occur, e.g. "us-west1-a". Mutually exclusive with {@link
+   * #getWorkerRegion()}. If neither workerRegion nor workerZone is specified, the Dataflow service
+   * will choose a zone in region based on available capacity.
+   */
+  @Description(
+      "The Compute Engine zone "
+          + "(https://cloud.google.com/compute/docs/regions-zones/regions-zones) in which worker "
+          + "processing should occur, e.g. \"us-west1-a\". Mutually exclusive with workerRegion. "
+          + "If neither workerRegion nor workerZone is specified, the Dataflow service will choose "
+          + "a zone in region based on available capacity.")
+  String getWorkerZone();
+
+  void setWorkerZone(String workerZone);
+
+  /**
    * The class of the credential factory that should be created and used to create credentials. If
    * gcpCredential has not been set explicitly, an instance of this class will be constructed and
    * used as a credential factory.

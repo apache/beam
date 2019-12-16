@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.mongodb;
 
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
-import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -55,7 +54,6 @@ class SSLUtils {
       // Install the all-trusting trust manager
       SSLContext sc = SSLContext.getInstance("TLS");
       sc.init(null, trustAllCerts, new java.security.SecureRandom());
-      HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
 
       KeyStore ks = KeyStore.getInstance("JKS");
       ks.load(

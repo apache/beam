@@ -61,6 +61,12 @@ public class TextTableProviderTest {
   private static final Schema LINES_SCHEMA = Schema.builder().addStringField("f_string").build();
   private static final String SQL_LINES_SCHEMA = "(f_string VARCHAR)";
 
+  private static final Schema JSON_SCHEMA =
+      Schema.builder().addStringField("name").addInt32Field("age").build();
+  private static final String SQL_JSON_SCHEMA = "(name VARCHAR, age INTEGER)";
+  private static final String JSON_TEXT = "{\"name\":\"Jack\",\"age\":13}";
+  private static final String INVALID_JSON_TEXT = "{\"name\":\"Jack\",\"age\":\"thirteen\"}";
+
   // Even though these have the same schema as LINES_SCHEMA, that is accidental; they exist for a
   // different purpose, to test Excel CSV format that does not ignore empty lines
   private static final Schema SINGLE_STRING_CSV_SCHEMA =
@@ -210,6 +216,49 @@ public class TextTableProviderTest {
   }
 
   @Test
+  public void testJson() throws Exception {
+    Files.write(tempFolder.newFile("test.json").toPath(), JSON_TEXT.getBytes(Charsets.UTF_8));
+
+    BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"json\"}'",
+            SQL_JSON_SCHEMA, tempFolder.getRoot()));
+
+    PCollection<Row> rows =
+        BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM test"));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(Row.withSchema(JSON_SCHEMA).addValues("Jack", 13).build());
+    pipeline.run();
+  }
+
+  @Test
+  public void testInvalidJson() throws Exception {
+    File deadLetterFile = new File(tempFolder.getRoot(), "dead-letter-file");
+    Files.write(
+        tempFolder.newFile("test.json").toPath(), INVALID_JSON_TEXT.getBytes(Charsets.UTF_8));
+
+    BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' "
+                + "TBLPROPERTIES '{\"format\":\"json\", \"deadLetterFile\": \"%s\"}'",
+            SQL_JSON_SCHEMA, tempFolder.getRoot(), deadLetterFile.getAbsoluteFile()));
+
+    PCollection<Row> rows =
+        BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM test"));
+
+    PAssert.that(rows).empty();
+
+    pipeline.run();
+    assertThat(
+        new NumberedShardedFile(deadLetterFile.getAbsoluteFile() + "*")
+            .readFilesWithRetries(Sleeper.DEFAULT, BackOff.STOP_BACKOFF),
+        containsInAnyOrder(INVALID_JSON_TEXT));
+  }
+
+  @Test
   public void testWriteLines() throws Exception {
     File destinationFile = new File(tempFolder.getRoot(), "lines-outputs");
     BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
@@ -247,5 +296,24 @@ public class TextTableProviderTest {
         new NumberedShardedFile(destinationFile.getAbsolutePath() + "*")
             .readFilesWithRetries(Sleeper.DEFAULT, BackOff.STOP_BACKOFF),
         containsInAnyOrder("hello,42", "goodbye,13"));
+  }
+
+  @Test
+  public void testWriteJson() throws Exception {
+    File destinationFile = new File(tempFolder.getRoot(), "json-outputs");
+    BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"json\"}'",
+            SQL_JSON_SCHEMA, destinationFile.getAbsolutePath()));
+
+    BeamSqlRelUtils.toPCollection(
+        pipeline, env.parseQuery("INSERT INTO test(name, age) VALUES ('Jack', 13)"));
+    pipeline.run();
+
+    assertThat(
+        new NumberedShardedFile(destinationFile.getAbsolutePath() + "*")
+            .readFilesWithRetries(Sleeper.DEFAULT, BackOff.STOP_BACKOFF),
+        containsInAnyOrder(JSON_TEXT));
   }
 }

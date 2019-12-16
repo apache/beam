@@ -324,6 +324,12 @@ public class AddFields {
           fieldType = Schema.FieldType.array(addFieldsInformation.getOutputFieldType());
           break;
 
+        case ITERABLE:
+          addFieldsInformation =
+              getAddFieldsInformation(inputFieldType.getCollectionElementType(), nestedFields);
+          fieldType = Schema.FieldType.iterable(addFieldsInformation.getOutputFieldType());
+          break;
+
         case MAP:
           addFieldsInformation =
               getAddFieldsInformation(inputFieldType.getMapValueType(), nestedFields);
@@ -379,15 +385,16 @@ public class AddFields {
           return fillNewFields((Row) original, addFieldsInformation);
 
         case ARRAY:
+        case ITERABLE:
           if (original == null) {
             return Collections.emptyList();
           }
-          List<Object> list = (List<Object>) original;
-          List<Object> filledList = new ArrayList<>(list.size());
+          Iterable<Object> iterable = (Iterable<Object>) original;
+          List<Object> filledList = new ArrayList<>(Iterables.size(iterable));
           Schema.FieldType elementType = fieldType.getCollectionElementType();
           AddFieldsInformation elementAddFieldInformation =
               addFieldsInformation.toBuilder().setOutputFieldType(elementType).build();
-          for (Object element : list) {
+          for (Object element : iterable) {
             filledList.add(fillNewFields(element, elementType, elementAddFieldInformation));
           }
           return filledList;

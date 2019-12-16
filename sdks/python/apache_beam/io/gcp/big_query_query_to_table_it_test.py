@@ -45,6 +45,9 @@ try:
 except ImportError:
   pass
 
+
+_LOGGER = logging.getLogger(__name__)
+
 WAIT_UNTIL_FINISH_DURATION_MS = 15 * 60 * 1000
 
 BIG_QUERY_DATASET_ID = 'python_query_to_table_'
@@ -90,7 +93,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     try:
       self.bigquery_client.client.datasets.Delete(request)
     except HttpError:
-      logging.debug('Failed to clean up dataset %s' % self.dataset_id)
+      _LOGGER.debug('Failed to clean up dataset %s' % self.dataset_id)
 
   def _setup_new_types_env(self):
     table_schema = bigquery.TableSchema()

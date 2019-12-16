@@ -32,5 +32,5 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile "com.github.kstyrc:embedded-redis:0.6"
   testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

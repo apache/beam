@@ -69,7 +69,7 @@ class XlangParquetIOTest(unittest.TestCase):
         raise e
 
 
-class AvroTestCoder(coders.AvroCoder):
+class AvroTestCoder(coders.AvroGenericCoder):
   SCHEMA = """
   {
     "type": "record", "name": "testrecord",

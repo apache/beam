@@ -19,15 +19,13 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext.MultiInstanceFactory;
+import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableStageContextFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-/** Singleton class that contains one {@link MultiInstanceFactory} per job. */
+/** Singleton class that contains one {@link ExecutableStageContext.Factory} per job. */
 public class FlinkExecutableStageContextFactory implements ExecutableStageContext.Factory {
 
   private static final FlinkExecutableStageContextFactory instance =
@@ -36,7 +34,7 @@ public class FlinkExecutableStageContextFactory implements ExecutableStageContex
   // classloader and therefore its own instance of FlinkExecutableStageContextFactory. This
   // code supports multiple JobInfos in order to provide a sensible implementation of
   // Factory.get(JobInfo), which in theory could be called with different JobInfos.
-  private static final ConcurrentMap<String, MultiInstanceFactory> jobFactories =
+  private static final ConcurrentMap<String, ExecutableStageContext.Factory> jobFactories =
       new ConcurrentHashMap<>();
 
   private FlinkExecutableStageContextFactory() {}
@@ -47,17 +45,12 @@ public class FlinkExecutableStageContextFactory implements ExecutableStageContex
 
   @Override
   public ExecutableStageContext get(JobInfo jobInfo) {
-    MultiInstanceFactory jobFactory =
+    ExecutableStageContext.Factory jobFactory =
         jobFactories.computeIfAbsent(
             jobInfo.jobId(),
             k -> {
-              PortablePipelineOptions portableOptions =
-                  PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
-                      .as(PortablePipelineOptions.class);
-
-              return new MultiInstanceFactory(
-                  MoreObjects.firstNonNull(portableOptions.getSdkWorkerParallelism(), 1L)
-                      .intValue(),
+              return ReferenceCountingExecutableStageContextFactory.create(
+                  DefaultExecutableStageContext::create,
                   // Clean up context immediately if its class is not loaded on Flink parent
                   // classloader.
                   (caller) ->

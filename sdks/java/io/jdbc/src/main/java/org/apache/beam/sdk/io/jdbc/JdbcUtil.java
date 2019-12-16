@@ -109,6 +109,7 @@ public class JdbcUtil {
       Schema.FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         return (element, ps, i, fieldWithIndex) -> {
           ps.setArray(
               i + 1,
@@ -185,9 +186,9 @@ public class JdbcUtil {
   private static void validateLogicalTypeLength(Schema.Field field, Integer length) {
     try {
       if (field.getType().getTypeName().isLogicalType()
-          && !field.getType().getLogicalType().getArgument().isEmpty()) {
-        int maxLimit = Integer.parseInt(field.getType().getLogicalType().getArgument());
-        if (field.getType().getTypeName().isLogicalType() && length >= maxLimit) {
+          && field.getType().getLogicalType().getArgument() != null) {
+        int maxLimit = (Integer) field.getType().getLogicalType().getArgument();
+        if (length >= maxLimit) {
           throw new RuntimeException(
               String.format(
                   "Length of Schema.Field[%s] data exceeds database column capacity",

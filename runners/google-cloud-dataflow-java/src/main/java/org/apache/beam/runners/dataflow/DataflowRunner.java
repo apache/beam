@@ -90,6 +90,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
@@ -158,6 +159,7 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -245,13 +247,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           "Missing required values: " + Joiner.on(',').join(missing));
     }
 
-    if (dataflowOptions.getRegion() == null) {
-      dataflowOptions.setRegion("us-central1");
-      LOG.warn(
-          "--region not set; will default to us-central1. Future releases of Beam will "
-              + "require the user to set the region explicitly. "
-              + "https://cloud.google.com/compute/docs/regions-zones/regions-zones");
-    }
+    validateWorkerSettings(PipelineOptionsValidator.validate(GcpOptions.class, options));
 
     PathValidator validator = dataflowOptions.getPathValidator();
     String gcpTempLocation;
@@ -355,6 +351,36 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     dataflowOptions.setUserAgent(userAgent);
 
     return new DataflowRunner(dataflowOptions);
+  }
+
+  @VisibleForTesting
+  static void validateWorkerSettings(GcpOptions gcpOptions) {
+    Preconditions.checkArgument(
+        gcpOptions.getZone() == null || gcpOptions.getWorkerRegion() == null,
+        "Cannot use option zone with workerRegion. Prefer either workerZone or workerRegion.");
+    Preconditions.checkArgument(
+        gcpOptions.getZone() == null || gcpOptions.getWorkerZone() == null,
+        "Cannot use option zone with workerZone. Prefer workerZone.");
+    Preconditions.checkArgument(
+        gcpOptions.getWorkerRegion() == null || gcpOptions.getWorkerZone() == null,
+        "workerRegion and workerZone options are mutually exclusive.");
+
+    DataflowPipelineOptions dataflowOptions = gcpOptions.as(DataflowPipelineOptions.class);
+    boolean hasExperimentWorkerRegion = false;
+    if (dataflowOptions.getExperiments() != null) {
+      for (String experiment : dataflowOptions.getExperiments()) {
+        if (experiment.startsWith("worker_region")) {
+          hasExperimentWorkerRegion = true;
+          break;
+        }
+      }
+    }
+    Preconditions.checkArgument(
+        !hasExperimentWorkerRegion || gcpOptions.getWorkerRegion() == null,
+        "Experiment worker_region and option workerRegion are mutually exclusive.");
+    Preconditions.checkArgument(
+        !hasExperimentWorkerRegion || gcpOptions.getWorkerZone() == null,
+        "Experiment worker_region and option workerZone are mutually exclusive.");
   }
 
   @VisibleForTesting
@@ -817,6 +843,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               dataflowOptions.getPathValidator().verifyPath(options.getGcpTempLocation()));
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
+
+    if (options.getWorkerRegion() != null) {
+      newJob.getEnvironment().setWorkerRegion(options.getWorkerRegion());
+    }
+    if (options.getWorkerZone() != null) {
+      newJob.getEnvironment().setWorkerZone(options.getWorkerZone());
+    }
 
     if (options.getFlexRSGoal()
         == DataflowPipelineOptions.FlexResourceSchedulingGoal.COST_OPTIMIZED) {
@@ -1427,7 +1460,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class ImpulseTranslator implements TransformTranslator<Impulse> {
     @Override
     public void translate(Impulse transform, TranslationContext context) {
-      if (context.getPipelineOptions().isStreaming() && !context.isFnApi()) {
+      if (context.getPipelineOptions().isStreaming()
+          && (!context.isFnApi() || !context.isStreamingEngine())) {
         StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
         stepContext.addInput(PropertyNames.FORMAT, "pubsub");
         stepContext.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, "_starting_signal/");

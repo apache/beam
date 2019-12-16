@@ -326,7 +326,7 @@ class TestPubSubReadEvaluator(object):
 
 
 transform_evaluator.TransformEvaluatorRegistry._test_evaluators_overrides = {
-    _DirectReadFromPubSub: TestPubSubReadEvaluator,
+    _DirectReadFromPubSub: TestPubSubReadEvaluator,  # type: ignore[dict-item]
 }
 
 

@@ -68,6 +68,11 @@ public class AfterEach extends Trigger {
   }
 
   @Override
+  public boolean mayFinish() {
+    return subTriggers.stream().allMatch(trigger -> trigger.mayFinish());
+  }
+
+  @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return Repeatedly.forever(new AfterFirst(continuationTriggers));
   }

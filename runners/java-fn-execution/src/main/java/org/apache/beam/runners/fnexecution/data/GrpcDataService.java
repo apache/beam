@@ -35,6 +35,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
@@ -53,8 +54,10 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDataService.class);
 
   public static GrpcDataService create(
-      ExecutorService executor, OutboundObserverFactory outboundObserverFactory) {
-    return new GrpcDataService(executor, outboundObserverFactory);
+      PipelineOptions options,
+      ExecutorService executor,
+      OutboundObserverFactory outboundObserverFactory) {
+    return new GrpcDataService(options, executor, outboundObserverFactory);
   }
 
   private final SettableFuture<BeamFnDataGrpcMultiplexer> connectedClient;
@@ -67,13 +70,17 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
    */
   private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
 
+  private final PipelineOptions options;
   private final ExecutorService executor;
   private final OutboundObserverFactory outboundObserverFactory;
 
   private GrpcDataService(
-      ExecutorService executor, OutboundObserverFactory outboundObserverFactory) {
+      PipelineOptions options,
+      ExecutorService executor,
+      OutboundObserverFactory outboundObserverFactory) {
     this.connectedClient = SettableFuture.create();
     this.additionalMultiplexers = new LinkedBlockingQueue<>();
+    this.options = options;
     this.executor = executor;
     this.outboundObserverFactory = outboundObserverFactory;
   }
@@ -83,6 +90,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   public GrpcDataService() {
     this.connectedClient = null;
     this.additionalMultiplexers = null;
+    this.options = null;
     this.executor = null;
     this.outboundObserverFactory = null;
   }
@@ -168,7 +176,10 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         outputLocation.getTransformId());
     try {
       return BeamFnDataBufferingOutboundObserver.forLocation(
-          outputLocation, coder, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
+          options,
+          outputLocation,
+          coder,
+          connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);

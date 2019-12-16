@@ -42,7 +42,7 @@ try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
   HttpError = None
-  GCSFileSystem = None
+  GCSFileSystem = None  # type: ignore
 
 
 class PipelineVerifiersTest(unittest.TestCase):
@@ -66,12 +66,11 @@ class PipelineVerifiersTest(unittest.TestCase):
 
   def test_pipeline_state_matcher_fails(self):
     """Test PipelineStateMatcher fails when using default expected state
-    and job actually finished in CANCELLED/DRAINED/FAILED/STOPPED/UNKNOWN
+    and job actually finished in CANCELLED/DRAINED/FAILED/UNKNOWN
     """
     failed_state = [PipelineState.CANCELLED,
                     PipelineState.DRAINED,
                     PipelineState.FAILED,
-                    PipelineState.STOPPED,
                     PipelineState.UNKNOWN]
 
     for state in failed_state:

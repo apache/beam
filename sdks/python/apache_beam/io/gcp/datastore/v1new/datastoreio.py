@@ -51,6 +51,9 @@ from apache_beam.utils import retry
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 @typehints.with_output_types(types.Entity)
 class ReadFromDatastore(PTransform):
   """A ``PTransform`` for querying Google Cloud Datastore.
@@ -173,11 +176,11 @@ class ReadFromDatastore(PTransform):
         else:
           estimated_num_splits = self._num_splits
 
-        logging.info("Splitting the query into %d splits", estimated_num_splits)
+        _LOGGER.info("Splitting the query into %d splits", estimated_num_splits)
         query_splits = query_splitter.get_splits(
             client, query, estimated_num_splits)
       except query_splitter.QuerySplitterError:
-        logging.info("Unable to parallelize the given query: %s", query,
+        _LOGGER.info("Unable to parallelize the given query: %s", query,
                      exc_info=True)
         query_splits = [query]
 
@@ -219,7 +222,7 @@ class ReadFromDatastore(PTransform):
       latest_timestamp = (
           ReadFromDatastore._SplitQueryFn
           .query_latest_statistics_timestamp(client))
-      logging.info('Latest stats timestamp for kind %s is %s',
+      _LOGGER.info('Latest stats timestamp for kind %s is %s',
                    kind_name, latest_timestamp)
 
       if client.namespace is None:
@@ -243,12 +246,12 @@ class ReadFromDatastore(PTransform):
         estimated_size_bytes = (
             ReadFromDatastore._SplitQueryFn
             .get_estimated_size_bytes(client, query))
-        logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
+        _LOGGER.info('Estimated size bytes for query: %s', estimated_size_bytes)
         num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
             (float(estimated_size_bytes) /
              ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
       except Exception as e:
-        logging.warning('Failed to fetch estimated size bytes: %s', e)
+        _LOGGER.warning('Failed to fetch estimated size bytes: %s', e)
         # Fallback in case estimated size is unavailable.
         num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
 
@@ -360,7 +363,7 @@ class _Mutate(PTransform):
       """
       # Client-side throttling.
       while throttler.throttle_request(time.time() * 1000):
-        logging.info("Delaying request for %ds due to previous failures",
+        _LOGGER.info("Delaying request for %ds due to previous failures",
                      throttle_delay)
         time.sleep(throttle_delay)
         rpc_stats_callback(throttled_secs=throttle_delay)
@@ -412,7 +415,7 @@ class _Mutate(PTransform):
           self._throttler,
           rpc_stats_callback=self._update_rpc_stats,
           throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS // 1000)
-      logging.debug("Successfully wrote %d mutations in %dms.",
+      _LOGGER.debug("Successfully wrote %d mutations in %dms.",
                     len(self._batch.mutations), latency_ms)
 
       now = time.time() * 1000

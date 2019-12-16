@@ -24,6 +24,8 @@ import threading
 
 from apache_beam.metrics import monitoring_infos
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class Metrics(object):
   """Metrics container for state cache metrics."""
@@ -132,7 +134,7 @@ class StateCache(object):
   """
 
   def __init__(self, max_entries):
-    logging.info('Creating state cache with size %s', max_entries)
+    _LOGGER.info('Creating state cache with size %s', max_entries)
     self._cache = self.LRUCache(max_entries, (None, None))
     self._lock = threading.RLock()
     self._metrics = Metrics()

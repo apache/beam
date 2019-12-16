@@ -24,8 +24,10 @@ import shutil
 import sys
 import tempfile
 import unittest
+from typing import List
 
 import mock
+import pytest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
@@ -34,6 +36,8 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability import stager
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class StagerTest(unittest.TestCase):
@@ -66,7 +70,7 @@ class StagerTest(unittest.TestCase):
   def is_remote_path(self, path):
     return path.startswith('/tmp/remote/')
 
-  remote_copied_files = []
+  remote_copied_files = []  # type: List[str]
 
   def file_copy(self, from_path, to_path):
     if self.is_remote_path(from_path):
@@ -75,9 +79,9 @@ class StagerTest(unittest.TestCase):
       if os.path.isdir(to_path):
         to_path = os.path.join(to_path, from_name)
       self.create_temp_file(to_path, 'nothing')
-      logging.info('Fake copied remote file: %s to %s', from_path, to_path)
+      _LOGGER.info('Fake copied remote file: %s to %s', from_path, to_path)
     elif self.is_remote_path(to_path):
-      logging.info('Faking upload_file(%s, %s)', from_path, to_path)
+      _LOGGER.info('Faking upload_file(%s, %s)', from_path, to_path)
     else:
       shutil.copyfile(from_path, to_path)
 
@@ -160,6 +164,8 @@ class StagerTest(unittest.TestCase):
                      self.stager.stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
+  # xdist adds unpicklable modules to the main session.
+  @pytest.mark.no_xdist
   def test_with_main_session(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()
@@ -613,7 +619,7 @@ class StagerTest(unittest.TestCase):
 class TestStager(stager.Stager):
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
-    logging.info('File copy from %s to %s.', local_path_to_artifact,
+    _LOGGER.info('File copy from %s to %s.', local_path_to_artifact,
                  artifact_name)
     shutil.copyfile(local_path_to_artifact, artifact_name)
 

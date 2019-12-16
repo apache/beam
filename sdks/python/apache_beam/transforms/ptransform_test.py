@@ -48,14 +48,17 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import WindowInto
 from apache_beam.transforms import window
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
@@ -81,29 +84,29 @@ class PTransformTest(unittest.TestCase):
                      str(PTransform()))
 
     pa = TestPipeline()
-    res = pa | 'ALabel' >> beam.Create([1, 2])
-    self.assertEqual('AppliedPTransform(ALabel/Read, Read)',
+    res = pa | 'ALabel' >> beam.Impulse()
+    self.assertEqual('AppliedPTransform(ALabel, Impulse)',
                      str(res.producer))
 
     pc = TestPipeline()
-    res = pc | beam.Create([1, 2])
+    res = pc | beam.Impulse()
     inputs_tr = res.producer.transform
     inputs_tr.inputs = ('ci',)
     self.assertEqual(
-        """<Read(PTransform) label=[Read] inputs=('ci',)>""",
+        "<Impulse(PTransform) label=[Impulse] inputs=('ci',)>",
         str(inputs_tr))
 
     pd = TestPipeline()
-    res = pd | beam.Create([1, 2])
+    res = pd | beam.Impulse()
     side_tr = res.producer.transform
     side_tr.side_inputs = (4,)
     self.assertEqual(
-        '<Read(PTransform) label=[Read] side_inputs=(4,)>',
+        '<Impulse(PTransform) label=[Impulse] side_inputs=(4,)>',
         str(side_tr))
 
     inputs_tr.side_inputs = ('cs',)
     self.assertEqual(
-        """<Read(PTransform) label=[Read] """
+        """<Impulse(PTransform) label=[Impulse] """
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
@@ -224,7 +227,7 @@ class PTransformTest(unittest.TestCase):
     metric_results = res.metrics().query(MetricsFilter()
                                          .with_name('recordsRead'))
     outputs_counter = metric_results['counters'][0]
-    self.assertEqual(outputs_counter.key.step, 'Read')
+    self.assertStartswith(outputs_counter.key.step, 'Read')
     self.assertEqual(outputs_counter.key.metric.name, 'recordsRead')
     self.assertEqual(outputs_counter.committed, 100)
     self.assertEqual(outputs_counter.attempted, 100)
@@ -330,6 +333,31 @@ class PTransformTest(unittest.TestCase):
       return match
 
     assert_that(result, matcher())
+    pipeline.run()
+
+  def test_do_fn_with_windowing_in_finish_bundle(self):
+    windowfn = window.FixedWindows(2)
+
+    class MyDoFn(beam.DoFn):
+      def process(self, element):
+        yield TimestampedValue('process'+ str(element), 5)
+
+      def finish_bundle(self):
+        yield WindowedValue('finish', 1, [windowfn])
+
+    pipeline = TestPipeline()
+    result = (pipeline
+              | 'Start' >> beam.Create([x for x in range(3)])
+              | beam.ParDo(MyDoFn())
+              | WindowInto(windowfn)
+              | 'create tuple' >> beam.Map(
+                  lambda v, t=beam.DoFn.TimestampParam, w=beam.DoFn.WindowParam:
+                  (v, t, w.start, w.end)))
+    expected_process = [('process'+ str(x), Timestamp(5), Timestamp(4),
+                         Timestamp(6)) for x in range(3)]
+    expected_finish = [('finish', Timestamp(1), Timestamp(0), Timestamp(2))]
+
+    assert_that(result, equal_to(expected_process + expected_finish))
     pipeline.run()
 
   def test_do_fn_with_start(self):
@@ -467,8 +495,26 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'start' >> beam.Create(
         [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)])
-    result = pcoll | 'Group' >> beam.GroupByKey()
+    result = pcoll | 'Group' >> beam.GroupByKey() | _SortLists
     assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
+    pipeline.run()
+
+  def test_group_by_key_reiteration(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, gbk_result):
+        key, value_list = gbk_result
+        sum_val = 0
+        # Iterate the GBK result for multiple times.
+        for _ in range(0, 17):
+          sum_val += sum(value_list)
+        return [(key, sum_val)]
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'start' >> beam.Create(
+        [(1, 1), (1, 2), (1, 3), (1, 4)])
+    result = (pcoll | 'Group' >> beam.GroupByKey()
+              | 'Reiteration-Sum' >> beam.ParDo(MyDoFn()))
+    assert_that(result, equal_to([(1, 170)]))
     pipeline.run()
 
   def test_partition_with_partition_fn(self):
@@ -516,10 +562,11 @@ class PTransformTest(unittest.TestCase):
     created = pipeline | 'A' >> beam.Create(contents)
     partitioned = created | 'B' >> beam.Partition(lambda x, n: len(x) % n, 3)
     flattened = partitioned | 'C' >> beam.Flatten()
-    grouped = flattened | 'D' >> beam.GroupByKey()
+    grouped = flattened | 'D' >> beam.GroupByKey() | _SortLists
     assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_flatten_pcollections(self):
     pipeline = TestPipeline()
     pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -536,6 +583,16 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
+  def test_flatten_one_single_pcollection(self):
+    pipeline = TestPipeline()
+    input = [0, 1, 2, 3]
+    pcoll = pipeline | 'Input' >> beam.Create(input)
+    result = (pcoll,)| 'Single Flatten' >> beam.Flatten()
+    assert_that(result, equal_to(input))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
   def test_flatten_same_pcollections(self):
     pipeline = TestPipeline()
     pc = pipeline | beam.Create(['a', 'b'])
@@ -548,6 +605,17 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
     result = [pcoll for pcoll in (pcoll_1, pcoll_2)] | beam.Flatten()
     assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_flatten_a_flattened_pcollection(self):
+    pipeline = TestPipeline()
+    pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
+    pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
+    pcoll_3 = pipeline | 'Start 3' >> beam.Create([8, 9])
+    pcoll_12 = (pcoll_1, pcoll_2) | 'Flatten' >> beam.Flatten()
+    pcoll_123 = (pcoll_12, pcoll_3) | 'Flatten again' >> beam.Flatten()
+    assert_that(pcoll_123, equal_to([x for x in range(10)]))
     pipeline.run()
 
   def test_flatten_input_type_must_be_iterable(self):
@@ -586,7 +654,7 @@ class PTransformTest(unittest.TestCase):
         [('a', 1), ('a', 2), ('b', 3), ('c', 4)])
     pcoll_2 = pipeline | 'Start 2' >> beam.Create(
         [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
-    result = (pcoll_1, pcoll_2) | beam.CoGroupByKey()
+    result = (pcoll_1, pcoll_2) | beam.CoGroupByKey() | _SortLists
     assert_that(result, equal_to([('a', ([1, 2], [5, 6])),
                                   ('b', ([3], [])),
                                   ('c', ([4], [7, 8]))]))
@@ -599,6 +667,7 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | 'Start 2' >> beam.Create(
         [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
     result = [pc for pc in (pcoll_1, pcoll_2)] | beam.CoGroupByKey()
+    result |= _SortLists
     assert_that(result, equal_to([('a', ([1, 2], [5, 6])),
                                   ('b', ([3], [])),
                                   ('c', ([4], [7, 8]))]))
@@ -611,6 +680,7 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | 'Start 2' >> beam.Create(
         [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
     result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey()
+    result |= _SortLists
     assert_that(result, equal_to([('a', {'X': [1, 2], 'Y': [5, 6]}),
                                   ('b', {'X': [3], 'Y': []}),
                                   ('c', {'X': [4], 'Y': [7, 8]})]))
@@ -692,8 +762,9 @@ class PTransformTest(unittest.TestCase):
                           ([1, 2, 3], [100]) | beam.Flatten())
     join_input = ([('k', 'a')],
                   [('k', 'b'), ('k', 'c')])
-    self.assertCountEqual([('k', (['a'], ['b', 'c']))],
-                          join_input | beam.CoGroupByKey())
+    self.assertCountEqual(
+        [('k', (['a'], ['b', 'c']))],
+        join_input | beam.CoGroupByKey() | _SortLists)
 
   def test_multi_input_ptransform(self):
     class DisjointUnion(PTransform):
@@ -840,7 +911,9 @@ class PTransformLabelsTest(unittest.TestCase):
   def check_label(self, ptransform, expected_label):
     pipeline = TestPipeline()
     pipeline | 'Start' >> beam.Create([('a', 1)]) | ptransform
-    actual_label = sorted(pipeline.applied_labels - {'Start', 'Start/Read'})[0]
+    actual_label = sorted(
+        label for label in pipeline.applied_labels
+        if not label.startswith('Start'))[0]
     self.assertEqual(expected_label, re.sub(r'\d{3,}', '#', actual_label))
 
   def test_default_labels(self):
@@ -1297,11 +1370,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
               | 'T' >> beam.Create(['t', 'e', 's', 't', 'i', 'n', 'g'])
               .with_output_types(str)
               | 'GenKeys' >> beam.Map(group_with_upper_ord)
-              | 'O' >> beam.GroupByKey())
+              | 'O' >> beam.GroupByKey()
+              | _SortLists)
 
     assert_that(result, equal_to([(1, ['g']),
-                                  (3, ['s', 'i', 'n']),
-                                  (4, ['t', 'e', 't'])]))
+                                  (3, ['i', 'n', 's']),
+                                  (4, ['e', 't', 't'])]))
     self.p.run()
 
   def test_pipeline_checking_satisfied_but_run_time_types_violate(self):
@@ -1347,7 +1421,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     result = (self.p
               | 'Nums' >> beam.Create(range(5)).with_output_types(int)
               | 'IsEven' >> beam.Map(is_even_as_key)
-              | 'Parity' >> beam.GroupByKey())
+              | 'Parity' >> beam.GroupByKey()
+              | _SortLists)
 
     assert_that(result, equal_to([(False, [1, 3]), (True, [0, 2, 4])]))
     self.p.run()
@@ -1361,7 +1436,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # passed instead.
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
-       | beam.Create([1, 2, 3])
+       | beam.Create([1, 1, 1])
        | ('ToInt' >> beam.FlatMap(lambda x: [int(x)])
           .with_input_types(str).with_output_types(int)))
       self.p.run()
@@ -1406,7 +1481,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
             int)).get_type_hints())
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
-       | beam.Create([1, 2, 3])
+       | beam.Create([1, 1, 1])
        | ('ToInt' >> beam.FlatMap(lambda x: [float(x)])
           .with_input_types(int).with_output_types(int))
       )
@@ -1613,7 +1688,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
-       | beam.Create(range(3)).with_output_types(int)
+       | beam.Create([0]).with_output_types(int)
        | ('SortJoin' >> beam.CombineGlobally(lambda s: ''.join(sorted(s)))
           .with_input_types(str).with_output_types(str)))
       self.p.run()
@@ -2168,6 +2243,20 @@ class TestPTransformFn(TypeHintTestCase):
          | beam.Create([1, 2])
          | MyTransform('test').with_output_types(int))
     p.run()
+
+
+def _sort_lists(result):
+  if isinstance(result, list):
+    return sorted(result)
+  elif isinstance(result, tuple):
+    return tuple(_sort_lists(e) for e in result)
+  elif isinstance(result, dict):
+    return {k: _sort_lists(v) for k, v in result.items()}
+  else:
+    return result
+
+
+_SortLists = beam.Map(_sort_lists)
 
 
 if __name__ == '__main__':

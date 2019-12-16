@@ -322,8 +322,8 @@ Note however that `environment_type=LOOPBACK` is only intended for local testing
 See [here]({{ site.baseurl }}/roadmap/portability/#sdk-harness-config) for details.
 </span>
 
-<span class="language-py">As of Beam 2.15.0, steps 2 and 3 can be automated in Python by using the `FlinkRunner`,
-plus the optional `flink_version` and `flink_master_url` options if required, i.e.
+<span class="language-py">Steps 2 and 3 can be automated in Python by using the `FlinkRunner`,
+plus the optional `flink_version` and `flink_master`* options, e.g.:
 </span>
 
 ```py
@@ -333,12 +333,14 @@ from apache_beam.options.pipeline_options import PipelineOptions
 options = PipelineOptions([
     "--runner=FlinkRunner",
     "--flink_version=1.8",
-    "--flink_master_url=localhost:8081",
+    "--flink_master=localhost:8081",
     "--environment_type=LOOPBACK"
 ])
 with beam.Pipeline(options) as p:
     ...
 ```
+
+\* Note: For Beam versions < 2.17.0, use `flink_master_url` instead of `flink_master`.
 
 ## Additional information and caveats
 

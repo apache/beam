@@ -29,6 +29,17 @@ import threading
 from builtins import filter
 from builtins import object
 from builtins import zip
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import DefaultDict
+from typing import Dict
+from typing import FrozenSet
+from typing import Hashable
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -52,6 +63,10 @@ from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 
+if TYPE_CHECKING:
+  from apache_beam.runners.worker.bundle_processor import ExecutionContext
+  from apache_beam.runners.worker.statesampler import StateSampler
+
 # Allow some "pure mode" declarations.
 try:
   import cython
@@ -67,6 +82,9 @@ _globally_windowed_value = GlobalWindows.windowed_value(None)
 _global_window_type = type(_globally_windowed_value.windows[0])
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class ConsumerSet(Receiver):
   """A ConsumerSet represents a graph edge between two Operation nodes.
 
@@ -76,7 +94,13 @@ class ConsumerSet(Receiver):
   ConsumerSet are attached to the outputting Operation.
   """
   @staticmethod
-  def create(counter_factory, step_name, output_index, consumers, coder):
+  def create(counter_factory,
+             step_name,  # type: str
+             output_index,
+             consumers,  # type: List[Operation]
+             coder
+            ):
+    # type: (...) -> ConsumerSet
     if len(consumers) == 1:
       return SingletonConsumerSet(
           counter_factory, step_name, output_index, consumers, coder)
@@ -84,8 +108,13 @@ class ConsumerSet(Receiver):
       return ConsumerSet(
           counter_factory, step_name, output_index, consumers, coder)
 
-  def __init__(
-      self, counter_factory, step_name, output_index, consumers, coder):
+  def __init__(self,
+               counter_factory,
+               step_name,  # type: str
+               output_index,
+               consumers,  # type: List[Operation]
+               coder
+              ):
     self.consumers = consumers
     self.opcounter = opcounters.OperationCounters(
         counter_factory, step_name, coder, output_index)
@@ -95,6 +124,7 @@ class ConsumerSet(Receiver):
     self.coder = coder
 
   def receive(self, windowed_value):
+    # type: (WindowedValue) -> None
     self.update_counters_start(windowed_value)
     for consumer in self.consumers:
       cython.cast(Operation, consumer).process(windowed_value)
@@ -109,6 +139,7 @@ class ConsumerSet(Receiver):
     return None
 
   def current_element_progress(self):
+    # type: () -> Optional[iobase.RestrictionProgress]
     """Returns the progress of the current element.
 
     This progress should be an instance of
@@ -119,9 +150,11 @@ class ConsumerSet(Receiver):
     return None
 
   def update_counters_start(self, windowed_value):
+    # type: (WindowedValue) -> None
     self.opcounter.update_from(windowed_value)
 
   def update_counters_finish(self):
+    # type: () -> None
     self.opcounter.update_collect()
 
   def __repr__(self):
@@ -139,6 +172,7 @@ class SingletonConsumerSet(ConsumerSet):
     self.consumer = consumers[0]
 
   def receive(self, windowed_value):
+    # type: (WindowedValue) -> None
     self.update_counters_start(windowed_value)
     self.consumer.process(windowed_value)
     self.update_counters_finish()
@@ -157,7 +191,12 @@ class Operation(object):
   one or more receiver operations that will take that as input.
   """
 
-  def __init__(self, name_context, spec, counter_factory, state_sampler):
+  def __init__(self,
+               name_context,  # type: Union[str, common.NameContext]
+               spec,
+               counter_factory,
+               state_sampler  # type: StateSampler
+              ):
     """Initializes a worker operation instance.
 
     Args:
@@ -177,8 +216,8 @@ class Operation(object):
 
     self.spec = spec
     self.counter_factory = counter_factory
-    self.execution_context = None
-    self.consumers = collections.defaultdict(list)
+    self.execution_context = None  # type: Optional[ExecutionContext]
+    self.consumers = collections.defaultdict(list)  # type: DefaultDict[int, List[Operation]]
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
@@ -192,12 +231,13 @@ class Operation(object):
         self.name_context, 'finish', metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
-    self.receivers = []
+    self.receivers = []  # type: List[ConsumerSet]
     # Legacy workers cannot call setup() until after setting additional state
     # on the operation.
     self.setup_done = False
 
   def setup(self):
+    # type: () -> None
     """Set up operation.
 
     This must be called before any other methods of the operation."""
@@ -218,16 +258,19 @@ class Operation(object):
     self.setup_done = True
 
   def start(self):
+    # type: () -> None
     """Start operation."""
     if not self.setup_done:
       # For legacy workers.
       self.setup()
 
   def process(self, o):
+    # type: (WindowedValue) -> None
     """Process element in operation."""
     pass
 
   def finalize_bundle(self):
+    # type: () -> None
     pass
 
   def needs_finalization(self):
@@ -240,26 +283,32 @@ class Operation(object):
     return None
 
   def finish(self):
+    # type: () -> None
     """Finish operation."""
     pass
 
   def teardown(self):
+    # type: () -> None
     """Tear down operation.
 
     No other methods of this operation should be called after this."""
     pass
 
   def reset(self):
+    # type: () -> None
     self.metrics_container.reset()
 
   def output(self, windowed_value, output_index=0):
+    # type: (WindowedValue, int) -> None
     cython.cast(Receiver, self.receivers[output_index]).receive(windowed_value)
 
   def add_receiver(self, operation, output_index=0):
+    # type: (Operation, int) -> None
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
 
   def progress_metrics(self):
+    # type: () -> beam_fn_api_pb2.Metrics.PTransform
     return beam_fn_api_pb2.Metrics.PTransform(
         processed_elements=beam_fn_api_pb2.Metrics.PTransform.ProcessedElements(
             measured=beam_fn_api_pb2.Metrics.PTransform.Measured(
@@ -279,6 +328,7 @@ class Operation(object):
         user=self.metrics_container.to_runner_api())
 
   def monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
     """Returns the list of MonitoringInfos collected by this operation."""
     all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
     all_monitoring_infos.update(
@@ -328,6 +378,7 @@ class Operation(object):
     return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
 
   def execution_time_monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
     total_time_spent_msecs = (
         self.scoped_start_state.sampled_msecs_int()
         + self.scoped_process_state.sampled_msecs_int()
@@ -425,6 +476,7 @@ class ImpulseReadOperation(Operation):
             next(iter(consumers.values())), output_coder)]
 
   def process(self, unused_impulse):
+    # type: (WindowedValue) -> None
     with self.scoped_process_state:
       range_tracker = self.source.get_range_tracker(None, None)
       for value in self.source.read(range_tracker):
@@ -439,9 +491,10 @@ class InMemoryWriteOperation(Operation):
   """A write operation that will write to an in-memory sink."""
 
   def process(self, o):
+    # type: (WindowedValue) -> None
     with self.scoped_process_state:
       if self.debug_logging_enabled:
-        logging.debug('Processing [%s] in %s', o, self)
+        _LOGGER.debug('Processing [%s] in %s', o, self)
       self.spec.output_buffer.append(
           o if self.spec.write_windowed_values else o.value)
 
@@ -461,17 +514,24 @@ class _TaggedReceivers(dict):
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
-  def __init__(
-      self, name, spec, counter_factory, sampler, side_input_maps=None,
-      user_state_context=None, timer_inputs=None):
+  def __init__(self,
+               name,  # type: common.NameContext
+               spec,  # operation_specs.WorkerDoFn  # need to fix this type
+               counter_factory,
+               sampler,
+               side_input_maps=None,
+               user_state_context=None,
+               timer_inputs=None
+              ):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.user_state_context = user_state_context
-    self.tagged_receivers = None
+    self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
     self.timer_inputs = timer_inputs or {}
 
   def _read_side_inputs(self, tags_and_types):
+    # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
     """Generator reading side inputs in the order prescribed by tags_and_types.
 
     Args:
@@ -532,6 +592,7 @@ class DoOperation(Operation):
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
   def setup(self):
+    # type: () -> None
     with self.scoped_start_state:
       super(DoOperation, self).setup()
 
@@ -551,7 +612,7 @@ class DoOperation(Operation):
       output_tag_prefix = PropertyNames.OUT + '_'
       for index, tag in enumerate(self.spec.output_tags):
         if tag == PropertyNames.OUT:
-          original_tag = None
+          original_tag = None  # type: Optional[str]
         elif tag.startswith(output_tag_prefix):
           original_tag = tag[len(output_tag_prefix):]
         else:
@@ -585,11 +646,13 @@ class DoOperation(Operation):
                             else DoFnRunnerReceiver(self.dofn_runner))
 
   def start(self):
+    # type: () -> None
     with self.scoped_start_state:
       super(DoOperation, self).start()
       self.dofn_runner.start()
 
   def process(self, o):
+    # type: (WindowedValue) -> None
     with self.scoped_process_state:
       delayed_application = self.dofn_receiver.receive(o)
       if delayed_application:
@@ -597,9 +660,11 @@ class DoOperation(Operation):
             (self, delayed_application))
 
   def finalize_bundle(self):
+    # type: () -> None
     self.dofn_receiver.finalize()
 
   def needs_finalization(self):
+    # type: () -> bool
     return self.dofn_receiver.bundle_finalizer_param.has_callbacks()
 
   def process_timer(self, tag, windowed_timer):
@@ -609,16 +674,19 @@ class DoOperation(Operation):
         timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
 
   def finish(self):
+    # type: () -> None
     with self.scoped_finish_state:
       self.dofn_runner.finish()
       if self.user_state_context:
         self.user_state_context.commit()
 
   def teardown(self):
+    # type: () -> None
     with self.scoped_finish_state:
       self.dofn_runner.teardown()
 
   def reset(self):
+    # type: () -> None
     super(DoOperation, self).reset()
     for side_input_map in self.side_input_maps:
       side_input_map.reset()
@@ -627,6 +695,7 @@ class DoOperation(Operation):
     self.dofn_receiver.bundle_finalizer_param.reset()
 
   def progress_metrics(self):
+    # type: () -> beam_fn_api_pb2.Metrics.PTransform
     metrics = super(DoOperation, self).progress_metrics()
     if self.tagged_receivers:
       metrics.processed_elements.measured.output_element_counts.clear()
@@ -636,6 +705,7 @@ class DoOperation(Operation):
     return metrics
 
   def monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
     infos = super(DoOperation, self).monitoring_infos(transform_id)
     if self.tagged_receivers:
       for tag, receiver in self.tagged_receivers.items():
@@ -676,6 +746,7 @@ class SdfProcessSizedElements(DoOperation):
     self.element_start_output_bytes = None
 
   def process(self, o):
+    # type: (WindowedValue) -> None
     with self.scoped_process_state:
       try:
         with self.lock:
@@ -707,6 +778,7 @@ class SdfProcessSizedElements(DoOperation):
               self._total_output_bytes() - self.element_start_output_bytes)
 
   def progress_metrics(self):
+    # type: () -> beam_fn_api_pb2.Metrics.PTransform
     with self.lock:
       metrics = super(SdfProcessSizedElements, self).progress_metrics()
       current_element_progress = self.current_element_progress()
@@ -733,6 +805,7 @@ class DoFnRunnerReceiver(Receiver):
     self.dofn_runner = dofn_runner
 
   def receive(self, windowed_value):
+    # type: (WindowedValue) -> None
     self.dofn_runner.process(windowed_value)
 
 
@@ -750,15 +823,16 @@ class CombineOperation(Operation):
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
   def process(self, o):
+    # type: (WindowedValue) -> None
     with self.scoped_process_state:
       if self.debug_logging_enabled:
-        logging.debug('Processing [%s] in %s', o, self)
+        _LOGGER.debug('Processing [%s] in %s', o, self)
       key, values = o.value
       self.output(
           o.with_value((key, self.phased_combine_fn.apply(values))))
 
   def finish(self):
-    logging.debug('Finishing %s', self)
+    _LOGGER.debug('Finishing %s', self)
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -786,6 +860,7 @@ class PGBKOperation(Operation):
     self.max_size = 10 * 1000
 
   def process(self, o):
+    # type: (WindowedValue) -> None
     with self.scoped_process_state:
       # TODO(robertwb): Structural (hashable) values.
       key = o.value[0], tuple(o.windows)
@@ -843,12 +918,13 @@ class PGBKCVOperation(Operation):
     self.table = {}
 
   def process(self, wkv):
+    # type: (WindowedValue) -> None
     with self.scoped_process_state:
       key, value = wkv.value
       # pylint: disable=unidiomatic-typecheck
       # Optimization for the global window case.
       if len(wkv.windows) == 1 and type(wkv.windows[0]) is _global_window_type:
-        wkey = 0, key
+        wkey = 0, key  # type: Tuple[Hashable, Any]
       else:
         wkey = tuple(wkv.windows), key
       entry = self.table.get(wkey, None)
@@ -898,15 +974,17 @@ class FlattenOperation(Operation):
   """
 
   def process(self, o):
+    # type: (WindowedValue) -> None
     with self.scoped_process_state:
       if self.debug_logging_enabled:
-        logging.debug('Processing [%s] in %s', o, self)
+        _LOGGER.debug('Processing [%s] in %s', o, self)
       self.output(o)
 
 
 def create_operation(name_context, spec, counter_factory, step_name=None,
                      state_sampler=None, test_shuffle_source=None,
                      test_shuffle_sink=None, is_streaming=False):
+  # type: (...) -> Operation
   """Create Operation object for given operation specification."""
 
   # TODO(pabloem): Document arguments to this function call.
@@ -916,7 +994,7 @@ def create_operation(name_context, spec, counter_factory, step_name=None,
   if isinstance(spec, operation_specs.WorkerRead):
     if isinstance(spec.source, iobase.SourceBundle):
       op = ReadOperation(
-          name_context, spec, counter_factory, state_sampler)
+          name_context, spec, counter_factory, state_sampler)  # type: Operation
     else:
       from dataflow_worker.native_operations import NativeReadOperation
       op = NativeReadOperation(
@@ -998,12 +1076,13 @@ class SimpleMapTaskExecutor(object):
 
     self._map_task = map_task
     self._counter_factory = counter_factory
-    self._ops = []
+    self._ops = []  # type: List[Operation]
     self._state_sampler = state_sampler
     self._test_shuffle_source = test_shuffle_source
     self._test_shuffle_sink = test_shuffle_sink
 
   def operations(self):
+    # type: () -> List[Operation]
     return self._ops[:]
 
   def execute(self):
@@ -1040,7 +1119,7 @@ class SimpleMapTaskExecutor(object):
           self._ops[producer].add_receiver(op, output_index)
 
     for ix, op in reversed(list(enumerate(self._ops))):
-      logging.debug('Starting op %d %s', ix, op)
+      _LOGGER.debug('Starting op %d %s', ix, op)
       op.start()
     for op in self._ops:
       op.finish()

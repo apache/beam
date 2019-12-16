@@ -137,6 +137,15 @@ public abstract class Trigger implements Serializable {
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
+   * <p>Indicates whether this trigger may "finish". A top level trigger that finishes can cause
+   * data loss, so is rejected by GroupByKey validation.
+   */
+  @Internal
+  public abstract boolean mayFinish();
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
    * <p>Returns whether this performs the same triggering as the given {@link Trigger}.
    */
   @Internal
@@ -227,6 +236,11 @@ public abstract class Trigger implements Serializable {
   public abstract static class OnceTrigger extends Trigger {
     protected OnceTrigger(@Nullable List<Trigger> subTriggers) {
       super(subTriggers);
+    }
+
+    @Override
+    public final boolean mayFinish() {
+      return true;
     }
 
     @Override

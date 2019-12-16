@@ -48,6 +48,9 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class BigQueryWriteIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_write_to_table_'
 
@@ -61,7 +64,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
                                   str(int(time.time())),
                                   random.randint(0, 10000))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
-    logging.info("Created dataset %s in project %s",
+    _LOGGER.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
   def tearDown(self):
@@ -69,11 +72,11 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         projectId=self.project, datasetId=self.dataset_id,
         deleteContents=True)
     try:
-      logging.info("Deleting dataset %s in project %s",
+      _LOGGER.info("Deleting dataset %s in project %s",
                    self.dataset_id, self.project)
       self.bigquery_client.client.datasets.Delete(request)
     except HttpError:
-      logging.debug('Failed to clean up dataset %s in project %s',
+      _LOGGER.debug('Failed to clean up dataset %s in project %s',
                     self.dataset_id, self.project)
 
   def create_table(self, table_name):

@@ -244,7 +244,8 @@ fi
 
 echo ""
 echo "====================Starting Java Mobile Game====================="
-if [[ "$java_mobile_game" = true && ! -z `which gcloud` ]]; then
+if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true) \
+      && ! -z `which gcloud` ]]; then
   MOBILE_GAME_DATASET=${USER}_java_validations_$(date +%m%d)_$RANDOM
   MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-java-topic-$(date +%m%d)_$RANDOM
   echo "Using GCP project: ${USER_GCP_PROJECT}"
@@ -257,22 +258,39 @@ if [[ "$java_mobile_game" = true && ! -z `which gcloud` ]]; then
   echo "-----------------Creating Pubsub Topic-----------------"
   gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
 
-  echo "**************************************************************************"
-  echo "* Java mobile game validations: UserScore, HourlyTeamScore, Leaderboard"
-  echo "**************************************************************************"
-  ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER} \
-  -PgcpProject=${USER_GCP_PROJECT} \
-  -PbqDataset=${MOBILE_GAME_DATASET} \
-  -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
-  -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+  if [[ "$java_mobile_game_direct" = true ]]; then
+    echo "**************************************************************************"
+    echo "* Java mobile game on DirectRunner: UserScore, HourlyTeamScore, Leaderboard"
+    echo "**************************************************************************"
+    ./gradlew :runners:direct-java:runMobileGamingJavaDirect \
+    -Prepourl=${REPO_URL} \
+    -Pver=${RELEASE_VER} \
+    -PgcpProject=${USER_GCP_PROJECT} \
+    -PbqDataset=${MOBILE_GAME_DATASET} \
+    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
+    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+  else
+   echo "* Skip Java Mobile Game on DirectRunner."
+  fi
+
+  if [[ "$java_mobile_game_dataflow" = true ]]; then
+    echo "**************************************************************************"
+    echo "* Java mobile game on DataflowRunner: UserScore, HourlyTeamScore, Leaderboard"
+    echo "**************************************************************************"
+    ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+    -Prepourl=${REPO_URL} \
+    -Pver=${RELEASE_VER} \
+    -PgcpProject=${USER_GCP_PROJECT} \
+    -PbqDataset=${MOBILE_GAME_DATASET} \
+    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
+    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+  else
+    echo "* Skip Java Mobile Game on DataflowRunner."
+  fi
 
   echo "-----------------Cleaning up BigQuery & Pubsub-----------------"
   bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   gcloud pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
-else
-  echo "* Skip Java Mobile Game. Google Cloud SDK is required"
 fi
 
 echo ""
@@ -301,11 +319,11 @@ fi
 
 echo ""
 echo "====================Starting Python Leaderboard & GameStates Validations==============="
-if [[ ("$python_leaderboard_direct" = true || \
-      "$python_leaderboard_dataflow" = true || \
-      "$python_gamestats_direct" = true || \
-      "$python_gamestats_dataflow" = true) && \
-      ! -z `which gnome-terminal` ]]; then
+if [[ ("$python_leaderboard_direct" = true \
+      || "$python_leaderboard_dataflow" = true \
+      || "$python_gamestats_direct" = true \
+      || "$python_gamestats_dataflow" = true) \
+      && ! -z `which gnome-terminal` ]]; then
   cd ${LOCAL_BEAM_DIR}
 
   echo "---------------------Downloading Python Staging RC----------------------------"

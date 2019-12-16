@@ -45,6 +45,9 @@ DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 __all__ = ['FileBasedSink']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class FileBasedSink(iobase.Sink):
   """A sink to a GCS or local files.
 
@@ -60,7 +63,7 @@ class FileBasedSink(iobase.Sink):
 
   # Max number of threads to be used for renaming.
   _MAX_RENAME_THREADS = 64
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __init__(self,
                file_path_prefix,
@@ -210,7 +213,7 @@ class FileBasedSink(iobase.Sink):
                       for file_metadata in mr.metadata_list]
 
     if dst_glob_files:
-      logging.warning('Deleting %d existing files in target path matching: %s',
+      _LOGGER.warning('Deleting %d existing files in target path matching: %s',
                       len(dst_glob_files), self.shard_name_glob_format)
       FileSystems.delete(dst_glob_files)
 
@@ -250,12 +253,12 @@ class FileBasedSink(iobase.Sink):
         raise BeamIOError('src and dst files do not exist. src: %s, dst: %s' % (
             src, dst))
       if not src_exists and dst_exists:
-        logging.debug('src: %s -> dst: %s already renamed, skipping', src, dst)
+        _LOGGER.debug('src: %s -> dst: %s already renamed, skipping', src, dst)
         num_skipped += 1
         continue
       if (src_exists and dst_exists and
           FileSystems.checksum(src) == FileSystems.checksum(dst)):
-        logging.debug('src: %s == dst: %s, deleting src', src, dst)
+        _LOGGER.debug('src: %s == dst: %s, deleting src', src, dst)
         delete_files.append(src)
         continue
 
@@ -284,7 +287,7 @@ class FileBasedSink(iobase.Sink):
                               for i in range(0, len(dst_files), chunk_size)]
 
     if num_shards_to_finalize:
-      logging.info(
+      _LOGGER.info(
           'Starting finalize_write threads with num_shards: %d (skipped: %d), '
           'batches: %d, num_threads: %d',
           num_shards_to_finalize, num_skipped, len(source_file_batch),
@@ -304,11 +307,11 @@ class FileBasedSink(iobase.Sink):
             raise
           for (src, dst), exception in iteritems(exp.exception_details):
             if exception:
-              logging.error(('Exception in _rename_batch. src: %s, '
+              _LOGGER.error(('Exception in _rename_batch. src: %s, '
                              'dst: %s, err: %s'), src, dst, exception)
               exceptions.append(exception)
             else:
-              logging.debug('Rename successful: %s -> %s', src, dst)
+              _LOGGER.debug('Rename successful: %s -> %s', src, dst)
           return exceptions
 
       exception_batches = util.run_using_threadpool(
@@ -324,10 +327,10 @@ class FileBasedSink(iobase.Sink):
       for final_name in dst_files:
         yield final_name
 
-      logging.info('Renamed %d shards in %.2f seconds.', num_shards_to_finalize,
+      _LOGGER.info('Renamed %d shards in %.2f seconds.', num_shards_to_finalize,
                    time.time() - start_time)
     else:
-      logging.warning(
+      _LOGGER.warning(
           'No shards found to finalize. num_shards: %d, skipped: %d',
           num_shards, num_skipped)
 

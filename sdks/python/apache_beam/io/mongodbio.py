@@ -66,6 +66,9 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
 from apache_beam.utils.annotations import experimental
 
+_LOGGER = logging.getLogger(__name__)
+
+
 try:
   # Mongodb has its own bundled bson, which is not compatible with bson pakcage.
   # (https://github.com/py-bson/bson/issues/82). Try to import objectid and if
@@ -80,7 +83,7 @@ try:
   from pymongo import ReplaceOne
 except ImportError:
   objectid = None
-  logging.warning("Could not find a compatible bson package.")
+  _LOGGER.warning("Could not find a compatible bson package.")
 
 __all__ = ['ReadFromMongoDB', 'WriteToMongoDB']
 
@@ -171,7 +174,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     for split_key_id in split_keys:
       if bundle_start >= stop_position:
         break
-      bundle_end = min(stop_position, split_key_id)
+      bundle_end = min(stop_position, split_key_id['_id'])
       yield iobase.SourceBundle(weight=desired_bundle_size_in_mb,
                                 source=self,
                                 start_position=bundle_start,
@@ -192,7 +195,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
   def read(self, range_tracker):
     with MongoClient(self.uri, **self.spec) as client:
       all_filters = self._merge_id_filter(range_tracker)
-      docs_cursor = client[self.db][self.coll].find(filter=all_filters)
+      docs_cursor = client[self.db][self.coll].find(filter=all_filters).sort(
+          [('_id', ASCENDING)])
       for doc in docs_cursor:
         if not range_tracker.try_claim(doc['_id']):
           return
@@ -497,7 +501,7 @@ class _MongoSink(object):
                      replacement=doc,
                      upsert=True))
     resp = self.client[self.db][self.coll].bulk_write(requests)
-    logging.debug('BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, '
+    _LOGGER.debug('BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, '
                   'nMatched:%d, Errors:%s' %
                   (resp.modified_count, resp.upserted_count, resp.matched_count,
                    resp.bulk_api_result.get('writeErrors')))

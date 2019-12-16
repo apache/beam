@@ -36,16 +36,17 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTime;
@@ -147,6 +148,7 @@ public class BigQueryUtils {
           .put(TypeName.DECIMAL, StandardSQLTypeName.NUMERIC)
           .put(TypeName.BOOLEAN, StandardSQLTypeName.BOOL)
           .put(TypeName.ARRAY, StandardSQLTypeName.ARRAY)
+          .put(TypeName.ITERABLE, StandardSQLTypeName.ARRAY)
           .put(TypeName.ROW, StandardSQLTypeName.STRUCT)
           .put(TypeName.DATETIME, StandardSQLTypeName.TIMESTAMP)
           .put(TypeName.STRING, StandardSQLTypeName.STRING)
@@ -235,16 +237,16 @@ public class BigQueryUtils {
         return FieldType.DATETIME;
       case "TIME":
         return FieldType.logicalType(
-            new LogicalTypes.PassThroughLogicalType<Instant>(
-                "SqlTimeType", "", FieldType.DATETIME) {});
+            new PassThroughLogicalType<Instant>(
+                "SqlTimeType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "DATE":
         return FieldType.logicalType(
-            new LogicalTypes.PassThroughLogicalType<Instant>(
-                "SqlDateType", "", FieldType.DATETIME) {});
+            new PassThroughLogicalType<Instant>(
+                "SqlDateType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "DATETIME":
         return FieldType.logicalType(
-            new LogicalTypes.PassThroughLogicalType<Instant>(
-                "SqlTimestampWithLocalTzType", "", FieldType.DATETIME) {});
+            new PassThroughLogicalType<Instant>(
+                "SqlTimestampWithLocalTzType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "STRUCT":
       case "RECORD":
         Schema rowSchema = fromTableFieldSchema(nestedFields);
@@ -292,7 +294,7 @@ public class BigQueryUtils {
       if (!schemaField.getType().getNullable()) {
         field.setMode(Mode.REQUIRED.toString());
       }
-      if (TypeName.ARRAY == type.getTypeName()) {
+      if (type.getTypeName().isCollectionType()) {
         type = type.getCollectionElementType();
         if (type.getTypeName().isCollectionType() || type.getTypeName().isMapType()) {
           throw new IllegalArgumentException("Array of collection is not supported in BigQuery.");
@@ -388,6 +390,11 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
+  public static TableRow convertGenericRecordToTableRow(
+      GenericRecord record, TableSchema tableSchema) {
+    return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
+  }
+
   /** Convert a BigQuery TableRow to a Beam Row. */
   public static TableRow toTableRow(Row row) {
     TableRow output = new TableRow();
@@ -409,9 +416,10 @@ public class BigQueryUtils {
 
     switch (fieldType.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         FieldType elementType = fieldType.getCollectionElementType();
-        List items = (List) fieldValue;
-        List convertedItems = Lists.newArrayListWithCapacity(items.size());
+        Iterable items = (Iterable) fieldValue;
+        List convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
         for (Object item : items) {
           convertedItems.add(fromBeamField(elementType, item));
         }

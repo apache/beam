@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import re
 from builtins import object
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from past.builtins import unicode
 
@@ -87,6 +88,7 @@ class FileSystems(object):
 
   @staticmethod
   def get_filesystem(path):
+    # type: (str) -> FileSystems
     """Get the correct filesystem for the specified path
     """
     try:
@@ -110,6 +112,7 @@ class FileSystems(object):
 
   @staticmethod
   def join(basepath, *paths):
+    # type: (str, *str) -> str
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -194,6 +197,7 @@ class FileSystems(object):
   @staticmethod
   def create(path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a write channel for the given file path.
 
     Args:
@@ -210,6 +214,7 @@ class FileSystems(object):
   @staticmethod
   def open(path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a read channel for the given file path.
 
     Args:

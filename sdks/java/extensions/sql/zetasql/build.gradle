@@ -31,6 +31,7 @@ dependencies {
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:sql")
   compile library.java.vendored_calcite_1_20_0
+  compile library.java.guava
   compile library.java.grpc_all
   compile library.java.protobuf_java
   compile library.java.protobuf_java_util

@@ -38,15 +38,15 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20191029'
+BEAM_CONTAINER_VERSION = 'beam-master-20191112'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20191029'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20191112'
 
 # TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
-STAGED_PIPELINE_FILENAME = "pipeline.pb"
-STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
+STAGED_PIPELINE_FILENAME = 'pipeline.pb'
+STAGED_PIPELINE_URL_METADATA_FIELD = 'pipeline_url'
 
 # Package names for different distributions
 BEAM_PACKAGE_NAME = 'apache-beam'
@@ -61,7 +61,8 @@ DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 class TransformNames(object):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Transform strings as they are expected in the CloudWorkflow protos."""
+  Transform strings as they are expected in the CloudWorkflow protos.
+  """
   COLLECTION_TO_SINGLETON = 'CollectionToSingleton'
   COMBINE = 'CombineValues'
   CREATE_PCOLLECTION = 'CreateCollection'
@@ -75,7 +76,8 @@ class TransformNames(object):
 class PropertyNames(object):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Property strings as they are expected in the CloudWorkflow protos."""
+  Property strings as they are expected in the CloudWorkflow protos.
+  """
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
   BIGQUERY_EXPORT_FORMAT = 'bigquery_export_format'
@@ -104,6 +106,7 @@ class PropertyNames(object):
   OUTPUT_INFO = 'output_info'
   OUTPUT_NAME = 'output_name'
   PARALLEL_INPUT = 'parallel_input'
+  PIPELINE_PROTO_TRANSFORM_ID = 'pipeline_proto_transform_id'
   PUBSUB_ID_LABEL = 'pubsub_id_label'
   PUBSUB_SERIALIZED_ATTRIBUTES_FN = 'pubsub_serialized_attributes_fn'
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
@@ -113,7 +116,9 @@ class PropertyNames(object):
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'
   SOURCE_STEP_INPUT = 'custom_source_step_input'
+  SERIALIZED_TEST_STREAM = 'serialized_test_stream'
   STEP_NAME = 'step_name'
+  USE_INDEXED_FORMAT = 'use_indexed_format'
   USER_FN = 'user_fn'
   USER_NAME = 'user_name'
   VALIDATE_SINK = 'validate_sink'

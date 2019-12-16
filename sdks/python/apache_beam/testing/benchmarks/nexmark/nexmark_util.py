@@ -41,6 +41,8 @@ import threading
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class Command(object):
   def __init__(self, cmd, args):
@@ -53,7 +55,7 @@ class Command(object):
                     timeout, self.cmd.__name__)
 
       self.cmd(*self.args)
-      logging.info('%d seconds elapsed. Thread (%s) finished.',
+      _LOGGER.info('%d seconds elapsed. Thread (%s) finished.',
                    timeout, self.cmd.__name__)
 
     thread = threading.Thread(target=thread_target, name='Thread-timeout')

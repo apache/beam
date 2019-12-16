@@ -177,7 +177,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-reference-java</artifactId>
+          <artifactId>beam-runners-portability-java</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>

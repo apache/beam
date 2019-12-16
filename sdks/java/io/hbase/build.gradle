@@ -64,6 +64,6 @@ dependencies {
   }
   testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
   testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 

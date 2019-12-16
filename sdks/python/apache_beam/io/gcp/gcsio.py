@@ -44,6 +44,9 @@ from apache_beam.utils import retry
 __all__ = ['GcsIO']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 # Issue a friendlier error message if the storage library is not available.
 # TODO(silviuc): Remove this guard when storage is available everywhere.
 try:
@@ -250,7 +253,7 @@ class GcsIO(object):
         maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
     response = self.client.objects.Rewrite(request)
     while not response.done:
-      logging.debug(
+      _LOGGER.debug(
           'Rewrite progress: %d of %d bytes, %s to %s',
           response.totalBytesRewritten, response.objectSize, src, dest)
       request.rewriteToken = response.rewriteToken
@@ -258,7 +261,7 @@ class GcsIO(object):
       if self._rewrite_cb is not None:
         self._rewrite_cb(response)
 
-    logging.debug('Rewrite done: %s to %s', src, dest)
+    _LOGGER.debug('Rewrite done: %s to %s', src, dest)
 
   # We intentionally do not decorate this method with a retry, as retrying is
   # handled in BatchApiRequest.Execute().
@@ -320,12 +323,12 @@ class GcsIO(object):
                 GcsIOError(errno.ENOENT, 'Source file not found: %s' % src))
           pair_to_status[pair] = exception
         elif not response.done:
-          logging.debug(
+          _LOGGER.debug(
               'Rewrite progress: %d of %d bytes, %s to %s',
               response.totalBytesRewritten, response.objectSize, src, dest)
           pair_to_request[pair].rewriteToken = response.rewriteToken
         else:
-          logging.debug('Rewrite done: %s to %s', src, dest)
+          _LOGGER.debug('Rewrite done: %s to %s', src, dest)
           pair_to_status[pair] = None
 
     return [(pair[0], pair[1], pair_to_status[pair]) for pair in src_dest_pairs]
@@ -458,7 +461,7 @@ class GcsIO(object):
     file_sizes = {}
     counter = 0
     start_time = time.time()
-    logging.info("Starting the size estimation of the input")
+    _LOGGER.info("Starting the size estimation of the input")
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
@@ -466,12 +469,12 @@ class GcsIO(object):
         file_sizes[file_name] = item.size
         counter += 1
         if counter % 10000 == 0:
-          logging.info("Finished computing size of: %s files", len(file_sizes))
+          _LOGGER.info("Finished computing size of: %s files", len(file_sizes))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
       else:
         break
-    logging.info("Finished listing %s files in %s seconds.",
+    _LOGGER.info("Finished listing %s files in %s seconds.",
                  counter, time.time() - start_time)
     return file_sizes
 
@@ -492,7 +495,7 @@ class GcsDownloader(Downloader):
       if http_error.status_code == 404:
         raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
       else:
-        logging.error('HTTP error while requesting file %s: %s', self._path,
+        _LOGGER.error('HTTP error while requesting file %s: %s', self._path,
                       http_error)
         raise
     self._size = metadata.size
@@ -564,7 +567,7 @@ class GcsUploader(Uploader):
     try:
       self._client.objects.Insert(self._insert_request, upload=self._upload)
     except Exception as e:  # pylint: disable=broad-except
-      logging.error('Error in _start_upload while inserting file %s: %s',
+      _LOGGER.error('Error in _start_upload while inserting file %s: %s',
                     self._path, traceback.format_exc())
       self._upload_thread.last_error = e
     finally:

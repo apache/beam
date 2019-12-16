@@ -54,7 +54,7 @@ function retry() {
 
 # Invokes "kubectl apply" using specified kubeconfig and namespace.
 #
-# Usage: ./kubernetes.sh apply <path to .yaml file>
+# Usage: ./kubernetes.sh apply <path to .yaml file or directory with .yaml files>
 function apply() {
   eval "$KUBECTL apply -R -f $1"
 }

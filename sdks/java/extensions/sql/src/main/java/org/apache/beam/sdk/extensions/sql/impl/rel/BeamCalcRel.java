@@ -390,6 +390,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
             .put(TypeName.BOOLEAN, "getBoolean")
             .put(TypeName.MAP, "getMap")
             .put(TypeName.ARRAY, "getArray")
+            .put(TypeName.ITERABLE, "getIterable")
             .put(TypeName.ROW, "getRow")
             .build();
 

@@ -47,6 +47,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def new_pipeline_with_job_name(pipeline_options, job_name, suffix):
   """Create a pipeline with the given job_name and a suffix."""
@@ -108,7 +110,7 @@ def run(argv=None):
   # Pipeline 1: Create and write the specified number of Entities to the
   # Cloud Datastore.
   ancestor_key = Key([kind, str(uuid.uuid4())], project=project)
-  logging.info('Writing %s entities to %s', num_entities, project)
+  _LOGGER.info('Writing %s entities to %s', num_entities, project)
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-write')
   _ = (p
        | 'Input' >> beam.Create(list(range(num_entities)))
@@ -121,7 +123,7 @@ def run(argv=None):
   # Optional Pipeline 2: If a read limit was provided, read it and confirm
   # that the expected entities were read.
   if known_args.limit is not None:
-    logging.info('Querying a limited set of %s entities and verifying count.',
+    _LOGGER.info('Querying a limited set of %s entities and verifying count.',
                  known_args.limit)
     p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-limit')
     query.limit = known_args.limit
@@ -134,7 +136,7 @@ def run(argv=None):
     query.limit = None
 
   # Pipeline 3: Query the written Entities and verify result.
-  logging.info('Querying entities, asserting they match.')
+  _LOGGER.info('Querying entities, asserting they match.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify')
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
@@ -145,7 +147,7 @@ def run(argv=None):
   p.run()
 
   # Pipeline 4: Delete Entities.
-  logging.info('Deleting entities.')
+  _LOGGER.info('Deleting entities.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-delete')
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
   _ = (entities
@@ -155,7 +157,7 @@ def run(argv=None):
   p.run()
 
   # Pipeline 5: Query the written Entities, verify no results.
-  logging.info('Querying for the entities to make sure there are none present.')
+  _LOGGER.info('Querying for the entities to make sure there are none present.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-deleted')
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
 

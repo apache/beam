@@ -45,14 +45,19 @@ dependencies {
   fmppTemplates library.java.vendored_calcite_1_20_0
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:join-library")
-  compile project(":runners:direct-java")
+  compile project(path: ":runners:direct-java", configuration: "shadow")
+  compile library.java.commons_codec
   compile library.java.commons_csv
+  compile library.java.commons_lang3
+  compile library.java.jackson_databind
+  compile library.java.joda_time
   compile library.java.vendored_calcite_1_20_0
   compile "com.alibaba:fastjson:1.2.49"
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:io:mongodb")
   provided project(":sdks:java:io:parquet")
   provided library.java.kafka_clients
   testCompile library.java.vendored_calcite_1_20_0
@@ -62,6 +67,7 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
+  testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
   testRuntimeClasspath library.java.slf4j_jdk14
 }
 

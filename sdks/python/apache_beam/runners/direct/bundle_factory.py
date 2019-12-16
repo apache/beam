@@ -20,6 +20,10 @@
 from __future__ import absolute_import
 
 from builtins import object
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Union
 
 from apache_beam import pvalue
 from apache_beam.runners import common
@@ -38,12 +42,15 @@ class BundleFactory(object):
   """
 
   def __init__(self, stacked):
+    # type: (bool) -> None
     self._stacked = stacked
 
   def create_bundle(self, output_pcollection):
+    # type: (Union[pvalue.PBegin, pvalue.PCollection]) -> _Bundle
     return _Bundle(output_pcollection, self._stacked)
 
   def create_empty_committed_bundle(self, output_pcollection):
+    # type: (Union[pvalue.PBegin, pvalue.PCollection]) -> _Bundle
     bundle = self.create_bundle(output_pcollection)
     bundle.commit(None)
     return bundle
@@ -99,26 +106,32 @@ class _Bundle(common.Receiver):
     def windows(self):
       return self._initial_windowed_value.windows
 
+    @property
+    def pane_info(self):
+      return self._initial_windowed_value.pane_info
+
     def add_value(self, value):
       self._appended_values.append(value)
 
     def windowed_values(self):
+      # type: () -> Iterator[WindowedValue]
       # yield first windowed_value as is, then iterate through
       # _appended_values to yield WindowedValue on the fly.
       yield self._initial_windowed_value
       for v in self._appended_values:
-        yield WindowedValue(v, self._initial_windowed_value.timestamp,
-                            self._initial_windowed_value.windows)
+        yield self._initial_windowed_value.with_value(v)
 
   def __init__(self, pcollection, stacked=True):
+    # type: (Union[pvalue.PBegin, pvalue.PCollection], bool) -> None
     assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
-    self._elements = []
+    self._elements = []  # type: List[Union[WindowedValue, _Bundle._StackedWindowedValues]]
     self._stacked = stacked
     self._committed = False
     self._tag = None  # optional tag information for this bundle
 
   def get_elements_iterable(self, make_copy=False):
+    # type: (bool) -> Iterable[WindowedValue]
     """Returns iterable elements.
 
     Args:
@@ -178,7 +191,8 @@ class _Bundle(common.Receiver):
         (isinstance(self._elements[-1], (WindowedValue,
                                          _Bundle._StackedWindowedValues))) and
         self._elements[-1].timestamp == element.timestamp and
-        self._elements[-1].windows == element.windows):
+        self._elements[-1].windows == element.windows and
+        self._elements[-1].pane_info == element.pane_info):
       if isinstance(self._elements[-1], WindowedValue):
         self._elements[-1] = _Bundle._StackedWindowedValues(self._elements[-1])
       self._elements[-1].add_value(element.value)
@@ -189,6 +203,7 @@ class _Bundle(common.Receiver):
     self.add(element)
 
   def receive(self, element):
+    # type: (WindowedValue) -> None
     self.add(element)
 
   def commit(self, synchronized_processing_time):

@@ -28,6 +28,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.runners.direct import direct_runner
+from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_runner
 
 
@@ -78,6 +79,9 @@ class InteractiveRunnerTest(unittest.TestCase):
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | 'group' >> beam.GroupByKey()
         | 'count' >> beam.Map(lambda wordones: (wordones[0], sum(wordones[1]))))
+
+    # Watch the local scope for Interactive Beam so that counts will be cached.
+    ib.watch(locals())
 
     result = p.run()
     result.wait_until_finish()

@@ -25,13 +25,9 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
-import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -41,7 +37,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.RelOptTableImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelWriter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.TableScan;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
@@ -52,33 +47,26 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   private final BeamSqlTable beamTable;
   private final BeamCalciteTable calciteTable;
   private final Map<String, String> pipelineOptions;
-  private final List<String> usedFields;
-  private final BeamSqlTableFilter tableFilters;
 
   public BeamIOSourceRel(
       RelOptCluster cluster,
       RelTraitSet traitSet,
       RelOptTable table,
       BeamSqlTable beamTable,
-      List<String> usedFields,
-      BeamSqlTableFilter tableFilters,
       Map<String, String> pipelineOptions,
       BeamCalciteTable calciteTable) {
     super(cluster, traitSet, table);
     this.beamTable = beamTable;
-    this.usedFields = usedFields;
-    this.tableFilters = tableFilters;
     this.calciteTable = calciteTable;
     this.pipelineOptions = pipelineOptions;
   }
 
-  public BeamIOSourceRel copy(
+  public BeamPushDownIOSourceRel createPushDownRel(
       RelDataType newType, List<String> usedFields, BeamSqlTableFilter tableFilters) {
     RelOptTable relOptTable =
         newType == null ? table : ((RelOptTableImpl) getTable()).copy(newType);
-    tableFilters = tableFilters == null ? this.tableFilters : tableFilters;
 
-    return new BeamIOSourceRel(
+    return new BeamPushDownIOSourceRel(
         getCluster(),
         traitSet,
         relOptTable,
@@ -119,22 +107,6 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     return new Transform();
   }
 
-  @Override
-  public RelWriter explainTerms(RelWriter pw) {
-    super.explainTerms(pw);
-
-    // This is done to tell Calcite planner that BeamIOSourceRel cannot be simply substituted by
-    //  another BeamIOSourceRel, except for when they carry the same content.
-    if (!usedFields.isEmpty()) {
-      pw.item("usedFields", usedFields.toString());
-    }
-    if (!(tableFilters instanceof DefaultTableFilter)) {
-      pw.item(tableFilters.getClass().getSimpleName(), tableFilters.toString());
-    }
-
-    return pw;
-  }
-
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
@@ -145,14 +117,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
           BeamIOSourceRel.class.getSimpleName(),
           input);
 
-      final PBegin begin = input.getPipeline().begin();
-
-      if (usedFields.isEmpty() && tableFilters instanceof DefaultTableFilter) {
-        return beamTable.buildIOReader(begin);
-      }
-
-      final Schema newBeamSchema = CalciteUtils.toSchema(getRowType());
-      return beamTable.buildIOReader(begin, tableFilters, usedFields).setRowSchema(newBeamSchema);
+      return beamTable.buildIOReader(input.getPipeline().begin());
     }
   }
 
@@ -167,9 +132,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
-    return BeamCostModel.FACTORY
-        .makeCost(estimates.getRowCount(), estimates.getRate())
-        .multiplyBy(getRowType().getFieldCount());
+    return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
   }
 
   public BeamSqlTable getBeamSqlTable() {

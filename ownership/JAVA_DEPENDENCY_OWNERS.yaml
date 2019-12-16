@@ -47,12 +47,12 @@ deps:
   com.amazonaws:amazon-kinesis-client:
     group: com.amazonaws
     artifact: amazon-kinesis-client
-    owners:
+    owners: aromanenko-dev
 
   com.amazonaws:amazon-kinesis-producer:
     group: com.amazonaws
     artifact: amazon-kinesis-producer
-    owners:
+    owners: aromanenko-dev
 
   com.amazonaws:aws-java-sdk-cloudwatch:
     group: com.amazonaws

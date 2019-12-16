@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""AvroRecord for AvroCoder."""
+"""AvroRecord for AvroGenericCoder."""
 
 from __future__ import absolute_import
 

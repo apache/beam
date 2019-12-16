@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import com.google.zetasql.Analyzer;
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.Value;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.io.Reader;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
@@ -133,6 +135,11 @@ public class ZetaSQLPlannerImpl implements Planner {
     this.expressionConverter = new ExpressionConverter(cluster, params);
 
     QueryTrait trait = new QueryTrait();
+
+    // Set up table providers that need to be pre-registered
+    // TODO(https://issues.apache.org/jira/browse/BEAM-8817): share this logic between dialects
+    List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
+    TableResolution.registerTables(this.defaultSchemaPlus, tables);
 
     ResolvedStatement statement =
         SqlAnalyzer.withQueryParams(params)

@@ -58,6 +58,8 @@ except ImportError:
   HttpError = None
 
 
+_LOGGER = logging.getLogger(__name__)
+
 _DESTINATION_ELEMENT_PAIRS = [
     # DESTINATION 1
     ('project1:dataset1.table1', '{"name":"beam", "language":"py"}'),
@@ -120,7 +122,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     with TestPipeline() as p:
       output_pcs = (
           p
-          | beam.Create(_DESTINATION_ELEMENT_PAIRS)
+          | beam.Create(_DESTINATION_ELEMENT_PAIRS, reshuffle=False)
           | beam.ParDo(fn, self.tmpdir)
           .with_outputs(fn.WRITTEN_FILE_TAG, fn.UNWRITTEN_RECORD_TAG))
 
@@ -323,7 +325,7 @@ class TestPartitionFiles(unittest.TestCase):
                                   ('destination0', ['file2', 'file3'])]
     single_partition_result = [('destination1', ['file0', 'file1'])]
     with TestPipeline() as p:
-      destination_file_pairs = p | beam.Create(self._ELEMENTS)
+      destination_file_pairs = p | beam.Create(self._ELEMENTS, reshuffle=False)
       partitioned_files = (
           destination_file_pairs
           | beam.ParDo(bqfl.PartitionFiles(1000, 2))
@@ -345,7 +347,7 @@ class TestPartitionFiles(unittest.TestCase):
                                   ('destination0', ['file3'])]
     single_partition_result = [('destination1', ['file0', 'file1'])]
     with TestPipeline() as p:
-      destination_file_pairs = p | beam.Create(self._ELEMENTS)
+      destination_file_pairs = p | beam.Create(self._ELEMENTS, reshuffle=False)
       partitioned_files = (
           destination_file_pairs
           | beam.ParDo(bqfl.PartitionFiles(150, 10))
@@ -531,7 +533,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     with TestPipeline('DirectRunner') as p:
       outputs = (p
-                 | beam.Create(_ELEMENTS)
+                 | beam.Create(_ELEMENTS, reshuffle=False)
                  | bqfl.BigQueryBatchFileLoads(
                      destination,
                      custom_gcs_temp_location=self._new_tempdir(),
@@ -609,7 +611,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
-    logging.info("Created dataset %s in project %s",
+    _LOGGER.info("Created dataset %s in project %s",
                  self.dataset_id, self.project)
 
   @attr('IT')
@@ -658,7 +660,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         experiments='use_beam_bq_sink')
 
     with beam.Pipeline(argv=args) as p:
-      input = p | beam.Create(_ELEMENTS)
+      input = p | beam.Create(_ELEMENTS, reshuffle=False)
 
       schema_map_pcv = beam.pvalue.AsDict(
           p | "MakeSchemas" >> beam.Create(schema_kv_pairs))
@@ -794,11 +796,11 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         projectId=self.project, datasetId=self.dataset_id,
         deleteContents=True)
     try:
-      logging.info("Deleting dataset %s in project %s",
+      _LOGGER.info("Deleting dataset %s in project %s",
                    self.dataset_id, self.project)
       self.bigquery_client.client.datasets.Delete(request)
     except HttpError:
-      logging.debug('Failed to clean up dataset %s in project %s',
+      _LOGGER.debug('Failed to clean up dataset %s in project %s',
                     self.dataset_id, self.project)
 
 

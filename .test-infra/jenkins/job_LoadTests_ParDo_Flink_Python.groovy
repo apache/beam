@@ -33,7 +33,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-1-' + now,
                         project              : 'apache-beam-testing',
-                        publish_to_big_query : false,
+                        publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_1',
                         input_options        : '\'{' +
@@ -56,7 +56,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-2-' + now,
                         project              : 'apache-beam-testing',
-                        publish_to_big_query : false,
+                        publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_2',
                         input_options        : '\'{' +
@@ -79,7 +79,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-3-' + now,
                         project              : 'apache-beam-testing',
-                        publish_to_big_query : false,
+                        publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_3',
                         input_options        : '\'{' +
@@ -102,7 +102,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-flink-batch-pardo-4-' + now,
                         project              : 'apache-beam-testing',
-                        publish_to_big_query : false,
+                        publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_4',
                         input_options        : '\'{' +
@@ -129,9 +129,9 @@ def loadTest = { scope, triggeringContext ->
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
   publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
-  publisher.publish(':runners:flink:1.9:job-server-container:docker', 'flink-job-server')
+  publisher.publish(':runners:flink:1.9:job-server-container:docker', 'flink1.9_job_server')
   Flink flink = new Flink(scope, 'beam_LoadTests_Python_ParDo_Flink_Batch')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink-job-server'))
+  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink1.9_job_server'))
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'ParDo', 'batch')
 }

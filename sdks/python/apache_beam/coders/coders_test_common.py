@@ -24,6 +24,8 @@ import sys
 import unittest
 from builtins import range
 
+import pytest
+
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
 from apache_beam.internal import pickler
@@ -47,6 +49,9 @@ class CustomCoder(coders.Coder):
     return int(encoded) - 1
 
 
+# These tests need to all be run in the same process due to the asserts
+# in tearDownClass.
+@pytest.mark.no_xdist
 class CodersTest(unittest.TestCase):
 
   # These class methods ensure that we test each defined coder in both
@@ -67,7 +72,7 @@ class CodersTest(unittest.TestCase):
                    if isinstance(c, type) and issubclass(c, coders.Coder) and
                    'Base' not in c.__name__)
     standard -= set([coders.Coder,
-                     coders.AvroCoder,
+                     coders.AvroGenericCoder,
                      coders.DeterministicProtoCoder,
                      coders.FastCoder,
                      coders.ProtoCoder,

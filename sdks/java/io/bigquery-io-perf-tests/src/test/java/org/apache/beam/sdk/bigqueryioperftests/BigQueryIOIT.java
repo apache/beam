@@ -25,9 +25,12 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.TableId;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.function.Function;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
@@ -59,15 +62,16 @@ import org.junit.runners.JUnit4;
  * <p>Usage:
  *
  * <pre>
- *  ./gradlew integrationTest -p sdks/java/io/gcp/bigquery -DintegrationTestPipelineOptions='[
- *  "--testBigQueryDataset=test-dataset",
- *  "--testBigQueryTable=test-table",
- *  "--metricsBigQueryDataset=metrics-dataset",
- *  "--metricsBigQueryTable=metrics-table",
- *  "--writeMethod=FILE_LOADS",
- *  "--sourceOptions={"numRecords":"1000", "keySize":1, valueSize:"1024"}
- *  }"]'
- *  --tests org.apache.beam.sdk.io.gcp.bigQuery.BigQueryIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/bigquery-io-perf-tests -DintegrationTestPipelineOptions='[ \
+ *    "--testBigQueryDataset=test_dataset", \
+ *    "--testBigQueryTable=test_table", \
+ *    "--metricsBigQueryDataset=metrics_dataset", \
+ *    "--metricsBigQueryTable=metrics_table", \
+ *    "--writeMethod=FILE_LOADS", \
+ *    "--writeFormat=AVRO", \
+ *    "--sourceOptions={\"numRecords\":\"1000\", \"keySizeBytes\":\"1\", \"valueSizeBytes\":\"1024\"}" \
+ *    ]' \
+ *  --tests org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT \
  *  -DintegrationTestRunner=direct
  * </pre>
  */
@@ -78,6 +82,7 @@ public class BigQueryIOIT {
   private static final String TEST_TIMESTAMP = Timestamp.now().toString();
   private static final String READ_TIME_METRIC_NAME = "read_time";
   private static final String WRITE_TIME_METRIC_NAME = "write_time";
+  private static final String AVRO_WRITE_TIME_METRIC_NAME = "avro_write_time";
   private static String metricsBigQueryTable;
   private static String metricsBigQueryDataset;
   private static String testBigQueryDataset;
@@ -86,6 +91,7 @@ public class BigQueryIOIT {
   private static String tableQualifier;
   private static String tempRoot;
   private static BigQueryPerfTestOptions options;
+  private static WriteFormat writeFormat;
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -97,6 +103,7 @@ public class BigQueryIOIT {
     metricsBigQueryTable = options.getMetricsBigQueryTable();
     testBigQueryDataset = options.getTestBigQueryDataset();
     testBigQueryTable = options.getTestBigQueryTable();
+    writeFormat = WriteFormat.valueOf(options.getWriteFormat());
     BigQueryOptions bigQueryOptions = BigQueryOptions.newBuilder().build();
     tableQualifier =
         String.format(
@@ -113,11 +120,44 @@ public class BigQueryIOIT {
 
   @Test
   public void testWriteThenRead() {
-    testWrite();
+    switch (writeFormat) {
+      case AVRO:
+        testAvroWrite();
+        break;
+      case JSON:
+        testJsonWrite();
+        break;
+    }
     testRead();
   }
 
-  private void testWrite() {
+  private void testJsonWrite() {
+    BigQueryIO.Write<byte[]> writeIO =
+        BigQueryIO.<byte[]>write()
+            .withFormatFunction(
+                input -> {
+                  TableRow tableRow = new TableRow();
+                  tableRow.set("data", input);
+                  return tableRow;
+                });
+    testWrite(writeIO, WRITE_TIME_METRIC_NAME);
+  }
+
+  private void testAvroWrite() {
+    BigQueryIO.Write<byte[]> writeIO =
+        BigQueryIO.<byte[]>write()
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+            .withAvroFormatFunction(
+                writeRequest -> {
+                  byte[] data = writeRequest.getElement();
+                  GenericRecord record = new GenericData.Record(writeRequest.getSchema());
+                  record.put("data", ByteBuffer.wrap(data));
+                  return record;
+                });
+    testWrite(writeIO, AVRO_WRITE_TIME_METRIC_NAME);
+  }
+
+  private void testWrite(BigQueryIO.Write<byte[]> writeIO, String metricName) {
     Pipeline pipeline = Pipeline.create(options);
 
     BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(options.getWriteMethod());
@@ -127,14 +167,8 @@ public class BigQueryIOIT {
         .apply("Map records", ParDo.of(new MapKVToV()))
         .apply(
             "Write to BQ",
-            BigQueryIO.<byte[]>write()
+            writeIO
                 .to(tableQualifier)
-                .withFormatFunction(
-                    input -> {
-                      TableRow tableRow = new TableRow();
-                      tableRow.set("data", input);
-                      return tableRow;
-                    })
                 .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(tempRoot))
                 .withMethod(method)
                 .withSchema(
@@ -145,7 +179,7 @@ public class BigQueryIOIT {
 
     PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish();
-    extractAndPublishTime(pipelineResult, WRITE_TIME_METRIC_NAME);
+    extractAndPublishTime(pipelineResult, metricName);
   }
 
   private void testRead() {
@@ -210,6 +244,11 @@ public class BigQueryIOIT {
     String getWriteMethod();
 
     void setWriteMethod(String value);
+
+    String getWriteFormat();
+
+    @Description("Write Avro or JSON to BQ")
+    void setWriteFormat(String value);
   }
 
   private static class MapKVToV extends DoFn<KV<byte[], byte[]>, byte[]> {
@@ -217,5 +256,10 @@ public class BigQueryIOIT {
     public void process(ProcessContext context) {
       context.output(context.element().getValue());
     }
+  }
+
+  private enum WriteFormat {
+    AVRO,
+    JSON
   }
 }

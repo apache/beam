@@ -45,6 +45,8 @@ except ImportError:
 
 MAX_RETRIES = 5
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def retry_on_http_and_value_error(exception):
   """Filter allowing retries on Bigquery errors and value error."""
@@ -83,10 +85,10 @@ class BigqueryMatcher(BaseMatcher):
   def _matches(self, _):
     if self.checksum is None:
       response = self._query_with_retry()
-      logging.info('Read from given query (%s), total rows %d',
+      _LOGGER.info('Read from given query (%s), total rows %d',
                    self.query, len(response))
       self.checksum = compute_hash(response)
-      logging.info('Generate checksum: %s', self.checksum)
+      _LOGGER.info('Generate checksum: %s', self.checksum)
 
     return self.checksum == self.expected_checksum
 
@@ -95,7 +97,7 @@ class BigqueryMatcher(BaseMatcher):
       retry_filter=retry_on_http_and_value_error)
   def _query_with_retry(self):
     """Run Bigquery query with retry if got error http response"""
-    logging.info('Attempting to perform query %s to BQ', self.query)
+    _LOGGER.info('Attempting to perform query %s to BQ', self.query)
     # Create client here since it throws an exception if pickled.
     bigquery_client = bigquery.Client(self.project)
     query_job = bigquery_client.query(self.query)
@@ -134,7 +136,7 @@ class BigqueryFullResultMatcher(BigqueryMatcher):
   def _matches(self, _):
     if self.actual_data is None:
       self.actual_data = self._get_query_result()
-      logging.info('Result of query is: %r', self.actual_data)
+      _LOGGER.info('Result of query is: %r', self.actual_data)
 
     try:
       equal_to(self.expected_data)(self.actual_data)
@@ -179,7 +181,7 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
       response = self._query_with_retry()
       if len(response) >= len(self.expected_data):
         return response
-      logging.debug('Query result contains %d rows' % len(response))
+      _LOGGER.debug('Query result contains %d rows' % len(response))
       time.sleep(1)
     if sys.version_info >= (3,):
       raise TimeoutError('Timeout exceeded for matcher.') # noqa: F821
@@ -207,13 +209,13 @@ class BigQueryTableMatcher(BaseMatcher):
     return bigquery_wrapper.get_table(self.project, self.dataset, self.table)
 
   def _matches(self, _):
-    logging.info('Start verify Bigquery table properties.')
+    _LOGGER.info('Start verify Bigquery table properties.')
     # Run query
     bigquery_wrapper = bigquery_tools.BigQueryWrapper()
 
     self.actual_table = self._get_table_with_retry(bigquery_wrapper)
 
-    logging.info('Table proto is %s', self.actual_table)
+    _LOGGER.info('Table proto is %s', self.actual_table)
 
     return all(
         self._match_property(v, self._get_or_none(self.actual_table, k))
@@ -231,7 +233,7 @@ class BigQueryTableMatcher(BaseMatcher):
 
   @staticmethod
   def _match_property(expected, actual):
-    logging.info("Matching %s to %s", expected, actual)
+    _LOGGER.info("Matching %s to %s", expected, actual)
     if isinstance(expected, dict):
       return all(
           BigQueryTableMatcher._match_property(

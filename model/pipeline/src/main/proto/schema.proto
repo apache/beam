@@ -46,9 +46,10 @@ message FieldType {
   oneof type_info {
     AtomicType atomic_type = 2;
     ArrayType array_type = 3;
-    MapType map_type = 4;
-    RowType row_type = 5;
-    LogicalType logical_type = 6;
+    IterableType iterable_type = 4;
+    MapType map_type = 5;
+    RowType row_type = 6;
+    LogicalType logical_type = 7;
   }
 }
 
@@ -66,6 +67,10 @@ enum AtomicType {
 }
 
 message ArrayType {
+  FieldType element_type = 1;
+}
+
+message IterableType {
   FieldType element_type = 1;
 }
 

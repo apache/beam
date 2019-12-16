@@ -639,6 +639,10 @@ public class TextIOWriteTest {
   @Test
   @Category(NeedsRunner.class)
   public void testWindowedWritesWithOnceTrigger() throws Throwable {
+    p.enableAbandonedNodeEnforcement(false);
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Unsafe trigger");
+
     // Tests for https://issues.apache.org/jira/browse/BEAM-3169
     PCollection<String> data =
         p.apply(Create.of("0", "1", "2"))
@@ -660,17 +664,6 @@ public class TextIOWriteTest {
                     .<Void>withOutputFilenames())
             .getPerDestinationOutputFilenames()
             .apply(Values.create());
-
-    PAssert.that(
-            filenames
-                .apply(FileIO.matchAll())
-                .apply(FileIO.readMatches())
-                .apply(TextIO.readFiles()))
-        .containsInAnyOrder("0", "1", "2");
-
-    PAssert.that(filenames.apply(TextIO.readAll())).containsInAnyOrder("0", "1", "2");
-
-    p.run();
   }
 
   @Test

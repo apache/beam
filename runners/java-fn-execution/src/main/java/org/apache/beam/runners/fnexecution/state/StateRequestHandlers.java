@@ -38,16 +38,19 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.BagUserStateSpec;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.SideInputSpec;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
 import org.apache.beam.sdk.fn.stream.DataStreams.ElementDelimitedOutputStream;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.Reiterable;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
@@ -60,28 +63,68 @@ import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 public class StateRequestHandlers {
 
   /**
-   * A handler for side inputs.
+   * Marker interface that denotes some type of side input handler. The access pattern defines the
+   * underlying type.
+   *
+   * <ul>
+   *   <li>access pattern: Java type
+   *   <li>{@code beam:side_input:iterable:v1}: {@link IterableSideInputHandler}
+   *   <li>{@code beam:side_input:multimap:v1}: {@link MultimapSideInputHandler}
+   * </ul>
+   */
+  @ThreadSafe
+  public interface SideInputHandler {}
+
+  /**
+   * A handler for iterable side inputs.
    *
    * <p>Note that this handler is expected to be thread safe as it will be invoked concurrently.
    */
   @ThreadSafe
-  public interface SideInputHandler<V, W extends BoundedWindow> {
+  public interface IterableSideInputHandler<V, W extends BoundedWindow> extends SideInputHandler {
+    /**
+     * Returns an {@link Iterable} of values representing the side input for the given window.
+     *
+     * <p>TODO: Add support for side input chunking and caching if a {@link Reiterable} is returned.
+     */
+    Iterable<V> get(W window);
+
+    /** Returns the {@link Coder} to use for the elements of the resulting values iterable. */
+    Coder<V> elementCoder();
+  }
+
+  /**
+   * A handler for multimap side inputs.
+   *
+   * <p>Note that this handler is expected to be thread safe as it will be invoked concurrently.
+   */
+  @ThreadSafe
+  public interface MultimapSideInputHandler<K, V, W extends BoundedWindow>
+      extends SideInputHandler {
+    /**
+     * Returns an {@link Iterable} of keys representing the side input for the given window.
+     *
+     * <p>TODO: Add support for side input chunking and caching if a {@link Reiterable} is returned.
+     */
+    Iterable<K> get(W window);
+
     /**
      * Returns an {@link Iterable} of values representing the side input for the given key and
      * window.
      *
-     * <p>The key is interpreted according to the access pattern of side input.
-     *
      * <p>TODO: Add support for side input chunking and caching if a {@link Reiterable} is returned.
      */
-    Iterable<V> get(byte[] key, W window);
+    Iterable<V> get(K key, W window);
+
+    /** Returns the {@link Coder} to use for the elements of the resulting keys iterable. */
+    Coder<K> keyCoder();
 
     /** Returns the {@link Coder} to use for the elements of the resulting values iterable. */
-    Coder<V> resultCoder();
+    Coder<V> valueCoder();
   }
 
   /**
-   * A factory which constructs {@link SideInputHandler}s.
+   * A factory which constructs {@link MultimapSideInputHandler}s.
    *
    * <p>Note that this factory should be thread safe because it will be invoked concurrently.
    */
@@ -89,32 +132,46 @@ public class StateRequestHandlers {
   public interface SideInputHandlerFactory {
 
     /**
-     * Returns a {@link SideInputHandler} for the given {@code pTransformId}, {@code sideInputId},
-     * and {@code accessPattern}. The supplied {@code elementCoder} and {@code windowCoder} should
-     * be used to encode/decode their respective values.
+     * Returns an {@link IterableSideInputHandler} for the given {@code pTransformId}, {@code
+     * sideInputId}. The supplied {@code elementCoder} and {@code windowCoder} should be used to
+     * encode/decode their respective values.
      */
-    <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
-        String pTransformId,
-        String sideInputId,
-        RunnerApi.FunctionSpec accessPattern,
-        Coder<T> elementCoder,
-        Coder<W> windowCoder);
+    <V, W extends BoundedWindow> IterableSideInputHandler<V, W> forIterableSideInput(
+        String pTransformId, String sideInputId, Coder<V> elementCoder, Coder<W> windowCoder);
+
+    /**
+     * Returns a {@link MultimapSideInputHandler} for the given {@code pTransformId}, {@code
+     * sideInputId}. The supplied {@code elementCoder} and {@code windowCoder} should be used to
+     * encode/decode their respective values.
+     */
+    <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forMultimapSideInput(
+        String pTransformId, String sideInputId, KvCoder<K, V> elementCoder, Coder<W> windowCoder);
 
     /** Throws a {@link UnsupportedOperationException} on the first access. */
     static SideInputHandlerFactory unsupported() {
       return new SideInputHandlerFactory() {
         @Override
-        public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
-            String pTransformId,
-            String sideInputId,
-            RunnerApi.FunctionSpec accessPattern,
-            Coder<T> elementCoder,
-            Coder<W> windowCoder) {
+        public <V, W extends BoundedWindow> IterableSideInputHandler<V, W> forIterableSideInput(
+            String pTransformId, String sideInputId, Coder<V> elementCoder, Coder<W> windowCoder) {
           throw new UnsupportedOperationException(
               String.format(
                   "The %s does not support handling sides inputs for PTransform %s with side "
                       + "input id %s.",
-                  SideInputHandler.class.getSimpleName(), pTransformId, sideInputId));
+                  SideInputHandlerFactory.class.getSimpleName(), pTransformId, sideInputId));
+        }
+
+        @Override
+        public <K, V, W extends BoundedWindow>
+            MultimapSideInputHandler<K, V, W> forMultimapSideInput(
+                String pTransformId,
+                String sideInputId,
+                KvCoder<K, V> elementCoder,
+                Coder<W> windowCoder) {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "The %s does not support handling sides inputs for PTransform %s with side "
+                      + "input id %s.",
+                  SideInputHandlerFactory.class.getSimpleName(), pTransformId, sideInputId));
         }
       };
     }
@@ -235,8 +292,8 @@ public class StateRequestHandlers {
    * ExecutableProcessBundleDescriptor#getSideInputSpecs} for the set of side inputs that are
    * contained.
    *
-   * <p>Instances of {@link SideInputHandler}s returned by the {@link SideInputHandlerFactory} are
-   * cached.
+   * <p>Instances of {@link MultimapSideInputHandler}s returned by the {@link
+   * SideInputHandlerFactory} are cached.
    */
   public static StateRequestHandler forSideInputHandlerFactory(
       Map<String, Map<String, SideInputSpec>> sideInputSpecs,
@@ -262,29 +319,51 @@ public class StateRequestHandlers {
 
     @Override
     public CompletionStage<StateResponse.Builder> handle(StateRequest request) throws Exception {
+      checkState(
+          RequestCase.GET.equals(request.getRequestCase()),
+          String.format("Unsupported request type %s for side input.", request.getRequestCase()));
+
       try {
-        checkState(
-            TypeCase.MULTIMAP_SIDE_INPUT.equals(request.getStateKey().getTypeCase()),
-            "Unsupported %s type %s, expected %s",
-            StateRequest.class.getSimpleName(),
-            request.getStateKey().getTypeCase(),
-            TypeCase.MULTIMAP_SIDE_INPUT);
-
-        StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
-        SideInputSpec<?, ?, ?> referenceSpec =
-            sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
-        SideInputHandler<?, ?> handler =
-            handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
-
-        switch (request.getRequestCase()) {
-          case GET:
-            return handleGetRequest(request, handler);
-          case APPEND:
-          case CLEAR:
+        switch (request.getStateKey().getTypeCase()) {
+          case MULTIMAP_SIDE_INPUT:
+            {
+              StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
+              SideInputSpec<?, ?> referenceSpec =
+                  sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
+              MultimapSideInputHandler handler =
+                  (MultimapSideInputHandler)
+                      handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
+              return handleGetMultimapValuesRequest(request, handler);
+            }
+          case MULTIMAP_KEYS_SIDE_INPUT:
+            {
+              StateKey.MultimapKeysSideInput stateKey =
+                  request.getStateKey().getMultimapKeysSideInput();
+              SideInputSpec<?, ?> referenceSpec =
+                  sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
+              MultimapSideInputHandler handler =
+                  (MultimapSideInputHandler)
+                      handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
+              return handleGetMultimapKeysRequest(request, handler);
+            }
+          case ITERABLE_SIDE_INPUT:
+            {
+              StateKey.IterableSideInput stateKey = request.getStateKey().getIterableSideInput();
+              SideInputSpec<?, ?> referenceSpec =
+                  sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
+              IterableSideInputHandler handler =
+                  (IterableSideInputHandler)
+                      handlerCache.computeIfAbsent(referenceSpec, this::createHandler);
+              return handleGetIterableValuesRequest(request, handler);
+            }
           default:
-            throw new Exception(
+            throw new IllegalStateException(
                 String.format(
-                    "Unsupported request type %s for side input.", request.getRequestCase()));
+                    "Unsupported %s type %s, expected %s or %s",
+                    StateRequest.class.getSimpleName(),
+                    request.getStateKey().getTypeCase(),
+                    TypeCase.MULTIMAP_SIDE_INPUT,
+                    TypeCase.MULTIMAP_KEYS_SIDE_INPUT));
         }
       } catch (Exception e) {
         CompletableFuture f = new CompletableFuture();
@@ -293,26 +372,27 @@ public class StateRequestHandlers {
       }
     }
 
-    private <K, V, W extends BoundedWindow> CompletionStage<StateResponse.Builder> handleGetRequest(
-        StateRequest request, SideInputHandler<V, W> handler) throws Exception {
+    private <K, V, W extends BoundedWindow>
+        CompletionStage<StateResponse.Builder> handleGetMultimapKeysRequest(
+            StateRequest request, MultimapSideInputHandler<K, V, W> handler) throws Exception {
       // TODO: Add support for continuation tokens when handling state if the handler
       // returned a {@link Reiterable}.
       checkState(
           request.getGet().getContinuationToken().isEmpty(),
           "Continuation tokens are unsupported.");
 
-      StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
+      StateKey.MultimapKeysSideInput stateKey = request.getStateKey().getMultimapKeysSideInput();
 
-      SideInputSpec<K, V, W> sideInputReferenceSpec =
+      SideInputSpec<KV<K, V>, W> sideInputReferenceSpec =
           sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
 
       W window = sideInputReferenceSpec.windowCoder().decode(stateKey.getWindow().newInput());
 
-      Iterable<V> values = handler.get(stateKey.getKey().toByteArray(), window);
+      Iterable<K> keys = handler.get(window);
       List<ByteString> encodedValues = new ArrayList<>();
       ElementDelimitedOutputStream outputStream = DataStreams.outbound(encodedValues::add);
-      for (V value : values) {
-        handler.resultCoder().encode(value, outputStream);
+      for (K key : keys) {
+        handler.keyCoder().encode(key, outputStream);
         outputStream.delimitElement();
       }
       outputStream.close();
@@ -324,14 +404,91 @@ public class StateRequestHandlers {
       return CompletableFuture.completedFuture(response);
     }
 
-    private <K, V, W extends BoundedWindow> SideInputHandler<V, W> createHandler(
-        SideInputSpec cacheKey) {
-      return sideInputHandlerFactory.forSideInput(
-          cacheKey.transformId(),
-          cacheKey.sideInputId(),
-          cacheKey.accessPattern(),
-          cacheKey.elementCoder(),
-          cacheKey.windowCoder());
+    private <K, V, W extends BoundedWindow>
+        CompletionStage<StateResponse.Builder> handleGetMultimapValuesRequest(
+            StateRequest request, MultimapSideInputHandler<K, V, W> handler) throws Exception {
+      // TODO: Add support for continuation tokens when handling state if the handler
+      // returned a {@link Reiterable}.
+      checkState(
+          request.getGet().getContinuationToken().isEmpty(),
+          "Continuation tokens are unsupported.");
+
+      StateKey.MultimapSideInput stateKey = request.getStateKey().getMultimapSideInput();
+
+      SideInputSpec<KV<K, V>, W> sideInputReferenceSpec =
+          sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
+
+      W window = sideInputReferenceSpec.windowCoder().decode(stateKey.getWindow().newInput());
+
+      Iterable<V> values =
+          handler.get(handler.keyCoder().decode(stateKey.getKey().newInput()), window);
+      List<ByteString> encodedValues = new ArrayList<>();
+      ElementDelimitedOutputStream outputStream = DataStreams.outbound(encodedValues::add);
+      for (V value : values) {
+        handler.valueCoder().encode(value, outputStream);
+        outputStream.delimitElement();
+      }
+      outputStream.close();
+
+      StateResponse.Builder response = StateResponse.newBuilder();
+      response.setId(request.getId());
+      response.setGet(
+          StateGetResponse.newBuilder().setData(ByteString.copyFrom(encodedValues)).build());
+      return CompletableFuture.completedFuture(response);
+    }
+
+    private <V, W extends BoundedWindow>
+        CompletionStage<StateResponse.Builder> handleGetIterableValuesRequest(
+            StateRequest request, IterableSideInputHandler<V, W> handler) throws Exception {
+      // TODO: Add support for continuation tokens when handling state if the handler
+      // returned a {@link Reiterable}.
+      checkState(
+          request.getGet().getContinuationToken().isEmpty(),
+          "Continuation tokens are unsupported.");
+
+      StateKey.IterableSideInput stateKey = request.getStateKey().getIterableSideInput();
+
+      SideInputSpec<V, W> sideInputReferenceSpec =
+          sideInputSpecs.get(stateKey.getTransformId()).get(stateKey.getSideInputId());
+
+      W window = sideInputReferenceSpec.windowCoder().decode(stateKey.getWindow().newInput());
+
+      Iterable<V> values = handler.get(window);
+      List<ByteString> encodedValues = new ArrayList<>();
+      ElementDelimitedOutputStream outputStream = DataStreams.outbound(encodedValues::add);
+      for (V value : values) {
+        handler.elementCoder().encode(value, outputStream);
+        outputStream.delimitElement();
+      }
+      outputStream.close();
+
+      StateResponse.Builder response = StateResponse.newBuilder();
+      response.setId(request.getId());
+      response.setGet(
+          StateGetResponse.newBuilder().setData(ByteString.copyFrom(encodedValues)).build());
+      return CompletableFuture.completedFuture(response);
+    }
+
+    private SideInputHandler createHandler(SideInputSpec<?, ?> cacheKey) {
+      switch (cacheKey.accessPattern().getUrn()) {
+        case Materializations.ITERABLE_MATERIALIZATION_URN:
+          return sideInputHandlerFactory.forIterableSideInput(
+              cacheKey.transformId(),
+              cacheKey.sideInputId(),
+              cacheKey.elementCoder(),
+              cacheKey.windowCoder());
+
+        case Materializations.MULTIMAP_MATERIALIZATION_URN:
+          return sideInputHandlerFactory.forMultimapSideInput(
+              cacheKey.transformId(),
+              cacheKey.sideInputId(),
+              (KvCoder) cacheKey.elementCoder(),
+              cacheKey.windowCoder());
+
+        default:
+          throw new IllegalStateException(
+              String.format("Unsupported access pattern for side input %s", cacheKey));
+      }
     }
   }
 
@@ -344,8 +501,8 @@ public class StateRequestHandlers {
    * ExecutableProcessBundleDescriptor#getSideInputSpecs} for the set of multimap side inputs that
    * are contained.
    *
-   * <p>Instances of {@link SideInputHandler}s returned by the {@link SideInputHandlerFactory} are
-   * cached.
+   * <p>Instances of {@link MultimapSideInputHandler}s returned by the {@link
+   * SideInputHandlerFactory} are cached.
    */
   public static StateRequestHandler forBagUserStateHandlerFactory(
       ExecutableProcessBundleDescriptor processBundleDescriptor,

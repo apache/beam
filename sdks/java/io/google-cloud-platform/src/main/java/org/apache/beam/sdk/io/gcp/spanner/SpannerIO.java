@@ -177,10 +177,11 @@ import org.slf4j.LoggerFactory;
  * <h3>Batching</h3>
  *
  * <p>To reduce the number of transactions sent to Spanner, the {@link Mutation Mutations} are
- * grouped into batches The default maximum size of the batch is set to 1MB or 5000 mutated cells.
- * To override this use {@link Write#withBatchSizeBytes(long) withBatchSizeBytes()} and {@link
- * Write#withMaxNumMutations(long) withMaxNumMutations()}. Setting either to a small value or zero
- * disables batching.
+ * grouped into batches The default maximum size of the batch is set to 1MB or 5000 mutated cells,
+ * or 500 rows (whichever is reached first). To override this use {@link
+ * Write#withBatchSizeBytes(long) withBatchSizeBytes()}, {@link Write#withMaxNumMutations(long)
+ * withMaxNumMutations()} or {@link Write#withMaxNumMutations(long) withMaxNumRows()}. Setting
+ * either to a small value or zero disables batching.
  *
  * <p>Note that the <a
  * href="https://cloud.google.com/spanner/quotas#limits_for_creating_reading_updating_and_deleting_data">maximum
@@ -245,6 +246,8 @@ public class SpannerIO {
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024L * 1024L; // 1 MB
   // Max number of mutations to batch together.
   private static final int DEFAULT_MAX_NUM_MUTATIONS = 5000;
+  // Max number of mutations to batch together.
+  private static final int DEFAULT_MAX_NUM_ROWS = 500;
   // Multiple of mutation size to use to gather and sort mutations
   private static final int DEFAULT_GROUPING_FACTOR = 1000;
 
@@ -300,6 +303,7 @@ public class SpannerIO {
         .setSpannerConfig(SpannerConfig.create())
         .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
         .setMaxNumMutations(DEFAULT_MAX_NUM_MUTATIONS)
+        .setMaxNumRows(DEFAULT_MAX_NUM_ROWS)
         .setGroupingFactor(DEFAULT_GROUPING_FACTOR)
         .setFailureMode(FailureMode.FAIL_FAST)
         .build();
@@ -728,6 +732,8 @@ public class SpannerIO {
 
     abstract long getMaxNumMutations();
 
+    abstract long getMaxNumRows();
+
     abstract FailureMode getFailureMode();
 
     @Nullable
@@ -745,6 +751,8 @@ public class SpannerIO {
       abstract Builder setBatchSizeBytes(long batchSizeBytes);
 
       abstract Builder setMaxNumMutations(long maxNumMutations);
+
+      abstract Builder setMaxNumRows(long maxNumRows);
 
       abstract Builder setFailureMode(FailureMode failureMode);
 
@@ -833,6 +841,14 @@ public class SpannerIO {
      */
     public Write withMaxNumMutations(long maxNumMutations) {
       return toBuilder().setMaxNumMutations(maxNumMutations).build();
+    }
+
+    /**
+     * Specifies the row mutation limit (maximum number of mutated rows per batch). Default value is
+     * 1000
+     */
+    public Write withMaxNumRows(long maxNumRows) {
+      return toBuilder().setMaxNumRows(maxNumRows).build();
     }
 
     /**
@@ -939,7 +955,8 @@ public class SpannerIO {
                               schemaView,
                               UNBATCHABLE_MUTATIONS_TAG,
                               spec.getBatchSizeBytes(),
-                              spec.getMaxNumMutations()))
+                              spec.getMaxNumMutations(),
+                              spec.getMaxNumRows()))
                       .withSideInputs(schemaView)
                       .withOutputTags(
                           BATCHABLE_MUTATIONS_TAG, TupleTagList.of(UNBATCHABLE_MUTATIONS_TAG)));
@@ -955,6 +972,7 @@ public class SpannerIO {
                           new GatherBundleAndSortFn(
                               spec.getBatchSizeBytes(),
                               spec.getMaxNumMutations(),
+                              spec.getMaxNumRows(),
                               spec.getGroupingFactor(),
                               schemaView))
                       .withSideInputs(schemaView))
@@ -962,10 +980,13 @@ public class SpannerIO {
                   "Create Batches",
                   ParDo.of(
                           new BatchFn(
-                              spec.getBatchSizeBytes(), spec.getMaxNumMutations(), schemaView))
+                              spec.getBatchSizeBytes(),
+                              spec.getMaxNumMutations(),
+                              spec.getMaxNumRows(),
+                              schemaView))
                       .withSideInputs(schemaView));
 
-      // Merge the batchable and unbatchable mutations and write to Spanner.
+      // Merge the batchable and unbatchable mutation PCollections and write to Spanner.
       PCollectionTuple result =
           PCollectionList.of(filteredMutations.get(UNBATCHABLE_MUTATIONS_TAG))
               .and(batchedMutations)
@@ -1026,11 +1047,14 @@ public class SpannerIO {
   static class GatherBundleAndSortFn extends DoFn<MutationGroup, Iterable<KV<byte[], byte[]>>> {
     private final long maxBatchSizeBytes;
     private final long maxNumMutations;
+    private final long maxNumRows;
 
     // total size of the current batch.
     private long batchSizeBytes;
-    // total number of mutated cells including indices.
+    // total number of mutated cells.
     private long batchCells;
+    // total number of rows mutated.
+    private long batchRows;
 
     private final PCollectionView<SpannerSchema> schemaView;
 
@@ -1039,10 +1063,12 @@ public class SpannerIO {
     GatherBundleAndSortFn(
         long maxBatchSizeBytes,
         long maxNumMutations,
+        long maxNumRows,
         long groupingFactor,
         PCollectionView<SpannerSchema> schemaView) {
       this.maxBatchSizeBytes = maxBatchSizeBytes * groupingFactor;
       this.maxNumMutations = maxNumMutations * groupingFactor;
+      this.maxNumRows = maxNumRows * groupingFactor;
       this.schemaView = schemaView;
     }
 
@@ -1059,11 +1085,14 @@ public class SpannerIO {
       mutationsToSort = new ArrayList<KV<byte[], byte[]>>((int) maxNumMutations);
       batchSizeBytes = 0;
       batchCells = 0;
+      batchRows = 0;
     }
 
     @FinishBundle
     public synchronized void finishBundle(FinishBundleContext c) throws Exception {
-      c.output(sortAndGetList(), Instant.now(), GlobalWindow.INSTANCE);
+      if (batchCells > 0) {
+        c.output(sortAndGetList(), Instant.now(), GlobalWindow.INSTANCE);
+      }
     }
 
     private Iterable<KV<byte[], byte[]>> sortAndGetList() throws IOException {
@@ -1081,10 +1110,12 @@ public class SpannerIO {
       MutationGroup mg = c.element();
       long groupSize = MutationSizeEstimator.sizeOf(mg);
       long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
+      long groupRows = mg.size();
 
       synchronized (this) {
         if (((batchCells + groupCells) > maxNumMutations)
-            || (batchSizeBytes + groupSize) > maxBatchSizeBytes) {
+            || (batchSizeBytes + groupSize) > maxBatchSizeBytes
+            || (batchRows + groupRows) > maxNumRows) {
           c.output(sortAndGetList());
           initSorter();
         }
@@ -1092,6 +1123,7 @@ public class SpannerIO {
         mutationsToSort.add(KV.of(encoder.encodeTableNameAndKey(mg.primary()), encode(mg)));
         batchSizeBytes += groupSize;
         batchCells += groupCells;
+        batchRows += groupRows;
       }
     }
   }
@@ -1102,12 +1134,17 @@ public class SpannerIO {
 
     private final long maxBatchSizeBytes;
     private final long maxNumMutations;
+    private final long maxNumRows;
     private final PCollectionView<SpannerSchema> schemaView;
 
     BatchFn(
-        long maxBatchSizeBytes, long maxNumMutations, PCollectionView<SpannerSchema> schemaView) {
+        long maxBatchSizeBytes,
+        long maxNumMutations,
+        long maxNumRows,
+        PCollectionView<SpannerSchema> schemaView) {
       this.maxBatchSizeBytes = maxBatchSizeBytes;
       this.maxNumMutations = maxNumMutations;
+      this.maxNumRows = maxNumRows;
       this.schemaView = schemaView;
     }
 
@@ -1118,8 +1155,10 @@ public class SpannerIO {
       ImmutableList.Builder<MutationGroup> batch = ImmutableList.builder();
       // total size of the current batch.
       long batchSizeBytes = 0;
-      // total number of mutated cells including indices.
+      // total number of mutated cells.
       long batchCells = 0;
+      // total number of rows mutated.
+      long batchRows = 0;
 
       // Iterate through list, outputting whenever a batch is complete.
       for (KV<byte[], byte[]> kv : c.element()) {
@@ -1127,18 +1166,22 @@ public class SpannerIO {
 
         long groupSize = MutationSizeEstimator.sizeOf(mg);
         long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
+        long groupRows = mg.size();
 
         if (((batchCells + groupCells) > maxNumMutations)
-            || ((batchSizeBytes + groupSize) > maxBatchSizeBytes)) {
+            || ((batchSizeBytes + groupSize) > maxBatchSizeBytes
+                || (batchRows + groupRows > maxNumRows))) {
           // Batch is full: output and reset.
           c.output(batch.build());
           batch = ImmutableList.builder();
           batchSizeBytes = 0;
           batchCells = 0;
+          batchRows = 0;
         }
         batch.add(mg);
         batchSizeBytes += groupSize;
         batchCells += groupCells;
+        batchRows += groupRows;
       }
       // End of list, output what is left.
       if (batchCells > 0) {
@@ -1161,6 +1204,7 @@ public class SpannerIO {
     private final TupleTag<Iterable<MutationGroup>> unbatchableMutationsTag;
     private final long batchSizeBytes;
     private final long maxNumMutations;
+    private final long maxNumRows;
     private final Counter batchableMutationGroupsCounter =
         Metrics.counter(WriteGrouped.class, "batchable_mutation_groups");
     private final Counter unBatchableMutationGroupsCounter =
@@ -1170,11 +1214,13 @@ public class SpannerIO {
         PCollectionView<SpannerSchema> schemaView,
         TupleTag<Iterable<MutationGroup>> unbatchableMutationsTag,
         long batchSizeBytes,
-        long maxNumMutations) {
+        long maxNumMutations,
+        long maxNumRows) {
       this.schemaView = schemaView;
       this.unbatchableMutationsTag = unbatchableMutationsTag;
       this.batchSizeBytes = batchSizeBytes;
       this.maxNumMutations = maxNumMutations;
+      this.maxNumRows = maxNumRows;
     }
 
     @DoFn.ProcessElement
@@ -1190,8 +1236,9 @@ public class SpannerIO {
       SpannerSchema spannerSchema = c.sideInput(schemaView);
       long groupSize = MutationSizeEstimator.sizeOf(mg);
       long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
+      long groupRows = Iterables.size(mg);
 
-      if (groupSize >= batchSizeBytes || groupCells >= maxNumMutations) {
+      if (groupSize >= batchSizeBytes || groupCells >= maxNumMutations || groupRows >= maxNumRows) {
         c.output(unbatchableMutationsTag, Arrays.asList(mg));
         unBatchableMutationGroupsCounter.inc();
       } else {

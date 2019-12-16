@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import static junit.framework.TestCase.assertNull;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTable.METHOD_PROPERTY;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
@@ -40,7 +41,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
@@ -481,7 +483,14 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamRelNode relNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
 
-    assertThat(relNode, instanceOf(BeamIOSourceRel.class));
+    // Calc is not dropped because BigQuery does not support field reordering yet.
+    assertThat(relNode, instanceOf(BeamCalcRel.class));
+    assertThat(relNode.getInput(0), instanceOf(BeamPushDownIOSourceRel.class));
+    // IO projects fields in the same order they are defined in the schema.
+    assertThat(
+        relNode.getInput(0).getRowType().getFieldNames(),
+        containsInAnyOrder("c_tinyint", "c_integer", "c_varchar"));
+    // Field reordering is done in a Calc
     assertThat(
         output.getSchema(),
         equalTo(
@@ -493,6 +502,82 @@ public class BigQueryReadWriteIT implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(row(output.getSchema(), 2147483647, "varchar", (byte) 127));
+    PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+    assertThat(state, equalTo(State.DONE));
+  }
+
+  @Test
+  public void testSQLRead_withDirectRead_withProjectAndFilterPushDown() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   c_bigint BIGINT, \n"
+            + "   c_tinyint TINYINT, \n"
+            + "   c_smallint SMALLINT, \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_double DOUBLE, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_timestamp TIMESTAMP, \n"
+            + "   c_varchar VARCHAR, \n "
+            + "   c_char CHAR, \n"
+            + "   c_arr ARRAY<VARCHAR> \n"
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQueryTestingTypes.tableSpec()
+            + "' \n"
+            + "TBLPROPERTIES "
+            + "'{ "
+            + METHOD_PROPERTY
+            + ": \""
+            + Method.DIRECT_READ.toString()
+            + "\" }'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "TIMESTAMP '2018-05-28 20:17:40.123', "
+            + "'varchar', "
+            + "'char', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    String selectTableStatement = "SELECT c_varchar, c_integer FROM TEST where c_tinyint=127";
+    BeamRelNode relNode = sqlEnv.parseQuery(selectTableStatement);
+    PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
+
+    assertThat(relNode, instanceOf(BeamCalcRel.class));
+    // Predicate should be pushed-down to IO level
+    assertNull(((BeamCalcRel) relNode).getProgram().getCondition());
+
+    assertThat(relNode.getInput(0), instanceOf(BeamPushDownIOSourceRel.class));
+    // Unused fields should not be projected by an IO
+    assertThat(
+        relNode.getInput(0).getRowType().getFieldNames(),
+        containsInAnyOrder("c_varchar", "c_integer"));
+
+    assertThat(
+        output.getSchema(),
+        equalTo(
+            Schema.builder()
+                .addNullableField("c_varchar", STRING)
+                .addNullableField("c_integer", INT32)
+                .build()));
+
+    PAssert.that(output).containsInAnyOrder(row(output.getSchema(), "varchar", 2147483647));
     PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
     assertThat(state, equalTo(State.DONE));
   }

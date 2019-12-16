@@ -409,7 +409,7 @@ public class CassandraIO {
               spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
         } else {
           LOG.warn(
-              "Only Murmur3Partitioner is supported for splitting, using an unique source for "
+              "Only Murmur3Partitioner is supported for splitting, using a unique source for "
                   + "the read");
           return Collections.singletonList(
               new CassandraIO.CassandraSource<>(spec, Collections.singletonList(buildQuery(spec))));

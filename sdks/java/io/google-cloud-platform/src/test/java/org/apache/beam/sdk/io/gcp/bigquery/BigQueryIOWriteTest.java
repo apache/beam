@@ -36,6 +36,8 @@ import static org.junit.Assert.fail;
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -43,6 +45,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.auto.value.AutoValue;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,17 +56,24 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -82,6 +92,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -673,6 +684,75 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
   }
 
+  @AutoValue
+  abstract static class InputRecord implements Serializable {
+
+    public static InputRecord create(
+        String strValue, long longVal, double doubleVal, Instant instantVal) {
+      return new AutoValue_BigQueryIOWriteTest_InputRecord(
+          strValue, longVal, doubleVal, instantVal);
+    }
+
+    abstract String strVal();
+
+    abstract long longVal();
+
+    abstract double doubleVal();
+
+    abstract Instant instantVal();
+  }
+
+  private static final Coder<InputRecord> INPUT_RECORD_CODER =
+      SerializableCoder.of(InputRecord.class);
+
+  @Test
+  public void testWriteAvro() throws Exception {
+    p.apply(
+            Create.of(
+                    InputRecord.create("test", 1, 1.0, Instant.parse("2019-01-01T00:00:00Z")),
+                    InputRecord.create("test2", 2, 2.0, Instant.parse("2019-02-01T00:00:00Z")))
+                .withCoder(INPUT_RECORD_CODER))
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .to("dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("strVal").setType("STRING"),
+                                new TableFieldSchema().setName("longVal").setType("INTEGER"),
+                                new TableFieldSchema().setName("doubleVal").setType("FLOAT"),
+                                new TableFieldSchema().setName("instantVal").setType("TIMESTAMP"))))
+                .withTestServices(fakeBqServices)
+                .withAvroFormatFunction(
+                    r -> {
+                      GenericRecord rec = new GenericData.Record(r.getSchema());
+                      InputRecord i = r.getElement();
+                      rec.put("strVal", i.strVal());
+                      rec.put("longVal", i.longVal());
+                      rec.put("doubleVal", i.doubleVal());
+                      rec.put("instantVal", i.instantVal().getMillis() * 1000);
+                      return rec;
+                    })
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow()
+                .set("strVal", "test")
+                .set("longVal", "1")
+                .set("doubleVal", 1.0D)
+                .set("instantVal", "2019-01-01 00:00:00 UTC"),
+            new TableRow()
+                .set("strVal", "test2")
+                .set("longVal", "2")
+                .set("doubleVal", 2.0D)
+                .set("instantVal", "2019-02-01 00:00:00 UTC")));
+  }
+
   @Test
   public void testStreamingWrite() throws Exception {
     p.apply(
@@ -1105,6 +1185,8 @@ public class BigQueryIOWriteTest implements Serializable {
             .withSchema(schema)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(
+                EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
             .withTableDescription(tblDescription)
             .withoutValidation();
 
@@ -1120,6 +1202,11 @@ public class BigQueryIOWriteTest implements Serializable {
         displayData,
         hasDisplayItem(
             "writeDisposition", BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString()));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            "schemaUpdateOptions",
+            EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION).toString()));
     assertThat(displayData, hasDisplayItem("tableDescription", tblDescription));
     assertThat(displayData, hasDisplayItem("validation", false));
   }
@@ -1212,6 +1299,69 @@ public class BigQueryIOWriteTest implements Serializable {
         .apply(
             BigQueryIO.writeTableRows()
                 .to("dataset.table")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testWriteValidateFailsNoFormatFunction() {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "A function must be provided to convert the input type into a TableRow or GenericRecord");
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .to("dataset.table")
+                .withSchema(new TableSchema())
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testWriteValidateFailsBothFormatFunctions() {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Only one of withFormatFunction or withAvroFormatFunction maybe set, not both");
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .to("dataset.table")
+                .withSchema(new TableSchema())
+                .withFormatFunction(r -> new TableRow())
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testWriteValidateFailsWithBeamSchemaAndAvroFormatFunction() {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("avroFormatFunction is unsupported when using Beam schemas");
+    p.apply(Create.of(new SchemaPojo("a", 1)))
+        .apply(
+            BigQueryIO.<SchemaPojo>write()
+                .to("dataset.table")
+                .useBeamSchema()
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testWriteValidateFailsWithAvroFormatAndStreamingInserts() {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Writing avro formatted data is only supported for FILE_LOADS");
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .to("dataset.table")
+                .withSchema(new TableSchema())
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .withMethod(Method.STREAMING_INSERTS)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
   }
 
@@ -1312,7 +1462,8 @@ public class BigQueryIOWriteTest implements Serializable {
             BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION,
             BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION,
             multiPartitionsTag,
-            singlePartitionTag);
+            singlePartitionTag,
+            RowWriterFactory.tableRows(SerializableFunctions.identity()));
 
     DoFnTester<
             Iterable<WriteBundlesToFiles.Result<TableDestination>>,
@@ -1395,7 +1546,8 @@ public class BigQueryIOWriteTest implements Serializable {
                       testFolder.getRoot().getAbsolutePath(),
                       String.format("files0x%08x_%05d", tempTableId.hashCode(), k))
                   .toString();
-          TableRowWriter writer = new TableRowWriter(filename);
+          TableRowWriter<TableRow> writer =
+              new TableRowWriter<>(filename, SerializableFunctions.identity());
           try (TableRowWriter ignored = writer) {
             TableRow tableRow = new TableRow().set("name", tableName);
             writer.write(tableRow);
@@ -1431,7 +1583,9 @@ public class BigQueryIOWriteTest implements Serializable {
             null,
             4,
             false,
-            null);
+            null,
+            "NEWLINE_DELIMITED_JSON",
+            Collections.emptySet());
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);
@@ -1457,7 +1611,8 @@ public class BigQueryIOWriteTest implements Serializable {
     List<String> fileNames = Lists.newArrayList();
     String tempFilePrefix = options.getTempLocation() + "/";
     for (int i = 0; i < numFiles; ++i) {
-      TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+      TableRowWriter<TableRow> writer =
+          new TableRowWriter<>(tempFilePrefix, SerializableFunctions.identity());
       writer.close();
       fileNames.add(writer.getResult().resourceId.toString());
     }
@@ -1712,5 +1867,60 @@ public class BigQueryIOWriteTest implements Serializable {
               "Cannot use getFailedInserts as this WriteResult "
                   + "uses extended errors information. Use getFailedInsertsWithErr instead"));
     }
+  }
+
+  void schemaUpdateOptionsTest(
+      BigQueryIO.Write.Method insertMethod, Set<SchemaUpdateOption> schemaUpdateOptions)
+      throws Exception {
+    TableRow row = new TableRow().set("date", "2019-01-01").set("number", "1");
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("date")
+                        .setType("DATE")
+                        .setName("number")
+                        .setType("INTEGER")));
+
+    Write<TableRow> writeTransform =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withTestServices(fakeBqServices)
+            .withMethod(insertMethod)
+            .withSchema(schema)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(schemaUpdateOptions);
+
+    p.apply(Create.<TableRow>of(row)).apply(writeTransform);
+    p.run();
+
+    List<String> expectedOptions =
+        schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+
+    for (Job job : fakeJobService.getAllJobs()) {
+      JobConfigurationLoad configuration = job.getConfiguration().getLoad();
+      assertEquals(expectedOptions, configuration.getSchemaUpdateOptions());
+    }
+  }
+
+  @Test
+  public void testWriteFileSchemaUpdateOptionAllowFieldAddition() throws Exception {
+    Set<SchemaUpdateOption> options = EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION);
+    schemaUpdateOptionsTest(BigQueryIO.Write.Method.FILE_LOADS, options);
+  }
+
+  @Test
+  public void testWriteFileSchemaUpdateOptionAllowFieldRelaxation() throws Exception {
+    Set<SchemaUpdateOption> options = EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_RELAXATION);
+    schemaUpdateOptionsTest(BigQueryIO.Write.Method.FILE_LOADS, options);
+  }
+
+  @Test
+  public void testWriteFileSchemaUpdateOptionAll() throws Exception {
+    Set<SchemaUpdateOption> options = EnumSet.allOf(SchemaUpdateOption.class);
+    schemaUpdateOptionsTest(BigQueryIO.Write.Method.FILE_LOADS, options);
   }
 }

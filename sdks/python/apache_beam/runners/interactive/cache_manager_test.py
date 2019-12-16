@@ -41,7 +41,7 @@ class FileBasedCacheManagerTest(object):
   tested with InteractiveRunner as a part of integration tests instead.
   """
 
-  cache_format = None
+  cache_format = None  # type: str
 
   def setUp(self):
     self.test_dir = tempfile.mkdtemp()

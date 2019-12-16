@@ -21,11 +21,25 @@ import argparse
 import logging
 import time
 
+from pymongo import MongoClient
+
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+_LOGGER = logging.getLogger(__name__)
+
+class GenerateDocs(beam.DoFn):
+
+  def process(self, num_docs, *args, **kwargs):
+    for i in range(num_docs):
+      yield {
+          'number': i,
+          'number_mod_2': i % 2,
+          'number_mod_3': i % 3
+      }
 
 
 def run(argv=None):
@@ -48,45 +62,44 @@ def run(argv=None):
                       type=int)
   parser.add_argument('--batch_size',
                       default=10000,
+                      type=int,
                       help=('batch size for writing to mongodb'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # Test Write to MongoDB
   with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
     start_time = time.time()
-    logging.info('Writing %d documents to mongodb' % known_args.num_documents)
-    docs = [{
-        'number': x,
-        'number_mod_2': x % 2,
-        'number_mod_3': x % 3
-    } for x in range(known_args.num_documents)]
+    _LOGGER.info('Writing %d documents to mongodb' % known_args.num_documents)
 
-    _ = p | 'Create documents' >> beam.Create(docs) \
-          | 'WriteToMongoDB' >> beam.io.WriteToMongoDB(known_args.mongo_uri,
-                                                       known_args.mongo_db,
-                                                       known_args.mongo_coll,
-                                                       known_args.batch_size)
+    _ = (p | beam.Create([known_args.num_documents])
+         | 'Create documents' >> beam.ParDo(GenerateDocs())
+         | 'WriteToMongoDB' >> beam.io.WriteToMongoDB(known_args.mongo_uri,
+                                                      known_args.mongo_db,
+                                                      known_args.mongo_coll,
+                                                      known_args.batch_size))
   elapsed = time.time() - start_time
-  logging.info('Writing %d documents to mongodb finished in %.3f seconds' %
+  _LOGGER.info('Writing %d documents to mongodb finished in %.3f seconds' %
                (known_args.num_documents, elapsed))
 
   # Test Read from MongoDB
   with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
     start_time = time.time()
-    logging.info('Reading from mongodb %s:%s' %
+    _LOGGER.info('Reading from mongodb %s:%s' %
                  (known_args.mongo_db, known_args.mongo_coll))
-    r = p | 'ReadFromMongoDB' >> \
-                beam.io.ReadFromMongoDB(known_args.mongo_uri,
-                                        known_args.mongo_db,
-                                        known_args.mongo_coll,
-                                        projection=['number']) \
-          | 'Map' >> beam.Map(lambda doc: doc['number'])
+    r = (p | 'ReadFromMongoDB' >> beam.io.ReadFromMongoDB(known_args.mongo_uri,
+                                                          known_args.mongo_db,
+                                                          known_args.mongo_coll,
+                                                          projection=['number'])
+         | 'Map' >> beam.Map(lambda doc: doc['number'])
+         | 'Combine' >> beam.CombineGlobally(sum))
     assert_that(
-        r, equal_to([number for number in range(known_args.num_documents)]))
+        r, equal_to([sum(range(known_args.num_documents))]))
 
   elapsed = time.time() - start_time
-  logging.info('Read %d documents from mongodb finished in %.3f seconds' %
+  _LOGGER.info('Read %d documents from mongodb finished in %.3f seconds' %
                (known_args.num_documents, elapsed))
+  with MongoClient(host=known_args.mongo_uri) as client:
+    client.drop_database(known_args.mongo_db)
 
 
 if __name__ == "__main__":

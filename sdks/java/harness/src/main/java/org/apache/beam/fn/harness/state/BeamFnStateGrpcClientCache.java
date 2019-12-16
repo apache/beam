@@ -138,12 +138,14 @@ public class BeamFnStateGrpcClientCache {
       public void onNext(StateResponse value) {
         LOG.debug("Received StateResponse {}", value);
         CompletableFuture<StateResponse> responseFuture = outstandingRequests.remove(value.getId());
-        if (responseFuture != null) {
-          if (value.getError().isEmpty()) {
-            responseFuture.complete(value);
-          } else {
-            responseFuture.completeExceptionally(new IllegalStateException(value.getError()));
-          }
+        if (responseFuture == null) {
+          LOG.warn("Dropped unknown StateResponse {}", value);
+          return;
+        }
+        if (value.getError().isEmpty()) {
+          responseFuture.complete(value);
+        } else {
+          responseFuture.completeExceptionally(new IllegalStateException(value.getError()));
         }
       }
 

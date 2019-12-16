@@ -42,6 +42,8 @@ except ImportError:
 
 @unittest.skipIf(not ie.current_env().is_interactive_ready,
                  '[interactive] dependency is not installed.')
+@unittest.skipIf(sys.version_info < (3, 6),
+                 'The tests require at least Python 3.6 to work.')
 class PCollectionVisualizationTest(unittest.TestCase):
 
   def setUp(self):
@@ -56,8 +58,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
     # pylint: disable=range-builtin-not-iterating
     self._pcoll = self._p | 'Create' >> beam.Create(range(1000))
 
-  @unittest.skipIf(sys.version_info < (3, 5, 3),
-                   'PCollectionVisualization is supported on Python 3.5.3+.')
   def test_raise_error_for_non_pcoll_input(self):
     class Foo(object):
       pass
@@ -67,8 +67,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
       self.assertTrue('pcoll should be apache_beam.pvalue.PCollection' in
                       ctx.exception)
 
-  @unittest.skipIf(sys.version_info < (3, 5, 3),
-                   'PCollectionVisualization is supported on Python 3.5.3+.')
   def test_pcoll_visualization_generate_unique_display_id(self):
     pv_1 = pv.PCollectionVisualization(self._pcoll)
     pv_2 = pv.PCollectionVisualization(self._pcoll)
@@ -76,8 +74,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self.assertNotEqual(pv_1._overview_display_id, pv_2._overview_display_id)
     self.assertNotEqual(pv_1._df_display_id, pv_2._df_display_id)
 
-  @unittest.skipIf(sys.version_info < (3, 5, 3),
-                   'PCollectionVisualization is supported on Python 3.5.3+.')
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
          '.PCollectionVisualization._to_element_list', lambda x: [1, 2, 3])
   def test_one_shot_visualization_not_return_handle(self):
@@ -91,8 +87,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
     yield [1, 2, 3, 4, 5, 6, 7]
     yield [1, 2, 3, 4, 5, 6, 7, 8]
 
-  @unittest.skipIf(sys.version_info < (3, 5, 3),
-                   'PCollectionVisualization is supported on Python 3.5.3+.')
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
          '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   def test_dynamic_plotting_return_handle(self):
@@ -100,8 +94,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self.assertIsInstance(h, timeloop.Timeloop)
     h.stop()
 
-  @unittest.skipIf(sys.version_info < (3, 5, 3),
-                   'PCollectionVisualization is supported on Python 3.5.3+.')
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
          '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
@@ -126,10 +118,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
       self.assertIs(kwargs['updating_pv'], updating_pv)
     h.stop()
 
-  # The code being tested supports 3.5.3+. This specific test has assertion
-  # feature that was introduced in 3.6.
-  @unittest.skipIf(sys.version_info < (3, 6),
-                   'The test requires Python 3.6+.')
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
          '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   @patch('timeloop.Timeloop.stop')
@@ -150,8 +138,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
     # "assert_called" is new in Python 3.6.
     mocked_timeloop.assert_called()
 
-  @unittest.skipIf(sys.version_info < (3, 5, 3),
-                   'PCollectionVisualization is supported on Python 3.5.3+.')
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
          '.PCollectionVisualization._to_element_list', lambda x: [1, 2, 3])
   @patch('pandas.DataFrame.sample')

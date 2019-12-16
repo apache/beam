@@ -159,21 +159,6 @@ public class GcpOptionsTest {
       options.getGcpTempLocation();
     }
 
-    @Test
-    public void testDefaultGcpTempLocationDoesNotExist() {
-      GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
-      String tempLocation = "gs://does/not/exist";
-      options.setTempLocation(tempLocation);
-      thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage(
-          "Error constructing default value for gcpTempLocation: tempLocation is not"
-              + " a valid GCS path");
-      thrown.expectCause(
-          hasMessage(containsString("Output path does not exist or is not writeable")));
-
-      options.getGcpTempLocation();
-    }
-
     private static void makePropertiesFileWithProject(File path, String projectId)
         throws IOException {
       String properties =
@@ -218,6 +203,21 @@ public class GcpOptionsTest {
       when(mockCrmClient.projects()).thenReturn(mockProjects);
       when(mockProjects.get(any(String.class))).thenReturn(mockGet);
       fakeProject = new Project().setProjectNumber(1L);
+    }
+
+    @Test
+    public void testDefaultGcpTempLocationDoesNotExist() throws IOException {
+      String tempLocation = "gs://does/not/exist";
+      options.setTempLocation(tempLocation);
+      when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(false);
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage(
+          "Error constructing default value for gcpTempLocation: tempLocation is not"
+              + " a valid GCS path");
+      thrown.expectCause(
+          hasMessage(containsString("Output path does not exist or is not writeable")));
+
+      options.as(GcpOptions.class).getGcpTempLocation();
     }
 
     @Test

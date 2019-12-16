@@ -48,6 +48,8 @@ except ImportError:
 
 MAX_RETRIES = 4
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class PipelineStateMatcher(BaseMatcher):
   """Matcher that verify pipeline job terminated in expected state
@@ -121,7 +123,7 @@ class FileChecksumMatcher(BaseMatcher):
     if not matched_path:
       raise IOError('No such file or directory: %s' % self.file_path)
 
-    logging.info('Find %d files in %s: \n%s',
+    _LOGGER.info('Find %d files in %s: \n%s',
                  len(matched_path), self.file_path, '\n'.join(matched_path))
     for path in matched_path:
       with FileSystems.open(path, 'r') as f:
@@ -132,7 +134,7 @@ class FileChecksumMatcher(BaseMatcher):
   def _matches(self, _):
     if self.sleep_secs:
       # Wait to have output file ready on FS
-      logging.info('Wait %d seconds...', self.sleep_secs)
+      _LOGGER.info('Wait %d seconds...', self.sleep_secs)
       time.sleep(self.sleep_secs)
 
     # Read from given file(s) path
@@ -140,7 +142,7 @@ class FileChecksumMatcher(BaseMatcher):
 
     # Compute checksum
     self.checksum = utils.compute_hash(read_lines)
-    logging.info('Read from given path %s, %d lines, checksum: %s.',
+    _LOGGER.info('Read from given path %s, %d lines, checksum: %s.',
                  self.file_path, len(read_lines), self.checksum)
     return self.checksum == self.expected_checksum
 

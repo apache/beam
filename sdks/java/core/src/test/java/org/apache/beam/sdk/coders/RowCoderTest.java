@@ -27,6 +27,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -85,6 +86,15 @@ public class RowCoderTest {
   }
 
   @Test
+  public void testIterables() throws Exception {
+    Schema schema = Schema.builder().addIterableField("f_iter", FieldType.STRING).build();
+    Row row =
+        Row.withSchema(schema).addIterable(ImmutableList.of("one", "two", "three", "four")).build();
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
   public void testArrayOfRow() throws Exception {
     Schema nestedSchema = Schema.builder().addInt32Field("f1_int").addStringField("f1_str").build();
     FieldType collectionElementType = FieldType.row(nestedSchema);
@@ -101,6 +111,23 @@ public class RowCoderTest {
   }
 
   @Test
+  public void testIterableOfRow() throws Exception {
+    Schema nestedSchema = Schema.builder().addInt32Field("f1_int").addStringField("f1_str").build();
+    FieldType collectionElementType = FieldType.row(nestedSchema);
+    Schema schema = Schema.builder().addIterableField("f_iter", collectionElementType).build();
+    Row row =
+        Row.withSchema(schema)
+            .addIterable(
+                ImmutableList.of(
+                    Row.withSchema(nestedSchema).addValues(1, "one").build(),
+                    Row.withSchema(nestedSchema).addValues(2, "two").build(),
+                    Row.withSchema(nestedSchema).addValues(3, "three").build()))
+            .build();
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
   public void testArrayOfArray() throws Exception {
     FieldType arrayType = FieldType.array(FieldType.array(FieldType.INT32));
     Schema schema = Schema.builder().addField("f_array", arrayType).build();
@@ -110,6 +137,22 @@ public class RowCoderTest {
                 Lists.newArrayList(1, 2, 3, 4),
                 Lists.newArrayList(5, 6, 7, 8),
                 Lists.newArrayList(9, 10, 11, 12))
+            .build();
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
+  public void testIterableOfIterable() throws Exception {
+    FieldType iterableType = FieldType.iterable(FieldType.array(FieldType.INT32));
+    Schema schema = Schema.builder().addField("f_iter", iterableType).build();
+    Row row =
+        Row.withSchema(schema)
+            .addIterable(
+                ImmutableList.of(
+                    Lists.newArrayList(1, 2, 3, 4),
+                    Lists.newArrayList(5, 6, 7, 8),
+                    Lists.newArrayList(9, 10, 11, 12)))
             .build();
 
     CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
@@ -215,7 +258,18 @@ public class RowCoderTest {
   public void testConsistentWithEqualsArrayWithNull() throws Exception {
     Schema schema =
         Schema.builder()
-            .addField("a", Schema.FieldType.array(Schema.FieldType.INT32, true))
+            .addField("a", Schema.FieldType.array(Schema.FieldType.INT32.withNullable(true)))
+            .build();
+
+    Row row = Row.withSchema(schema).addValue(Arrays.asList(1, null)).build();
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
+  public void testConsistentWithEqualsIterableWithNull() throws Exception {
+    Schema schema =
+        Schema.builder()
+            .addField("a", Schema.FieldType.iterable(Schema.FieldType.INT32.withNullable(true)))
             .build();
 
     Row row = Row.withSchema(schema).addValue(Arrays.asList(1, null)).build();

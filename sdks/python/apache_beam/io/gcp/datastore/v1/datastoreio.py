@@ -45,12 +45,15 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.util import Values
 
+_LOGGER = logging.getLogger(__name__)
+
+
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from googledatastore import helper as datastore_helper
-  logging.warning(
+  _LOGGER.warning(
       'Using deprecated Datastore client.\n'
       'This client will be removed in Beam 3.0 (next Beam major release).\n'
       'Please migrate to apache_beam.io.gcp.datastore.v1new.datastoreio.')
@@ -125,7 +128,7 @@ class ReadFromDatastore(PTransform):
           'Google Cloud IO not available, '
           'please install apache_beam[gcp]')
 
-    logging.warning('datastoreio read transform is experimental.')
+    _LOGGER.warning('datastoreio read transform is experimental.')
     super(ReadFromDatastore, self).__init__()
 
     if not project:
@@ -213,13 +216,13 @@ class ReadFromDatastore(PTransform):
       else:
         estimated_num_splits = self._num_splits
 
-      logging.info("Splitting the query into %d splits", estimated_num_splits)
+      _LOGGER.info("Splitting the query into %d splits", estimated_num_splits)
       try:
         query_splits = query_splitter.get_splits(
             self._datastore, query, estimated_num_splits,
             helper.make_partition(self._project, self._datastore_namespace))
       except Exception:
-        logging.warning("Unable to parallelize the given query: %s", query,
+        _LOGGER.warning("Unable to parallelize the given query: %s", query,
                         exc_info=True)
         query_splits = [query]
 
@@ -296,7 +299,7 @@ class ReadFromDatastore(PTransform):
     kind = query.kind[0].name
     latest_timestamp = ReadFromDatastore.query_latest_statistics_timestamp(
         project, namespace, datastore)
-    logging.info('Latest stats timestamp for kind %s is %s',
+    _LOGGER.info('Latest stats timestamp for kind %s is %s',
                  kind, latest_timestamp)
 
     kind_stats_query = (
@@ -316,13 +319,13 @@ class ReadFromDatastore(PTransform):
     try:
       estimated_size_bytes = ReadFromDatastore.get_estimated_size_bytes(
           project, namespace, query, datastore)
-      logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
+      _LOGGER.info('Estimated size bytes for query: %s', estimated_size_bytes)
       num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
           (float(estimated_size_bytes) /
            ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
 
     except Exception as e:
-      logging.warning('Failed to fetch estimated size bytes: %s', e)
+      _LOGGER.warning('Failed to fetch estimated size bytes: %s', e)
       # Fallback in case estimated size is unavailable.
       num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
 
@@ -346,7 +349,7 @@ class _Mutate(PTransform):
      """
     self._project = project
     self._mutation_fn = mutation_fn
-    logging.warning('datastoreio write transform is experimental.')
+    _LOGGER.warning('datastoreio write transform is experimental.')
 
   def expand(self, pcoll):
     return (pcoll
@@ -424,7 +427,7 @@ class _Mutate(PTransform):
           self._datastore, self._project, self._mutations,
           self._throttler, self._update_rpc_stats,
           throttle_delay=util.WRITE_BATCH_TARGET_LATENCY_MS//1000)
-      logging.debug("Successfully wrote %d mutations in %dms.",
+      _LOGGER.debug("Successfully wrote %d mutations in %dms.",
                     len(self._mutations), latency_ms)
 
       if not self._fixed_batch_size:

@@ -23,6 +23,8 @@ import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_NULLABLE_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLES_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ENUM_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ITERABLE;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_NESTED_ARRAY_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
@@ -38,6 +40,7 @@ import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.AnnotatedSimplePojo;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
@@ -46,10 +49,14 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum.Color;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithIterable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithNestedArray;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -298,7 +305,7 @@ public class JavaFieldSchemaTest {
 
     NestedArrayPOJO pojo = new NestedArrayPOJO(simple1, simple2, simple3);
     Row row = registry.getToRowFunction(NestedArrayPOJO.class).apply(pojo);
-    List<Row> rows = row.getArray("pojos");
+    List<Row> rows = (List) row.getArray("pojos");
     assertSame(simple1, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(0)));
     assertSame(simple2, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(1)));
     assertSame(simple3, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(2)));
@@ -507,5 +514,65 @@ public class JavaFieldSchemaTest {
             .getToRowFunction(PojoWithNestedArray.class)
             .apply(new PojoWithNestedArray(simplePojoListOfList));
     assertEquals(nestedRow, converted);
+  }
+
+  @Test
+  public void testIterableFieldFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(PojoWithIterable.class);
+    SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_ITERABLE, schema);
+
+    List<String> list = Lists.newArrayList("one", "two");
+    Row iterableRow = Row.withSchema(POJO_WITH_ITERABLE).addIterable(list).build();
+    PojoWithIterable converted =
+        registry.getFromRowFunction(PojoWithIterable.class).apply(iterableRow);
+    assertEquals(list, Lists.newArrayList(converted.strings));
+
+    // Make sure that the captured Iterable is backed by the previous one.
+    list.add("three");
+    assertEquals(list, Lists.newArrayList(converted.strings));
+  }
+
+  @Test
+  public void testEnumFieldToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(PojoWithEnum.class);
+    SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_ENUM_SCHEMA, schema);
+    EnumerationType enumerationType =
+        POJO_WITH_ENUM_SCHEMA.getField(0).getType().getLogicalType(EnumerationType.class);
+
+    Row redRow =
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("RED")).build();
+    Row greenRow =
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("GREEN")).build();
+    Row blueRow =
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("BLUE")).build();
+
+    SerializableFunction<PojoWithEnum, Row> toRow = registry.getToRowFunction(PojoWithEnum.class);
+    assertEquals(redRow, toRow.apply(new PojoWithEnum(Color.RED)));
+    assertEquals(greenRow, toRow.apply(new PojoWithEnum(Color.GREEN)));
+    assertEquals(blueRow, toRow.apply(new PojoWithEnum(Color.BLUE)));
+  }
+
+  @Test
+  public void testEnumFieldFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(PojoWithEnum.class);
+    SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_ENUM_SCHEMA, schema);
+    EnumerationType enumerationType =
+        POJO_WITH_ENUM_SCHEMA.getField(0).getType().getLogicalType(EnumerationType.class);
+
+    Row redRow =
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("RED")).build();
+    Row greenRow =
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("GREEN")).build();
+    Row blueRow =
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("BLUE")).build();
+
+    SerializableFunction<Row, PojoWithEnum> fromRow =
+        registry.getFromRowFunction(PojoWithEnum.class);
+    assertEquals(new PojoWithEnum(Color.RED), fromRow.apply(redRow));
+    assertEquals(new PojoWithEnum(Color.GREEN), fromRow.apply(greenRow));
+    assertEquals(new PojoWithEnum(Color.BLUE), fromRow.apply(blueRow));
   }
 }

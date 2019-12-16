@@ -51,6 +51,9 @@ class ReadFilesProvider(RestrictionProvider):
   def create_tracker(self, restriction):
     return OffsetRestrictionTracker(restriction)
 
+  def restriction_size(self, element, restriction):
+    return restriction.size()
+
 
 class ReadFiles(DoFn):
 
@@ -63,12 +66,11 @@ class ReadFiles(DoFn):
       restriction_tracker=DoFn.RestrictionParam(ReadFilesProvider()),
       *args, **kwargs):
     file_name = element
-    assert isinstance(restriction_tracker, OffsetRestrictionTracker)
 
     with open(file_name, 'rb') as file:
-      pos = restriction_tracker.start_position()
-      if restriction_tracker.start_position() > 0:
-        file.seek(restriction_tracker.start_position() - 1)
+      pos = restriction_tracker.current_restriction().start
+      if restriction_tracker.current_restriction().start > 0:
+        file.seek(restriction_tracker.current_restriction().start - 1)
         line = file.readline()
         pos = pos - 1 + len(line)
 
@@ -104,6 +106,9 @@ class ExpandStringsProvider(RestrictionProvider):
   def split(self, element, restriction):
     return [restriction,]
 
+  def restriction_size(self, element, restriction):
+    return restriction.size()
+
 
 class ExpandStrings(DoFn):
 
@@ -118,10 +123,9 @@ class ExpandStrings(DoFn):
     side.extend(side1)
     side.extend(side2)
     side.extend(side3)
-    assert isinstance(restriction_tracker, OffsetRestrictionTracker)
     side = list(side)
-    for i in range(restriction_tracker.start_position(),
-                   restriction_tracker.stop_position()):
+    for i in range(restriction_tracker.current_restriction().start,
+                   restriction_tracker.current_restriction().stop):
       if restriction_tracker.try_claim(i):
         if not side:
           yield (
@@ -143,8 +147,16 @@ class SDFDirectRunnerTest(unittest.TestCase):
     super(SDFDirectRunnerTest, self).setUp()
     # Importing following for DirectRunner SDF implemenation for testing.
     from apache_beam.runners.direct import transform_evaluator
-    self._default_max_num_outputs = (
+    self._old_default_max_num_outputs = (
         transform_evaluator._ProcessElementsEvaluator.DEFAULT_MAX_NUM_OUTPUTS)
+    self._default_max_num_outputs = (
+        transform_evaluator._ProcessElementsEvaluator.DEFAULT_MAX_NUM_OUTPUTS
+        ) = 100
+
+  def tearDown(self):
+    from apache_beam.runners.direct import transform_evaluator
+    transform_evaluator._ProcessElementsEvaluator.DEFAULT_MAX_NUM_OUTPUTS = (
+        self._old_default_max_num_outputs)
 
   def run_sdf_read_pipeline(
       self, num_files, num_records_per_file, resume_count=None):

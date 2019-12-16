@@ -27,22 +27,25 @@ from __future__ import print_function
 import collections
 import threading
 import time
+from typing import TYPE_CHECKING
 
 from apache_beam.runners.interactive.display import interactive_pipeline_graph
 
 try:
   import IPython  # pylint: disable=import-error
+  from IPython import get_ipython  # pylint: disable=import-error
+  from IPython.display import display as ip_display  # pylint: disable=import-error
   # _display_progress defines how outputs are printed on the frontend.
-  _display_progress = IPython.display.display
+  _display_progress = ip_display
 
-  def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
-    pp.text(string)
-  plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
-  plain.for_type(str, _formatter)
+  if not TYPE_CHECKING:
+    def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
+      pp.text(string)
+    if get_ipython():
+      plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
+      plain.for_type(str, _formatter)
 
-# NameError is added here because get_ipython() throws "not defined" NameError
-# if not started with IPython.
-except (ImportError, NameError):
+except ImportError:
   IPython = None
   _display_progress = print
 

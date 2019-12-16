@@ -297,7 +297,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.18.0'
+    project.version = '2.19.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -372,8 +372,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_core_version = "1.61.0"
     def google_cloud_spanner_version = "1.6.0"
     def grpc_version = "1.17.1"
-    def guava_version = "20.0"
-    def hadoop_version = "2.7.3"
+    def guava_version = "25.1-jre"
+    def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
     def jackson_version = "2.9.10"
     def jaxb_api_version = "2.2.12"
@@ -382,10 +382,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.30.Final"
     def postgres_version = "42.2.2"
     def powermock_version = "2.0.2"
-    def proto_google_common_protos_version = "1.12.0"
+    def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.6.0"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.4"
+    def spark_structured_streaming_version = "2.4.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -420,6 +421,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
         aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
+        aws_java_sdk2_sqs                           : "software.amazon.awssdk:sqs:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
@@ -436,7 +438,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
-        google_api_common                           : "com.google.api:api-common:1.7.0",
+        google_api_common                           : "com.google.api:api-common:1.8.1",
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20181221-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20181114-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
@@ -451,7 +453,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.0",
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
         google_http_client                          : "com.google.http-client:google-http-client:$google_clients_version",
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:$google_clients_version",
@@ -488,6 +490,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.3",
+        jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
         junit                                       : "junit:junit:4.13-beta-3",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
@@ -502,7 +505,7 @@ class BeamModulePlugin implements Plugin<Project> {
         powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
-        proto_google_cloud_bigquery_storage_v1beta1 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta1:$generated_grpc_beta_version",
+        proto_google_cloud_bigquery_storage_v1beta1 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta1:0.83.0",
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2:$generated_grpc_beta_version",
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1:$generated_grpc_beta_version",
@@ -516,6 +519,7 @@ class BeamModulePlugin implements Plugin<Project> {
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
+        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
         vendored_bytebuddy_1_9_3                    : "org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1",
@@ -735,6 +739,10 @@ class BeamModulePlugin implements Plugin<Project> {
         // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
+        // Special case for jsr305 (a transitive dependency of spotbugs-annotations):
+        // sdks/java/core's FieldValueTypeInformation needs javax.annotations.Nullable at runtime.
+        // Therefore, the java core module declares jsr305 dependency (BSD license) as "compile".
+        // https://github.com/findbugsproject/findbugs/blob/master/findbugs/licenses/LICENSE-jsr305.txt
         "com.github.spotbugs:spotbugs-annotations:3.1.12",
         "net.jcip:jcip-annotations:1.0",
       ]
@@ -1231,9 +1239,14 @@ class BeamModulePlugin implements Plugin<Project> {
       // TODO: Figure out whether we should force all dependency conflict resolution
       // to occur in the "shadow" and "shadowTest" configurations.
       project.configurations.all { config ->
+        // When running beam_Dependency_Check, resolutionStrategy should not be used; otherwise
+        // gradle-versions-plugin does not report the latest versions of the dependencies.
+        def startTasks = project.gradle.startParameter.taskNames
+        def inDependencyUpdates = 'dependencyUpdates' in startTasks || 'runBeamDependencyCheck' in startTasks
+
         // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
         // has different dependencies than our project.
-        if (config.getName() != "errorprone") {
+        if (config.getName() != "errorprone" && !inDependencyUpdates) {
           config.resolutionStrategy {
             force project.library.java.values()
           }
@@ -1592,7 +1605,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
       def name = config.name
       def beamTestPipelineOptions = [
-        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--runner=org.apache.beam.runners.portability.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
         "--environmentCacheMillis=10000"
       ]
@@ -1671,7 +1684,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Task for running testcases in Java SDK
       def beamJavaTestPipelineOptions = [
-        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--runner=org.apache.beam.runners.portability.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
         "--environmentCacheMillis=10000"
       ]
@@ -1765,7 +1778,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.11.1 grpcio-tools==1.3.5"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.11.1 -r ${project.rootDir}/sdks/python/build-requirements.txt"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -1899,11 +1912,13 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      def addPortableWordCountTask = { boolean isStreaming ->
-        project.task('portableWordCount' + (isStreaming ? 'Streaming' : 'Batch')) {
+      def addPortableWordCountTask = { boolean isStreaming, String runner ->
+        project.task('portableWordCount' + (runner.equals("PortableRunner") ? "" : runner) + (isStreaming ? 'Streaming' : 'Batch')) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ':runners:flink:1.9:job-server-container:docker',
+            ':runners:flink:1.9:job-server:shadowJar',
+            ':runners:spark:job-server:shadowJar',
             ':sdks:python:container:py2:docker',
             ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',
@@ -1914,8 +1929,7 @@ class BeamModulePlugin implements Plugin<Project> {
             def options = [
               "--input=/etc/profile",
               "--output=/tmp/py-wordcount-direct",
-              "--runner=PortableRunner",
-              "--experiments=worker_threads=100",
+              "--runner=${runner}",
               "--parallelism=2",
               "--shutdown_sources_on_final_watermark",
               "--sdk_worker_parallelism=1",
@@ -1953,8 +1967,11 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.ext.addPortableWordCountTasks = {
         ->
-        addPortableWordCountTask(false)
-        addPortableWordCountTask(true)
+        addPortableWordCountTask(false, "PortableRunner")
+        addPortableWordCountTask(true, "PortableRunner")
+        addPortableWordCountTask(false, "FlinkRunner")
+        addPortableWordCountTask(true, "FlinkRunner")
+        addPortableWordCountTask(false, "SparkRunner")
       }
     }
   }

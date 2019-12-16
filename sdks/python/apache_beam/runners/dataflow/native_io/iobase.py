@@ -30,6 +30,8 @@ from apache_beam.io import iobase
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def _dict_printable_fields(dict_object, skip_fields):
   """Returns a list of strings for the interesting fields of a dict."""
@@ -135,7 +137,7 @@ class NativeSourceReader(object):
       or a 'DynamicSplitResult' describing how the input was split into a
       primary and residual part.
     """
-    logging.debug(
+    _LOGGER.debug(
         'SourceReader %r does not support dynamic splitting. Ignoring dynamic '
         'split request: %r',
         self, dynamic_split_request)

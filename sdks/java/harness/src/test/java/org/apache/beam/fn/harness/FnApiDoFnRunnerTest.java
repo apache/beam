@@ -53,6 +53,7 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -211,6 +212,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -226,6 +228,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -259,6 +262,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     mainOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertThat(mainOutputValues, empty());
+
+    Iterables.getOnlyElement(teardownFunctions).run();
     assertThat(mainOutputValues, empty());
 
     assertEquals(
@@ -382,6 +388,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -397,6 +404,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -431,6 +439,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     mainOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertThat(mainOutputValues, empty());
+
+    Iterables.getOnlyElement(teardownFunctions).run();
     assertThat(mainOutputValues, empty());
 
     // Assert that state data did not change
@@ -516,6 +527,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -531,6 +543,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -551,6 +564,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertThat(
         mainOutputValues.get(1).getValue(),
         contains("iterableValue1B", "iterableValue2B", "iterableValue3B"));
+    mainOutputValues.clear();
+
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertThat(mainOutputValues, empty());
+
+    Iterables.getOnlyElement(teardownFunctions).run();
+    assertThat(mainOutputValues, empty());
 
     // Assert that state data did not change
     assertEquals(stateData, fakeClient.getData());
@@ -622,6 +642,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -637,6 +658,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -650,6 +672,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
         consumers.getMultiplexingConsumer(inputPCollectionId);
     mainInput.accept(valueInWindow("X", windowA));
     mainInput.accept(valueInWindow("Y", windowB));
+    mainOutputValues.clear();
+
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertThat(mainOutputValues, empty());
+
+    Iterables.getOnlyElement(teardownFunctions).run();
+    assertThat(mainOutputValues, empty());
 
     MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
 
@@ -810,6 +839,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -837,6 +867,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -912,6 +943,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     mainOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertThat(mainOutputValues, empty());
+
+    Iterables.getOnlyElement(teardownFunctions).run();
     assertThat(mainOutputValues, empty());
 
     assertEquals(

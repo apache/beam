@@ -94,6 +94,8 @@ import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -246,24 +248,32 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                   () -> UUID.randomUUID().toString(),
                   keyedStateInternals,
                   getKeyedStateBackend(),
-                  stateBackendLock));
+                  stateBackendLock,
+                  keyCoder));
     } else {
       userStateRequestHandler = StateRequestHandler.unsupported();
     }
 
     EnumMap<TypeCase, StateRequestHandler> handlerMap = new EnumMap<>(TypeCase.class);
+    handlerMap.put(TypeCase.ITERABLE_SIDE_INPUT, sideInputStateHandler);
     handlerMap.put(TypeCase.MULTIMAP_SIDE_INPUT, sideInputStateHandler);
+    handlerMap.put(TypeCase.MULTIMAP_KEYS_SIDE_INPUT, sideInputStateHandler);
     handlerMap.put(TypeCase.BAG_USER_STATE, userStateRequestHandler);
 
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
 
-  static class BagUserStateFactory<K extends ByteString, V, W extends BoundedWindow>
-      implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
+  static class BagUserStateFactory<V, W extends BoundedWindow>
+      implements StateRequestHandlers.BagUserStateHandlerFactory<ByteString, V, W> {
 
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
+    /** Lock to hold whenever accessing the state backend. */
     private final Lock stateBackendLock;
+    /** For debugging: The key coder used by the Runner. */
+    @Nullable private final Coder runnerKeyCoder;
+    /** For debugging: Same as keyedStateBackend but upcasted, to access key group meta info. */
+    @Nullable private final AbstractKeyedStateBackend<ByteBuffer> keyStateBackendWithKeyGroupInfo;
     /** Holds the valid cache token for user state for this operator. */
     private final ByteString cacheToken;
 
@@ -271,26 +281,36 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         IdGenerator cacheTokenGenerator,
         StateInternals stateInternals,
         KeyedStateBackend<ByteBuffer> keyedStateBackend,
-        Lock stateBackendLock) {
+        Lock stateBackendLock,
+        @Nullable Coder runnerKeyCoder) {
       this.stateInternals = stateInternals;
       this.keyedStateBackend = keyedStateBackend;
       this.stateBackendLock = stateBackendLock;
+      if (keyedStateBackend instanceof AbstractKeyedStateBackend) {
+        // This will always succeed, unless a custom state backend is used which does not extend
+        // AbstractKeyedStateBackend. This is unlikely but we should still consider this case.
+        this.keyStateBackendWithKeyGroupInfo =
+            (AbstractKeyedStateBackend<ByteBuffer>) keyedStateBackend;
+      } else {
+        this.keyStateBackendWithKeyGroupInfo = null;
+      }
+      this.runnerKeyCoder = runnerKeyCoder;
       this.cacheToken = ByteString.copyFrom(cacheTokenGenerator.getId().getBytes(Charsets.UTF_8));
     }
 
     @Override
-    public StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
+    public StateRequestHandlers.BagUserStateHandler<ByteString, V, W> forUserState(
         // Transform id not used because multiple operators with state will not
         // be fused together. See GreedyPCollectionFusers
         String pTransformId,
         String userStateId,
-        Coder<K> keyCoder,
+        Coder<ByteString> keyCoder,
         Coder<V> valueCoder,
         Coder<W> windowCoder) {
-      return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
+      return new StateRequestHandlers.BagUserStateHandler<ByteString, V, W>() {
 
         @Override
-        public Iterable<V> get(K key, W window) {
+        public Iterable<V> get(ByteString key, W window) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -313,7 +333,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
 
         @Override
-        public void append(K key, W window, Iterator<V> values) {
+        public void append(ByteString key, W window, Iterator<V> values) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -337,7 +357,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
 
         @Override
-        public void clear(K key, W window) {
+        public void clear(ByteString key, W window) {
           try {
             stateBackendLock.lock();
             prepareStateBackend(key);
@@ -364,10 +384,23 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           return Optional.of(cacheToken);
         }
 
-        private void prepareStateBackend(K key) {
+        private void prepareStateBackend(ByteString key) {
           // Key for state request is shipped encoded with NESTED context.
           ByteBuffer encodedKey = FlinkKeyUtils.fromEncodedKey(key);
           keyedStateBackend.setCurrentKey(encodedKey);
+          if (keyStateBackendWithKeyGroupInfo != null) {
+            int currentKeyGroupIndex = keyStateBackendWithKeyGroupInfo.getCurrentKeyGroupIndex();
+            KeyGroupRange keyGroupRange = keyStateBackendWithKeyGroupInfo.getKeyGroupRange();
+            Preconditions.checkState(
+                keyGroupRange.contains(currentKeyGroupIndex),
+                "The current key '%s' with key group index '%s' does not belong to the key group range '%s'. Runner keyCoder: %s. Ptransformid: %s Userstateid: %s",
+                Arrays.toString(key.toByteArray()),
+                currentKeyGroupIndex,
+                keyGroupRange,
+                runnerKeyCoder,
+                pTransformId,
+                userStateId);
+          }
         }
       };
     }
@@ -827,20 +860,20 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final List<String> userStateNames;
     private final Coder windowCoder;
     private final ArrayDeque<KV<ByteBuffer, BoundedWindow>> cleanupQueue;
-    private final Supplier<ByteBuffer> keyedStateBackend;
+    private final Supplier<ByteBuffer> currentKeySupplier;
 
     StateCleaner(
-        List<String> userStateNames, Coder windowCoder, Supplier<ByteBuffer> keyedStateBackend) {
+        List<String> userStateNames, Coder windowCoder, Supplier<ByteBuffer> currentKeySupplier) {
       this.userStateNames = userStateNames;
       this.windowCoder = windowCoder;
-      this.keyedStateBackend = keyedStateBackend;
+      this.currentKeySupplier = currentKeySupplier;
       this.cleanupQueue = new ArrayDeque<>();
     }
 
     @Override
     public void clearForWindow(BoundedWindow window) {
       // Executed in the context of onTimer(..) where the correct key will be set
-      cleanupQueue.add(KV.of(keyedStateBackend.get(), window));
+      cleanupQueue.add(KV.of(currentKeySupplier.get(), window));
     }
 
     @SuppressWarnings("ByteBufferBackingArray")

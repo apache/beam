@@ -312,7 +312,7 @@ class TestParquet(unittest.TestCase):
       path = dst.name
       with TestPipeline() as p:
         _ = p \
-        | Create(self.RECORDS) \
+        | Create(self.RECORDS, reshuffle=False) \
         | WriteToParquet(
             path, self.SCHEMA, num_shards=1, shard_name_template='')
       with TestPipeline() as p:
@@ -448,7 +448,8 @@ class TestParquet(unittest.TestCase):
   def test_selective_columns(self):
     file_name = self._write_data()
     orig = self._records_as_arrow()
-    expected_result = [pa.Table.from_arrays([orig.column('name')])]
+    expected_result = [pa.Table.from_arrays([orig.column('name')],
+                                            names=['name'])]
     self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
   def test_sink_transform_multiple_row_group(self):

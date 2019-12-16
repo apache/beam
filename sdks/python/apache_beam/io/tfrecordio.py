@@ -38,6 +38,9 @@ from apache_beam.transforms import PTransform
 __all__ = ['ReadFromTFRecord', 'WriteToTFRecord']
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 def _default_crc32c_fn(value):
   """Calculates crc32c of a bytes object using either snappy or crcmod."""
 
@@ -54,14 +57,14 @@ def _default_crc32c_fn(value):
       pass
 
     if not _default_crc32c_fn.fn:
-      logging.warning('Couldn\'t find python-snappy so the implementation of '
+      _LOGGER.warning('Couldn\'t find python-snappy so the implementation of '
                       '_TFRecordUtil._masked_crc32c is not as fast as it could '
                       'be.')
       _default_crc32c_fn.fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
   return _default_crc32c_fn.fn(value)
 
 
-_default_crc32c_fn.fn = None
+_default_crc32c_fn.fn = None  # type: ignore
 
 
 class _TFRecordUtil(object):

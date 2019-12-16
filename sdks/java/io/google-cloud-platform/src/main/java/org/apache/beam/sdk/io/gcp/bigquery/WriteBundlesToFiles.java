@@ -36,7 +36,6 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -61,13 +60,13 @@ class WriteBundlesToFiles<DestinationT, ElementT>
   private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
 
   // Map from tablespec to a writer for that table.
-  private transient Map<DestinationT, TableRowWriter> writers;
+  private transient Map<DestinationT, BigQueryRowWriter<ElementT>> writers;
   private transient Map<DestinationT, BoundedWindow> writerWindows;
   private final PCollectionView<String> tempFilePrefixView;
   private final TupleTag<KV<ShardedKey<DestinationT>, ElementT>> unwrittenRecordsTag;
   private final int maxNumWritersPerBundle;
   private final long maxFileSize;
-  private final SerializableFunction<ElementT, TableRow> toRowFunction;
+  private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private int spilledShardNumber;
 
   /**
@@ -164,12 +163,12 @@ class WriteBundlesToFiles<DestinationT, ElementT>
       TupleTag<KV<ShardedKey<DestinationT>, ElementT>> unwrittenRecordsTag,
       int maxNumWritersPerBundle,
       long maxFileSize,
-      SerializableFunction<ElementT, TableRow> toRowFunction) {
+      RowWriterFactory<ElementT, DestinationT> rowWriterFactory) {
     this.tempFilePrefixView = tempFilePrefixView;
     this.unwrittenRecordsTag = unwrittenRecordsTag;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
     this.maxFileSize = maxFileSize;
-    this.toRowFunction = toRowFunction;
+    this.rowWriterFactory = rowWriterFactory;
   }
 
   @StartBundle
@@ -181,9 +180,10 @@ class WriteBundlesToFiles<DestinationT, ElementT>
     this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
   }
 
-  TableRowWriter createAndInsertWriter(
+  BigQueryRowWriter<ElementT> createAndInsertWriter(
       DestinationT destination, String tempFilePrefix, BoundedWindow window) throws Exception {
-    TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+    BigQueryRowWriter<ElementT> writer =
+        rowWriterFactory.createRowWriter(tempFilePrefix, destination);
     writers.put(destination, writer);
     writerWindows.put(destination, window);
     return writer;
@@ -196,7 +196,7 @@ class WriteBundlesToFiles<DestinationT, ElementT>
     String tempFilePrefix = c.sideInput(tempFilePrefixView);
     DestinationT destination = c.element().getKey();
 
-    TableRowWriter writer;
+    BigQueryRowWriter<ElementT> writer;
     if (writers.containsKey(destination)) {
       writer = writers.get(destination);
     } else {
@@ -219,13 +219,13 @@ class WriteBundlesToFiles<DestinationT, ElementT>
     if (writer.getByteSize() > maxFileSize) {
       // File is too big. Close it and open a new file.
       writer.close();
-      TableRowWriter.Result result = writer.getResult();
+      BigQueryRowWriter.Result result = writer.getResult();
       c.output(new Result<>(result.resourceId.toString(), result.byteSize, destination));
       writer = createAndInsertWriter(destination, tempFilePrefix, window);
     }
 
     try {
-      writer.write(toRowFunction.apply(element.getValue()));
+      writer.write(element.getValue());
     } catch (Exception e) {
       // Discard write result and close the write.
       try {
@@ -242,7 +242,7 @@ class WriteBundlesToFiles<DestinationT, ElementT>
   @FinishBundle
   public void finishBundle(FinishBundleContext c) throws Exception {
     List<Exception> exceptionList = Lists.newArrayList();
-    for (TableRowWriter writer : writers.values()) {
+    for (BigQueryRowWriter<ElementT> writer : writers.values()) {
       try {
         writer.close();
       } catch (Exception e) {
@@ -257,11 +257,11 @@ class WriteBundlesToFiles<DestinationT, ElementT>
       throw e;
     }
 
-    for (Map.Entry<DestinationT, TableRowWriter> entry : writers.entrySet()) {
+    for (Map.Entry<DestinationT, BigQueryRowWriter<ElementT>> entry : writers.entrySet()) {
       try {
         DestinationT destination = entry.getKey();
-        TableRowWriter writer = entry.getValue();
-        TableRowWriter.Result result = writer.getResult();
+        BigQueryRowWriter<ElementT> writer = entry.getValue();
+        BigQueryRowWriter.Result result = writer.getResult();
         c.output(
             new Result<>(result.resourceId.toString(), result.byteSize, destination),
             writerWindows.get(destination).maxTimestamp(),

@@ -32,6 +32,7 @@ option java_outer_classname = "JobApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 import "metrics.proto";
 
 // Job Service for running RunnerAPI pipelines
@@ -47,7 +48,7 @@ service JobService {
   rpc GetJobs (GetJobsRequest) returns (GetJobsResponse);
 
   // Get the current state of the job
-  rpc GetState (GetJobStateRequest) returns (GetJobStateResponse);
+  rpc GetState (GetJobStateRequest) returns (JobStateEvent);
 
   // Get the job's pipeline
   rpc GetPipeline (GetJobPipelineRequest) returns (GetJobPipelineResponse);
@@ -56,7 +57,7 @@ service JobService {
   rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
 
   // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
-  rpc GetStateStream (GetJobStateRequest) returns (stream GetJobStateResponse);
+  rpc GetStateStream (GetJobStateRequest) returns (stream JobStateEvent);
 
   // Subscribe to a stream of state changes and messages from the job
   rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
@@ -151,8 +152,9 @@ message GetJobStateRequest {
 
 }
 
-message GetJobStateResponse {
+message JobStateEvent {
   JobState.Enum state = 1; // (required)
+  google.protobuf.Timestamp timestamp = 2; // (required)
 }
 
 
@@ -196,24 +198,58 @@ message JobMessage {
 message JobMessagesResponse {
   oneof response {
     JobMessage message_response = 1;
-    GetJobStateResponse state_response = 2;
+    JobStateEvent state_response = 2;
   }
 }
 
 // Enumeration of all JobStates
+//
+// The state transition diagram is:
+//   STOPPED -> STARTING -> RUNNING -> DONE
+//                                  \> FAILED
+//                                  \> CANCELLING -> CANCELLED
+//                                  \> UPDATING -> UPDATED
+//                                  \> DRAINING -> DRAINED
+//
+// Transitions are optional such that a job may go from STOPPED to RUNNING
+// without needing to pass through STARTING.
 message JobState {
   enum Enum {
+    // The job state reported by a runner cannot be interpreted by the SDK.
     UNSPECIFIED = 0;
+
+    // The job has not yet started.
     STOPPED = 1;
+
+    // The job is currently running.
     RUNNING = 2;
+
+    // The job has successfully completed. (terminal)
     DONE = 3;
+
+    // The job has failed. (terminal)
     FAILED = 4;
+
+    // The job has been explicitly cancelled. (terminal)
     CANCELLED = 5;
+
+    // The job has been updated. (terminal)
     UPDATED = 6;
+
+    // The job is draining its data. (optional)
     DRAINING = 7;
+
+    // The job has completed draining its data. (terminal)
     DRAINED = 8;
+
+    // The job is starting up.
     STARTING = 9;
+
+    // The job is cancelling. (optional)
     CANCELLING = 10;
+
+    // The job is in the process of being updated. (optional)
+    UPDATING = 11;
   }
 }
 
