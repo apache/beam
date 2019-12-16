@@ -23,7 +23,7 @@ from __future__ import absolute_import
 
 import logging
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def is_in_ipython():

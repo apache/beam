@@ -40,7 +40,7 @@ except (ImportError, TypeError):
   client = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')

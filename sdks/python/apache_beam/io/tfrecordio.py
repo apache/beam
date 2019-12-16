@@ -38,7 +38,7 @@ from apache_beam.transforms import PTransform
 __all__ = ['ReadFromTFRecord', 'WriteToTFRecord']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def _default_crc32c_fn(value):

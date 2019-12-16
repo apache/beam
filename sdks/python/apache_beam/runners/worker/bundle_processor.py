@@ -104,7 +104,7 @@ OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'beam:source:java:0.1'
 URNS_NEEDING_PCOLLECTIONS = set([monitoring_infos.ELEMENT_COUNT_URN,
                                  monitoring_infos.SAMPLED_BYTE_SIZE_URN])
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class RunnerIOOperation(operations.Operation):

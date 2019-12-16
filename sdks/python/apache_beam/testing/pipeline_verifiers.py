@@ -48,7 +48,7 @@ except ImportError:
 
 MAX_RETRIES = 4
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class PipelineStateMatcher(BaseMatcher):

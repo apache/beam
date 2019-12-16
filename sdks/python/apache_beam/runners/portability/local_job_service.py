@@ -50,7 +50,7 @@ if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
   from apache_beam.portability.api import beam_runner_api_pb2
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def _iter_queue(q):

@@ -49,7 +49,7 @@ T = TypeVar('T')
 
 # This module is experimental. No backwards-compatibility guarantees.
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 KNOWN_COMPOSITES = frozenset([

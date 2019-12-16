@@ -76,7 +76,7 @@ else:
 __all__ = ['DataflowRunner']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class DataflowRunner(PipelineRunner):

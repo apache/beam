@@ -44,7 +44,7 @@ from apache_beam.utils import retry
 __all__ = ['GcsIO']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 # Issue a friendlier error message if the storage library is not available.

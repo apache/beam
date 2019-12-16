@@ -126,7 +126,7 @@ ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
 # The cache is disabled in production for other runners.
 STATE_CACHE_SIZE = 100
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class ControlConnection(object):

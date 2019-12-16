@@ -57,7 +57,7 @@ __all__ = [
 PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def _static_value_provider_of(value_type):

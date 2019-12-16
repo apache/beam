@@ -57,7 +57,7 @@ if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 # This SDK harness will (by default), log a "lull" in processing if it sees no
 # transitions in over 5 minutes.

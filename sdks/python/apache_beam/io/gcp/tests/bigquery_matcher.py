@@ -45,7 +45,7 @@ except ImportError:
 
 MAX_RETRIES = 5
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def retry_on_http_and_value_error(exception):

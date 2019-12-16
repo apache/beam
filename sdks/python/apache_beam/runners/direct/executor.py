@@ -49,7 +49,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.direct.evaluation_context import EvaluationContext
   from apache_beam.runners.direct.transform_evaluator import TransformEvaluatorRegistry
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class _ExecutorService(object):

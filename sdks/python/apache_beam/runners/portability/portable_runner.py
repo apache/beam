@@ -69,7 +69,7 @@ TERMINAL_STATES = [
 
 ENV_TYPE_ALIASES = {'LOOPBACK': 'EXTERNAL'}
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class PortableRunner(runner.PipelineRunner):

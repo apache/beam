@@ -36,7 +36,7 @@ __all__ = ['TestDataflowRunner']
 # pool.
 WAIT_IN_STATE_TIMEOUT = 10 * 60
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class TestDataflowRunner(DataflowRunner):

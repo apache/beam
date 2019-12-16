@@ -37,7 +37,7 @@ except ImportError:
   bigquery = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class GcpTestIOError(retry.PermanentException):

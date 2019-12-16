@@ -37,7 +37,7 @@ if TYPE_CHECKING:
   from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.portability.api import endpoints_pb2
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def make_state_event(state, timestamp):

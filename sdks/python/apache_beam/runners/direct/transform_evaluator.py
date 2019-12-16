@@ -80,7 +80,7 @@ if TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
   from apache_beam.runners.direct.evaluation_context import EvaluationContext
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class TransformEvaluatorRegistry(object):
