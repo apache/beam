@@ -210,53 +210,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
-  public abstract static class DoFnInvokerTimerFamilyBase<
-          InputT, OutputT, DoFnT extends DoFn<InputT, OutputT>>
-      implements DoFnInvoker<InputT, OutputT> {
-    protected DoFnT delegate;
-
-    private Map<String, OnTimerInvoker> onTimerInvokers = new HashMap<>();
-
-    public DoFnInvokerTimerFamilyBase(DoFnT delegate) {
-      this.delegate = delegate;
-    }
-
-    /**
-     * Associates the given timer ID with the given {@link OnTimerInvoker}.
-     *
-     * <p>ByteBuddy does not like to generate conditional code, so we use a map + lookup of the
-     * timer ID rather than a generated conditional branch to choose which OnTimerInvoker to invoke.
-     *
-     * <p>This method has package level access as it is intended only for assembly of the {@link
-     * DoFnInvokerBase} not by any subclass.
-     */
-    void addOnTimerInvoker(String timerId, OnTimerInvoker onTimerInvoker) {
-      this.onTimerInvokers.put(timerId, onTimerInvoker);
-    }
-
-    @Override
-    public void invokeOnTimer(
-        String timerId, DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
-      @Nullable OnTimerInvoker onTimerInvoker = onTimerInvokers.get(timerId);
-
-      if (onTimerInvoker != null) {
-        onTimerInvoker.invokeOnTimer(arguments);
-      } else {
-        throw new IllegalArgumentException(
-            String.format(
-                "Attempted to invoke timer %s on %s, but that timer is not registered."
-                    + " This is the responsibility of the runner, which must only deliver"
-                    + " registered timers.",
-                timerId, delegate.getClass().getName()));
-      }
-    }
-
-    @Override
-    public DoFn<InputT, OutputT> getFn() {
-      return delegate;
-    }
-  }
-
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFnSignature signature, DoFn<InputT, OutputT> fn) {
@@ -266,12 +219,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         signature.fnClass(),
         fn.getClass());
 
-    DoFnInvoker<InputT, OutputT> invoker;
     try {
-      if (signature.timerFamilyDeclarations().size() > 0) {
-        invoker = initializeDoFnInvokerTimerFamilyBase(signature, fn);
-      } else {
-        invoker = initializeDoFnInvokerBase(signature, fn);
+      @SuppressWarnings("unchecked")
+      DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker =
+          (DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>>)
+              getByteBuddyInvokerConstructor(signature).newInstance(fn);
+
+      for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
+        invoker.addOnTimerInvoker(
+            onTimerMethod.id(), OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
       }
 
       return invoker;
@@ -282,34 +238,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         | SecurityException e) {
       throw new RuntimeException("Unable to bind invoker for " + fn.getClass(), e);
     }
-  }
-
-  private <InputT, OutputT> DoFnInvoker<InputT, OutputT> initializeDoFnInvokerTimerFamilyBase(
-      DoFnSignature signature, DoFn<InputT, OutputT> fn)
-      throws IllegalAccessException, InvocationTargetException, InstantiationException {
-    @SuppressWarnings("unchecked")
-    DoFnInvokerTimerFamilyBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker =
-        (DoFnInvokerTimerFamilyBase<InputT, OutputT, DoFn<InputT, OutputT>>)
-            getByteBuddyInvokerConstructor(signature).newInstance(fn);
-    for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
-      invoker.addOnTimerInvoker(
-          onTimerMethod.id(), OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
-    }
-    return invoker;
-  }
-
-  private <InputT, OutputT> DoFnInvoker<InputT, OutputT> initializeDoFnInvokerBase(
-      DoFnSignature signature, DoFn<InputT, OutputT> fn)
-      throws IllegalAccessException, InvocationTargetException, InstantiationException {
-    @SuppressWarnings("unchecked")
-    DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker =
-        (DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>>)
-            getByteBuddyInvokerConstructor(signature).newInstance(fn);
-    for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
-      invoker.addOnTimerInvoker(
-          onTimerMethod.id(), OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
-    }
-    return invoker;
   }
 
   /**
@@ -373,8 +301,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
-    final boolean isTimerFamily = signature.timerFamilyDeclarations().size() > 0;
-    Class<?> clazz = isTimerFamily ? DoFnInvokerTimerFamilyBase.class : DoFnInvokerBase.class;
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()
@@ -385,13 +311,12 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     .withSuffix(DoFnInvoker.class.getSimpleName()))
 
             // class <invoker class> extends DoFnInvokerBase {
-            .subclass(clazz, ConstructorStrategy.Default.NO_CONSTRUCTORS)
+            .subclass(DoFnInvokerBase.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
 
             //   public <invoker class>(<fn class> delegate) { this.delegate = delegate; }
             .defineConstructor(Visibility.PUBLIC)
             .withParameter(fnClass)
-            .intercept(
-                isTimerFamily ? new InvokerTimerFamilyConstructor() : new InvokerConstructor())
+            .intercept(new InvokerConstructor())
 
             //   public invokeProcessElement(ProcessContext, ExtraContextFactory) {
             //     delegate.<@ProcessElement>(... pass just the right args ...);
@@ -1099,38 +1024,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     // Invoke the super constructor (default constructor of Object)
                     MethodInvocation.invoke(
                         new TypeDescription.ForLoadedType(DoFnInvokerBase.class)
-                            .getDeclaredMethods()
-                            .filter(
-                                ElementMatchers.isConstructor()
-                                    .and(ElementMatchers.takesArguments(DoFn.class)))
-                            .getOnly()),
-                    // Return void.
-                    MethodReturn.VOID)
-                .apply(methodVisitor, implementationContext);
-        return new ByteCodeAppender.Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-      };
-    }
-  }
-
-  private static final class InvokerTimerFamilyConstructor implements Implementation {
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
-    }
-
-    @Override
-    public ByteCodeAppender appender(final Target implementationTarget) {
-
-      return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        StackManipulation.Size size =
-            new StackManipulation.Compound(
-                    // Load the this reference
-                    MethodVariableAccess.REFERENCE.loadFrom(0),
-                    // Load the delegate argument
-                    MethodVariableAccess.REFERENCE.loadFrom(1),
-                    // Invoke the super constructor (default constructor of Object)
-                    MethodInvocation.invoke(
-                        new TypeDescription.ForLoadedType(DoFnInvokerTimerFamilyBase.class)
                             .getDeclaredMethods()
                             .filter(
                                 ElementMatchers.isConstructor()
