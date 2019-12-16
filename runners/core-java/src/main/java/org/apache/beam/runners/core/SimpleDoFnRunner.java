@@ -857,11 +857,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public TimerMap timerFamily(String tagId) {
-      throw new UnsupportedOperationException("TimerFamily parameters are not supported.");
-    }
-
-    @Override
     public Object schemaElement(int index) {
       throw new UnsupportedOperationException("Element parameters are not supported.");
     }
@@ -925,6 +920,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
         return new TimerInternalsTimer(
             window, getNamespace(), timerId, spec, stepContext.timerInternals());
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public TimerMap timerFamily(String timerFamilyId) {
+      try {
+        TimerSpec spec =
+            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
+        return new TimerInternalsTimerMap(
+            timerFamilyId, window(), getNamespace(), spec, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
