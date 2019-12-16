@@ -114,8 +114,7 @@ public class ArrowSchema {
         implements ArrowType.ArrowTypeVisitor<Function<Object, Object>> {
       @Override
       public Function<Object, Object> visit(ArrowType.Null type) {
-        throw new IllegalArgumentException(
-            "Type \'" + type.toString() + "\' not supported.");
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
@@ -131,14 +130,12 @@ public class ArrowSchema {
 
       @Override
       public Function<Object, Object> visit(ArrowType.FixedSizeList type) {
-        throw new IllegalArgumentException(
-            "Type \'" + type.toString() + "\' not supported.");
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Union type) {
-        throw new IllegalArgumentException(
-            "Type \'" + type.toString() + "\' not supported.");
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
@@ -173,28 +170,27 @@ public class ArrowSchema {
 
       @Override
       public Function<Object, Object> visit(ArrowType.Decimal type) {
-        throw new IllegalArgumentException(
-            "Type \'" + type.toString() + "\' not supported.");
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Date type) {
-        throw new IllegalArgumentException(
-            "Type \'" + type.toString() + "\' not supported.");
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Time type) {
-        throw new IllegalArgumentException(
-            "Type \'" + type.toString() + "\' not supported.");
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
       @Override
       public Function<Object, Object> visit(ArrowType.Timestamp type) {
         DateTimeZone tz = DateTimeZone.forID(type.getTimezone());
         switch (type.getUnit()) {
-          case MICROSECOND: return (epochMicros) -> new DateTime((long)epochMicros/1000, tz);
-          case MILLISECOND: return (epochMills) -> new DateTime((long)epochMills, tz);
+          case MICROSECOND:
+            return (epochMicros) -> new DateTime((long) epochMicros / 1000, tz);
+          case MILLISECOND:
+            return (epochMills) -> new DateTime((long) epochMills, tz);
           default:
             throw new AssertionError("Encountered unrecognized TimeUnit: " + type.getUnit());
         }
@@ -202,8 +198,7 @@ public class ArrowSchema {
 
       @Override
       public Function<Object, Object> visit(ArrowType.Interval type) {
-        throw new IllegalArgumentException(
-            "Type \'" + type.toString() + "\' not supported.");
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
     }
 
@@ -350,9 +345,7 @@ public class ArrowSchema {
 
                   @Override
                   public FieldType visit(ArrowType.FixedSizeBinary type) {
-                    return FieldType.logicalType(
-                        FixedBytes.of(
-                            type.getByteWidth()));
+                    return FieldType.logicalType(FixedBytes.of(type.getByteWidth()));
                   }
 
                   @Override
@@ -383,7 +376,8 @@ public class ArrowSchema {
 
                   @Override
                   public FieldType visit(ArrowType.Timestamp type) {
-                    if (type.getUnit() == TimeUnit.MILLISECOND || type.getUnit() == TimeUnit.MICROSECOND) {
+                    if (type.getUnit() == TimeUnit.MILLISECOND
+                        || type.getUnit() == TimeUnit.MICROSECOND) {
                       return FieldType.DATETIME;
                     } else {
                       throw new IllegalArgumentException(
