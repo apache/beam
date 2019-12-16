@@ -462,7 +462,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("Cannot access timerId outside of @OnTimer method.");
+      throw new UnsupportedOperationException(
+          "Cannot access timerId as parameter outside of @OnTimer method.");
     }
 
     @Override
@@ -693,7 +694,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("Cannot access timerId outside of @OnTimer method.");
+      throw new UnsupportedOperationException(
+          "Cannot access timerId as parameter outside of @OnTimer method.");
     }
 
     @Override
@@ -856,7 +858,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public TimerMap timerFamily(String tagId) {
-      throw new UnsupportedOperationException("SideInput parameters are not supported.");
+      throw new UnsupportedOperationException("TimerFamily parameters are not supported.");
     }
 
     @Override

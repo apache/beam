@@ -140,7 +140,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               @Override
               public String timerId(DoFn<InputT, OutputT> doFn) {
                 throw new UnsupportedOperationException(
-                    "Cannot access timerId outside of @OnTimer method.");
+                    "Cannot access timerId as parameter outside of @OnTimer method.");
               }
 
               @Override
