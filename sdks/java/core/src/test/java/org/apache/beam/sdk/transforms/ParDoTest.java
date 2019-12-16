@@ -4224,7 +4224,7 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, String>() {
 
             @TimerFamily(timerFamilyId)
-            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+            private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
             @ProcessElement
             public void processElement(
