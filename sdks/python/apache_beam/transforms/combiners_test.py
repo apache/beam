@@ -399,6 +399,49 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
+  def test_MeanCombineFn_combine(self):
+    with TestPipeline() as p:
+      input = (p
+               | beam.Create([('a', 1),
+                              ('a', 1),
+                              ('a', 4),
+                              ('b', 1),
+                              ('b', 13)]))
+      # The mean of all values regardless of key.
+      global_mean = (input
+                     | beam.Values()
+                     | beam.CombineGlobally(combine.MeanCombineFn()))
+
+      # The (key, mean) pairs for all keys.
+      mean_per_key = (input | beam.CombinePerKey(combine.MeanCombineFn()))
+
+      expected_mean_per_key = [('a', 2), ('b', 7)]
+      assert_that(global_mean, equal_to([4]), label='global mean')
+      assert_that(mean_per_key, equal_to(expected_mean_per_key),
+                  label='mean per key')
+
+  def test_MeanCombineFn_combine_empty(self):
+    # For each element in a PCollection, if it is float('NaN'), then emits
+    # a string 'NaN', otherwise emits str(element).
+
+    with TestPipeline() as p:
+      input = (p | beam.Create([]))
+
+      # Compute the mean of all values in the PCollection,
+      # then format the mean. Since the Pcollection is empty,
+      # the mean is float('NaN'), and is formatted to be a string 'NaN'.
+      global_mean = (input
+                     | beam.Values()
+                     | beam.CombineGlobally(combine.MeanCombineFn())
+                     | beam.Map(str))
+
+      mean_per_key = (input | beam.CombinePerKey(combine.MeanCombineFn()))
+
+      # We can't compare one float('NaN') with another float('NaN'),
+      # but we can compare one 'nan' string with another string.
+      assert_that(global_mean, equal_to(['nan']), label='global mean')
+      assert_that(mean_per_key, equal_to([]), label='mean per key')
+
   def test_sessions_combine(self):
     with TestPipeline() as p:
       input = (
