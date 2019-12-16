@@ -38,6 +38,7 @@ import future.tests.base  # pylint: disable=unused-import
 import hamcrest  # pylint: disable=ungrouped-imports
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
+from nose.plugins.attrib import attr
 from tenacity import retry
 from tenacity import stop_after_attempt
 
@@ -1586,6 +1587,46 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
         '.*There has been a processing lull of over.*',
         'Unable to find a lull logged for this job.')
 
+class StateBackedTestElementType(object):
+  live_element_count = 0
+
+  def __init__(self, num_elements, unused):
+    self.num_elements = num_elements
+    StateBackedTestElementType.live_element_count += 1
+    # Due to using state backed iterable, we expect there is a few instances
+    # alive at any given time.
+    if StateBackedTestElementType.live_element_count > 5:
+      raise RuntimeError('Too many live instances.')
+
+  def __del__(self):
+    StateBackedTestElementType.live_element_count -= 1
+
+  def __reduce__(self):
+    return (self.__class__, (self.num_elements, 'x' * self.num_elements))
+
+@attr('ValidatesRunner')
+class FnApiBasedStateBackedCoderTest(unittest.TestCase):
+
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(use_state_iterables=True))
+
+  def test_gbk_many_values(self):
+    with self.create_pipeline() as p:
+      # The number of integers could be a knob to test against
+      # different runners' default settings on page size.
+      VALUES_PER_ELEMENT = 300
+      NUM_OF_ELEMENTS = 200
+
+      r = (p
+           | beam.Create([None])
+           | beam.FlatMap(
+               lambda x: ((1, StateBackedTestElementType(VALUES_PER_ELEMENT, _))
+                          for _ in range(NUM_OF_ELEMENTS)))
+           | beam.GroupByKey()
+           | beam.MapTuple(lambda _, vs: sum(e.num_elements for e in vs)))
+
+      assert_that(r, equal_to([VALUES_PER_ELEMENT * NUM_OF_ELEMENTS]))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
