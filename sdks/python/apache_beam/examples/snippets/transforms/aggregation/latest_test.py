@@ -31,21 +31,19 @@ from . import latest
 
 def check_latest_element(actual):
   expected = '''[START latest_element]
-🌽 Corn
+🍆
 [END latest_element]'''.splitlines()[1:-1]
   assert_matches_stdout(actual, expected)
 
 
 def check_latest_elements_per_key(actual):
   expected = '''[START latest_elements_per_key]
-('spring', '🍅')
-('summer', '🌽')
-('fall', '🍅')
-('winter', '🍆')
+('spring', '🥕')
+('summer', '🍅')
+('autumn', '🍆')
+('winter', '🥬')
 [END latest_elements_per_key]'''.splitlines()[1:-1]
-  # The value from the key-value pair is non-deterministic since there are no
-  # timestamps attached, so get rid of it and check the keys only.
-  assert_matches_stdout(actual, expected, lambda pair: pair[0])
+  assert_matches_stdout(actual, expected)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
