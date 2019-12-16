@@ -3,18 +3,19 @@
 
 package fnexecution_v1
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import pipeline_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-import _ "github.com/golang/protobuf/protoc-gen-go/descriptor"
-import duration "github.com/golang/protobuf/ptypes/duration"
-import timestamp "github.com/golang/protobuf/ptypes/timestamp"
-import _ "github.com/golang/protobuf/ptypes/wrappers"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	pipeline_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	proto "github.com/golang/protobuf/proto"
+	_ "github.com/golang/protobuf/protoc-gen-go/descriptor"
+	duration "github.com/golang/protobuf/ptypes/duration"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
+	_ "github.com/golang/protobuf/ptypes/wrappers"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -26,7 +27,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type LogEntry_Severity_Enum int32
 
@@ -60,6 +61,7 @@ var LogEntry_Severity_Enum_name = map[int32]string{
 	6: "ERROR",
 	7: "CRITICAL",
 }
+
 var LogEntry_Severity_Enum_value = map[string]int32{
 	"UNSPECIFIED": 0,
 	"TRACE":       1,
@@ -74,8 +76,9 @@ var LogEntry_Severity_Enum_value = map[string]int32{
 func (x LogEntry_Severity_Enum) String() string {
 	return proto.EnumName(LogEntry_Severity_Enum_name, int32(x))
 }
+
 func (LogEntry_Severity_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{27, 1, 0}
+	return fileDescriptor_6d954c03a4758710, []int{27, 1, 0}
 }
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
@@ -98,16 +101,17 @@ func (m *RemoteGrpcPort) Reset()         { *m = RemoteGrpcPort{} }
 func (m *RemoteGrpcPort) String() string { return proto.CompactTextString(m) }
 func (*RemoteGrpcPort) ProtoMessage()    {}
 func (*RemoteGrpcPort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{0}
+	return fileDescriptor_6d954c03a4758710, []int{0}
 }
+
 func (m *RemoteGrpcPort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoteGrpcPort.Unmarshal(m, b)
 }
 func (m *RemoteGrpcPort) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RemoteGrpcPort.Marshal(b, m, deterministic)
 }
-func (dst *RemoteGrpcPort) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RemoteGrpcPort.Merge(dst, src)
+func (m *RemoteGrpcPort) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoteGrpcPort.Merge(m, src)
 }
 func (m *RemoteGrpcPort) XXX_Size() int {
 	return xxx_messageInfo_RemoteGrpcPort.Size(m)
@@ -158,16 +162,17 @@ func (m *InstructionRequest) Reset()         { *m = InstructionRequest{} }
 func (m *InstructionRequest) String() string { return proto.CompactTextString(m) }
 func (*InstructionRequest) ProtoMessage()    {}
 func (*InstructionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{1}
+	return fileDescriptor_6d954c03a4758710, []int{1}
 }
+
 func (m *InstructionRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InstructionRequest.Unmarshal(m, b)
 }
 func (m *InstructionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_InstructionRequest.Marshal(b, m, deterministic)
 }
-func (dst *InstructionRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_InstructionRequest.Merge(dst, src)
+func (m *InstructionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InstructionRequest.Merge(m, src)
 }
 func (m *InstructionRequest) XXX_Size() int {
 	return xxx_messageInfo_InstructionRequest.Size(m)
@@ -178,6 +183,13 @@ func (m *InstructionRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_InstructionRequest proto.InternalMessageInfo
 
+func (m *InstructionRequest) GetInstructionId() string {
+	if m != nil {
+		return m.InstructionId
+	}
+	return ""
+}
+
 type isInstructionRequest_Request interface {
 	isInstructionRequest_Request()
 }
@@ -185,37 +197,38 @@ type isInstructionRequest_Request interface {
 type InstructionRequest_Register struct {
 	Register *RegisterRequest `protobuf:"bytes,1000,opt,name=register,proto3,oneof"`
 }
+
 type InstructionRequest_ProcessBundle struct {
 	ProcessBundle *ProcessBundleRequest `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,proto3,oneof"`
 }
+
 type InstructionRequest_ProcessBundleProgress struct {
 	ProcessBundleProgress *ProcessBundleProgressRequest `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,proto3,oneof"`
 }
+
 type InstructionRequest_ProcessBundleSplit struct {
 	ProcessBundleSplit *ProcessBundleSplitRequest `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,proto3,oneof"`
 }
+
 type InstructionRequest_FinalizeBundle struct {
 	FinalizeBundle *FinalizeBundleRequest `protobuf:"bytes,1004,opt,name=finalize_bundle,json=finalizeBundle,proto3,oneof"`
 }
 
-func (*InstructionRequest_Register) isInstructionRequest_Request()              {}
-func (*InstructionRequest_ProcessBundle) isInstructionRequest_Request()         {}
+func (*InstructionRequest_Register) isInstructionRequest_Request() {}
+
+func (*InstructionRequest_ProcessBundle) isInstructionRequest_Request() {}
+
 func (*InstructionRequest_ProcessBundleProgress) isInstructionRequest_Request() {}
-func (*InstructionRequest_ProcessBundleSplit) isInstructionRequest_Request()    {}
-func (*InstructionRequest_FinalizeBundle) isInstructionRequest_Request()        {}
+
+func (*InstructionRequest_ProcessBundleSplit) isInstructionRequest_Request() {}
+
+func (*InstructionRequest_FinalizeBundle) isInstructionRequest_Request() {}
 
 func (m *InstructionRequest) GetRequest() isInstructionRequest_Request {
 	if m != nil {
 		return m.Request
 	}
 	return nil
-}
-
-func (m *InstructionRequest) GetInstructionId() string {
-	if m != nil {
-		return m.InstructionId
-	}
-	return ""
 }
 
 func (m *InstructionRequest) GetRegister() *RegisterRequest {
@@ -253,135 +266,15 @@ func (m *InstructionRequest) GetFinalizeBundle() *FinalizeBundleRequest {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*InstructionRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _InstructionRequest_OneofMarshaler, _InstructionRequest_OneofUnmarshaler, _InstructionRequest_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*InstructionRequest) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*InstructionRequest_Register)(nil),
 		(*InstructionRequest_ProcessBundle)(nil),
 		(*InstructionRequest_ProcessBundleProgress)(nil),
 		(*InstructionRequest_ProcessBundleSplit)(nil),
 		(*InstructionRequest_FinalizeBundle)(nil),
 	}
-}
-
-func _InstructionRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*InstructionRequest)
-	// request
-	switch x := m.Request.(type) {
-	case *InstructionRequest_Register:
-		b.EncodeVarint(1000<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Register); err != nil {
-			return err
-		}
-	case *InstructionRequest_ProcessBundle:
-		b.EncodeVarint(1001<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ProcessBundle); err != nil {
-			return err
-		}
-	case *InstructionRequest_ProcessBundleProgress:
-		b.EncodeVarint(1002<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ProcessBundleProgress); err != nil {
-			return err
-		}
-	case *InstructionRequest_ProcessBundleSplit:
-		b.EncodeVarint(1003<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ProcessBundleSplit); err != nil {
-			return err
-		}
-	case *InstructionRequest_FinalizeBundle:
-		b.EncodeVarint(1004<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.FinalizeBundle); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("InstructionRequest.Request has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _InstructionRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*InstructionRequest)
-	switch tag {
-	case 1000: // request.register
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(RegisterRequest)
-		err := b.DecodeMessage(msg)
-		m.Request = &InstructionRequest_Register{msg}
-		return true, err
-	case 1001: // request.process_bundle
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessBundleRequest)
-		err := b.DecodeMessage(msg)
-		m.Request = &InstructionRequest_ProcessBundle{msg}
-		return true, err
-	case 1002: // request.process_bundle_progress
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessBundleProgressRequest)
-		err := b.DecodeMessage(msg)
-		m.Request = &InstructionRequest_ProcessBundleProgress{msg}
-		return true, err
-	case 1003: // request.process_bundle_split
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessBundleSplitRequest)
-		err := b.DecodeMessage(msg)
-		m.Request = &InstructionRequest_ProcessBundleSplit{msg}
-		return true, err
-	case 1004: // request.finalize_bundle
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(FinalizeBundleRequest)
-		err := b.DecodeMessage(msg)
-		m.Request = &InstructionRequest_FinalizeBundle{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _InstructionRequest_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*InstructionRequest)
-	// request
-	switch x := m.Request.(type) {
-	case *InstructionRequest_Register:
-		s := proto.Size(x.Register)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *InstructionRequest_ProcessBundle:
-		s := proto.Size(x.ProcessBundle)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *InstructionRequest_ProcessBundleProgress:
-		s := proto.Size(x.ProcessBundleProgress)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *InstructionRequest_ProcessBundleSplit:
-		s := proto.Size(x.ProcessBundleSplit)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *InstructionRequest_FinalizeBundle:
-		s := proto.Size(x.FinalizeBundle)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // The response for an associated request the SDK had been asked to fulfill.
@@ -414,16 +307,17 @@ func (m *InstructionResponse) Reset()         { *m = InstructionResponse{} }
 func (m *InstructionResponse) String() string { return proto.CompactTextString(m) }
 func (*InstructionResponse) ProtoMessage()    {}
 func (*InstructionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{2}
+	return fileDescriptor_6d954c03a4758710, []int{2}
 }
+
 func (m *InstructionResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InstructionResponse.Unmarshal(m, b)
 }
 func (m *InstructionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_InstructionResponse.Marshal(b, m, deterministic)
 }
-func (dst *InstructionResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_InstructionResponse.Merge(dst, src)
+func (m *InstructionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InstructionResponse.Merge(m, src)
 }
 func (m *InstructionResponse) XXX_Size() int {
 	return xxx_messageInfo_InstructionResponse.Size(m)
@@ -433,39 +327,6 @@ func (m *InstructionResponse) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_InstructionResponse proto.InternalMessageInfo
-
-type isInstructionResponse_Response interface {
-	isInstructionResponse_Response()
-}
-
-type InstructionResponse_Register struct {
-	Register *RegisterResponse `protobuf:"bytes,1000,opt,name=register,proto3,oneof"`
-}
-type InstructionResponse_ProcessBundle struct {
-	ProcessBundle *ProcessBundleResponse `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,proto3,oneof"`
-}
-type InstructionResponse_ProcessBundleProgress struct {
-	ProcessBundleProgress *ProcessBundleProgressResponse `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,proto3,oneof"`
-}
-type InstructionResponse_ProcessBundleSplit struct {
-	ProcessBundleSplit *ProcessBundleSplitResponse `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,proto3,oneof"`
-}
-type InstructionResponse_FinalizeBundle struct {
-	FinalizeBundle *FinalizeBundleResponse `protobuf:"bytes,1004,opt,name=finalize_bundle,json=finalizeBundle,proto3,oneof"`
-}
-
-func (*InstructionResponse_Register) isInstructionResponse_Response()              {}
-func (*InstructionResponse_ProcessBundle) isInstructionResponse_Response()         {}
-func (*InstructionResponse_ProcessBundleProgress) isInstructionResponse_Response() {}
-func (*InstructionResponse_ProcessBundleSplit) isInstructionResponse_Response()    {}
-func (*InstructionResponse_FinalizeBundle) isInstructionResponse_Response()        {}
-
-func (m *InstructionResponse) GetResponse() isInstructionResponse_Response {
-	if m != nil {
-		return m.Response
-	}
-	return nil
-}
 
 func (m *InstructionResponse) GetInstructionId() string {
 	if m != nil {
@@ -479,6 +340,47 @@ func (m *InstructionResponse) GetError() string {
 		return m.Error
 	}
 	return ""
+}
+
+type isInstructionResponse_Response interface {
+	isInstructionResponse_Response()
+}
+
+type InstructionResponse_Register struct {
+	Register *RegisterResponse `protobuf:"bytes,1000,opt,name=register,proto3,oneof"`
+}
+
+type InstructionResponse_ProcessBundle struct {
+	ProcessBundle *ProcessBundleResponse `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,proto3,oneof"`
+}
+
+type InstructionResponse_ProcessBundleProgress struct {
+	ProcessBundleProgress *ProcessBundleProgressResponse `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,proto3,oneof"`
+}
+
+type InstructionResponse_ProcessBundleSplit struct {
+	ProcessBundleSplit *ProcessBundleSplitResponse `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,proto3,oneof"`
+}
+
+type InstructionResponse_FinalizeBundle struct {
+	FinalizeBundle *FinalizeBundleResponse `protobuf:"bytes,1004,opt,name=finalize_bundle,json=finalizeBundle,proto3,oneof"`
+}
+
+func (*InstructionResponse_Register) isInstructionResponse_Response() {}
+
+func (*InstructionResponse_ProcessBundle) isInstructionResponse_Response() {}
+
+func (*InstructionResponse_ProcessBundleProgress) isInstructionResponse_Response() {}
+
+func (*InstructionResponse_ProcessBundleSplit) isInstructionResponse_Response() {}
+
+func (*InstructionResponse_FinalizeBundle) isInstructionResponse_Response() {}
+
+func (m *InstructionResponse) GetResponse() isInstructionResponse_Response {
+	if m != nil {
+		return m.Response
+	}
+	return nil
 }
 
 func (m *InstructionResponse) GetRegister() *RegisterResponse {
@@ -516,135 +418,15 @@ func (m *InstructionResponse) GetFinalizeBundle() *FinalizeBundleResponse {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*InstructionResponse) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _InstructionResponse_OneofMarshaler, _InstructionResponse_OneofUnmarshaler, _InstructionResponse_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*InstructionResponse) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*InstructionResponse_Register)(nil),
 		(*InstructionResponse_ProcessBundle)(nil),
 		(*InstructionResponse_ProcessBundleProgress)(nil),
 		(*InstructionResponse_ProcessBundleSplit)(nil),
 		(*InstructionResponse_FinalizeBundle)(nil),
 	}
-}
-
-func _InstructionResponse_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*InstructionResponse)
-	// response
-	switch x := m.Response.(type) {
-	case *InstructionResponse_Register:
-		b.EncodeVarint(1000<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Register); err != nil {
-			return err
-		}
-	case *InstructionResponse_ProcessBundle:
-		b.EncodeVarint(1001<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ProcessBundle); err != nil {
-			return err
-		}
-	case *InstructionResponse_ProcessBundleProgress:
-		b.EncodeVarint(1002<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ProcessBundleProgress); err != nil {
-			return err
-		}
-	case *InstructionResponse_ProcessBundleSplit:
-		b.EncodeVarint(1003<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ProcessBundleSplit); err != nil {
-			return err
-		}
-	case *InstructionResponse_FinalizeBundle:
-		b.EncodeVarint(1004<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.FinalizeBundle); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("InstructionResponse.Response has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _InstructionResponse_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*InstructionResponse)
-	switch tag {
-	case 1000: // response.register
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(RegisterResponse)
-		err := b.DecodeMessage(msg)
-		m.Response = &InstructionResponse_Register{msg}
-		return true, err
-	case 1001: // response.process_bundle
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessBundleResponse)
-		err := b.DecodeMessage(msg)
-		m.Response = &InstructionResponse_ProcessBundle{msg}
-		return true, err
-	case 1002: // response.process_bundle_progress
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessBundleProgressResponse)
-		err := b.DecodeMessage(msg)
-		m.Response = &InstructionResponse_ProcessBundleProgress{msg}
-		return true, err
-	case 1003: // response.process_bundle_split
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessBundleSplitResponse)
-		err := b.DecodeMessage(msg)
-		m.Response = &InstructionResponse_ProcessBundleSplit{msg}
-		return true, err
-	case 1004: // response.finalize_bundle
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(FinalizeBundleResponse)
-		err := b.DecodeMessage(msg)
-		m.Response = &InstructionResponse_FinalizeBundle{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _InstructionResponse_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*InstructionResponse)
-	// response
-	switch x := m.Response.(type) {
-	case *InstructionResponse_Register:
-		s := proto.Size(x.Register)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *InstructionResponse_ProcessBundle:
-		s := proto.Size(x.ProcessBundle)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *InstructionResponse_ProcessBundleProgress:
-		s := proto.Size(x.ProcessBundleProgress)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *InstructionResponse_ProcessBundleSplit:
-		s := proto.Size(x.ProcessBundleSplit)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *InstructionResponse_FinalizeBundle:
-		s := proto.Size(x.FinalizeBundle)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // A list of objects which can be referred to by the runner in
@@ -662,16 +444,17 @@ func (m *RegisterRequest) Reset()         { *m = RegisterRequest{} }
 func (m *RegisterRequest) String() string { return proto.CompactTextString(m) }
 func (*RegisterRequest) ProtoMessage()    {}
 func (*RegisterRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{3}
+	return fileDescriptor_6d954c03a4758710, []int{3}
 }
+
 func (m *RegisterRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RegisterRequest.Unmarshal(m, b)
 }
 func (m *RegisterRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RegisterRequest.Marshal(b, m, deterministic)
 }
-func (dst *RegisterRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RegisterRequest.Merge(dst, src)
+func (m *RegisterRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RegisterRequest.Merge(m, src)
 }
 func (m *RegisterRequest) XXX_Size() int {
 	return xxx_messageInfo_RegisterRequest.Size(m)
@@ -700,16 +483,17 @@ func (m *RegisterResponse) Reset()         { *m = RegisterResponse{} }
 func (m *RegisterResponse) String() string { return proto.CompactTextString(m) }
 func (*RegisterResponse) ProtoMessage()    {}
 func (*RegisterResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{4}
+	return fileDescriptor_6d954c03a4758710, []int{4}
 }
+
 func (m *RegisterResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RegisterResponse.Unmarshal(m, b)
 }
 func (m *RegisterResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RegisterResponse.Marshal(b, m, deterministic)
 }
-func (dst *RegisterResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RegisterResponse.Merge(dst, src)
+func (m *RegisterResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RegisterResponse.Merge(m, src)
 }
 func (m *RegisterResponse) XXX_Size() int {
 	return xxx_messageInfo_RegisterResponse.Size(m)
@@ -748,16 +532,17 @@ func (m *ProcessBundleDescriptor) Reset()         { *m = ProcessBundleDescriptor
 func (m *ProcessBundleDescriptor) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleDescriptor) ProtoMessage()    {}
 func (*ProcessBundleDescriptor) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{5}
+	return fileDescriptor_6d954c03a4758710, []int{5}
 }
+
 func (m *ProcessBundleDescriptor) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleDescriptor.Unmarshal(m, b)
 }
 func (m *ProcessBundleDescriptor) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleDescriptor.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleDescriptor) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleDescriptor.Merge(dst, src)
+func (m *ProcessBundleDescriptor) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleDescriptor.Merge(m, src)
 }
 func (m *ProcessBundleDescriptor) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleDescriptor.Size(m)
@@ -856,16 +641,17 @@ func (m *BundleApplication) Reset()         { *m = BundleApplication{} }
 func (m *BundleApplication) String() string { return proto.CompactTextString(m) }
 func (*BundleApplication) ProtoMessage()    {}
 func (*BundleApplication) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{6}
+	return fileDescriptor_6d954c03a4758710, []int{6}
 }
+
 func (m *BundleApplication) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BundleApplication.Unmarshal(m, b)
 }
 func (m *BundleApplication) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_BundleApplication.Marshal(b, m, deterministic)
 }
-func (dst *BundleApplication) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BundleApplication.Merge(dst, src)
+func (m *BundleApplication) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BundleApplication.Merge(m, src)
 }
 func (m *BundleApplication) XXX_Size() int {
 	return xxx_messageInfo_BundleApplication.Size(m)
@@ -941,16 +727,17 @@ func (m *DelayedBundleApplication) Reset()         { *m = DelayedBundleApplicati
 func (m *DelayedBundleApplication) String() string { return proto.CompactTextString(m) }
 func (*DelayedBundleApplication) ProtoMessage()    {}
 func (*DelayedBundleApplication) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{7}
+	return fileDescriptor_6d954c03a4758710, []int{7}
 }
+
 func (m *DelayedBundleApplication) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DelayedBundleApplication.Unmarshal(m, b)
 }
 func (m *DelayedBundleApplication) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DelayedBundleApplication.Marshal(b, m, deterministic)
 }
-func (dst *DelayedBundleApplication) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DelayedBundleApplication.Merge(dst, src)
+func (m *DelayedBundleApplication) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DelayedBundleApplication.Merge(m, src)
 }
 func (m *DelayedBundleApplication) XXX_Size() int {
 	return xxx_messageInfo_DelayedBundleApplication.Size(m)
@@ -1000,16 +787,17 @@ func (m *ProcessBundleRequest) Reset()         { *m = ProcessBundleRequest{} }
 func (m *ProcessBundleRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleRequest) ProtoMessage()    {}
 func (*ProcessBundleRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{8}
+	return fileDescriptor_6d954c03a4758710, []int{8}
 }
+
 func (m *ProcessBundleRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleRequest.Unmarshal(m, b)
 }
 func (m *ProcessBundleRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleRequest.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleRequest.Merge(dst, src)
+func (m *ProcessBundleRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleRequest.Merge(m, src)
 }
 func (m *ProcessBundleRequest) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleRequest.Size(m)
@@ -1054,16 +842,17 @@ func (m *ProcessBundleRequest_CacheToken) Reset()         { *m = ProcessBundleRe
 func (m *ProcessBundleRequest_CacheToken) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleRequest_CacheToken) ProtoMessage()    {}
 func (*ProcessBundleRequest_CacheToken) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{8, 0}
+	return fileDescriptor_6d954c03a4758710, []int{8, 0}
 }
+
 func (m *ProcessBundleRequest_CacheToken) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken.Unmarshal(m, b)
 }
 func (m *ProcessBundleRequest_CacheToken) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleRequest_CacheToken) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleRequest_CacheToken.Merge(dst, src)
+func (m *ProcessBundleRequest_CacheToken) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken.Merge(m, src)
 }
 func (m *ProcessBundleRequest_CacheToken) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken.Size(m)
@@ -1081,11 +870,13 @@ type isProcessBundleRequest_CacheToken_Type interface {
 type ProcessBundleRequest_CacheToken_UserState_ struct {
 	UserState *ProcessBundleRequest_CacheToken_UserState `protobuf:"bytes,1,opt,name=user_state,json=userState,proto3,oneof"`
 }
+
 type ProcessBundleRequest_CacheToken_SideInput_ struct {
 	SideInput *ProcessBundleRequest_CacheToken_SideInput `protobuf:"bytes,2,opt,name=side_input,json=sideInput,proto3,oneof"`
 }
 
 func (*ProcessBundleRequest_CacheToken_UserState_) isProcessBundleRequest_CacheToken_Type() {}
+
 func (*ProcessBundleRequest_CacheToken_SideInput_) isProcessBundleRequest_CacheToken_Type() {}
 
 func (m *ProcessBundleRequest_CacheToken) GetType() isProcessBundleRequest_CacheToken_Type {
@@ -1116,78 +907,12 @@ func (m *ProcessBundleRequest_CacheToken) GetToken() []byte {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*ProcessBundleRequest_CacheToken) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ProcessBundleRequest_CacheToken_OneofMarshaler, _ProcessBundleRequest_CacheToken_OneofUnmarshaler, _ProcessBundleRequest_CacheToken_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ProcessBundleRequest_CacheToken) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*ProcessBundleRequest_CacheToken_UserState_)(nil),
 		(*ProcessBundleRequest_CacheToken_SideInput_)(nil),
 	}
-}
-
-func _ProcessBundleRequest_CacheToken_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*ProcessBundleRequest_CacheToken)
-	// type
-	switch x := m.Type.(type) {
-	case *ProcessBundleRequest_CacheToken_UserState_:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.UserState); err != nil {
-			return err
-		}
-	case *ProcessBundleRequest_CacheToken_SideInput_:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.SideInput); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("ProcessBundleRequest_CacheToken.Type has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _ProcessBundleRequest_CacheToken_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*ProcessBundleRequest_CacheToken)
-	switch tag {
-	case 1: // type.user_state
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessBundleRequest_CacheToken_UserState)
-		err := b.DecodeMessage(msg)
-		m.Type = &ProcessBundleRequest_CacheToken_UserState_{msg}
-		return true, err
-	case 2: // type.side_input
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessBundleRequest_CacheToken_SideInput)
-		err := b.DecodeMessage(msg)
-		m.Type = &ProcessBundleRequest_CacheToken_SideInput_{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _ProcessBundleRequest_CacheToken_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*ProcessBundleRequest_CacheToken)
-	// type
-	switch x := m.Type.(type) {
-	case *ProcessBundleRequest_CacheToken_UserState_:
-		s := proto.Size(x.UserState)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ProcessBundleRequest_CacheToken_SideInput_:
-		s := proto.Size(x.SideInput)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // A flag to indicate a cache token is valid for user state.
@@ -1203,16 +928,17 @@ func (m *ProcessBundleRequest_CacheToken_UserState) Reset() {
 func (m *ProcessBundleRequest_CacheToken_UserState) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleRequest_CacheToken_UserState) ProtoMessage()    {}
 func (*ProcessBundleRequest_CacheToken_UserState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{8, 0, 0}
+	return fileDescriptor_6d954c03a4758710, []int{8, 0, 0}
 }
+
 func (m *ProcessBundleRequest_CacheToken_UserState) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Unmarshal(m, b)
 }
 func (m *ProcessBundleRequest_CacheToken_UserState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleRequest_CacheToken_UserState) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Merge(dst, src)
+func (m *ProcessBundleRequest_CacheToken_UserState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Merge(m, src)
 }
 func (m *ProcessBundleRequest_CacheToken_UserState) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken_UserState.Size(m)
@@ -1238,16 +964,17 @@ func (m *ProcessBundleRequest_CacheToken_SideInput) Reset() {
 func (m *ProcessBundleRequest_CacheToken_SideInput) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleRequest_CacheToken_SideInput) ProtoMessage()    {}
 func (*ProcessBundleRequest_CacheToken_SideInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{8, 0, 1}
+	return fileDescriptor_6d954c03a4758710, []int{8, 0, 1}
 }
+
 func (m *ProcessBundleRequest_CacheToken_SideInput) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Unmarshal(m, b)
 }
 func (m *ProcessBundleRequest_CacheToken_SideInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleRequest_CacheToken_SideInput) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Merge(dst, src)
+func (m *ProcessBundleRequest_CacheToken_SideInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Merge(m, src)
 }
 func (m *ProcessBundleRequest_CacheToken_SideInput) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleRequest_CacheToken_SideInput.Size(m)
@@ -1292,16 +1019,17 @@ func (m *ProcessBundleResponse) Reset()         { *m = ProcessBundleResponse{} }
 func (m *ProcessBundleResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleResponse) ProtoMessage()    {}
 func (*ProcessBundleResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{9}
+	return fileDescriptor_6d954c03a4758710, []int{9}
 }
+
 func (m *ProcessBundleResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleResponse.Unmarshal(m, b)
 }
 func (m *ProcessBundleResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleResponse.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleResponse.Merge(dst, src)
+func (m *ProcessBundleResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleResponse.Merge(m, src)
 }
 func (m *ProcessBundleResponse) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleResponse.Size(m)
@@ -1356,16 +1084,17 @@ func (m *ProcessBundleProgressRequest) Reset()         { *m = ProcessBundleProgr
 func (m *ProcessBundleProgressRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleProgressRequest) ProtoMessage()    {}
 func (*ProcessBundleProgressRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{10}
+	return fileDescriptor_6d954c03a4758710, []int{10}
 }
+
 func (m *ProcessBundleProgressRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleProgressRequest.Unmarshal(m, b)
 }
 func (m *ProcessBundleProgressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleProgressRequest.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleProgressRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleProgressRequest.Merge(dst, src)
+func (m *ProcessBundleProgressRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleProgressRequest.Merge(m, src)
 }
 func (m *ProcessBundleProgressRequest) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleProgressRequest.Size(m)
@@ -1395,16 +1124,17 @@ func (m *Metrics) Reset()         { *m = Metrics{} }
 func (m *Metrics) String() string { return proto.CompactTextString(m) }
 func (*Metrics) ProtoMessage()    {}
 func (*Metrics) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11}
+	return fileDescriptor_6d954c03a4758710, []int{11}
 }
+
 func (m *Metrics) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics.Unmarshal(m, b)
 }
 func (m *Metrics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics.Marshal(b, m, deterministic)
 }
-func (dst *Metrics) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics.Merge(dst, src)
+func (m *Metrics) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics.Merge(m, src)
 }
 func (m *Metrics) XXX_Size() int {
 	return xxx_messageInfo_Metrics.Size(m)
@@ -1448,16 +1178,17 @@ func (m *Metrics_PTransform) Reset()         { *m = Metrics_PTransform{} }
 func (m *Metrics_PTransform) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform) ProtoMessage()    {}
 func (*Metrics_PTransform) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 0}
+	return fileDescriptor_6d954c03a4758710, []int{11, 0}
 }
+
 func (m *Metrics_PTransform) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform.Unmarshal(m, b)
 }
 func (m *Metrics_PTransform) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_PTransform.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_PTransform) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_PTransform.Merge(dst, src)
+func (m *Metrics_PTransform) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_PTransform.Merge(m, src)
 }
 func (m *Metrics_PTransform) XXX_Size() int {
 	return xxx_messageInfo_Metrics_PTransform.Size(m)
@@ -1518,16 +1249,17 @@ func (m *Metrics_PTransform_Measured) Reset()         { *m = Metrics_PTransform_
 func (m *Metrics_PTransform_Measured) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_Measured) ProtoMessage()    {}
 func (*Metrics_PTransform_Measured) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 0, 0}
+	return fileDescriptor_6d954c03a4758710, []int{11, 0, 0}
 }
+
 func (m *Metrics_PTransform_Measured) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_Measured.Unmarshal(m, b)
 }
 func (m *Metrics_PTransform_Measured) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_PTransform_Measured.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_PTransform_Measured) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_PTransform_Measured.Merge(dst, src)
+func (m *Metrics_PTransform_Measured) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_PTransform_Measured.Merge(m, src)
 }
 func (m *Metrics_PTransform_Measured) XXX_Size() int {
 	return xxx_messageInfo_Metrics_PTransform_Measured.Size(m)
@@ -1572,16 +1304,17 @@ func (m *Metrics_PTransform_ProcessedElements) Reset()         { *m = Metrics_PT
 func (m *Metrics_PTransform_ProcessedElements) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_ProcessedElements) ProtoMessage()    {}
 func (*Metrics_PTransform_ProcessedElements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 0, 1}
+	return fileDescriptor_6d954c03a4758710, []int{11, 0, 1}
 }
+
 func (m *Metrics_PTransform_ProcessedElements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_ProcessedElements.Unmarshal(m, b)
 }
 func (m *Metrics_PTransform_ProcessedElements) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_PTransform_ProcessedElements.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_PTransform_ProcessedElements) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_PTransform_ProcessedElements.Merge(dst, src)
+func (m *Metrics_PTransform_ProcessedElements) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_PTransform_ProcessedElements.Merge(m, src)
 }
 func (m *Metrics_PTransform_ProcessedElements) XXX_Size() int {
 	return xxx_messageInfo_Metrics_PTransform_ProcessedElements.Size(m)
@@ -1626,16 +1359,17 @@ func (m *Metrics_PTransform_ActiveElements) Reset()         { *m = Metrics_PTran
 func (m *Metrics_PTransform_ActiveElements) String() string { return proto.CompactTextString(m) }
 func (*Metrics_PTransform_ActiveElements) ProtoMessage()    {}
 func (*Metrics_PTransform_ActiveElements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 0, 2}
+	return fileDescriptor_6d954c03a4758710, []int{11, 0, 2}
 }
+
 func (m *Metrics_PTransform_ActiveElements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_PTransform_ActiveElements.Unmarshal(m, b)
 }
 func (m *Metrics_PTransform_ActiveElements) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_PTransform_ActiveElements.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_PTransform_ActiveElements) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_PTransform_ActiveElements.Merge(dst, src)
+func (m *Metrics_PTransform_ActiveElements) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_PTransform_ActiveElements.Merge(m, src)
 }
 func (m *Metrics_PTransform_ActiveElements) XXX_Size() int {
 	return xxx_messageInfo_Metrics_PTransform_ActiveElements.Size(m)
@@ -1687,16 +1421,17 @@ func (m *Metrics_User) Reset()         { *m = Metrics_User{} }
 func (m *Metrics_User) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User) ProtoMessage()    {}
 func (*Metrics_User) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 1}
+	return fileDescriptor_6d954c03a4758710, []int{11, 1}
 }
+
 func (m *Metrics_User) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User.Unmarshal(m, b)
 }
 func (m *Metrics_User) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_User.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_User) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_User.Merge(dst, src)
+func (m *Metrics_User) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_User.Merge(m, src)
 }
 func (m *Metrics_User) XXX_Size() int {
 	return xxx_messageInfo_Metrics_User.Size(m)
@@ -1707,6 +1442,13 @@ func (m *Metrics_User) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Metrics_User proto.InternalMessageInfo
 
+func (m *Metrics_User) GetMetricName() *Metrics_User_MetricName {
+	if m != nil {
+		return m.MetricName
+	}
+	return nil
+}
+
 type isMetrics_User_Data interface {
 	isMetrics_User_Data()
 }
@@ -1714,27 +1456,24 @@ type isMetrics_User_Data interface {
 type Metrics_User_CounterData_ struct {
 	CounterData *Metrics_User_CounterData `protobuf:"bytes,1001,opt,name=counter_data,json=counterData,proto3,oneof"`
 }
+
 type Metrics_User_DistributionData_ struct {
 	DistributionData *Metrics_User_DistributionData `protobuf:"bytes,1002,opt,name=distribution_data,json=distributionData,proto3,oneof"`
 }
+
 type Metrics_User_GaugeData_ struct {
 	GaugeData *Metrics_User_GaugeData `protobuf:"bytes,1003,opt,name=gauge_data,json=gaugeData,proto3,oneof"`
 }
 
-func (*Metrics_User_CounterData_) isMetrics_User_Data()      {}
+func (*Metrics_User_CounterData_) isMetrics_User_Data() {}
+
 func (*Metrics_User_DistributionData_) isMetrics_User_Data() {}
-func (*Metrics_User_GaugeData_) isMetrics_User_Data()        {}
+
+func (*Metrics_User_GaugeData_) isMetrics_User_Data() {}
 
 func (m *Metrics_User) GetData() isMetrics_User_Data {
 	if m != nil {
 		return m.Data
-	}
-	return nil
-}
-
-func (m *Metrics_User) GetMetricName() *Metrics_User_MetricName {
-	if m != nil {
-		return m.MetricName
 	}
 	return nil
 }
@@ -1760,97 +1499,13 @@ func (m *Metrics_User) GetGaugeData() *Metrics_User_GaugeData {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Metrics_User) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Metrics_User_OneofMarshaler, _Metrics_User_OneofUnmarshaler, _Metrics_User_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Metrics_User) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Metrics_User_CounterData_)(nil),
 		(*Metrics_User_DistributionData_)(nil),
 		(*Metrics_User_GaugeData_)(nil),
 	}
-}
-
-func _Metrics_User_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Metrics_User)
-	// data
-	switch x := m.Data.(type) {
-	case *Metrics_User_CounterData_:
-		b.EncodeVarint(1001<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.CounterData); err != nil {
-			return err
-		}
-	case *Metrics_User_DistributionData_:
-		b.EncodeVarint(1002<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.DistributionData); err != nil {
-			return err
-		}
-	case *Metrics_User_GaugeData_:
-		b.EncodeVarint(1003<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.GaugeData); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Metrics_User.Data has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Metrics_User_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Metrics_User)
-	switch tag {
-	case 1001: // data.counter_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Metrics_User_CounterData)
-		err := b.DecodeMessage(msg)
-		m.Data = &Metrics_User_CounterData_{msg}
-		return true, err
-	case 1002: // data.distribution_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Metrics_User_DistributionData)
-		err := b.DecodeMessage(msg)
-		m.Data = &Metrics_User_DistributionData_{msg}
-		return true, err
-	case 1003: // data.gauge_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Metrics_User_GaugeData)
-		err := b.DecodeMessage(msg)
-		m.Data = &Metrics_User_GaugeData_{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Metrics_User_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Metrics_User)
-	// data
-	switch x := m.Data.(type) {
-	case *Metrics_User_CounterData_:
-		s := proto.Size(x.CounterData)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Metrics_User_DistributionData_:
-		s := proto.Size(x.DistributionData)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Metrics_User_GaugeData_:
-		s := proto.Size(x.GaugeData)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // A key for identifying a metric at the most granular level.
@@ -1868,16 +1523,17 @@ func (m *Metrics_User_MetricName) Reset()         { *m = Metrics_User_MetricName
 func (m *Metrics_User_MetricName) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_MetricName) ProtoMessage()    {}
 func (*Metrics_User_MetricName) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 1, 0}
+	return fileDescriptor_6d954c03a4758710, []int{11, 1, 0}
 }
+
 func (m *Metrics_User_MetricName) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_MetricName.Unmarshal(m, b)
 }
 func (m *Metrics_User_MetricName) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_User_MetricName.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_User_MetricName) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_User_MetricName.Merge(dst, src)
+func (m *Metrics_User_MetricName) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_User_MetricName.Merge(m, src)
 }
 func (m *Metrics_User_MetricName) XXX_Size() int {
 	return xxx_messageInfo_Metrics_User_MetricName.Size(m)
@@ -1914,16 +1570,17 @@ func (m *Metrics_User_CounterData) Reset()         { *m = Metrics_User_CounterDa
 func (m *Metrics_User_CounterData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_CounterData) ProtoMessage()    {}
 func (*Metrics_User_CounterData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 1, 1}
+	return fileDescriptor_6d954c03a4758710, []int{11, 1, 1}
 }
+
 func (m *Metrics_User_CounterData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_CounterData.Unmarshal(m, b)
 }
 func (m *Metrics_User_CounterData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_User_CounterData.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_User_CounterData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_User_CounterData.Merge(dst, src)
+func (m *Metrics_User_CounterData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_User_CounterData.Merge(m, src)
 }
 func (m *Metrics_User_CounterData) XXX_Size() int {
 	return xxx_messageInfo_Metrics_User_CounterData.Size(m)
@@ -1956,16 +1613,17 @@ func (m *Metrics_User_DistributionData) Reset()         { *m = Metrics_User_Dist
 func (m *Metrics_User_DistributionData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_DistributionData) ProtoMessage()    {}
 func (*Metrics_User_DistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 1, 2}
+	return fileDescriptor_6d954c03a4758710, []int{11, 1, 2}
 }
+
 func (m *Metrics_User_DistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_DistributionData.Unmarshal(m, b)
 }
 func (m *Metrics_User_DistributionData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_User_DistributionData.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_User_DistributionData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_User_DistributionData.Merge(dst, src)
+func (m *Metrics_User_DistributionData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_User_DistributionData.Merge(m, src)
 }
 func (m *Metrics_User_DistributionData) XXX_Size() int {
 	return xxx_messageInfo_Metrics_User_DistributionData.Size(m)
@@ -2017,16 +1675,17 @@ func (m *Metrics_User_GaugeData) Reset()         { *m = Metrics_User_GaugeData{}
 func (m *Metrics_User_GaugeData) String() string { return proto.CompactTextString(m) }
 func (*Metrics_User_GaugeData) ProtoMessage()    {}
 func (*Metrics_User_GaugeData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{11, 1, 3}
+	return fileDescriptor_6d954c03a4758710, []int{11, 1, 3}
 }
+
 func (m *Metrics_User_GaugeData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics_User_GaugeData.Unmarshal(m, b)
 }
 func (m *Metrics_User_GaugeData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics_User_GaugeData.Marshal(b, m, deterministic)
 }
-func (dst *Metrics_User_GaugeData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics_User_GaugeData.Merge(dst, src)
+func (m *Metrics_User_GaugeData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics_User_GaugeData.Merge(m, src)
 }
 func (m *Metrics_User_GaugeData) XXX_Size() int {
 	return xxx_messageInfo_Metrics_User_GaugeData.Size(m)
@@ -2069,16 +1728,17 @@ func (m *ProcessBundleProgressResponse) Reset()         { *m = ProcessBundleProg
 func (m *ProcessBundleProgressResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleProgressResponse) ProtoMessage()    {}
 func (*ProcessBundleProgressResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{12}
+	return fileDescriptor_6d954c03a4758710, []int{12}
 }
+
 func (m *ProcessBundleProgressResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleProgressResponse.Unmarshal(m, b)
 }
 func (m *ProcessBundleProgressResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleProgressResponse.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleProgressResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleProgressResponse.Merge(dst, src)
+func (m *ProcessBundleProgressResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleProgressResponse.Merge(m, src)
 }
 func (m *ProcessBundleProgressResponse) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleProgressResponse.Size(m)
@@ -2130,16 +1790,17 @@ func (m *ProcessBundleSplitRequest) Reset()         { *m = ProcessBundleSplitReq
 func (m *ProcessBundleSplitRequest) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitRequest) ProtoMessage()    {}
 func (*ProcessBundleSplitRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{13}
+	return fileDescriptor_6d954c03a4758710, []int{13}
 }
+
 func (m *ProcessBundleSplitRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitRequest.Unmarshal(m, b)
 }
 func (m *ProcessBundleSplitRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleSplitRequest.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleSplitRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleSplitRequest.Merge(dst, src)
+func (m *ProcessBundleSplitRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleSplitRequest.Merge(m, src)
 }
 func (m *ProcessBundleSplitRequest) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleSplitRequest.Size(m)
@@ -2190,16 +1851,17 @@ func (m *ProcessBundleSplitRequest_DesiredSplit) Reset() {
 func (m *ProcessBundleSplitRequest_DesiredSplit) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitRequest_DesiredSplit) ProtoMessage()    {}
 func (*ProcessBundleSplitRequest_DesiredSplit) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{13, 0}
+	return fileDescriptor_6d954c03a4758710, []int{13, 0}
 }
+
 func (m *ProcessBundleSplitRequest_DesiredSplit) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitRequest_DesiredSplit.Unmarshal(m, b)
 }
 func (m *ProcessBundleSplitRequest_DesiredSplit) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleSplitRequest_DesiredSplit.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleSplitRequest_DesiredSplit) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleSplitRequest_DesiredSplit.Merge(dst, src)
+func (m *ProcessBundleSplitRequest_DesiredSplit) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleSplitRequest_DesiredSplit.Merge(m, src)
 }
 func (m *ProcessBundleSplitRequest_DesiredSplit) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleSplitRequest_DesiredSplit.Size(m)
@@ -2260,16 +1922,17 @@ func (m *ProcessBundleSplitResponse) Reset()         { *m = ProcessBundleSplitRe
 func (m *ProcessBundleSplitResponse) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitResponse) ProtoMessage()    {}
 func (*ProcessBundleSplitResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{14}
+	return fileDescriptor_6d954c03a4758710, []int{14}
 }
+
 func (m *ProcessBundleSplitResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitResponse.Unmarshal(m, b)
 }
 func (m *ProcessBundleSplitResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleSplitResponse.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleSplitResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleSplitResponse.Merge(dst, src)
+func (m *ProcessBundleSplitResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleSplitResponse.Merge(m, src)
 }
 func (m *ProcessBundleSplitResponse) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleSplitResponse.Size(m)
@@ -2331,16 +1994,17 @@ func (m *ProcessBundleSplitResponse_ChannelSplit) Reset() {
 func (m *ProcessBundleSplitResponse_ChannelSplit) String() string { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitResponse_ChannelSplit) ProtoMessage()    {}
 func (*ProcessBundleSplitResponse_ChannelSplit) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{14, 0}
+	return fileDescriptor_6d954c03a4758710, []int{14, 0}
 }
+
 func (m *ProcessBundleSplitResponse_ChannelSplit) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProcessBundleSplitResponse_ChannelSplit.Unmarshal(m, b)
 }
 func (m *ProcessBundleSplitResponse_ChannelSplit) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProcessBundleSplitResponse_ChannelSplit.Marshal(b, m, deterministic)
 }
-func (dst *ProcessBundleSplitResponse_ChannelSplit) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProcessBundleSplitResponse_ChannelSplit.Merge(dst, src)
+func (m *ProcessBundleSplitResponse_ChannelSplit) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProcessBundleSplitResponse_ChannelSplit.Merge(m, src)
 }
 func (m *ProcessBundleSplitResponse_ChannelSplit) XXX_Size() int {
 	return xxx_messageInfo_ProcessBundleSplitResponse_ChannelSplit.Size(m)
@@ -2385,16 +2049,17 @@ func (m *FinalizeBundleRequest) Reset()         { *m = FinalizeBundleRequest{} }
 func (m *FinalizeBundleRequest) String() string { return proto.CompactTextString(m) }
 func (*FinalizeBundleRequest) ProtoMessage()    {}
 func (*FinalizeBundleRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{15}
+	return fileDescriptor_6d954c03a4758710, []int{15}
 }
+
 func (m *FinalizeBundleRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FinalizeBundleRequest.Unmarshal(m, b)
 }
 func (m *FinalizeBundleRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FinalizeBundleRequest.Marshal(b, m, deterministic)
 }
-func (dst *FinalizeBundleRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FinalizeBundleRequest.Merge(dst, src)
+func (m *FinalizeBundleRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FinalizeBundleRequest.Merge(m, src)
 }
 func (m *FinalizeBundleRequest) XXX_Size() int {
 	return xxx_messageInfo_FinalizeBundleRequest.Size(m)
@@ -2422,16 +2087,17 @@ func (m *FinalizeBundleResponse) Reset()         { *m = FinalizeBundleResponse{}
 func (m *FinalizeBundleResponse) String() string { return proto.CompactTextString(m) }
 func (*FinalizeBundleResponse) ProtoMessage()    {}
 func (*FinalizeBundleResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{16}
+	return fileDescriptor_6d954c03a4758710, []int{16}
 }
+
 func (m *FinalizeBundleResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FinalizeBundleResponse.Unmarshal(m, b)
 }
 func (m *FinalizeBundleResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FinalizeBundleResponse.Marshal(b, m, deterministic)
 }
-func (dst *FinalizeBundleResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FinalizeBundleResponse.Merge(dst, src)
+func (m *FinalizeBundleResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FinalizeBundleResponse.Merge(m, src)
 }
 func (m *FinalizeBundleResponse) XXX_Size() int {
 	return xxx_messageInfo_FinalizeBundleResponse.Size(m)
@@ -2456,16 +2122,17 @@ func (m *Elements) Reset()         { *m = Elements{} }
 func (m *Elements) String() string { return proto.CompactTextString(m) }
 func (*Elements) ProtoMessage()    {}
 func (*Elements) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{17}
+	return fileDescriptor_6d954c03a4758710, []int{17}
 }
+
 func (m *Elements) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Elements.Unmarshal(m, b)
 }
 func (m *Elements) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Elements.Marshal(b, m, deterministic)
 }
-func (dst *Elements) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Elements.Merge(dst, src)
+func (m *Elements) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Elements.Merge(m, src)
 }
 func (m *Elements) XXX_Size() int {
 	return xxx_messageInfo_Elements.Size(m)
@@ -2514,16 +2181,17 @@ func (m *Elements_Data) Reset()         { *m = Elements_Data{} }
 func (m *Elements_Data) String() string { return proto.CompactTextString(m) }
 func (*Elements_Data) ProtoMessage()    {}
 func (*Elements_Data) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{17, 0}
+	return fileDescriptor_6d954c03a4758710, []int{17, 0}
 }
+
 func (m *Elements_Data) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Elements_Data.Unmarshal(m, b)
 }
 func (m *Elements_Data) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Elements_Data.Marshal(b, m, deterministic)
 }
-func (dst *Elements_Data) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Elements_Data.Merge(dst, src)
+func (m *Elements_Data) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Elements_Data.Merge(m, src)
 }
 func (m *Elements_Data) XXX_Size() int {
 	return xxx_messageInfo_Elements_Data.Size(m)
@@ -2582,16 +2250,17 @@ func (m *StateRequest) Reset()         { *m = StateRequest{} }
 func (m *StateRequest) String() string { return proto.CompactTextString(m) }
 func (*StateRequest) ProtoMessage()    {}
 func (*StateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{18}
+	return fileDescriptor_6d954c03a4758710, []int{18}
 }
+
 func (m *StateRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateRequest.Unmarshal(m, b)
 }
 func (m *StateRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateRequest.Marshal(b, m, deterministic)
 }
-func (dst *StateRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateRequest.Merge(dst, src)
+func (m *StateRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateRequest.Merge(m, src)
 }
 func (m *StateRequest) XXX_Size() int {
 	return xxx_messageInfo_StateRequest.Size(m)
@@ -2601,31 +2270,6 @@ func (m *StateRequest) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_StateRequest proto.InternalMessageInfo
-
-type isStateRequest_Request interface {
-	isStateRequest_Request()
-}
-
-type StateRequest_Get struct {
-	Get *StateGetRequest `protobuf:"bytes,1000,opt,name=get,proto3,oneof"`
-}
-type StateRequest_Append struct {
-	Append *StateAppendRequest `protobuf:"bytes,1001,opt,name=append,proto3,oneof"`
-}
-type StateRequest_Clear struct {
-	Clear *StateClearRequest `protobuf:"bytes,1002,opt,name=clear,proto3,oneof"`
-}
-
-func (*StateRequest_Get) isStateRequest_Request()    {}
-func (*StateRequest_Append) isStateRequest_Request() {}
-func (*StateRequest_Clear) isStateRequest_Request()  {}
-
-func (m *StateRequest) GetRequest() isStateRequest_Request {
-	if m != nil {
-		return m.Request
-	}
-	return nil
-}
 
 func (m *StateRequest) GetId() string {
 	if m != nil {
@@ -2644,6 +2288,35 @@ func (m *StateRequest) GetInstructionId() string {
 func (m *StateRequest) GetStateKey() *StateKey {
 	if m != nil {
 		return m.StateKey
+	}
+	return nil
+}
+
+type isStateRequest_Request interface {
+	isStateRequest_Request()
+}
+
+type StateRequest_Get struct {
+	Get *StateGetRequest `protobuf:"bytes,1000,opt,name=get,proto3,oneof"`
+}
+
+type StateRequest_Append struct {
+	Append *StateAppendRequest `protobuf:"bytes,1001,opt,name=append,proto3,oneof"`
+}
+
+type StateRequest_Clear struct {
+	Clear *StateClearRequest `protobuf:"bytes,1002,opt,name=clear,proto3,oneof"`
+}
+
+func (*StateRequest_Get) isStateRequest_Request() {}
+
+func (*StateRequest_Append) isStateRequest_Request() {}
+
+func (*StateRequest_Clear) isStateRequest_Request() {}
+
+func (m *StateRequest) GetRequest() isStateRequest_Request {
+	if m != nil {
+		return m.Request
 	}
 	return nil
 }
@@ -2669,97 +2342,13 @@ func (m *StateRequest) GetClear() *StateClearRequest {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*StateRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _StateRequest_OneofMarshaler, _StateRequest_OneofUnmarshaler, _StateRequest_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*StateRequest) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*StateRequest_Get)(nil),
 		(*StateRequest_Append)(nil),
 		(*StateRequest_Clear)(nil),
 	}
-}
-
-func _StateRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*StateRequest)
-	// request
-	switch x := m.Request.(type) {
-	case *StateRequest_Get:
-		b.EncodeVarint(1000<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Get); err != nil {
-			return err
-		}
-	case *StateRequest_Append:
-		b.EncodeVarint(1001<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Append); err != nil {
-			return err
-		}
-	case *StateRequest_Clear:
-		b.EncodeVarint(1002<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Clear); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("StateRequest.Request has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _StateRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*StateRequest)
-	switch tag {
-	case 1000: // request.get
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateGetRequest)
-		err := b.DecodeMessage(msg)
-		m.Request = &StateRequest_Get{msg}
-		return true, err
-	case 1001: // request.append
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateAppendRequest)
-		err := b.DecodeMessage(msg)
-		m.Request = &StateRequest_Append{msg}
-		return true, err
-	case 1002: // request.clear
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateClearRequest)
-		err := b.DecodeMessage(msg)
-		m.Request = &StateRequest_Clear{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _StateRequest_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*StateRequest)
-	// request
-	switch x := m.Request.(type) {
-	case *StateRequest_Get:
-		s := proto.Size(x.Get)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StateRequest_Append:
-		s := proto.Size(x.Append)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StateRequest_Clear:
-		s := proto.Size(x.Clear)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type StateResponse struct {
@@ -2787,16 +2376,17 @@ func (m *StateResponse) Reset()         { *m = StateResponse{} }
 func (m *StateResponse) String() string { return proto.CompactTextString(m) }
 func (*StateResponse) ProtoMessage()    {}
 func (*StateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{19}
+	return fileDescriptor_6d954c03a4758710, []int{19}
 }
+
 func (m *StateResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateResponse.Unmarshal(m, b)
 }
 func (m *StateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateResponse.Marshal(b, m, deterministic)
 }
-func (dst *StateResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateResponse.Merge(dst, src)
+func (m *StateResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateResponse.Merge(m, src)
 }
 func (m *StateResponse) XXX_Size() int {
 	return xxx_messageInfo_StateResponse.Size(m)
@@ -2806,31 +2396,6 @@ func (m *StateResponse) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_StateResponse proto.InternalMessageInfo
-
-type isStateResponse_Response interface {
-	isStateResponse_Response()
-}
-
-type StateResponse_Get struct {
-	Get *StateGetResponse `protobuf:"bytes,1000,opt,name=get,proto3,oneof"`
-}
-type StateResponse_Append struct {
-	Append *StateAppendResponse `protobuf:"bytes,1001,opt,name=append,proto3,oneof"`
-}
-type StateResponse_Clear struct {
-	Clear *StateClearResponse `protobuf:"bytes,1002,opt,name=clear,proto3,oneof"`
-}
-
-func (*StateResponse_Get) isStateResponse_Response()    {}
-func (*StateResponse_Append) isStateResponse_Response() {}
-func (*StateResponse_Clear) isStateResponse_Response()  {}
-
-func (m *StateResponse) GetResponse() isStateResponse_Response {
-	if m != nil {
-		return m.Response
-	}
-	return nil
-}
 
 func (m *StateResponse) GetId() string {
 	if m != nil {
@@ -2844,6 +2409,35 @@ func (m *StateResponse) GetError() string {
 		return m.Error
 	}
 	return ""
+}
+
+type isStateResponse_Response interface {
+	isStateResponse_Response()
+}
+
+type StateResponse_Get struct {
+	Get *StateGetResponse `protobuf:"bytes,1000,opt,name=get,proto3,oneof"`
+}
+
+type StateResponse_Append struct {
+	Append *StateAppendResponse `protobuf:"bytes,1001,opt,name=append,proto3,oneof"`
+}
+
+type StateResponse_Clear struct {
+	Clear *StateClearResponse `protobuf:"bytes,1002,opt,name=clear,proto3,oneof"`
+}
+
+func (*StateResponse_Get) isStateResponse_Response() {}
+
+func (*StateResponse_Append) isStateResponse_Response() {}
+
+func (*StateResponse_Clear) isStateResponse_Response() {}
+
+func (m *StateResponse) GetResponse() isStateResponse_Response {
+	if m != nil {
+		return m.Response
+	}
+	return nil
 }
 
 func (m *StateResponse) GetGet() *StateGetResponse {
@@ -2867,97 +2461,13 @@ func (m *StateResponse) GetClear() *StateClearResponse {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*StateResponse) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _StateResponse_OneofMarshaler, _StateResponse_OneofUnmarshaler, _StateResponse_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*StateResponse) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*StateResponse_Get)(nil),
 		(*StateResponse_Append)(nil),
 		(*StateResponse_Clear)(nil),
 	}
-}
-
-func _StateResponse_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*StateResponse)
-	// response
-	switch x := m.Response.(type) {
-	case *StateResponse_Get:
-		b.EncodeVarint(1000<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Get); err != nil {
-			return err
-		}
-	case *StateResponse_Append:
-		b.EncodeVarint(1001<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Append); err != nil {
-			return err
-		}
-	case *StateResponse_Clear:
-		b.EncodeVarint(1002<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Clear); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("StateResponse.Response has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _StateResponse_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*StateResponse)
-	switch tag {
-	case 1000: // response.get
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateGetResponse)
-		err := b.DecodeMessage(msg)
-		m.Response = &StateResponse_Get{msg}
-		return true, err
-	case 1001: // response.append
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateAppendResponse)
-		err := b.DecodeMessage(msg)
-		m.Response = &StateResponse_Append{msg}
-		return true, err
-	case 1002: // response.clear
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateClearResponse)
-		err := b.DecodeMessage(msg)
-		m.Response = &StateResponse_Clear{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _StateResponse_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*StateResponse)
-	// response
-	switch x := m.Response.(type) {
-	case *StateResponse_Get:
-		s := proto.Size(x.Get)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StateResponse_Append:
-		s := proto.Size(x.Append)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StateResponse_Clear:
-		s := proto.Size(x.Clear)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type StateKey struct {
@@ -2979,16 +2489,17 @@ func (m *StateKey) Reset()         { *m = StateKey{} }
 func (m *StateKey) String() string { return proto.CompactTextString(m) }
 func (*StateKey) ProtoMessage()    {}
 func (*StateKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{20}
+	return fileDescriptor_6d954c03a4758710, []int{20}
 }
+
 func (m *StateKey) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey.Unmarshal(m, b)
 }
 func (m *StateKey) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateKey.Marshal(b, m, deterministic)
 }
-func (dst *StateKey) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateKey.Merge(dst, src)
+func (m *StateKey) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateKey.Merge(m, src)
 }
 func (m *StateKey) XXX_Size() int {
 	return xxx_messageInfo_StateKey.Size(m)
@@ -3006,23 +2517,31 @@ type isStateKey_Type interface {
 type StateKey_Runner_ struct {
 	Runner *StateKey_Runner `protobuf:"bytes,1,opt,name=runner,proto3,oneof"`
 }
+
 type StateKey_MultimapSideInput_ struct {
 	MultimapSideInput *StateKey_MultimapSideInput `protobuf:"bytes,2,opt,name=multimap_side_input,json=multimapSideInput,proto3,oneof"`
 }
+
 type StateKey_BagUserState_ struct {
 	BagUserState *StateKey_BagUserState `protobuf:"bytes,3,opt,name=bag_user_state,json=bagUserState,proto3,oneof"`
 }
+
 type StateKey_IterableSideInput_ struct {
 	IterableSideInput *StateKey_IterableSideInput `protobuf:"bytes,4,opt,name=iterable_side_input,json=iterableSideInput,proto3,oneof"`
 }
+
 type StateKey_MultimapKeysSideInput_ struct {
 	MultimapKeysSideInput *StateKey_MultimapKeysSideInput `protobuf:"bytes,5,opt,name=multimap_keys_side_input,json=multimapKeysSideInput,proto3,oneof"`
 }
 
-func (*StateKey_Runner_) isStateKey_Type()                {}
-func (*StateKey_MultimapSideInput_) isStateKey_Type()     {}
-func (*StateKey_BagUserState_) isStateKey_Type()          {}
-func (*StateKey_IterableSideInput_) isStateKey_Type()     {}
+func (*StateKey_Runner_) isStateKey_Type() {}
+
+func (*StateKey_MultimapSideInput_) isStateKey_Type() {}
+
+func (*StateKey_BagUserState_) isStateKey_Type() {}
+
+func (*StateKey_IterableSideInput_) isStateKey_Type() {}
+
 func (*StateKey_MultimapKeysSideInput_) isStateKey_Type() {}
 
 func (m *StateKey) GetType() isStateKey_Type {
@@ -3067,135 +2586,15 @@ func (m *StateKey) GetMultimapKeysSideInput() *StateKey_MultimapKeysSideInput {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*StateKey) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _StateKey_OneofMarshaler, _StateKey_OneofUnmarshaler, _StateKey_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*StateKey) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*StateKey_Runner_)(nil),
 		(*StateKey_MultimapSideInput_)(nil),
 		(*StateKey_BagUserState_)(nil),
 		(*StateKey_IterableSideInput_)(nil),
 		(*StateKey_MultimapKeysSideInput_)(nil),
 	}
-}
-
-func _StateKey_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*StateKey)
-	// type
-	switch x := m.Type.(type) {
-	case *StateKey_Runner_:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Runner); err != nil {
-			return err
-		}
-	case *StateKey_MultimapSideInput_:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.MultimapSideInput); err != nil {
-			return err
-		}
-	case *StateKey_BagUserState_:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.BagUserState); err != nil {
-			return err
-		}
-	case *StateKey_IterableSideInput_:
-		b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IterableSideInput); err != nil {
-			return err
-		}
-	case *StateKey_MultimapKeysSideInput_:
-		b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.MultimapKeysSideInput); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("StateKey.Type has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _StateKey_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*StateKey)
-	switch tag {
-	case 1: // type.runner
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateKey_Runner)
-		err := b.DecodeMessage(msg)
-		m.Type = &StateKey_Runner_{msg}
-		return true, err
-	case 2: // type.multimap_side_input
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateKey_MultimapSideInput)
-		err := b.DecodeMessage(msg)
-		m.Type = &StateKey_MultimapSideInput_{msg}
-		return true, err
-	case 3: // type.bag_user_state
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateKey_BagUserState)
-		err := b.DecodeMessage(msg)
-		m.Type = &StateKey_BagUserState_{msg}
-		return true, err
-	case 4: // type.iterable_side_input
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateKey_IterableSideInput)
-		err := b.DecodeMessage(msg)
-		m.Type = &StateKey_IterableSideInput_{msg}
-		return true, err
-	case 5: // type.multimap_keys_side_input
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(StateKey_MultimapKeysSideInput)
-		err := b.DecodeMessage(msg)
-		m.Type = &StateKey_MultimapKeysSideInput_{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _StateKey_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*StateKey)
-	// type
-	switch x := m.Type.(type) {
-	case *StateKey_Runner_:
-		s := proto.Size(x.Runner)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StateKey_MultimapSideInput_:
-		s := proto.Size(x.MultimapSideInput)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StateKey_BagUserState_:
-		s := proto.Size(x.BagUserState)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StateKey_IterableSideInput_:
-		s := proto.Size(x.IterableSideInput)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StateKey_MultimapKeysSideInput_:
-		s := proto.Size(x.MultimapKeysSideInput)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type StateKey_Runner struct {
@@ -3216,16 +2615,17 @@ func (m *StateKey_Runner) Reset()         { *m = StateKey_Runner{} }
 func (m *StateKey_Runner) String() string { return proto.CompactTextString(m) }
 func (*StateKey_Runner) ProtoMessage()    {}
 func (*StateKey_Runner) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{20, 0}
+	return fileDescriptor_6d954c03a4758710, []int{20, 0}
 }
+
 func (m *StateKey_Runner) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_Runner.Unmarshal(m, b)
 }
 func (m *StateKey_Runner) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateKey_Runner.Marshal(b, m, deterministic)
 }
-func (dst *StateKey_Runner) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateKey_Runner.Merge(dst, src)
+func (m *StateKey_Runner) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateKey_Runner.Merge(m, src)
 }
 func (m *StateKey_Runner) XXX_Size() int {
 	return xxx_messageInfo_StateKey_Runner.Size(m)
@@ -3271,16 +2671,17 @@ func (m *StateKey_IterableSideInput) Reset()         { *m = StateKey_IterableSid
 func (m *StateKey_IterableSideInput) String() string { return proto.CompactTextString(m) }
 func (*StateKey_IterableSideInput) ProtoMessage()    {}
 func (*StateKey_IterableSideInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{20, 1}
+	return fileDescriptor_6d954c03a4758710, []int{20, 1}
 }
+
 func (m *StateKey_IterableSideInput) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_IterableSideInput.Unmarshal(m, b)
 }
 func (m *StateKey_IterableSideInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateKey_IterableSideInput.Marshal(b, m, deterministic)
 }
-func (dst *StateKey_IterableSideInput) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateKey_IterableSideInput.Merge(dst, src)
+func (m *StateKey_IterableSideInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateKey_IterableSideInput.Merge(m, src)
 }
 func (m *StateKey_IterableSideInput) XXX_Size() int {
 	return xxx_messageInfo_StateKey_IterableSideInput.Size(m)
@@ -3343,16 +2744,17 @@ func (m *StateKey_MultimapSideInput) Reset()         { *m = StateKey_MultimapSid
 func (m *StateKey_MultimapSideInput) String() string { return proto.CompactTextString(m) }
 func (*StateKey_MultimapSideInput) ProtoMessage()    {}
 func (*StateKey_MultimapSideInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{20, 2}
+	return fileDescriptor_6d954c03a4758710, []int{20, 2}
 }
+
 func (m *StateKey_MultimapSideInput) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_MultimapSideInput.Unmarshal(m, b)
 }
 func (m *StateKey_MultimapSideInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateKey_MultimapSideInput.Marshal(b, m, deterministic)
 }
-func (dst *StateKey_MultimapSideInput) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateKey_MultimapSideInput.Merge(dst, src)
+func (m *StateKey_MultimapSideInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateKey_MultimapSideInput.Merge(m, src)
 }
 func (m *StateKey_MultimapSideInput) XXX_Size() int {
 	return xxx_messageInfo_StateKey_MultimapSideInput.Size(m)
@@ -3419,16 +2821,17 @@ func (m *StateKey_MultimapKeysSideInput) Reset()         { *m = StateKey_Multima
 func (m *StateKey_MultimapKeysSideInput) String() string { return proto.CompactTextString(m) }
 func (*StateKey_MultimapKeysSideInput) ProtoMessage()    {}
 func (*StateKey_MultimapKeysSideInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{20, 3}
+	return fileDescriptor_6d954c03a4758710, []int{20, 3}
 }
+
 func (m *StateKey_MultimapKeysSideInput) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_MultimapKeysSideInput.Unmarshal(m, b)
 }
 func (m *StateKey_MultimapKeysSideInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateKey_MultimapKeysSideInput.Marshal(b, m, deterministic)
 }
-func (dst *StateKey_MultimapKeysSideInput) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateKey_MultimapKeysSideInput.Merge(dst, src)
+func (m *StateKey_MultimapKeysSideInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateKey_MultimapKeysSideInput.Merge(m, src)
 }
 func (m *StateKey_MultimapKeysSideInput) XXX_Size() int {
 	return xxx_messageInfo_StateKey_MultimapKeysSideInput.Size(m)
@@ -3479,16 +2882,17 @@ func (m *StateKey_BagUserState) Reset()         { *m = StateKey_BagUserState{} }
 func (m *StateKey_BagUserState) String() string { return proto.CompactTextString(m) }
 func (*StateKey_BagUserState) ProtoMessage()    {}
 func (*StateKey_BagUserState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{20, 4}
+	return fileDescriptor_6d954c03a4758710, []int{20, 4}
 }
+
 func (m *StateKey_BagUserState) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateKey_BagUserState.Unmarshal(m, b)
 }
 func (m *StateKey_BagUserState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateKey_BagUserState.Marshal(b, m, deterministic)
 }
-func (dst *StateKey_BagUserState) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateKey_BagUserState.Merge(dst, src)
+func (m *StateKey_BagUserState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateKey_BagUserState.Merge(m, src)
 }
 func (m *StateKey_BagUserState) XXX_Size() int {
 	return xxx_messageInfo_StateKey_BagUserState.Size(m)
@@ -3544,16 +2948,17 @@ func (m *StateGetRequest) Reset()         { *m = StateGetRequest{} }
 func (m *StateGetRequest) String() string { return proto.CompactTextString(m) }
 func (*StateGetRequest) ProtoMessage()    {}
 func (*StateGetRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{21}
+	return fileDescriptor_6d954c03a4758710, []int{21}
 }
+
 func (m *StateGetRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateGetRequest.Unmarshal(m, b)
 }
 func (m *StateGetRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateGetRequest.Marshal(b, m, deterministic)
 }
-func (dst *StateGetRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateGetRequest.Merge(dst, src)
+func (m *StateGetRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateGetRequest.Merge(m, src)
 }
 func (m *StateGetRequest) XXX_Size() int {
 	return xxx_messageInfo_StateGetRequest.Size(m)
@@ -3591,16 +2996,17 @@ func (m *StateGetResponse) Reset()         { *m = StateGetResponse{} }
 func (m *StateGetResponse) String() string { return proto.CompactTextString(m) }
 func (*StateGetResponse) ProtoMessage()    {}
 func (*StateGetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{22}
+	return fileDescriptor_6d954c03a4758710, []int{22}
 }
+
 func (m *StateGetResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateGetResponse.Unmarshal(m, b)
 }
 func (m *StateGetResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateGetResponse.Marshal(b, m, deterministic)
 }
-func (dst *StateGetResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateGetResponse.Merge(dst, src)
+func (m *StateGetResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateGetResponse.Merge(m, src)
 }
 func (m *StateGetResponse) XXX_Size() int {
 	return xxx_messageInfo_StateGetResponse.Size(m)
@@ -3640,16 +3046,17 @@ func (m *StateAppendRequest) Reset()         { *m = StateAppendRequest{} }
 func (m *StateAppendRequest) String() string { return proto.CompactTextString(m) }
 func (*StateAppendRequest) ProtoMessage()    {}
 func (*StateAppendRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{23}
+	return fileDescriptor_6d954c03a4758710, []int{23}
 }
+
 func (m *StateAppendRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateAppendRequest.Unmarshal(m, b)
 }
 func (m *StateAppendRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateAppendRequest.Marshal(b, m, deterministic)
 }
-func (dst *StateAppendRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateAppendRequest.Merge(dst, src)
+func (m *StateAppendRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateAppendRequest.Merge(m, src)
 }
 func (m *StateAppendRequest) XXX_Size() int {
 	return xxx_messageInfo_StateAppendRequest.Size(m)
@@ -3678,16 +3085,17 @@ func (m *StateAppendResponse) Reset()         { *m = StateAppendResponse{} }
 func (m *StateAppendResponse) String() string { return proto.CompactTextString(m) }
 func (*StateAppendResponse) ProtoMessage()    {}
 func (*StateAppendResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{24}
+	return fileDescriptor_6d954c03a4758710, []int{24}
 }
+
 func (m *StateAppendResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateAppendResponse.Unmarshal(m, b)
 }
 func (m *StateAppendResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateAppendResponse.Marshal(b, m, deterministic)
 }
-func (dst *StateAppendResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateAppendResponse.Merge(dst, src)
+func (m *StateAppendResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateAppendResponse.Merge(m, src)
 }
 func (m *StateAppendResponse) XXX_Size() int {
 	return xxx_messageInfo_StateAppendResponse.Size(m)
@@ -3709,16 +3117,17 @@ func (m *StateClearRequest) Reset()         { *m = StateClearRequest{} }
 func (m *StateClearRequest) String() string { return proto.CompactTextString(m) }
 func (*StateClearRequest) ProtoMessage()    {}
 func (*StateClearRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{25}
+	return fileDescriptor_6d954c03a4758710, []int{25}
 }
+
 func (m *StateClearRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateClearRequest.Unmarshal(m, b)
 }
 func (m *StateClearRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateClearRequest.Marshal(b, m, deterministic)
 }
-func (dst *StateClearRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateClearRequest.Merge(dst, src)
+func (m *StateClearRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateClearRequest.Merge(m, src)
 }
 func (m *StateClearRequest) XXX_Size() int {
 	return xxx_messageInfo_StateClearRequest.Size(m)
@@ -3740,16 +3149,17 @@ func (m *StateClearResponse) Reset()         { *m = StateClearResponse{} }
 func (m *StateClearResponse) String() string { return proto.CompactTextString(m) }
 func (*StateClearResponse) ProtoMessage()    {}
 func (*StateClearResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{26}
+	return fileDescriptor_6d954c03a4758710, []int{26}
 }
+
 func (m *StateClearResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateClearResponse.Unmarshal(m, b)
 }
 func (m *StateClearResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StateClearResponse.Marshal(b, m, deterministic)
 }
-func (dst *StateClearResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateClearResponse.Merge(dst, src)
+func (m *StateClearResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateClearResponse.Merge(m, src)
 }
 func (m *StateClearResponse) XXX_Size() int {
 	return xxx_messageInfo_StateClearResponse.Size(m)
@@ -3796,16 +3206,17 @@ func (m *LogEntry) Reset()         { *m = LogEntry{} }
 func (m *LogEntry) String() string { return proto.CompactTextString(m) }
 func (*LogEntry) ProtoMessage()    {}
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{27}
+	return fileDescriptor_6d954c03a4758710, []int{27}
 }
+
 func (m *LogEntry) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry.Unmarshal(m, b)
 }
 func (m *LogEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_LogEntry.Marshal(b, m, deterministic)
 }
-func (dst *LogEntry) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_LogEntry.Merge(dst, src)
+func (m *LogEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogEntry.Merge(m, src)
 }
 func (m *LogEntry) XXX_Size() int {
 	return xxx_messageInfo_LogEntry.Size(m)
@@ -3886,16 +3297,17 @@ func (m *LogEntry_List) Reset()         { *m = LogEntry_List{} }
 func (m *LogEntry_List) String() string { return proto.CompactTextString(m) }
 func (*LogEntry_List) ProtoMessage()    {}
 func (*LogEntry_List) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{27, 0}
+	return fileDescriptor_6d954c03a4758710, []int{27, 0}
 }
+
 func (m *LogEntry_List) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry_List.Unmarshal(m, b)
 }
 func (m *LogEntry_List) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_LogEntry_List.Marshal(b, m, deterministic)
 }
-func (dst *LogEntry_List) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_LogEntry_List.Merge(dst, src)
+func (m *LogEntry_List) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogEntry_List.Merge(m, src)
 }
 func (m *LogEntry_List) XXX_Size() int {
 	return xxx_messageInfo_LogEntry_List.Size(m)
@@ -3936,16 +3348,17 @@ func (m *LogEntry_Severity) Reset()         { *m = LogEntry_Severity{} }
 func (m *LogEntry_Severity) String() string { return proto.CompactTextString(m) }
 func (*LogEntry_Severity) ProtoMessage()    {}
 func (*LogEntry_Severity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{27, 1}
+	return fileDescriptor_6d954c03a4758710, []int{27, 1}
 }
+
 func (m *LogEntry_Severity) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogEntry_Severity.Unmarshal(m, b)
 }
 func (m *LogEntry_Severity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_LogEntry_Severity.Marshal(b, m, deterministic)
 }
-func (dst *LogEntry_Severity) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_LogEntry_Severity.Merge(dst, src)
+func (m *LogEntry_Severity) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogEntry_Severity.Merge(m, src)
 }
 func (m *LogEntry_Severity) XXX_Size() int {
 	return xxx_messageInfo_LogEntry_Severity.Size(m)
@@ -3966,16 +3379,17 @@ func (m *LogControl) Reset()         { *m = LogControl{} }
 func (m *LogControl) String() string { return proto.CompactTextString(m) }
 func (*LogControl) ProtoMessage()    {}
 func (*LogControl) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{28}
+	return fileDescriptor_6d954c03a4758710, []int{28}
 }
+
 func (m *LogControl) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LogControl.Unmarshal(m, b)
 }
 func (m *LogControl) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_LogControl.Marshal(b, m, deterministic)
 }
-func (dst *LogControl) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_LogControl.Merge(dst, src)
+func (m *LogControl) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogControl.Merge(m, src)
 }
 func (m *LogControl) XXX_Size() int {
 	return xxx_messageInfo_LogControl.Size(m)
@@ -4002,16 +3416,17 @@ func (m *StartWorkerRequest) Reset()         { *m = StartWorkerRequest{} }
 func (m *StartWorkerRequest) String() string { return proto.CompactTextString(m) }
 func (*StartWorkerRequest) ProtoMessage()    {}
 func (*StartWorkerRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{29}
+	return fileDescriptor_6d954c03a4758710, []int{29}
 }
+
 func (m *StartWorkerRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartWorkerRequest.Unmarshal(m, b)
 }
 func (m *StartWorkerRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StartWorkerRequest.Marshal(b, m, deterministic)
 }
-func (dst *StartWorkerRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StartWorkerRequest.Merge(dst, src)
+func (m *StartWorkerRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartWorkerRequest.Merge(m, src)
 }
 func (m *StartWorkerRequest) XXX_Size() int {
 	return xxx_messageInfo_StartWorkerRequest.Size(m)
@@ -4075,16 +3490,17 @@ func (m *StartWorkerResponse) Reset()         { *m = StartWorkerResponse{} }
 func (m *StartWorkerResponse) String() string { return proto.CompactTextString(m) }
 func (*StartWorkerResponse) ProtoMessage()    {}
 func (*StartWorkerResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{30}
+	return fileDescriptor_6d954c03a4758710, []int{30}
 }
+
 func (m *StartWorkerResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartWorkerResponse.Unmarshal(m, b)
 }
 func (m *StartWorkerResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StartWorkerResponse.Marshal(b, m, deterministic)
 }
-func (dst *StartWorkerResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StartWorkerResponse.Merge(dst, src)
+func (m *StartWorkerResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartWorkerResponse.Merge(m, src)
 }
 func (m *StartWorkerResponse) XXX_Size() int {
 	return xxx_messageInfo_StartWorkerResponse.Size(m)
@@ -4113,16 +3529,17 @@ func (m *StopWorkerRequest) Reset()         { *m = StopWorkerRequest{} }
 func (m *StopWorkerRequest) String() string { return proto.CompactTextString(m) }
 func (*StopWorkerRequest) ProtoMessage()    {}
 func (*StopWorkerRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{31}
+	return fileDescriptor_6d954c03a4758710, []int{31}
 }
+
 func (m *StopWorkerRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopWorkerRequest.Unmarshal(m, b)
 }
 func (m *StopWorkerRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StopWorkerRequest.Marshal(b, m, deterministic)
 }
-func (dst *StopWorkerRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StopWorkerRequest.Merge(dst, src)
+func (m *StopWorkerRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StopWorkerRequest.Merge(m, src)
 }
 func (m *StopWorkerRequest) XXX_Size() int {
 	return xxx_messageInfo_StopWorkerRequest.Size(m)
@@ -4151,16 +3568,17 @@ func (m *StopWorkerResponse) Reset()         { *m = StopWorkerResponse{} }
 func (m *StopWorkerResponse) String() string { return proto.CompactTextString(m) }
 func (*StopWorkerResponse) ProtoMessage()    {}
 func (*StopWorkerResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_fn_api_a35062cff5082b14, []int{32}
+	return fileDescriptor_6d954c03a4758710, []int{32}
 }
+
 func (m *StopWorkerResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopWorkerResponse.Unmarshal(m, b)
 }
 func (m *StopWorkerResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StopWorkerResponse.Marshal(b, m, deterministic)
 }
-func (dst *StopWorkerResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StopWorkerResponse.Merge(dst, src)
+func (m *StopWorkerResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StopWorkerResponse.Merge(m, src)
 }
 func (m *StopWorkerResponse) XXX_Size() int {
 	return xxx_messageInfo_StopWorkerResponse.Size(m)
@@ -4179,6 +3597,7 @@ func (m *StopWorkerResponse) GetError() string {
 }
 
 func init() {
+	proto.RegisterEnum("org.apache.beam.model.fn_execution.v1.LogEntry_Severity_Enum", LogEntry_Severity_Enum_name, LogEntry_Severity_Enum_value)
 	proto.RegisterType((*RemoteGrpcPort)(nil), "org.apache.beam.model.fn_execution.v1.RemoteGrpcPort")
 	proto.RegisterType((*InstructionRequest)(nil), "org.apache.beam.model.fn_execution.v1.InstructionRequest")
 	proto.RegisterType((*InstructionResponse)(nil), "org.apache.beam.model.fn_execution.v1.InstructionResponse")
@@ -4247,517 +3666,11 @@ func init() {
 	proto.RegisterType((*StartWorkerResponse)(nil), "org.apache.beam.model.fn_execution.v1.StartWorkerResponse")
 	proto.RegisterType((*StopWorkerRequest)(nil), "org.apache.beam.model.fn_execution.v1.StopWorkerRequest")
 	proto.RegisterType((*StopWorkerResponse)(nil), "org.apache.beam.model.fn_execution.v1.StopWorkerResponse")
-	proto.RegisterEnum("org.apache.beam.model.fn_execution.v1.LogEntry_Severity_Enum", LogEntry_Severity_Enum_name, LogEntry_Severity_Enum_value)
 }
 
-// Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConn
+func init() { proto.RegisterFile("beam_fn_api.proto", fileDescriptor_6d954c03a4758710) }
 
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
-
-// BeamFnControlClient is the client API for BeamFnControl service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type BeamFnControlClient interface {
-	// Instructions sent by the runner to the SDK requesting different types
-	// of work.
-	Control(ctx context.Context, opts ...grpc.CallOption) (BeamFnControl_ControlClient, error)
-}
-
-type beamFnControlClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewBeamFnControlClient(cc *grpc.ClientConn) BeamFnControlClient {
-	return &beamFnControlClient{cc}
-}
-
-func (c *beamFnControlClient) Control(ctx context.Context, opts ...grpc.CallOption) (BeamFnControl_ControlClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_BeamFnControl_serviceDesc.Streams[0], "/org.apache.beam.model.fn_execution.v1.BeamFnControl/Control", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &beamFnControlControlClient{stream}
-	return x, nil
-}
-
-type BeamFnControl_ControlClient interface {
-	Send(*InstructionResponse) error
-	Recv() (*InstructionRequest, error)
-	grpc.ClientStream
-}
-
-type beamFnControlControlClient struct {
-	grpc.ClientStream
-}
-
-func (x *beamFnControlControlClient) Send(m *InstructionResponse) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *beamFnControlControlClient) Recv() (*InstructionRequest, error) {
-	m := new(InstructionRequest)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// BeamFnControlServer is the server API for BeamFnControl service.
-type BeamFnControlServer interface {
-	// Instructions sent by the runner to the SDK requesting different types
-	// of work.
-	Control(BeamFnControl_ControlServer) error
-}
-
-func RegisterBeamFnControlServer(s *grpc.Server, srv BeamFnControlServer) {
-	s.RegisterService(&_BeamFnControl_serviceDesc, srv)
-}
-
-func _BeamFnControl_Control_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(BeamFnControlServer).Control(&beamFnControlControlServer{stream})
-}
-
-type BeamFnControl_ControlServer interface {
-	Send(*InstructionRequest) error
-	Recv() (*InstructionResponse, error)
-	grpc.ServerStream
-}
-
-type beamFnControlControlServer struct {
-	grpc.ServerStream
-}
-
-func (x *beamFnControlControlServer) Send(m *InstructionRequest) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *beamFnControlControlServer) Recv() (*InstructionResponse, error) {
-	m := new(InstructionResponse)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-var _BeamFnControl_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnControl",
-	HandlerType: (*BeamFnControlServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Control",
-			Handler:       _BeamFnControl_Control_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "beam_fn_api.proto",
-}
-
-// BeamFnDataClient is the client API for BeamFnData service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type BeamFnDataClient interface {
-	// Used to send data between harnesses.
-	Data(ctx context.Context, opts ...grpc.CallOption) (BeamFnData_DataClient, error)
-}
-
-type beamFnDataClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewBeamFnDataClient(cc *grpc.ClientConn) BeamFnDataClient {
-	return &beamFnDataClient{cc}
-}
-
-func (c *beamFnDataClient) Data(ctx context.Context, opts ...grpc.CallOption) (BeamFnData_DataClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_BeamFnData_serviceDesc.Streams[0], "/org.apache.beam.model.fn_execution.v1.BeamFnData/Data", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &beamFnDataDataClient{stream}
-	return x, nil
-}
-
-type BeamFnData_DataClient interface {
-	Send(*Elements) error
-	Recv() (*Elements, error)
-	grpc.ClientStream
-}
-
-type beamFnDataDataClient struct {
-	grpc.ClientStream
-}
-
-func (x *beamFnDataDataClient) Send(m *Elements) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *beamFnDataDataClient) Recv() (*Elements, error) {
-	m := new(Elements)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// BeamFnDataServer is the server API for BeamFnData service.
-type BeamFnDataServer interface {
-	// Used to send data between harnesses.
-	Data(BeamFnData_DataServer) error
-}
-
-func RegisterBeamFnDataServer(s *grpc.Server, srv BeamFnDataServer) {
-	s.RegisterService(&_BeamFnData_serviceDesc, srv)
-}
-
-func _BeamFnData_Data_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(BeamFnDataServer).Data(&beamFnDataDataServer{stream})
-}
-
-type BeamFnData_DataServer interface {
-	Send(*Elements) error
-	Recv() (*Elements, error)
-	grpc.ServerStream
-}
-
-type beamFnDataDataServer struct {
-	grpc.ServerStream
-}
-
-func (x *beamFnDataDataServer) Send(m *Elements) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *beamFnDataDataServer) Recv() (*Elements, error) {
-	m := new(Elements)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-var _BeamFnData_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnData",
-	HandlerType: (*BeamFnDataServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Data",
-			Handler:       _BeamFnData_Data_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "beam_fn_api.proto",
-}
-
-// BeamFnStateClient is the client API for BeamFnState service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type BeamFnStateClient interface {
-	// Used to get/append/clear state stored by the runner on behalf of the SDK.
-	State(ctx context.Context, opts ...grpc.CallOption) (BeamFnState_StateClient, error)
-}
-
-type beamFnStateClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewBeamFnStateClient(cc *grpc.ClientConn) BeamFnStateClient {
-	return &beamFnStateClient{cc}
-}
-
-func (c *beamFnStateClient) State(ctx context.Context, opts ...grpc.CallOption) (BeamFnState_StateClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_BeamFnState_serviceDesc.Streams[0], "/org.apache.beam.model.fn_execution.v1.BeamFnState/State", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &beamFnStateStateClient{stream}
-	return x, nil
-}
-
-type BeamFnState_StateClient interface {
-	Send(*StateRequest) error
-	Recv() (*StateResponse, error)
-	grpc.ClientStream
-}
-
-type beamFnStateStateClient struct {
-	grpc.ClientStream
-}
-
-func (x *beamFnStateStateClient) Send(m *StateRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *beamFnStateStateClient) Recv() (*StateResponse, error) {
-	m := new(StateResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// BeamFnStateServer is the server API for BeamFnState service.
-type BeamFnStateServer interface {
-	// Used to get/append/clear state stored by the runner on behalf of the SDK.
-	State(BeamFnState_StateServer) error
-}
-
-func RegisterBeamFnStateServer(s *grpc.Server, srv BeamFnStateServer) {
-	s.RegisterService(&_BeamFnState_serviceDesc, srv)
-}
-
-func _BeamFnState_State_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(BeamFnStateServer).State(&beamFnStateStateServer{stream})
-}
-
-type BeamFnState_StateServer interface {
-	Send(*StateResponse) error
-	Recv() (*StateRequest, error)
-	grpc.ServerStream
-}
-
-type beamFnStateStateServer struct {
-	grpc.ServerStream
-}
-
-func (x *beamFnStateStateServer) Send(m *StateResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *beamFnStateStateServer) Recv() (*StateRequest, error) {
-	m := new(StateRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-var _BeamFnState_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnState",
-	HandlerType: (*BeamFnStateServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "State",
-			Handler:       _BeamFnState_State_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "beam_fn_api.proto",
-}
-
-// BeamFnLoggingClient is the client API for BeamFnLogging service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type BeamFnLoggingClient interface {
-	// Allows for the SDK to emit log entries which the runner can
-	// associate with the active job.
-	Logging(ctx context.Context, opts ...grpc.CallOption) (BeamFnLogging_LoggingClient, error)
-}
-
-type beamFnLoggingClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewBeamFnLoggingClient(cc *grpc.ClientConn) BeamFnLoggingClient {
-	return &beamFnLoggingClient{cc}
-}
-
-func (c *beamFnLoggingClient) Logging(ctx context.Context, opts ...grpc.CallOption) (BeamFnLogging_LoggingClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_BeamFnLogging_serviceDesc.Streams[0], "/org.apache.beam.model.fn_execution.v1.BeamFnLogging/Logging", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &beamFnLoggingLoggingClient{stream}
-	return x, nil
-}
-
-type BeamFnLogging_LoggingClient interface {
-	Send(*LogEntry_List) error
-	Recv() (*LogControl, error)
-	grpc.ClientStream
-}
-
-type beamFnLoggingLoggingClient struct {
-	grpc.ClientStream
-}
-
-func (x *beamFnLoggingLoggingClient) Send(m *LogEntry_List) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *beamFnLoggingLoggingClient) Recv() (*LogControl, error) {
-	m := new(LogControl)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// BeamFnLoggingServer is the server API for BeamFnLogging service.
-type BeamFnLoggingServer interface {
-	// Allows for the SDK to emit log entries which the runner can
-	// associate with the active job.
-	Logging(BeamFnLogging_LoggingServer) error
-}
-
-func RegisterBeamFnLoggingServer(s *grpc.Server, srv BeamFnLoggingServer) {
-	s.RegisterService(&_BeamFnLogging_serviceDesc, srv)
-}
-
-func _BeamFnLogging_Logging_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(BeamFnLoggingServer).Logging(&beamFnLoggingLoggingServer{stream})
-}
-
-type BeamFnLogging_LoggingServer interface {
-	Send(*LogControl) error
-	Recv() (*LogEntry_List, error)
-	grpc.ServerStream
-}
-
-type beamFnLoggingLoggingServer struct {
-	grpc.ServerStream
-}
-
-func (x *beamFnLoggingLoggingServer) Send(m *LogControl) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *beamFnLoggingLoggingServer) Recv() (*LogEntry_List, error) {
-	m := new(LogEntry_List)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-var _BeamFnLogging_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnLogging",
-	HandlerType: (*BeamFnLoggingServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Logging",
-			Handler:       _BeamFnLogging_Logging_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "beam_fn_api.proto",
-}
-
-// BeamFnExternalWorkerPoolClient is the client API for BeamFnExternalWorkerPool service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type BeamFnExternalWorkerPoolClient interface {
-	// Start the SDK worker with the given ID.
-	StartWorker(ctx context.Context, in *StartWorkerRequest, opts ...grpc.CallOption) (*StartWorkerResponse, error)
-	// Stop the SDK worker.
-	StopWorker(ctx context.Context, in *StopWorkerRequest, opts ...grpc.CallOption) (*StopWorkerResponse, error)
-}
-
-type beamFnExternalWorkerPoolClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewBeamFnExternalWorkerPoolClient(cc *grpc.ClientConn) BeamFnExternalWorkerPoolClient {
-	return &beamFnExternalWorkerPoolClient{cc}
-}
-
-func (c *beamFnExternalWorkerPoolClient) StartWorker(ctx context.Context, in *StartWorkerRequest, opts ...grpc.CallOption) (*StartWorkerResponse, error) {
-	out := new(StartWorkerResponse)
-	err := c.cc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StartWorker", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *beamFnExternalWorkerPoolClient) StopWorker(ctx context.Context, in *StopWorkerRequest, opts ...grpc.CallOption) (*StopWorkerResponse, error) {
-	out := new(StopWorkerResponse)
-	err := c.cc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StopWorker", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// BeamFnExternalWorkerPoolServer is the server API for BeamFnExternalWorkerPool service.
-type BeamFnExternalWorkerPoolServer interface {
-	// Start the SDK worker with the given ID.
-	StartWorker(context.Context, *StartWorkerRequest) (*StartWorkerResponse, error)
-	// Stop the SDK worker.
-	StopWorker(context.Context, *StopWorkerRequest) (*StopWorkerResponse, error)
-}
-
-func RegisterBeamFnExternalWorkerPoolServer(s *grpc.Server, srv BeamFnExternalWorkerPoolServer) {
-	s.RegisterService(&_BeamFnExternalWorkerPool_serviceDesc, srv)
-}
-
-func _BeamFnExternalWorkerPool_StartWorker_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartWorkerRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BeamFnExternalWorkerPoolServer).StartWorker(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StartWorker",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BeamFnExternalWorkerPoolServer).StartWorker(ctx, req.(*StartWorkerRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BeamFnExternalWorkerPool_StopWorker_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StopWorkerRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BeamFnExternalWorkerPoolServer).StopWorker(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StopWorker",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BeamFnExternalWorkerPoolServer).StopWorker(ctx, req.(*StopWorkerRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _BeamFnExternalWorkerPool_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool",
-	HandlerType: (*BeamFnExternalWorkerPoolServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "StartWorker",
-			Handler:    _BeamFnExternalWorkerPool_StartWorker_Handler,
-		},
-		{
-			MethodName: "StopWorker",
-			Handler:    _BeamFnExternalWorkerPool_StopWorker_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "beam_fn_api.proto",
-}
-
-func init() { proto.RegisterFile("beam_fn_api.proto", fileDescriptor_beam_fn_api_a35062cff5082b14) }
-
-var fileDescriptor_beam_fn_api_a35062cff5082b14 = []byte{
+var fileDescriptor_6d954c03a4758710 = []byte{
 	// 3241 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x5a, 0xdd, 0x6f, 0x1b, 0xc7,
 	0xb5, 0xf7, 0xf2, 0x43, 0x22, 0x0f, 0x29, 0x89, 0x1c, 0x49, 0x36, 0xbd, 0xd7, 0xb9, 0xd7, 0xe1,
@@ -4962,4 +3875,552 @@ var fileDescriptor_beam_fn_api_a35062cff5082b14 = []byte{
 	0xf6, 0x16, 0xfc, 0xc7, 0x34, 0xed, 0xa8, 0xf2, 0x76, 0x51, 0x18, 0x74, 0xcb, 0xb5, 0xde, 0x5d,
 	0x8e, 0x88, 0xf4, 0xc3, 0x4b, 0x07, 0x0b, 0x3c, 0x79, 0xb8, 0xfc, 0x8f, 0x00, 0x00, 0x00, 0xff,
 	0xff, 0xdb, 0x09, 0x17, 0x4b, 0xda, 0x33, 0x00, 0x00,
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// BeamFnControlClient is the client API for BeamFnControl service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type BeamFnControlClient interface {
+	// Instructions sent by the runner to the SDK requesting different types
+	// of work.
+	Control(ctx context.Context, opts ...grpc.CallOption) (BeamFnControl_ControlClient, error)
+}
+
+type beamFnControlClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewBeamFnControlClient(cc *grpc.ClientConn) BeamFnControlClient {
+	return &beamFnControlClient{cc}
+}
+
+func (c *beamFnControlClient) Control(ctx context.Context, opts ...grpc.CallOption) (BeamFnControl_ControlClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_BeamFnControl_serviceDesc.Streams[0], "/org.apache.beam.model.fn_execution.v1.BeamFnControl/Control", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &beamFnControlControlClient{stream}
+	return x, nil
+}
+
+type BeamFnControl_ControlClient interface {
+	Send(*InstructionResponse) error
+	Recv() (*InstructionRequest, error)
+	grpc.ClientStream
+}
+
+type beamFnControlControlClient struct {
+	grpc.ClientStream
+}
+
+func (x *beamFnControlControlClient) Send(m *InstructionResponse) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *beamFnControlControlClient) Recv() (*InstructionRequest, error) {
+	m := new(InstructionRequest)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// BeamFnControlServer is the server API for BeamFnControl service.
+type BeamFnControlServer interface {
+	// Instructions sent by the runner to the SDK requesting different types
+	// of work.
+	Control(BeamFnControl_ControlServer) error
+}
+
+// UnimplementedBeamFnControlServer can be embedded to have forward compatible implementations.
+type UnimplementedBeamFnControlServer struct {
+}
+
+func (*UnimplementedBeamFnControlServer) Control(srv BeamFnControl_ControlServer) error {
+	return status.Errorf(codes.Unimplemented, "method Control not implemented")
+}
+
+func RegisterBeamFnControlServer(s *grpc.Server, srv BeamFnControlServer) {
+	s.RegisterService(&_BeamFnControl_serviceDesc, srv)
+}
+
+func _BeamFnControl_Control_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(BeamFnControlServer).Control(&beamFnControlControlServer{stream})
+}
+
+type BeamFnControl_ControlServer interface {
+	Send(*InstructionRequest) error
+	Recv() (*InstructionResponse, error)
+	grpc.ServerStream
+}
+
+type beamFnControlControlServer struct {
+	grpc.ServerStream
+}
+
+func (x *beamFnControlControlServer) Send(m *InstructionRequest) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *beamFnControlControlServer) Recv() (*InstructionResponse, error) {
+	m := new(InstructionResponse)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _BeamFnControl_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnControl",
+	HandlerType: (*BeamFnControlServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Control",
+			Handler:       _BeamFnControl_Control_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "beam_fn_api.proto",
+}
+
+// BeamFnDataClient is the client API for BeamFnData service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type BeamFnDataClient interface {
+	// Used to send data between harnesses.
+	Data(ctx context.Context, opts ...grpc.CallOption) (BeamFnData_DataClient, error)
+}
+
+type beamFnDataClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewBeamFnDataClient(cc *grpc.ClientConn) BeamFnDataClient {
+	return &beamFnDataClient{cc}
+}
+
+func (c *beamFnDataClient) Data(ctx context.Context, opts ...grpc.CallOption) (BeamFnData_DataClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_BeamFnData_serviceDesc.Streams[0], "/org.apache.beam.model.fn_execution.v1.BeamFnData/Data", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &beamFnDataDataClient{stream}
+	return x, nil
+}
+
+type BeamFnData_DataClient interface {
+	Send(*Elements) error
+	Recv() (*Elements, error)
+	grpc.ClientStream
+}
+
+type beamFnDataDataClient struct {
+	grpc.ClientStream
+}
+
+func (x *beamFnDataDataClient) Send(m *Elements) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *beamFnDataDataClient) Recv() (*Elements, error) {
+	m := new(Elements)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// BeamFnDataServer is the server API for BeamFnData service.
+type BeamFnDataServer interface {
+	// Used to send data between harnesses.
+	Data(BeamFnData_DataServer) error
+}
+
+// UnimplementedBeamFnDataServer can be embedded to have forward compatible implementations.
+type UnimplementedBeamFnDataServer struct {
+}
+
+func (*UnimplementedBeamFnDataServer) Data(srv BeamFnData_DataServer) error {
+	return status.Errorf(codes.Unimplemented, "method Data not implemented")
+}
+
+func RegisterBeamFnDataServer(s *grpc.Server, srv BeamFnDataServer) {
+	s.RegisterService(&_BeamFnData_serviceDesc, srv)
+}
+
+func _BeamFnData_Data_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(BeamFnDataServer).Data(&beamFnDataDataServer{stream})
+}
+
+type BeamFnData_DataServer interface {
+	Send(*Elements) error
+	Recv() (*Elements, error)
+	grpc.ServerStream
+}
+
+type beamFnDataDataServer struct {
+	grpc.ServerStream
+}
+
+func (x *beamFnDataDataServer) Send(m *Elements) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *beamFnDataDataServer) Recv() (*Elements, error) {
+	m := new(Elements)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _BeamFnData_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnData",
+	HandlerType: (*BeamFnDataServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Data",
+			Handler:       _BeamFnData_Data_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "beam_fn_api.proto",
+}
+
+// BeamFnStateClient is the client API for BeamFnState service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type BeamFnStateClient interface {
+	// Used to get/append/clear state stored by the runner on behalf of the SDK.
+	State(ctx context.Context, opts ...grpc.CallOption) (BeamFnState_StateClient, error)
+}
+
+type beamFnStateClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewBeamFnStateClient(cc *grpc.ClientConn) BeamFnStateClient {
+	return &beamFnStateClient{cc}
+}
+
+func (c *beamFnStateClient) State(ctx context.Context, opts ...grpc.CallOption) (BeamFnState_StateClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_BeamFnState_serviceDesc.Streams[0], "/org.apache.beam.model.fn_execution.v1.BeamFnState/State", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &beamFnStateStateClient{stream}
+	return x, nil
+}
+
+type BeamFnState_StateClient interface {
+	Send(*StateRequest) error
+	Recv() (*StateResponse, error)
+	grpc.ClientStream
+}
+
+type beamFnStateStateClient struct {
+	grpc.ClientStream
+}
+
+func (x *beamFnStateStateClient) Send(m *StateRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *beamFnStateStateClient) Recv() (*StateResponse, error) {
+	m := new(StateResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// BeamFnStateServer is the server API for BeamFnState service.
+type BeamFnStateServer interface {
+	// Used to get/append/clear state stored by the runner on behalf of the SDK.
+	State(BeamFnState_StateServer) error
+}
+
+// UnimplementedBeamFnStateServer can be embedded to have forward compatible implementations.
+type UnimplementedBeamFnStateServer struct {
+}
+
+func (*UnimplementedBeamFnStateServer) State(srv BeamFnState_StateServer) error {
+	return status.Errorf(codes.Unimplemented, "method State not implemented")
+}
+
+func RegisterBeamFnStateServer(s *grpc.Server, srv BeamFnStateServer) {
+	s.RegisterService(&_BeamFnState_serviceDesc, srv)
+}
+
+func _BeamFnState_State_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(BeamFnStateServer).State(&beamFnStateStateServer{stream})
+}
+
+type BeamFnState_StateServer interface {
+	Send(*StateResponse) error
+	Recv() (*StateRequest, error)
+	grpc.ServerStream
+}
+
+type beamFnStateStateServer struct {
+	grpc.ServerStream
+}
+
+func (x *beamFnStateStateServer) Send(m *StateResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *beamFnStateStateServer) Recv() (*StateRequest, error) {
+	m := new(StateRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _BeamFnState_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnState",
+	HandlerType: (*BeamFnStateServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "State",
+			Handler:       _BeamFnState_State_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "beam_fn_api.proto",
+}
+
+// BeamFnLoggingClient is the client API for BeamFnLogging service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type BeamFnLoggingClient interface {
+	// Allows for the SDK to emit log entries which the runner can
+	// associate with the active job.
+	Logging(ctx context.Context, opts ...grpc.CallOption) (BeamFnLogging_LoggingClient, error)
+}
+
+type beamFnLoggingClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewBeamFnLoggingClient(cc *grpc.ClientConn) BeamFnLoggingClient {
+	return &beamFnLoggingClient{cc}
+}
+
+func (c *beamFnLoggingClient) Logging(ctx context.Context, opts ...grpc.CallOption) (BeamFnLogging_LoggingClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_BeamFnLogging_serviceDesc.Streams[0], "/org.apache.beam.model.fn_execution.v1.BeamFnLogging/Logging", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &beamFnLoggingLoggingClient{stream}
+	return x, nil
+}
+
+type BeamFnLogging_LoggingClient interface {
+	Send(*LogEntry_List) error
+	Recv() (*LogControl, error)
+	grpc.ClientStream
+}
+
+type beamFnLoggingLoggingClient struct {
+	grpc.ClientStream
+}
+
+func (x *beamFnLoggingLoggingClient) Send(m *LogEntry_List) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *beamFnLoggingLoggingClient) Recv() (*LogControl, error) {
+	m := new(LogControl)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// BeamFnLoggingServer is the server API for BeamFnLogging service.
+type BeamFnLoggingServer interface {
+	// Allows for the SDK to emit log entries which the runner can
+	// associate with the active job.
+	Logging(BeamFnLogging_LoggingServer) error
+}
+
+// UnimplementedBeamFnLoggingServer can be embedded to have forward compatible implementations.
+type UnimplementedBeamFnLoggingServer struct {
+}
+
+func (*UnimplementedBeamFnLoggingServer) Logging(srv BeamFnLogging_LoggingServer) error {
+	return status.Errorf(codes.Unimplemented, "method Logging not implemented")
+}
+
+func RegisterBeamFnLoggingServer(s *grpc.Server, srv BeamFnLoggingServer) {
+	s.RegisterService(&_BeamFnLogging_serviceDesc, srv)
+}
+
+func _BeamFnLogging_Logging_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(BeamFnLoggingServer).Logging(&beamFnLoggingLoggingServer{stream})
+}
+
+type BeamFnLogging_LoggingServer interface {
+	Send(*LogControl) error
+	Recv() (*LogEntry_List, error)
+	grpc.ServerStream
+}
+
+type beamFnLoggingLoggingServer struct {
+	grpc.ServerStream
+}
+
+func (x *beamFnLoggingLoggingServer) Send(m *LogControl) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *beamFnLoggingLoggingServer) Recv() (*LogEntry_List, error) {
+	m := new(LogEntry_List)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _BeamFnLogging_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnLogging",
+	HandlerType: (*BeamFnLoggingServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Logging",
+			Handler:       _BeamFnLogging_Logging_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "beam_fn_api.proto",
+}
+
+// BeamFnExternalWorkerPoolClient is the client API for BeamFnExternalWorkerPool service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type BeamFnExternalWorkerPoolClient interface {
+	// Start the SDK worker with the given ID.
+	StartWorker(ctx context.Context, in *StartWorkerRequest, opts ...grpc.CallOption) (*StartWorkerResponse, error)
+	// Stop the SDK worker.
+	StopWorker(ctx context.Context, in *StopWorkerRequest, opts ...grpc.CallOption) (*StopWorkerResponse, error)
+}
+
+type beamFnExternalWorkerPoolClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewBeamFnExternalWorkerPoolClient(cc *grpc.ClientConn) BeamFnExternalWorkerPoolClient {
+	return &beamFnExternalWorkerPoolClient{cc}
+}
+
+func (c *beamFnExternalWorkerPoolClient) StartWorker(ctx context.Context, in *StartWorkerRequest, opts ...grpc.CallOption) (*StartWorkerResponse, error) {
+	out := new(StartWorkerResponse)
+	err := c.cc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StartWorker", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *beamFnExternalWorkerPoolClient) StopWorker(ctx context.Context, in *StopWorkerRequest, opts ...grpc.CallOption) (*StopWorkerResponse, error) {
+	out := new(StopWorkerResponse)
+	err := c.cc.Invoke(ctx, "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StopWorker", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// BeamFnExternalWorkerPoolServer is the server API for BeamFnExternalWorkerPool service.
+type BeamFnExternalWorkerPoolServer interface {
+	// Start the SDK worker with the given ID.
+	StartWorker(context.Context, *StartWorkerRequest) (*StartWorkerResponse, error)
+	// Stop the SDK worker.
+	StopWorker(context.Context, *StopWorkerRequest) (*StopWorkerResponse, error)
+}
+
+// UnimplementedBeamFnExternalWorkerPoolServer can be embedded to have forward compatible implementations.
+type UnimplementedBeamFnExternalWorkerPoolServer struct {
+}
+
+func (*UnimplementedBeamFnExternalWorkerPoolServer) StartWorker(ctx context.Context, req *StartWorkerRequest) (*StartWorkerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartWorker not implemented")
+}
+func (*UnimplementedBeamFnExternalWorkerPoolServer) StopWorker(ctx context.Context, req *StopWorkerRequest) (*StopWorkerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StopWorker not implemented")
+}
+
+func RegisterBeamFnExternalWorkerPoolServer(s *grpc.Server, srv BeamFnExternalWorkerPoolServer) {
+	s.RegisterService(&_BeamFnExternalWorkerPool_serviceDesc, srv)
+}
+
+func _BeamFnExternalWorkerPool_StartWorker_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartWorkerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BeamFnExternalWorkerPoolServer).StartWorker(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StartWorker",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BeamFnExternalWorkerPoolServer).StartWorker(ctx, req.(*StartWorkerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BeamFnExternalWorkerPool_StopWorker_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopWorkerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BeamFnExternalWorkerPoolServer).StopWorker(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool/StopWorker",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BeamFnExternalWorkerPoolServer).StopWorker(ctx, req.(*StopWorkerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _BeamFnExternalWorkerPool_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "org.apache.beam.model.fn_execution.v1.BeamFnExternalWorkerPool",
+	HandlerType: (*BeamFnExternalWorkerPoolServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "StartWorker",
+			Handler:    _BeamFnExternalWorkerPool_StartWorker_Handler,
+		},
+		{
+			MethodName: "StopWorker",
+			Handler:    _BeamFnExternalWorkerPool_StopWorker_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "beam_fn_api.proto",
 }
