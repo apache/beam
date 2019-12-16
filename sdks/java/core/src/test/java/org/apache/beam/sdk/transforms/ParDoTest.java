@@ -4220,25 +4220,25 @@ public class ParDoTest implements Serializable {
     public void testTimerFamilyEventTime() throws Exception {
       final String timerFamilyId = "foo";
 
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
+      DoFn<KV<String, Integer>, String> fn =
+          new DoFn<KV<String, Integer>, String>() {
 
             @TimerFamily(timerFamilyId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @ProcessElement
             public void processElement(
-                @TimerFamily(timerFamilyId) TimerMap timers, OutputReceiver<Integer> r) {
+                @TimerFamily(timerFamilyId) TimerMap timers, OutputReceiver<String> r) {
               timers.set("timer1", new Instant(1));
               timers.set("timer2", new Instant(2));
-              r.output(3);
+              r.output("process");
             }
 
             @OnTimer(timerFamilyId)
             public void onTimer(
-                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<Integer> r) {
+                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
               System.out.println("timer Id : " + timerId);
-              r.output(42);
+              r.output(timerId);
             }
           };
 
@@ -4246,12 +4246,10 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               .advanceWatermarkTo(new Instant(0))
               .addElements(KV.of("hello", 37))
-              .advanceWatermarkTo(new Instant(3))
-              .advanceWatermarkTo(new Instant(9))
               .advanceWatermarkToInfinity();
 
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3, 42, 42);
+      PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder("process", "timer1", "timer2");
       pipeline.run();
     }
   }
