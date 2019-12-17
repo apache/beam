@@ -30,6 +30,7 @@ from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_types
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_types
+from apache_beam.typehints.native_type_compatibility import is_Any
 
 _TestNamedTuple = typing.NamedTuple('_TestNamedTuple',
                                     [('age', int), ('name', bytes)])
@@ -120,16 +121,26 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
   def test_convert_bare_types(self):
     # Conversions for unsubscripted types that have implicit subscripts.
     test_cases = [
-        ('bare list', typing.List, typehints.List[typehints.Any]),
+        ('bare list', typing.List,
+         typehints.List[typehints.TypeVariable('T')]),
         ('bare dict', typing.Dict,
-         typehints.Dict[typehints.Any, typehints.Any]),
-        ('bare tuple', typing.Tuple, typehints.Tuple[typehints.Any, ...]),
-        ('bare set', typing.Set, typehints.Set[typehints.Any]),
-        ('bare iterator', typing.Iterator, typehints.Iterator[typehints.Any]),
-        ('bare iterable', typing.Iterable, typehints.Iterable[typehints.Any]),
+         typehints.Dict[typehints.TypeVariable('KT'),
+                        typehints.TypeVariable('VT')]),
+        ('bare tuple', typing.Tuple,
+         typehints.Tuple[typehints.TypeVariable('T'), ...]),
+        ('bare set', typing.Set, typehints.Set[typehints.TypeVariable('T')]),
+        ('bare iterator', typing.Iterator,
+         typehints.Iterator[typehints.TypeVariable('T_co')]),
+        ('bare iterable', typing.Iterable,
+         typehints.Iterable[typehints.TypeVariable('T_co')]),
         ('nested bare', typing.Tuple[typing.Iterator],
-         typehints.Tuple[typehints.Iterator[typehints.Any]]),
+         typehints.Tuple[typehints.Iterator[typehints.TypeVariable('T_co')]]),
     ]
+    if sys.version_info >= (3, 7):
+      test_cases += [
+          ('bare generator', typing.Generator,
+           typehints.Generator[typehints.TypeVariable('T_co')]),
+      ]
     for test_case in test_cases:
       description = test_case[0]
       typing_type = test_case[1]
@@ -141,8 +152,11 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     # These conversions should fail.
     test_cases = [
         ('bare union', typing.Union),
-        ('bare generator', typing.Generator),
     ]
+    if sys.version_info < (3, 7):
+      test_cases += [
+          ('bare generator', typing.Generator),
+      ]
     for test_case in test_cases:
       description = test_case[0]
       typing_type = test_case[1]
@@ -160,6 +174,17 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertEqual(converted_beam_types, beam_types)
     converted_typing_types = convert_to_typing_types(converted_beam_types)
     self.assertEqual(converted_typing_types, typing_types)
+
+  def test_is_any(self):
+    test_cases = [
+      (True, typing.Any),
+      (False, typing.List[int]),
+      (False, typing.Union),
+      (False, 1),
+      (False, 'a'),
+    ]
+    for expected, typ in test_cases:
+      self.assertEqual(expected, is_Any(typ), msg='%s' % typ)
 
 
 if __name__ == '__main__':

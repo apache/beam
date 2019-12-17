@@ -160,6 +160,10 @@ def _match_is_union(user_type):
   return False
 
 
+def is_Any(typ):
+  return typ is typing.Any
+
+
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
 _type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
@@ -201,9 +205,7 @@ def convert_to_beam_type(typ):
 
   type_map = [
       _TypeMapEntry(
-          match=_match_same_type(typing.Any),
-          arity=0,
-          beam_type=typehints.Any),
+          match=is_Any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Dict),
           arity=2,
@@ -253,13 +255,19 @@ def convert_to_beam_type(typ):
     arity = matched_entry.arity
     # Handle unsubscripted types.
     if _match_issubclass(typing.Tuple)(typ):
-      args = (typehints.Any, Ellipsis)
+      args = (typehints.TypeVariable('T'), Ellipsis)
     elif _match_is_union(typ):
       raise ValueError('Unsupported Union with no arguments.')
     elif _match_issubclass(typing.Generator)(typ):
       raise ValueError('Unsupported Generator with no arguments.')
+    elif _match_issubclass(typing.Dict)(typ):
+      args = (typehints.TypeVariable('KT'), typehints.TypeVariable('VT'))
+    elif (_match_issubclass(typing.Iterator)(typ) or
+          _match_issubclass(typing.Generator)(typ) or
+          _match_is_exactly_iterable(typ)):
+      args = (typehints.TypeVariable('T_co'),)
     else:
-      args = (typehints.Any,) * arity
+      args = (typehints.TypeVariable('T'),) * arity
   elif matched_entry.arity == -1:
     arity = len_args
   else:
