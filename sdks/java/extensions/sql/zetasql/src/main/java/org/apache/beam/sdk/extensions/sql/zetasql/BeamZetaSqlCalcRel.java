@@ -35,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSortRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.rel.WithLimitableInput;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -56,7 +57,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDialect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.dialect.BigQuerySqlDialect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -69,8 +69,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @Internal
 public class BeamZetaSqlCalcRel extends Calc implements BeamRelNode, WithLimitableInput {
 
-  // TODO[BEAM-8630]: use a more accurate BigQuery SQL dialect to avoid unparsing errors
-  private static final SqlDialect DIALECT = BigQuerySqlDialect.DEFAULT;
+  private static final SqlDialect DIALECT = BeamBigQuerySqlDialect.DEFAULT;
   private final SqlImplementor.Context context;
 
   public BeamZetaSqlCalcRel(
