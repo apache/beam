@@ -32,6 +32,7 @@ dependencies {
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
   compile library.java.avro
+  compile library.java.arrow
   compile library.java.bigdataoss_util
   compile library.java.gax_grpc
   compile library.java.google_api_client
