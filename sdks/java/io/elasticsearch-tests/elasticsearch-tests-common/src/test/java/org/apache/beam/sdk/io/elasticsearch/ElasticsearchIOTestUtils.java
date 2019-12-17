@@ -141,7 +141,10 @@ class ElasticsearchIOTestUtils {
   static long refreshIndexAndGetCurrentNumDocs(
       ConnectionConfiguration connectionConfiguration, RestClient restClient) throws IOException {
     return refreshIndexAndGetCurrentNumDocs(
-        restClient, connectionConfiguration.getIndex(), connectionConfiguration.getType());
+        restClient,
+        connectionConfiguration.getIndex(),
+        connectionConfiguration.getType(),
+        getBackendVersion(connectionConfiguration));
   }
 
   /**
@@ -153,8 +156,8 @@ class ElasticsearchIOTestUtils {
    * @return The number of docs in the index
    * @throws IOException On error communicating with Elasticsearch
    */
-  static long refreshIndexAndGetCurrentNumDocs(RestClient restClient, String index, String type)
-      throws IOException {
+  static long refreshIndexAndGetCurrentNumDocs(
+      RestClient restClient, String index, String type, int backenVersion) throws IOException {
     long result = 0;
     try {
       String endPoint = String.format("/%s/_refresh", index);
@@ -165,7 +168,11 @@ class ElasticsearchIOTestUtils {
       request = new Request("GET", endPoint);
       Response response = restClient.performRequest(request);
       JsonNode searchResult = ElasticsearchIO.parseResponse(response.getEntity());
-      result = searchResult.path("hits").path("total").asLong();
+      if (backenVersion == 7) {
+        result = searchResult.path("hits").path("total").path("value").asLong();
+      } else {
+        result = searchResult.path("hits").path("total").asLong();
+      }
     } catch (IOException e) {
       // it is fine to ignore bellow exceptions because in testWriteWithBatchSize* sometimes,
       // we call upgrade before any doc have been written
@@ -206,7 +213,7 @@ class ElasticsearchIOTestUtils {
    * @param connectionConfiguration Specifies the index and type
    * @param restClient To use to execute the call
    * @param scientistName The scientist to query for
-   * @return The cound of documents found
+   * @return The count of documents found
    * @throws IOException On error talking to Elasticsearch
    */
   static int countByScientistName(
@@ -252,7 +259,11 @@ class ElasticsearchIOTestUtils {
     request.setEntity(httpEntity);
     Response response = restClient.performRequest(request);
     JsonNode searchResult = parseResponse(response.getEntity());
-    return searchResult.path("hits").path("total").asInt();
+    if (getBackendVersion(connectionConfiguration) == 7){
+      return searchResult.path("hits").path("total").path("value").asInt();
+    } else {
+      return searchResult.path("hits").path("total").asInt();
+    }
   }
 
   public static void setIndexMapping(
