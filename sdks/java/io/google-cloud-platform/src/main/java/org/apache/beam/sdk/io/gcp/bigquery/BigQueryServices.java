@@ -158,7 +158,8 @@ public interface BigQueryServices extends Serializable {
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnknownValues)
+        boolean ignoreUnknownValues,
+        boolean ignoreInsertIds)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */

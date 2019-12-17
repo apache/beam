@@ -713,7 +713,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnkownValues)
+        boolean ignoreUnkownValues,
+        boolean ignoreInsertIds)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
@@ -733,7 +734,10 @@ class BigQueryServicesImpl implements BigQueryServices {
       // These lists contain the rows to publish. Initially the contain the entire list.
       // If there are failures, they will contain only the failed rows to be retried.
       List<ValueInSingleWindow<TableRow>> rowsToPublish = rowList;
-      List<String> idsToPublish = insertIdList;
+      List<String> idsToPublish = null;
+      if (!ignoreInsertIds) {
+        idsToPublish = insertIdList;
+      }
       while (true) {
         List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
@@ -866,7 +870,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnknownValues)
+        boolean ignoreUnknownValues,
+        boolean ignoreInsertIds)
         throws IOException, InterruptedException {
       return insertAll(
           ref,
@@ -878,7 +883,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           failedInserts,
           errorContainer,
           skipInvalidRows,
-          ignoreUnknownValues);
+          ignoreUnknownValues,
+          ignoreInsertIds);
     }
 
     @Override
