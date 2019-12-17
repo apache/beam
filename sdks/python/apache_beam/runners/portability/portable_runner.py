@@ -417,6 +417,7 @@ class PipelineResult(runner.PipelineResult):
   def wait_until_finish(self):
 
     def read_messages():
+      previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
           logging.log(
@@ -424,10 +425,12 @@ class PipelineResult(runner.PipelineResult):
               "%s",
               message.message_response.message_text)
         else:
-          _LOGGER.info(
-              "Job state changed to %s",
-              self._runner_api_state_to_pipeline_state(
-                  message.state_response.state))
+          current_state = message.state_response.state
+          if current_state != previous_state:
+            _LOGGER.info(
+                "Job state changed to %s",
+                self._runner_api_state_to_pipeline_state(current_state))
+            previous_state = current_state
         self._messages.append(message)
 
     t = threading.Thread(target=read_messages, name='wait_until_finish_read')
