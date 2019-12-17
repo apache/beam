@@ -63,6 +63,11 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Override
+  protected boolean addMockHttpTransport() {
+    return false;
+  }
+
+  @Override
   protected Settings nodeSettings(int nodeOrdinal) {
     System.setProperty("es.set.netty.runtime.available.processors", "false");
     return Settings.builder()
