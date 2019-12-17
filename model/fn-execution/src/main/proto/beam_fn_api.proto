@@ -207,18 +207,13 @@ message BundleApplication {
 // Either an absolute timestamp or a relative timestamp can represent a
 // scheduled execution time.
 message DelayedBundleApplication {
-  // Recommended time at which the application should be scheduled to execute
-  // by the runner. Times in the past may be scheduled to execute immediately.
-  // TODO(BEAM-8536): Migrate usage of absolute time to requested_time_delay.
-  google.protobuf.Timestamp requested_execution_time = 1;
-
   // (Required) The application that should be scheduled.
-  BundleApplication application = 2;
+  BundleApplication application = 1;
 
   // Recommended time delay at which the application should be scheduled to
   // execute by the runner. Time delay that equals 0 may be scheduled to execute
   // immediately. The unit of time delay should be microsecond.
-  google.protobuf.Duration requested_time_delay = 3;
+  google.protobuf.Duration requested_time_delay = 2;
 }
 
 // A request to process a given bundle.
