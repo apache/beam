@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static java.util.Arrays.asList;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -38,6 +39,8 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1beta1.ArrowProto;
+import com.google.cloud.bigquery.storage.v1beta1.ArrowProto.ArrowSchema;
 import com.google.cloud.bigquery.storage.v1beta1.AvroProto.AvroRows;
 import com.google.cloud.bigquery.storage.v1beta1.AvroProto.AvroSchema;
 import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
@@ -56,11 +59,26 @@ import io.grpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.VectorLoader;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.VectorUnloader;
+import org.apache.arrow.vector.ipc.WriteChannel;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.util.Text;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -90,8 +108,11 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -110,6 +131,7 @@ public class BigQueryIOStorageReadTest {
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
+  private static BufferAllocator alloc;
 
   @Rule
   public final transient TestRule folderThenPipeline =
@@ -143,7 +165,13 @@ public class BigQueryIOStorageReadTest {
 
   @Before
   public void setUp() throws Exception {
+    alloc = new RootAllocator(Long.MAX_VALUE);
     FakeDatasetService.setUp();
+  }
+
+  @After
+  public void tearDown() {
+    //alloc.close();
   }
 
   @Test
@@ -676,6 +704,13 @@ public class BigQueryIOStorageReadTest {
 
   private static final Schema AVRO_SCHEMA = new Schema.Parser().parse(AVRO_SCHEMA_STRING);
 
+  private static final org.apache.arrow.vector.types.pojo.Schema ARROW_SCHEMA =
+      new org.apache.arrow.vector.types.pojo.Schema(
+          asList(
+              field("name", new ArrowType.Utf8()),
+              field("number", new ArrowType.Int(64, true))
+          ));
+
   private static final TableSchema TABLE_SCHEMA =
       new TableSchema()
           .setFields(
@@ -829,6 +864,130 @@ public class BigQueryIOStorageReadTest {
             createResponse(AVRO_SCHEMA, Lists.newArrayList(), 0.250),
             createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.500),
             createResponse(AVRO_SCHEMA, records.subList(4, 7), 0.875));
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.readRows(expectedRequest))
+        .thenReturn(new FakeBigQueryServerStream<>(responses));
+
+    BigQueryStorageStreamSource<TableRow> streamSource =
+        BigQueryStorageStreamSource.create(
+            readSession,
+            stream,
+            TABLE_SCHEMA,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+
+    List<TableRow> rows = new ArrayList<>();
+    BoundedReader<TableRow> reader = streamSource.createReader(options);
+
+    // Before call to BoundedReader#start, fraction consumed must be zero.
+    assertEquals(Double.valueOf(0.000), reader.getFractionConsumed());
+
+    assertTrue(reader.start()); // Reads A.
+    assertEquals(Double.valueOf(0.125), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads B.
+    assertEquals(Double.valueOf(0.250), reader.getFractionConsumed());
+
+    assertTrue(reader.advance()); // Reads C.
+    assertEquals(Double.valueOf(0.375), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads D.
+    assertEquals(Double.valueOf(0.500), reader.getFractionConsumed());
+
+    assertTrue(reader.advance()); // Reads E.
+    assertEquals(Double.valueOf(0.625), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads F.
+    assertEquals(Double.valueOf(0.750), reader.getFractionConsumed());
+    assertTrue(reader.advance()); // Reads G.
+    assertEquals(Double.valueOf(0.875), reader.getFractionConsumed());
+
+    assertFalse(reader.advance()); // Reaches the end.
+
+    // We are done with the stream, so we should report 100% consumption.
+    assertEquals(Double.valueOf(1.00), reader.getFractionConsumed());
+  }
+
+  private static ReadRowsResponse createResponse(org.apache.arrow.vector.types.pojo.Schema schema, List<Pair<String, Long>> rowValues, double fractionConsumed)
+      throws IOException {
+    VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(schema, alloc);
+    vectorRoot.setRowCount(rowValues.size());
+    VarCharVector nameField = (VarCharVector) vectorRoot.getVector("name");
+    BigIntVector numberField = (BigIntVector) vectorRoot.getVector("number");
+
+    for (int i = 0; i < rowValues.size(); i++) {
+      Pair<String, Long> value = rowValues.get(i);
+      // Add string to a name field.
+      nameField.setSafe(i, new Text(value.getLeft()));
+      Text text = nameField.getObject(i);
+      // Add long to a number field.
+      numberField.setSafe(i, value.getRight());
+      long number = numberField.get(i);
+    }
+
+    VectorUnloader vectorUnLoader = new VectorUnloader(vectorRoot, false, false);
+    ArrowRecordBatch recordBatch = vectorUnLoader.getRecordBatch();
+    int bodyLen = recordBatch.computeBodyLength();
+
+    ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
+    MessageSerializer.serialize(new WriteChannel(Channels.newChannel(byteOutputStream)), recordBatch);
+
+    VectorLoader vectorLoader = new VectorLoader(vectorRoot);
+    vectorLoader.load(recordBatch);
+
+    Iterator<Row> iter = new org.apache.beam.sdk.schemas.ArrowSchema.RecordBatchIterable(org.apache.beam.sdk.schemas.ArrowSchema.toBeamSchema(schema), vectorRoot).iterator();
+    while (iter.hasNext()) {
+      Row r = iter.next();
+      r.toString();
+    }
+
+    return ReadRowsResponse.newBuilder()
+        .setArrowRecordBatch(ArrowProto.ArrowRecordBatch.newBuilder()
+            .setSerializedRecordBatch(ByteString.copyFrom(byteOutputStream.toByteArray()))
+            .setRowCount(vectorRoot.getRowCount())
+            .build())
+        .setStatus(StreamStatus.newBuilder().setFractionConsumed((float) fractionConsumed))
+        .build();
+  }
+
+  @Test
+  public void testFractionConsumed_forArrowFormat() throws Exception {
+    ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
+    MessageSerializer.serialize(new WriteChannel(Channels.newChannel(byteOutputStream)), ARROW_SCHEMA);
+    ByteString serializedSchema = ByteString.copyFrom(byteOutputStream.toByteArray());
+
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSession")
+            .setArrowSchema(ArrowSchema.newBuilder().setSerializedSchema(serializedSchema).build())
+            .build();
+
+    Stream stream = Stream.newBuilder().setName("stream").build();
+
+    ReadRowsRequest expectedRequest =
+        ReadRowsRequest.newBuilder()
+            .setReadPosition(StreamPosition.newBuilder().setStream(stream))
+            .build();
+
+    List<Pair<String, Long>> records =
+        Lists.newArrayList(
+            Pair.of("A", 1L),
+            Pair.of("B", 2L),
+            Pair.of("C", 3L),
+            Pair.of("D", 4L),
+            Pair.of("E", 5L),
+            Pair.of("F", 6L),
+            Pair.of("G", 7L));
+
+    List<ReadRowsResponse> responses =
+        Lists.newArrayList(
+            // N.B.: All floating point numbers used in this test can be represented without
+            // a loss of precision.
+            createResponse(ARROW_SCHEMA, records.subList(0, 2), 0.250),
+            // Some responses may contain zero results, so we must ensure that we can are resilient
+            // to such responses.
+            createResponse(ARROW_SCHEMA, Lists.newArrayList(), 0.250),
+            createResponse(ARROW_SCHEMA, records.subList(2, 4), 0.500),
+            createResponse(ARROW_SCHEMA, records.subList(4, 7), 0.875));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(expectedRequest))
@@ -1431,5 +1590,21 @@ public class BigQueryIOStorageReadTest {
             ImmutableList.of(KV.of("A", 1L), KV.of("B", 2L), KV.of("C", 3L), KV.of("D", 4L)));
 
     p.run();
+  }
+
+  private static org.apache.arrow.vector.types.pojo.Field field(
+      String name,
+      boolean nullable,
+      ArrowType type,
+      org.apache.arrow.vector.types.pojo.Field... children) {
+    return new org.apache.arrow.vector.types.pojo.Field(
+        name,
+        new org.apache.arrow.vector.types.pojo.FieldType(nullable, type, null, null),
+        asList(children));
+  }
+
+  private static org.apache.arrow.vector.types.pojo.Field field(
+      String name, ArrowType type, org.apache.arrow.vector.types.pojo.Field... children) {
+    return field(name, false, type, children);
   }
 }
