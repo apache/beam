@@ -1643,6 +1643,7 @@ public class BigQueryIO {
         .setExtendedErrorInfo(false)
         .setSkipInvalidRows(false)
         .setIgnoreUnknownValues(false)
+        .setIgnoreInsertIds(false)
         .setMaxFilesPerPartition(BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION)
         .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
         .setOptimizeWrites(false)
@@ -1774,6 +1775,8 @@ public class BigQueryIO {
 
     abstract Boolean getIgnoreUnknownValues();
 
+    abstract Boolean getIgnoreInsertIds();
+
     @Nullable
     abstract String getKmsKey();
 
@@ -1845,6 +1848,8 @@ public class BigQueryIO {
       abstract Builder<T> setSkipInvalidRows(Boolean skipInvalidRows);
 
       abstract Builder<T> setIgnoreUnknownValues(Boolean ignoreUnknownValues);
+
+      abstract Builder<T> setIgnoreInsertIds(Boolean ignoreInsertIds);
 
       abstract Builder<T> setKmsKey(String kmsKey);
 
@@ -2241,6 +2246,14 @@ public class BigQueryIO {
       return toBuilder().setIgnoreUnknownValues(true).build();
     }
 
+    /**
+     * Performs streaming insert without insert id. Insert id is used to offer best effort insert
+     * deduplication. Default is false, which always inserts with insert id.
+     */
+    public Write<T> ignoreInsertIds() {
+      return toBuilder().setIgnoreInsertIds(true).build();
+    }
+
     public Write<T> withKmsKey(String kmsKey) {
       return toBuilder().setKmsKey(kmsKey).build();
     }
@@ -2600,6 +2613,7 @@ public class BigQueryIO {
                 .withExtendedErrorInfo(getExtendedErrorInfo())
                 .withSkipInvalidRows(getSkipInvalidRows())
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
+                .withIgnoreInsertIds(getIgnoreInsertIds())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
       } else {
