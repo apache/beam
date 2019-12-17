@@ -57,7 +57,7 @@ def _build_a_test_stream_pipeline():
                  .advance_processing_time(5)
                  .advance_watermark_to_infinity())
   p = beam.Pipeline(runner=interactive_runner.InteractiveRunner())
-  events = p | test_stream
+  events = p | test_stream  # pylint: disable=possibly-unused-variable
   ib.watch(locals())
   return p
 

@@ -143,9 +143,9 @@ class InteractiveRunner(runners.PipelineRunner):
         background_caching_job_result.cancel()
       if user_pipeline and pipeline_instrument.has_unbounded_sources:
         background_caching_job_result = beam.pipeline.Pipeline.from_runner_api(
-              pipeline_instrument.background_caching_pipeline_proto(),
-              self._underlying_runner,
-              options).run()
+            pipeline_instrument.background_caching_pipeline_proto(),
+            self._underlying_runner,
+            options).run()
         ie.current_env().set_pipeline_result(user_pipeline,
                                              background_caching_job_result,
                                              is_main_job=False)
