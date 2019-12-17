@@ -143,8 +143,9 @@ public class BeamRuleSets {
           PruneEmptyRules.SORT_INSTANCE,
           PruneEmptyRules.UNION_INSTANCE);
 
-  private static final List<RelOptRule> BEAM_CONVERTERS_COMMON =
+  private static final List<RelOptRule> BEAM_CONVERTERS =
       ImmutableList.of(
+          BeamCalcRule.INSTANCE,
           BeamAggregationRule.INSTANCE,
           BeamBasicAggregationRule.INSTANCE,
           BeamSortRule.INSTANCE,
@@ -158,9 +159,6 @@ public class BeamRuleSets {
           BeamCoGBKJoinRule.INSTANCE,
           BeamSideInputLookupJoinRule.INSTANCE);
 
-  private static final List<RelOptRule> BEAM_CONVERTERS_CALCITE_SQL_ONLY =
-      ImmutableList.of(BeamCalcRule.INSTANCE);
-
   private static final List<RelOptRule> BEAM_TO_ENUMERABLE =
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
 
@@ -168,32 +166,7 @@ public class BeamRuleSets {
     return new RuleSet[] {
       RuleSets.ofList(
           ImmutableList.<RelOptRule>builder()
-              .addAll(BEAM_CONVERTERS_COMMON)
-              .addAll(BEAM_CONVERTERS_CALCITE_SQL_ONLY)
-              .addAll(BEAM_TO_ENUMERABLE)
-              .addAll(LOGICAL_OPTIMIZATIONS)
-              .build())
-    };
-  }
-
-  /** Returns the rule sets that allow using ZetaSQL evaluator for Calc. */
-  public static RuleSet[] getZetaSqlRuleSets() {
-    RelOptRule beamZetaSqlCalcRule;
-    try {
-      beamZetaSqlCalcRule =
-          (RelOptRule)
-              Class.forName("org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCalcRule")
-                  .getField("INSTANCE")
-                  .get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("BeamZetaSqlCalcRule.INSTANCE cannot be found.", e);
-    }
-
-    return new RuleSet[] {
-      RuleSets.ofList(
-          ImmutableList.<RelOptRule>builder()
-              .addAll(BEAM_CONVERTERS_COMMON)
-              .add(beamZetaSqlCalcRule)
+              .addAll(BEAM_CONVERTERS)
               .addAll(BEAM_TO_ENUMERABLE)
               .addAll(LOGICAL_OPTIMIZATIONS)
               .build())
