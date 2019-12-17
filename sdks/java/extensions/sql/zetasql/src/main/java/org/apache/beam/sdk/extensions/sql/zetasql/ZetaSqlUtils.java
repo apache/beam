@@ -44,18 +44,14 @@ public final class ZetaSqlUtils {
 
   private ZetaSqlUtils() {}
 
-  // Unsupported ZetaSQL types: UINT32, UINT64, ENUM, PROTO, GEOGRAPHY
+  // Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
   // TODO[BEAM-8630]: support ZetaSQL types: DATE, TIME, DATETIME
   public static Type beamFieldTypeToZetaSqlType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
-      case INT32:
-        return TypeFactory.createSimpleType(TypeKind.TYPE_INT32);
       case INT64:
         return TypeFactory.createSimpleType(TypeKind.TYPE_INT64);
       case DECIMAL:
         return TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC);
-      case FLOAT:
-        return TypeFactory.createSimpleType(TypeKind.TYPE_FLOAT);
       case DOUBLE:
         return TypeFactory.createSimpleType(TypeKind.TYPE_DOUBLE);
       case STRING:
@@ -99,15 +95,11 @@ public final class ZetaSqlUtils {
       return Value.createNullValue(beamFieldTypeToZetaSqlType(fieldType));
     }
     switch (fieldType.getTypeName()) {
-      case INT32:
-        return Value.createInt32Value((Integer) object);
       case INT64:
         return Value.createInt64Value((Long) object);
         // TODO[BEAM-8630]: Value.createNumericValue() is broken due to a dependency issue
         // case DECIMAL:
         //   return Value.createNumericValue((BigDecimal) object);
-      case FLOAT:
-        return Value.createFloatValue((Float) object);
       case DOUBLE:
         return Value.createDoubleValue((Double) object);
       case STRING:
@@ -161,14 +153,10 @@ public final class ZetaSqlUtils {
       return null;
     }
     switch (fieldType.getTypeName()) {
-      case INT32:
-        return value.getInt32Value();
       case INT64:
         return value.getInt64Value();
       case DECIMAL:
         return value.getNumericValue();
-      case FLOAT:
-        return value.getFloatValue();
       case DOUBLE:
         return value.getDoubleValue();
       case STRING:
