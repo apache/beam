@@ -146,9 +146,9 @@ import org.slf4j.LoggerFactory;
  * <p>When {withUsePartialUpdate()} is enabled, the input document must contain an id field and
  * {@code withIdFn()} must be used to allow its extraction by the ElasticsearchIO.
  *
- * <p>Optionally, {@code withSocketTimeout()} can be used to override the default retry
- * timeout and socket timeout of 30000ms. {@code withConnectTimeout()} can be used to override the
- * default connect timeout of 1000ms.
+ * <p>Optionally, {@code withSocketTimeout()} can be used to override the default retry timeout and
+ * socket timeout of 30000ms. {@code withConnectTimeout()} can be used to override the default
+ * connect timeout of 1000ms.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ElasticsearchIO {
@@ -203,7 +203,7 @@ public class ElasticsearchIO {
         } else {
           if (backendVersion == 2) {
             errorRootName = "create";
-          } else if (backendVersion == 5 || backendVersion == 6) {
+          } else if (backendVersion == 5 || backendVersion == 6 || backendVersion == 7) {
             errorRootName = "index";
           }
         }
@@ -666,7 +666,7 @@ public class ElasticsearchIO {
               new BoundedElasticsearchSource(spec, shardId, null, null, null, backendVersion));
         }
         checkArgument(!sources.isEmpty(), "No shard found");
-      } else if (backendVersion == 5 || backendVersion == 6) {
+      } else if (backendVersion == 5 || backendVersion == 6 || backendVersion == 7) {
         long indexSize = getEstimatedSizeBytes(options);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
@@ -818,7 +818,7 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if ((source.backendVersion == 5 || source.backendVersion == 6)
+      if ((source.backendVersion == 5 || source.backendVersion == 6 || source.backendVersion == 7)
           && source.numSlices != null
           && source.numSlices > 1) {
         // if there is more than one slice, add the slice to the user query
