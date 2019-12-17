@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionCon
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.FAMOUS_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
@@ -441,7 +442,11 @@ class ElasticsearchIOTestCommon implements Serializable {
     for (String scientist : FAMOUS_SCIENTISTS) {
       String index = scientist.toLowerCase();
       long count =
-          refreshIndexAndGetCurrentNumDocs(restClient, index, connectionConfiguration.getType());
+          refreshIndexAndGetCurrentNumDocs(
+              restClient,
+              index,
+              connectionConfiguration.getType(),
+              getBackendVersion(connectionConfiguration));
       assertEquals(scientist + " index holds incorrect count", docsPerScientist, count);
     }
   }
@@ -486,7 +491,11 @@ class ElasticsearchIOTestCommon implements Serializable {
     for (int i = 0; i < 2; i++) {
       String type = "TYPE_" + i;
       long count =
-          refreshIndexAndGetCurrentNumDocs(restClient, connectionConfiguration.getIndex(), type);
+          refreshIndexAndGetCurrentNumDocs(
+              restClient,
+              connectionConfiguration.getIndex(),
+              type,
+              getBackendVersion(connectionConfiguration));
       assertEquals(type + " holds incorrect count", adjustedNumDocs / 2, count);
     }
   }
@@ -515,7 +524,9 @@ class ElasticsearchIOTestCommon implements Serializable {
       String index = scientist.toLowerCase();
       for (int i = 0; i < 2; i++) {
         String type = "TYPE_" + scientist.hashCode() % 2;
-        long count = refreshIndexAndGetCurrentNumDocs(restClient, index, type);
+        long count =
+            refreshIndexAndGetCurrentNumDocs(
+                restClient, index, type, getBackendVersion(connectionConfiguration));
         assertEquals("Incorrect count for " + index + "/" + type, numDocs / NUM_SCIENTISTS, count);
       }
     }
