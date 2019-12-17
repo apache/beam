@@ -55,20 +55,6 @@ from apache_beam.utils.timestamp import Timestamp
 
 class CombineTest(unittest.TestCase):
 
-  def setUp(self):
-    # Use state on the TestCase class, since other references would be pickled
-    # into a closure and not have the desired side effects.
-    CombineTest.all_records = []
-
-  def record_dofn(self):
-    # Record the firing panes
-    class RecordDoFn(beam.DoFn):
-
-      def process(self, element):
-        CombineTest.all_records.append(element)
-
-    return RecordDoFn()
-
   def test_builtin_combines(self):
     pipeline = TestPipeline()
 
@@ -427,10 +413,8 @@ class CombineTest(unittest.TestCase):
       ts.add_elements([i])
     ts.advance_watermark_to_infinity()
 
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
-    # with TestPipeline(options=options) as p:
     with TestPipeline() as p:
+      p._options.view_as(StandardOptions).streaming = True
       result = (p
                 | ts
                 | beam.WindowInto(
@@ -438,23 +422,11 @@ class CombineTest(unittest.TestCase):
                     accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
                     trigger=AfterWatermark(early=AfterAll(AfterCount(1)))
                     )
-                | beam.CombineGlobally(sum).without_defaults().with_fanout(2)
-                | beam.ParDo(self.record_dofn()))
+                | beam.CombineGlobally(sum).without_defaults().with_fanout(2))
 
-    # The trigger should fire repeatedly for each newly added element,
-    # and at least once for advancing the watermark to infinity.
-    # The firings should accumulate the output.
-    # First firing: 1 = 1
-    # Second firing: 3 = 1 + 2
-    # Third firing: 6 = 1 + 2 + 3
-    # Fourth firing: 10 = 1 + 2 + 3 + 4
-    # Fifth firing: 15 = 1 + 2 + 3 + 4 + 5
-    # Next firings: 15 = 15 + 0  (advancing the watermark to infinity)
-    # The exact number of firings may vary,
-    # so we only compare the first 5 firings.
-    firings = [1, 3, 6, 10, 15]
-    self.assertListEqual(firings, CombineTest.all_records[:5])
-    assert_that(result, equal_to([15]))
+      # The frings for DISCARDING mode is [1, 2, 3, 4, 5, 0, 0].
+      firings = [1, 3, 6, 10, 15, 15, 15]
+      assert_that(result, equal_to(firings))
 
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
