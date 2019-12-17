@@ -133,6 +133,9 @@ class Pipeline(object):
       ~exceptions.ValueError: if either the runner or options argument is not
         of the expected type.
     """
+    # Initializing logging configuration in case the user did not set it up.
+    logging.basicConfig()
+
     if options is not None:
       if isinstance(options, PipelineOptions):
         self._options = options
