@@ -413,8 +413,9 @@ class CombineTest(unittest.TestCase):
       ts.add_elements([i])
     ts.advance_watermark_to_infinity()
 
-    with TestPipeline() as p:
-      p._options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
       result = (p
                 | ts
                 | beam.WindowInto(
