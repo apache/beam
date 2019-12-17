@@ -22,9 +22,11 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import TimestampedValue
 
@@ -34,6 +36,9 @@ try:
   from unittest.mock import patch
 except ImportError:
   from mock import patch
+
+_FOO_PUBSUB_SUB = 'projects/test-project/subscriptions/foo'
+_BAR_PUBSUB_SUB = 'projects/test-project/subscriptions/bar'
 
 
 def _build_a_test_stream_pipeline():
@@ -45,6 +50,17 @@ def _build_a_test_stream_pipeline():
   p = beam.Pipeline(runner=interactive_runner.InteractiveRunner())
   events = p | test_stream  # pylint: disable=possibly-unused-variable
   ib.watch(locals())
+  return p
+
+
+def _build_an_empty_stream_pipeline():
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import StandardOptions
+  pipeline_options = PipelineOptions()
+  pipeline_options.view_as(StandardOptions).streaming = True
+  p = beam.Pipeline(interactive_runner.InteractiveRunner(),
+                    options=pipeline_options)
+  ib.watch({'pipeline': p})
   return p
 
 
@@ -98,6 +114,89 @@ class BackgroundCachingJobTest(unittest.TestCase):
     # A new main job is started so result of the main job is set.
     self.assertIs(main_job_result,
                   ie.current_env().pipeline_result(p))
+
+  @patch('IPython.get_ipython', mock_get_ipython)
+  def test_unbounded_source_changed_when_pipeline_is_first_time_seen(self):
+    with mock_get_ipython():  # Cell 1
+      pipeline = _build_an_empty_stream_pipeline()
+
+    with mock_get_ipython():  # Cell 2
+      read_foo = pipeline | 'Read' >> beam.io.ReadFromPubSub(
+          subscription=_FOO_PUBSUB_SUB)
+      ib.watch({'read_foo': read_foo})
+
+    self.assertTrue(bcj.is_unbounded_source_changed(pipeline))
+
+  @patch('IPython.get_ipython', mock_get_ipython)
+  def test_unbounded_source_changed_when_new_unbounded_source_is_added(self):
+    with mock_get_ipython():  # Cell 1
+      pipeline = _build_an_empty_stream_pipeline()
+      read_foo = pipeline | 'Read' >> beam.io.ReadFromPubSub(
+          subscription=_FOO_PUBSUB_SUB)
+      ib.watch({'read_foo': read_foo})
+
+    # Sets the signature for current pipeline state.
+    ie.current_env().set_unbounded_source_signature(
+        pipeline, bcj.extract_unbounded_source_signature(pipeline))
+
+    with mock_get_ipython():  # Cell 2
+      read_bar = pipeline | 'Read' >> beam.io.ReadFromPubSub(
+          subscription=_BAR_PUBSUB_SUB)
+      ib.watch({'read_bar': read_bar})
+
+    self.assertTrue(bcj.is_unbounded_source_changed(pipeline))
+
+  @patch('IPython.get_ipython', mock_get_ipython)
+  def test_unbounded_source_changed_when_unbounded_source_is_altered(self):
+    with mock_get_ipython():  # Cell 1
+      pipeline = _build_an_empty_stream_pipeline()
+      transform = beam.io.ReadFromPubSub(
+          subscription=_FOO_PUBSUB_SUB)
+      read_foo = pipeline | 'Read' >> transform
+      ib.watch({'read_foo': read_foo})
+
+    # Sets the signature for current pipeline state.
+    ie.current_env().set_unbounded_source_signature(
+        pipeline, bcj.extract_unbounded_source_signature(pipeline))
+
+    with mock_get_ipython():  # Cell 2
+      from apache_beam.io.gcp.pubsub import _PubSubSource
+      # Alter the transform.
+      transform._source = _PubSubSource(subscription=_BAR_PUBSUB_SUB)
+
+    self.assertTrue(bcj.is_unbounded_source_changed(pipeline))
+
+  @patch('IPython.get_ipython', mock_get_ipython)
+  def test_unbounded_source_not_changed_for_same_unbounded_source(self):
+    with mock_get_ipython():  # Cell 1
+      pipeline = _build_an_empty_stream_pipeline()
+      transform = beam.io.ReadFromPubSub(
+          subscription='projects/test-project/subscriptions/dummy')
+
+    with mock_get_ipython():  # Cell 2
+      read_foo_1 = pipeline | 'Read' >> transform
+      ib.watch({'read_foo_1': read_foo_1})
+
+    # Sets the signature for current pipeline state.
+    ie.current_env().set_unbounded_source_signature(
+        pipeline, bcj.extract_unbounded_source_signature(pipeline))
+
+    with mock_get_ipython():  # Cell 3
+      # Apply exactly the same transform and the same instance.
+      read_foo_2 = pipeline | 'Read' >> transform
+      ib.watch({'read_foo_2': read_foo_2})
+
+    self.assertFalse(bcj.is_unbounded_source_changed(pipeline))
+
+    with mock_get_ipython():  # Cell 4
+      # Apply the same transform but represented in a different instance.
+      # The signature representing the urn and payload is still the same, so it
+      # is not treated as a new unbounded source.
+      read_foo_3 = pipeline | 'Read' >> beam.io.ReadFromPubSub(
+          subscription='projects/test-project/subscriptions/dummy')
+      ib.watch({'read_foo_3': read_foo_3})
+
+    self.assertFalse(bcj.is_unbounded_source_changed(pipeline))
 
 
 if __name__ == '__main__':
