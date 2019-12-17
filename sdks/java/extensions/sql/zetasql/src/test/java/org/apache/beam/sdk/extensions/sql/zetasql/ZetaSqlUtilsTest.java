@@ -44,17 +44,15 @@ public class ZetaSqlUtilsTest {
 
   private static final Schema TEST_SCHEMA =
       Schema.builder()
-          .addField("f1", FieldType.INT32)
-          .addField("f2", FieldType.INT64)
-          // .addField("f3", FieldType.DECIMAL)
-          .addField("f4", FieldType.FLOAT)
-          .addField("f5", FieldType.DOUBLE)
-          .addField("f6", FieldType.STRING)
-          .addField("f7", FieldType.DATETIME)
-          .addField("f8", FieldType.BOOLEAN)
-          .addField("f9", FieldType.BYTES)
-          .addArrayField("f10", FieldType.DOUBLE)
-          .addRowField("f11", TEST_INNER_SCHEMA)
+          .addField("f1", FieldType.INT64)
+          // .addField("f2", FieldType.DECIMAL)
+          .addField("f3", FieldType.DOUBLE)
+          .addField("f4", FieldType.STRING)
+          .addField("f5", FieldType.DATETIME)
+          .addField("f6", FieldType.BOOLEAN)
+          .addField("f7", FieldType.BYTES)
+          .addArrayField("f8", FieldType.DOUBLE)
+          .addRowField("f9", TEST_INNER_SCHEMA)
           .build();
 
   private static final FieldType TEST_FIELD_TYPE = FieldType.row(TEST_SCHEMA);
@@ -71,24 +69,20 @@ public class ZetaSqlUtilsTest {
   private static final StructType TEST_TYPE =
       TypeFactory.createStructType(
           Arrays.asList(
-              new StructField("f1", TypeFactory.createSimpleType(TypeKind.TYPE_INT32)),
-              new StructField("f2", TypeFactory.createSimpleType(TypeKind.TYPE_INT64)),
-              // new StructField("f3", TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC)),
-              new StructField("f4", TypeFactory.createSimpleType(TypeKind.TYPE_FLOAT)),
-              new StructField("f5", TypeFactory.createSimpleType(TypeKind.TYPE_DOUBLE)),
-              new StructField("f6", TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
-              new StructField("f7", TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
-              new StructField("f8", TypeFactory.createSimpleType(TypeKind.TYPE_BOOL)),
-              new StructField("f9", TypeFactory.createSimpleType(TypeKind.TYPE_BYTES)),
-              new StructField("f10", TEST_INNER_ARRAY_TYPE),
-              new StructField("f11", TEST_INNER_STRUCT_TYPE)));
+              new StructField("f1", TypeFactory.createSimpleType(TypeKind.TYPE_INT64)),
+              // new StructField("f2", TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC)),
+              new StructField("f3", TypeFactory.createSimpleType(TypeKind.TYPE_DOUBLE)),
+              new StructField("f4", TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
+              new StructField("f5", TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
+              new StructField("f6", TypeFactory.createSimpleType(TypeKind.TYPE_BOOL)),
+              new StructField("f7", TypeFactory.createSimpleType(TypeKind.TYPE_BYTES)),
+              new StructField("f8", TEST_INNER_ARRAY_TYPE),
+              new StructField("f9", TEST_INNER_STRUCT_TYPE)));
 
   private static final Row TEST_ROW =
       Row.withSchema(TEST_SCHEMA)
-          .addValue(32)
           .addValue(64L)
           // .addValue(BigDecimal.valueOf(9999L))
-          .addValue(3.14F)
           .addValue(5.0)
           .addValue("Hello")
           .addValue(Instant.ofEpochMilli(12345678L))
@@ -102,11 +96,9 @@ public class ZetaSqlUtilsTest {
       Value.createStructValue(
           TEST_TYPE,
           Arrays.asList(
-              Value.createInt32Value(32),
               Value.createInt64Value(64L),
               // TODO[BEAM-8630]: Value.createNumericValue() is broken due to a dependency issue
               // Value.createNumericValue(BigDecimal.valueOf(9999L)),
-              Value.createFloatValue(3.14F),
               Value.createDoubleValue(5.0),
               Value.createStringValue("Hello"),
               Value.createTimestampValueFromUnixMicros(12345678000L),
