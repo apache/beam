@@ -16,5 +16,4 @@
 #
 # TODO(BEAM-5414): latest grpcio-tools incompatible with latest protobuf 3.6.1.
 grpcio-tools>=1.3.5,<=1.14.2
-mypy-protobuf==1.12
 future==0.16.0
