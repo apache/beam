@@ -69,6 +69,19 @@ MAX_RETRIES = 3
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 
 
+class ExportFileFormat(object):
+  CSV = 'CSV'
+  JSON = 'NEWLINE_DELIMITED_JSON'
+  AVRO = 'AVRO'
+
+
+class ExportCompression(object):
+  GZIP = 'GZIP'
+  DEFLATE = 'DEFLATE'
+  SNAPPY = 'SNAPPY'
+  NONE = 'NONE'
+
+
 def default_encoder(obj):
   if isinstance(obj, decimal.Decimal):
     return str(obj)
@@ -359,7 +372,7 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _start_query_job(self, project_id, query, use_legacy_sql, flatten_results,
-                       job_id, dry_run=False):
+                       job_id, dry_run=False, kms_key=None):
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
@@ -369,13 +382,46 @@ class BigQueryWrapper(object):
                 query=bigquery.JobConfigurationQuery(
                     query=query,
                     useLegacySql=use_legacy_sql,
-                    allowLargeResults=True,
-                    destinationTable=self._get_temp_table(project_id),
-                    flattenResults=flatten_results)),
+                    allowLargeResults=not dry_run,
+                    destinationTable=self._get_temp_table(project_id) if not
+                    dry_run else None,
+                    flattenResults=flatten_results,
+                    destinationEncryptionConfiguration=bigquery
+                    .EncryptionConfiguration(kmsKeyName=kms_key))),
             jobReference=reference))
 
     response = self.client.jobs.Insert(request)
-    return response.jobReference.jobId, response.jobReference.location
+    return response
+
+  def wait_for_bq_job(self, job_reference, sleep_duration_sec=5,
+                      max_retries=60):
+    """Poll job until it is DONE.
+
+    Args:
+      job_reference: bigquery.JobReference instance.
+      sleep_duration_sec: Specifies the delay in seconds between retries.
+      max_retries: The total number of times to retry. If equals to 0,
+        the function waits forever.
+
+    Raises:
+      `RuntimeError`: If the job is FAILED or the number of retries has been
+        reached.
+    """
+    retry = 0
+    while True:
+      retry += 1
+      job = self.get_job(job_reference.projectId, job_reference.jobId,
+                         job_reference.location)
+      logging.info('Job status: %s', job.status.state)
+      if job.status.state == 'DONE' and job.status.errorResult:
+        raise RuntimeError('BigQuery job {} failed. Error Result: {}'.format(
+            job_reference.jobId, job.status.errorResult))
+      elif job.status.state == 'DONE':
+        return True
+      else:
+        time.sleep(sleep_duration_sec)
+        if max_retries != 0 and retry >= max_retries:
+          raise RuntimeError('The maximum number of retries has been reached')
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -601,6 +647,37 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def perform_extract_job(self, destination, job_id, table_reference,
+                          destination_format, include_header=True,
+                          compression=ExportCompression.NONE):
+    """Starts a job to export data from BigQuery.
+
+    Returns:
+      bigquery.JobReference with the information about the job that was started.
+    """
+    job_reference = bigquery.JobReference(jobId=job_id,
+                                          projectId=table_reference.projectId)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=table_reference.projectId,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                extract=bigquery.JobConfigurationExtract(
+                    destinationUris=destination,
+                    sourceTable=table_reference,
+                    printHeader=include_header,
+                    destinationFormat=destination_format,
+                    compression=compression,
+                )
+            ),
+            jobReference=job_reference,
+        )
+    )
+    response = self.client.jobs.Insert(request)
+    return response.jobReference
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_table(
       self, project_id, dataset_id, table_id, schema,
       create_disposition, write_disposition, additional_create_parameters=None):
@@ -700,10 +777,12 @@ class BigQueryWrapper(object):
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
-    job_id, location = self._start_query_job(project_id, query,
-                                             use_legacy_sql, flatten_results,
-                                             job_id=uuid.uuid4().hex,
-                                             dry_run=dry_run)
+    job = self._start_query_job(project_id, query, use_legacy_sql,
+                                flatten_results, job_id=uuid.uuid4().hex,
+                                dry_run=dry_run)
+    job_id = job.jobReference.jobId
+    location = job.jobReference.location
+
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
