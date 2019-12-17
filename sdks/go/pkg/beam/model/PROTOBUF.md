@@ -20,14 +20,24 @@
 # Rebuilding generated protobuf code
 
 If you make changes to .proto files, you will need to rebuild the generated Go code.
-To do that, you will need:
 
-* [The protobuf compiler](https://github.com/google/protobuf/releases)
-* A proper Go development setup per `BUILD.md` (variables GOPATH and GOBIN set properly)
-* `go get -u github.com/golang/protobuf/protoc-gen-go`
+First, follow this one-time setup:
 
-If all this setup is complete, simply run `go generate` in the current directory
-(`pkg/beam/model`).
+1. Download [the protobuf compiler](https://github.com/google/protobuf/releases).
+   The simplest approach is to download one of the prebuilt binaries and extract
+   it somewhere in your machine's `$PATH`.
+1. A properly installed Go development environment per [the official
+   instructions](https://golang.org/doc/install). `$GOPATH` must be set properly.
+   If it's not set, follow
+   [these instructions](https://github.com/golang/go/wiki/SettingGOPATH).
+1. Add `$GOBIN` to your `$PATH`. (Note: If `$GOBIN` is not set, add `$GOPATH/bin`
+   instead.)
+
+To generate the code:
+
+1. Navigate to this directory (`pkg/beam/model`).
+1. `go get -u github.com/golang/protobuf/protoc-gen-go`
+1. `go generate`
 
 ## Generated Go code fails to build
 
