@@ -38,7 +38,6 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
-import org.apache.beam.sdk.extensions.arrow.ArrowSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -151,7 +150,6 @@ public class ArrowSchemaTest {
       boolVector.set(i, i % 2);
       fixedSizeBinaryVector.set(i, new byte[] {(byte) i, (byte) (i + 1), (byte) (i + 2)});
     }
-
 
     assertThat(
         ArrowSchema.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
