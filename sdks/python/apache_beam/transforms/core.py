@@ -100,7 +100,7 @@ T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class DoFnContext(object):

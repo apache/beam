@@ -58,7 +58,7 @@ except ImportError:
   HttpError = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 _DESTINATION_ELEMENT_PAIRS = [
     # DESTINATION 1

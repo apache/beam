@@ -51,7 +51,7 @@ from apache_beam.utils import retry
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 @typehints.with_output_types(types.Entity)

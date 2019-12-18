@@ -45,7 +45,7 @@ from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 # This SDK harness will (by default), log a "lull" in processing if it sees no
 # transitions in over 5 minutes.

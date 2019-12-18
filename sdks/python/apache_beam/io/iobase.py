@@ -61,7 +61,7 @@ __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 # Encapsulates information about a bundle of a source generated when method

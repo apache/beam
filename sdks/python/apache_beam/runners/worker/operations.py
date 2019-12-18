@@ -67,7 +67,7 @@ _globally_windowed_value = GlobalWindows.windowed_value(None)
 _global_window_type = type(_globally_windowed_value.windows[0])
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class ConsumerSet(Receiver):

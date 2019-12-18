@@ -46,7 +46,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 ONE_TERABYTE = (1 << 40)
 

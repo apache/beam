@@ -50,7 +50,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):

@@ -34,7 +34,7 @@ __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class OffsetRangeTracker(iobase.RangeTracker):
