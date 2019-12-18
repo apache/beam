@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -46,19 +45,12 @@ public class ClasspathScanningResourcesDetectorTest {
 
   @Rule public transient RestoreSystemProperties systemProperties = new RestoreSystemProperties();
 
-  private ClasspathScanningResourcesDetector detector;
-
-  private ClassLoader classLoader;
-
-  @Before
-  public void setUp() {
-    detector = new ClasspathScanningResourcesDetector(new ClassGraph());
-  }
-
   @Test
   public void shouldDetectDirectories() throws Exception {
     File folder = tmpFolder.newFolder("folder1");
-    classLoader = new URLClassLoader(new URL[] {folder.toURI().toURL()});
+    ClassLoader classLoader = new URLClassLoader(new URL[] {folder.toURI().toURL()});
+    ClasspathScanningResourcesDetector detector =
+        new ClasspathScanningResourcesDetector(new ClassGraph());
 
     List<String> result = detector.detect(classLoader);
 
@@ -68,7 +60,9 @@ public class ClasspathScanningResourcesDetectorTest {
   @Test
   public void shouldDetectJarFiles() throws Exception {
     File jarFile = createTestTmpJarFile("test");
-    classLoader = new URLClassLoader(new URL[] {jarFile.toURI().toURL()});
+    ClassLoader classLoader = new URLClassLoader(new URL[] {jarFile.toURI().toURL()});
+    ClasspathScanningResourcesDetector detector =
+        new ClasspathScanningResourcesDetector(new ClassGraph());
 
     List<String> result = detector.detect(classLoader);
 
@@ -84,7 +78,9 @@ public class ClasspathScanningResourcesDetectorTest {
   @Test
   public void shouldNotDetectOrdinaryFiles() throws Exception {
     File textFile = tmpFolder.newFile("ordinaryTextFile.txt");
-    classLoader = new URLClassLoader(new URL[] {textFile.toURI().toURL()});
+    ClassLoader classLoader = new URLClassLoader(new URL[] {textFile.toURI().toURL()});
+    ClasspathScanningResourcesDetector detector =
+        new ClasspathScanningResourcesDetector(new ClassGraph());
 
     List<String> result = detector.detect(classLoader);
 
@@ -95,6 +91,8 @@ public class ClasspathScanningResourcesDetectorTest {
   public void shouldDetectClassPathResourceFromJavaClassPathEnvVariable() throws IOException {
     String path = tmpFolder.newFolder("folder").getAbsolutePath();
     System.setProperty("java.class.path", path);
+    ClasspathScanningResourcesDetector detector =
+        new ClasspathScanningResourcesDetector(new ClassGraph());
 
     List<String> resources = detector.detect(null);
 
@@ -104,7 +102,9 @@ public class ClasspathScanningResourcesDetectorTest {
   @Test
   public void shouldNotDetectClassPathResourceThatIsNotAFile() throws Exception {
     String url = "http://www.google.com/all-the-secrets.jar";
-    classLoader = new URLClassLoader(new URL[] {new URL(url)});
+    ClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
+    ClasspathScanningResourcesDetector detector =
+        new ClasspathScanningResourcesDetector(new ClassGraph());
 
     List<String> result = detector.detect(classLoader);
 
@@ -119,6 +119,8 @@ public class ClasspathScanningResourcesDetectorTest {
   @Test
   public void shouldStillDetectResourcesEvenIfClassloaderIsUseless() {
     ClassLoader uselessClassLoader = Mockito.mock(ClassLoader.class);
+    ClasspathScanningResourcesDetector detector =
+        new ClasspathScanningResourcesDetector(new ClassGraph());
 
     List<String> detectedResources = detector.detect(uselessClassLoader);
 
