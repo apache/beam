@@ -521,7 +521,7 @@ class S3Downloader(Downloader):
 
 
 class S3Uploader(Uploader):
-  def __init__(self, client, path, mime_type):
+  def __init__(self, client, path, mime_type='application/octet-stream'):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_s3_path(path)

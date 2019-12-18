@@ -46,7 +46,8 @@ class FakeFile(object):
     return messages.Item(self.etag,
                          self.key,
                          last_modified_datetime,
-                         len(self.contents))
+                         len(self.contents),
+                         mime_type=None)
 
 
 class FakeS3Client(object):

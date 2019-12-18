@@ -113,7 +113,7 @@ class Item():
   An item in S3
   """
 
-  def __init__(self, etag, key, last_modified, size, mime_type):
+  def __init__(self, etag, key, last_modified, size, mime_type=None):
     self.etag = etag
     self.key = key
     self.last_modified = last_modified
