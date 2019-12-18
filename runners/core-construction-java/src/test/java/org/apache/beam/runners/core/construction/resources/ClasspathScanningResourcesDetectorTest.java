@@ -21,6 +21,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInRelativeOrder;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 
@@ -67,6 +68,24 @@ public class ClasspathScanningResourcesDetectorTest {
     List<String> result = detector.detect(classLoader);
 
     assertThat(result, hasItem(containsString(jarFile.getAbsolutePath())));
+  }
+
+  @Test
+  public void shouldDetectResourcesInOrderTheyAppearInURLClassLoader() throws Exception {
+    File file1 = createTestTmpJarFile("test1");
+    File file2 = createTestTmpJarFile("test2");
+    ClassLoader classLoader =
+        new URLClassLoader(new URL[] {file1.toURI().toURL(), file2.toURI().toURL()});
+
+    ClasspathScanningResourcesDetector detector =
+        new ClasspathScanningResourcesDetector(new ClassGraph());
+
+    List<String> result = detector.detect(classLoader);
+
+    assertThat(
+        result,
+        containsInRelativeOrder(
+            containsString(file1.getAbsolutePath()), containsString(file2.getAbsolutePath())));
   }
 
   private File createTestTmpJarFile(String name) throws IOException {
