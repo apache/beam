@@ -23,6 +23,7 @@ import collections
 import json
 import os.path
 import pickle
+import random
 import unittest
 from builtins import range
 from builtins import zip
@@ -122,7 +123,8 @@ class TriggerTest(unittest.TestCase):
     state = InMemoryUnmergedState()
 
     for bundle in bundles:
-      for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
+      for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP,
+                                            MIN_TIMESTAMP):
         window, = wvalue.windows
         self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
@@ -131,13 +133,14 @@ class TriggerTest(unittest.TestCase):
       for timer_window, (name, time_domain, timestamp) in (
           state.get_and_clear_timers()):
         for wvalue in driver.process_timer(
-            timer_window, name, time_domain, timestamp, state):
+            timer_window, name, time_domain, timestamp, state, MIN_TIMESTAMP):
           window, = wvalue.windows
           self.assertEqual(window.max_timestamp(), wvalue.timestamp)
           actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
-      for wvalue in driver.process_elements(state, bundle, MAX_TIMESTAMP):
+      for wvalue in driver.process_elements(state, bundle, MAX_TIMESTAMP,
+                                            MAX_TIMESTAMP):
         window, = wvalue.windows
         self.assertEqual(window.max_timestamp(), wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
@@ -146,7 +149,7 @@ class TriggerTest(unittest.TestCase):
         for timer_window, (name, time_domain, timestamp) in (
             state.get_and_clear_timers()):
           for wvalue in driver.process_timer(
-              timer_window, name, time_domain, timestamp, state):
+              timer_window, name, time_domain, timestamp, state, MAX_TIMESTAMP):
             window, = wvalue.windows
             self.assertEqual(window.max_timestamp(), wvalue.timestamp)
             actual_panes[window].append(set(wvalue.value))
@@ -395,7 +398,7 @@ class TriggerTest(unittest.TestCase):
                    for k in range(10))
     with self.assertRaises(TypeError):
       pickle.dumps(unpicklable)
-    for unwindowed in driver.process_elements(None, unpicklable, None):
+    for unwindowed in driver.process_elements(None, unpicklable, None, None):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
                        list(range(10)))
 
@@ -644,7 +647,9 @@ def _windowed_value_info_map_fn(
           vs, windows=[window], timestamp=t, pane_info=p)))
 
 
-def _windowed_value_info_check(actual, expected):
+def _windowed_value_info_check(actual, expected, key=None):
+
+  key_string = ' for %s' % key if key else ''
 
   def format(panes):
     return '\n[%s]\n' % '\n '.join(str(pane) for pane in sorted(
@@ -652,12 +657,12 @@ def _windowed_value_info_check(actual, expected):
 
   if len(actual) > len(expected):
     raise AssertionError(
-        'Unexpected output: expected %s but got %s' % (
-            format(expected), format(actual)))
+        'Unexpected output%s: expected %s but got %s' % (
+            key_string, format(expected), format(actual)))
   elif len(expected) > len(actual):
     raise AssertionError(
-        'Unmatched output: expected %s but got %s' % (
-            format(expected), format(actual)))
+        'Unmatched output%s: expected %s but got %s' % (
+            key_string, format(expected), format(actual)))
   else:
 
     def diff(actual, expected):
@@ -670,8 +675,8 @@ def _windowed_value_info_check(actual, expected):
       diffs = [diff(output, pane) for pane in expected]
       if all(diffs):
         raise AssertionError(
-            'Unmatched output: %s not found in %s (diffs in %s)' % (
-                output, format(expected), diffs))
+            'Unmatched output%s: %s not found in %s (diffs in %s)' % (
+                key_string, output, format(expected), diffs))
 
 
 class _ConcatCombineFn(beam.CombineFn):
@@ -757,6 +762,19 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
     if runner_name in spec.get('broken_on', ()):
       self.skipTest('Known to be broken on %s' % runner_name)
 
+    is_order_agnostic = (
+        isinstance(trigger_fn, DefaultTrigger)
+        and accumulation_mode == AccumulationMode.ACCUMULATING)
+
+    if is_order_agnostic:
+      reshuffle_seed = random.randrange(1 << 20)
+      keys = [
+          u'original', u'reversed', u'reshuffled(%s)' % reshuffle_seed,
+          u'one-element-bundles', u'one-element-bundles-reversed',
+          u'two-element-bundles']
+    else:
+      keys = [u'key1', u'key2']
+
     # Elements are encoded as a json strings to allow other languages to
     # decode elements while executing the test stream.
     # TODO(BEAM-8600): Eliminate these gymnastics.
@@ -767,7 +785,28 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
       else:
         test_stream.add_elements([json.dumps(('expect', []))])
         if action == 'input':
-          test_stream.add_elements([json.dumps(('input', e)) for e in params])
+          def keyed(key, values):
+            return [json.dumps(('input', (key, v))) for v in values]
+          if is_order_agnostic:
+            # Must match keys above.
+            test_stream.add_elements(keyed('original', params))
+            test_stream.add_elements(keyed('reversed', reversed(params)))
+            r = random.Random(reshuffle_seed)
+            reshuffled = list(params)
+            r.shuffle(reshuffled)
+            test_stream.add_elements(keyed(
+                'reshuffled(%s)' % reshuffle_seed, reshuffled))
+            for v in params:
+              test_stream.add_elements(keyed('one-element-bundles', [v]))
+            for v in reversed(params):
+              test_stream.add_elements(
+                  keyed('one-element-bundles-reversed', [v]))
+            for ix in range(0, len(params), 2):
+              test_stream.add_elements(
+                  keyed('two-element-bundles', params[ix:ix+2]))
+          else:
+            for key in keys:
+              test_stream.add_elements(keyed(key, params))
         elif action == 'watermark':
           test_stream.advance_watermark_to(params)
         elif action == 'clock':
@@ -806,7 +845,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
               beam.transforms.userstate.BagStateSpec(
                   'expected',
                   beam.coders.FastPrimitivesCoder()))):
-        _, (action, data) = element
+        key, (action, data) = element
 
         if self.allow_out_of_order:
           if action == 'expect' and not list(seen.read()):
@@ -831,7 +870,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
         elif action == 'expect':
           actual = list(seen.read())
           seen.clear()
-          _windowed_value_info_check(actual, data)
+          _windowed_value_info_check(actual, data, key)
 
         else:
           raise ValueError('Unexpected action: %s' % action)
@@ -842,11 +881,9 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
       # a branch of expected results.
       inputs, expected = (
           inputs_and_expected
-          | beam.FlatMapTuple(
-              lambda tag, value: [
-                  beam.pvalue.TaggedOutput(tag, ('key1', value)),
-                  beam.pvalue.TaggedOutput(tag, ('key2', value)),
-              ]).with_outputs('input', 'expect'))
+          | beam.MapTuple(
+              lambda tag, value: beam.pvalue.TaggedOutput(tag, value),
+              ).with_outputs('input', 'expect'))
 
       # Process the inputs with the given windowing to produce actual outputs.
       outputs = (
@@ -865,7 +902,8 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
           | 'Global' >> beam.WindowInto(beam.transforms.window.GlobalWindows()))
       # Feed both the expected and actual outputs to Check() for comparison.
       tagged_expected = (
-          expected | beam.MapTuple(lambda key, value: (key, ('expect', value))))
+          expected | beam.FlatMap(
+              lambda value: [(key, ('expect', value)) for key in keys]))
       tagged_outputs = (
           outputs | beam.MapTuple(lambda key, value: (key, ('actual', value))))
       # pylint: disable=expression-not-assigned

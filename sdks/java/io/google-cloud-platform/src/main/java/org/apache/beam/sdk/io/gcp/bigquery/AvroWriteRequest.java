@@ -23,7 +23,7 @@ public class AvroWriteRequest<T> {
   private final T element;
   private final Schema schema;
 
-  AvroWriteRequest(T element, Schema schema) {
+  public AvroWriteRequest(T element, Schema schema) {
     this.element = element;
     this.schema = schema;
   }

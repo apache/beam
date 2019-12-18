@@ -88,6 +88,13 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   void setEnvironmentExpirationMillis(int environmentExpirationMillis);
 
+  @Description(
+      "Specifies if bundles should be distributed to the next available free SDK worker. By default SDK workers are pinned to runner tasks for the duration of the pipeline. This option can help for pipelines with long and skewed bundle execution times to increase throughput and improve worker utilization.")
+  @Default.Boolean(false)
+  boolean getLoadBalanceBundles();
+
+  void setLoadBalanceBundles(boolean loadBalanceBundles);
+
   @Description("The output path for the executable file to be created.")
   @Nullable
   String getOutputExecutablePath();

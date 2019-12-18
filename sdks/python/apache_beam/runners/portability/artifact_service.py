@@ -26,6 +26,7 @@ import hashlib
 import sys
 import threading
 import zipfile
+from typing import Iterator
 
 from google.protobuf import json_format
 
@@ -48,39 +49,49 @@ class AbstractArtifactService(
     return hashlib.sha256(string.encode('utf-8')).hexdigest()
 
   def _join(self, *args):
+    # type: (*str) -> str
     raise NotImplementedError(type(self))
 
   def _dirname(self, path):
+    # type: (str) -> str
     raise NotImplementedError(type(self))
 
   def _temp_path(self, path):
+    # type: (str) -> str
     return path + '.tmp'
 
   def _open(self, path, mode):
     raise NotImplementedError(type(self))
 
   def _rename(self, src, dest):
+    # type: (str, str) -> None
     raise NotImplementedError(type(self))
 
   def _delete(self, path):
+    # type: (str) -> None
     raise NotImplementedError(type(self))
 
   def _artifact_path(self, retrieval_token, name):
+    # type: (str, str) -> str
     return self._join(self._dirname(retrieval_token), self._sha256(name))
 
   def _manifest_path(self, retrieval_token):
+    # type: (str) -> str
     return retrieval_token
 
   def _get_manifest_proxy(self, retrieval_token):
+    # type: (str) -> beam_artifact_api_pb2.ProxyManifest
     with self._open(self._manifest_path(retrieval_token), 'r') as fin:
       return json_format.Parse(
           fin.read().decode('utf-8'), beam_artifact_api_pb2.ProxyManifest())
 
   def retrieval_token(self, staging_session_token):
+    # type: (str) -> str
     return self._join(
         self._root, self._sha256(staging_session_token), 'MANIFEST')
 
   def PutArtifact(self, request_iterator, context=None):
+    # type: (...) -> beam_artifact_api_pb2.PutArtifactResponse
     first = True
     for request in request_iterator:
       if first:
@@ -104,7 +115,10 @@ class AbstractArtifactService(
     self._rename(temp_path, artifact_path)
     return beam_artifact_api_pb2.PutArtifactResponse()
 
-  def CommitManifest(self, request, context=None):
+  def CommitManifest(self,
+                     request,  # type: beam_artifact_api_pb2.CommitManifestRequest
+                     context=None):
+    # type: (...) -> beam_artifact_api_pb2.CommitManifestResponse
     retrieval_token = self.retrieval_token(request.staging_session_token)
     proxy_manifest = beam_artifact_api_pb2.ProxyManifest(
         manifest=request.manifest,
@@ -118,11 +132,17 @@ class AbstractArtifactService(
     return beam_artifact_api_pb2.CommitManifestResponse(
         retrieval_token=retrieval_token)
 
-  def GetManifest(self, request, context=None):
+  def GetManifest(self,
+                  request,  # type: beam_artifact_api_pb2.GetManifestRequest
+                  context=None):
+    # type: (...) -> beam_artifact_api_pb2.GetManifestResponse
     return beam_artifact_api_pb2.GetManifestResponse(
         manifest=self._get_manifest_proxy(request.retrieval_token).manifest)
 
-  def GetArtifact(self, request, context=None):
+  def GetArtifact(self,
+                  request,  # type: beam_artifact_api_pb2.GetArtifactRequest
+                  context=None):
+    # type: (...) -> Iterator[beam_artifact_api_pb2.ArtifactChunk]
     for artifact in self._get_manifest_proxy(request.retrieval_token).location:
       if artifact.name == request.name:
         with self._open(artifact.uri, 'r') as fin:
@@ -146,32 +166,41 @@ class ZipFileArtifactService(AbstractArtifactService):
   Writing to zip files requires Python 3.6+.
   """
 
-  def __init__(self, path, chunk_size=None):
+  def __init__(self, path, internal_root, chunk_size=None):
     if sys.version_info < (3, 6):
       raise RuntimeError(
           'Writing to zip files requires Python 3.6+, '
           'but current version is %s' % sys.version)
-    super(ZipFileArtifactService, self).__init__('', chunk_size)
+    super(ZipFileArtifactService, self).__init__(internal_root, chunk_size)
     self._zipfile = zipfile.ZipFile(path, 'a')
     self._lock = threading.Lock()
 
   def _join(self, *args):
+    # type: (*str) -> str
     return '/'.join(args)
 
   def _dirname(self, path):
+    # type: (str) -> str
     return path.rsplit('/', 1)[0]
 
   def _temp_path(self, path):
+    # type: (str) -> str
     return path  # ZipFile offers no move operation.
 
   def _rename(self, src, dest):
+    # type: (str, str) -> None
     assert src == dest
 
   def _delete(self, path):
+    # type: (str) -> None
     # ZipFile offers no delete operation: https://bugs.python.org/issue6818
     pass
 
   def _open(self, path, mode):
+    if path.startswith('/'):
+      raise ValueError(
+          'ZIP file entry %s invalid: '
+          'path must not contain a leading slash.' % path)
     return self._zipfile.open(path, mode, force_zip64=True)
 
   def PutArtifact(self, request_iterator, context=None):
@@ -205,15 +234,19 @@ class ZipFileArtifactService(AbstractArtifactService):
 class BeamFilesystemArtifactService(AbstractArtifactService):
 
   def _join(self, *args):
+    # type: (*str) -> str
     return filesystems.FileSystems.join(*args)
 
   def _dirname(self, path):
+    # type: (str) -> str
     return filesystems.FileSystems.split(path)[0]
 
   def _rename(self, src, dest):
+    # type: (str, str) -> None
     filesystems.FileSystems.rename([src], [dest])
 
   def _delete(self, path):
+    # type: (str) -> None
     filesystems.FileSystems.delete([path])
 
   def _open(self, path, mode='r'):

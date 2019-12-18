@@ -53,6 +53,7 @@ public class PropertyNames {
   public static final String PUBSUB_TOPIC_OVERRIDE = "pubsub_topic_runtime_override";
   public static final String SCALAR_FIELD_NAME = "value";
   public static final String SERIALIZED_FN = "serialized_fn";
+  public static final String SERIALIZED_TEST_STREAM = "serialized_test_stream";
   public static final String SORT_VALUES = "sort_values";
   public static final String TUPLE_TAGS = "tuple_tags";
   public static final String USE_INDEXED_FORMAT = "use_indexed_format";

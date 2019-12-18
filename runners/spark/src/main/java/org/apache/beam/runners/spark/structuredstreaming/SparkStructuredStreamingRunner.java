@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -111,7 +111,8 @@ public final class SparkStructuredStreamingRunner
 
     if (sparkOptions.getFilesToStage() == null) {
       sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkStructuredStreamingRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(
+              SparkStructuredStreamingRunner.class.getClassLoader(), options));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "

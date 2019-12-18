@@ -29,8 +29,13 @@ import threading
 from builtins import hex
 from builtins import object
 from collections import namedtuple
+from typing import TYPE_CHECKING
+from typing import Dict
 
 from apache_beam.transforms import cy_combiners
+
+if TYPE_CHECKING:
+  from apache_beam.transforms import core
 
 # Information identifying the IO being measured by a counter.
 #
@@ -45,6 +50,7 @@ IOTargetName = namedtuple('IOTargetName', ['requesting_step_name',
 
 
 def side_input_id(step_name, input_index):
+  # type: (str, int) -> IOTargetName
   """Create an IOTargetName that identifies the reading of a side input.
 
   Given a step "s4" that receives two side inputs, then the CounterName
@@ -60,6 +66,7 @@ def side_input_id(step_name, input_index):
 
 
 def shuffle_id(step_name):
+  # type: (str) -> IOTargetName
   """Create an IOTargetName that identifies a GBK step.
 
   Given a step "s6" that is downstream from a GBK "s5", then "s6" will read
@@ -141,6 +148,7 @@ class Counter(object):
   DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
   def __init__(self, name, combine_fn):
+    # type: (CounterName, core.CombineFn) -> None
     """Creates a Counter object.
 
     Args:
@@ -177,6 +185,7 @@ class AccumulatorCombineFnCounter(Counter):
   """Counter optimized for a mutating accumulator that holds all the logic."""
 
   def __init__(self, name, combine_fn):
+    # type: (CounterName, cy_combiners.AccumulatorCombineFn) -> None
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
     super(AccumulatorCombineFnCounter, self).__init__(name, combine_fn)
     self.reset()
@@ -193,12 +202,13 @@ class CounterFactory(object):
   """Keeps track of unique counters."""
 
   def __init__(self):
-    self.counters = {}
+    self.counters = {}  # type: Dict[CounterName, Counter]
 
     # Lock to be acquired when accessing the counters map.
     self._lock = threading.Lock()
 
   def get_counter(self, name, combine_fn):
+    # type: (CounterName, core.CombineFn) -> Counter
     """Returns a counter with the requested name.
 
     Passing in the same name will return the same counter; the

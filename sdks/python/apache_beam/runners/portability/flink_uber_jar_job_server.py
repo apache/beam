@@ -105,6 +105,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
       [PIPELINE_FOLDER, PIPELINE_NAME, 'pipeline-options.json'])
   ARTIFACT_MANIFEST_PATH = '/'.join(
       [PIPELINE_FOLDER, PIPELINE_NAME, 'artifact-manifest.json'])
+  ARTIFACT_FOLDER = '/'.join([PIPELINE_FOLDER, PIPELINE_NAME, 'artifacts'])
 
   def __init__(
       self, master_url, executable_jar, job_id, job_name, pipeline, options,
@@ -134,7 +135,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
 
   def _start_artifact_service(self, jar, requested_port):
     self._artifact_staging_service = artifact_service.ZipFileArtifactService(
-        jar)
+        jar, self.ARTIFACT_FOLDER)
     self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
     port = self._artifact_staging_server.add_insecure_port(
         '[::]:%s' % requested_port)

@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
@@ -124,12 +125,13 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   }
 
   @Override
-  public void open(Configuration parameters) throws Exception {
+  public void open(Configuration parameters) {
+    FlinkPipelineOptions options = pipelineOptions.get().as(FlinkPipelineOptions.class);
     // Register standard file systems.
-    FileSystems.setDefaultPipelineOptions(pipelineOptions.get());
+    FileSystems.setDefaultPipelineOptions(options);
     executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
-    container = new FlinkMetricContainer(getRuntimeContext());
+    container = new FlinkMetricContainer(runtimeContext, options.getDisableMetricAccumulator());
     // TODO: Wire this into the distributed cache and make it pluggable.
     stageContext = contextFactory.get(jobInfo);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);

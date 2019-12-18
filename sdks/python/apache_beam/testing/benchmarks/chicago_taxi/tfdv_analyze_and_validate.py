@@ -29,7 +29,7 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 
-from google.protobuf import text_format
+from google.protobuf import text_format  # type: ignore  # typeshed out of date
 from trainer import taxi
 
 
@@ -128,7 +128,7 @@ def compute_stats(input_handle,
 
 
 def main():
-  tf.logging.set_verbosity(tf.logging.INFO)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
   parser = argparse.ArgumentParser()
   parser.add_argument(

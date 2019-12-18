@@ -55,24 +55,6 @@ transcript:
       - {window: [20, 29], values: [25], timestamp: 25, late: false}
 
 ---
-name: timestamp_combiner_earliest_separate_bundles
-window_fn: FixedWindows(10)
-trigger_fn: Default
-timestamp_combiner: OUTPUT_AT_EARLIEST
-transcript:
-  - input: [1]
-  - input: [2]
-  - input: [3]
-  - input: [10]
-  - input: [11]
-  - input: [25]
-  - watermark: 100
-  - expect:
-      - {window: [0, 9], values: [1, 2, 3], timestamp: 1, final: false}
-      - {window: [10, 19], values: [10, 11], timestamp: 10}
-      - {window: [20, 29], values: [25], timestamp: 25, late: false}
-
----
 name: timestamp_combiner_latest
 window_fn: FixedWindows(10)
 trigger_fn: Default

@@ -220,7 +220,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     context = ctx;
 
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
+    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
+    FlinkMetricContainer metricContainer =
+        new FlinkMetricContainer(getRuntimeContext(), options.getDisableMetricAccumulator());
 
     ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);

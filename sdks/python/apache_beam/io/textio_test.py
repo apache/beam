@@ -1113,7 +1113,7 @@ class TextSinkTest(unittest.TestCase):
       with open(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
-    self.assertEqual(read_result, self.lines)
+    self.assertEqual(sorted(read_result), sorted(self.lines))
 
   def test_write_dataflow_auto_compression(self):
     pipeline = TestPipeline()
@@ -1126,7 +1126,7 @@ class TextSinkTest(unittest.TestCase):
       with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
-    self.assertEqual(read_result, self.lines)
+    self.assertEqual(sorted(read_result), sorted(self.lines))
 
   def test_write_dataflow_auto_compression_unsharded(self):
     pipeline = TestPipeline()
@@ -1142,7 +1142,7 @@ class TextSinkTest(unittest.TestCase):
       with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
-    self.assertEqual(read_result, self.lines)
+    self.assertEqual(sorted(read_result), sorted(self.lines))
 
   def test_write_dataflow_header(self):
     pipeline = TestPipeline()
@@ -1159,7 +1159,8 @@ class TextSinkTest(unittest.TestCase):
       with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
     # header_text is automatically encoded in WriteToText
-    self.assertEqual(read_result, [header_text.encode('utf-8')] + self.lines)
+    self.assertEqual(read_result[0], header_text.encode('utf-8'))
+    self.assertEqual(sorted(read_result[1:]), sorted(self.lines))
 
 
 if __name__ == '__main__':

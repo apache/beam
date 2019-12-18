@@ -19,10 +19,10 @@ package org.apache.beam.runners.samza;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.samza.config.TaskConfig.MAX_CONCURRENCY;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.samza.config.TaskConfig;
 
 /** Validates that the {@link SamzaPipelineOptions} conforms to all the criteria. */
 public class SamzaPipelineOptionsValidator {
@@ -41,7 +41,7 @@ public class SamzaPipelineOptionsValidator {
           isPortable(pipelineOptions),
           "Bundling is not supported in non portable mode. Please disable by setting maxBundleSize to 1.");
 
-      String taskConcurrencyConfig = TaskConfig.MAX_CONCURRENCY();
+      String taskConcurrencyConfig = MAX_CONCURRENCY;
       Map<String, String> configs =
           pipelineOptions.getConfigOverride() == null
               ? new HashMap<>()

@@ -31,13 +31,13 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
-from apache_beam.runners.utils import is_interactive
+from apache_beam.utils.interactive_utils import is_in_ipython
+from apache_beam.utils.interactive_utils import is_in_notebook
 
 # Interactive Beam user flow is data-centric rather than pipeline-centric, so
 # there is only one global interactive environment instance that manages
 # implementation that enables interactivity.
 _interactive_beam_env = None
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +84,7 @@ class InteractiveEnvironment(object):
     # InteractiveRunner is responsible for populating this dictionary
     # implicitly.
     self._pipeline_results = {}
+    self._tracked_user_pipelines = set()
     # Always watch __main__ module.
     self.watch('__main__')
     # Do a warning level logging if current python version is below 3.6.
@@ -106,7 +107,8 @@ class InteractiveEnvironment(object):
                       'install apache-beam[interactive]` to install necessary '
                       'dependencies to enable all data visualization features.')
 
-    self._is_in_ipython, self._is_in_notebook = is_interactive()
+    self._is_in_ipython = is_in_ipython()
+    self._is_in_notebook = is_in_notebook()
     if not self._is_in_ipython:
       _LOGGER.warning('You cannot use Interactive Beam features when you are '
                       'not in an interactive environment such as a Jupyter '
@@ -221,3 +223,33 @@ class InteractiveEnvironment(object):
     if result:
       return runner.PipelineState.is_terminal(result.state)
     return True
+
+  def track_user_pipelines(self):
+    """Record references to all user-defined pipeline instances watched in
+    current environment.
+
+    Current static global singleton interactive environment holds references to
+    a set of pipeline instances defined by the user in the watched scope.
+    Interactive Beam features could use the references to determine if a given
+    pipeline is defined by user or implicitly created by Beam SDK or runners,
+    then handle them differently.
+
+    This is invoked every time a PTransform is to be applied if the current
+    code execution is under ipython due to the possibility that any user-defined
+    pipeline can be re-evaluated through notebook cell re-execution at any time.
+
+    Each time this is invoked, the tracked user pipelines are refreshed to
+    remove any pipeline instances that are no longer in watched scope. For
+    example, after a notebook cell re-execution re-evaluating a pipeline
+    creation, the last pipeline reference created by last evaluation will not be
+    in watched scope anymore.
+    """
+    self._tracked_user_pipelines = set()
+    for watching in self.watching():
+      for _, val in watching:
+        if isinstance(val, beam.pipeline.Pipeline):
+          self._tracked_user_pipelines.add(val)
+
+  @property
+  def tracked_user_pipelines(self):
+    return self._tracked_user_pipelines
