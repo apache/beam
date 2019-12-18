@@ -98,3 +98,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
     # A new main job is started so result of the main job is set.
     self.assertIs(main_job_result,
                   ie.current_env().pipeline_result(p))
+
+
+if __name__ == '__main__':
+  unittest.main()
