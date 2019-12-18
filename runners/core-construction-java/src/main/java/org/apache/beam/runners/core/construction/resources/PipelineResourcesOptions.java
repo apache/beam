@@ -32,11 +32,10 @@ public interface PipelineResourcesOptions extends PipelineOptions {
       "The class of the pipeline resources detector factory that should be created and used to create "
           + "the detector. If not set explicitly, a default class will be used to instantiate the factory.")
   @Default.Class(ClasspathScanningResourcesDetectorFactory.class)
-  Class<? extends PipelineResourcesDetectorAbstractFactory>
-      getPipelineResourcesDetectorFactoryClass();
+  Class<? extends PipelineResourcesDetector.Factory> getPipelineResourcesDetectorFactoryClass();
 
   void setPipelineResourcesDetectorFactoryClass(
-      Class<? extends PipelineResourcesDetectorAbstractFactory> factoryClass);
+      Class<? extends PipelineResourcesDetector.Factory> factoryClass);
 
   @JsonIgnore
   @Description(
@@ -52,8 +51,8 @@ public interface PipelineResourcesOptions extends PipelineOptions {
     public PipelineResourcesDetector create(PipelineOptions options) {
       PipelineResourcesOptions resourcesOptions = options.as(PipelineResourcesOptions.class);
 
-      PipelineResourcesDetectorAbstractFactory resourcesToStage =
-          InstanceBuilder.ofType(PipelineResourcesDetectorAbstractFactory.class)
+      PipelineResourcesDetector.Factory resourcesToStage =
+          InstanceBuilder.ofType(PipelineResourcesDetector.Factory.class)
               .fromClass(resourcesOptions.getPipelineResourcesDetectorFactoryClass())
               .fromFactoryMethod("create")
               .build();
@@ -62,8 +61,7 @@ public interface PipelineResourcesOptions extends PipelineOptions {
     }
   }
 
-  class ClasspathScanningResourcesDetectorFactory
-      implements PipelineResourcesDetectorAbstractFactory {
+  class ClasspathScanningResourcesDetectorFactory implements PipelineResourcesDetector.Factory {
 
     public static ClasspathScanningResourcesDetectorFactory create() {
       return new ClasspathScanningResourcesDetectorFactory();
