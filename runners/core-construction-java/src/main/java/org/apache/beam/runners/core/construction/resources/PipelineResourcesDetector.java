@@ -18,12 +18,12 @@
 package org.apache.beam.runners.core.construction.resources;
 
 import java.io.Serializable;
-import java.util.stream.Stream;
+import java.util.List;
 
 /** Interface for an algorithm detecting classpath resources for pipelines. */
 public interface PipelineResourcesDetector extends Serializable {
 
-  Stream<String> detect(ClassLoader classLoader);
+  List<String> detect(ClassLoader classLoader);
 
   /** Provides pipeline resources detection algorithm. */
   interface Factory {

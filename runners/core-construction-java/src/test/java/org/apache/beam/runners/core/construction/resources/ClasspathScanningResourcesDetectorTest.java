@@ -33,7 +33,6 @@ import java.net.URLClassLoader;
 import java.util.List;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,7 +60,7 @@ public class ClasspathScanningResourcesDetectorTest {
     File folder = tmpFolder.newFolder("folder1");
     classLoader = new URLClassLoader(new URL[] {folder.toURI().toURL()});
 
-    List<String> result = detector.detect(classLoader).collect(Collectors.toList());
+    List<String> result = detector.detect(classLoader);
 
     assertThat(result, hasItem(containsString(folder.getAbsolutePath())));
   }
@@ -71,7 +70,7 @@ public class ClasspathScanningResourcesDetectorTest {
     File jarFile = createTestTmpJarFile("test");
     classLoader = new URLClassLoader(new URL[] {jarFile.toURI().toURL()});
 
-    List<String> result = detector.detect(classLoader).collect(Collectors.toList());
+    List<String> result = detector.detect(classLoader);
 
     assertThat(result, hasItem(containsString(jarFile.getAbsolutePath())));
   }
@@ -87,7 +86,7 @@ public class ClasspathScanningResourcesDetectorTest {
     File textFile = tmpFolder.newFile("ordinaryTextFile.txt");
     classLoader = new URLClassLoader(new URL[] {textFile.toURI().toURL()});
 
-    List<String> result = detector.detect(classLoader).collect(Collectors.toList());
+    List<String> result = detector.detect(classLoader);
 
     assertThat(result, not(hasItem(containsString(textFile.getAbsolutePath()))));
   }
@@ -97,7 +96,7 @@ public class ClasspathScanningResourcesDetectorTest {
     String path = tmpFolder.newFolder("folder").getAbsolutePath();
     System.setProperty("java.class.path", path);
 
-    List<String> resources = detector.detect(null).collect(Collectors.toList());
+    List<String> resources = detector.detect(null);
 
     assertThat(resources, hasItems(containsString(path)));
   }
@@ -107,7 +106,7 @@ public class ClasspathScanningResourcesDetectorTest {
     String url = "http://www.google.com/all-the-secrets.jar";
     classLoader = new URLClassLoader(new URL[] {new URL(url)});
 
-    List<String> result = detector.detect(classLoader).collect(Collectors.toList());
+    List<String> result = detector.detect(classLoader);
 
     assertThat(result, not(hasItem(containsString(url))));
   }
@@ -121,8 +120,7 @@ public class ClasspathScanningResourcesDetectorTest {
   public void shouldStillDetectResourcesEvenIfClassloaderIsUseless() {
     ClassLoader uselessClassLoader = Mockito.mock(ClassLoader.class);
 
-    List<String> detectedResources =
-        detector.detect(uselessClassLoader).collect(Collectors.toList());
+    List<String> detectedResources = detector.detect(uselessClassLoader);
 
     assertFalse(detectedResources.isEmpty());
   }
