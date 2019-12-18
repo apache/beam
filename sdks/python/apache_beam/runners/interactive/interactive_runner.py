@@ -29,10 +29,10 @@ import logging
 import apache_beam as beam
 from apache_beam import runners
 from apache_beam.runners.direct import direct_runner
-from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
+from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive.display import pipeline_graph
 
 # size of PCollection samples cached.

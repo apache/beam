@@ -33,7 +33,6 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
 
 
-
 def print_with_message(msg):
   def printer(elem):
     print(msg, elem)

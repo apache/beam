@@ -67,14 +67,15 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
     ie.current_env().set_pipeline_result(user_pipeline,
                                          background_caching_job_result,
                                          is_main_job=False)
+    return background_caching_job_result
+  return None
 
 def is_background_caching_job_needed(user_pipeline):
   """Determines if a background caching job needs to be started."""
   background_caching_job_result = ie.current_env().pipeline_result(
       user_pipeline, is_main_job=False)
-  from apache_beam.runners.interactive import pipeline_instrument as instr
-  # Checks if the pipeline contains unbounded sources.
-  return (instr.has_unbounded_sources(user_pipeline) and
+  # Checks if the pipeline contains any source that needs to be cached.
+  return (has_source_to_cache(user_pipeline) and
           # Checks if it's the first time running a job from the pipeline.
           (not background_caching_job_result or
            # Or checks if there is no valid previous job.
@@ -85,6 +86,14 @@ def is_background_caching_job_needed(user_pipeline):
                # RUNNING means a previous job has been started and is still
                # running.
                runners.runner.PipelineState.RUNNING)))
+
+def has_source_to_cache(user_pipeline):
+  """Determines if a user-defined pipeline contains any source that need to be
+  cached."""
+  from apache_beam.runners.interactive import pipeline_instrument as instr
+  # We temporarily only cache replaceable unbounded sources. Add other cacheable
+  # source logic here when they are available.
+  return instr.has_unbounded_sources(user_pipeline)
 
 def attempt_to_cancel_background_caching_job(user_pipeline):
   """Attempts to cancel background caching job for a user-defined pipeline.
