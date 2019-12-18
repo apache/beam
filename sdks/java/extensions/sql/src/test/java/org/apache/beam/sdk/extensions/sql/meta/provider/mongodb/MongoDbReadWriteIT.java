@@ -30,6 +30,7 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 
+import com.google.common.collect.ImmutableList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -297,6 +298,17 @@ public class MongoDbReadWriteIT {
 
   @Test
   public void testPredicatePushDown() {
+    final Document expectedFilter =
+        new Document()
+            .append(
+                "$or",
+                ImmutableList.of(
+                        new Document("c_varchar", "varchar"),
+                        new Document(
+                            "c_varchar", new Document("$not", new Document("$eq", "fakeString"))))
+                    .asList())
+            .append("c_boolean", true)
+            .append("c_integer", 2147483647);
     final Schema expectedSchema =
         Schema.builder()
             .addNullableField("c_varchar", STRING)
@@ -358,7 +370,31 @@ public class MongoDbReadWriteIT {
 
     readPipeline.run().waitUntilFinish();
 
-    // TODO: check `system.profile`
+    MongoDatabase db = client.getDatabase(database);
+    MongoCollection coll = db.getCollection("system.profile");
+    // Find the last executed query.
+    Object query =
+        coll.find()
+            .filter(Filters.eq("op", "query"))
+            .sort(new BasicDBObject().append("ts", -1))
+            .iterator()
+            .next();
+
+    // Retrieve a projection parameters.
+    assertThat(query, instanceOf(Document.class));
+    Object command = ((Document) query).get("command");
+    assertThat(command, instanceOf(Document.class));
+    Object filter = ((Document) command).get("filter");
+    assertThat(filter, instanceOf(Document.class));
+    Object projection = ((Document) command).get("projection");
+    assertThat(projection, instanceOf(Document.class));
+
+    // Validate projected fields.
+    assertThat(
+        ((Document) projection).keySet(),
+        containsInAnyOrder("c_varchar", "c_boolean", "c_integer"));
+    // Validate filtered fields.
+    assertThat(((Document) filter), equalTo(expectedFilter));
   }
 
   private Row row(Schema schema, Object... values) {
