@@ -220,26 +220,32 @@ public class HadoopFormatIOIT {
   private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(
       String uuid, String timestamp) {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(getTimeMetric(uuid, timestamp, "write_time"));
     suppliers.add(
-        reader -> {
-          long writeStart = reader.getStartTimeMetric("write_time");
-          long writeEnd = reader.getEndTimeMetric("write_time");
-          return NamedTestResult.create(
-              uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
-        });
+        reader ->
+            NamedTestResult.create(
+                uuid,
+                timestamp,
+                "data_size",
+                DatabaseTestHelper.getPostgresTableSize(dataSource, tableName)
+                    .orElseThrow(() -> new IllegalStateException("Unable to fetch table size"))));
     return suppliers;
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(
       String uuid, String timestamp) {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
-    suppliers.add(
-        reader -> {
-          long readStart = reader.getStartTimeMetric("read_time");
-          long readEnd = reader.getEndTimeMetric("read_time");
-          return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
-        });
+    suppliers.add(getTimeMetric(uuid, timestamp, "read_time"));
     return suppliers;
+  }
+
+  private Function<MetricsReader, NamedTestResult> getTimeMetric(
+      final String uuid, final String timestamp, final String metricName) {
+    return reader -> {
+      long startTime = reader.getStartTimeMetric(metricName);
+      long endTime = reader.getEndTimeMetric(metricName);
+      return NamedTestResult.create(uuid, timestamp, metricName, (endTime - startTime) / 1e3);
+    };
   }
 
   /**
