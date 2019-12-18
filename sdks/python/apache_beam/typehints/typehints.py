@@ -1174,7 +1174,7 @@ def get_yielded_type(type_hint):
   """Obtains the type of elements yielded by an iterable.
 
   Note that "iterable" here means: can be iterated over in a for loop, excluding
-  strings.
+  strings and dicts.
 
   Args:
     type_hint: (TypeConstraint) The iterable in question. Must be normalize()-d.
@@ -1196,8 +1196,6 @@ def get_yielded_type(type_hint):
       return type_hint.inner_type
   if is_consistent_with(type_hint, Iterable[Any]):
     return type_hint.inner_type
-  if is_consistent_with(type_hint, Dict[Any, Any]):
-    return type_hint.key_type
   raise ValueError('%s is not iterable' % type_hint)
 
 
