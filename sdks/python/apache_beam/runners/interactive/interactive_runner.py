@@ -29,6 +29,7 @@ import logging
 import apache_beam as beam
 from apache_beam import runners
 from apache_beam.runners.direct import direct_runner
+from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
@@ -125,30 +126,17 @@ class InteractiveRunner(runners.PipelineRunner):
 
   def run_pipeline(self, pipeline, options):
     pipeline_instrument = inst.pin(pipeline, options)
+
     # The user_pipeline analyzed might be None if the pipeline given has nothing
     # to be cached and tracing back to the user defined pipeline is impossible.
     # When it's None, there is no need to cache including the background
     # caching job and no result to track since no background caching job is
     # started at all.
     user_pipeline = pipeline_instrument.user_pipeline
-
-    background_caching_job_result = ie.current_env().pipeline_result(
-        user_pipeline, is_main_job=False)
-    if (not background_caching_job_result or
-        background_caching_job_result.state not in (
-            runners.runner.PipelineState.DONE,
-            runners.runner.PipelineState.RUNNING)):
-      if (background_caching_job_result and
-          not ie.current_env().is_terminated(user_pipeline, is_main_job=False)):
-        background_caching_job_result.cancel()
-      if user_pipeline and pipeline_instrument.has_unbounded_sources:
-        background_caching_job_result = beam.pipeline.Pipeline.from_runner_api(
-            pipeline_instrument.background_caching_pipeline_proto(),
-            self._underlying_runner,
-            options).run()
-        ie.current_env().set_pipeline_result(user_pipeline,
-                                             background_caching_job_result,
-                                             is_main_job=False)
+    if user_pipeline:
+      # Should use the underlying runner and run asynchronously.
+      background_caching_job.attempt_to_run_background_caching_job(
+          self._underlying_runner, user_pipeline, options)
 
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
         pipeline_instrument.instrumented_pipeline_proto(),
