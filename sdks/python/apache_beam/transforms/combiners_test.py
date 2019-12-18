@@ -31,6 +31,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -404,7 +405,7 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
-  def test_combining_with_accumulation_mode(self):
+  def test_combining_with_accumulation_mode_and_fanout(self):
     # PCollection will contain elements from 1 to 5.
     elements = [i for i in range(1, 6)]
 
