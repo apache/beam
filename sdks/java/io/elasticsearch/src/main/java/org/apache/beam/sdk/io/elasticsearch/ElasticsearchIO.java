@@ -20,11 +20,12 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.value.AutoValue;
 import java.io.File;
 import java.io.FileInputStream;
@@ -1246,19 +1247,10 @@ public class ElasticsearchIO {
       private long currentBatchSizeBytes;
 
       // Encapsulates the elements which form the metadata for an Elasticsearch bulk operation
-      @JsonPropertyOrder({"_index", "_type", "_id"})
-      @JsonInclude(JsonInclude.Include.NON_NULL)
       private static class DocumentMetadata implements Serializable {
-        @JsonProperty("_index")
         final String index;
-
-        @JsonProperty("_type")
         final String type;
-
-        @JsonProperty("_id")
         final String id;
-
-        @JsonProperty("_retry_on_conflict")
         final Integer retryOnConflict;
 
         DocumentMetadata(String index, String type, String id, Integer retryOnConflict) {
@@ -1298,6 +1290,36 @@ public class ElasticsearchIO {
         currentBatchSizeBytes = 0;
       }
 
+      private class DocumentMetadataSerializer extends StdSerializer<DocumentMetadata> {
+
+        private DocumentMetadataSerializer() {
+          super(DocumentMetadata.class);
+        }
+
+        @Override
+        public void serialize(
+            DocumentMetadata value, JsonGenerator gen, SerializerProvider provider)
+            throws IOException {
+          gen.writeStartObject();
+          if (value.index != null) {
+            gen.writeStringField("_index", value.index);
+          }
+          if (value.type != null) {
+            gen.writeStringField("_type", value.type);
+          }
+          if (value.id != null) {
+            gen.writeStringField("_id", value.id);
+          }
+          if (value.retryOnConflict != null
+              && (backendVersion == 2 || backendVersion == 5 || backendVersion == 6)) {
+            gen.writeNumberField("_retry_on_conflict", value.retryOnConflict);
+          }
+          if (value.retryOnConflict != null && backendVersion == 7) {
+            gen.writeNumberField("retry_on_conflict", value.retryOnConflict);
+          }
+          gen.writeEndObject();
+        }
+      }
       /**
        * Extracts the components that comprise the document address from the document using the
        * {@link FieldValueExtractFn} configured. This allows any or all of the index, type and
@@ -1322,8 +1344,10 @@ public class ElasticsearchIO {
                   spec.getTypeFn() != null ? spec.getTypeFn().apply(parsedDocument) : null,
                   spec.getIdFn() != null ? spec.getIdFn().apply(parsedDocument) : null,
                   spec.getUsePartialUpdate() ? DEFAULT_RETRY_ON_CONFLICT : null);
+          SimpleModule module = new SimpleModule();
+          module.addSerializer(DocumentMetadata.class, new DocumentMetadataSerializer());
+          OBJECT_MAPPER.registerModule(module);
           return OBJECT_MAPPER.writeValueAsString(metadata);
-
         } else {
           return "{}"; // use configuration and auto-generated document IDs
         }
