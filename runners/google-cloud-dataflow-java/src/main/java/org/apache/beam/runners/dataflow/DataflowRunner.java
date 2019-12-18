@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -121,6 +121,8 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -276,7 +278,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(
-          detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader(), options));
+          detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
       if (dataflowOptions.getFilesToStage().isEmpty()) {
         throw new IllegalArgumentException("No files to stage has been found.");
       } else {
