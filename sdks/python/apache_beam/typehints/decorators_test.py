@@ -101,12 +101,12 @@ class IOTypeHintsTest(unittest.TestCase):
     self._test_strip_iterable(typehints.Tuple[str, ...], str)
     self._test_strip_iterable(typehints.KV[str, int],
                               typehints.Union[str, int])
-    self._test_strip_iterable(typehints.Dict[str, int], str)
     self._test_strip_iterable(typehints.Set[str], str)
 
     self._test_strip_iterable_fail(typehints.Union[str, int])
     self._test_strip_iterable_fail(typehints.Optional[str])
     self._test_strip_iterable_fail(typehints.WindowedValue[str])
+    self._test_strip_iterable_fail(typehints.Dict[str, int])
 
 
 class WithTypeHintsTest(unittest.TestCase):
