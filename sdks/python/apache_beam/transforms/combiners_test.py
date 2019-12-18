@@ -434,7 +434,6 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
-<<<<<<< HEAD
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
       input = (p
@@ -519,11 +518,8 @@ class CombineTest(unittest.TestCase):
                   equal_to([('c', 3), ('c', 10), ('d', 5), ('d', 17)]),
                   label='sum per key')
 
-  # Test that three different counters work with the customized CombineFn.
-=======
   # Test that three different kinds of metrics work with a customized
   # CounterIncrememtingCombineFn.
->>>>>>> b70d276ffe... Fixed Lint errors.
   def test_simple_combine(self):
     p = TestPipeline()
     input = (p
