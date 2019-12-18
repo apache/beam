@@ -691,6 +691,15 @@ done
 ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
+* Build Flink job server images and push to DockerHub.
+
+```
+FLINK_VER=($(ls -1 runners/flink | awk '/^[0-9]+\.[0-9]+$/{print}'))
+for ver in "${FLINK_VER[@]}"; do
+   ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+done
+```
+
 Clean up images from local
 
 ```
@@ -699,6 +708,10 @@ for ver in "${PYTHON_VER[@]}"; do
 done
 docker rmi -f apachebeam/java_sdk:${RELEASE}_rc{RC_NUM}
 docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
+for ver in "${FLINK_VER[@]}"; do
+   docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
+done
+
 ```
 
 How to find images:

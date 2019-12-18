@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestResponse;
@@ -32,6 +33,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.JsonFormat;
@@ -50,7 +52,11 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractArtifactStagingService extends ArtifactStagingServiceImplBase
     implements FnService {
 
-  public static final String NO_ARTIFACTS_STAGED_TOKEN = "__no_artifacts_staged__";
+  public static final String NO_ARTIFACTS_STAGED_TOKEN =
+      ArtifactApi.CommitManifestResponse.Constants.NO_ARTIFACTS_STAGED_TOKEN
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamConstant);
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractArtifactStagingService.class);
 

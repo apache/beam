@@ -215,7 +215,9 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((int,), {}))
 
+  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
   def test_flat_map_tuple_wrapper(self):
+    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> typehints.Iterable[str]:
       return [a, b, c]
 
@@ -231,7 +233,9 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((int,), {}))
 
+  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
   def test_map_tuple(self):
+    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> str:
       return a + b + c
 
@@ -245,7 +249,7 @@ class AnnotationsTest(unittest.TestCase):
 
     th = beam.Filter(filter_fn).get_type_hints()
     self.assertEqual(th.input_types, ((int,), {}))
-    self.assertEqual(th.output_types, ((bool,), {}))
+    self.assertEqual(th.output_types, ((int,), {}))
 
 
 if __name__ == '__main__':

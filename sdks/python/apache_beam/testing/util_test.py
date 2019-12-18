@@ -21,14 +21,20 @@ from __future__ import absolute_import
 
 import unittest
 
+import apache_beam as beam
 from apache_beam import Create
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import equal_to_per_window
 from apache_beam.testing.util import is_empty
 from apache_beam.testing.util import is_not_empty
+from apache_beam.transforms import trigger
+from apache_beam.transforms import window
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -109,6 +115,96 @@ class UtilTest(unittest.TestCase):
     with self.assertRaises(BeamAssertException):
       with TestPipeline() as p:
         assert_that(p | Create([]), is_not_empty())
+
+  def test_equal_to_per_window_passes(self):
+    start = int(MIN_TIMESTAMP.micros // 1e6) - 5
+    end = start + 20
+    expected = {
+        window.IntervalWindow(start, end): [('k', [1])],
+    }
+    with TestPipeline(options=StandardOptions(streaming=True)) as p:
+      assert_that((p
+                   | Create([1])
+                   | beam.WindowInto(
+                       FixedWindows(20),
+                       trigger=trigger.AfterWatermark(),
+                       accumulation_mode=trigger.AccumulationMode.DISCARDING)
+                   | beam.Map(lambda x: ('k', x))
+                   | beam.GroupByKey()),
+                  equal_to_per_window(expected),
+                  reify_windows=True)
+
+  def test_equal_to_per_window_fail_unmatched_window(self):
+    with self.assertRaises(BeamAssertException):
+      expected = {
+          window.IntervalWindow(50, 100): [('k', [1])],
+      }
+      with TestPipeline(options=StandardOptions(streaming=True)) as p:
+        assert_that((p
+                     | Create([1])
+                     | beam.WindowInto(
+                         FixedWindows(20),
+                         trigger=trigger.AfterWatermark(),
+                         accumulation_mode=trigger.AccumulationMode.DISCARDING)
+                     | beam.Map(lambda x: ('k', x))
+                     | beam.GroupByKey()),
+                    equal_to_per_window(expected),
+                    reify_windows=True)
+
+  def test_equal_to_per_window_fail_unmatched_element(self):
+    with self.assertRaises(BeamAssertException):
+      start = int(MIN_TIMESTAMP.micros // 1e6) - 5
+      end = start + 20
+      expected = {
+          window.IntervalWindow(start, end): [('k', [1]), ('k', [2])],
+      }
+      with TestPipeline(options=StandardOptions(streaming=True)) as p:
+        assert_that((p
+                     | Create([1])
+                     | beam.WindowInto(
+                         FixedWindows(20),
+                         trigger=trigger.AfterWatermark(),
+                         accumulation_mode=trigger.AccumulationMode.DISCARDING)
+                     | beam.Map(lambda x: ('k', x))
+                     | beam.GroupByKey()),
+                    equal_to_per_window(expected),
+                    reify_windows=True)
+
+  def test_equal_to_per_window_succeeds_no_reify_windows(self):
+    start = int(MIN_TIMESTAMP.micros // 1e6) - 5
+    end = start + 20
+    expected = {
+        window.IntervalWindow(start, end): [('k', [1])],
+    }
+    with TestPipeline(options=StandardOptions(streaming=True)) as p:
+      assert_that((p
+                   | Create([1])
+                   | beam.WindowInto(
+                       FixedWindows(20),
+                       trigger=trigger.AfterWatermark(),
+                       accumulation_mode=trigger.AccumulationMode.DISCARDING)
+                   | beam.Map(lambda x: ('k', x))
+                   | beam.GroupByKey()),
+                  equal_to_per_window(expected))
+
+  def test_equal_to_per_window_fail_unexpected_element(self):
+    with self.assertRaises(BeamAssertException):
+      start = int(MIN_TIMESTAMP.micros // 1e6) - 5
+      end = start + 20
+      expected = {
+          window.IntervalWindow(start, end): [('k', [1])],
+      }
+      with TestPipeline(options=StandardOptions(streaming=True)) as p:
+        assert_that((p
+                     | Create([1, 2])
+                     | beam.WindowInto(
+                         FixedWindows(20),
+                         trigger=trigger.AfterWatermark(),
+                         accumulation_mode=trigger.AccumulationMode.DISCARDING)
+                     | beam.Map(lambda x: ('k', x))
+                     | beam.GroupByKey()),
+                    equal_to_per_window(expected),
+                    reify_windows=True)
 
 
 if __name__ == '__main__':

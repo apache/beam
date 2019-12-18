@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -68,8 +69,8 @@ public class SplittableParDoTest {
     }
 
     @Override
-    public SomeRestriction checkpoint() {
-      return someRestriction;
+    public SplitResult<SomeRestriction> trySplit(double fractionOfRemainder) {
+      return SplitResult.of(null, someRestriction);
     }
 
     @Override

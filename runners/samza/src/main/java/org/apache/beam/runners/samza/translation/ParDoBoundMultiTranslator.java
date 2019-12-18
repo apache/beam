@@ -310,7 +310,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
         config.put(
             "stores." + storeId + ".factory",
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
-        config.put("stores." + storeId + ".key.serde", "byteSerde");
+        config.put("stores." + storeId + ".key.serde", "byteArraySerde");
         config.put("stores." + storeId + ".msg.serde", "byteSerde");
 
         if (options.getStateDurable()) {

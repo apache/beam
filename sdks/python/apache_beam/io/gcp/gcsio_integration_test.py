@@ -50,7 +50,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   from apache_beam.io.gcp import gcsio
 except ImportError:
-  gcsio = None
+  gcsio = None  # type: ignore
 
 
 @unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')

@@ -24,7 +24,9 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.display import pcoll_visualization as pv
 
 # TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
@@ -47,6 +49,7 @@ except ImportError:
 class PCollectionVisualizationTest(unittest.TestCase):
 
   def setUp(self):
+    ie.new_env()
     # Allow unit test to run outside of ipython kernel since we don't test the
     # frontend rendering in unit tests.
     pv._pcoll_visualization_ready = True
@@ -54,9 +57,11 @@ class PCollectionVisualizationTest(unittest.TestCase):
     # ipython kernel by forcefully setting notebook check to True.
     ie.current_env()._is_in_notebook = True
 
-    self._p = beam.Pipeline()
+    self._p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
-    self._pcoll = self._p | 'Create' >> beam.Create(range(1000))
+    self._pcoll = self._p | 'Create' >> beam.Create(range(5))
+    ib.watch(self)
+    self._p.run()
 
   def test_raise_error_for_non_pcoll_input(self):
     class Foo(object):
@@ -74,28 +79,14 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self.assertNotEqual(pv_1._overview_display_id, pv_2._overview_display_id)
     self.assertNotEqual(pv_1._df_display_id, pv_2._df_display_id)
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', lambda x: [1, 2, 3])
   def test_one_shot_visualization_not_return_handle(self):
     self.assertIsNone(pv.visualize(self._pcoll))
 
-  def _mock_to_element_list(self):
-    yield [1, 2, 3]
-    yield [1, 2, 3, 4]
-    yield [1, 2, 3, 4, 5]
-    yield [1, 2, 3, 4, 5, 6]
-    yield [1, 2, 3, 4, 5, 6, 7]
-    yield [1, 2, 3, 4, 5, 6, 7, 8]
-
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   def test_dynamic_plotting_return_handle(self):
     h = pv.visualize(self._pcoll, dynamic_plotting_interval=1)
     self.assertIsInstance(h, timeloop.Timeloop)
     h.stop()
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   @patch('apache_beam.runners.interactive.display.pcoll_visualization'
          '.PCollectionVisualization.display_facets')
   def test_dynamic_plotting_update_same_display(self,
@@ -118,8 +109,6 @@ class PCollectionVisualizationTest(unittest.TestCase):
       self.assertIs(kwargs['updating_pv'], updating_pv)
     h.stop()
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', _mock_to_element_list)
   @patch('timeloop.Timeloop.stop')
   def test_auto_stop_dynamic_plotting_when_job_is_terminated(
       self,
@@ -138,12 +127,11 @@ class PCollectionVisualizationTest(unittest.TestCase):
     # "assert_called" is new in Python 3.6.
     mocked_timeloop.assert_called()
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._to_element_list', lambda x: [1, 2, 3])
   @patch('pandas.DataFrame.sample')
   def test_display_plain_text_when_kernel_has_no_frontend(self,
                                                           _mocked_sample):
-    ie.new_env()  # Resets the notebook check. Should be False in unit tests.
+    # Resets the notebook check to False.
+    ie.current_env()._is_in_notebook = False
     self.assertIsNone(pv.visualize(self._pcoll))
     _mocked_sample.assert_called_once()
 

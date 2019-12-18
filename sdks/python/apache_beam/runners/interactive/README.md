@@ -219,38 +219,15 @@ as the underlying runner.
 
 You can choose to run Interactive Beam on Flink with the following settings.
 
-*   Install [docker](https://www.docker.com/).
-
-*   Build the SDK container and start the local FlinkService.
-
-    ```bash
-    $ ./gradlew -p sdks/python/container/py35 docker  # Optionally replace py35 with the Python version of your choice
-    $ ./gradlew :runners:flink:1.9:job-server:runShadow  # Blocking
-    ```
-
-*   Run `$ jupyter notebook` in another terminal.
-
 *   Use
-    [`portable_runner.PortableRunner()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/portable_runner.py)
-    as the underlying runner, while providing a
-    [`pipeline_options.PortableOptions()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py)
-    to the pipeline as follows.
+    [`flink_runner.FlinkRunner()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/flink_runner.py)
+    as the underlying runner.
 
     ```python
-    options = pipeline_options.PipelineOptions()
-    options.view_as(pipeline_options.PortableOptions).job_endpoint = 'localhost:8099'
-    options.view_as(pipeline_options.SetupOptions).sdk_location = 'container'
-    options.view_as(pipeline_options.DebugOptions).experiments = 'beam_fn_api'
-
-    cache_dir = 'gs://bucket-name/dir'
-    underlying_runner = portable_runner.PortableRunner()
-    runner = interactive_runner.InteractiveRunner(underlying_runner=underlying_runner, cache_dir=cache_dir)
-    p = beam.Pipeline(runner=runner, options=options)
+    p = beam.Pipeline(interactive_runner.InteractiveRunner(underlying_runner=flink_runner.FlinkRunner()))
     ```
 
-**Note**: Python Flink Runner (combination of PortableRunner and FlinkService)
-is being actively developed now, so these setups and commands are subject to
-changes. This guide and
+**Note**: This guide and
 [Interactive Beam Running on Flink.ipynb](examples/Interactive%20Beam%20Running%20on%20Flink.ipynb)
 capture the status of the world when it's last updated.
 

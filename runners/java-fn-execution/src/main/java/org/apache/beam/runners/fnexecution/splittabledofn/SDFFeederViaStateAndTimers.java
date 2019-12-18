@@ -44,7 +44,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
@@ -152,7 +152,8 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
     holdState.add(watermarkHold);
 
     Instant requestedWakeupTime =
-        new Instant(Timestamps.toMillis(residual.getRequestedExecutionTime()));
+        new Instant(
+            System.currentTimeMillis() + Durations.toMillis(residual.getRequestedTimeDelay()));
     Instant wakeupTime =
         timerInternals.currentProcessingTime().isBefore(requestedWakeupTime)
             ? requestedWakeupTime
