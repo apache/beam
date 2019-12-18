@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.arrow;
 
 import static java.util.Arrays.asList;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -38,7 +38,7 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
-import org.apache.beam.sdk.schemas.ArrowSchema;
+import org.apache.beam.sdk.extensions.arrow.ArrowSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -152,11 +152,6 @@ public class ArrowSchemaTest {
       fixedSizeBinaryVector.set(i, new byte[] {(byte) i, (byte) (i + 1), (byte) (i + 2)});
     }
 
-    Iterable<Row> rowIterator = ArrowSchema.rowsFromRecordBatch(beamSchema, expectedSchemaRoot);
-
-    for (Row r : rowIterator) {
-      System.out.println(r);
-    }
 
     assertThat(
         ArrowSchema.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
