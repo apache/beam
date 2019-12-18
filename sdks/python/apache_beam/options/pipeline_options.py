@@ -186,6 +186,9 @@ class PipelineOptions(HasDisplayData):
 
       **kwargs: Add overrides for arguments passed in flags.
     """
+    # Initializing logging configuration in case the user did not set it up.
+    logging.basicConfig()
+
     # self._flags stores a list of not yet parsed arguments, typically,
     # command-line flags. This list is shared across different views.
     # See: view_as().
