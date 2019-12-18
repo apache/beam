@@ -32,6 +32,8 @@ from nose.plugins.attrib import attr
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
+from apache_beam.metrics import Metrics
+from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
