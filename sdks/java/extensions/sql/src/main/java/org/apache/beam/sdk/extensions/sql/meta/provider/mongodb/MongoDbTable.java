@@ -59,6 +59,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -155,6 +156,13 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     return new MongoDbFilter(filter);
   }
 
+  /**
+   * Given a predicate in a conjunctive normal form (CNF), construct a {@code Bson} filter for
+   * MongoDB find query.
+   *
+   * @param supported A list of {@code RexNode} in CNF.
+   * @return {@code Bson} filter.
+   */
   private Bson constructPredicate(List<RexNode> supported) {
     assert !supported.isEmpty();
     List<Bson> cnf =
@@ -165,6 +173,14 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     return Filters.and(cnf);
   }
 
+  /**
+   * Recursively translates a single RexNode to MongoDB Bson filter. Supports simple comparison
+   * operations, negation, and nested conjunction/disjunction. Boolean fields are translated as an
+   * `$eq` operation with a boolean `true`.
+   *
+   * @param node {@code RexNode} to translate.
+   * @return {@code Bson} filter.
+   */
   private Bson translateRexNodeToBson(RexNode node) {
     final IntFunction<String> fieldIdToName = i -> getSchema().getField(i).getName();
     // Supported operations are described in MongoDbFilter#isSupported
@@ -185,27 +201,35 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
       if (inputRefs.size() == 1) {
         RexInputRef inputRef = inputRefs.get(0);
         String inputFieldName = fieldIdToName.apply(inputRef.getIndex());
-        // Convert literal value to the same Java type as the field we are comparing to.
-        Object literal = convertToExpectedClass(inputRef, literals.get(0));
+        if (literals.size() > 0) {
+          // Convert literal value to the same Java type as the field we are comparing to.
+          Object literal = convertToExpectedType(inputRef, literals.get(0));
 
-        switch (node.getKind()) {
-          case IN:
-            return Filters.in(inputFieldName, convertToExpectedClass(inputRef, literals));
-          case EQUALS:
-            return Filters.eq(inputFieldName, literal);
-          case NOT_EQUALS:
-            return Filters.not(Filters.eq(inputFieldName, literal));
-          case LESS_THAN:
-            return Filters.lt(inputFieldName, literal);
-          case GREATER_THAN:
-            return Filters.gt(inputFieldName, literal);
-          case GREATER_THAN_OR_EQUAL:
-            return Filters.gte(inputFieldName, literal);
-          case LESS_THAN_OR_EQUAL:
-            return Filters.lte(inputFieldName, literal);
-          default:
-            throw new RuntimeException(
-                "Encountered an unexpected node kind: " + node.getKind().toString());
+          switch (node.getKind()) {
+            case IN:
+              return Filters.in(inputFieldName, convertToExpectedType(inputRef, literals));
+            case EQUALS:
+              return Filters.eq(inputFieldName, literal);
+            case NOT_EQUALS:
+              return Filters.not(Filters.eq(inputFieldName, literal));
+            case LESS_THAN:
+              return Filters.lt(inputFieldName, literal);
+            case GREATER_THAN:
+              return Filters.gt(inputFieldName, literal);
+            case GREATER_THAN_OR_EQUAL:
+              return Filters.gte(inputFieldName, literal);
+            case LESS_THAN_OR_EQUAL:
+              return Filters.lte(inputFieldName, literal);
+            default:
+              // Encountered an unexpected node kind, RuntimeException below.
+              break;
+          }
+        } else if (node.getKind().equals(SqlKind.NOT)) {
+          // Ex: `where not boolean_field`
+          return Filters.not(translateRexNodeToBson(inputRef));
+        } else {
+          throw new RuntimeException(
+              "Cannot create a filter for an unsupported node: " + node.toString());
         }
       } else { // Operation is a conjunction/disjunction.
         switch (node.getKind()) {
@@ -222,10 +246,12 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
                     .map(this::translateRexNodeToBson)
                     .collect(Collectors.toList()));
           default:
-            throw new RuntimeException(
-                "Encountered an unexpected node kind: " + node.getKind().toString());
+            // Encountered an unexpected node kind, RuntimeException below.
+            break;
         }
       }
+      throw new RuntimeException(
+          "Encountered an unexpected node kind: " + node.getKind().toString());
     } else if (node instanceof RexInputRef
         && node.getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)) {
       // Boolean field, must be true. Ex: `select * from table where bool_field`
@@ -237,16 +263,16 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
             + node.getClass().getSimpleName());
   }
 
-  private Object convertToExpectedClass(RexInputRef inputRef, RexLiteral literal) {
+  private Object convertToExpectedType(RexInputRef inputRef, RexLiteral literal) {
     FieldType beamFieldType = getSchema().getField(inputRef.getIndex()).getType();
 
     return literal.getValueAs(
         FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
   }
 
-  private Object convertToExpectedClass(RexInputRef inputRef, List<RexLiteral> literals) {
+  private Object convertToExpectedType(RexInputRef inputRef, List<RexLiteral> literals) {
     return literals.stream()
-        .map(l -> convertToExpectedClass(inputRef, l))
+        .map(l -> convertToExpectedType(inputRef, l))
         .collect(Collectors.toList());
   }
 

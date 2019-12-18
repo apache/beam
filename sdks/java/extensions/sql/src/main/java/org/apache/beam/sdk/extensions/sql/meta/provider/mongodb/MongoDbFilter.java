@@ -29,6 +29,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 
 public class MongoDbFilter implements BeamSqlTableFilter {
@@ -98,7 +99,7 @@ public class MongoDbFilter implements BeamSqlTableFilter {
     if (node instanceof RexCall) {
       RexCall compositeNode = (RexCall) node;
 
-      if (node.getKind().belongsTo(COMPARISON)) {
+      if (node.getKind().belongsTo(COMPARISON) || node.getKind().equals(SqlKind.NOT)) {
         int fields = 0;
         for (RexNode operand : compositeNode.getOperands()) {
           if (operand instanceof RexInputRef) {
@@ -110,10 +111,11 @@ public class MongoDbFilter implements BeamSqlTableFilter {
             return false;
           }
         }
-        // All comparison operators should have at most one field reference.
+        // All comparison operations should have exactly one field reference.
         // Ex: `field1 == field2` is not supported.
-        if (fields != 1) {
-          return false;
+        // TODO: Can be supported via Filters#where.
+        if (fields == 1) {
+          return true;
         }
       } else if (node.getKind().equals(AND) || node.getKind().equals(OR)) {
         // Nested ANDs and ORs are supported as long as all operands are supported.
@@ -122,6 +124,7 @@ public class MongoDbFilter implements BeamSqlTableFilter {
             return false;
           }
         }
+        return true;
       }
     } else if (node instanceof RexInputRef) {
       // When field is a boolean.
@@ -131,6 +134,6 @@ public class MongoDbFilter implements BeamSqlTableFilter {
           "Encountered an unexpected node type: " + node.getClass().getSimpleName());
     }
 
-    return true;
+    return false;
   }
 }
