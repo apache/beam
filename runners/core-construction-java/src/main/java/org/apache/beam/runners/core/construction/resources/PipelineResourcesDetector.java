@@ -24,4 +24,9 @@ import java.util.stream.Stream;
 public interface PipelineResourcesDetector extends Serializable {
 
   Stream<String> detect(ClassLoader classLoader);
+
+  /** Provides pipeline resources detection algorithm. */
+  interface Factory {
+    PipelineResourcesDetector getPipelineResourcesDetector();
+  }
 }
