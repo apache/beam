@@ -19,10 +19,14 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.mongodb;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.mongodb.client.model.Filters;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
@@ -34,7 +38,9 @@ import org.apache.beam.sdk.io.mongodb.FindQuery;
 import org.apache.beam.sdk.io.mongodb.MongoDbIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.JsonToRow;
@@ -49,13 +55,21 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.json.JsonMode;
 import org.bson.json.JsonWriterSettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Experimental
 public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbTable.class);
   // Should match: mongodb://username:password@localhost:27017/database/collection
   @VisibleForTesting
   final Pattern locationPattern =
@@ -104,13 +118,22 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
             .resolve(getSchema());
     final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
 
+    FindQuery findQuery = FindQuery.create();
+
     if (!(filters instanceof DefaultTableFilter)) {
-      throw new AssertionError("Predicate push-down is unsupported, yet received a predicate.");
+      MongoDbFilter mongoFilter = (MongoDbFilter) filters;
+      if (!mongoFilter.getSupported().isEmpty()) {
+        Bson filter = constructPredicate(mongoFilter.getSupported());
+        LOGGER.info("Pushing down the following filter: " + filter.toString());
+        findQuery = findQuery.withFilters(filter);
+      }
     }
 
     if (!fieldNames.isEmpty()) {
-      readInstance = readInstance.withQueryFn(FindQuery.create().withProjection(fieldNames));
+      findQuery = findQuery.withProjection(fieldNames);
     }
+
+    readInstance = readInstance.withQueryFn(findQuery);
 
     return readInstance.expand(begin).apply(DocumentToRow.withSchema(newSchema));
   }
@@ -130,6 +153,101 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public BeamSqlTableFilter constructFilter(List<RexNode> filter) {
     return new MongoDbFilter(filter);
+  }
+
+  private Bson constructPredicate(List<RexNode> supported) {
+    assert !supported.isEmpty();
+    List<Bson> cnf =
+        supported.stream().map(this::translateRexNodeToBson).collect(Collectors.toList());
+    if (cnf.size() == 1) {
+      return cnf.get(0);
+    }
+    return Filters.and(cnf);
+  }
+
+  private Bson translateRexNodeToBson(RexNode node) {
+    final IntFunction<String> fieldIdToName = i -> getSchema().getField(i).getName();
+    // Supported operations are described in MongoDbFilter#isSupported
+    if (node instanceof RexCall) {
+      RexCall compositeNode = (RexCall) node;
+      List<RexLiteral> literals = new ArrayList<>();
+      List<RexInputRef> inputRefs = new ArrayList<>();
+
+      for (RexNode operand : compositeNode.getOperands()) {
+        if (operand instanceof RexLiteral) {
+          literals.add((RexLiteral) operand);
+        } else if (operand instanceof RexInputRef) {
+          inputRefs.add((RexInputRef) operand);
+        }
+      }
+
+      // Operation is a comparison, since one of the operands in a field reference.
+      if (inputRefs.size() == 1) {
+        RexInputRef inputRef = inputRefs.get(0);
+        String inputFieldName = fieldIdToName.apply(inputRef.getIndex());
+        // Convert literal value to the same Java type as the field we are comparing to.
+        Object literal = convertToExpectedClass(inputRef, literals.get(0));
+
+        switch (node.getKind()) {
+          case IN:
+            return Filters.in(inputFieldName, convertToExpectedClass(inputRef, literals));
+          case EQUALS:
+            return Filters.eq(inputFieldName, literal);
+          case NOT_EQUALS:
+            return Filters.not(Filters.eq(inputFieldName, literal));
+          case LESS_THAN:
+            return Filters.lt(inputFieldName, literal);
+          case GREATER_THAN:
+            return Filters.gt(inputFieldName, literal);
+          case GREATER_THAN_OR_EQUAL:
+            return Filters.gte(inputFieldName, literal);
+          case LESS_THAN_OR_EQUAL:
+            return Filters.lte(inputFieldName, literal);
+          default:
+            throw new RuntimeException(
+                "Encountered an unexpected node kind: " + node.getKind().toString());
+        }
+      } else { // Operation is a conjunction/disjunction.
+        switch (node.getKind()) {
+          case AND:
+            // Recursively construct filter for each operand of conjunction.
+            return Filters.and(
+                compositeNode.getOperands().stream()
+                    .map(this::translateRexNodeToBson)
+                    .collect(Collectors.toList()));
+          case OR:
+            // Recursively construct filter for each operand of disjunction.
+            return Filters.or(
+                compositeNode.getOperands().stream()
+                    .map(this::translateRexNodeToBson)
+                    .collect(Collectors.toList()));
+          default:
+            throw new RuntimeException(
+                "Encountered an unexpected node kind: " + node.getKind().toString());
+        }
+      }
+    } else if (node instanceof RexInputRef
+        && node.getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)) {
+      // Boolean field, must be true. Ex: `select * from table where bool_field`
+      return Filters.eq(fieldIdToName.apply(((RexInputRef) node).getIndex()), true);
+    }
+
+    throw new RuntimeException(
+        "Was expecting a RexCall or a boolean RexInputRef, but received: "
+            + node.getClass().getSimpleName());
+  }
+
+  private Object convertToExpectedClass(RexInputRef inputRef, RexLiteral literal) {
+    FieldType beamFieldType = getSchema().getField(inputRef.getIndex()).getType();
+
+    return literal.getValueAs(
+        FieldTypeDescriptors.javaTypeForFieldType(beamFieldType).getRawType());
+  }
+
+  private Object convertToExpectedClass(RexInputRef inputRef, List<RexLiteral> literals) {
+    return literals.stream()
+        .map(l -> convertToExpectedClass(inputRef, l))
+        .collect(Collectors.toList());
   }
 
   @Override

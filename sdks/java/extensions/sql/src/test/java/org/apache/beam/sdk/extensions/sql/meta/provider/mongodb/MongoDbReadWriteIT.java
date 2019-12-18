@@ -145,7 +145,7 @@ public class MongoDbReadWriteIT {
   public void init() {
     sqlEnv = BeamSqlEnv.inMemory(new MongoDbTableProvider());
     MongoDatabase db = client.getDatabase(database);
-    Document r = db.runCommand(new BasicDBObject().append("profile", 2));
+    db.runCommand(new BasicDBObject().append("profile", 2));
   }
 
   @After
@@ -293,6 +293,72 @@ public class MongoDbReadWriteIT {
     assertThat(
         ((Document) projection).keySet(),
         containsInAnyOrder("c_varchar", "c_boolean", "c_integer"));
+  }
+
+  @Test
+  public void testPredicatePushDown() {
+    final Schema expectedSchema =
+        Schema.builder()
+            .addNullableField("c_varchar", STRING)
+            .addNullableField("c_boolean", BOOLEAN)
+            .addNullableField("c_integer", INT32)
+            .build();
+    Row testRow = row(expectedSchema, "varchar", true, 2147483647);
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   c_bigint BIGINT, \n "
+            + "   c_tinyint TINYINT, \n"
+            + "   c_smallint SMALLINT, \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_double DOUBLE, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_varchar VARCHAR, \n "
+            + "   c_arr ARRAY<VARCHAR> \n"
+            + ") \n"
+            + "TYPE 'mongodb' \n"
+            + "LOCATION '"
+            + mongoSqlUrl
+            + "'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "'varchar', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    BeamRelNode insertRelNode = sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(writePipeline, insertRelNode);
+    writePipeline.run().waitUntilFinish();
+
+    BeamRelNode node =
+        sqlEnv.parseQuery(
+            "select c_varchar, c_boolean, c_integer from TEST"
+                + " where (c_varchar='varchar' or c_varchar<>'fakeString') and c_boolean and c_integer=2147483647");
+    // Calc should be dropped, since MongoDb can push-down all predicate operations from a query
+    // above.
+    assertThat(node, instanceOf(BeamPushDownIOSourceRel.class));
+    // Only selected fields are projected.
+    assertThat(
+        node.getRowType().getFieldNames(),
+        containsInAnyOrder("c_varchar", "c_boolean", "c_integer"));
+    PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, node);
+
+    assertThat(output.getSchema(), equalTo(expectedSchema));
+    PAssert.that(output).containsInAnyOrder(testRow);
+
+    readPipeline.run().waitUntilFinish();
+
+    // TODO: check `system.profile`
   }
 
   private Row row(Schema schema, Object... values) {
