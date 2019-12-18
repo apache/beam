@@ -327,7 +327,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       if (pendingTimers.isEmpty()) {
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
       } else {
-        return pendingTimers.firstEntry().getElement().getTimestamp();
+        return pendingTimers.firstEntry().getElement().getOutputTimestamp();
       }
     }
 
