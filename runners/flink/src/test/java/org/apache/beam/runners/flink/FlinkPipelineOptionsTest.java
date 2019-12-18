@@ -92,7 +92,6 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getSavepointPath(), is(nullValue()));
     assertThat(options.getAllowNonRestoredState(), is(false));
     assertThat(options.getDisableMetrics(), is(false));
-    assertThat(options.getDisableMetricAccumulator(), is(false));
   }
 
   @Test(expected = Exception.class)
