@@ -409,7 +409,6 @@ class BeamModulePlugin implements Plugin<Project> {
         args4j                                      : "args4j:args4j:2.33",
         avro                                        : "org.apache.avro:avro:1.8.2",
         avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
-        arrow                                       : "org.apache.arrow:arrow-vector:0.10.0",
         aws_java_sdk_cloudwatch                     : "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version",
         aws_java_sdk_core                           : "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version",
         aws_java_sdk_dynamodb                       : "com.amazonaws:aws-java-sdk-dynamodb:$aws_java_sdk_version",

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.extensions.arrow;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -30,6 +30,10 @@ import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.CachingFactory;
+import org.apache.beam.sdk.schemas.Factory;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
@@ -135,6 +139,16 @@ public class ArrowSchema {
 
       @Override
       public Function<Object, Object> visit(ArrowType.Union type) {
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Map type) {
+        throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
+      }
+
+      @Override
+      public Function<Object, Object> visit(ArrowType.Duration type) {
         throw new IllegalArgumentException("Type \'" + type.toString() + "\' not supported.");
       }
 
@@ -286,7 +300,6 @@ public class ArrowSchema {
                         "Type \'" + type.toString() + "\' not supported.");
                   }
 
-                  /* Not supported in Arrow 0.10. Uncomment after upgrade
                   @Override
                   public FieldType visit(ArrowType.Map type) {
                     checkArgument(
@@ -298,7 +311,6 @@ public class ArrowSchema {
                         toBeamField(children_fields.get(0)).getType(),
                         toBeamField(children_fields.get(1)).getType());
                   }
-                  */
 
                   @Override
                   public FieldType visit(ArrowType.Int type) {
@@ -387,6 +399,12 @@ public class ArrowSchema {
 
                   @Override
                   public FieldType visit(ArrowType.Interval type) {
+                    throw new IllegalArgumentException(
+                        "Type \'" + type.toString() + "\' not supported.");
+                  }
+
+                  @Override
+                  public FieldType visit(ArrowType.Duration type) {
                     throw new IllegalArgumentException(
                         "Type \'" + type.toString() + "\' not supported.");
                   }
