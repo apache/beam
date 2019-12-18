@@ -83,7 +83,7 @@ class InteractiveEnvironment(object):
     # Each key is a pipeline instance defined by the end user. The
     # InteractiveRunner is responsible for populating this dictionary
     # implicitly.
-    self._pipeline_results = {}
+    self._main_pipeline_results = {}
     # Holds results of background caching jobs as
     # Dict[Pipeline, PipelineResult]. Each key is a pipeline instance defined by
     # the end user. The InteractiveRunner is responsible for populating this
@@ -212,20 +212,20 @@ class InteractiveEnvironment(object):
         'result must be an instance of '
         'apache_beam.runners.runner.PipelineResult or its subclass')
     if is_main_job:
-      self._pipeline_results[pipeline] = result
+      self._main_pipeline_results[pipeline] = result
     else:
       self._background_caching_pipeline_results[pipeline] = result
 
   def evict_pipeline_result(self, pipeline, is_main_job=True):
     """Evicts the tracking of given pipeline run. Noop if absent."""
     if is_main_job:
-      return self._pipeline_results.pop(pipeline, None)
+      return self._main_pipeline_results.pop(pipeline, None)
     return self._background_caching_pipeline_results.pop(pipeline, None)
 
   def pipeline_result(self, pipeline, is_main_job=True):
     """Gets the pipeline run result. None if absent."""
     if is_main_job:
-      return self._pipeline_results.get(pipeline, None)
+      return self._main_pipeline_results.get(pipeline, None)
     return self._background_caching_pipeline_results.get(pipeline, None)
 
   def is_terminated(self, pipeline, is_main_job=True):
