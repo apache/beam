@@ -99,9 +99,12 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_TIMESTAMP_FROM_STRING,
           FunctionSignatureId.FN_TIMESTAMP_FROM_DATE,
           // TODO: FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME
-          FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY
+          FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY,
           // TODO: FunctionSignatureId.FN_DATE_FROM_TIMESTAMP
-          );
+
+          // Datetime functions
+          FunctionSignatureId.FN_DATETIME_FROM_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND,
+          FunctionSignatureId.FN_FORMAT_DATETIME);
 
   // todo: Some of operators defined here are later overridden in ZetaSQLPlannerImpl.
   // We should remove them from this table and add generic way to provide custom

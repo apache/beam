@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlTypes.DatetimeLogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -171,6 +172,10 @@ public final class ZetaSqlUtils {
         return zetaSqlArrayValueToJavaList(value, fieldType.getCollectionElementType());
       case ROW:
         return zetaSqlStructValueToBeamRow(value, fieldType.getRowSchema());
+      case LOGICAL_TYPE:
+        if (fieldType.getLogicalType().getIdentifier().equals(DatetimeLogicalType.IDENTIFIER)) {
+          return value.getDatetimeValue();
+        } // fall through
       default:
         throw new IllegalArgumentException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());

@@ -76,7 +76,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
@@ -772,8 +775,32 @@ public class ExpressionConverter {
               functionCall.getFunction().getName());
 
       if (op == null) {
-        throw new RuntimeException(
-            "Does not support ZetaSQL function: " + functionCall.getFunction().getName());
+        RelDataType returnType;
+        TypeKind zetaSqlReturnType =
+            functionCall.getSignature().getResultType().getType().getKind();
+        switch (zetaSqlReturnType) {
+          case TYPE_STRING:
+            returnType = typeFactory().createSqlType(SqlTypeName.VARCHAR);
+            break;
+          case TYPE_DATETIME:
+            returnType = typeFactory().createSqlType(SqlTypeName.GEOMETRY);
+            break;
+          default:
+            throw new RuntimeException(
+                "Function "
+                    + functionCall.getFunction().getName()
+                    + " returns an unsupported ZetaSQL type: "
+                    + zetaSqlReturnType);
+        }
+        // create a dummy SqlFunction
+        op =
+            new SqlFunction(
+                functionCall.getFunction().getName(),
+                SqlKind.OTHER_FUNCTION,
+                x -> returnType,
+                null, // operandTypeInference
+                null, // operandTypeChecker
+                SqlFunctionCategory.USER_DEFINED_FUNCTION);
       }
 
       // There are different processes to handle argument conversion because INTERVAL is not a

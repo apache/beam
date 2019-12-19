@@ -103,7 +103,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       final RexNode condition = getProgram().getCondition();
 
       // TODO[BEAM-8630]: validate sql expressions at pipeline construction time
-      Schema outputSchema = CalciteUtils.toSchema(getRowType());
+      Schema outputSchema = ZetaSqlCalciteUtils.toSchema(getRowType());
       CalcFn calcFn =
           new CalcFn(
               projects,
