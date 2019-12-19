@@ -517,7 +517,6 @@ public class BigQueryServicesImplTest {
         null,
         null,
         false,
-        false,
         false);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
@@ -551,7 +550,6 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.alwaysRetry(),
         null,
         null,
-        false,
         false,
         false);
     verify(response, times(2)).getStatusCode();
@@ -603,7 +601,6 @@ public class BigQueryServicesImplTest {
         null,
         null,
         false,
-        false,
         false);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
@@ -648,7 +645,6 @@ public class BigQueryServicesImplTest {
           InsertRetryPolicy.alwaysRetry(),
           null,
           null,
-          false,
           false,
           false);
       fail();
@@ -696,7 +692,6 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.alwaysRetry(),
         null,
         null,
-        false,
         false,
         false);
     verify(response, times(2)).getStatusCode();
@@ -766,18 +761,17 @@ public class BigQueryServicesImplTest {
         failedInserts,
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
-        false,
         false);
     assertEquals(1, failedInserts.size());
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 
   /**
-   * Tests that {@link DatasetServiceImpl#insertAll} respects the skipInvalidRows,
-   * ignoreUnknownValues and ignoreInsertIds parameters.
+   * Tests that {@link DatasetServiceImpl#insertAll} respects the skipInvalidRows and
+   * ignoreUnknownValues parameters.
    */
   @Test
-  public void testSkipInvalidRowsIgnoreUnknownIgnoreInsertIdsValuesStreaming()
+  public void testSkipInvalidRowsIgnoreUnknownValuesStreaming()
       throws InterruptedException, IOException {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
@@ -796,7 +790,7 @@ public class BigQueryServicesImplTest {
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
-    // First, test with all flags disabled
+    // First, test with both flags disabled
     dataService.insertAll(
         ref,
         rows,
@@ -806,7 +800,6 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.neverRetry(),
         Lists.newArrayList(),
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
-        false,
         false,
         false);
 
@@ -816,7 +809,7 @@ public class BigQueryServicesImplTest {
     assertFalse(parsedRequest.getSkipInvalidRows());
     assertFalse(parsedRequest.getIgnoreUnknownValues());
 
-    // Then with all enabled
+    // Then with both enabled
     dataService.insertAll(
         ref,
         rows,
@@ -827,15 +820,12 @@ public class BigQueryServicesImplTest {
         Lists.newArrayList(),
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         true,
-        true,
         true);
 
     parsedRequest = fromString(request.getContentAsString(), TableDataInsertAllRequest.class);
 
     assertTrue(parsedRequest.getSkipInvalidRows());
     assertTrue(parsedRequest.getIgnoreUnknownValues());
-    assertNull(parsedRequest.getRows().get(0).getInsertId());
-    assertNull(parsedRequest.getRows().get(1).getInsertId());
   }
 
   /** A helper to convert a string response back to a {@link GenericJson} subclass. */
@@ -1012,7 +1002,6 @@ public class BigQueryServicesImplTest {
         failedInserts,
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
-        false,
         false);
 
     assertThat(failedInserts, is(rows));
@@ -1066,7 +1055,6 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.neverRetry(),
         failedInserts,
         ErrorContainer.BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER,
-        false,
         false,
         false);
 

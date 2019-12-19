@@ -39,9 +39,7 @@ class TableContainer {
 
   long addRow(TableRow row, String id) {
     rows.add(row);
-    if (id != null) {
-      ids.add(id);
-    }
+    ids.add(id);
     long rowSize = row.toString().length();
     Long tableSize = table.getNumBytes();
     if (tableSize == null) {
@@ -58,9 +56,5 @@ class TableContainer {
 
   List<TableRow> getRows() {
     return rows;
-  }
-
-  List<String> getIds() {
-    return ids;
   }
 }

@@ -49,7 +49,6 @@ class StreamingWriteFn<ErrorT, ElementT>
   private final ErrorContainer<ErrorT> errorContainer;
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
-  private final boolean ignoreInsertIds;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
@@ -68,7 +67,6 @@ class StreamingWriteFn<ErrorT, ElementT>
       ErrorContainer<ErrorT> errorContainer,
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
-      boolean ignoreInsertIds,
       SerializableFunction<ElementT, TableRow> toTableRow) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
@@ -76,7 +74,6 @@ class StreamingWriteFn<ErrorT, ElementT>
     this.errorContainer = errorContainer;
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
-    this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
   }
 
@@ -148,8 +145,7 @@ class StreamingWriteFn<ErrorT, ElementT>
                     failedInserts,
                     errorContainer,
                     skipInvalidRows,
-                    ignoreUnknownValues,
-                    ignoreInsertIds);
+                    ignoreUnknownValues);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);
