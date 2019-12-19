@@ -106,6 +106,8 @@ class SdkHarness(object):
         data_channel_factory=self._data_channel_factory,
         fns=self._fns)
 
+    # TODO(BEAM-8998) use common UnboundedThreadPoolExecutor to process bundle
+    #  progress once dataflow runner's excessive progress polling is removed.
     self._report_progress_executor = futures.ThreadPoolExecutor(max_workers=1)
     self._worker_thread_pool = UnboundedThreadPoolExecutor()
     self._responses = queue.Queue()  # type: queue.Queue[beam_fn_api_pb2.InstructionResponse]
