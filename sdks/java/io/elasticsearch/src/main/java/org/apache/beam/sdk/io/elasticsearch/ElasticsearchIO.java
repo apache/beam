@@ -73,6 +73,7 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
@@ -253,6 +254,8 @@ public class ElasticsearchIO {
     @Nullable
     public abstract Integer getConnectTimeout();
 
+    public abstract boolean isTrustSelfSignedCerts();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -275,6 +278,8 @@ public class ElasticsearchIO {
 
       abstract Builder setConnectTimeout(Integer connectTimeout);
 
+      abstract Builder setTrustSelfSignedCerts(boolean trustSelfSignedCerts);
+
       abstract ConnectionConfiguration build();
     }
 
@@ -295,6 +300,7 @@ public class ElasticsearchIO {
           .setAddresses(Arrays.asList(addresses))
           .setIndex(index)
           .setType(type)
+          .setTrustSelfSignedCerts(false)
           .build();
     }
 
@@ -352,6 +358,18 @@ public class ElasticsearchIO {
     }
 
     /**
+     * If Elasticsearch uses SSL/TLS then configure whether to trust self signed certs or not. The
+     * default is false.
+     *
+     * @param trustSelfSignedCerts Whether to trust self signed certs
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withTrustSelfSignedCerts(boolean trustSelfSignedCerts) {
+      return builder().setTrustSelfSignedCerts(trustSelfSignedCerts).build();
+    }
+
+    /**
      * If set, overwrites the default max retry timeout (30000ms) in the Elastic {@link RestClient}
      * and the default socket timeout (30000ms) in the {@link RequestConfig} of the Elastic {@link
      * RestClient}.
@@ -386,6 +404,7 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
       builder.addIfNotNull(DisplayData.item("socketAndRetryTimeout", getSocketAndRetryTimeout()));
       builder.addIfNotNull(DisplayData.item("connectTimeout", getConnectTimeout()));
+      builder.addIfNotNull(DisplayData.item("trustSelfSignedCerts", isTrustSelfSignedCerts()));
     }
 
     @VisibleForTesting
@@ -413,10 +432,10 @@ public class ElasticsearchIO {
             String keystorePassword = getKeystorePassword();
             keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
           }
+          final TrustStrategy trustStrategy =
+              isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
           final SSLContext sslContext =
-              SSLContexts.custom()
-                  .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy())
-                  .build();
+              SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
           restClientBuilder.setHttpClientConfigCallback(
               httpClientBuilder ->

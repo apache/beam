@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.wrappers;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -67,7 +68,10 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
 
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
+    FlinkMetricContainer metricContainer =
+        new FlinkMetricContainer(
+            getRuntimeContext(),
+            options.as(FlinkPipelineOptions.class).getDisableMetricAccumulator());
 
     readerInvoker = new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 

@@ -52,6 +52,11 @@ public class TestTableFilter implements BeamSqlTableFilter {
     return unsupported;
   }
 
+  @Override
+  public int numSupported() {
+    return BeamSqlTableFilter.expressionsInFilter(supported);
+  }
+
   public List<RexNode> getSupported() {
     return supported;
   }

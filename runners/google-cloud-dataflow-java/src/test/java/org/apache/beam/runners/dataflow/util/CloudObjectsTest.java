@@ -51,10 +51,10 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
 import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
@@ -91,7 +91,7 @@ public class CloudObjectsTest {
           .addDoubleField("double")
           .addStringField("string")
           .addArrayField("list_int32", FieldType.INT32)
-          .addLogicalTypeField("fixed_bytes", LogicalTypes.FixedBytes.of(4))
+          .addLogicalTypeField("fixed_bytes", FixedBytes.of(4))
           .build();
 
   /** Tests that all of the Default Coders are tested. */

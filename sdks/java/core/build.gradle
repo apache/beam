@@ -69,6 +69,7 @@ dependencies {
   compile library.java.protobuf_java
   compile library.java.commons_compress
   compile library.java.commons_lang3
+  shadow library.java.jsr305
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind

@@ -70,6 +70,7 @@ import copy
 import logging
 import sys
 import types
+import typing
 from builtins import next
 from builtins import zip
 
@@ -1030,7 +1031,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(GetitemConstructor,
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor,  # type: ignore[misc]
                                             TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
@@ -1114,7 +1115,7 @@ WindowedValue = WindowedTypeConstraint
 # There is a circular dependency between defining this mapping
 # and using it in normalize().  Initialize it here and populate
 # it below.
-_KNOWN_PRIMITIVE_TYPES = {}
+_KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
 
 
 def normalize(x, none_as_type=False):

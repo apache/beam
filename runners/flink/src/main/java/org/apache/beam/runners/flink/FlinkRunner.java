@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -77,7 +77,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     if (flinkOptions.getFilesToStage() == null) {
       flinkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader(), options));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "

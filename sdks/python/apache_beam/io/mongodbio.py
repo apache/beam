@@ -174,7 +174,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     for split_key_id in split_keys:
       if bundle_start >= stop_position:
         break
-      bundle_end = min(stop_position, split_key_id)
+      bundle_end = min(stop_position, split_key_id['_id'])
       yield iobase.SourceBundle(weight=desired_bundle_size_in_mb,
                                 source=self,
                                 start_position=bundle_start,

@@ -38,17 +38,18 @@ public class AvroRecordSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
     return AvroUtils.getGetters(targetClass, schema);
   }
 
   @Override
-  List<FieldValueTypeInformation> fieldValueTypeInformations(Class<?> targetClass, Schema schema) {
+  public List<FieldValueTypeInformation> fieldValueTypeInformations(
+      Class<?> targetClass, Schema schema) {
     return AvroUtils.getFieldTypes(targetClass, schema);
   }
 
   @Override
-  SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
     return AvroUtils.getCreator(targetClass, schema);
   }
 }

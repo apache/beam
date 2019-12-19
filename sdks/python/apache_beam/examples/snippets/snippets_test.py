@@ -528,11 +528,12 @@ class SnippetsTest(unittest.TestCase):
   def test_model_pcollection(self):
     temp_path = self.create_temp_file()
     snippets.model_pcollection(['--output=%s' % temp_path])
-    self.assertEqual(self.get_output(temp_path, sorted_output=False), [
+    self.assertEqual(self.get_output(temp_path), [
+        'Or to take arms against a sea of troubles, ',
+        'The slings and arrows of outrageous fortune, ',
         'To be, or not to be: that is the question: ',
         'Whether \'tis nobler in the mind to suffer ',
-        'The slings and arrows of outrageous fortune, ',
-        'Or to take arms against a sea of troubles, '])
+    ])
 
   def test_construct_pipeline(self):
     temp_path = self.create_temp_file(

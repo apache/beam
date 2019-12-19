@@ -56,7 +56,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -227,8 +227,8 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
 class ExternalTransformTest(unittest.TestCase):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar = None
-  expansion_service_port = None
+  expansion_service_jar = None  # type: str
+  expansion_service_port = None  # type: int
 
   class _RunWithExpansion(object):
 
@@ -319,6 +319,17 @@ class ExternalTransformTest(unittest.TestCase):
   def test_nested(self):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
+
+  def test_unique_name(self):
+    p = beam.Pipeline()
+    _ = p | FibTransform(6)
+    proto = p.to_runner_api()
+    xforms = [x.unique_name for x in proto.components.transforms.values()]
+    self.assertEqual(
+        len(set(xforms)), len(xforms), msg='Transform names are not unique.')
+    pcolls = [x.unique_name for x in proto.components.pcollections.values()]
+    self.assertEqual(
+        len(set(pcolls)), len(pcolls), msg='PCollection names are not unique.')
 
   def test_java_expansion_portable_runner(self):
     ExternalTransformTest.expansion_service_port = os.environ.get(

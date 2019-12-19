@@ -15,9 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.runners.core.construction.resources;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
@@ -28,51 +32,44 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 /** Tests for PipelineResources. */
 @RunWith(JUnit4.class)
 public class PipelineResourcesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
-  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void detectClassPathResourceWithFileResources() throws Exception {
+  public void testDetectsResourcesToStage() throws IOException {
     File file = tmpFolder.newFile("file");
-    File file2 = tmpFolder.newFile("file2");
+    URLClassLoader classLoader = new URLClassLoader(new URL[] {file.toURI().toURL()});
+    PipelineResourcesOptions options =
+        PipelineOptionsFactory.create().as(PipelineResourcesOptions.class);
+
+    List<String> detectedResources =
+        PipelineResources.detectClassPathResourcesToStage(classLoader, options);
+
+    assertThat(detectedResources, not(empty()));
+  }
+
+  @Test
+  public void testDetectedResourcesListDoNotContainNotStageableResources() throws IOException {
+    File unstageableResource = tmpFolder.newFolder(".gradle/wrapper/unstageableResource");
     URLClassLoader classLoader =
-        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL()});
+        new URLClassLoader(new URL[] {unstageableResource.toURI().toURL()});
+    PipelineResourcesOptions options =
+        PipelineOptionsFactory.create().as(PipelineResourcesOptions.class);
 
-    assertEquals(
-        ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
-        PipelineResources.detectClassPathResourcesToStage(classLoader));
-  }
+    List<String> detectedResources =
+        PipelineResources.detectClassPathResourcesToStage(classLoader, options);
 
-  @Test
-  public void detectClassPathResourcesWithUnsupportedClassLoader() {
-    ClassLoader mockClassLoader = Mockito.mock(ClassLoader.class);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unable to use ClassLoader to detect classpath elements.");
-
-    PipelineResources.detectClassPathResourcesToStage(mockClassLoader);
-  }
-
-  @Test
-  public void detectClassPathResourceWithNonFileResources() throws Exception {
-    String url = "http://www.google.com/all-the-secrets.jar";
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unable to convert url (" + url + ") to file.");
-
-    PipelineResources.detectClassPathResourcesToStage(classLoader);
+    assertThat(detectedResources, not(contains(unstageableResource.getAbsolutePath())));
   }
 
   @Test
@@ -105,12 +102,15 @@ public class PipelineResourcesTest {
 
   @Test
   public void testIfThrowsWhenThereIsNoTemporaryFolderForJars() throws IOException {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Please provide temporary location for storing the jar files.");
-
     List<String> filesToStage = new ArrayList<>();
     filesToStage.add(tmpFolder.newFolder().getAbsolutePath());
 
-    PipelineResources.prepareFilesForStaging(filesToStage, null);
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> PipelineResources.prepareFilesForStaging(filesToStage, null));
+
+    assertEquals(
+        "Please provide temporary location for storing the jar files.", exception.getMessage());
   }
 }

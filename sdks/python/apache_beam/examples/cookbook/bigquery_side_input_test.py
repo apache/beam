@@ -36,9 +36,9 @@ class BigQuerySideInputTest(unittest.TestCase):
 
       group_ids_pcoll = p | 'CreateGroupIds' >> beam.Create(['A', 'B', 'C'])
       corpus_pcoll = p | 'CreateCorpus' >> beam.Create(
-          [{'f': 'corpus1'}, {'f': 'corpus2'}, {'f': 'corpus3'}])
+          [{'f': 'corpus1'}, {'f': 'corpus2'}])
       words_pcoll = p | 'CreateWords' >> beam.Create(
-          [{'f': 'word1'}, {'f': 'word2'}, {'f': 'word3'}])
+          [{'f': 'word1'}, {'f': 'word2'}])
       ignore_corpus_pcoll = p | 'CreateIgnoreCorpus' >> beam.Create(['corpus1'])
       ignore_word_pcoll = p | 'CreateIgnoreWord' >> beam.Create(['word1'])
 

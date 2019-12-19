@@ -106,6 +106,7 @@ class PropertyNames(object):
   OUTPUT_INFO = 'output_info'
   OUTPUT_NAME = 'output_name'
   PARALLEL_INPUT = 'parallel_input'
+  PIPELINE_PROTO_TRANSFORM_ID = 'pipeline_proto_transform_id'
   PUBSUB_ID_LABEL = 'pubsub_id_label'
   PUBSUB_SERIALIZED_ATTRIBUTES_FN = 'pubsub_serialized_attributes_fn'
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'

@@ -72,7 +72,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLocalRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
@@ -245,33 +244,11 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
-    return BeamCostModel.FACTORY
-        .makeCost(inputStat.getRowCount(), inputStat.getRate())
-        // Increase cost by the small factor of the number of expressions involved in predicate.
-        // Helps favor Calcs with smaller filters.
-        .plus(
-            BeamCostModel.FACTORY
-                .makeTinyCost()
-                .multiplyBy(expressionsInFilter(getProgram().split().right)));
+    return BeamCostModel.FACTORY.makeCost(inputStat.getRowCount(), inputStat.getRate());
   }
 
   public boolean isInputSortRelAndLimitOnly() {
     return (input instanceof BeamSortRel) && ((BeamSortRel) input).isLimitOnly();
-  }
-
-  /**
-   * Recursively count the number of expressions involved in conditions.
-   *
-   * @param filterNodes A list of conditions in a CNF.
-   * @return Number of expressions used by conditions.
-   */
-  private int expressionsInFilter(List<RexNode> filterNodes) {
-    int childSum =
-        filterNodes.stream()
-            .filter(n -> n instanceof RexCall)
-            .mapToInt(n -> expressionsInFilter(((RexCall) n).getOperands()))
-            .sum();
-    return filterNodes.size() + childSum;
   }
 
   /** {@code CalcFn} is the executor for a {@link BeamCalcRel} step. */
