@@ -171,9 +171,11 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete_files([src_file_name, dest_file_name])
 
     # Test copy of non-existent files.
-    with self.assertRaisesRegex(messages.S3ClientError, r'Not Found'):
+    with self.assertRaises(messages.S3ClientError) as err:
       self.aws.copy(self.TEST_DATA_PATH + 'non-existent',
                     self.TEST_DATA_PATH + 'non-existent-destination')
+
+    self.assertTrue('Not Found' in err.exception.message)
 
   def test_copy_paths(self):
     from_name_pattern = self.TEST_DATA_PATH + 'copy_me_%d'
@@ -276,15 +278,15 @@ class TestS3IO(unittest.TestCase):
 
     results = self.aws.copy_tree(src_dir_name, dest_dir_name)
 
-    for i, path in enumerate(paths):
-      src_file_name = src_dir_name + path
-      dest_file_name = dest_dir_name + path
+    for src_file_name, dest_file_name, err in results:
+
+      self.assertTrue(src_dir_name in src_file_name)
+      self.assertTrue(dest_dir_name in dest_file_name)
+
       self.assertTrue(
           src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
       self.assertTrue(
           dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
-
-      self.assertEqual(results[i], (src_file_name, dest_file_name, None))
 
     # Clean up
     for path in paths:

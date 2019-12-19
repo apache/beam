@@ -229,9 +229,8 @@ class S3IO(object):
       dest: S3 file path pattern in the form s3://<bucket>/<name>/.
 
     Returns:
-      List of tuples of (src, dest, exception) in the same order as the
-      src_dest_pairs argument, where exception is None if the operation
-      succeeded or the relevant exception if the operation failed.
+      List of tuples of (src, dest, exception) where exception is None if the
+      operation succeeded or the relevant exception if the operation failed.
     """
     assert src.endswith('/')
     assert dest.endswith('/')
@@ -244,6 +243,7 @@ class S3IO(object):
         results.append((entry, dest + rel_path, None))
       except messages.S3ClientError as e:
         results.append((entry, dest + rel_path, e))
+
     return results
 
   @retry.with_exponential_backoff(
@@ -562,7 +562,7 @@ class S3Uploader(Uploader):
     MAX_WRITE_SIZE = 5 * 1024 * 1024 * 1024
 
     # TODO: Byte strings might not be the most performant way to handle this
-    self.buffer += data
+    self.buffer += data.tobytes()
 
     while len(self.buffer) >= MIN_WRITE_SIZE:
       # Take the first chunk off the buffer and write it to S3

@@ -126,11 +126,10 @@ class S3FileSystemTest(unittest.TestCase):
     exception = IOError('Failed')
     s3io_mock.list_prefix.side_effect = exception
 
-    with self.assertRaisesRegex(BeamIOError,
-                                r'^Match operation failed') as error:
+    with self.assertRaises(BeamIOError) as error:
       self.fs.match(['s3://bucket/'])
-    self.assertRegex(str(error.exception.exception_details),
-                     r's3://bucket/.*%s' % exception)
+
+    self.assertTrue('Match operation failed' in str(error.exception))
     s3io_mock.list_prefix.assert_called_once_with('s3://bucket/')
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
@@ -240,9 +239,9 @@ class S3FileSystemTest(unittest.TestCase):
     expected_results = {problematic_directory: exception}
 
     # Issue batch delete.
-    with self.assertRaisesRegex(BeamIOError,
-                                r'^Delete operation failed') as error:
+    with self.assertRaises(BeamIOError) as error:
       self.fs.delete(files)
+    self.assertTrue('Delete operation failed' in str(error.exception))
     self.assertEqual(error.exception.exception_details, expected_results)
     s3io_mock.delete_paths.assert_called()
 
