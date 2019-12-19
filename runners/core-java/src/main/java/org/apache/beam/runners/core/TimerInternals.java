@@ -242,7 +242,7 @@ public interface TimerInternals {
       ComparisonChain chain =
           ComparisonChain.start()
               .compare(this.getTimestamp(), that.getTimestamp())
-                  .compare(this.getOutputTimestamp(), that.getOutputTimestamp())
+              .compare(this.getOutputTimestamp(), that.getOutputTimestamp())
               .compare(this.getDomain(), that.getDomain())
               .compare(this.getTimerId(), that.getTimerId())
               .compare(this.getTimerFamilyId(), that.getTimerFamilyId());
@@ -287,7 +287,7 @@ public interface TimerInternals {
       Instant timestamp = INSTANT_CODER.decode(inStream);
       Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, timerFamilyId, namespace, timestamp,outputTimestamp, domain);
+      return TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
     }
 
     @Override
