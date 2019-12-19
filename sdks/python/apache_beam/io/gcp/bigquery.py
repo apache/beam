@@ -555,6 +555,8 @@ class _JsonToDictCoder(coders.Coder):
             for x in table_field_schemas]
 
   def decode(self, value):
+    if isinstance(value, bytes):
+      value = value.decode('utf-8')
     value = json.loads(value)
     return self._decode_with_schema(value, self.fields)
 
