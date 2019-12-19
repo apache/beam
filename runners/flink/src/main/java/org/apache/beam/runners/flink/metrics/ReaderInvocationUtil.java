@@ -40,7 +40,7 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
       String stepName, PipelineOptions options, FlinkMetricContainer container) {
     FlinkPipelineOptions flinkPipelineOptions = options.as(FlinkPipelineOptions.class);
     this.stepName = stepName;
-    this.enableMetrics = !flinkPipelineOptions.getDisableMetrics();
+    enableMetrics = flinkPipelineOptions.getEnableMetrics();
     this.container = container;
   }
 

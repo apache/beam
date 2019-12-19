@@ -132,7 +132,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
             sideInputMapping);
 
     FlinkPipelineOptions pipelineOptions = serializedOptions.get().as(FlinkPipelineOptions.class);
-    if (!pipelineOptions.getDisableMetrics()) {
+    if (pipelineOptions.getEnableMetrics()) {
       doFnRunner =
           new DoFnRunnerWithMetricsUpdate<>(
               stepName,

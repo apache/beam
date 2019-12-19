@@ -157,11 +157,9 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
     return self._artifact_staging_endpoint
 
   def request(self, method, path, expected_status=200, **kwargs):
-    url = '%s/%s' % (self._master_url, path)
-    response = method(url, **kwargs)
+    response = method('%s/%s' % (self._master_url, path), **kwargs)
     if response.status_code != expected_status:
-      raise RuntimeError("Request to %s failed with status %d: %s" %
-                         (url, response.status_code, response.text))
+      raise RuntimeError(response.text)
     if response.text:
       return response.json()
 

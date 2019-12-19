@@ -133,8 +133,8 @@ class WithTypeHintsTest(unittest.TestCase):
         pass  # intentionally avoiding super call
     # These should be equal, but not the same object lest mutating the instance
     # mutates the class.
-    self.assertIsNot(
-        Subclass()._get_or_create_type_hints(), Subclass._type_hints)
+    self.assertFalse(
+        Subclass()._get_or_create_type_hints() is Subclass._type_hints)
     self.assertEqual(
         Subclass().get_type_hints(), Subclass._type_hints)
     self.assertNotEqual(

@@ -153,11 +153,11 @@ public interface FlinkPipelineOptions
 
   void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
 
-  @Description("Disable Beam metrics in Flink Runner")
-  @Default.Boolean(false)
-  Boolean getDisableMetrics();
+  @Description("Enable/disable Beam metrics in Flink Runner")
+  @Default.Boolean(true)
+  Boolean getEnableMetrics();
 
-  void setDisableMetrics(Boolean enableMetrics);
+  void setEnableMetrics(Boolean enableMetrics);
 
   @Description(
       "By default, uses Flink accumulators to store the metrics which allows to query metrics from the PipelineResult. "
