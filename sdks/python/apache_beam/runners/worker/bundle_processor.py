@@ -1098,6 +1098,12 @@ class BeamTransformFactory(object):
     # type: (beam_runner_api_pb2.PTransform) -> coders.Coder
     return only_element(list(self.get_input_coders(transform_proto).values()))
 
+  def get_input_windowing(self, transform_proto):
+    pcoll_id = only_element(transform_proto.inputs.values())
+    windowing_strategy_id = self.descriptor.pcollections[
+        pcoll_id].windowing_strategy_id
+    return self.context.windowing_strategies.get_by_id(windowing_strategy_id)
+
   # TODO(robertwb): Update all operations to take these in the constructor.
   @staticmethod
   def augment_oldstyle_op(op,  # type: OperationT
@@ -1485,7 +1491,8 @@ def create(factory, transform_id, transform_proto, payload, consumers):
               None,
               [factory.get_only_output_coder(transform_proto)]),
           factory.counter_factory,
-          factory.state_sampler),
+          factory.state_sampler,
+          factory.get_input_windowing(transform_proto)),
       transform_proto.unique_name,
       consumers)
 
