@@ -37,7 +37,7 @@ public class ExternalTranslation {
 
   /** Translator for ExpandableTransform. */
   public static class ExternalTranslator
-      implements PTransformTranslation.TransformTranslator<External.ExpandableTransform<?>> {
+      implements PTransformTranslation.TransformTranslator<External.ExpandableTransform<?, ?>> {
     public static PTransformTranslation.TransformTranslator create() {
       return new ExternalTranslator();
     }
