@@ -547,7 +547,7 @@ var StandardCoders_Enum_value = map[string]int32{
 	"GLOBAL_WINDOW":         7,
 	"WINDOWED_VALUE":        8,
 	"STATE_BACKED_ITERABLE": 9,
-	"ROW": 13,
+	"ROW":                   13,
 }
 
 func (x StandardCoders_Enum) String() string {

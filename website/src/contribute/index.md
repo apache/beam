@@ -89,6 +89,8 @@ sudo apt-get install \
 
 You also need to [install Go](https://golang.org/doc/install]).
 
+gLinux users should configure their machines for sudoless Docker.
+
 ### Connect With the Beam community
 
 1. Consider subscribing to the [dev@ mailing list]({{ site.baseurl}}/community/contact-us/), especially
