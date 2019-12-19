@@ -135,9 +135,9 @@ class PubSubMatcherTest(unittest.TestCase):
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
     self.assertCountEqual([b'c', b'd'], self.pubsub_matcher.messages)
-    self.assertTrue(
-        '\nExpected: Expected 1 messages.\n     but: Got 2 messages.'
-        in str(error.exception.args[0]))
+    self.assertIn(
+        '\nExpected: Expected 1 messages.\n     but: Got 2 messages.',
+        str(error.exception.args[0]))
     self.assertEqual(mock_sub.pull.call_count, 1)
     self.assertEqual(mock_sub.acknowledge.call_count, 1)
 
@@ -161,9 +161,9 @@ class PubSubMatcherTest(unittest.TestCase):
     with self.assertRaises(AssertionError) as error:
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
-    self.assertTrue(
-        '\nExpected: Expected 1 messages.\n     but: Got 2 messages.'
-        in str(error.exception.args[0]))
+    self.assertIn(
+        '\nExpected: Expected 1 messages.\n     but: Got 2 messages.',
+        str(error.exception.args[0]))
 
   def test_message_count_matcher_above_fail(self, mock_get_sub, unused_mock):
     self.init_counter_matcher(expected_msg_len=1)

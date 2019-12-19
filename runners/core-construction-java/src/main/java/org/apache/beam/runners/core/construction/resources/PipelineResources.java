@@ -50,11 +50,10 @@ public class PipelineResources {
       ClassLoader classLoader, PipelineOptions options) {
 
     PipelineResourcesOptions artifactsRelatedOptions = options.as(PipelineResourcesOptions.class);
-    return artifactsRelatedOptions
-        .getPipelineResourcesDetector()
-        .detect(classLoader)
-        .filter(isStageable())
-        .collect(Collectors.toList());
+    List<String> detectedResources =
+        artifactsRelatedOptions.getPipelineResourcesDetector().detect(classLoader);
+
+    return detectedResources.stream().filter(isStageable()).collect(Collectors.toList());
   }
 
   /**
