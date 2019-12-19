@@ -282,6 +282,7 @@ class TestS3IO(unittest.TestCase):
 
       self.assertTrue(src_dir_name in src_file_name)
       self.assertTrue(dest_dir_name in dest_file_name)
+      self.assertIsNone(err)
 
       self.assertTrue(
           src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))

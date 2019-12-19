@@ -214,7 +214,7 @@ class FakeS3Client(object):
 
     # Sort by part number
     sorted_parts = sorted(parts_received.items(), key=lambda pair: pair[0])
-    sorted_bytes = [bytes_ for (part_number, bytes_) in sorted_parts]
+    sorted_bytes = [bytes_ for (_, bytes_) in sorted_parts]
 
     # Make sure that the parts aren't too small (except the last part)
     part_sizes = [len(bytes_) for bytes_ in sorted_bytes]
