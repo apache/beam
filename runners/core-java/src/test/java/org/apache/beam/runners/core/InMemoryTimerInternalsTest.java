@@ -72,7 +72,7 @@ public class InMemoryTimerInternalsTest {
 
     underTest.advanceInputWatermark(new Instant(0));
     underTest.setTimer(NS1, ID1, ID1, earlyTimestamp, earlyTimestamp, TimeDomain.EVENT_TIME);
-    underTest.setTimer(NS1, ID1, ID1, laterTimestamp, earlyTimestamp, TimeDomain.EVENT_TIME);
+    underTest.setTimer(NS1, ID1, ID1, laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME);
     underTest.advanceInputWatermark(earlyTimestamp.plus(1L));
     assertThat(underTest.removeNextEventTimer(), nullValue());
 
