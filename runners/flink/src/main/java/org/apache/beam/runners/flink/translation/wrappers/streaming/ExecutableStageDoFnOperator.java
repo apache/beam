@@ -840,6 +840,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             StateNamespaces.window(windowCoder, window),
             GC_TIMER_ID,
             gcTime,
+            window.maxTimestamp(),
             TimeDomain.EVENT_TIME);
       } finally {
         stateBackendLock.unlock();

@@ -54,9 +54,14 @@ public interface TimerInternals {
    *
    * <p>It is an error to set a timer for two different time domains.
    */
-  void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
+  void setTimer(
+      StateNamespace namespace,
+      String timerId,
+      Instant target,
+      Instant outputTimestamp,
+      TimeDomain timeDomain);
 
-  /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+  /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, Instant, TimeDomain)}. */
   @Deprecated
   void setTimer(TimerData timerData);
 
@@ -165,6 +170,13 @@ public interface TimerInternals {
 
     public abstract Instant getTimestamp();
 
+    /**
+     * Timestamp the timer assigns to outputted elements from {@link
+     * org.apache.beam.sdk.transforms.DoFn.OnTimer} method. For event time timers, output watermark
+     * is held at this timestamp until the timer fires.
+     */
+    public abstract Instant getOutputTimestamp();
+
     public abstract TimeDomain getDomain();
 
     // When adding a new field, make sure to add it to the compareTo() method.
@@ -174,8 +186,24 @@ public interface TimerInternals {
      * generated.
      */
     public static TimerData of(
+        String timerId,
+        StateNamespace namespace,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain domain) {
+      return new AutoValue_TimerInternals_TimerData(
+          timerId, namespace, timestamp, outputTimestamp, domain);
+    }
+
+    /**
+     * Construct a {@link TimerData} for the given parameters, where the timer ID is automatically
+     * generated. Construct a {@link TimerData} for the given parameters except for {@code
+     * outputTimestamp}. {@code outputTimestamp} is set to timer {@code timestamp}.
+     */
+    public static TimerData of(
         String timerId, StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      return new AutoValue_TimerInternals_TimerData(timerId, namespace, timestamp, domain);
+      return new AutoValue_TimerInternals_TimerData(
+          timerId, namespace, timestamp, timestamp, domain);
     }
 
     /**
