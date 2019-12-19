@@ -1089,13 +1089,18 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     public void setTimer(
         StateNamespace namespace,
         String timerId,
+        String timerFamilyId,
         Instant target,
         Instant outputTimestamp,
         TimeDomain timeDomain) {
-      setTimer(TimerData.of(timerId, namespace, target, outputTimestamp, timeDomain));
+      setTimer(
+          TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
     }
 
-    /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, Instant, TimeDomain)}. */
+    /**
+     * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+     *     TimeDomain)}.
+     */
     @Deprecated
     @Override
     public void setTimer(TimerData timer) {

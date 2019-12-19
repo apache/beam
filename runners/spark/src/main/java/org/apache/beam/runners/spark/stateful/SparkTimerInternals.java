@@ -157,6 +157,7 @@ public class SparkTimerInternals implements TimerInternals {
   public void setTimer(
       StateNamespace namespace,
       String timerId,
+      String timerFamilyId,
       Instant target,
       Instant outputTimestamp,
       TimeDomain timeDomain) {

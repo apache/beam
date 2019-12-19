@@ -839,6 +839,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         timerInternals.setTimer(
             StateNamespaces.window(windowCoder, window),
             GC_TIMER_ID,
+            GC_TIMER_ID,
             gcTime,
             window.maxTimestamp(),
             TimeDomain.EVENT_TIME);
