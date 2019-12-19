@@ -24,7 +24,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.ZipFiles;
@@ -50,19 +49,7 @@ public class PipelineResources {
       ClassLoader classLoader, PipelineOptions options) {
 
     PipelineResourcesOptions artifactsRelatedOptions = options.as(PipelineResourcesOptions.class);
-    return artifactsRelatedOptions
-        .getPipelineResourcesDetector()
-        .detect(classLoader)
-        .filter(isStageable())
-        .collect(Collectors.toList());
-  }
-
-  /**
-   * Returns a predicate for filtering all resources that are impossible to stage (like gradle
-   * wrapper jars).
-   */
-  private static Predicate<String> isStageable() {
-    return resourcePath -> !resourcePath.contains("gradle/wrapper");
+    return artifactsRelatedOptions.getPipelineResourcesDetector().detect(classLoader);
   }
 
   /**
