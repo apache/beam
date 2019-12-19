@@ -68,7 +68,7 @@ if statesampler.FAST_SAMPLER:
 else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def _matcher_or_equal_to(value_or_matcher):

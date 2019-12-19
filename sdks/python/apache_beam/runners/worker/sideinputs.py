@@ -53,7 +53,7 @@ READER_THREAD_IS_DONE_SENTINEL = object()
 _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class PrefetchingSourceSetIterable(object):

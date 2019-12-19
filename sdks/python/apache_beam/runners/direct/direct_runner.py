@@ -60,7 +60,7 @@ __all__ = ['BundleBasedDirectRunner',
            'SwitchingDirectRunner']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class SwitchingDirectRunner(PipelineRunner):

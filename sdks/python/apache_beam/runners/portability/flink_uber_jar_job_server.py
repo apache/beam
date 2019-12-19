@@ -41,7 +41,7 @@ from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):

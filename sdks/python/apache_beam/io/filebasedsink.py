@@ -45,7 +45,7 @@ DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 __all__ = ['FileBasedSink']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class FileBasedSink(iobase.Sink):

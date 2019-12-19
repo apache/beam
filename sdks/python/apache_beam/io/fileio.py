@@ -114,7 +114,7 @@ __all__ = ['EmptyMatchTreatment',
            'ReadMatches']
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class EmptyMatchTreatment(object):

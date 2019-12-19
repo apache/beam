@@ -67,7 +67,7 @@ __all__ = [
     ]
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class AccumulationMode(object):

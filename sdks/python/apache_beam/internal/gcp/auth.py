@@ -41,7 +41,7 @@ is_running_in_gce = False
 executing_project = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 if GceAssertionCredentials is not None:

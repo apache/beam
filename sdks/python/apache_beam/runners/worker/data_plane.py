@@ -42,7 +42,7 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 _DEFAULT_FLUSH_THRESHOLD = 10 << 20  # 10MB
 

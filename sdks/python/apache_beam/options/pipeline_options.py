@@ -48,7 +48,7 @@ __all__ = [
     ]
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def _static_value_provider_of(value_type):

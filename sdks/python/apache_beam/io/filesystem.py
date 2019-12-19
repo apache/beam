@@ -42,7 +42,7 @@ from past.builtins import unicode
 
 from apache_beam.utils.plugin import BeamPlugin
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 

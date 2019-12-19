@@ -39,7 +39,7 @@ from apache_beam.runners.utils import is_interactive
 _interactive_beam_env = None
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def current_env(cache_manager=None):

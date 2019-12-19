@@ -46,7 +46,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class BigQueryReadIntegrationTests(unittest.TestCase):

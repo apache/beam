@@ -31,7 +31,7 @@ from apache_beam.runners.portability import portable_runner
 
 MAGIC_HOST_NAMES = ['[local]', '[auto]']
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class FlinkRunner(portable_runner.PortableRunner):

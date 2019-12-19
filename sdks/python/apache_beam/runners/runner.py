@@ -53,7 +53,7 @@ _RUNNER_MAP['pythonrpcdirectrunner'] = (
     'apache_beam.runners.experimental'
     '.python_rpc_direct.python_rpc_direct_runner.PythonRPCDirectRunner')
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 def create_runner(runner_name):

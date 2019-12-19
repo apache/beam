@@ -273,7 +273,7 @@ __all__ = [
     ]
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")

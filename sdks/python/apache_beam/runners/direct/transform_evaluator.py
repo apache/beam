@@ -65,7 +65,7 @@ from apache_beam.utils import counters
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class TransformEvaluatorRegistry(object):

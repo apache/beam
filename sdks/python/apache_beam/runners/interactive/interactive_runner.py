@@ -38,7 +38,7 @@ from apache_beam.runners.interactive.display import pipeline_graph
 SAMPLE_SIZE = 8
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger()
 
 
 class InteractiveRunner(runners.PipelineRunner):
