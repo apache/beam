@@ -73,7 +73,7 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   private static final TableRowJsonCoder INSTANCE = new TableRowJsonCoder();
   private static final TypeDescriptor<TableRow> TYPE_DESCRIPTOR = new TypeDescriptor<TableRow>() {};
 
-  private TableRowJsonCoder() {}
+  protected TableRowJsonCoder() {}
 
   /**
    * {@inheritDoc}
