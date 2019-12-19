@@ -95,11 +95,11 @@ To get involved in Apache Beam:
 * Report issues on [JIRA](https://issues.apache.org/jira/browse/BEAM).
 
 Instructions for building and testing Beam itself
-are in the [contributor's guide](CONTRIBUTING.md).
+are in the [contribution guide](https://beam.apache.org/contribute/).
 
 ## More Information
 
-* [Apache Beam](http://beam.apache.org)
-* [Overview](http://beam.apache.org/use/beam-overview/)
+* [Apache Beam](https://beam.apache.org)
+* [Overview](https://beam.apache.org/use/beam-overview/)
 * Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)
 * [Community metrics](https://s.apache.org/beam-community-metrics)
