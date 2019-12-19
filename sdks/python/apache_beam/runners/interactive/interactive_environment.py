@@ -204,8 +204,12 @@ class InteractiveEnvironment(object):
     """Gets the cache manager held by current Interactive Environment."""
     return self._cache_manager
 
-  def set_pipeline_result(self, pipeline, result, is_main_job=True):
-    """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
+  def set_pipeline_result(self, pipeline, result, is_main_job):
+    """Sets the pipeline run result. Adds one if absent. Otherwise, replace.
+
+    When is_main_job is True, set the result for the main job; otherwise, set
+    the result for the background caching job.
+    """
     assert issubclass(type(pipeline), beam.Pipeline), (
         'pipeline must be an instance of apache_beam.Pipeline or its subclass')
     assert issubclass(type(result), runner.PipelineResult), (

@@ -45,8 +45,6 @@ from apache_beam.runners.interactive import interactive_environment as ie
 def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
   """Attempts to run a background caching job for a user-defined pipeline.
 
-  If a background caching job is started, return the pipeline result. Otherwise,
-  return None.
   The pipeline result is automatically tracked by Interactive Beam in case
   future cancellation/cleanup is needed.
   """
@@ -67,8 +65,6 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
     ie.current_env().set_pipeline_result(user_pipeline,
                                          background_caching_job_result,
                                          is_main_job=False)
-    return background_caching_job_result
-  return None
 
 
 def is_background_caching_job_needed(user_pipeline):
@@ -101,13 +97,11 @@ def has_source_to_cache(user_pipeline):
 def attempt_to_cancel_background_caching_job(user_pipeline):
   """Attempts to cancel background caching job for a user-defined pipeline.
 
-  If no background caching job needs to be cancelled, return None. Otherwise,
-  cancel such job and return the pipeline result to the background caching job.
+  If no background caching job needs to be cancelled, NOOP. Otherwise, cancel
+  such job.
   """
   background_caching_job_result = ie.current_env().pipeline_result(
       user_pipeline, is_main_job=False)
   if (background_caching_job_result and
       not ie.current_env().is_terminated(user_pipeline, is_main_job=False)):
     background_caching_job_result.cancel()
-    return background_caching_job_result
-  return None

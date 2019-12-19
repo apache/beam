@@ -155,7 +155,10 @@ class InteractiveRunner(runners.PipelineRunner):
     # outer scopes are also recommended since the user_pipeline might not be
     # available from within this scope.
     if user_pipeline:
-      ie.current_env().set_pipeline_result(user_pipeline, main_job_result)
+      ie.current_env().set_pipeline_result(
+          user_pipeline,
+          main_job_result,
+          is_main_job=True)
     main_job_result.wait_until_finish()
 
     return main_job_result

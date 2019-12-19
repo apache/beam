@@ -53,8 +53,8 @@ class BackgroundCachingJobTest(unittest.TestCase):
   def tearDown(self):
     ie.new_env()
 
-  # A patch is needed until the boundedness check considers a TestStream as
-  # an unbounded source.
+  # TODO(BEAM-8335): remove the patches when there are appropriate test sources
+  # that meet the boundedness checks.
   @patch('apache_beam.runners.interactive.pipeline_instrument'
          '.has_unbounded_sources', lambda x: True)
   def test_background_caching_job_starts_when_none_such_job_exists(self):
