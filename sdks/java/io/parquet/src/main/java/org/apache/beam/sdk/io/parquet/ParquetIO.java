@@ -128,32 +128,11 @@ public class ParquetIO {
   }
 
   /**
-   * Like {@link #read(Schema)}, with an additional {@link org.apache.avro.generic.GenericData}
-   * argument, allowing users to signal to the underlying AvroParquetReader the type of model to
-   * associate with the wrapped {@link org.apache.parquet.avro.AvroReadSupport} instance.
-   */
-  public static Read read(Schema schema, GenericData model) {
-    return new AutoValue_ParquetIO_Read.Builder().setSchema(schema).setAvroDataModel(model).build();
-  }
-
-  /**
    * Like {@link #read(Schema)}, but reads each file in a {@link PCollection} of {@link
    * org.apache.beam.sdk.io.FileIO.ReadableFile}, which allows more flexible usage.
    */
   public static ReadFiles readFiles(Schema schema) {
     return new AutoValue_ParquetIO_ReadFiles.Builder().setSchema(schema).build();
-  }
-
-  /**
-   * Like {@link #readFiles(Schema)}, with an additional {@link org.apache.avro.generic.GenericData}
-   * argument, allowing users to signal to the underlying AvroParquetReader the type of model to
-   * associate with the wrapped {@link org.apache.parquet.avro.AvroReadSupport} instance.
-   */
-  public static ReadFiles readFiles(Schema schema, GenericData model) {
-    return new AutoValue_ParquetIO_ReadFiles.Builder()
-        .setSchema(schema)
-        .setAvroDataModel(model)
-        .build();
   }
 
   /** Implementation of {@link #read(Schema)}. */
@@ -192,6 +171,10 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
+    public Read withAvroDataModel(GenericData model) {
+      return toBuilder().setAvroDataModel(model).build();
+    }
+
     @Override
     public PCollection<GenericRecord> expand(PBegin input) {
       checkNotNull(getFilepattern(), "Filepattern cannot be null.");
@@ -200,7 +183,7 @@ public class ParquetIO {
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply(FileIO.matchAll())
           .apply(FileIO.readMatches())
-          .apply(readFiles(getSchema(), getAvroDataModel()));
+          .apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
     }
 
     @Override
@@ -222,6 +205,8 @@ public class ParquetIO {
     @Nullable
     abstract GenericData getAvroDataModel();
 
+    abstract Builder toBuilder();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setSchema(Schema schema);
@@ -229,6 +214,10 @@ public class ParquetIO {
       abstract Builder setAvroDataModel(GenericData model);
 
       abstract ReadFiles build();
+    }
+
+    public ReadFiles withAvroDataModel(GenericData model) {
+      return toBuilder().setAvroDataModel(model).build();
     }
 
     @Override
