@@ -17,23 +17,31 @@
  */
 package org.apache.beam.sdk.io.cassandra;
 
+import java.io.Serializable;
 import java.math.BigInteger;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** Models a Cassandra token range. */
-final class RingRange {
+@Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+public final class RingRange implements Serializable {
   private final BigInteger start;
   private final BigInteger end;
 
-  RingRange(BigInteger start, BigInteger end) {
+  private RingRange(BigInteger start, BigInteger end) {
     this.start = start;
     this.end = end;
   }
 
-  BigInteger getStart() {
+  public BigInteger getStart() {
     return start;
   }
 
-  BigInteger getEnd() {
+  public BigInteger getEnd() {
     return end;
   }
 
@@ -54,5 +62,35 @@ final class RingRange {
   @Override
   public String toString() {
     return String.format("(%s,%s]", start.toString(), end.toString());
+  }
+
+  public static RingRange of(BigInteger start, BigInteger end) {
+    return new RingRange(start, end);
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    RingRange ringRange = (RingRange) o;
+
+    if (getStart() != null
+        ? !getStart().equals(ringRange.getStart())
+        : ringRange.getStart() != null) {
+      return false;
+    }
+    return getEnd() != null ? getEnd().equals(ringRange.getEnd()) : ringRange.getEnd() == null;
+  }
+
+  @Override
+  public int hashCode() {
+    int result = getStart() != null ? getStart().hashCode() : 0;
+    result = 31 * result + (getEnd() != null ? getEnd().hashCode() : 0);
+    return result;
   }
 }
