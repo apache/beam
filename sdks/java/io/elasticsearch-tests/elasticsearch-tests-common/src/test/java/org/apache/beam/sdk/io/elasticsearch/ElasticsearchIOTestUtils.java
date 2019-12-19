@@ -259,25 +259,10 @@ class ElasticsearchIOTestUtils {
     request.setEntity(httpEntity);
     Response response = restClient.performRequest(request);
     JsonNode searchResult = parseResponse(response.getEntity());
-    if (getBackendVersion(connectionConfiguration) == 7){
+    if (getBackendVersion(connectionConfiguration) == 7) {
       return searchResult.path("hits").path("total").path("value").asInt();
     } else {
       return searchResult.path("hits").path("total").asInt();
     }
-  }
-
-  public static void setIndexMapping(
-      ConnectionConfiguration connectionConfiguration, RestClient restClient) throws IOException {
-    String endpoint = String.format("/%s", connectionConfiguration.getIndex());
-    String requestString =
-        String.format(
-            "{\"mappings\":{\"%s\":{\"properties\":{\"age\":{\"type\":\"long\"},"
-                + " \"scientist\":{\"type\":\"%s\"}, \"id\":{\"type\":\"long\"}}}}}",
-            connectionConfiguration.getType(),
-            getBackendVersion(connectionConfiguration) == 2 ? "string" : "text");
-    HttpEntity requestBody = new NStringEntity(requestString, ContentType.APPLICATION_JSON);
-    Request request = new Request("PUT", endpoint);
-    request.setEntity(requestBody);
-    restClient.performRequest(request);
   }
 }
