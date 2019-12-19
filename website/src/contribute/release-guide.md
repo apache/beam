@@ -529,6 +529,18 @@ Adjust any of the above properties to the improve clarity and presentation of th
 Check if there are outstanding cherry-picks into the release branch, [e.g. for `2.14.0`](https://github.com/apache/beam/pulls?utf8=%E2%9C%93&q=is%3Apr+base%3Arelease-2.14.0).
 Make sure they have blocker JIRAs attached and are OK to get into the release by checking with community if needed.
 
+As the Release Manager you are empowered to accept or reject cherry-picks to the release branch. You are encouraged to ask the following questions to be answered on each cherry-pick PR and you can choose to reject cherry-pick requests if these questions are not satisfactorily answered:
+
+* Is this a regression from a previous release? (If no, fix could go to a newer version.)
+* Is this a new feature or related to a new feature? (If yes, fix could go to a new version.)
+* Would this impact production workloads for users? (E.g. if this is a direct runner only fix it may not need to be a cherry pick.)
+* What percentage of users would be impacted by this issue if it is not fixed? (E.g. If this is predicted to be a small number it may not need to be a cherry pick.)
+* Would it be possible for the impacted users to skip this version? (If users could skip this version, fix could go to a newer version.)
+
+It is important to accept major/blocking fixes to isolated issues to make a higher quality release. However, beyond that each cherry pick will increase the time required for the release and add more last minute code to the release branch. Neither late releases nor not fully tested code will provide positive user value.
+
+_Tip_: Another tool in your toolbox is the known issues section of the release blog. Consider adding known issues there for minor issues instead of accepting cherry picks to the release branch.
+
 
 **********
 
@@ -855,6 +867,7 @@ Template:
 
     * {$KNOWN_ISSUE_1}
     * {$KNOWN_ISSUE_2}
+    * See a full list of open [issues that affects](https://issues.apache.org/jira/browse/BEAM-8989?jql=project = BEAM AND affectedVersion = 2.16.0 ORDER BY priority DESC, updated DESC) this version.
 
 
     ## List of Contributors
