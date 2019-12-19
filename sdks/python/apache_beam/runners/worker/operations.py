@@ -30,7 +30,6 @@ from builtins import filter
 from builtins import object
 from builtins import zip
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import DefaultDict
 from typing import Dict
 from typing import FrozenSet
@@ -38,7 +37,6 @@ from typing import Hashable
 from typing import Iterator
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from apache_beam import pvalue

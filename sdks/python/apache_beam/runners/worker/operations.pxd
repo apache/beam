@@ -117,7 +117,7 @@ cdef class PGBKCVOperation(Operation):
   cdef long max_keys
   cdef long key_count
 
-  cpdef output_key(self, tuple wkey, value, timestamp)
+  cpdef output_key(self, wkey, value, timestamp)
 
 
 cdef class FlattenOperation(Operation):
