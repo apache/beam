@@ -575,41 +575,6 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1"));
   }
 
-  /** Tests partial updates with errors by adding some invalid info to test set. */
-  void testWritePartialUpdateWithErrors() throws Exception {
-    // put a mapping to simulate error of insertion
-    ElasticsearchIOTestUtils.setIndexMapping(connectionConfiguration, restClient);
-
-    if (!useAsITests) {
-      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
-    }
-
-    // try to partial update a document with an incompatible date format for the age to generate
-    // an update error
-    List<String> data = new ArrayList<>();
-    data.add("{\"id\" : 1, \"age\" : \"2018-08-10:00:00\"}");
-
-    try {
-      pipeline
-          .apply(Create.of(data))
-          .apply(
-              ElasticsearchIO.write()
-                  .withConnectionConfiguration(connectionConfiguration)
-                  .withIdFn(new ExtractValueFn("id"))
-                  .withUsePartialUpdate(true));
-      pipeline.run();
-    } catch (Exception e) {
-      boolean matches =
-          e.getLocalizedMessage()
-              .matches(
-                  "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
-                      + ".*Document id .+: failed to parse .*Caused by: .*"
-                      + ".*For input string: \"2018-08-10:00:00\".*");
-
-      assertTrue(matches);
-    }
-  }
-
   /**
    * Function for checking if any string in iterable contains expected substring. Fails if no match
    * is found.
