@@ -121,7 +121,7 @@ public final class DataflowWorkerHarnessHelper {
     String statusApiDescriptor = System.getenv().get(STATUS_API_SERVICE_DESCRIPTOR);
     if (Strings.isNullOrEmpty(statusApiDescriptor)) {
       // Missing STATUS_API_SERVICE_DESCRIPTOR env var is a signal that the worker status API
-      // server should be skipped.
+      // is unsupported by the current runner.
       return null;
     }
     return parseApiServiceDescriptorFromText(statusApiDescriptor);
