@@ -44,8 +44,7 @@ class TableContainer {
     long tableSize = table.getNumBytes() == null ? 0L : table.getNumBytes();
     try {
       long rowSize = TableRowJsonCoder.of().getEncodedElementByteSize(row);
-      tableSize += rowSize;
-      table.setNumBytes(tableSize);
+      table.setNumBytes(tableSize + rowSize);
       return rowSize;
     } catch (Exception ex) {
       throw new RuntimeException("Failed to convert the row to JSON", ex);
