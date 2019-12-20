@@ -17,12 +17,20 @@
  */
 package org.apache.beam.runners.fnexecution.status;
 
+import static org.apache.beam.runners.fnexecution.status.BeamWorkerStatusGrpcService.DEFAULT_ERROR_RESPONSE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
@@ -36,6 +44,7 @@ import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -82,20 +91,98 @@ public class BeamWorkerStatusGrpcServiceTest {
   public void testClientConnected() throws Exception {
     StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
         stub.workerStatus(mockObserver);
-    WorkerStatusClient client = service.getStatusClient("id", 5000);
+    WorkerStatusClient client = service.getStatusClient("id");
     assertNotNull(client);
   }
 
+  @Test(expected = TimeoutException.class)
+  public void testGetWorkerStatusTimeout() throws Exception {
+    StreamObserver<WorkerStatusResponse> unused = stub.workerStatus(mockObserver);
+    String response = service.getWorkerStatus("id").get(1, TimeUnit.MILLISECONDS);
+    assertEquals(DEFAULT_ERROR_RESPONSE, response);
+  }
+
   @Test
-  public void testSendRequest() throws Exception {
-    final String requestId = "requestId";
-    StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
-        stub.workerStatus(mockObserver);
-    WorkerStatusClient client = service.getStatusClient("id", 5000);
-    CompletableFuture<WorkerStatusResponse> workerStatus =
-        client.getWorkerStatus(WorkerStatusRequest.newBuilder().setId(requestId).build());
-    workerStatusResponseStreamObserver.onNext(
-        WorkerStatusResponse.newBuilder().setId(requestId).setStatusInfo("status").build());
-    assertEquals("status", workerStatus.get(5, TimeUnit.SECONDS).getStatusInfo());
+  public void testGetWorkerStatusSuccess() throws Exception {
+    CountDownLatch requestCompleted = new CountDownLatch(1);
+    StreamObserver<WorkerStatusResponse> observer = stub.workerStatus(mockObserver);
+    doAnswer(
+            (invocation) -> {
+              WorkerStatusRequest request = (WorkerStatusRequest) invocation.getArguments()[0];
+              observer.onNext(
+                  WorkerStatusResponse.newBuilder()
+                      .setId(request.getId())
+                      .setStatusInfo("status")
+                      .build());
+              requestCompleted.countDown();
+              return null;
+            })
+        .when(mockObserver)
+        .onNext(any());
+
+    CompletableFuture<String> future = service.getWorkerStatus("id");
+    // wait for request to be sent.
+    requestCompleted.await();
+    String response = future.get(5, TimeUnit.SECONDS);
+    assertEquals("status", response);
+  }
+
+  @Test
+  public void testGetWorkerStatusReturnError() throws Exception {
+    CountDownLatch requestCompleted = new CountDownLatch(1);
+    StreamObserver<WorkerStatusResponse> observer = stub.workerStatus(mockObserver);
+    doAnswer(
+            (invocation) -> {
+              WorkerStatusRequest request = (WorkerStatusRequest) invocation.getArguments()[0];
+              observer.onNext(
+                  WorkerStatusResponse.newBuilder()
+                      .setId(request.getId())
+                      .setError("error")
+                      .build());
+              requestCompleted.countDown();
+              return null;
+            })
+        .when(mockObserver)
+        .onNext(any());
+
+    CompletableFuture<String> future = service.getWorkerStatus("id");
+    // wait for request to be sent.
+    requestCompleted.await();
+    String response = future.get(5, TimeUnit.SECONDS);
+    assertEquals("error", response);
+  }
+
+  @Test
+  public void testGetAllWorkerStatuses() throws Exception {
+    Set<String> ids = Sets.newHashSet("id0", "id3", "id11", "id12", "id21");
+    for (String id : ids) {
+      StreamObserver<WorkerStatusRequest> requestObserverMock = mock(StreamObserver.class);
+      BeamFnWorkerStatusStub workerStatusStub =
+          BeamFnWorkerStatusGrpc.newStub(channel)
+              .withInterceptors(AddHarnessIdInterceptor.create(id));
+      StreamObserver<WorkerStatusResponse> observer =
+          workerStatusStub.workerStatus(requestObserverMock);
+      doAnswer(
+              (invocation) -> {
+                WorkerStatusRequest request = (WorkerStatusRequest) invocation.getArguments()[0];
+                observer.onNext(
+                    WorkerStatusResponse.newBuilder()
+                        .setId(request.getId())
+                        .setStatusInfo("status")
+                        .build());
+                return null;
+              })
+          .when(requestObserverMock)
+          .onNext(any());
+    }
+
+    Map<String, String> allWorkerStatuses = service.getAllWorkerStatuses(5, TimeUnit.SECONDS);
+
+    assertEquals(ids, allWorkerStatuses.keySet());
+
+    for (String id : ids) {
+      assertEquals("status", allWorkerStatuses.get(id));
+      service.getStatusClient(id).close();
+    }
   }
 }

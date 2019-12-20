@@ -874,7 +874,7 @@ service BeamFnExternalWorkerPool {
 }
 
 // Request from runner to SDK Harness asking for its status. For more details see
-// https://docs.google.com/document/d/1W77buQtdSEIPUKd9zemAM38fb-x3CvOoaTF4P2mSxmI/edit#
+// https://s.apache.org/beam-fn-api-harness-status
 message WorkerStatusRequest {
   // (Required) Unique ID identifying this request.
   string id = 1;

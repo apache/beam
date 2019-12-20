@@ -84,8 +84,8 @@ class WorkerStatusClient implements Closeable {
    */
   CompletableFuture<WorkerStatusResponse> getWorkerStatus(WorkerStatusRequest request) {
     CompletableFuture<WorkerStatusResponse> future = new CompletableFuture<>();
-    this.requestReceiver.onNext(request);
     this.responseQueue.put(request.getId(), future);
+    this.requestReceiver.onNext(request);
     return future;
   }
 
@@ -100,6 +100,11 @@ class WorkerStatusClient implements Closeable {
     }
     responseQueue.clear();
     requestReceiver.onCompleted();
+  }
+
+  /** Check if the client connection has already been closed. */
+  public boolean isClosed() {
+    return isClosed.get();
   }
 
   /** Get the worker id for the client's corresponding SDK Harness. */
@@ -124,9 +129,7 @@ class WorkerStatusClient implements Closeable {
       if (!responseQueue.containsKey(response.getId())) {
         return;
       }
-      CompletableFuture<WorkerStatusResponse> responseFuture =
-          responseQueue.remove(response.getId());
-      responseFuture.complete(response);
+      responseQueue.remove(response.getId()).complete(response);
     }
 
     @Override
