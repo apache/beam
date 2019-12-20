@@ -101,8 +101,12 @@ class DataflowRunner(PipelineRunner):
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import TestStreamOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import WatermarkControllerOverride
 
   _PTRANSFORM_OVERRIDES = [
+      TestStreamOverride(),
+      WatermarkControllerOverride(),
   ]
 
   _JRH_PTRANSFORM_OVERRIDES = [
@@ -1220,7 +1224,7 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
 
-  def run_TestStream(self, transform_node, options):
+  def run__DeprecatedSingleOutputTestStream(self, transform_node, options):
     from apache_beam.portability.api import beam_runner_api_pb2
     from apache_beam.testing.test_stream import ElementEvent
     from apache_beam.testing.test_stream import ProcessingTimeEvent
@@ -1264,7 +1268,7 @@ class DataflowRunner(PipelineRunner):
 
   # We must mark this method as not a test or else its name is a matcher for
   # nosetest tests.
-  run_TestStream.__test__ = False
+  run__DeprecatedSingleOutputTestStream.__test__ = False
 
   @classmethod
   def serialize_windowing_strategy(cls, windowing):

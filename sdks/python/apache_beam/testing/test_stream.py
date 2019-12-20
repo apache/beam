@@ -186,6 +186,13 @@ class TestStream(PTransform):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
 
+    # The DataflowRunner doesn't support the multi-output TestStream yet. Here
+    # we return the old implementation without a multiplexer.
+    if len(self.output_tags) == 1:
+      return (pbegin
+              | _TestStream(self.output_tags, events=self._events)
+              | _WatermarkController())
+
     # This multiplexing the  multiple output PCollections.
     def mux(event):
       if event.tag:
@@ -207,10 +214,6 @@ class TestStream(PTransform):
       label = '_WatermarkController[{}]'.format(tag)
       outputs[tag] = (mux_output[tag] | label >> _WatermarkController())
 
-    # Downstream consumers expect a PCollection if there is only a single
-    # output.
-    if len(outputs) == 1:
-      return list(outputs.values())[0]
     return outputs
 
   def _add(self, event):
@@ -344,6 +347,7 @@ class _TestStream(PTransform):
                events=None):
     assert coder is not None
     self.coder = coder
+    self._raw_events = events
     self._events = self._add_watermark_advancements(output_tags, events)
 
   def _watermark_starts(self, output_tags):
@@ -441,3 +445,23 @@ class _TestStream(PTransform):
 
   def next(self, index):
     return index + 1
+
+  def to_deprecated_test_stream(self):
+    return _DeprecatedSingleOutputTestStream(events=self._raw_events,
+                                             coder=self.coder)
+
+
+class _DeprecatedSingleOutputTestStream(PTransform):
+  def __init__(self, events, coder):
+    assert coder is not None
+    self.coder = coder
+    self.events = events
+
+  def get_windowing(self, unused_inputs):
+    return core.Windowing(window.GlobalWindows())
+
+  def expand(self, pcoll):
+    return pvalue.PCollection(pcoll.pipeline, is_bounded=False)
+
+  def _infer_output_coder(self, input_type=None, input_coder=None):
+    return self.coder
