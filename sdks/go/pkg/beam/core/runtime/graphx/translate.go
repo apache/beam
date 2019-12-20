@@ -195,6 +195,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	// allPIds tracks additional PTransformIDs generated for the pipeline
 	var allPIds []string
 	var spec *pb.FunctionSpec
+	var transformEnvID = ""
 	switch edge.Edge.Op {
 	case graph.Impulse:
 		// TODO(herohde) 7/18/2018: Encode data?
@@ -268,6 +269,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 			},
 			SideInputs: si,
 		}
+        transformEnvID = m.addDefaultEnv()
 		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Combine:
@@ -277,6 +279,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 		}
+		transformEnvID = m.addDefaultEnv()
 		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Flatten:
@@ -303,6 +306,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		Spec:       spec,
 		Inputs:     inputs,
 		Outputs:    outputs,
+		EnvironmentId: transformEnvID,
 	}
 	m.transforms[id] = transform
 	allPIds = append(allPIds, id)
