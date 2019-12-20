@@ -23,56 +23,21 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExternalPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
-import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
 public class Environments {
-  private static final ImmutableMap<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
-      ImmutableMap.<String, EnvironmentIdExtractor>builder()
-          .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, Environments::combineExtractor)
-          .put(
-              PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
-              Environments::combineExtractor)
-          .put(
-              PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
-              Environments::combineExtractor)
-          .put(
-              PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
-              Environments::combineExtractor)
-          .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)
-          .put(PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN, Environments::parDoExtractor)
-          .put(
-              PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
-              Environments::parDoExtractor)
-          .put(
-              PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN,
-              Environments::parDoExtractor)
-          .put(
-              PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN,
-              Environments::parDoExtractor)
-          .put(PTransformTranslation.READ_TRANSFORM_URN, Environments::readExtractor)
-          .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, Environments::windowExtractor)
-          .build();
-
-  private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = transform -> null;
-
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
@@ -181,71 +146,29 @@ public class Environments {
   }
 
   public static Optional<Environment> getEnvironment(String ptransformId, Components components) {
-    try {
-      PTransform ptransform = components.getTransformsOrThrow(ptransformId);
-      String envId =
-          KNOWN_URN_SPEC_EXTRACTORS
-              .getOrDefault(ptransform.getSpec().getUrn(), DEFAULT_SPEC_EXTRACTOR)
-              .getEnvironmentId(ptransform);
-      if (Strings.isNullOrEmpty(envId)) {
-        // Some PTransform payloads may have an unspecified (empty) Environment ID, for example a
-        // WindowIntoPayload with a known WindowFn. Others will never have an Environment ID, such
-        // as a GroupByKeyPayload, and the Default extractor returns null in this case.
-        return Optional.empty();
-      } else {
-        return Optional.of(components.getEnvironmentsOrThrow(envId));
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    PTransform ptransform = components.getTransformsOrThrow(ptransformId);
+    String envId = ptransform.getEnvironmentId();
+    if (Strings.isNullOrEmpty(envId)) {
+      // Some PTransform payloads may have an unspecified (empty) Environment ID, for example a
+      // WindowIntoPayload with a known WindowFn. Others will never have an Environment ID, such
+      // as a GroupByKeyPayload, and we return null in this case.
+      return Optional.empty();
+    } else {
+      return Optional.of(components.getEnvironmentsOrThrow(envId));
     }
   }
 
   public static Optional<Environment> getEnvironment(
       PTransform ptransform, RehydratedComponents components) {
-    try {
-      String envId =
-          KNOWN_URN_SPEC_EXTRACTORS
-              .getOrDefault(ptransform.getSpec().getUrn(), DEFAULT_SPEC_EXTRACTOR)
-              .getEnvironmentId(ptransform);
-      if (!Strings.isNullOrEmpty(envId)) {
-        // Some PTransform payloads may have an empty (default) Environment ID, for example a
-        // WindowIntoPayload with a known WindowFn. Others will never have an Environment ID, such
-        // as a GroupByKeyPayload, and the Default extractor returns null in this case.
-        return Optional.of(components.getEnvironment(envId));
-      } else {
-        return Optional.empty();
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    String envId = ptransform.getEnvironmentId();
+    if (Strings.isNullOrEmpty(envId)) {
+      return Optional.empty();
+    } else {
+      // Some PTransform payloads may have an empty (default) Environment ID, for example a
+      // WindowIntoPayload with a known WindowFn. Others will never have an Environment ID, such
+      // as a GroupByKeyPayload, and we return null in this case.
+      return Optional.of(components.getEnvironment(envId));
     }
-  }
-
-  private interface EnvironmentIdExtractor {
-    @Nullable
-    String getEnvironmentId(PTransform transform) throws IOException;
-  }
-
-  private static String parDoExtractor(PTransform pTransform)
-      throws InvalidProtocolBufferException {
-    return ParDoPayload.parseFrom(pTransform.getSpec().getPayload()).getDoFn().getEnvironmentId();
-  }
-
-  private static String combineExtractor(PTransform pTransform)
-      throws InvalidProtocolBufferException {
-    return CombinePayload.parseFrom(pTransform.getSpec().getPayload())
-        .getCombineFn()
-        .getEnvironmentId();
-  }
-
-  private static String readExtractor(PTransform transform) throws InvalidProtocolBufferException {
-    return ReadPayload.parseFrom(transform.getSpec().getPayload()).getSource().getEnvironmentId();
-  }
-
-  private static String windowExtractor(PTransform transform)
-      throws InvalidProtocolBufferException {
-    return WindowIntoPayload.parseFrom(transform.getSpec().getPayload())
-        .getWindowFn()
-        .getEnvironmentId();
   }
 
   private static class ProcessPayloadReferenceJSON {

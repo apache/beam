@@ -157,7 +157,7 @@ public class CombineRunners {
       CombineFn<InputT, AccumT, ?> combineFn =
           (CombineFn)
               SerializableUtils.deserializeFromByteArray(
-                  combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
+                  combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
       Coder<AccumT> accumCoder =
           (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
@@ -190,7 +190,7 @@ public class CombineRunners {
     CombineFn<?, AccumT, ?> combineFn =
         (CombineFn)
             SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
+                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, Iterable<AccumT>> input) ->
         KV.of(input.getKey(), combineFn.mergeAccumulators(input.getValue()));
@@ -203,7 +203,7 @@ public class CombineRunners {
     CombineFn<?, AccumT, OutputT> combineFn =
         (CombineFn)
             SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
+                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, AccumT> input) ->
         KV.of(input.getKey(), combineFn.extractOutput(input.getValue()));
@@ -217,7 +217,7 @@ public class CombineRunners {
     CombineFn<InputT, AccumT, OutputT> combineFn =
         (CombineFn)
             SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
+                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, Iterable<InputT>> input) -> {
       return KV.of(input.getKey(), combineFn.apply(input.getValue()));

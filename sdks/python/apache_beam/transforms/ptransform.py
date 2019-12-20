@@ -92,6 +92,7 @@ __all__ = [
     'label_from_callable',
     ]
 
+
 T = TypeVar('T')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
 ConstructorFn = Callable[

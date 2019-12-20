@@ -325,6 +325,7 @@ class OutputDeduplicator {
             output.getKey(), originalToPartial.get(output.getValue()).getId());
       }
     }
+    updatedTransformBuilder.setEnvironmentId(transform.getEnvironmentId());
     return updatedTransformBuilder.build();
   }
 
