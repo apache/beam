@@ -20,7 +20,6 @@ from __future__ import print_function
 import inspect
 import logging
 import platform
-import pytest
 import signal
 import socket
 import subprocess
@@ -31,6 +30,7 @@ import traceback
 import unittest
 
 import grpc
+import pytest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
