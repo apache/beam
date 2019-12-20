@@ -25,7 +25,7 @@ try:
   import boto3
 
 except ImportError:
-  raise ImportError('Missing boto3 requirement')
+  boto3 = None
 
 
 class Client(object):
@@ -34,6 +34,7 @@ class Client(object):
   """
 
   def __init__(self):
+    assert boto3 is not None, 'Missing boto3 requirement'
     self.client = boto3.client('s3')
 
   def get_object_metadata(self, request):
