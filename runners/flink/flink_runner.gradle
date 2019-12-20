@@ -232,7 +232,7 @@ createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLoca
 def createPipelineOptionsTableTask(String target) {
   tasks.register("generatePipelineOptionsTable${target}", JavaExec) {
     group = 'Website'
-    description = "Generates the HTML table for the Flink Runner page"
+    description = "Generates a table with pipeline options for the Flink Runner documentation page"
     classpath = sourceSets.test.runtimeClasspath
     main = 'org.apache.beam.runners.flink.website.PipelineOptionsTableGenerator'
     args = [target]
