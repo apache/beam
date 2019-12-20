@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -27,12 +44,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.Visi
 import org.joda.time.Instant;
 
 public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
-  // Should match: `projectId/[namespace/]kind`.
-  @VisibleForTesting
-  final Pattern locationPattern =
-      Pattern.compile("(?<projectId>.+)/(?<kind>.+)");
-  private final String projectId;
-  private final String kind;
+  // Should match: `projectId/kind`.
+  private static final Pattern locationPattern = Pattern.compile("(?<projectId>.+)/(?<kind>.+)");
+  @VisibleForTesting final String projectId;
+  @VisibleForTesting final String kind;
 
   public DataStoreV1Table(Table table) {
     super(table.getSchema());
@@ -41,7 +56,7 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
     Matcher matcher = locationPattern.matcher(location);
     checkArgument(
         matcher.matches(),
-        "DataStoreV1 location must be in the following format: 'projectId/[namespace/]kind'");
+        "DataStoreV1 location must be in the following format: 'projectId/kind'");
 
     this.projectId = matcher.group("projectId");
     this.kind = matcher.group("kind");
@@ -53,14 +68,14 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
     q.addKindBuilder().setName(kind);
     Query query = q.build();
 
-    DatastoreV1.Read readInstance = DatastoreIO.v1()
-        .read()
-        .withProjectId(projectId)
-        .withQuery(query);
+    DatastoreV1.Read readInstance =
+        DatastoreIO.v1().read().withProjectId(projectId).withQuery(query);
 
     PCollection<Entity> readEntities = readInstance.expand(begin);
 
-    return readEntities.apply(ParDo.of(EntityToRowConverter.create(getSchema()))).setRowSchema(schema);
+    return readEntities
+        .apply(ParDo.of(EntityToRowConverter.create(getSchema())))
+        .setRowSchema(schema);
   }
 
   @Override
@@ -114,24 +129,30 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
             builder.addValue(val.getDoubleValue());
             break;
           case TIMESTAMP_VALUE:
-            builder.addValue(Instant.ofEpochSecond(val.getTimestampValue().getSeconds()).toDateTime());
+            builder.addValue(
+                Instant.ofEpochSecond(val.getTimestampValue().getSeconds()).toDateTime());
             break;
           case KEY_VALUE:
+            // Key is not a Beam type.
             builder.addValue(val.getKeyValue());
             break;
           case STRING_VALUE:
             builder.addValue(val.getStringValue());
             break;
           case BLOB_VALUE:
+            // ByteString is not a Beam type. Can be converted to byte array.
             builder.addValue(val.getBlobValue());
             break;
           case GEO_POINT_VALUE:
+            // LatLng is not a Beam type.
             builder.addValue(val.getGeoPointValue());
             break;
           case ENTITY_VALUE:
+            // Entity is not a Beam type. Used for nested fields.
             builder.addValue(val.getEntityValue());
             break;
           case ARRAY_VALUE:
+            // ArrayValue is not a Beam type.
             builder.addValue(val.getArrayValue());
             break;
           case VALUETYPE_NOT_SET:
