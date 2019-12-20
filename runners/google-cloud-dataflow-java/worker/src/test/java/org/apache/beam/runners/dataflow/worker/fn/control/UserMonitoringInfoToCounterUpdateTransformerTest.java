@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -57,7 +58,7 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
         new UserMonitoringInfoToCounterUpdateTransformer(mockSpecValidator, stepContextMapping);
     Optional<String> error = Optional.of("Error text");
     when(mockSpecValidator.validate(any())).thenReturn(error);
-    assertEquals(null, testObject.transform(null));
+    assertNull(testObject.transform(null));
   }
 
   @Test
@@ -86,7 +87,7 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
     UserMonitoringInfoToCounterUpdateTransformer testObject =
         new UserMonitoringInfoToCounterUpdateTransformer(mockSpecValidator, stepContextMapping);
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
-    assertEquals(null, testObject.transform(monitoringInfo));
+    assertNull(testObject.transform(monitoringInfo));
   }
 
   @Test
@@ -110,13 +111,13 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
 
     CounterUpdate result = testObject.transform(monitoringInfo);
-    assertNotEquals(null, result);
+    assertNotNull(result);
 
-    assertEquals(
-        "{cumulative=true, integer={highBits=0, lowBits=0}, "
-            + "structuredNameAndMetadata={metadata={kind=SUM}, "
-            + "name={name=anyName, origin=USER, originNamespace=anyNamespace, "
-            + "originalStepName=anyOriginalName}}}",
-        result.toString());
+    assertEqualsAsJson(
+        "{cumulative:true, integer:{highBits:0, lowBits:0}, "
+            + "structuredNameAndMetadata:{metadata:{kind:'SUM'}, "
+            + "name:{name:'anyName', origin:'USER', originNamespace:'anyNamespace', "
+            + "originalStepName:'anyOriginalName'}}}",
+        result);
   }
 }
