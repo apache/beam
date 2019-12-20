@@ -610,7 +610,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       **kwargs: other keyword arguments.
 
     Returns:
-      An Iterable of output elements.
+      An Iterable of output elements or None.
     """
     raise NotImplementedError
 
