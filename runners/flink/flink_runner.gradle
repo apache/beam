@@ -225,3 +225,29 @@ tasks.register('validatesRunner') {
 
 // Generates :runners:flink:1.9:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+
+/**
+ * Updates the documentation with the current pipeline options.
+ */
+def createPipelineOptionsTableTask(String target) {
+  tasks.register("generatePipelineOptionsTable${target}", JavaExec) {
+    group = 'Website'
+    description = "Generates the HTML table for the Flink Runner page"
+    classpath = sourceSets.test.runtimeClasspath
+    main = 'org.apache.beam.runners.flink.website.PipelineOptionsTableGenerator'
+    args = [target]
+    standardOutput = new ByteArrayOutputStream()
+    doLast {
+      def dest = file("${project(':website').getProjectDir()}/src/_includes/flink_${target.toLowerCase()}_pipeline_options.html")
+      if (!dest.exists()) {
+        throw new GradleException("Pipeline options file is not in expected location: ${dest}")
+      }
+      dest.write(standardOutput.toString())
+    }
+  }
+}
+createPipelineOptionsTableTask('Java')
+createPipelineOptionsTableTask('Python')
+// Update the pipeline options documentation before running the tests
+test.dependsOn(generatePipelineOptionsTableJava)
+test.dependsOn(generatePipelineOptionsTablePython)
