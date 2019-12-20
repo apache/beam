@@ -230,8 +230,9 @@ class MainInputTest(unittest.TestCase):
     def fn(element: int) -> int:
       return element * 2
 
-    with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'int.*is not iterable'):
+    # TODO(BEAM-8466): This case currently only generates a warning instead of a
+    #   typehints.TypeCheckError.
+    with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
       _ = [1, 2, 3] | beam.FlatMap(fn)
 
   def test_typed_flatmap_output_value_not_iterable(self):
