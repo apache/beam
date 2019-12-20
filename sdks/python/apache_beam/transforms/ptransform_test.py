@@ -592,7 +592,8 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to(input))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  # TODO(BEAM-9002): Does not work in streaming mode on Dataflow.
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_flatten_same_pcollections(self):
     pipeline = TestPipeline()
     pc = pipeline | beam.Create(['a', 'b'])
