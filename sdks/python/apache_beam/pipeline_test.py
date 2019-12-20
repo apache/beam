@@ -26,6 +26,7 @@ from builtins import object
 from builtins import range
 
 import mock
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -639,6 +640,25 @@ class DoFnTest(unittest.TestCase):
     result = words | 'DecorateWordsDoFnNoTag' >> ParDo(
         TestDoFn(), prefix, suffix=AsSingleton(suffix))
     assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_element_param(self):
+    pipeline = TestPipeline()
+    input = [1, 2]
+    pcoll = (pipeline
+             | 'Create' >> Create(input)
+             | 'Ele param' >> Map(lambda element=DoFn.ElementParam: element))
+    assert_that(pcoll, equal_to(input))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_key_param(self):
+    pipeline = TestPipeline()
+    pcoll = (pipeline
+             | 'Create' >> Create([('a', 1), ('b', 2)])
+             | 'Key param' >> Map(lambda _, key=DoFn.KeyParam: key))
+    assert_that(pcoll, equal_to(['a', 'b']))
     pipeline.run()
 
   def test_window_param(self):

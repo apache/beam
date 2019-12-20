@@ -56,7 +56,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -227,8 +227,8 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
 class ExternalTransformTest(unittest.TestCase):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar = None
-  expansion_service_port = None
+  expansion_service_jar = None  # type: str
+  expansion_service_port = None  # type: int
 
   class _RunWithExpansion(object):
 

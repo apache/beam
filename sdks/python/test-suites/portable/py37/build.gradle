@@ -18,6 +18,9 @@
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
+
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
+
 // Required to setup a Python 3.7 virtualenv.
 pythonVersion = '3.7'
 apply from: "../common.gradle"
@@ -36,6 +39,29 @@ task postCommitPy37() {
     dependsOn ':runners:flink:1.9:job-server:shadowJar'
     dependsOn portableWordCountFlinkRunnerBatch
     dependsOn portableWordCountFlinkRunnerStreaming
+    dependsOn 'postCommitPy37IT'
     dependsOn ':runners:spark:job-server:shadowJar'
     dependsOn portableWordCountSparkRunnerBatch
+}
+
+task postCommitPy37IT {
+  dependsOn 'setupVirtualenv'
+  dependsOn 'installGcpTest'
+  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+
+  doLast {
+    def tests = [
+        "apache_beam.io.gcp.bigquery_read_it_test",
+    ]
+    def testOpts = ["--tests=${tests.join(',')}"]
+    def cmdArgs = mapToArgString([
+        "test_opts": testOpts,
+        "suite": "postCommitIT-flink-py37",
+        "pipeline_opts": "--runner=FlinkRunner --project=apache-beam-testing --environment_type=LOOPBACK --temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
 }

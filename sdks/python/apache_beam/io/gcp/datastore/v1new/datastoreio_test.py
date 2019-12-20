@@ -51,7 +51,7 @@ try:
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
-  DatastoreioTestBase = unittest.TestCase
+  DatastoreioTestBase = unittest.TestCase  # type: ignore
 
 
 class FakeMutation(object):

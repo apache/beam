@@ -24,8 +24,14 @@ import collections
 import logging
 import random
 import time
-import typing
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Tuple
+from typing import Type
+from typing import Union
 
 from future.utils import iteritems
 
@@ -68,6 +74,12 @@ from apache_beam.utils import counters
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
+if TYPE_CHECKING:
+  from apache_beam.io.gcp.pubsub import _PubSubSource
+  from apache_beam.io.gcp.pubsub import PubsubMessage
+  from apache_beam.pipeline import AppliedPTransform
+  from apache_beam.runners.direct.evaluation_context import EvaluationContext
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -77,9 +89,10 @@ class TransformEvaluatorRegistry(object):
   Creates instances of TransformEvaluator for the application of a transform.
   """
 
-  _test_evaluators_overrides = {}
+  _test_evaluators_overrides = {}  # type: Dict[Type[core.PTransform], Type[_TransformEvaluator]]
 
   def __init__(self, evaluation_context):
+    # type: (EvaluationContext) -> None
     assert evaluation_context
     self._evaluation_context = evaluation_context
     self._evaluators = {
@@ -95,7 +108,7 @@ class TransformEvaluatorRegistry(object):
         _TestStream: _TestStreamEvaluator,
         ProcessElements: _ProcessElementsEvaluator,
         _WatermarkController: _WatermarkControllerEvaluator,
-    }
+    }  # type: Dict[Type[core.PTransform], Type[_TransformEvaluator]]
     self._evaluators.update(self._test_evaluators_overrides)
     self._root_bundle_providers = {
         core.PTransform: DefaultRootBundleProvider,
@@ -208,8 +221,12 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
 class _TransformEvaluator(object):
   """An evaluator of a specific application of a transform."""
 
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+  def __init__(self,
+               evaluation_context, # type: EvaluationContext
+               applied_ptransform,  # type: AppliedPTransform
+               input_committed_bundle,
+               side_inputs
+              ):
     self._evaluation_context = evaluation_context
     self._applied_ptransform = applied_ptransform
     self._input_committed_bundle = input_committed_bundle
@@ -288,6 +305,7 @@ class _TransformEvaluator(object):
     raise NotImplementedError('%s do not process elements.' % type(self))
 
   def finish_bundle(self):
+    # type: () -> TransformResult
     """Finishes the bundle and produces output."""
     pass
 
@@ -466,7 +484,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
   # A mapping of transform to _PubSubSubscriptionWrapper.
   # TODO(BEAM-7750): Prevents garbage collection of pipeline instances.
-  _subscription_cache = {}
+  _subscription_cache = {}  # type: Dict[AppliedPTransform, str]
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs):
@@ -475,7 +493,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs)
 
-    self.source = self._applied_ptransform.transform._source
+    self.source = self._applied_ptransform.transform._source  # type: _PubSubSource
     if self.source.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
@@ -510,6 +528,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     pass
 
   def _read_from_pubsub(self, timestamp_attribute):
+    # type: (...) -> List[Tuple[Timestamp, PubsubMessage]]
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
 
@@ -549,6 +568,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     return results
 
   def finish_bundle(self):
+    # type: () -> TransformResult
     data = self._read_from_pubsub(self.source.timestamp_attribute)
     if data:
       output_pcollection = list(self._outputs)[0]
@@ -565,7 +585,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     else:
       bundles = []
     if self._applied_ptransform.inputs:
-      input_pvalue = self._applied_ptransform.inputs[0]
+      input_pvalue = self._applied_ptransform.inputs[0]  # type: Union[pvalue.PBegin, pvalue.PCollection]
     else:
       input_pvalue = pvalue.PBegin(self._applied_ptransform.transform.pipeline)
     unprocessed_bundle = self._evaluation_context.create_bundle(
@@ -622,6 +642,7 @@ class _TaggedReceivers(dict):
     """Ignores undeclared outputs, default execution mode."""
 
     def receive(self, element):
+      # type: (WindowedValue) -> None
       pass
 
   class _InMemoryReceiver(common.Receiver):
@@ -632,6 +653,7 @@ class _TaggedReceivers(dict):
       self._tag = tag
 
     def receive(self, element):
+      # type: (WindowedValue) -> None
       self._target[self._tag].append(element)
 
   def __missing__(self, key):
@@ -643,9 +665,13 @@ class _TaggedReceivers(dict):
 class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
 
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs,
-               perform_dofn_pickle_test=True):
+  def __init__(self,
+               evaluation_context, # type: EvaluationContext
+               applied_ptransform,  # type: AppliedPTransform
+               input_committed_bundle,
+               side_inputs,
+               perform_dofn_pickle_test=True
+              ):
     super(_ParDoEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs)
@@ -677,11 +703,11 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.user_timer_map = {}
     if is_stateful_dofn(dofn):
       kv_type_hint = self._applied_ptransform.inputs[0].element_type
-      if kv_type_hint and kv_type_hint != typing.Any:
+      if kv_type_hint and kv_type_hint != Any:
         coder = coders.registry.get_coder(kv_type_hint)
         self.key_coder = coder.key_coder()
       else:
-        self.key_coder = coders.registry.get_coder(typing.Any)
+        self.key_coder = coders.registry.get_coder(Any)
 
       self.user_state_context = DirectUserStateContext(
           self._step_context, dofn, self.key_coder)
@@ -837,7 +863,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
     # The input type of a GroupByKey will be Tuple[Any, Any] or more specific.
     kv_type_hint = self._applied_ptransform.inputs[0].element_type
     key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                     else typing.Any)
+                     else Any)
     self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):
@@ -893,7 +919,7 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     # GroupAlsoByWindow will be Tuple[Any, Iter[Any]] or more specific.
     kv_type_hint = self._applied_ptransform.outputs[None].element_type
     key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                     else typing.Any)
+                     else Any)
     self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):

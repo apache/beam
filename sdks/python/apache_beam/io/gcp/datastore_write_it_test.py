@@ -43,7 +43,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   from apache_beam.io.gcp import datastore_write_it_pipeline
 except TypeError:
-  datastore_write_it_pipeline = None
+  datastore_write_it_pipeline = None  # type: ignore
 
 
 @unittest.skipIf(sys.version_info[0] == 3 and

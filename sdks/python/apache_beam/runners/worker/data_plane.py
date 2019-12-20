@@ -29,6 +29,14 @@ import sys
 import threading
 from builtins import object
 from builtins import range
+from typing import TYPE_CHECKING
+from typing import Callable
+from typing import DefaultDict
+from typing import Dict
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Optional
 
 import grpc
 from future.utils import raise_
@@ -40,6 +48,10 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
+if TYPE_CHECKING:
+  # TODO: remove from TYPE_CHECKING scope when we drop support for python < 3.6
+  from typing import Collection
+
 # This module is experimental. No backwards-compatibility guarantees.
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,12 +59,19 @@ _LOGGER = logging.getLogger(__name__)
 _DEFAULT_FLUSH_THRESHOLD = 10 << 20  # 10MB
 
 
-class ClosableOutputStream(type(coder_impl.create_OutputStream())):
+if TYPE_CHECKING:
+  import apache_beam.coders.slow_stream
+  OutputStream = apache_beam.coders.slow_stream.OutputStream
+else:
+  OutputStream = type(coder_impl.create_OutputStream())
+
+
+class ClosableOutputStream(OutputStream):
   """A Outputstream for use with CoderImpls that has a close() method."""
 
   def __init__(self,
-               close_callback=None,
-               flush_callback=None,
+               close_callback=None,  # type: Optional[Callable[[bytes], None]]
+               flush_callback=None,  # type: Optional[Callable[[bytes], None]]
                flush_threshold=_DEFAULT_FLUSH_THRESHOLD):
     super(ClosableOutputStream, self).__init__()
     self._close_callback = close_callback
@@ -70,7 +89,7 @@ class ClosableOutputStream(type(coder_impl.create_OutputStream())):
       self._close_callback(self.get())
 
 
-class DataChannel(with_metaclass(abc.ABCMeta, object)):
+class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """Represents a channel for reading and writing data over the data plane.
 
   Read from this channel with the input_elements method::
@@ -91,8 +110,12 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):
   """
 
   @abc.abstractmethod
-  def input_elements(
-      self, instruction_id, expected_transforms, abort_callback=None):
+  def input_elements(self,
+                     instruction_id,  # type: str
+                     expected_transforms,  # type: Collection[str]
+                     abort_callback=None  # type: Optional[Callable[[], bool]]
+                    ):
+    # type: (...) -> Iterator[beam_fn_api_pb2.Elements.Data]
     """Returns an iterable of all Element.Data bundles for instruction_id.
 
     This iterable terminates only once the full set of data has been recieved
@@ -107,7 +130,11 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
-  def output_stream(self, instruction_id, transform_id):
+  def output_stream(self,
+                    instruction_id,  # type: str
+                    transform_id  # type: str
+                   ):
+    # type: (...) -> ClosableOutputStream
     """Returns an output stream writing elements to transform_id.
 
     Args:
@@ -118,6 +145,7 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):
 
   @abc.abstractmethod
   def close(self):
+    # type: () -> None
     """Closes this channel, indicating that all data has been written.
 
     Data can continue to be read.
@@ -136,14 +164,20 @@ class InMemoryDataChannel(DataChannel):
   """
 
   def __init__(self, inverse=None):
-    self._inputs = []
+    # type: (Optional[InMemoryDataChannel]) -> None
+    self._inputs = []  # type: List[beam_fn_api_pb2.Elements.Data]
     self._inverse = inverse or InMemoryDataChannel(self)
 
   def inverse(self):
+    # type: () -> InMemoryDataChannel
     return self._inverse
 
-  def input_elements(self, instruction_id, unused_expected_transforms=None,
-                     abort_callback=None):
+  def input_elements(self,
+                     instruction_id,  # type: str
+                     unused_expected_transforms=None,  # type: Optional[Collection[str]]
+                     abort_callback=None  # type: Optional[Callable[[], bool]]
+                    ):
+    # type: (...) -> Iterator[beam_fn_api_pb2.Elements.Data]
     other_inputs = []
     for data in self._inputs:
       if data.instruction_id == instruction_id:
@@ -154,6 +188,7 @@ class InMemoryDataChannel(DataChannel):
     self._inputs = other_inputs
 
   def output_stream(self, instruction_id, transform_id):
+    # type: (str, str) -> ClosableOutputStream
     def add_to_inverse_output(data):
       self._inverse._inputs.append(  # pylint: disable=protected-access
           beam_fn_api_pb2.Elements.Data(
@@ -173,8 +208,8 @@ class _GrpcDataChannel(DataChannel):
   _WRITES_FINISHED = object()
 
   def __init__(self):
-    self._to_send = queue.Queue()
-    self._received = collections.defaultdict(lambda: queue.Queue(maxsize=5))
+    self._to_send = queue.Queue()  # type: queue.Queue[beam_fn_api_pb2.Elements.Data]
+    self._received = collections.defaultdict(lambda: queue.Queue(maxsize=5))  # type: DefaultDict[str, queue.Queue[beam_fn_api_pb2.Elements.Data]]
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
@@ -188,15 +223,21 @@ class _GrpcDataChannel(DataChannel):
     self._reads_finished.wait(timeout)
 
   def _receiving_queue(self, instruction_id):
+    # type: (str) -> queue.Queue[beam_fn_api_pb2.Elements.Data]
     with self._receive_lock:
       return self._received[instruction_id]
 
   def _clean_receiving_queue(self, instruction_id):
+    # type: (str) -> None
     with self._receive_lock:
       self._received.pop(instruction_id)
 
-  def input_elements(self, instruction_id, expected_transforms,
-                     abort_callback=None):
+  def input_elements(self,
+                     instruction_id,  # type: str
+                     expected_transforms,  # type: Collection[str]
+                     abort_callback=None  # type: Optional[Callable[[], bool]]
+                    ):
+    # type: (...) -> Iterator[beam_fn_api_pb2.Elements.Data]
     """
     Generator to retrieve elements for an instruction_id
     input_elements should be called only once for an instruction_id
@@ -206,7 +247,7 @@ class _GrpcDataChannel(DataChannel):
       expected_transforms(collection): expected transforms
     """
     received = self._receiving_queue(instruction_id)
-    done_transforms = []
+    done_transforms = []  # type: List[str]
     abort_callback = abort_callback or (lambda: False)
     try:
       while len(done_transforms) < len(expected_transforms):
@@ -232,7 +273,9 @@ class _GrpcDataChannel(DataChannel):
       self._clean_receiving_queue(instruction_id)
 
   def output_stream(self, instruction_id, transform_id):
+    # type: (str, str) -> ClosableOutputStream
     def add_to_send_queue(data):
+      # type: (bytes) -> None
       if data:
         self._to_send.put(
             beam_fn_api_pb2.Elements.Data(
@@ -241,6 +284,7 @@ class _GrpcDataChannel(DataChannel):
                 data=data))
 
     def close_callback(data):
+      # type: (bytes) -> None
       add_to_send_queue(data)
       # End of stream marker.
       self._to_send.put(
@@ -252,6 +296,7 @@ class _GrpcDataChannel(DataChannel):
         close_callback, flush_callback=add_to_send_queue)
 
   def _write_outputs(self):
+    # type: () -> Iterator[beam_fn_api_pb2.Elements]
     done = False
     while not done:
       data = [self._to_send.get()]
@@ -268,6 +313,7 @@ class _GrpcDataChannel(DataChannel):
         yield beam_fn_api_pb2.Elements(data=data)
 
   def _read_inputs(self, elements_iterator):
+    # type: (Iterable[beam_fn_api_pb2.Elements]) -> None
     try:
       for elements in elements_iterator:
         for data in elements.data:
@@ -282,6 +328,7 @@ class _GrpcDataChannel(DataChannel):
       self._reads_finished.set()
 
   def set_inputs(self, elements_iterator):
+    # type: (Iterable[beam_fn_api_pb2.Elements]) -> None
     reader = threading.Thread(
         target=lambda: self._read_inputs(elements_iterator),
         name='read_grpc_client_inputs')
@@ -292,7 +339,10 @@ class _GrpcDataChannel(DataChannel):
 class GrpcClientDataChannel(_GrpcDataChannel):
   """A DataChannel wrapping the client side of a BeamFnData connection."""
 
-  def __init__(self, data_stub):
+  def __init__(self,
+               data_stub  # type: beam_fn_api_pb2_grpc.BeamFnDataStub
+              ):
+    # type: (...) -> None
     super(GrpcClientDataChannel, self).__init__()
     self.set_inputs(data_stub.Data(self._write_outputs()))
 
@@ -303,30 +353,37 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
   def __init__(self):
     self._lock = threading.Lock()
     self._connections_by_worker_id = collections.defaultdict(
-        _GrpcDataChannel)
+        _GrpcDataChannel)  # type: DefaultDict[str, _GrpcDataChannel]
 
   def get_conn_by_worker_id(self, worker_id):
+    # type: (str) -> _GrpcDataChannel
     with self._lock:
       return self._connections_by_worker_id[worker_id]
 
-  def Data(self, elements_iterator, context):
-    worker_id = dict(context.invocation_metadata()).get('worker_id')
+  def Data(self,
+           elements_iterator,  # type: Iterable[beam_fn_api_pb2.Elements]
+           context
+          ):
+    # type: (...) -> Iterator[beam_fn_api_pb2.Elements]
+    worker_id = dict(context.invocation_metadata())['worker_id']
     data_conn = self.get_conn_by_worker_id(worker_id)
     data_conn.set_inputs(elements_iterator)
     for elements in data_conn._write_outputs():
       yield elements
 
 
-class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):
+class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
 
   @abc.abstractmethod
   def create_data_channel(self, remote_grpc_port):
+    # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
     """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
   def close(self):
+    # type: () -> None
     """Close all channels that this factory owns."""
     raise NotImplementedError(type(self))
 
@@ -337,8 +394,12 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   Caches the created channels by ``data descriptor url``.
   """
 
-  def __init__(self, credentials=None, worker_id=None):
-    self._data_channel_cache = {}
+  def __init__(self,
+               credentials=None,
+               worker_id=None  # type: Optional[str]
+              ):
+    # type: (...) -> None
+    self._data_channel_cache = {}  # type: Dict[str, GrpcClientDataChannel]
     self._lock = threading.Lock()
     self._credentials = None
     self._worker_id = worker_id
@@ -347,6 +408,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       self._credentials = credentials
 
   def create_data_channel(self, remote_grpc_port):
+    # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
     url = remote_grpc_port.api_service_descriptor.url
     if url not in self._data_channel_cache:
       with self._lock:
@@ -373,6 +435,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
     return self._data_channel_cache[url]
 
   def close(self):
+    # type: () -> None
     _LOGGER.info('Closing all cached grpc data channels.')
     for _, channel in self._data_channel_cache.items():
       channel.close()
@@ -383,10 +446,13 @@ class InMemoryDataChannelFactory(DataChannelFactory):
   """A singleton factory for ``InMemoryDataChannel``."""
 
   def __init__(self, in_memory_data_channel):
+    # type: (GrpcClientDataChannel) -> None
     self._in_memory_data_channel = in_memory_data_channel
 
   def create_data_channel(self, unused_remote_grpc_port):
+    # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
     return self._in_memory_data_channel
 
   def close(self):
+    # type: () -> None
     pass

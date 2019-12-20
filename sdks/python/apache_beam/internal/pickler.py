@@ -37,6 +37,9 @@ import threading
 import traceback
 import types
 import zlib
+from typing import Any
+from typing import Dict
+from typing import Tuple
 
 import dill
 
@@ -174,7 +177,7 @@ if 'save_module' in dir(dill.dill):
   # Pickle module dictionaries (commonly found in lambda's globals)
   # by referencing their module.
   old_save_module_dict = dill.dill.save_module_dict
-  known_module_dicts = {}
+  known_module_dicts = {}  # type: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]]
 
   @dill.dill.register(dict)
   def new_save_module_dict(pickler, obj):
@@ -244,6 +247,7 @@ logging.getLogger('dill').setLevel(logging.WARN)
 # pickler.loads() being used for data, which results in an unnecessary base64
 # encoding.  This should be cleaned up.
 def dumps(o, enable_trace=True):
+  # type: (...) -> bytes
   """For internal use only; no backwards-compatibility guarantees."""
   with pickle_lock_unless_py2:
     try:

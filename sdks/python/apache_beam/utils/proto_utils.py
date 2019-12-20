@@ -20,9 +20,29 @@
 from __future__ import absolute_import
 from __future__ import division
 
+from typing import Type
+from typing import TypeVar
+from typing import Union
+from typing import overload
+
 from google.protobuf import any_pb2
+from google.protobuf import message
 from google.protobuf import struct_pb2
 from google.protobuf import timestamp_pb2
+
+MessageT = TypeVar('MessageT', bound=message.Message)
+
+
+@overload
+def pack_Any(msg):
+  # type: (message.Message) -> any_pb2.Any
+  pass
+
+
+@overload
+def pack_Any(msg):
+  # type: (None) -> None
+  pass
 
 
 def pack_Any(msg):
@@ -38,6 +58,18 @@ def pack_Any(msg):
   return result
 
 
+@overload
+def unpack_Any(any_msg, msg_class):
+  # type: (any_pb2.Any, Type[MessageT]) -> MessageT
+  pass
+
+
+@overload
+def unpack_Any(any_msg, msg_class):
+  # type: (any_pb2.Any, None) -> None
+  pass
+
+
 def unpack_Any(any_msg, msg_class):
   """Unpacks any_msg into msg_class.
 
@@ -48,6 +80,18 @@ def unpack_Any(any_msg, msg_class):
   msg = msg_class()
   any_msg.Unpack(msg)
   return msg
+
+
+@overload
+def parse_Bytes(serialized_bytes, msg_class):
+  # type: (bytes, Type[MessageT]) -> MessageT
+  pass
+
+
+@overload
+def parse_Bytes(serialized_bytes, msg_class):
+  # type: (bytes, Union[Type[bytes], None]) -> bytes
+  pass
 
 
 def parse_Bytes(serialized_bytes, msg_class):
@@ -62,6 +106,7 @@ def parse_Bytes(serialized_bytes, msg_class):
 
 
 def pack_Struct(**kwargs):
+  # type: (...) -> struct_pb2.Struct
   """Returns a struct containing the values indicated by kwargs.
   """
   msg = struct_pb2.Struct()

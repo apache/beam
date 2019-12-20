@@ -157,10 +157,14 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
             doFnSchemaInformation,
             sideInputMapping);
 
-    if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
+    FlinkPipelineOptions pipelineOptions = serializedOptions.get().as(FlinkPipelineOptions.class);
+    if (!pipelineOptions.getDisableMetrics()) {
       doFnRunner =
           new DoFnRunnerWithMetricsUpdate<>(
-              stepName, doFnRunner, new FlinkMetricContainer(getRuntimeContext()));
+              stepName,
+              doFnRunner,
+              new FlinkMetricContainer(
+                  getRuntimeContext(), pipelineOptions.getDisableMetricAccumulator()));
     }
 
     doFnRunner.startBundle();

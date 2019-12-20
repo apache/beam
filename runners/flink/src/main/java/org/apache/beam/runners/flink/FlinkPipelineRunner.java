@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 
 import java.util.List;
@@ -178,7 +178,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
         new FlinkPipelineRunner(
             flinkOptions,
             configuration.flinkConfDir,
-            detectClassPathResourcesToStage(FlinkPipelineRunner.class.getClassLoader()));
+            detectClassPathResourcesToStage(
+                FlinkPipelineRunner.class.getClassLoader(), flinkOptions));
     JobInfo jobInfo =
         JobInfo.create(
             invocationId,

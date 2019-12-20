@@ -28,7 +28,7 @@ import threading
 import traceback
 from builtins import object
 
-from google.protobuf import text_format
+from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions

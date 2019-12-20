@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.runners.core.construction.resources;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -23,12 +23,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -40,34 +38,30 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 public class PipelineResources {
 
   /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse to
-   * class loader parents stopping it from pulling in resources from the system class loader.
+   * Uses algorithm provided via {@link
+   * org.apache.beam.runners.core.construction.resources.PipelineResourcesOptions} to detect
+   * classpath resources.
    *
-   * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one of
-   *     the resources the class loader exposes is not a file resource.
+   * @param classLoader The URLClassLoader to use to detect resources to stage (optional).
+   * @param options pipeline options
    * @return A list of absolute paths to the resources the class loader uses.
    */
-  public static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
-    if (!(classLoader instanceof URLClassLoader)) {
-      String message =
-          String.format(
-              "Unable to use ClassLoader to detect classpath elements. "
-                  + "Current ClassLoader is %s, only URLClassLoaders are supported.",
-              classLoader);
-      throw new IllegalArgumentException(message);
-    }
+  public static List<String> detectClassPathResourcesToStage(
+      ClassLoader classLoader, PipelineOptions options) {
 
-    List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
-      try {
-        files.add(new File(url.toURI()).getAbsolutePath());
-      } catch (IllegalArgumentException | URISyntaxException e) {
-        String message = String.format("Unable to convert url (%s) to file.", url);
-        throw new IllegalArgumentException(message, e);
-      }
-    }
-    return files;
+    PipelineResourcesOptions artifactsRelatedOptions = options.as(PipelineResourcesOptions.class);
+    List<String> detectedResources =
+        artifactsRelatedOptions.getPipelineResourcesDetector().detect(classLoader);
+
+    return detectedResources.stream().filter(isStageable()).collect(Collectors.toList());
+  }
+
+  /**
+   * Returns a predicate for filtering all resources that are impossible to stage (like gradle
+   * wrapper jars).
+   */
+  private static Predicate<String> isStageable() {
+    return resourcePath -> !resourcePath.contains("gradle/wrapper");
   }
 
   /**

@@ -35,6 +35,8 @@ import time
 import zlib
 from builtins import object
 from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
+from typing import Tuple
 
 from future.utils import with_metaclass
 from past.builtins import long
@@ -445,7 +447,7 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
+class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
@@ -478,6 +480,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
   @abc.abstractmethod
   def join(self, basepath, *paths):
+    # type: (str, *str) -> str
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -490,6 +493,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
   @abc.abstractmethod
   def split(self, path):
+    # type: (str) -> Tuple[str, str]
     """Splits the given path into two parts.
 
     Splits the path into a pair (head, tail) such that tail contains the last
@@ -717,6 +721,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
   @abc.abstractmethod
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a write channel for the given file path.
 
     Args:
@@ -731,6 +736,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
   @abc.abstractmethod
   def open(self, path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a read channel for the given file path.
 
     Args:
@@ -771,6 +777,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
   @abc.abstractmethod
   def exists(self, path):
+    # type: (str) -> bool
     """Check if the provided path exists on the FileSystem.
 
     Args:
@@ -782,6 +789,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
   @abc.abstractmethod
   def size(self, path):
+    # type: (str) -> int
     """Get size in bytes of a file on the FileSystem.
 
     Args:
