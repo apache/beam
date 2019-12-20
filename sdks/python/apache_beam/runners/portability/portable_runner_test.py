@@ -20,6 +20,7 @@ from __future__ import print_function
 import inspect
 import logging
 import platform
+import pytest
 import signal
 import socket
 import subprocess
@@ -53,6 +54,9 @@ from apache_beam.transforms import userstate
 _LOGGER = logging.getLogger(__name__)
 
 
+# Disable timeout since this test implements its own.
+# TODO(BEAM-9011): Consider using pytest-timeout's mechanism instead.
+@pytest.mark.timeout(0)
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   TIMEOUT_SECS = 60
