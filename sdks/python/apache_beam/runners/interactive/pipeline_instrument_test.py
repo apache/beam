@@ -273,6 +273,23 @@ class PipelineInstrumentTest(unittest.TestCase):
     p_origin.visit(v)
     assert_pipeline_equal(self, p_origin, p_copy)
 
+  def test_find_out_correct_user_pipeline(self):
+    # This is the user pipeline instance we care in the watched scope.
+    user_pipeline, _, _ = self._example_pipeline()
+    # This is a new runner pipeline instance with the same pipeline graph to
+    # what the user_pipeline represents.
+    runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
+        user_pipeline.to_runner_api(use_fake_coders=True),
+        user_pipeline.runner,
+        options=None)
+    # This is a totally irrelevant user pipeline in the watched scope.
+    irrelevant_user_pipeline = beam.Pipeline(
+        interactive_runner.InteractiveRunner())
+    ib.watch({'irrelevant_user_pipeline': irrelevant_user_pipeline})
+    # Build instrument from the runner pipeline.
+    pipeline_instrument = instr.pin(runner_pipeline)
+    self.assertTrue(pipeline_instrument.user_pipeline is user_pipeline)
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -32,6 +32,7 @@ from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
+from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive.display import pipeline_graph
 
 # size of PCollection samples cached.
@@ -126,6 +127,17 @@ class InteractiveRunner(runners.PipelineRunner):
   def run_pipeline(self, pipeline, options):
     pipeline_instrument = inst.pin(pipeline, options)
 
+    # The user_pipeline analyzed might be None if the pipeline given has nothing
+    # to be cached and tracing back to the user defined pipeline is impossible.
+    # When it's None, there is no need to cache including the background
+    # caching job and no result to track since no background caching job is
+    # started at all.
+    user_pipeline = pipeline_instrument.user_pipeline
+    if user_pipeline:
+      # Should use the underlying runner and run asynchronously.
+      background_caching_job.attempt_to_run_background_caching_job(
+          self._underlying_runner, user_pipeline, options)
+
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
         pipeline_instrument.instrumented_pipeline_proto(),
         self._underlying_runner,
@@ -137,10 +149,19 @@ class InteractiveRunner(runners.PipelineRunner):
           render_option=self._render_option)
       a_pipeline_graph.display_graph()
 
-    result = pipeline_to_execute.run()
-    result.wait_until_finish()
+    main_job_result = PipelineResult(pipeline_to_execute.run(),
+                                     pipeline_instrument)
+    # In addition to this pipeline result setting, redundant result setting from
+    # outer scopes are also recommended since the user_pipeline might not be
+    # available from within this scope.
+    if user_pipeline:
+      ie.current_env().set_pipeline_result(
+          user_pipeline,
+          main_job_result,
+          is_main_job=True)
+    main_job_result.wait_until_finish()
 
-    return PipelineResult(result, pipeline_instrument)
+    return main_job_result
 
 
 class PipelineResult(beam.runners.runner.PipelineResult):
@@ -161,8 +182,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     self._pipeline_instrument = pipeline_instrument
 
   def wait_until_finish(self):
-    # PipelineResult is not constructed until pipeline execution is finished.
-    return
+    self._underlying_result.wait_until_finish()
 
   def get(self, pcoll):
     key = self._pipeline_instrument.cache_key(pcoll)
