@@ -175,6 +175,7 @@ class InteractiveRunner(runners.PipelineRunner):
     main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
+      # pylint: disable=dict-values-not-iterating
       ie.current_env().mark_pcollection_computed(
           pipeline_instrument.runner_pcoll_to_user_pcoll.values())
 

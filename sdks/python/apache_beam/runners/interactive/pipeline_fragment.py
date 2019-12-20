@@ -57,7 +57,7 @@ class PipelineFragment(object):
       assert pcoll.pipeline is self._user_pipeline, (
           '{} belongs to a different user pipeline than other PCollections '
           'given and cannot be used to build a pipeline fragment that produces '
-          'the given PCollections.')
+          'the given PCollections.'.format(pcoll))
     self._options = options
 
     # A copied pipeline instance for modification without changing the user
