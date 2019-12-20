@@ -92,7 +92,10 @@ class PCollectionVisualizationTest(unittest.TestCase):
   def test_dynamic_plotting_update_same_display(self,
                                                 mocked_display_facets):
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.RUNNING)
-    ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
+    ie.current_env().set_pipeline_result(
+        self._p,
+        fake_pipeline_result,
+        is_main_job=True)
     # Starts async dynamic plotting that never ends in this test.
     h = pv.visualize(self._pcoll, dynamic_plotting_interval=0.001)
     # Blocking so the above async task can execute some iterations.
@@ -114,14 +117,20 @@ class PCollectionVisualizationTest(unittest.TestCase):
       self,
       mocked_timeloop):
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.RUNNING)
-    ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
+    ie.current_env().set_pipeline_result(
+        self._p,
+        fake_pipeline_result,
+        is_main_job=True)
     # Starts non-stopping async dynamic plotting until the job is terminated.
     pv.visualize(self._pcoll, dynamic_plotting_interval=0.001)
     # Blocking so the above async task can execute some iterations.
     time.sleep(1)
     mocked_timeloop.assert_not_called()
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.DONE)
-    ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
+    ie.current_env().set_pipeline_result(
+        self._p,
+        fake_pipeline_result,
+        is_main_job=True)
     # Blocking so the above async task can execute some iterations.
     time.sleep(1)
     # "assert_called" is new in Python 3.6.
