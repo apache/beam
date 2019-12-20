@@ -416,7 +416,7 @@ class SdkWorker(object):
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
       state_lull_log = (
-          'There has been a processing lull of over %.2f seconds in state %s'
+          'Operation ongoing for over %.2f seconds in state %s'
           % (sampler_info.time_since_transition / 1e9, state_name))
       step_name_log = (' in step %s ' % step_name) if step_name else ''
 
@@ -429,7 +429,8 @@ class SdkWorker(object):
         stack_trace = '-NOT AVAILABLE-'
 
       _LOGGER.warning(
-          '%s%s. Traceback:\n%s', state_lull_log, step_name_log, stack_trace)
+          '%s%s without returning. Traceback:\n%s',
+          state_lull_log, step_name_log, stack_trace)
 
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
