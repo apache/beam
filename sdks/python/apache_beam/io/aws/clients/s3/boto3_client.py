@@ -25,7 +25,7 @@ try:
   import boto3
 
 except ImportError:
-  raise ImportError('Missing `boto3` requirement')
+  raise ImportError('Missing boto3 requirement')
 
 
 class Client(object):
