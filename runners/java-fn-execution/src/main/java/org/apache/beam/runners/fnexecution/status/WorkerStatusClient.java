@@ -20,15 +20,15 @@ package org.apache.beam.runners.fnexecution.status;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,9 +36,10 @@ import org.slf4j.LoggerFactory;
  * Client for handling requests and responses over Fn Worker Status Api between runner and SDK
  * Harness.
  */
-public class WorkerStatusClient implements Closeable {
+class WorkerStatusClient implements Closeable {
 
   public static final Logger LOG = LoggerFactory.getLogger(WorkerStatusClient.class);
+  private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
   private final StreamObserver<WorkerStatusRequest> requestReceiver;
   private final Map<String, CompletableFuture<WorkerStatusResponse>> responseQueue =
       new ConcurrentHashMap<>();
@@ -64,14 +65,14 @@ public class WorkerStatusClient implements Closeable {
   }
 
   /**
-   * Get the latest sdk worker status from the client's corresponding SDK Harness. A random UUID
-   * will be used to specify the request_id field.
+   * Get the latest sdk worker status from the client's corresponding SDK Harness. A random id will
+   * be used to specify the request_id field.
    *
    * @return {@link CompletableFuture} of the SDK Harness status response.
    */
   public CompletableFuture<WorkerStatusResponse> getWorkerStatus() {
     WorkerStatusRequest request =
-        WorkerStatusRequest.newBuilder().setId(UUID.randomUUID().toString()).build();
+        WorkerStatusRequest.newBuilder().setId(idGenerator.getId()).build();
     return getWorkerStatus(request);
   }
 
@@ -81,8 +82,7 @@ public class WorkerStatusClient implements Closeable {
    * @param request WorkerStatusRequest to be sent to SDK Harness.
    * @return {@link CompletableFuture} of the SDK Harness status response.
    */
-  @VisibleForTesting
-  public CompletableFuture<WorkerStatusResponse> getWorkerStatus(WorkerStatusRequest request) {
+  CompletableFuture<WorkerStatusResponse> getWorkerStatus(WorkerStatusRequest request) {
     CompletableFuture<WorkerStatusResponse> future = new CompletableFuture<>();
     this.requestReceiver.onNext(request);
     this.responseQueue.put(request.getId(), future);

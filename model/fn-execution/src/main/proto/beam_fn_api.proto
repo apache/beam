@@ -889,10 +889,10 @@ message WorkerStatusResponse {
   string error = 2;
 
   // (Optional) Status debugging info reported by SDK harness worker. Content and
-  // format of the content is not strongly enforced but should be print-friendly and
+  // format is not strongly enforced but should be print-friendly and
   // appropriate as an HTTP response body for end user. For details of the preferred
   // info to include in the message see
-  // https://docs.google.com/document/d/1W77buQtdSEIPUKd9zemAM38fb-x3CvOoaTF4P2mSxmI/edit#bookmark=id.ntqwghfc10a6
+  // https://s.apache.org/beam-fn-api-harness-status
   string status_info = 3;
 }
 

@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.fn.status;
+package org.apache.beam.runners.fnexecution.status;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
-import com.google.common.collect.Sets;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +32,6 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.status.WorkerStatusClient;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
@@ -81,31 +79,10 @@ public class BeamWorkerStatusGrpcServiceTest {
   }
 
   @Test
-  public void testCreateFromNullApiServiceDescriptor() {
-    assertNull(
-        BeamWorkerStatusGrpcService.create(
-            null, GrpcContextHeaderAccessorProvider.getHeaderAccessor()));
-    assertNull(
-        BeamWorkerStatusGrpcService.create(
-            ApiServiceDescriptor.newBuilder().build(),
-            GrpcContextHeaderAccessorProvider.getHeaderAccessor()));
-  }
-
-  @Test
   public void testClientConnected() throws Exception {
     StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
         stub.workerStatus(mockObserver);
-    WorkerStatusClient client = service.getStatusClient("id", 5000).get();
-    assertNotNull(client);
-    service.close();
-  }
-
-  @Test
-  public void testClientWithoutIdConnected() throws Exception {
-    BeamFnWorkerStatusStub workerStatusStub = BeamFnWorkerStatusGrpc.newStub(channel);
-    StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
-        workerStatusStub.workerStatus(mockObserver);
-    WorkerStatusClient client = service.getStatusClient("unknown_sdk0", 5000).get();
+    WorkerStatusClient client = service.getStatusClient("id", 5000);
     assertNotNull(client);
   }
 
@@ -114,27 +91,11 @@ public class BeamWorkerStatusGrpcServiceTest {
     final String requestId = "requestId";
     StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
         stub.workerStatus(mockObserver);
-    WorkerStatusClient client = service.getStatusClient("id", 5000).get();
+    WorkerStatusClient client = service.getStatusClient("id", 5000);
     CompletableFuture<WorkerStatusResponse> workerStatus =
         client.getWorkerStatus(WorkerStatusRequest.newBuilder().setId(requestId).build());
     workerStatusResponseStreamObserver.onNext(
         WorkerStatusResponse.newBuilder().setId(requestId).setStatusInfo("status").build());
     assertEquals("status", workerStatus.get(5, TimeUnit.SECONDS).getStatusInfo());
-  }
-
-  @Test
-  public void testGetConnectedSdkIds() throws Exception {
-    Set<String> ids = Sets.newHashSet("id0", "id3", "id11", "id12", "id21");
-    for (String id : ids) {
-      BeamFnWorkerStatusStub workerStatusStub =
-          BeamFnWorkerStatusGrpc.newStub(channel)
-              .withInterceptors(AddHarnessIdInterceptor.create(id));
-      StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
-          workerStatusStub.workerStatus(mockObserver);
-    }
-    // wait for 2 seconds to avoid race condition.
-    Thread.sleep(2000);
-    Set<String> connectedSdkIds = service.getConnectedSdkIds();
-    assertEquals(ids, connectedSdkIds);
   }
 }

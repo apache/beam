@@ -15,39 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.fn.status;
+package org.apache.beam.runners.fnexecution.status;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nullable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc.BeamFnWorkerStatusImplBase;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.runners.fnexecution.status.WorkerStatusClient;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A Fn Status service which can collect run-time status information from SDK Harnesses for
- * debugging purpose
+ * debugging purpose.
  */
 public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase implements FnService {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamWorkerStatusGrpcService.class);
-  private static final String UNKNOW_SDK_ID_PREFIX = "unknown_sdk";
-  private final AtomicLong idGenerator = new AtomicLong();
   private final HeaderAccessor headerAccessor;
-  private final Map<String, WorkerStatusClient> connectedClient = new ConcurrentHashMap<>();
+  private final Map<String, CompletableFuture<WorkerStatusClient>> connectedClient =
+      new ConcurrentHashMap<>();
 
   private BeamWorkerStatusGrpcService(
       ApiServiceDescriptor apiServiceDescriptor, HeaderAccessor headerAccessor) {
@@ -58,27 +55,23 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
   /**
    * Create new instance of {@link BeamWorkerStatusGrpcService}.
    *
-   * @param apiServiceDescriptor ApiServiceDescriptor used for hosting to the server.
-   * @param headerAccessor Grpc head accessor used to obtain SDK Harness worker id.
+   * @param apiServiceDescriptor describes the configuration for the endpoint the server will
+   *     expose.
+   * @param headerAccessor headerAccessor gRPC header accessor used to obtain SDK harness worker id.
    * @return {@link BeamWorkerStatusGrpcService} if apiServiceDescriptor is valid, otherwise returns
    *     null.
    */
-  @Nullable
   public static BeamWorkerStatusGrpcService create(
       ApiServiceDescriptor apiServiceDescriptor, HeaderAccessor headerAccessor) {
-    if (apiServiceDescriptor == null || Strings.isNullOrEmpty(apiServiceDescriptor.getUrl())) {
-      LOG.info(
-          "Received empty api service descriptor for status service,"
-              + " the sdk status report will be skipped");
-      return null;
-    }
     return new BeamWorkerStatusGrpcService(apiServiceDescriptor, headerAccessor);
   }
 
   @Override
   public void close() throws Exception {
-    for (WorkerStatusClient client : this.connectedClient.values()) {
-      client.close();
+    for (CompletableFuture<WorkerStatusClient> clientFuture : this.connectedClient.values()) {
+      if (clientFuture.isDone()) {
+        clientFuture.get().close();
+      }
     }
     this.connectedClient.clear();
   }
@@ -87,65 +80,49 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
   public StreamObserver<WorkerStatusResponse> workerStatus(
       StreamObserver<WorkerStatusRequest> requestObserver) {
     String workerId = headerAccessor.getSdkWorkerId();
-    if (Strings.isNullOrEmpty(workerId)) {
-      // SDK harness status report should be enforced with proper sdk worker id.
-      // If SDK harness connect without proper sdk worker id, generate one with name unknown_sdkXX.
-      // TODO: enforce proper worker id.
-      workerId = UNKNOW_SDK_ID_PREFIX + idGenerator.getAndIncrement();
-      LOG.info(
-          "No worker_id header provided in status response. Will use generated id: {}", workerId);
-    }
-
     LOG.info("Beam Fn Status client connected with id {}", workerId);
+
     WorkerStatusClient fnApiStatusClient =
         WorkerStatusClient.forRequestObserver(workerId, requestObserver);
-    if (connectedClient.containsKey(workerId)) {
+    if (connectedClient.containsKey(workerId) && connectedClient.get(workerId).isDone()) {
       LOG.info(
           "SDK Worker {} was connected to status server previously, disconnecting the old client",
           workerId);
       try {
-        connectedClient.get(workerId).close();
-      } catch (IOException e) {
+        WorkerStatusClient oldClient = connectedClient.get(workerId).get();
+        oldClient.close();
+      } catch (IOException | InterruptedException | ExecutionException e) {
         LOG.warn("Error closing worker status client", e);
       }
     }
-    connectedClient.put(workerId, fnApiStatusClient);
+    connectedClient
+        .computeIfAbsent(workerId, k -> new CompletableFuture<>())
+        .complete(fnApiStatusClient);
     return fnApiStatusClient.getResponseObserver();
   }
 
+  /**
+   * Get the latest sdk worker status from the client's corresponding SDK Harness. A random id will
+   * be used to specify the request_id field.
+   *
+   * @return {@link CompletableFuture} of the SDK Harness status response.
+   */
+  public CompletableFuture<WorkerStatusResponse> getWorkerStatus(String workerId)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    return getStatusClient(workerId, 2000L).getWorkerStatus();
+  }
   /**
    * Get the status api client connected to the SDK harness with specified workerId.
    *
    * @param workerId worker id of the SDK Harness.
    * @param maxWaitTimeInMills The maximum waiting time for client to connect in milliseconds.
-   * @return {@link Optional} containing the client, if there is no connected SDK Harness with the
-   *     specified workerId, Optional of null will be returned.
+   * @return {@link WorkerStatusClient} if SDK harness with the specified workerId.
    */
-  public Optional<WorkerStatusClient> getStatusClient(String workerId, long maxWaitTimeInMills) {
-    long timeout = System.currentTimeMillis() + maxWaitTimeInMills;
-    WorkerStatusClient client = null;
-    try {
-      while ((client = this.connectedClient.getOrDefault(workerId, null)) == null
-          && System.currentTimeMillis() < timeout) {
-        Thread.sleep(500);
-      }
-    } catch (InterruptedException e) {
-      LOG.info("Thread interrupted while waiting for status client to connect");
-    }
-    return Optional.ofNullable(client);
-  }
-
-  /** Get all connected SDK Harness worker ids in a sorted set. */
-  public Set<String> getConnectedSdkIds() {
-    TreeSet<String> result =
-        new TreeSet<>(
-            (first, second) -> {
-              if (first.length() != second.length()) {
-                return first.length() - second.length();
-              }
-              return first.compareTo(second);
-            });
-    result.addAll(this.connectedClient.keySet());
-    return result;
+  @VisibleForTesting
+  WorkerStatusClient getStatusClient(String workerId, long maxWaitTimeInMills)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    CompletableFuture<WorkerStatusClient> clientFuture =
+        this.connectedClient.computeIfAbsent(workerId, k -> new CompletableFuture<>());
+    return clientFuture.get(maxWaitTimeInMills, TimeUnit.MILLISECONDS);
   }
 }
