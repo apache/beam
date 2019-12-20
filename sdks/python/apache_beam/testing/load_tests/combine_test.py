@@ -30,9 +30,9 @@ will be stored,
 will be stored,
 * input_options - options for Synthetic Sources.
 
-Example test run on DirectRunner:
+Example test run:
 
-python setup.py nosetests \
+python -m apache_beam.testing.load_tests.combine_test \
     --test-pipeline-options="
     --project=big-query-project
     --publish_to_big_query=true
@@ -43,12 +43,8 @@ python setup.py nosetests \
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
-    \"value_size\":15,
-    \"bundle_size_distribution_type\": \"const\",
-    \"bundle_size_distribution_param\": 1,
-    \"force_initial_num_bundles\": 0
-    }'" \
-    --tests apache_beam.testing.load_tests.combine_test
+    \"value_size\": 15
+    }'"
 
 or:
 
@@ -60,62 +56,10 @@ or:
     --input_options=\'
       {"num_records": 1,
       "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=DirectRunner
-    --fanout=1
-    --top_count=1000' \
+      "value_size": 1}\'
+    --runner=DirectRunner' \
 -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
-
-To run test on other runner (ex. Dataflow):
-
-python setup.py nosetests \
-    --test-pipeline-options="
-        --runner=TestDataflowRunner
-        --fanout=1
-        --top_count=1000
-        --project=...
-        --staging_location=gs://...
-        --temp_location=gs://...
-        --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --publish_to_big_query=true
-        --metrics_dataset=python_load_tests
-        --metrics_table=combine
-        --input_options='{
-        \"num_records\": 1000,
-        \"key_size\": 5,
-        \"value_size\":15,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\": 0
-        }'" \
-    --tests apache_beam.testing.load_tests.combine_test
-
-or:
-
-./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=combine
-    --temp_location=gs://...
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=TestDataflowRunner
-    --fanout=1
-    --top_count=1000' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.combine_test \
--Prunner=
-TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
 # pytype: skip-file

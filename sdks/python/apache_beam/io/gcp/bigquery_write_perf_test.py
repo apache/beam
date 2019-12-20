@@ -27,7 +27,7 @@ key_size - required option, but its value has no meaning.
 
 Example test run on DataflowRunner:
 
-python setup.py nosetests \
+python -m apache_beam.io.gcp.bigquery_write_perf_test \
     --test-pipeline-options="
     --runner=TestDataflowRunner
     --project=...
@@ -43,8 +43,7 @@ python setup.py nosetests \
     \"num_records\": 1024,
     \"key_size\": 1,
     \"value_size\": 1024,
-    }'" \
-    --tests apache_beam.io.gcp.bigquery_write_perf_test
+    }'"
 
 This setup will result in a table of 1MB size.
 """
