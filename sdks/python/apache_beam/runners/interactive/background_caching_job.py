@@ -86,7 +86,7 @@ def is_background_caching_job_needed(user_pipeline):
                # running.
                runners.runner.PipelineState.RUNNING) or
            # Or checks if we can invalidate the previous job.
-           is_unbounded_source_changed(user_pipeline)))
+           is_source_to_cache_changed(user_pipeline)))
 
 
 def has_source_to_cache(user_pipeline):
@@ -111,40 +111,40 @@ def attempt_to_cancel_background_caching_job(user_pipeline):
     background_caching_job_result.cancel()
 
 
-def is_unbounded_source_changed(user_pipeline):
-  """Determines if there is any change in the unbounded sources used by the
-  user-defined pipeline.
+def is_source_to_cache_changed(user_pipeline):
+  """Determines if there is any change in the sources that need to be cached
+  used by the user-defined pipeline.
 
   Due to the expensiveness of computations and for the simplicity of usage, this
   function is not idempotent because Interactive Beam automatically discards
   previously tracked signature of transforms and tracks the current signature of
   transforms for the user-defined pipeline if there is any change.
 
-  When it's True, there is addition/deletion/mutation of transforms that
+  When it's True, there is addition/deletion/mutation of source transforms that
   requires a new background caching job.
   """
   # By default gets empty set if the user_pipeline is first time seen because
   # we can treat it as adding transforms.
-  recorded_signature = ie.current_env().unbounded_source_signature(
-      user_pipeline)
-  current_signature = extract_unbounded_source_signature(user_pipeline)
+  recorded_signature = ie.current_env().cached_source_signature(user_pipeline)
+  current_signature = extract_source_to_cache_signature(user_pipeline)
   is_changed = not current_signature.issubset(recorded_signature)
   # The computation of extract_unbounded_source_signature is expensive, track on
   # change by default.
   if is_changed:
-    ie.current_env().set_unbounded_source_signature(user_pipeline,
-                                                    current_signature)
+    ie.current_env().set_cached_source_signature(user_pipeline,
+                                                 current_signature)
   return is_changed
 
 
-def extract_unbounded_source_signature(user_pipeline):
-  """Extracts a set of signature for unbounded sources in the user-defined
-  pipeline.
+def extract_source_to_cache_signature(user_pipeline):
+  """Extracts a set of signature for sources that need to be cached in the
+  user-defined pipeline.
 
-  A signature is a str representation of urn and payload of each unbounded
-  source.
+  A signature is a str representation of urn and payload of a source.
   """
   from apache_beam.runners.interactive import pipeline_instrument as instr
+  # TODO(BEAM-8335): we temporarily only cache replaceable unbounded sources.
+  # Add logic for other cacheable sources here when they are available.
   unbounded_sources_as_applied_transforms = instr.unbounded_sources(
       user_pipeline)
   unbounded_sources_as_ptransforms = set(

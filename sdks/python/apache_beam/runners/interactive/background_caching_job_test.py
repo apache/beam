@@ -116,7 +116,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
                   ie.current_env().pipeline_result(p))
 
   @patch('IPython.get_ipython', mock_get_ipython)
-  def test_unbounded_source_changed_when_pipeline_is_first_time_seen(self):
+  def test_source_to_cache_changed_when_pipeline_is_first_time_seen(self):
     with mock_get_ipython():  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
 
@@ -125,10 +125,10 @@ class BackgroundCachingJobTest(unittest.TestCase):
           subscription=_FOO_PUBSUB_SUB)
       ib.watch({'read_foo': read_foo})
 
-    self.assertTrue(bcj.is_unbounded_source_changed(pipeline))
+    self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
 
   @patch('IPython.get_ipython', mock_get_ipython)
-  def test_unbounded_source_changed_when_new_unbounded_source_is_added(self):
+  def test_source_to_cache_changed_when_new_source_is_added(self):
     with mock_get_ipython():  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
       read_foo = pipeline | 'Read' >> beam.io.ReadFromPubSub(
@@ -136,18 +136,18 @@ class BackgroundCachingJobTest(unittest.TestCase):
       ib.watch({'read_foo': read_foo})
 
     # Sets the signature for current pipeline state.
-    ie.current_env().set_unbounded_source_signature(
-        pipeline, bcj.extract_unbounded_source_signature(pipeline))
+    ie.current_env().set_cached_source_signature(
+        pipeline, bcj.extract_source_to_cache_signature(pipeline))
 
     with mock_get_ipython():  # Cell 2
       read_bar = pipeline | 'Read' >> beam.io.ReadFromPubSub(
           subscription=_BAR_PUBSUB_SUB)
       ib.watch({'read_bar': read_bar})
 
-    self.assertTrue(bcj.is_unbounded_source_changed(pipeline))
+    self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
 
   @patch('IPython.get_ipython', mock_get_ipython)
-  def test_unbounded_source_changed_when_unbounded_source_is_altered(self):
+  def test_source_to_cache_changed_when_source_is_altered(self):
     with mock_get_ipython():  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
       transform = beam.io.ReadFromPubSub(
@@ -156,18 +156,18 @@ class BackgroundCachingJobTest(unittest.TestCase):
       ib.watch({'read_foo': read_foo})
 
     # Sets the signature for current pipeline state.
-    ie.current_env().set_unbounded_source_signature(
-        pipeline, bcj.extract_unbounded_source_signature(pipeline))
+    ie.current_env().set_cached_source_signature(
+        pipeline, bcj.extract_source_to_cache_signature(pipeline))
 
     with mock_get_ipython():  # Cell 2
       from apache_beam.io.gcp.pubsub import _PubSubSource
       # Alter the transform.
       transform._source = _PubSubSource(subscription=_BAR_PUBSUB_SUB)
 
-    self.assertTrue(bcj.is_unbounded_source_changed(pipeline))
+    self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
 
   @patch('IPython.get_ipython', mock_get_ipython)
-  def test_unbounded_source_not_changed_for_same_unbounded_source(self):
+  def test_source_to_cache_not_changed_for_same_source(self):
     with mock_get_ipython():  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
       transform = beam.io.ReadFromPubSub(
@@ -178,15 +178,15 @@ class BackgroundCachingJobTest(unittest.TestCase):
       ib.watch({'read_foo_1': read_foo_1})
 
     # Sets the signature for current pipeline state.
-    ie.current_env().set_unbounded_source_signature(
-        pipeline, bcj.extract_unbounded_source_signature(pipeline))
+    ie.current_env().set_cached_source_signature(
+        pipeline, bcj.extract_source_to_cache_signature(pipeline))
 
     with mock_get_ipython():  # Cell 3
       # Apply exactly the same transform and the same instance.
       read_foo_2 = pipeline | 'Read' >> transform
       ib.watch({'read_foo_2': read_foo_2})
 
-    self.assertFalse(bcj.is_unbounded_source_changed(pipeline))
+    self.assertFalse(bcj.is_source_to_cache_changed(pipeline))
 
     with mock_get_ipython():  # Cell 4
       # Apply the same transform but represented in a different instance.
@@ -196,7 +196,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
           subscription='projects/test-project/subscriptions/dummy')
       ib.watch({'read_foo_3': read_foo_3})
 
-    self.assertFalse(bcj.is_unbounded_source_changed(pipeline))
+    self.assertFalse(bcj.is_source_to_cache_changed(pipeline))
 
 
 if __name__ == '__main__':
