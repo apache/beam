@@ -90,3 +90,6 @@ sdks/python/postcommit_requirements.txt
 # JetBrains Education files
 !**/study_project.xml
 **/.coursecreator/**/*
+
+.pytest_cache
+.pytest_cache/**/*

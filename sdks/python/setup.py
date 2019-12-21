@@ -207,6 +207,10 @@ INTERACTIVE_BEAM = [
     'jsons>=1.0.0,<2; python_version >= "3.5.3"',
     'timeloop>=1.0.2,<2',
 ]
+AWS_REQUIREMENTS = [
+    'boto3 >=1.9'
+]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
@@ -267,6 +271,7 @@ setuptools.setup(
         'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
         'interactive': INTERACTIVE_BEAM,
+        'aws': AWS_REQUIREMENTS
     },
     zip_safe=False,
     # PyPI package information.
