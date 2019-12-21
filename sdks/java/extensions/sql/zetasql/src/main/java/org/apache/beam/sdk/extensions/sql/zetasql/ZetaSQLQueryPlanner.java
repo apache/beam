@@ -73,8 +73,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
 
   public static RuleSet[] getZetaSqlRuleSets() {
     // TODO[BEAM-8630]: uncomment the next line once we have fully migrated to BeamZetaSqlCalcRel
-    // return replaceBeamCalcRule(BeamRuleSets.getRuleSets());
-    return BeamRuleSets.getRuleSets();
+    return replaceBeamCalcRule(BeamRuleSets.getRuleSets());
+    //return BeamRuleSets.getRuleSets();
   }
 
   private static RuleSet[] replaceBeamCalcRule(RuleSet[] ruleSets) {
