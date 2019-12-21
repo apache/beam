@@ -162,7 +162,9 @@ class FnApiLogRecordHandler(logging.Handler):
     # This case is unlikely and the chance of reconnection and successful
     # transmission of logs is also very less as the process is terminating.
     # I choose not to handle this case to avoid un-necessary code complexity.
-    while self._alive:
+
+    alive = True  # Force at least one connection attempt.
+    while alive:
       # Loop for reconnection.
       log_control_iterator = self.connect()
       if self._dropped_logs > 0:
@@ -181,3 +183,4 @@ class FnApiLogRecordHandler(logging.Handler):
               file=sys.stderr)
         # Wait a bit before trying a reconnect
         time.sleep(0.5) # 0.5 seconds
+      alive = self._alive
