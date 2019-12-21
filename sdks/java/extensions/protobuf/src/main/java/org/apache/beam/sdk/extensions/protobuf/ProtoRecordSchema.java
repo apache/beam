@@ -25,7 +25,6 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.ProtoTypeConversionsFactory;
@@ -44,6 +43,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 
+/**
+ * A {@link SchemaProvider} for Protocol Buffer objects.
+ *
+ * <p>This provider is for statically compiled protocol buffer objects. It generates the full schema
+ * along with efficient conversions to and from the internal {@link Row} object.
+ */
 @Experimental(Kind.SCHEMAS)
 public class ProtoRecordSchema extends GetterBasedSchemaProvider {
 
@@ -120,7 +125,7 @@ public class ProtoRecordSchema extends GetterBasedSchemaProvider {
   private <T> void checkForDynamicType(TypeDescriptor<T> typeDescriptor) {
     if (typeDescriptor.getRawType().equals(DynamicMessage.class)) {
       throw new RuntimeException(
-          "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use ProtoDynamicMessageSchema  instead.");
+          "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use ProtoDynamicMessageSchema instead.");
     }
   }
 }

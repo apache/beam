@@ -79,6 +79,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 
+/** Code generation utilities to enable {@link ProtoRecordSchema}. */
 public class ProtoByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static TypeDescriptor<ByteString> BYTE_STRING_TYPE_DESCRIPTOR =
@@ -87,26 +88,35 @@ public class ProtoByteBuddyUtils {
       TypeDescriptor.of(Timestamp.class);
   private static TypeDescriptor<Duration> PROTO_DURATION_TYPE_DESCRIPTOR =
       TypeDescriptor.of(Duration.class);
+  private static TypeDescriptor<ProtocolMessageEnum> PROTO_MESSAGE_ENUM_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(ProtocolMessageEnum.class);
 
   private static final ForLoadedType BYTE_STRING_TYPE = new ForLoadedType(ByteString.class);
   private static final ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
   private static final ForLoadedType PROTO_ENUM_TYPE = new ForLoadedType(ProtocolMessageEnum.class);
   private static final ForLoadedType INTEGER_TYPE = new ForLoadedType(Integer.class);
+  private static final ForLoadedType TIMESTAMP_NANOS_TYPE = new ForLoadedType(TimestampNanos.class);
+  private static final ForLoadedType DURATION_NANOS_TYPE = new ForLoadedType(DurationNanos.class);
 
+  // The following proto types have special suffixes on the generated getters.
   private static final Map<TypeName, String> PROTO_GETTER_SUFFIX =
       ImmutableMap.of(
           TypeName.ARRAY, "List",
           TypeName.ITERABLE, "List",
           TypeName.MAP, "Map");
+  // By default proto getters always start with get.
+  private static final String DEFAULT_PROTO_GETTER_PREFIX = "get";
 
+  // The following proto types have special prefixes on the generated setters.
   private static final Map<TypeName, String> PROTO_SETTER_PREFIX =
       ImmutableMap.of(
           TypeName.ARRAY, "addAll",
           TypeName.ITERABLE, "addAll",
           TypeName.MAP, "putAll");
-  private static final String DEFAULT_PROTO_GETTER_PREFIX = "get";
+  // The remaining proto types have setters that start with set.
   private static final String DEFAULT_PROTO_SETTER_PREFIX = "set";
 
+  // Given a name and a type, generate the proto getter name.
   static String protoGetterName(String name, FieldType fieldType) {
     final String camel = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
     return DEFAULT_PROTO_GETTER_PREFIX
@@ -114,6 +124,7 @@ public class ProtoByteBuddyUtils {
         + PROTO_GETTER_SUFFIX.getOrDefault(fieldType.getTypeName(), "");
   }
 
+  // Given a name and a type, generate the proto builder setter name.
   static String protoSetterName(String name, FieldType fieldType) {
     final String camel = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, name);
     return protoSetterPrefix(fieldType) + camel;
@@ -123,6 +134,7 @@ public class ProtoByteBuddyUtils {
     return PROTO_SETTER_PREFIX.getOrDefault(fieldType.getTypeName(), DEFAULT_PROTO_SETTER_PREFIX);
   }
 
+  // Converts the Java type returned by a proto getter to the type that Row.getValue will return.
   static class ProtoConvertType extends ConvertType {
     ProtoConvertType(boolean returnRawValues) {
       super(returnRawValues);
@@ -133,7 +145,7 @@ public class ProtoByteBuddyUtils {
       if (typeDescriptor.equals(BYTE_STRING_TYPE_DESCRIPTOR)
           || typeDescriptor.isSubtypeOf(BYTE_STRING_TYPE_DESCRIPTOR)) {
         return byte[].class;
-      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ProtocolMessageEnum.class))) {
+      } else if (typeDescriptor.isSubtypeOf(PROTO_MESSAGE_ENUM_TYPE_DESCRIPTOR)) {
         return Integer.class;
       } else if (typeDescriptor.equals(PROTO_TIMESTAMP_TYPE_DESCRIPTOR)
           || typeDescriptor.equals(PROTO_DURATION_TYPE_DESCRIPTOR)) {
@@ -144,6 +156,9 @@ public class ProtoByteBuddyUtils {
     }
   }
 
+  // Given a StackManipulation that reads a value from a proto (by invoking the getter), generate
+  // code to convert
+  // that into the type that Row.getValue is expected to return.
   static class ProtoConvertValueForGetter extends ConvertValueForGetter {
     ProtoConvertValueForGetter(StackManipulation readValue) {
       super(readValue);
@@ -158,6 +173,7 @@ public class ProtoByteBuddyUtils {
     public StackManipulation convert(TypeDescriptor type) {
       if (type.equals(BYTE_STRING_TYPE_DESCRIPTOR)
           || type.isSubtypeOf(BYTE_STRING_TYPE_DESCRIPTOR)) {
+        // For ByteString values, return ByteString.toByteArray.
         return new Compound(
             readValue,
             MethodInvocation.invoke(
@@ -165,7 +181,8 @@ public class ProtoByteBuddyUtils {
                     .getDeclaredMethods()
                     .filter(ElementMatchers.named("toByteArray"))
                     .getOnly()));
-      } else if (type.isSubtypeOf(TypeDescriptor.of(ProtocolMessageEnum.class))) {
+      } else if (type.isSubtypeOf(PROTO_MESSAGE_ENUM_TYPE_DESCRIPTOR)) {
+        // If the type is ProtocolMessageEnum, then return ProtocolMessageEnum.getNumber.
         return new Compound(
             readValue,
             MethodInvocation.invoke(
@@ -179,18 +196,20 @@ public class ProtoByteBuddyUtils {
                 INTEGER_TYPE.asGenericType(),
                 Typing.STATIC));
       } else if (type.equals(PROTO_TIMESTAMP_TYPE_DESCRIPTOR)) {
+        // If the type is a proto timestamp, then convert it to the appropriate row.
         return new Compound(
             readValue,
             MethodInvocation.invoke(
-                new ForLoadedType(TimestampNanos.class)
+                TIMESTAMP_NANOS_TYPE
                     .getDeclaredMethods()
                     .filter(ElementMatchers.named("toRow"))
                     .getOnly()));
       } else if (type.equals(PROTO_DURATION_TYPE_DESCRIPTOR)) {
+        // If the type is a proto duration, then convert it to the appropriate row.
         return new Compound(
             readValue,
             MethodInvocation.invoke(
-                new ForLoadedType(DurationNanos.class)
+                DURATION_NANOS_TYPE
                     .getDeclaredMethods()
                     .filter(ElementMatchers.named("toRow"))
                     .getOnly()));
@@ -200,6 +219,7 @@ public class ProtoByteBuddyUtils {
     }
   }
 
+  // Convert from the type returned by Row.getValue to the type expected by a proto builder setter.
   static class ProtoConvertValueForSetter extends ConvertValueForSetter {
     ProtoConvertValueForSetter(StackManipulation readValue) {
       super(readValue);
@@ -212,7 +232,8 @@ public class ProtoByteBuddyUtils {
 
     @Override
     public StackManipulation convert(TypeDescriptor type) {
-      if (type.isSubtypeOf(TypeDescriptor.of(ByteString.class))) {
+      if (type.isSubtypeOf(BYTE_STRING_TYPE_DESCRIPTOR)) {
+        // Convert a byte[] to a ByteString.
         return new Compound(
             readValue,
             TypeCasting.to(BYTE_ARRAY_TYPE),
@@ -223,7 +244,7 @@ public class ProtoByteBuddyUtils {
                         ElementMatchers.named("copyFrom")
                             .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
                     .getOnly()));
-      } else if (type.isSubtypeOf(TypeDescriptor.of(ProtocolMessageEnum.class))) {
+      } else if (type.isSubtypeOf(PROTO_MESSAGE_ENUM_TYPE_DESCRIPTOR)) {
         ForLoadedType loadedType = new ForLoadedType(type.getRawType());
         // Convert the stored number back to the enum constant.
         return new Compound(
@@ -240,18 +261,20 @@ public class ProtoByteBuddyUtils {
                             .and(ElementMatchers.isStatic().and(ElementMatchers.takesArguments(1))))
                     .getOnly()));
       } else if (type.equals(PROTO_TIMESTAMP_TYPE_DESCRIPTOR)) {
+        // Convert to a proto timestamp.
         return new Compound(
             readValue,
             MethodInvocation.invoke(
-                new ForLoadedType(TimestampNanos.class)
+                TIMESTAMP_NANOS_TYPE
                     .getDeclaredMethods()
-                    .filter(ElementMatchers.named("toDuration"))
+                    .filter(ElementMatchers.named("toTimestamp"))
                     .getOnly()));
       } else if (type.equals(PROTO_DURATION_TYPE_DESCRIPTOR)) {
+        // Convert to a proto duration.
         return new Compound(
             readValue,
             MethodInvocation.invoke(
-                new ForLoadedType(DurationNanos.class)
+                DURATION_NANOS_TYPE
                     .getDeclaredMethods()
                     .filter(ElementMatchers.named("toDuration"))
                     .getOnly()));
@@ -261,6 +284,7 @@ public class ProtoByteBuddyUtils {
     }
   }
 
+  // A factory that is injected to allow injection of the above TypeConversion classes.
   static class ProtoTypeConversionsFactory implements TypeConversionsFactory {
     @Override
     public TypeConversion<Type> createTypeConversion(boolean returnRawTypes) {
@@ -310,47 +334,6 @@ public class ProtoByteBuddyUtils {
                           fieldValueTypeSupplier))
               .collect(Collectors.toList());
         });
-  }
-
-  static class OneOfFieldValueGetter<ProtoT extends MessageLite>
-      implements FieldValueGetter<ProtoT, OneOfType.Value> {
-    private final String name;
-    private final Method getCaseMethod;
-    private final Map<Integer, FieldValueGetter<ProtoT, ?>> getterMethodMap;
-    private final OneOfType oneOfType;
-
-    public OneOfFieldValueGetter(
-        String name,
-        Method getCaseMethod,
-        Map<Integer, FieldValueGetter<ProtoT, ?>> getterMethodMap,
-        OneOfType oneOfType) {
-      this.name = name;
-      this.getCaseMethod = getCaseMethod;
-      this.getterMethodMap = getterMethodMap;
-      this.oneOfType = oneOfType;
-    }
-
-    @Nullable
-    @Override
-    public Value get(ProtoT object) {
-      try {
-        EnumLite caseValue = (EnumLite) getCaseMethod.invoke(object);
-        if (caseValue.getNumber() == 0) {
-          return null;
-        } else {
-          Object value = getterMethodMap.get(caseValue.getNumber()).get(object);
-          return oneOfType.createValue(
-              oneOfType.getCaseEnumType().valueOf(caseValue.getNumber()), value);
-        }
-      } catch (IllegalAccessException | InvocationTargetException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    @Override
-    public String name() {
-      return name;
-    }
   }
 
   private static FieldValueGetter createGetter(
@@ -438,7 +421,7 @@ public class ProtoByteBuddyUtils {
           Method method = getProtoSetter(methods, oneOfField.getName(), oneOfField.getType());
           oneOfMethods.put(getFieldNumber(oneOfField.getType()), method);
         }
-        setters.add(new ProtoOneOfSetter(oneOfMethods, field.getName()));
+        setters.add(new OneOfFieldValueSetter(oneOfMethods, field.getName()));
       } else {
         Method method = getProtoSetter(methods, field.getName(), field.getType());
         setters.add(
@@ -447,23 +430,68 @@ public class ProtoByteBuddyUtils {
                 new ProtoTypeConversionsFactory()));
       }
     }
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(protoClass, schema);
 
-    Method buildMethod =
-        ReflectUtils.getMethods(builderClass).stream()
-            .filter(m -> m.getName().equals("build"))
-            .findAny()
-            .orElseThrow(() -> new RuntimeException("No build method in builder"));
-    return createBuilderCreator(
-        protoClass, builderClass, setters, buildMethod, schema, schemaTypes);
+    return createBuilderCreator(protoClass, builderClass, setters, schema);
   }
 
-  static class ProtoOneOfSetter<BuilderT extends MessageLite.Builder>
+  /**
+   * A getter for a oneof value. Ideally we would codegen this as well to avoid map lookups on each
+   * invocation. However generating switch statements with byte buddy is complicated, so for now
+   * we're using a map.
+   */
+  static class OneOfFieldValueGetter<ProtoT extends MessageLite>
+      implements FieldValueGetter<ProtoT, OneOfType.Value> {
+    private final String name;
+    private final Method getCaseMethod;
+    private final Map<Integer, FieldValueGetter<ProtoT, ?>> getterMethodMap;
+    private final OneOfType oneOfType;
+
+    public OneOfFieldValueGetter(
+        String name,
+        Method getCaseMethod,
+        Map<Integer, FieldValueGetter<ProtoT, ?>> getterMethodMap,
+        OneOfType oneOfType) {
+      this.name = name;
+      this.getCaseMethod = getCaseMethod;
+      this.getterMethodMap = getterMethodMap;
+      this.oneOfType = oneOfType;
+    }
+
+    @Nullable
+    @Override
+    public Value get(ProtoT object) {
+      try {
+        EnumLite caseValue = (EnumLite) getCaseMethod.invoke(object);
+        if (caseValue.getNumber() == 0) {
+          return null;
+        } else {
+          Object value = getterMethodMap.get(caseValue.getNumber()).get(object);
+          return oneOfType.createValue(
+              oneOfType.getCaseEnumType().valueOf(caseValue.getNumber()), value);
+        }
+      } catch (IllegalAccessException | InvocationTargetException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public String name() {
+      return name;
+    }
+  }
+
+  /**
+   * A setter for a OneOf value. Ideally we would codegen this, as this class requires a map lookup
+   * as well as a reflection-based method invocation - both of which can be expensive. However
+   * generating switch statements with ByteBuddy is a bit complicated, so for now we're doing it
+   * this way.
+   */
+  static class OneOfFieldValueSetter<BuilderT extends MessageLite.Builder>
       implements FieldValueSetter<BuilderT, OneOfType.Value> {
     private final Map<Integer, Method> methods;
     private final String name;
 
-    ProtoOneOfSetter(Map<Integer, Method> methods, String name) {
+    OneOfFieldValueSetter(Map<Integer, Method> methods, String name) {
       this.methods = methods;
       this.name = name;
     }
@@ -485,12 +513,7 @@ public class ProtoByteBuddyUtils {
   }
 
   static SchemaUserTypeCreator createBuilderCreator(
-      Class<?> protoClass,
-      Class<?> builderClass,
-      List<FieldValueSetter> setters,
-      Method buildMethod,
-      Schema schema,
-      List<FieldValueTypeInformation> types) {
+      Class<?> protoClass, Class<?> builderClass, List<FieldValueSetter> setters, Schema schema) {
     try {
       DynamicType.Builder<Supplier> builder =
           BYTE_BUDDY
@@ -515,6 +538,7 @@ public class ProtoByteBuddyUtils {
     }
   }
 
+  // This is the class that actually creates a proto buffer.
   static class ProtoCreatorFactory implements SchemaUserTypeCreator {
     private final Supplier<? extends MessageLite.Builder> builderCreator;
     private final List<FieldValueSetter> setters;
@@ -535,6 +559,9 @@ public class ProtoByteBuddyUtils {
     }
   }
 
+  // This is the implementation of a Supplier class that when invoked returns a builder for the
+  // specified protocol
+  // buffer.
   static class BuilderSupplier implements Implementation {
     private final Class<?> protoClass;
 

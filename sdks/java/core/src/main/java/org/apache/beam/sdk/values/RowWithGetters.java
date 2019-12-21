@@ -124,10 +124,15 @@ public class RowWithGetters extends Row {
           : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), map);
     } else {
       if (type.isLogicalType(OneOfType.IDENTIFIER)) {
+        // If this is a OneOf union type, we must extract the oneOfType corresponding to the current
+        // union value.
         OneOfType oneOfType = type.getLogicalType(OneOfType.class);
         OneOfType.Value oneOfValue = (OneOfType.Value) fieldValue;
         Object convertedOneOfField =
             getValue(oneOfValue.getFieldType(), oneOfValue.getValue(), null);
+        // Row.getValue by default returns the base representation type of logical types (for OneOf
+        // a Row with nullable
+        // fields for each option). Convert the result to the base type before returning.
         return (T)
             oneOfType.toBaseType(
                 oneOfType.createValue(oneOfValue.getCaseType(), convertedOneOfField));

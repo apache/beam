@@ -123,8 +123,10 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
               valueType,
               typeFactory);
     } else {
-      if (type.getTypeName().isLogicalType()
-          && OneOfType.IDENTIFIER.equals(type.getLogicalType().getIdentifier())) {
+      if (type.isLogicalType(OneOfType.IDENTIFIER)) {
+        // If this is a OneOf union type, we must extract the current union value and convert that
+        // value to the Java
+        // type expected by the creator object.
         OneOfType oneOfType = type.getLogicalType(OneOfType.class);
         OneOfType.Value oneOfValue = oneOfType.toInputType((Row) value);
         FieldValueTypeInformation oneOfFieldValueTypeInformation =
