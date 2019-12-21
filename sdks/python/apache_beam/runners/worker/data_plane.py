@@ -27,6 +27,7 @@ import logging
 import queue
 import sys
 import threading
+import time
 from builtins import object
 from builtins import range
 from typing import TYPE_CHECKING
@@ -139,21 +140,47 @@ class TimeBasedBufferingClosableOutputStream(
   def close(self):
     with self._schedule_lock:
       self._closed = True
-      if self._flush_timer:
-        self._flush_timer.cancel()
-        self._flush_timer = None
+      if self._periodic_flusher:
+        self._periodic_flusher.cancel()
+        self._periodic_flusher = None
     super(TimeBasedBufferingClosableOutputStream, self).close()
 
   def _schedule_periodic_flush(self):
-    def _periodic_flush():
+    def _flush():
       with self._schedule_lock:
         if not self._closed:
           self.flush()
-          self._schedule_periodic_flush()
 
-    self._flush_timer = threading.Timer(
-        self._time_flush_threshold_ms / 1000.0, _periodic_flush)
-    self._flush_timer.start()
+    self._periodic_flusher = PeriodicThread(
+        self._time_flush_threshold_ms / 1000.0, _flush)
+    self._periodic_flusher.daemon = True
+    self._periodic_flusher.start()
+
+
+class PeriodicThread(threading.Thread):
+  """Call a function periodically with the specified number of seconds"""
+
+  def __init__(self,
+               interval,
+               function,
+               args=None,
+               kwargs=None):
+    threading.Thread.__init__(self)
+    self._interval = interval
+    self._function = function
+    self._args = args if args is not None else []
+    self._kwargs = kwargs if kwargs is not None else {}
+    self._finished = threading.Event()
+
+  def run(self):
+    next_call = time.time() + self._interval
+    while not self._finished.wait(next_call - time.time()):
+      next_call = next_call + self._interval
+      self._function(*self._args, **self._kwargs)
+
+  def cancel(self):
+    """Stop the thread if it hasn't finished yet."""
+    self._finished.set()
 
 
 class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
