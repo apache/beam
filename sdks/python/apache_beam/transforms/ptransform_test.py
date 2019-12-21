@@ -347,14 +347,14 @@ class PTransformTest(unittest.TestCase):
 
     pipeline = TestPipeline()
     result = (pipeline
-              | 'Start' >> beam.Create([x for x in range(3)])
+              | 'Start' >> beam.Create([1])
               | beam.ParDo(MyDoFn())
               | WindowInto(windowfn)
               | 'create tuple' >> beam.Map(
                   lambda v, t=beam.DoFn.TimestampParam, w=beam.DoFn.WindowParam:
                   (v, t, w.start, w.end)))
-    expected_process = [('process'+ str(x), Timestamp(5), Timestamp(4),
-                         Timestamp(6)) for x in range(3)]
+    expected_process = [('process'+ str(1), Timestamp(5), Timestamp(4),
+                         Timestamp(6))]
     expected_finish = [('finish', Timestamp(1), Timestamp(0), Timestamp(2))]
 
     assert_that(result, equal_to(expected_process + expected_finish))
