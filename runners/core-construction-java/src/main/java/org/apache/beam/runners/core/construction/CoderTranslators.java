@@ -134,7 +134,7 @@ class CoderTranslators {
 
       @Override
       public byte[] getPayload(RowCoder from) {
-        return SchemaTranslation.schemaToProto(from.getSchema()).toByteArray();
+        return SchemaTranslation.schemaToProto(from.getSchema(), true).toByteArray();
       }
 
       @Override
