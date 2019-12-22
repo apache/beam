@@ -92,10 +92,19 @@ class ReadFromParquetBatched(PTransform):
 
     .. testoutput::
       :hide:
+      :skipif: python_version_major == 2
 
       Traceback (most recent call last):
        ...
       OSError: No files found based on the file pattern
+
+    .. testoutput::
+      :hide:
+      :skipif: python_version_major > 2
+
+      Traceback (most recent call last):
+       ...
+      IOError: No files found based on the file pattern
 
     See also: :class:`~ReadFromParquet`.
 
@@ -151,10 +160,19 @@ class ReadFromParquet(PTransform):
 
     .. testoutput::
       :hide:
+      :skipif: python_version_major == 2
 
       Traceback (most recent call last):
        ...
       OSError: No files found based on the file pattern
+
+    .. testoutput::
+      :hide:
+      :skipif: python_version_major > 2
+
+      Traceback (most recent call last):
+       ...
+      IOError: No files found based on the file pattern
 
     Each element of this :class:`~apache_beam.pvalue.PCollection` will contain
     a Python dictionary representing a single record. The keys will be of type

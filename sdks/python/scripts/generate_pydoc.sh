@@ -79,9 +79,15 @@ excluded_patterns=(
     *_pb2.py
     *_test.py
     *_test_common.py
-    *_py3[`echo $(($current_minor_version+1))`-9]*.py
 )
 
+python_version=`python -V 2>&1`
+if [[ ${python_version} == *"2.7"* ]]; then
+    excluded_patterns+=( *_py3*.py )
+else
+    current_minor_version=`echo ${python_version} | sed -E "s/Python 3.([0-9])\..*/\1/"`
+    excluded_patterns+=( *_py3[`echo $(($current_minor_version+1))`-9]*.py )
+fi
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
     "${excluded_patterns[@]}"
 
@@ -121,10 +127,12 @@ autodoc_member_order = 'bysource'
 
 doctest_global_setup = '''
 import apache_beam as beam
+import sys
+python_version_major = sys.version_info.major
 '''
 
 intersphinx_mapping = {
-  'python': ('https://docs.python.org/3', None),
+  'python': ('https://docs.python.org/{}'.format(sys.version_info.major), None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
   'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
 }
@@ -211,6 +219,10 @@ nitpick_ignore = []
 nitpick_ignore += [('py:class', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:obj', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:exc', 'ValueError')]
+
+if sys.version_info.major == 2:
+  nitpick_ignore += [('py:class', 'ValueError')]
+  nitpick_ignore += [('py:exc', err) for err in ['IOError', 'TypeError', 'NotImplementedError', 'RuntimeError']]
 
 # Monkey patch functools.wraps to retain original function argument signature
 # for documentation.
