@@ -65,6 +65,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
   }
 
   public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
+    // TODO[BEAM-8630]: uncomment the next lines once we have fully migrated to BeamZetaSqlCalcRel
+    // plannerImpl =
+    //     new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, replaceBeamCalcRule(ruleSets)));
     plannerImpl = new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, ruleSets));
   }
 
