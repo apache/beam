@@ -141,6 +141,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  // TODO: update test name to something more accurate.
   public void testCeil() {
     String sql = "SELECT @p0 IS NULL AS ColA";
 
@@ -175,6 +176,22 @@ public class ZetaSQLDialectSpecTest {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues(3.0).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testStringLiterals() {
+    String sql = "SELECT 'abc\\n'";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValues("abc\n").build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

@@ -16,6 +16,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BitString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.commons.lang.StringEscapeUtils;
 
 public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
 
@@ -28,15 +29,18 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     if (rex.getKind().equals(SqlKind.LITERAL)) {
       final RexLiteral literal = (RexLiteral) rex;
       if (literal.getTypeName().getFamily().equals(SqlTypeFamily.BINARY)) {
-
-        return new SqlByteStringLiteral(BitString.createFromBytes(literal.getValueAs(byte[].class)), POS);
+        BitString bitString = BitString.createFromBytes(literal.getValueAs(byte[].class));
+        return new SqlByteStringLiteral(bitString, POS);
+      } else if (literal.getTypeName().getFamily().equals(SqlTypeFamily.CHARACTER)) {
+        String escaped = StringEscapeUtils.escapeJava(literal.getValueAs(String.class));
+        return SqlLiteral.createCharString(escaped, POS);
       }
     }
 
     return super.toSql(program, rex);
   }
 
-  private class SqlByteStringLiteral extends SqlLiteral {
+  private static class SqlByteStringLiteral extends SqlLiteral {
 
     SqlByteStringLiteral(BitString bytes, SqlParserPos pos) {
       super(bytes, SqlTypeName.BINARY, pos);
@@ -44,7 +48,7 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
 
     @Override
     public SqlByteStringLiteral clone(SqlParserPos pos) {
-      return new SqlByteStringLiteral((BitString)this.value, pos);
+      return new SqlByteStringLiteral((BitString) this.value, pos);
     }
 
     @Override
