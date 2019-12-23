@@ -28,12 +28,15 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
   public SqlNode toSql(RexProgram program, RexNode rex) {
     if (rex.getKind().equals(SqlKind.LITERAL)) {
       final RexLiteral literal = (RexLiteral) rex;
-      if (literal.getTypeName().getFamily().equals(SqlTypeFamily.BINARY)) {
-        BitString bitString = BitString.createFromBytes(literal.getValueAs(byte[].class));
-        return new SqlByteStringLiteral(bitString, POS);
-      } else if (literal.getTypeName().getFamily().equals(SqlTypeFamily.CHARACTER)) {
-        String escaped = StringEscapeUtils.escapeJava(literal.getValueAs(String.class));
-        return SqlLiteral.createCharString(escaped, POS);
+      SqlTypeFamily family = literal.getTypeName().getFamily();
+      if (family != null) {
+        if (family.equals(SqlTypeFamily.BINARY)) {
+          BitString bitString = BitString.createFromBytes(literal.getValueAs(byte[].class));
+          return new SqlByteStringLiteral(bitString, POS);
+        } else if (family.equals(SqlTypeFamily.CHARACTER)) {
+          String escaped = StringEscapeUtils.escapeJava(literal.getValueAs(String.class));
+          return SqlLiteral.createCharString(escaped, POS);
+        }
       }
     }
 
