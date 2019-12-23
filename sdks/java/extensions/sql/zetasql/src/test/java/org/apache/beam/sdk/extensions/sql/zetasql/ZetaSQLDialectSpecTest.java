@@ -164,6 +164,22 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testFloat() {
+    String sql = "SELECT 3.0";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.DOUBLE).build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValues(3.0).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testEQ1() {
     String sql = "SELECT @p0 = @p1 AS ColA";
 
