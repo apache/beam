@@ -21,6 +21,7 @@ import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.PreparedExpression;
 import com.google.zetasql.Value;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,12 +29,7 @@ import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
-import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSortRel;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
-import org.apache.beam.sdk.extensions.sql.impl.rel.WithLimitableInput;
+import org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
 import org.apache.beam.sdk.schemas.Schema;
@@ -45,13 +41,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLocalRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDialect;
@@ -62,12 +55,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
+ * TODO[BEAM-8630]: This class is currently a prototype and not used in runtime.
+ *
+ * <p>BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
  * expression evaluator.
  */
-// TODO[BEAM-8630]: This class is currently a prototype and not used in runtime.
 @Internal
-public class BeamZetaSqlCalcRel extends Calc implements BeamRelNode, WithLimitableInput {
+public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
   private static final SqlDialect DIALECT = BeamBigQuerySqlDialect.DEFAULT;
   private final SqlImplementor.Context context;
@@ -124,49 +118,6 @@ public class BeamZetaSqlCalcRel extends Calc implements BeamRelNode, WithLimitab
     return context.toSql(getProgram(), rex).toSqlString(DIALECT).getSql();
   }
 
-  @Override
-  public int getLimitCountOfSortRel() {
-    if (input instanceof BeamSortRel) {
-      return ((BeamSortRel) input).getCount();
-    }
-
-    throw new RuntimeException("Could not get the limit count from a non BeamSortRel input.");
-  }
-
-  @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
-    double selectivity = estimateFilterSelectivity(getInput(), program, mq);
-
-    return inputStat.multiply(selectivity);
-  }
-
-  private static double estimateFilterSelectivity(
-      RelNode child, RexProgram program, RelMetadataQuery mq) {
-    // Similar to calcite, if the calc node is representing filter operation we estimate the filter
-    // selectivity based on the number of equality conditions, number of inequality conditions, ....
-    RexLocalRef programCondition = program.getCondition();
-    RexNode condition;
-    if (programCondition == null) {
-      condition = null;
-    } else {
-      condition = program.expandLocalRef(programCondition);
-    }
-    // Currently this gets the selectivity based on Calcite's Selectivity Handler (RelMdSelectivity)
-    return mq.getSelectivity(child, condition);
-  }
-
-  @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
-    return BeamCostModel.FACTORY.makeCost(inputStat.getRowCount(), inputStat.getRate());
-  }
-
-  @Override
-  public boolean isInputSortRelAndLimitOnly() {
-    return (input instanceof BeamSortRel) && ((BeamSortRel) input).isLimitOnly();
-  }
-
   /**
    * {@code CalcFn} is the executor for a {@link BeamZetaSqlCalcRel} step. The implementation is
    * based on the {@code ZetaSQL} expression evaluator.
@@ -199,6 +150,7 @@ public class BeamZetaSqlCalcRel extends Calc implements BeamRelNode, WithLimitab
             sanitize(field.getName()), ZetaSqlUtils.beamFieldTypeToZetaSqlType(field.getType()));
       }
 
+      // TODO[BEAM-8630]: use a single PreparedExpression for all condition and projects
       projectExps = new ArrayList<>();
       for (String project : projects) {
         PreparedExpression projectExp = new PreparedExpression(sanitize(project));
@@ -223,7 +175,7 @@ public class BeamZetaSqlCalcRel extends Calc implements BeamRelNode, WithLimitab
 
       // TODO[BEAM-8630]: support parameters in expression evaluation
       // The map is empty because parameters in the query string have already been substituted.
-      Map<String, Value> params = new HashMap<>();
+      Map<String, Value> params = Collections.emptyMap();
 
       if (conditionExp != null && !conditionExp.execute(columns, params).getBoolValue()) {
         return;
@@ -231,7 +183,7 @@ public class BeamZetaSqlCalcRel extends Calc implements BeamRelNode, WithLimitab
 
       Row.Builder output = Row.withSchema(outputSchema);
       for (int i = 0; i < outputSchema.getFieldCount(); i++) {
-        // TODO[BEAM-8630]: performance optimization by bundling the gPRC calls
+        // TODO[BEAM-8630]: performance optimization by bundling the gRPC calls
         Value v = projectExps.get(i).execute(columns, params);
         output.addValue(
             ZetaSqlUtils.zetaSqlValueToJavaObject(v, outputSchema.getField(i).getType()));
@@ -251,7 +203,7 @@ public class BeamZetaSqlCalcRel extends Calc implements BeamRelNode, WithLimitab
 
     // Replaces "$" with "_" because "$" is not allowed in a valid ZetaSQL identifier
     // (ZetaSQL identifier syntax: [A-Za-z_][A-Za-z_0-9]*)
-    // TODO[BEAM-8630]: check if this is sufficient and correct
+    // TODO[BEAM-8630]: check if this is sufficient and correct, or even better fix this in Calcite
     private static String sanitize(String identifier) {
       return identifier.replaceAll("\\$", "_");
     }

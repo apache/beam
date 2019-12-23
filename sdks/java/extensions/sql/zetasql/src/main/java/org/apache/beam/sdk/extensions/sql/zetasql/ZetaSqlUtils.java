@@ -58,7 +58,7 @@ public final class ZetaSqlUtils {
         return TypeFactory.createSimpleType(TypeKind.TYPE_STRING);
       case DATETIME:
         // TODO[BEAM-8630]: Mapping Timestamp to DATETIME results in some timezone/precision issues.
-        // Can we convert Timestamp to a LogicalType? Will it solve the problem?
+        //  Can we convert Timestamp to a LogicalType? Will it solve the problem?
         return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
       case BOOLEAN:
         return TypeFactory.createSimpleType(TypeKind.TYPE_BOOL);

@@ -45,10 +45,14 @@ class SingleRowScanConverter extends RelConverter<ResolvedSingleRowScan> {
     return createOneRow(getCluster());
   }
 
-  // This function is a reimplementation of Calcite's LogicalValues.createOneRow() with a single
-  // line change: SqlTypeName.INTEGER replaced by SqlTypeName.BIGINT.
-  // Would like to use LogicalValues.createOneRow(), but it uses type SqlTypeName.INTEGER which
-  // correspond to TypeKind.TYPE_INT32 in ZetaSQL, a type not supported in PRODUCT_EXTERNAL mode.
+  // This function creates a single dummy input row for queries that don't read from a table.
+  // For example: SELECT "hello"
+  // The code is copy-pasted from Calcite's LogicalValues.createOneRow() with a single line
+  // change: SqlTypeName.INTEGER replaced by SqlTypeName.BIGINT.
+  // Would like to call LogicalValues.createOneRow() directly, but it uses type SqlTypeName.INTEGER
+  // which corresponds to TypeKind.TYPE_INT32 in ZetaSQL, a type not supported in ZetaSQL
+  // PRODUCT_EXTERNAL mode. See
+  // https://github.com/google/zetasql/blob/c610a21ffdc110293c1c7bd255a2674ebc7ec7a8/java/com/google/zetasql/TypeFactory.java#L61
   private static LogicalValues createOneRow(RelOptCluster cluster) {
     final RelDataType rowType =
         cluster.getTypeFactory().builder().add("ZERO", SqlTypeName.BIGINT).nullable(false).build();
