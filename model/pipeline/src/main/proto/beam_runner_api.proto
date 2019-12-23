@@ -165,6 +165,9 @@ message PTransform {
   // then it may be omitted.
   DisplayData display_data = 6;
 
+  // (Optional) Environment where the current PTransform should be executed in.
+  // Runner that executes the pipeline may choose to override this if needed. If
+  // not specified, environment will be decided by the runner.
   string environment_id = 7;
 }
 
@@ -790,6 +793,9 @@ message WindowingStrategy {
   // This knowledge is required for some optimizations
   bool assigns_to_one_window = 10;
 
+  // (Optional) Environment where the current window_fn should be applied in.
+  // Runner that executes the pipeline may choose to override this if needed.
+  // If not specified, environment will be decided by the runner.
   string environment_id = 11;
 }
 
