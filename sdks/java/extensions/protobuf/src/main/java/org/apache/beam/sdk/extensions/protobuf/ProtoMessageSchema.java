@@ -45,7 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 
 @Experimental(Kind.SCHEMAS)
-public class ProtoRecordSchema extends GetterBasedSchemaProvider {
+public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   private static final class ProtoClassFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override

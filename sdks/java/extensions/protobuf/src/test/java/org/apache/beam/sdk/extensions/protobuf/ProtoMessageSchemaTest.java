@@ -68,99 +68,99 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class ProtoRecordSchemaTest {
+public class ProtoMessageSchemaTest {
 
   @Test
   public void testPrimitiveSchema() {
-    Schema schema = new ProtoRecordSchema().schemaFor(TypeDescriptor.of(Primitive.class));
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(Primitive.class));
     assertEquals(PRIMITIVE_SCHEMA, schema);
   }
 
   @Test
   public void testPrimitiveProtoToRow() {
     SerializableFunction<Primitive, Row> toRow =
-        new ProtoRecordSchema().toRowFunction(TypeDescriptor.of(Primitive.class));
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(Primitive.class));
     assertEquals(PRIMITIVE_ROW, toRow.apply(PRIMITIVE_PROTO));
   }
 
   @Test
   public void testPrimitiveRowToProto() {
     SerializableFunction<Row, Primitive> fromRow =
-        new ProtoRecordSchema().fromRowFunction(TypeDescriptor.of(Primitive.class));
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(Primitive.class));
     assertEquals(PRIMITIVE_PROTO, fromRow.apply(PRIMITIVE_ROW));
   }
 
   @Test
   public void testRepeatedSchema() {
-    Schema schema = new ProtoRecordSchema().schemaFor(TypeDescriptor.of(RepeatPrimitive.class));
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(RepeatPrimitive.class));
     assertEquals(REPEATED_SCHEMA, schema);
   }
 
   @Test
   public void testRepeatedProtoToRow() {
     SerializableFunction<RepeatPrimitive, Row> toRow =
-        new ProtoRecordSchema().toRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
     assertEquals(REPEATED_ROW, toRow.apply(REPEATED_PROTO));
   }
 
   @Test
   public void testRepeatedRowToProto() {
     SerializableFunction<Row, RepeatPrimitive> fromRow =
-        new ProtoRecordSchema().fromRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
     assertEquals(REPEATED_PROTO, fromRow.apply(REPEATED_ROW));
   }
 
   // Test map type
   @Test
   public void testMapSchema() {
-    Schema schema = new ProtoRecordSchema().schemaFor(TypeDescriptor.of(MapPrimitive.class));
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(MapPrimitive.class));
     assertEquals(MAP_PRIMITIVE_SCHEMA, schema);
   }
 
   @Test
   public void testMapProtoToRow() {
     SerializableFunction<MapPrimitive, Row> toRow =
-        new ProtoRecordSchema().toRowFunction(TypeDescriptor.of(MapPrimitive.class));
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(MapPrimitive.class));
     assertEquals(MAP_PRIMITIVE_ROW, toRow.apply(MAP_PRIMITIVE_PROTO));
   }
 
   @Test
   public void testMapRowToProto() {
     SerializableFunction<Row, MapPrimitive> fromRow =
-        new ProtoRecordSchema().fromRowFunction(TypeDescriptor.of(MapPrimitive.class));
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(MapPrimitive.class));
     assertEquals(MAP_PRIMITIVE_PROTO, fromRow.apply(MAP_PRIMITIVE_ROW));
   }
 
   @Test
   public void testNestedSchema() {
-    Schema schema = new ProtoRecordSchema().schemaFor(TypeDescriptor.of(Nested.class));
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(Nested.class));
     assertEquals(NESTED_SCHEMA, schema);
   }
 
   @Test
   public void testNestedProtoToRow() {
     SerializableFunction<Nested, Row> toRow =
-        new ProtoRecordSchema().toRowFunction(TypeDescriptor.of(Nested.class));
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(Nested.class));
     assertEquals(NESTED_ROW, toRow.apply(NESTED_PROTO));
   }
 
   @Test
   public void testNestedRowToProto() {
     SerializableFunction<Row, Nested> fromRow =
-        new ProtoRecordSchema().fromRowFunction(TypeDescriptor.of(Nested.class));
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(Nested.class));
     assertEquals(NESTED_PROTO, fromRow.apply(NESTED_ROW));
   }
 
   @Test
   public void testOneOfSchema() {
-    Schema schema = new ProtoRecordSchema().schemaFor(TypeDescriptor.of(OneOf.class));
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(OneOf.class));
     assertEquals(ONEOF_SCHEMA, schema);
   }
 
   @Test
   public void testOneOfProtoToRow() {
     SerializableFunction<OneOf, Row> toRow =
-        new ProtoRecordSchema().toRowFunction(TypeDescriptor.of(OneOf.class));
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(OneOf.class));
     assertEquals(ONEOF_ROW_INT32, toRow.apply(ONEOF_PROTO_INT32));
     assertEquals(ONEOF_ROW_BOOL, toRow.apply(ONEOF_PROTO_BOOL));
     assertEquals(ONEOF_ROW_STRING, toRow.apply(ONEOF_PROTO_STRING));
@@ -170,7 +170,7 @@ public class ProtoRecordSchemaTest {
   @Test
   public void testOneOfRowToProto() {
     SerializableFunction<Row, OneOf> fromRow =
-        new ProtoRecordSchema().fromRowFunction(TypeDescriptor.of(OneOf.class));
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(OneOf.class));
     assertEquals(ONEOF_PROTO_INT32, fromRow.apply(ONEOF_ROW_INT32));
     assertEquals(ONEOF_PROTO_BOOL, fromRow.apply(ONEOF_ROW_BOOL));
     assertEquals(ONEOF_PROTO_STRING, fromRow.apply(ONEOF_ROW_STRING));
@@ -179,21 +179,21 @@ public class ProtoRecordSchemaTest {
 
   @Test
   public void testOuterOneOfSchema() {
-    Schema schema = new ProtoRecordSchema().schemaFor(TypeDescriptor.of(OuterOneOf.class));
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(OuterOneOf.class));
     assertEquals(OUTER_ONEOF_SCHEMA, schema);
   }
 
   @Test
   public void testOuterOneOfProtoToRow() {
     SerializableFunction<OuterOneOf, Row> toRow =
-        new ProtoRecordSchema().toRowFunction(TypeDescriptor.of(OuterOneOf.class));
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(OuterOneOf.class));
     assertEquals(OUTER_ONEOF_ROW, toRow.apply(OUTER_ONEOF_PROTO));
   }
 
   @Test
   public void testOuterOneOfRowToProto() {
     SerializableFunction<Row, OuterOneOf> fromRow =
-        new ProtoRecordSchema().fromRowFunction(TypeDescriptor.of(OuterOneOf.class));
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(OuterOneOf.class));
     assertEquals(OUTER_ONEOF_PROTO, fromRow.apply(OUTER_ONEOF_ROW));
   }
 
@@ -209,41 +209,41 @@ public class ProtoRecordSchemaTest {
 
   @Test
   public void testEnumSchema() {
-    Schema schema = new ProtoRecordSchema().schemaFor(TypeDescriptor.of(EnumMessage.class));
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(EnumMessage.class));
     assertEquals(ENUM_SCHEMA, schema);
   }
 
   @Test
   public void testEnumProtoToRow() {
     SerializableFunction<EnumMessage, Row> toRow =
-        new ProtoRecordSchema().toRowFunction(TypeDescriptor.of(EnumMessage.class));
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(EnumMessage.class));
     assertEquals(ENUM_ROW, toRow.apply(ENUM_PROTO));
   }
 
   @Test
   public void testEnumRowToProto() {
     SerializableFunction<Row, EnumMessage> fromRow =
-        new ProtoRecordSchema().fromRowFunction(TypeDescriptor.of(EnumMessage.class));
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(EnumMessage.class));
     assertEquals(ENUM_PROTO, fromRow.apply(ENUM_ROW));
   }
 
   @Test
   public void testWktMessageSchema() {
-    Schema schema = new ProtoRecordSchema().schemaFor(TypeDescriptor.of(WktMessage.class));
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(WktMessage.class));
     assertEquals(WKT_MESSAGE_SCHEMA, schema);
   }
 
   @Test
   public void testWktProtoToRow() {
     SerializableFunction<WktMessage, Row> toRow =
-        new ProtoRecordSchema().toRowFunction(TypeDescriptor.of(WktMessage.class));
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(WktMessage.class));
     assertEquals(WKT_MESSAGE_ROW, toRow.apply(WKT_MESSAGE_PROTO));
   }
 
   @Test
   public void testWktRowToProto() {
     SerializableFunction<Row, WktMessage> fromRow =
-        new ProtoRecordSchema().fromRowFunction(TypeDescriptor.of(WktMessage.class));
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(WktMessage.class));
     assertEquals(WKT_MESSAGE_PROTO, fromRow.apply(WKT_MESSAGE_ROW));
   }
 }
