@@ -463,6 +463,7 @@ func (m *marshaller) addDefaultEnv() string {
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) string {
 	ws := marshalWindowingStrategy(m.coders, w)
+	ws.EnvironmentId = m.addDefaultEnv()
 	return m.internWindowingStrategy(ws)
 }
 
