@@ -308,7 +308,8 @@ class OutputDeduplicator {
         stage.getUserStates(),
         stage.getTimers(),
         updatedTransforms,
-        updatedOutputs);
+        updatedOutputs,
+        stage.getWireCoderSetting());
   }
 
   /**
