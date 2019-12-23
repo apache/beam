@@ -300,4 +300,50 @@ public interface TimerInternals {
       verifyDeterministic(this, "window coder must be deterministic", windowCoder);
     }
   }
+
+  /**
+   * A {@link Coder} for {@link TimerData}. To make it encoding and decoding backward compatible for
+   * DataFlow
+   */
+  class OldTimerDataCoder extends StructuredCoder<TimerData> {
+    private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+    private static final InstantCoder INSTANT_CODER = InstantCoder.of();
+    private final Coder<? extends BoundedWindow> windowCoder;
+
+    public static TimerDataCoder of(Coder<? extends BoundedWindow> windowCoder) {
+      return new TimerDataCoder(windowCoder);
+    }
+
+    private OldTimerDataCoder(Coder<? extends BoundedWindow> windowCoder) {
+      this.windowCoder = windowCoder;
+    }
+
+    @Override
+    public void encode(TimerData timer, OutputStream outStream) throws CoderException, IOException {
+      STRING_CODER.encode(timer.getTimerId(), outStream);
+      STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
+      INSTANT_CODER.encode(timer.getTimestamp(), outStream);
+      STRING_CODER.encode(timer.getDomain().name(), outStream);
+    }
+
+    @Override
+    public TimerData decode(InputStream inStream) throws CoderException, IOException {
+      String timerId = STRING_CODER.decode(inStream);
+      StateNamespace namespace =
+          StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
+      Instant timestamp = INSTANT_CODER.decode(inStream);
+      TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
+      return TimerData.of(timerId, namespace, timestamp, domain);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Arrays.asList(windowCoder);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(this, "window coder must be deterministic", windowCoder);
+    }
+  }
 }

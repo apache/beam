@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.TimerInternals.OldTimerDataCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -60,6 +61,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
 
   private final StateTag<BagState<WindowedValue<InputT>>> elementsAddr;
   private final StateTag<BagState<TimerData>> timersAddr;
+  private final StateTag<BagState<TimerData>> oldTimersAddr;
   private final StateTag<WatermarkHoldState> watermarkHoldingAddr;
   private final StateTag<ValueState<Map<W, Set<Windmill.GlobalDataRequest>>>> blockedMapAddr;
 
@@ -87,6 +89,9 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
             StateTags.bag("elem", WindowedValue.getFullCoder(inputCoder, mainWindowCoder)));
     this.timersAddr =
         StateTags.makeSystemTagInternal(StateTags.bag("timer", TimerDataCoder.of(mainWindowCoder)));
+    this.oldTimersAddr =
+        StateTags.makeSystemTagInternal(
+            StateTags.bag("oldTimer", OldTimerDataCoder.of(mainWindowCoder)));
     StateTag<WatermarkHoldState> watermarkTag =
         StateTags.watermarkStateInternal(
             "holdForSideinput", windowingStrategy.getTimestampCombiner());
@@ -169,6 +174,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     List<BagState<TimerData>> timers = Lists.newArrayList();
     for (W window : readyWindows) {
       timers.add(timerBag(window).readLater());
+      timers.add(timerOldBag(window).readLater());
     }
     return timers;
   }
@@ -273,6 +279,12 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     return stepContext
         .stateInternals()
         .state(StateNamespaces.window(mainWindowCoder, window), timersAddr);
+  }
+
+  BagState<TimerData> timerOldBag(W window) {
+    return stepContext
+        .stateInternals()
+        .state(StateNamespaces.window(mainWindowCoder, window), oldTimersAddr);
   }
 
   private <SideWindowT extends BoundedWindow> Windmill.GlobalDataRequest buildGlobalDataRequest(
