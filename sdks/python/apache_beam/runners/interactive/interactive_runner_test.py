@@ -133,17 +133,17 @@ class InteractiveRunnerTest(unittest.TestCase):
 
   @unittest.skipIf(not ie.current_env().is_interactive_ready,
                    '[interactive] dependency is not installed.')
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_mark_pcollection_completed_after_successful_run(self):
-    with mock_get_ipython():  # Cell 1
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_mark_pcollection_completed_after_successful_run(self, cell):
+    with cell:  # Cell 1
       p = beam.Pipeline(interactive_runner.InteractiveRunner())
       ib.watch({'p': p})
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       # pylint: disable=range-builtin-not-iterating
       init = p | 'Init' >> beam.Create(range(5))
 
-    with mock_get_ipython():  # Cell 3
+    with cell:  # Cell 3
       square = init | 'Square' >> beam.Map(lambda x: x * x)
       cube = init | 'Cube' >> beam.Map(lambda x: x ** 3)
 

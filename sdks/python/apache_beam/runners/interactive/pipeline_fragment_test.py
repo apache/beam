@@ -46,20 +46,20 @@ class PipelineFragmentTest(unittest.TestCase):
     ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
 
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_build_pipeline_fragment(self):
-    with mock_get_ipython():  # Cell 1
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_build_pipeline_fragment(self, cell):
+    with cell:  # Cell 1
       p = beam.Pipeline(ir.InteractiveRunner())
       p_expected = beam.Pipeline(ir.InteractiveRunner())
       # Watch local scope now to allow interactive beam to track the pipelines.
       ib.watch(locals())
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       # pylint: disable=range-builtin-not-iterating
       init = p | 'Init' >> beam.Create(range(10))
       init_expected = p_expected | 'Init' >> beam.Create(range(10))
 
-    with mock_get_ipython():  # Cell 3
+    with cell:  # Cell 3
       square = init | 'Square' >> beam.Map(lambda x: x * x)
       _ = init | 'Cube' >> beam.Map(lambda x: x ** 3)
       _ = init_expected | 'Square' >> beam.Map(lambda x: x * x)
@@ -69,21 +69,21 @@ class PipelineFragmentTest(unittest.TestCase):
     fragment = pf.PipelineFragment([square]).deduce_fragment()
     assert_pipeline_equal(self, p_expected, fragment)
 
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_user_pipeline_intact_after_deducing_pipeline_fragment(self):
-    with mock_get_ipython():  # Cell 1
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_user_pipeline_intact_after_deducing_pipeline_fragment(self, cell):
+    with cell:  # Cell 1
       p = beam.Pipeline(ir.InteractiveRunner())
       # Watch the pipeline `p` immediately without calling locals().
       ib.watch({'p': p})
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       # pylint: disable=range-builtin-not-iterating
       init = p | 'Init' >> beam.Create(range(10))
 
-    with mock_get_ipython():  # Cell 3
+    with cell:  # Cell 3
       square = init | 'Square' >> beam.Map(lambda x: x * x)
 
-    with mock_get_ipython():  # Cell 4
+    with cell:  # Cell 4
       cube = init | 'Cube' >> beam.Map(lambda x: x ** 3)
 
     # Watch every PCollection has been defined so far in local scope without
@@ -102,17 +102,17 @@ class PipelineFragmentTest(unittest.TestCase):
                                 user_pipeline_proto_before_deducing_fragment,
                                 user_pipeline_proto_after_deducing_fragment)
 
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_pipeline_fragment_produces_correct_data(self):
-    with mock_get_ipython():  # Cell 1
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_pipeline_fragment_produces_correct_data(self, cell):
+    with cell:  # Cell 1
       p = beam.Pipeline(ir.InteractiveRunner())
       ib.watch({'p': p})
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       # pylint: disable=range-builtin-not-iterating
       init = p | 'Init' >> beam.Create(range(5))
 
-    with mock_get_ipython():  # Cell 3
+    with cell:  # Cell 3
       square = init | 'Square' >> beam.Map(lambda x: x * x)
       _ = init | 'Cube' >> beam.Map(lambda x: x ** 3)
 
