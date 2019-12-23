@@ -279,7 +279,7 @@ class TestJsonToDictCoder(unittest.TestCase):
       self.fail('{} is not pickable'.format(coder.__class__.__name__))
 
   def test_values_are_converted(self):
-    input_row = '{"float": "10.5", "string": "abc"}'
+    input_row = b'{"float": "10.5", "string": "abc"}'
     expected_row = {'float': 10.5, 'string': 'abc'}
     schema = self._make_schema([
         ('float', 'FLOAT', []),
@@ -291,7 +291,7 @@ class TestJsonToDictCoder(unittest.TestCase):
     self.assertEqual(expected_row, actual)
 
   def test_null_fields_are_preserved(self):
-    input_row = '{"float": "10.5"}'
+    input_row = b'{"float": "10.5"}'
     expected_row = {'float': 10.5, 'string': None}
     schema = self._make_schema([
         ('float', 'FLOAT', []),
@@ -303,7 +303,7 @@ class TestJsonToDictCoder(unittest.TestCase):
     self.assertEqual(expected_row, actual)
 
   def test_record_field_is_properly_converted(self):
-    input_row = '{"record": {"float": "55.5"}, "integer": 10}'
+    input_row = b'{"record": {"float": "55.5"}, "integer": 10}'
     expected_row = {'record': {'float': 55.5}, 'integer': 10}
     schema = self._make_schema([
         ('record', 'RECORD', [
