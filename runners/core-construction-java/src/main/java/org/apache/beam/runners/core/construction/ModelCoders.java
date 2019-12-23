@@ -25,6 +25,7 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
+import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
@@ -53,6 +54,8 @@ public class ModelCoders {
       getUrn(StandardCoders.Enum.INTERVAL_WINDOW);
 
   public static final String WINDOWED_VALUE_CODER_URN = getUrn(StandardCoders.Enum.WINDOWED_VALUE);
+  public static final String PARAM_WINDOWED_VALUE_CODER_URN =
+      getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE);
 
   public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
 
@@ -70,7 +73,8 @@ public class ModelCoders {
           INTERVAL_WINDOW_CODER_URN,
           WINDOWED_VALUE_CODER_URN,
           DOUBLE_CODER_URN,
-          ROW_CODER_URN);
+          ROW_CODER_URN,
+          PARAM_WINDOWED_VALUE_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;
@@ -85,6 +89,18 @@ public class ModelCoders {
   public static Coder windowedValueCoder(String elementCoderId, String windowCoderId) {
     return Coder.newBuilder()
         .setSpec(FunctionSpec.newBuilder().setUrn(WINDOWED_VALUE_CODER_URN))
+        .addComponentCoderIds(elementCoderId)
+        .addComponentCoderIds(windowCoderId)
+        .build();
+  }
+
+  public static Coder paramWindowedValueCoder(
+      String elementCoderId, String windowCoderId, byte[] payload) {
+    return Coder.newBuilder()
+        .setSpec(
+            FunctionSpec.newBuilder()
+                .setUrn(PARAM_WINDOWED_VALUE_CODER_URN)
+                .setPayload(ByteString.copyFrom(payload)))
         .addComponentCoderIds(elementCoderId)
         .addComponentCoderIds(windowCoderId)
         .build();
