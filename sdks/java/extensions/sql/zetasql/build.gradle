@@ -25,7 +25,7 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: ZetaSQL"
 ext.summary = "ZetaSQL to Calcite translator"
 
-def zetasql_version = "2019.10.1"
+def zetasql_version = "2019.12.1"
 
 dependencies {
   compile project(":sdks:java:core")
