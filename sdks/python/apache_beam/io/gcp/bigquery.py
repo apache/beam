@@ -254,6 +254,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
+from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.options import value_provider as vp
@@ -554,7 +555,7 @@ class _JsonToDictCoder(coders.Coder):
             for x in table_field_schemas]
 
   def decode(self, value):
-    value = json.loads(value)
+    value = json.loads(value.decode('utf-8'))
     return self._decode_with_schema(value, self.fields)
 
   def _decode_with_schema(self, value, schema_fields):
@@ -649,7 +650,16 @@ class _CustomBigQuerySource(BoundedSource):
       yield SourceBundle(0, source, None, None)
 
   def get_range_tracker(self, start_position, stop_position):
-    raise NotImplementedError('BigQuery source must be split before being read')
+    class CustomBigQuerySourceRangeTracker(RangeTracker):
+      """A RangeTracker that always returns positions as None."""
+
+      def start_position(self):
+        return None
+
+      def stop_position(self):
+        return None
+
+    return CustomBigQuerySourceRangeTracker()
 
   def read(self, range_tracker):
     raise NotImplementedError('BigQuery source must be split before being read')
