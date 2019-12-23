@@ -244,8 +244,8 @@ public class DataflowOperationContextTest {
       assertThat(
           contents,
           Matchers.allOf(
-              Matchers.containsString("Operation ongoing in step "
-                  + NameContextsForTests.USER_NAME),
+              Matchers.containsString(
+                  "Operation ongoing in step " + NameContextsForTests.USER_NAME),
               Matchers.containsString(" without outputting or completing in state somestate"),
               Matchers.containsString("userpackage.SomeUserDoFn.helperMethod"),
               Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
