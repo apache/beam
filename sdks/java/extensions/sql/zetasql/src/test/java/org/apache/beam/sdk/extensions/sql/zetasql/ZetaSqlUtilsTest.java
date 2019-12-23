@@ -53,6 +53,7 @@ public class ZetaSqlUtilsTest {
           .addField("f7", FieldType.BYTES)
           .addArrayField("f8", FieldType.DOUBLE)
           .addRowField("f9", TEST_INNER_SCHEMA)
+          .addNullableField("f10", FieldType.INT64)
           .build();
 
   private static final FieldType TEST_FIELD_TYPE = FieldType.row(TEST_SCHEMA);
@@ -77,7 +78,8 @@ public class ZetaSqlUtilsTest {
               new StructField("f6", TypeFactory.createSimpleType(TypeKind.TYPE_BOOL)),
               new StructField("f7", TypeFactory.createSimpleType(TypeKind.TYPE_BYTES)),
               new StructField("f8", TEST_INNER_ARRAY_TYPE),
-              new StructField("f9", TEST_INNER_STRUCT_TYPE)));
+              new StructField("f9", TEST_INNER_STRUCT_TYPE),
+              new StructField("f10", TypeFactory.createSimpleType(TypeKind.TYPE_INT64))));
 
   private static final Row TEST_ROW =
       Row.withSchema(TEST_SCHEMA)
@@ -90,6 +92,7 @@ public class ZetaSqlUtilsTest {
           .addValue(new byte[] {0x11, 0x22})
           .addArray(3.0, 6.5)
           .addValue(Row.withSchema(TEST_INNER_SCHEMA).addValues(0L, "world").build())
+          .addValue(null)
           .build();
 
   private static final Value TEST_VALUE =
@@ -109,7 +112,8 @@ public class ZetaSqlUtilsTest {
                   Arrays.asList(Value.createDoubleValue(3.0), Value.createDoubleValue(6.5))),
               Value.createStructValue(
                   TEST_INNER_STRUCT_TYPE,
-                  Arrays.asList(Value.createInt64Value(0L), Value.createStringValue("world")))));
+                  Arrays.asList(Value.createInt64Value(0L), Value.createStringValue("world"))),
+              Value.createNullValue(TypeFactory.createSimpleType(TypeKind.TYPE_INT64))));
 
   @Test
   public void testBeamFieldTypeToZetaSqlType() {
