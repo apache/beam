@@ -64,6 +64,8 @@ def _build_an_empty_stream_pipeline():
   return p
 
 
+@unittest.skipIf(not ie.current_env().is_interactive_ready,
+                 '[interactive] dependency is not installed.')
 class BackgroundCachingJobTest(unittest.TestCase):
 
   def tearDown(self):
@@ -115,21 +117,21 @@ class BackgroundCachingJobTest(unittest.TestCase):
     self.assertIs(main_job_result,
                   ie.current_env().pipeline_result(p))
 
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_source_to_cache_changed_when_pipeline_is_first_time_seen(self):
-    with mock_get_ipython():  # Cell 1
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_source_to_cache_changed_when_pipeline_is_first_time_seen(self, cell):
+    with cell:  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       read_foo = pipeline | 'Read' >> beam.io.ReadFromPubSub(
           subscription=_FOO_PUBSUB_SUB)
       ib.watch({'read_foo': read_foo})
 
     self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
 
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_source_to_cache_changed_when_new_source_is_added(self):
-    with mock_get_ipython():  # Cell 1
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_source_to_cache_changed_when_new_source_is_added(self, cell):
+    with cell:  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
       read_foo = pipeline | 'Read' >> beam.io.ReadFromPubSub(
           subscription=_FOO_PUBSUB_SUB)
@@ -139,16 +141,16 @@ class BackgroundCachingJobTest(unittest.TestCase):
     ie.current_env().set_cached_source_signature(
         pipeline, bcj.extract_source_to_cache_signature(pipeline))
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       read_bar = pipeline | 'Read' >> beam.io.ReadFromPubSub(
           subscription=_BAR_PUBSUB_SUB)
       ib.watch({'read_bar': read_bar})
 
     self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
 
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_source_to_cache_changed_when_source_is_altered(self):
-    with mock_get_ipython():  # Cell 1
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_source_to_cache_changed_when_source_is_altered(self, cell):
+    with cell:  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
       transform = beam.io.ReadFromPubSub(
           subscription=_FOO_PUBSUB_SUB)
@@ -159,21 +161,21 @@ class BackgroundCachingJobTest(unittest.TestCase):
     ie.current_env().set_cached_source_signature(
         pipeline, bcj.extract_source_to_cache_signature(pipeline))
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       from apache_beam.io.gcp.pubsub import _PubSubSource
       # Alter the transform.
       transform._source = _PubSubSource(subscription=_BAR_PUBSUB_SUB)
 
     self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
 
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_source_to_cache_not_changed_for_same_source(self):
-    with mock_get_ipython():  # Cell 1
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_source_to_cache_not_changed_for_same_source(self, cell):
+    with cell:  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
       transform = beam.io.ReadFromPubSub(
           subscription='projects/test-project/subscriptions/dummy')
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       read_foo_1 = pipeline | 'Read' >> transform
       ib.watch({'read_foo_1': read_foo_1})
 
@@ -181,14 +183,14 @@ class BackgroundCachingJobTest(unittest.TestCase):
     ie.current_env().set_cached_source_signature(
         pipeline, bcj.extract_source_to_cache_signature(pipeline))
 
-    with mock_get_ipython():  # Cell 3
+    with cell:  # Cell 3
       # Apply exactly the same transform and the same instance.
       read_foo_2 = pipeline | 'Read' >> transform
       ib.watch({'read_foo_2': read_foo_2})
 
     self.assertFalse(bcj.is_source_to_cache_changed(pipeline))
 
-    with mock_get_ipython():  # Cell 4
+    with cell:  # Cell 4
       # Apply the same transform but represented in a different instance.
       # The signature representing the urn and payload is still the same, so it
       # is not treated as a new unbounded source.
