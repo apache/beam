@@ -678,13 +678,7 @@ def lift_combiners(stages, context):
         context.components.pcollections[
             only_element(list(combine_per_key_transform.inputs.values()))
         ].windowing_strategy_id]
-    if windowing.output_time != beam_runner_api_pb2.OutputTime.END_OF_WINDOW:
-      # This depends on the spec of PartialGroupByKey.
-      return False
-    elif not is_compatible_with_combiner_lifting(windowing.trigger):
-      return False
-    else:
-      return True
+    return is_compatible_with_combiner_lifting(windowing.trigger)
 
   def make_stage(base_stage, transform):
     # type: (Stage, beam_runner_api_pb2.PTransform) -> Stage
