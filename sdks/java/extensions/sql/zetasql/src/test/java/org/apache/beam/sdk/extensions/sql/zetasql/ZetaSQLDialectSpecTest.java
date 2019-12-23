@@ -141,16 +141,13 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  // TODO: update test name to something more accurate.
-  public void testCeil() {
+  public void testByteString() {
     String sql = "SELECT @p0 IS NULL AS ColA";
 
-    ByteString byteString = ByteString.copyFrom(new byte[] { 0x62 });
+    ByteString byteString = ByteString.copyFrom(new byte[] {0x62});
 
     ImmutableMap<String, Value> params =
-        ImmutableMap.<String, Value>builder()
-            .put("p0", Value.createBytesValue(byteString))
-            .build();
+        ImmutableMap.<String, Value>builder().put("p0", Value.createBytesValue(byteString)).build();
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
@@ -158,8 +155,7 @@ public class ZetaSQLDialectSpecTest {
 
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.BOOLEAN).build();
 
-    PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -174,8 +170,7 @@ public class ZetaSQLDialectSpecTest {
 
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.DOUBLE).build();
 
-    PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(schema).addValues(3.0).build());
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(3.0).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -190,8 +185,7 @@ public class ZetaSQLDialectSpecTest {
 
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
 
-    PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(schema).addValues("abc\n").build());
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc\n").build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
