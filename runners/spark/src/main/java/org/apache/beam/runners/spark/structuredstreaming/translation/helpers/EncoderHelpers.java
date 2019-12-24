@@ -21,8 +21,10 @@ import static org.apache.spark.sql.types.DataTypes.BinaryType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
@@ -47,65 +49,24 @@ import scala.reflect.ClassTag$;
 
 /** {@link Encoders} utility class. */
 public class EncoderHelpers {
-
-  /*
-   --------- Bridges from Beam Coders to Spark Encoders
-  */
-
   /**
    * Wrap a Beam coder into a Spark Encoder using Catalyst Expression Encoders (which uses java code
    * generation).
    */
-  public static <T> Encoder<T> fromBeamCoder(Coder<T> beamCoder) {
+  public static <T> Encoder<T> fromBeamCoder(Coder<T> coder) {
+    Class<? super T> clazz = coder.getEncodedTypeDescriptor().getRawType();
+    ClassTag<T> classTag = ClassTag$.MODULE$.apply(clazz);
+    List<Expression> serializers =
+        Collections.singletonList(
+            new EncodeUsingBeamCoder<>(new BoundReference(0, new ObjectType(clazz), true), coder));
 
-    List<Expression> serialiserList = new ArrayList<>();
-    Class<? super T> claz = beamCoder.getEncodedTypeDescriptor().getRawType();
-    BeamCoderWrapper<T> beamCoderWrapper = new BeamCoderWrapper<>(beamCoder);
-
-    serialiserList.add(
-        new EncodeUsingBeamCoder<>(
-            new BoundReference(0, new ObjectType(claz), true), beamCoderWrapper));
-    ClassTag<T> classTag = ClassTag$.MODULE$.apply(claz);
     return new ExpressionEncoder<>(
         SchemaHelpers.binarySchema(),
         false,
-        JavaConversions.collectionAsScalaIterable(serialiserList).toSeq(),
+        JavaConversions.collectionAsScalaIterable(serializers).toSeq(),
         new DecodeUsingBeamCoder<>(
-            new Cast(new GetColumnByOrdinal(0, BinaryType), BinaryType),
-            classTag,
-            beamCoderWrapper),
+            new Cast(new GetColumnByOrdinal(0, BinaryType), BinaryType), classTag, coder),
         classTag);
-  }
-
-  public static class BeamCoderWrapper<T> implements Serializable {
-
-    private Coder<T> beamCoder;
-
-    public BeamCoderWrapper(Coder<T> beamCoder) {
-      this.beamCoder = beamCoder;
-    }
-
-    public byte[] encode(boolean isInputNull, T inputValue) {
-      if (isInputNull) {
-        return null;
-      } else {
-        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-        try {
-          beamCoder.encode(inputValue, baos);
-        } catch (Exception e) {
-          throw org.apache.beam.sdk.util.UserCodeException.wrap(e);
-        }
-        return baos.toByteArray();
-      }
-    }
-
-    public T decode(boolean isInputNull, byte[] inputValue) {
-      try {
-        return isInputNull ? null : beamCoder.decode(new java.io.ByteArrayInputStream(inputValue));
-      } catch (Exception e) {
-        throw org.apache.beam.sdk.util.UserCodeException.wrap(e);
-      }
-    }
   }
 
   /**
@@ -116,12 +77,12 @@ public class EncoderHelpers {
   public static class EncodeUsingBeamCoder<T> extends UnaryExpression
       implements NonSQLExpression, Serializable {
 
-    private Expression child;
-    private BeamCoderWrapper<T> beamCoderWrapper;
+    private final Expression child;
+    private final Coder<T> coder;
 
-    public EncodeUsingBeamCoder(Expression child, BeamCoderWrapper<T> beamCoderWrapper) {
+    public EncodeUsingBeamCoder(Expression child, Coder<T> coder) {
       this.child = child;
-      this.beamCoderWrapper = beamCoderWrapper;
+      this.coder = coder;
     }
 
     @Override
@@ -131,28 +92,27 @@ public class EncoderHelpers {
 
     @Override
     public ExprCode doGenCode(CodegenContext ctx, ExprCode ev) {
-      String accessCode =
-          ctx.addReferenceObj(
-              "beamCoderWrapper", beamCoderWrapper, BeamCoderWrapper.class.getName());
+      String accessCode = ctx.addReferenceObj("coder", coder, coder.getClass().getName());
       ExprCode input = child.genCode(ctx);
       String javaType = CodeGenerator.javaType(dataType());
 
       List<String> parts = new ArrayList<>();
       List<Object> args = new ArrayList<>();
       /*
-            CODE GENERATED
-            final $javaType ${ev.value} = $beamCoderWrapper.encode(${input.isNull}, ${input.value});
+        CODE GENERATED
+        final ${javaType} ${ev.value} = org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.EncodeUsingBeamCoder.encode(${input.value}, ${coder});
       */
       parts.add("final ");
       args.add(javaType);
       parts.add(" ");
       args.add(ev.value());
-      parts.add(" = ");
-      args.add(accessCode);
-      parts.add(".encode(");
+      parts.add(
+          " = org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.EncodeUsingBeamCoder.encode(");
       args.add(input.isNull());
       parts.add(", ");
       args.add(input.value());
+      parts.add(", ");
+      args.add(accessCode);
       parts.add(");");
 
       StringContext sc =
@@ -174,7 +134,7 @@ public class EncoderHelpers {
         case 0:
           return child;
         case 1:
-          return beamCoderWrapper;
+          return coder;
         default:
           throw new ArrayIndexOutOfBoundsException("productElement out of bounds");
       }
@@ -199,12 +159,20 @@ public class EncoderHelpers {
         return false;
       }
       EncodeUsingBeamCoder<?> that = (EncodeUsingBeamCoder<?>) o;
-      return beamCoderWrapper.equals(that.beamCoderWrapper) && child.equals(that.child);
+      return child.equals(that.child) && coder.equals(that.coder);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(super.hashCode(), child, beamCoderWrapper);
+      return Objects.hash(super.hashCode(), child, coder);
+    }
+
+    /**
+     * Convert value to byte array (invoked by generated code in {@link #doGenCode(CodegenContext,
+     * ExprCode)}).
+     */
+    public static <T> byte[] encode(boolean isNull, @Nullable T value, Coder<T> coder) {
+      return isNull ? null : CoderHelpers.toByteArray(value, coder);
     }
   }
 
@@ -216,15 +184,14 @@ public class EncoderHelpers {
   public static class DecodeUsingBeamCoder<T> extends UnaryExpression
       implements NonSQLExpression, Serializable {
 
-    private Expression child;
-    private ClassTag<T> classTag;
-    private BeamCoderWrapper<T> beamCoderWrapper;
+    private final Expression child;
+    private final ClassTag<T> classTag;
+    private final Coder<T> coder;
 
-    public DecodeUsingBeamCoder(
-        Expression child, ClassTag<T> classTag, BeamCoderWrapper<T> beamCoderWrapper) {
+    public DecodeUsingBeamCoder(Expression child, ClassTag<T> classTag, Coder<T> coder) {
       this.child = child;
       this.classTag = classTag;
-      this.beamCoderWrapper = beamCoderWrapper;
+      this.coder = coder;
     }
 
     @Override
@@ -234,16 +201,15 @@ public class EncoderHelpers {
 
     @Override
     public ExprCode doGenCode(CodegenContext ctx, ExprCode ev) {
-      String accessCode =
-          ctx.addReferenceObj(
-              "beamCoderWrapper", beamCoderWrapper, BeamCoderWrapper.class.getName());
+      String accessCode = ctx.addReferenceObj("coder", coder, coder.getClass().getName());
       ExprCode input = child.genCode(ctx);
       String javaType = CodeGenerator.javaType(dataType());
+
       List<String> parts = new ArrayList<>();
       List<Object> args = new ArrayList<>();
       /*
-            CODE GENERATED:
-            final $javaType ${ev.value} = ($javaType) $beamCoderWrapper.decode(${input.isNull}, ${input.value});
+        CODE GENERATED:
+        final ${javaType} ${ev.value} = (${javaType}) org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.DecodeUsingBeamCoder.decode(${input.value}, ${coder});
       */
       parts.add("final ");
       args.add(javaType);
@@ -251,13 +217,15 @@ public class EncoderHelpers {
       args.add(ev.value());
       parts.add(" = (");
       args.add(javaType);
-      parts.add(") ");
-      args.add(accessCode);
-      parts.add(".decode(");
+      parts.add(
+          ") org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.DecodeUsingBeamCoder.decode(");
       args.add(input.isNull());
       parts.add(", ");
       args.add(input.value());
+      parts.add(", ");
+      args.add(accessCode);
       parts.add(");");
+
       StringContext sc =
           new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
       Block code =
@@ -278,7 +246,7 @@ public class EncoderHelpers {
         case 1:
           return classTag;
         case 2:
-          return beamCoderWrapper;
+          return coder;
         default:
           throw new ArrayIndexOutOfBoundsException("productElement out of bounds");
       }
@@ -303,14 +271,20 @@ public class EncoderHelpers {
         return false;
       }
       DecodeUsingBeamCoder<?> that = (DecodeUsingBeamCoder<?>) o;
-      return child.equals(that.child)
-          && classTag.equals(that.classTag)
-          && beamCoderWrapper.equals(that.beamCoderWrapper);
+      return child.equals(that.child) && classTag.equals(that.classTag) && coder.equals(that.coder);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(super.hashCode(), child, classTag, beamCoderWrapper);
+      return Objects.hash(super.hashCode(), child, classTag, coder);
+    }
+
+    /**
+     * Convert value from byte array (invoked by generated code in {@link #doGenCode(CodegenContext,
+     * ExprCode)}).
+     */
+    public static <T> T decode(boolean isNull, @Nullable byte[] serialized, Coder<T> coder) {
+      return isNull ? null : CoderHelpers.fromByteArray(serialized, coder);
     }
   }
 }
