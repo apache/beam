@@ -19,12 +19,21 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getFieldNumber;
 
+import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
+import com.google.protobuf.DoubleValue;
 import com.google.protobuf.Duration;
+import com.google.protobuf.FloatValue;
+import com.google.protobuf.Int32Value;
+import com.google.protobuf.Int64Value;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.ProtocolMessageEnum;
+import com.google.protobuf.StringValue;
 import com.google.protobuf.Timestamp;
+import com.google.protobuf.UInt32Value;
+import com.google.protobuf.UInt64Value;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -59,6 +68,8 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.method.MethodDescription;
+import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription;
 import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.DynamicType;
 import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -87,11 +98,42 @@ public class ProtoByteBuddyUtils {
       TypeDescriptor.of(Timestamp.class);
   private static TypeDescriptor<Duration> PROTO_DURATION_TYPE_DESCRIPTOR =
       TypeDescriptor.of(Duration.class);
+  private static TypeDescriptor<Int32Value> PROTO_INT32_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(Int32Value.class);
+  private static TypeDescriptor<Int64Value> PROTO_INT64_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(Int64Value.class);
+  private static TypeDescriptor<UInt32Value> PROTO_UINT32_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(UInt32Value.class);
+  private static TypeDescriptor<UInt64Value> PROTO_UINT64_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(UInt64Value.class);
+  private static TypeDescriptor<FloatValue> PROTO_FLOAT_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(FloatValue.class);
+  private static TypeDescriptor<DoubleValue> PROTO_DOUBLE_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(DoubleValue.class);
+  private static TypeDescriptor<BoolValue> PROTO_BOOL_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(BoolValue.class);
+  private static TypeDescriptor<StringValue> PROTO_STRING_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(StringValue.class);
+  private static TypeDescriptor<BytesValue> PROTO_BYTES_VALUE_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(BytesValue.class);
 
   private static final ForLoadedType BYTE_STRING_TYPE = new ForLoadedType(ByteString.class);
   private static final ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
   private static final ForLoadedType PROTO_ENUM_TYPE = new ForLoadedType(ProtocolMessageEnum.class);
   private static final ForLoadedType INTEGER_TYPE = new ForLoadedType(Integer.class);
+
+  private static final Map<TypeDescriptor<?>, ForLoadedType> WRAPPER_LOADED_TYPES =
+      ImmutableMap.<TypeDescriptor<?>, ForLoadedType>builder()
+          .put(PROTO_INT32_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(Int32Value.class))
+          .put(PROTO_INT64_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(Int64Value.class))
+          .put(PROTO_UINT32_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(UInt32Value.class))
+          .put(PROTO_UINT64_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(UInt64Value.class))
+          .put(PROTO_FLOAT_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(FloatValue.class))
+          .put(PROTO_DOUBLE_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(DoubleValue.class))
+          .put(PROTO_BOOL_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(BoolValue.class))
+          .put(PROTO_STRING_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(StringValue.class))
+          .put(PROTO_BYTES_VALUE_TYPE_DESCRIPTOR, new ForLoadedType(BytesValue.class))
+          .build();
 
   private static final Map<TypeName, String> PROTO_GETTER_SUFFIX =
       ImmutableMap.of(
@@ -128,6 +170,21 @@ public class ProtoByteBuddyUtils {
       super(returnRawValues);
     }
 
+    private final Map<TypeDescriptor<?>, Class<?>> TYPE_OVERRIDES =
+        ImmutableMap.<TypeDescriptor<?>, Class<?>>builder()
+            .put(PROTO_TIMESTAMP_TYPE_DESCRIPTOR, Row.class)
+            .put(PROTO_DURATION_TYPE_DESCRIPTOR, Row.class)
+            .put(PROTO_INT32_VALUE_TYPE_DESCRIPTOR, Integer.class)
+            .put(PROTO_INT64_VALUE_TYPE_DESCRIPTOR, Long.class)
+            .put(PROTO_UINT32_VALUE_TYPE_DESCRIPTOR, Integer.class)
+            .put(PROTO_UINT64_VALUE_TYPE_DESCRIPTOR, Long.class)
+            .put(PROTO_FLOAT_VALUE_TYPE_DESCRIPTOR, Float.class)
+            .put(PROTO_DOUBLE_VALUE_TYPE_DESCRIPTOR, Double.class)
+            .put(PROTO_BOOL_VALUE_TYPE_DESCRIPTOR, Boolean.class)
+            .put(PROTO_STRING_VALUE_TYPE_DESCRIPTOR, String.class)
+            .put(PROTO_BYTES_VALUE_TYPE_DESCRIPTOR, byte[].class)
+            .build();
+
     @Override
     public Type convert(TypeDescriptor typeDescriptor) {
       if (typeDescriptor.equals(BYTE_STRING_TYPE_DESCRIPTOR)
@@ -139,7 +196,8 @@ public class ProtoByteBuddyUtils {
           || typeDescriptor.equals(PROTO_DURATION_TYPE_DESCRIPTOR)) {
         return Row.class;
       } else {
-        return super.convert(typeDescriptor);
+        Type type = TYPE_OVERRIDES.get(typeDescriptor);
+        return (type != null) ? type : super.convert(typeDescriptor);
       }
     }
   }
@@ -195,6 +253,25 @@ public class ProtoByteBuddyUtils {
                     .filter(ElementMatchers.named("toRow"))
                     .getOnly()));
       } else {
+        ForLoadedType wrapperType = WRAPPER_LOADED_TYPES.get(type);
+        if (wrapperType != null) {
+          MethodDescription.InDefinedShape getValueMethod =
+              wrapperType.getDeclaredMethods().filter(ElementMatchers.named("getValue")).getOnly();
+          TypeDescription.Generic returnType = getValueMethod.getReturnType();
+          StackManipulation stackManipulation =
+              new Compound(
+                  readValue,
+                  MethodInvocation.invoke(getValueMethod),
+                  Assigner.DEFAULT.assign(
+                      returnType, returnType.asErasure().asBoxed().asGenericType(), Typing.STATIC));
+          if (type.equals(PROTO_BYTES_VALUE_TYPE_DESCRIPTOR)) {
+            stackManipulation =
+                getFactory()
+                    .createGetterConversions(stackManipulation)
+                    .convert(BYTE_STRING_TYPE_DESCRIPTOR);
+          }
+          return stackManipulation;
+        }
         return super.convert(type);
       }
     }
@@ -245,7 +322,7 @@ public class ProtoByteBuddyUtils {
             MethodInvocation.invoke(
                 new ForLoadedType(TimestampNanos.class)
                     .getDeclaredMethods()
-                    .filter(ElementMatchers.named("toDuration"))
+                    .filter(ElementMatchers.named("toTimestamp"))
                     .getOnly()));
       } else if (type.equals(PROTO_DURATION_TYPE_DESCRIPTOR)) {
         return new Compound(
@@ -256,7 +333,25 @@ public class ProtoByteBuddyUtils {
                     .filter(ElementMatchers.named("toDuration"))
                     .getOnly()));
       } else {
-        return super.convert(type);
+        ForLoadedType wrapperType = WRAPPER_LOADED_TYPES.get(type);
+        if (wrapperType != null) {
+          if (type.equals(PROTO_BYTES_VALUE_TYPE_DESCRIPTOR)) {
+            readValue =
+                getFactory()
+                    .createSetterConversions(readValue)
+                    .convert(TypeDescriptor.of(ByteString.class));
+          }
+          MethodDescription.InDefinedShape ofMethod =
+              wrapperType.getDeclaredMethods().filter(ElementMatchers.named("of")).getOnly();
+          TypeDescription.Generic argumentType = ofMethod.getParameters().get(0).getType();
+          return new Compound(
+              readValue,
+              Assigner.DEFAULT.assign(
+                  argumentType.asErasure().asBoxed().asGenericType(), argumentType, Typing.STATIC),
+              MethodInvocation.invoke(ofMethod));
+        } else {
+          return super.convert(type);
+        }
       }
     }
   }
