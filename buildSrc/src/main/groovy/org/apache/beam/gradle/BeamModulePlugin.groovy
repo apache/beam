@@ -492,6 +492,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.3",
+        jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
         junit                                       : "junit:junit:4.13-beta-3",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
@@ -1832,6 +1833,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
       project.clean.dependsOn project.cleanPython
+      // Force this subproject's clean to run before the main :clean, to avoid
+      // racing on deletes.
+      project.rootProject.clean.dependsOn project.clean
 
       // Return a joined String from a Map that contains all commandline args of
       // IT test.

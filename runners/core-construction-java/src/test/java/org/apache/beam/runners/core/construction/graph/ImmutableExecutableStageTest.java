@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
+import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTING;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
@@ -58,7 +59,7 @@ public class ImmutableExecutableStageTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(RunnerApi.SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
+                            .setDoFn(RunnerApi.FunctionSpec.newBuilder())
                             .putSideInputs("side_input", RunnerApi.SideInput.getDefaultInstance())
                             .putStateSpecs("user_state", RunnerApi.StateSpec.getDefaultInstance())
                             .putTimerSpecs("timer", RunnerApi.TimerSpec.getDefaultInstance())
@@ -98,7 +99,8 @@ public class ImmutableExecutableStageTest {
             Collections.singleton(userStateRef),
             Collections.singleton(timerRef),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
-            Collections.singleton(PipelineNode.pCollection("output.out", output)));
+            Collections.singleton(PipelineNode.pCollection("output.out", output)),
+            DEFAULT_WIRE_CODER_SETTING);
 
     assertThat(stage.getComponents().containsTransforms("pt"), is(true));
     assertThat(stage.getComponents().containsTransforms("other_pt"), is(false));

@@ -30,7 +30,6 @@ from builtins import filter
 from builtins import object
 from builtins import zip
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import DefaultDict
 from typing import Dict
 from typing import FrozenSet
@@ -38,7 +37,6 @@ from typing import Hashable
 from typing import Iterator
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from apache_beam import pvalue
@@ -58,6 +56,7 @@ from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.transforms import userstate
+from apache_beam.transforms import window
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
@@ -888,7 +887,8 @@ class PGBKOperation(Operation):
 
 class PGBKCVOperation(Operation):
 
-  def __init__(self, name_context, spec, counter_factory, state_sampler):
+  def __init__(
+      self, name_context, spec, counter_factory, state_sampler, windowing=None):
     super(PGBKCVOperation, self).__init__(
         name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth
@@ -904,6 +904,15 @@ class PGBKCVOperation(Operation):
       self.combine_fn_compact = None
     else:
       self.combine_fn_compact = self.combine_fn.compact
+    if windowing:
+      self.is_default_windowing = windowing.is_default()
+      tsc_type = windowing.timestamp_combiner
+      self.timestamp_combiner = (
+          None if tsc_type == window.TimestampCombiner.OUTPUT_AT_EOW
+          else window.TimestampCombiner.get_impl(tsc_type, windowing.windowfn))
+    else:
+      self.is_default_windowing = False  # unknown
+      self.timestamp_combiner = None
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
     # TODO(b/36567833): Bound by in-memory size rather than key count.
@@ -923,8 +932,8 @@ class PGBKCVOperation(Operation):
       key, value = wkv.value
       # pylint: disable=unidiomatic-typecheck
       # Optimization for the global window case.
-      if len(wkv.windows) == 1 and type(wkv.windows[0]) is _global_window_type:
-        wkey = 0, key  # type: Tuple[Hashable, Any]
+      if self.is_default_windowing:
+        wkey = key  # type: Hashable
       else:
         wkey = tuple(wkv.windows), key
       entry = self.table.get(wkey, None)
@@ -935,7 +944,7 @@ class PGBKCVOperation(Operation):
           # TODO(robertwb): Use an LRU cache?
           for old_wkey, old_wvalue in self.table.items():
             old_wkeys.append(old_wkey)  # Can't mutate while iterating.
-            self.output_key(old_wkey, old_wvalue[0])
+            self.output_key(old_wkey, old_wvalue[0], old_wvalue[1])
             self.key_count -= 1
             if self.key_count <= target:
               break
@@ -944,26 +953,33 @@ class PGBKCVOperation(Operation):
         self.key_count += 1
         # We save the accumulator as a one element list so we can efficiently
         # mutate when new values are added without searching the cache again.
-        entry = self.table[wkey] = [self.combine_fn.create_accumulator()]
+        entry = self.table[wkey] = [self.combine_fn.create_accumulator(), None]
+        if not self.is_default_windowing:
+          # Conditional as the timestamp attribute is lazily initialized.
+          entry[1] = wkv.timestamp
       entry[0] = self.combine_fn_add_input(entry[0], value)
+      if not self.is_default_windowing and self.timestamp_combiner:
+        entry[1] = self.timestamp_combiner.combine(entry[1], wkv.timestamp)
 
   def finish(self):
     for wkey, value in self.table.items():
-      self.output_key(wkey, value[0])
+      self.output_key(wkey, value[0], value[1])
     self.table = {}
     self.key_count = 0
 
-  def output_key(self, wkey, accumulator):
-    windows, key = wkey
+  def output_key(self, wkey, accumulator, timestamp):
     if self.combine_fn_compact is None:
       value = accumulator
     else:
       value = self.combine_fn_compact(accumulator)
-    if windows == 0:
-      self.output(_globally_windowed_value.with_value((key, value)))
+
+    if self.is_default_windowing:
+      self.output(_globally_windowed_value.with_value((wkey, value)))
     else:
-      self.output(
-          WindowedValue((key, value), windows[0].max_timestamp(), windows))
+      windows, key = wkey
+      if self.timestamp_combiner is None:
+        timestamp = windows[0].max_timestamp()
+      self.output(WindowedValue((key, value), timestamp, windows))
 
 
 class FlattenOperation(Operation):

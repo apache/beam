@@ -61,6 +61,15 @@ class PaneInfoTiming(object):
         cls.UNKNOWN: 'UNKNOWN',
     }[value]
 
+  @classmethod
+  def from_string(cls, value):
+    return {
+        'EARLY': cls.EARLY,
+        'ON_TIME': cls.ON_TIME,
+        'LATE': cls.LATE,
+        'UNKNOWN': cls.UNKNOWN
+    }[value]
+
 
 class PaneInfo(object):
   """Describes the trigger firing information for a given WindowedValue.

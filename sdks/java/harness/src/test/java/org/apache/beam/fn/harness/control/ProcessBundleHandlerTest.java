@@ -325,9 +325,7 @@ public class ProcessBundleHandlerTest {
                     SerializableUtils.serializeToByteArray(doFnWithExecutionInformation)))
             .build();
     RunnerApi.ParDoPayload parDoPayload =
-        RunnerApi.ParDoPayload.newBuilder()
-            .setDoFn(RunnerApi.SdkFunctionSpec.newBuilder().setSpec(functionSpec))
-            .build();
+        RunnerApi.ParDoPayload.newBuilder().setDoFn(functionSpec).build();
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
             .putTransforms(
@@ -356,11 +354,8 @@ public class ProcessBundleHandlerTest {
                 WindowingStrategy.newBuilder()
                     .setWindowCoderId("window-strategy-coder")
                     .setWindowFn(
-                        RunnerApi.SdkFunctionSpec.newBuilder()
-                            .setSpec(
-                                RunnerApi.FunctionSpec.newBuilder()
-                                    .setUrn("beam:windowfn:global_windows:v0.1"))
-                            .build())
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn("beam:windowfn:global_windows:v0.1"))
                     .setOutputTime(RunnerApi.OutputTime.Enum.END_OF_WINDOW)
                     .setAccumulationMode(RunnerApi.AccumulationMode.Enum.ACCUMULATING)
                     .setTrigger(

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -81,5 +82,10 @@ public class DataflowWorkerHarnessHelperTest {
 
     assertThat(decoded, equalTo(descriptor));
     assertThat(decoded.getUrl(), equalTo("some_test_url"));
+  }
+
+  @Test
+  public void testParseStatusApiDescriptor() throws TextFormat.ParseException {
+    assertNull(DataflowWorkerHarnessHelper.getStatusDescriptor());
   }
 }

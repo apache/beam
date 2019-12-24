@@ -27,7 +27,6 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -187,7 +186,7 @@ public class ZetaSQLPushDownTest {
             .defaultSchema(defaultSchemaPlus)
             .traitDefs(traitDefs)
             .context(Contexts.of(contexts))
-            .ruleSets(BeamRuleSets.getRuleSets())
+            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets())
             .costFactory(BeamCostModel.FACTORY)
             .typeSystem(jdbcConnection.getTypeFactory().getTypeSystem())
             .build();

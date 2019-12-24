@@ -20,7 +20,7 @@ package org.apache.beam.runners.core.construction.resources;
 import io.github.classgraph.ClassGraph;
 import java.io.File;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 /**
  * Attempts to detect all the resources to be staged using classgraph library.
@@ -43,9 +43,10 @@ public class ClasspathScanningResourcesDetector implements PipelineResourcesDete
    * @return A list of absolute paths to the resources the class loader uses.
    */
   @Override
-  public Stream<String> detect(ClassLoader classLoader) {
-    List<File> classpathContents = classGraph.addClassLoader(classLoader).getClasspathFiles();
+  public List<String> detect(ClassLoader classLoader) {
+    List<File> classpathContents =
+        classGraph.disableNestedJarScanning().addClassLoader(classLoader).getClasspathFiles();
 
-    return classpathContents.stream().map(File::getAbsolutePath);
+    return classpathContents.stream().map(File::getAbsolutePath).collect(Collectors.toList());
   }
 }
