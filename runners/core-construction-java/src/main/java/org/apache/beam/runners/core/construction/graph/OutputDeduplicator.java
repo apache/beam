@@ -308,7 +308,8 @@ class OutputDeduplicator {
         stage.getUserStates(),
         stage.getTimers(),
         updatedTransforms,
-        updatedOutputs);
+        updatedOutputs,
+        stage.getWireCoderSetting());
   }
 
   /**
@@ -325,6 +326,7 @@ class OutputDeduplicator {
             output.getKey(), originalToPartial.get(output.getValue()).getId());
       }
     }
+    updatedTransformBuilder.setEnvironmentId(transform.getEnvironmentId());
     return updatedTransformBuilder.build();
   }
 

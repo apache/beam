@@ -93,6 +93,7 @@ if TYPE_CHECKING:
 __all__ = ['Pipeline', 'PTransformOverride']
 
 
+
 class Pipeline(object):
   """A pipeline object that manages a DAG of
   :class:`~apache_beam.pvalue.PValue` s and their
@@ -107,6 +108,16 @@ class Pipeline(object):
   should be used to designate new names
   (e.g. ``input | "label" >> my_tranform``).
   """
+
+  # TODO: BEAM-9001 - set environment ID in all transforms and allow runners to
+  # override.
+  @classmethod
+  def sdk_transforms_with_environment(cls):
+    from apache_beam.runners.portability import fn_api_runner_transforms
+    sets = [fn_api_runner_transforms.PAR_DO_URNS,
+            fn_api_runner_transforms.COMBINE_URNS,
+            frozenset([common_urns.primitives.ASSIGN_WINDOWS.urn])]
+    return frozenset().union(*sets)
 
   def __init__(self,
                runner=None,  # type: Optional[Union[str, PipelineRunner]]
@@ -133,6 +144,9 @@ class Pipeline(object):
       ~exceptions.ValueError: if either the runner or options argument is not
         of the expected type.
     """
+    # Initializing logging configuration in case the user did not set it up.
+    logging.basicConfig()
+
     if options is not None:
       if isinstance(options, PipelineOptions):
         self._options = options
@@ -810,7 +824,8 @@ class AppliedPTransform(object):
                parent,
                transform,  # type: ptransform.PTransform
                full_label,  # type: str
-               inputs  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+               inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+               environment_id=None  # type: Optional[str]
               ):
     self.parent = parent
     self.transform = transform
@@ -821,9 +836,11 @@ class AppliedPTransform(object):
     # any interference. This is particularly useful for composite transforms.
     self.full_label = full_label
     self.inputs = inputs or ()
+
     self.side_inputs = () if transform is None else tuple(transform.side_inputs)  # type: Tuple[pvalue.AsSideInput, ...]
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
+    self.environment_id = environment_id if environment_id else None  # type: Optional[str]
 
   def __repr__(self):
     return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
@@ -972,15 +989,23 @@ class AppliedPTransform(object):
         return transform.to_runner_api(context, has_parts=bool(self.parts))
     # Iterate over inputs and outputs by sorted key order, so that ids are
     # consistently generated for multiple runs of the same pipeline.
+    transform_spec = transform_to_runner_api(self.transform, context)
+    environment_id = self.environment_id
+    transform_urn = transform_spec.urn if transform_spec else None
+    if (not environment_id and transform_urn and
+        (transform_urn in Pipeline.sdk_transforms_with_environment())):
+      environment_id = context.default_environment_id()
+
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
-        spec=transform_to_runner_api(self.transform, context),
+        spec=transform_spec,
         subtransforms=[context.transforms.get_id(part, label=part.full_label)
                        for part in self.parts],
         inputs={tag: context.pcollections.get_id(pc)
                 for tag, pc in sorted(self.named_inputs().items())},
         outputs={str(tag): context.pcollections.get_id(out)
                  for tag, out in sorted(self.named_outputs().items())},
+        environment_id=environment_id,
         # TODO(BEAM-366): Add display_data.
         display_data=None)
 
@@ -1005,7 +1030,8 @@ class AppliedPTransform(object):
         parent=None,
         transform=ptransform.PTransform.from_runner_api(proto.spec, context),
         full_label=proto.unique_name,
-        inputs=main_inputs)
+        inputs=main_inputs,
+        environment_id=proto.environment_id)
     if result.transform and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
         si.pvalue = pcoll

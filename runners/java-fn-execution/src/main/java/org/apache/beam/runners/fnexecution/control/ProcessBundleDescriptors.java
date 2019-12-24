@@ -122,10 +122,12 @@ public class ProcessBundleDescriptors {
     // The order of these does not matter.
     inputDestinationsBuilder.put(
         stage.getInputPCollection().getId(),
-        addStageInput(dataEndpoint, stage.getInputPCollection(), components));
+        addStageInput(
+            dataEndpoint, stage.getInputPCollection(), components, stage.getWireCoderSetting()));
 
     remoteOutputCodersBuilder.putAll(
-        addStageOutputs(dataEndpoint, stage.getOutputPCollections(), components));
+        addStageOutputs(
+            dataEndpoint, stage.getOutputPCollections(), components, stage.getWireCoderSetting()));
 
     Map<String, Map<String, SideInputSpec>> sideInputSpecs = addSideInputs(stage, components);
 
@@ -189,11 +191,13 @@ public class ProcessBundleDescriptors {
   private static Map<String, Coder<WindowedValue<?>>> addStageOutputs(
       ApiServiceDescriptor dataEndpoint,
       Collection<PCollectionNode> outputPCollections,
-      Components.Builder components)
+      Components.Builder components,
+      RunnerApi.WireCoderSetting wireCoderSetting)
       throws IOException {
     Map<String, Coder<WindowedValue<?>>> remoteOutputCoders = new LinkedHashMap<>();
     for (PCollectionNode outputPCollection : outputPCollections) {
-      OutputEncoding outputEncoding = addStageOutput(dataEndpoint, components, outputPCollection);
+      OutputEncoding outputEncoding =
+          addStageOutput(dataEndpoint, components, outputPCollection, wireCoderSetting);
       remoteOutputCoders.put(outputEncoding.getPTransformId(), outputEncoding.getCoder());
     }
     return remoteOutputCoders;
@@ -202,12 +206,16 @@ public class ProcessBundleDescriptors {
   private static RemoteInputDestination<WindowedValue<?>> addStageInput(
       ApiServiceDescriptor dataEndpoint,
       PCollectionNode inputPCollection,
-      Components.Builder components)
+      Components.Builder components,
+      RunnerApi.WireCoderSetting wireCoderSetting)
       throws IOException {
-    String inputWireCoderId = WireCoders.addSdkWireCoder(inputPCollection, components);
+    String inputWireCoderId =
+        WireCoders.addSdkWireCoder(inputPCollection, components, wireCoderSetting);
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<?>> wireCoder =
-        (Coder) WireCoders.instantiateRunnerWireCoder(inputPCollection, components.build());
+        (Coder)
+            WireCoders.instantiateRunnerWireCoder(
+                inputPCollection, components.build(), wireCoderSetting);
 
     RemoteGrpcPort inputPort =
         RemoteGrpcPort.newBuilder()
@@ -226,12 +234,16 @@ public class ProcessBundleDescriptors {
   private static OutputEncoding addStageOutput(
       ApiServiceDescriptor dataEndpoint,
       Components.Builder components,
-      PCollectionNode outputPCollection)
+      PCollectionNode outputPCollection,
+      RunnerApi.WireCoderSetting wireCoderSetting)
       throws IOException {
-    String outputWireCoderId = WireCoders.addSdkWireCoder(outputPCollection, components);
+    String outputWireCoderId =
+        WireCoders.addSdkWireCoder(outputPCollection, components, wireCoderSetting);
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<?>> wireCoder =
-        (Coder) WireCoders.instantiateRunnerWireCoder(outputPCollection, components.build());
+        (Coder)
+            WireCoders.instantiateRunnerWireCoder(
+                outputPCollection, components.build(), wireCoderSetting);
     RemoteGrpcPort outputPort =
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(dataEndpoint)
@@ -385,7 +397,8 @@ public class ProcessBundleDescriptors {
           addStageInput(
               dataEndpoint,
               PipelineNode.pCollection(inputTimerPCollectionId, timerCollectionSpec),
-              components));
+              components,
+              stage.getWireCoderSetting()));
       String outputTimerPCollectionId =
           SyntheticComponents.uniqueId(
               String.format(
@@ -397,7 +410,8 @@ public class ProcessBundleDescriptors {
           addStageOutput(
               dataEndpoint,
               components,
-              PipelineNode.pCollection(outputTimerPCollectionId, timerCollectionSpec));
+              PipelineNode.pCollection(outputTimerPCollectionId, timerCollectionSpec),
+              stage.getWireCoderSetting());
       outputTransformCodersBuilder.put(outputEncoding.getPTransformId(), outputEncoding.getCoder());
       components.putTransforms(
           timerReference.transform().getId(),

@@ -181,20 +181,76 @@ project.ext.validatesCrossLanguageRunner = createCrossLanguageValidatesRunnerTas
   ]
 )
 
-task testPipelineJar() {
-  dependsOn shadowJar
-  dependsOn ":sdks:python:container:py35:docker"
-  doLast{
-    exec {
-      executable "sh"
-      def options = [
-        "--flink_job_server_jar ${shadowJar.archivePath}",
-        "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-        "--python_root_dir ${project.rootDir}/sdks/python",
-        "--python_version 3.5",
-        "--python_container_image apachebeam/python3.5_sdk:${project['python_sdk_version']}",
-      ]
-      args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+def addTestJavaJarCreator(String pyVersion) {
+  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
+  project.tasks.create(name: "testJavaJarCreatorPy${pyBuildPath}") {
+    dependsOn shadowJar
+    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+                "--python_root_dir ${project.rootDir}/sdks/python",
+                "--python_version ${pyVersion}",
+                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+        ]
+        args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+      }
     }
   }
+}
+
+// miniCluster jar starts an embedded Flink cluster intended for use in testing.
+task miniCluster(type: Jar, dependsOn: shadowJar) {
+  archiveBaseName = "${project.archivesBaseName}-mini-cluster"
+  dependencies {
+    runtime project(path: flinkRunnerProject, configuration: "miniCluster")
+  }
+  from zipTree(shadowJar.archivePath).matching {
+    // If these classes aren't excluded from the mini cluster jar, they will be loaded instead of
+    // the corresponding classes in the submitted job jar, preventing pipeline resources from
+    // loading successfully.
+    exclude "**/FlinkPipelineRunner*"
+    exclude "**/PortablePipelineJarUtils*"
+  }
+  manifest {
+    attributes('Main-Class': 'org.apache.beam.runners.flink.FlinkMiniClusterEntryPoint')
+  }
+  zip64 true // jar needs to contain more than 65535 files
+}
+
+def addTestFlinkUberJarPy(String pyVersion) {
+  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
+  project.tasks.create(name: "testFlinkUberJarPy${pyBuildPath}") {
+    dependsOn miniCluster
+    dependsOn shadowJar
+    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--flink_mini_cluster_jar ${miniCluster.archivePath}",
+                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+                "--python_root_dir ${project.rootDir}/sdks/python",
+                "--python_version ${pyVersion}",
+                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+        ]
+        args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
+      }
+    }
+  }
+}
+
+["2.7", "3.5", "3.6", "3.7"].each{ pyVersion ->
+  addTestJavaJarCreator(pyVersion)
+  addTestFlinkUberJarPy(pyVersion)
+}
+
+task testPipelineJar() {
+  dependsOn testJavaJarCreatorPy37
+  dependsOn testFlinkUberJarPy36
+  dependsOn testFlinkUberJarPy37
 }
