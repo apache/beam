@@ -106,12 +106,6 @@ public abstract class WindmillServerStub implements StatusDataProvider {
     /** Waits for the server to close its end of the connection, with timeout. */
     boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;
 
-    /**
-     * Cleanly closes the stream after implementation-speficied timeout, unless the stream is
-     * aborted before the timeout is reached.
-     */
-    void closeAfterDefaultTimeout() throws InterruptedException;
-
     /** Returns when the stream was opened. */
     Instant startTime();
   }

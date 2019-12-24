@@ -26,12 +26,15 @@ import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.CalciteCatalogReader;
@@ -50,6 +53,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Framework
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelConversionException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** ZetaSQLQueryPlanner. */
@@ -61,7 +65,32 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
   }
 
   public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
+    // TODO[BEAM-8630]: uncomment the next lines once we have fully migrated to BeamZetaSqlCalcRel
+    // plannerImpl =
+    //     new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, replaceBeamCalcRule(ruleSets)));
     plannerImpl = new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, ruleSets));
+  }
+
+  public static RuleSet[] getZetaSqlRuleSets() {
+    // TODO[BEAM-8630]: uncomment the next line once we have fully migrated to BeamZetaSqlCalcRel
+    // return replaceBeamCalcRule(BeamRuleSets.getRuleSets());
+    return BeamRuleSets.getRuleSets();
+  }
+
+  private static RuleSet[] replaceBeamCalcRule(RuleSet[] ruleSets) {
+    RuleSet[] ret = new RuleSet[ruleSets.length];
+    for (int i = 0; i < ruleSets.length; i++) {
+      ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
+      for (RelOptRule rule : ruleSets[i]) {
+        if (rule instanceof BeamCalcRule) {
+          bd.add(BeamZetaSqlCalcRule.INSTANCE);
+        } else {
+          bd.add(rule);
+        }
+      }
+      ret[i] = RuleSets.ofList(bd.build());
+    }
+    return ret;
   }
 
   @Override

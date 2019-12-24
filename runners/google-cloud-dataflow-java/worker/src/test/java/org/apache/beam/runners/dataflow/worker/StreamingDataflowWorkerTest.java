@@ -2089,7 +2089,8 @@ public class StreamingDataflowWorkerTest {
             "computation",
             defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
             mockExecutor,
-            ImmutableMap.of());
+            ImmutableMap.of(),
+            null);
 
     ByteString key1 = ByteString.copyFromUtf8("key1");
     ByteString key2 = ByteString.copyFromUtf8("key2");
@@ -2599,5 +2600,40 @@ public class StreamingDataflowWorkerTest {
     commit = result.get(2L);
 
     assertThat(commit.getSerializedSize(), isWithinBundleSizeLimits);
+  }
+
+  @Test
+  public void testStuckCommit() throws Exception {
+    if (!streamingEngine) {
+      // Stuck commits have only been observed with streaming engine and thus recovery from them is
+      // not implemented for non-streaming engine.
+      return;
+    }
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setStuckCommitDurationMillis(2000);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+    // Prevent commit callbacks from being called to simulate a stuck commit.
+    server.setDropStreamingCommits(true);
+
+    // Add some work for key 1.
+    server.addWorkToOffer(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), keyStringForIndex(1)));
+    server.waitForDroppedCommits(1);
+    server.setDropStreamingCommits(false);
+    // Enqueue another work item for key 1.
+    server.addWorkToOffer(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1)));
+    // Ensure that the second work item processes.
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    worker.stop();
+
+    assertTrue(result.containsKey(1L));
+    assertEquals(makeExpectedOutput(1, TimeUnit.MILLISECONDS.toMicros(1)).build(), result.get(1L));
   }
 }

@@ -32,7 +32,6 @@ import datetime
 import hashlib
 import logging
 import random
-import time
 import uuid
 
 from future.utils import iteritems
@@ -493,11 +492,8 @@ class WaitForBQJobs(beam.DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
-  ALL_DONE = object()
-  FAILED = object()
-  WAITING = object()
 
-  def __init__(self, test_client):
+  def __init__(self, test_client=None):
     self.test_client = test_client
 
   def start_bundle(self):
@@ -505,34 +501,10 @@ class WaitForBQJobs(beam.DoFn):
 
   def process(self, element, dest_ids_list):
     job_references = [elm[1] for elm in dest_ids_list]
-
-    while True:
-      status = self._check_job_states(job_references)
-      if status == WaitForBQJobs.FAILED:
-        raise Exception(
-            'BigQuery jobs failed. BQ error: %s', self._latest_error)
-      elif status == WaitForBQJobs.ALL_DONE:
-        return dest_ids_list  # Pass the list of destination-jobs downstream
-      time.sleep(10)
-
-  def _check_job_states(self, job_references):
     for ref in job_references:
-      job = self.bq_wrapper.get_job(ref.projectId,
-                                    ref.jobId,
-                                    ref.location)
+      self.bq_wrapper.wait_for_bq_job(ref, sleep_duration_sec=10)
 
-      _LOGGER.info("Job status: %s", job.status)
-      if job.status.state == 'DONE' and job.status.errorResult:
-        _LOGGER.warning("Job %s seems to have failed. Error Result: %s",
-                        ref.jobId, job.status.errorResult)
-        self._latest_error = job.status
-        return WaitForBQJobs.FAILED
-      elif job.status.state == 'DONE':
-        continue
-      else:
-        return WaitForBQJobs.WAITING
-
-    return WaitForBQJobs.ALL_DONE
+    return dest_ids_list  # Pass the list of destination-jobs downstream
 
 
 class DeleteTablesFn(beam.DoFn):

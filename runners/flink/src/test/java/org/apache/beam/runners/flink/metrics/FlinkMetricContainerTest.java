@@ -21,8 +21,10 @@ import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlin
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.runners.Parameterized.Parameter;
+import static org.junit.runners.Parameterized.Parameters;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
@@ -57,15 +59,27 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link FlinkMetricContainer}. */
+@RunWith(Parameterized.class)
 public class FlinkMetricContainerTest {
+
+  @Parameter public boolean useMetricAccumulator;
 
   @Mock private RuntimeContext runtimeContext;
   @Mock private MetricGroup metricGroup;
+
+  FlinkMetricContainer container;
+
+  @Parameters(name = "useMetricAccumulator: {0}")
+  public static Object[] data() {
+    return new Object[] {true, false};
+  }
 
   @Before
   public void beforeTest() {
@@ -74,6 +88,7 @@ public class FlinkMetricContainerTest {
             anyString()))
         .thenReturn(new MetricsAccumulator());
     when(runtimeContext.getMetricGroup()).thenReturn(metricGroup);
+    container = new FlinkMetricContainer(runtimeContext, !useMetricAccumulator);
   }
 
   @Test
@@ -88,7 +103,6 @@ public class FlinkMetricContainerTest {
     SimpleCounter flinkCounter = new SimpleCounter();
     when(metricGroup.counter("namespace.name")).thenReturn(flinkCounter);
 
-    FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
     MetricsContainer step = container.getMetricsContainer("step");
     MetricName metricName = MetricName.named("namespace", "name");
     Counter counter = step.getCounter(metricName);
@@ -106,7 +120,6 @@ public class FlinkMetricContainerTest {
         new FlinkMetricContainer.FlinkGauge(GaugeResult.empty());
     when(metricGroup.gauge(eq("namespace.name"), anyObject())).thenReturn(flinkGauge);
 
-    FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
     MetricsContainer step = container.getMetricsContainer("step");
     MetricName metricName = MetricName.named("namespace", "name");
     Gauge gauge = step.getGauge(metricName);
@@ -122,8 +135,6 @@ public class FlinkMetricContainerTest {
 
   @Test
   public void testMonitoringInfoUpdate() {
-    FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
-
     SimpleCounter userCounter = new SimpleCounter();
     when(metricGroup.counter("ns1.metric1")).thenReturn(userCounter);
 
@@ -173,8 +184,7 @@ public class FlinkMetricContainerTest {
 
   @Test
   public void testDropUnexpectedMonitoringInfoTypes() {
-    FlinkMetricContainer flinkContainer = new FlinkMetricContainer(runtimeContext);
-    MetricsContainerImpl step = flinkContainer.getMetricsContainer("step");
+    MetricsContainerImpl step = container.getMetricsContainer("step");
 
     MonitoringInfo intCounter =
         MonitoringInfo.newBuilder()
@@ -237,7 +247,7 @@ public class FlinkMetricContainerTest {
     SimpleCounter counter = new SimpleCounter();
     when(metricGroup.counter("ns1.int_counter")).thenReturn(counter);
 
-    flinkContainer.updateMetrics(
+    container.updateMetrics(
         "step", ImmutableList.of(intCounter, doubleCounter, intDistribution, doubleDistribution));
 
     // Flink's MetricGroup should only have asked for one counter (the integer-typed one) to be
@@ -280,7 +290,6 @@ public class FlinkMetricContainerTest {
         new FlinkMetricContainer.FlinkDistributionGauge(DistributionResult.IDENTITY_ELEMENT);
     when(metricGroup.gauge(eq("namespace.name"), anyObject())).thenReturn(flinkGauge);
 
-    FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
     MetricsContainer step = container.getMetricsContainer("step");
     MetricName metricName = MetricName.named("namespace", "name");
     Distribution distribution = step.getDistribution(metricName);

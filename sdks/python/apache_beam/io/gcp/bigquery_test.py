@@ -22,6 +22,7 @@ import decimal
 import json
 import logging
 import os
+import pickle
 import random
 import re
 import time
@@ -35,11 +36,13 @@ import mock
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
+from apache_beam.io.gcp.bigquery import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
@@ -51,6 +54,7 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
@@ -242,6 +246,105 @@ class TestBigQuerySource(unittest.TestCase):
         DisplayDataItemMatcher('validation', True),
         DisplayDataItemMatcher('table', 'dataset.table$20030102')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestJsonToDictCoder(unittest.TestCase):
+
+  @staticmethod
+  def _make_schema(fields):
+    def _fill_schema(fields):
+      for field in fields:
+        table_field = bigquery.TableFieldSchema()
+        table_field.name, table_field.type, nested_fields = field
+        if nested_fields:
+          table_field.fields = list(_fill_schema(nested_fields))
+        yield table_field
+
+    schema = bigquery.TableSchema()
+    schema.fields = list(_fill_schema(fields))
+    return schema
+
+  def test_coder_is_pickable(self):
+    try:
+      schema = self._make_schema([
+          ('record', 'RECORD', [
+              ('float', 'FLOAT', []),
+          ]),
+          ('integer', 'INTEGER', []),
+      ])
+      coder = _JsonToDictCoder(schema)
+      pickler.loads(pickler.dumps(coder))
+    except pickle.PicklingError:
+      self.fail('{} is not pickable'.format(coder.__class__.__name__))
+
+  def test_values_are_converted(self):
+    input_row = b'{"float": "10.5", "string": "abc"}'
+    expected_row = {'float': 10.5, 'string': 'abc'}
+    schema = self._make_schema([
+        ('float', 'FLOAT', []),
+        ('string', 'STRING', [])
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_null_fields_are_preserved(self):
+    input_row = b'{"float": "10.5"}'
+    expected_row = {'float': 10.5, 'string': None}
+    schema = self._make_schema([
+        ('float', 'FLOAT', []),
+        ('string', 'STRING', [])
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_record_field_is_properly_converted(self):
+    input_row = b'{"record": {"float": "55.5"}, "integer": 10}'
+    expected_row = {'record': {'float': 55.5}, 'integer': 10}
+    schema = self._make_schema([
+        ('record', 'RECORD', [
+            ('float', 'FLOAT', []),
+        ]),
+        ('integer', 'INTEGER', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestReadFromBigQuery(unittest.TestCase):
+
+  def test_exception_is_raised_when_gcs_location_cannot_be_specified(self):
+    with self.assertRaises(ValueError):
+      p = beam.Pipeline()
+      _ = p | beam.io._ReadFromBigQuery(project='project', dataset='dataset',
+                                        table='table')
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
+  def test_fallback_to_temp_location(self, BigQueryWrapper):
+    pipeline_options = beam.pipeline.PipelineOptions()
+    pipeline_options.view_as(GoogleCloudOptions).temp_location = 'gs://bucket'
+    try:
+      p = beam.Pipeline(options=pipeline_options)
+      _ = p | beam.io._ReadFromBigQuery(project='project', dataset='dataset',
+                                        table='table')
+    except ValueError:
+      self.fail('ValueError was raised unexpectedly')
+
+  def test_gcs_location_validation_works_properly(self):
+    with self.assertRaises(ValueError) as context:
+      p = beam.Pipeline()
+      _ = p | beam.io._ReadFromBigQuery(project='project', dataset='dataset',
+                                        table='table', validate=True,
+                                        gcs_location='fs://bad_location')
+    self.assertEqual('Invalid GCS location: fs://bad_location',
+                     str(context.exception))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

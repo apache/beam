@@ -79,11 +79,16 @@ class InteractiveEnvironment(object):
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
     self._watching_dict_list = []
-    # Holds results of pipeline runs as Dict[Pipeline, PipelineResult].
+    # Holds results of main jobs as Dict[Pipeline, PipelineResult].
     # Each key is a pipeline instance defined by the end user. The
     # InteractiveRunner is responsible for populating this dictionary
     # implicitly.
-    self._pipeline_results = {}
+    self._main_pipeline_results = {}
+    # Holds results of background caching jobs as
+    # Dict[Pipeline, PipelineResult]. Each key is a pipeline instance defined by
+    # the end user. The InteractiveRunner is responsible for populating this
+    # dictionary implicitly when a background caching jobs is started.
+    self._background_caching_pipeline_results = {}
     self._tracked_user_pipelines = set()
     # Always watch __main__ module.
     self.watch('__main__')
@@ -199,27 +204,38 @@ class InteractiveEnvironment(object):
     """Gets the cache manager held by current Interactive Environment."""
     return self._cache_manager
 
-  def set_pipeline_result(self, pipeline, result):
-    """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
+  def set_pipeline_result(self, pipeline, result, is_main_job):
+    """Sets the pipeline run result. Adds one if absent. Otherwise, replace.
+
+    When is_main_job is True, set the result for the main job; otherwise, set
+    the result for the background caching job.
+    """
     assert issubclass(type(pipeline), beam.Pipeline), (
         'pipeline must be an instance of apache_beam.Pipeline or its subclass')
     assert issubclass(type(result), runner.PipelineResult), (
         'result must be an instance of '
         'apache_beam.runners.runner.PipelineResult or its subclass')
-    self._pipeline_results[pipeline] = result
+    if is_main_job:
+      self._main_pipeline_results[pipeline] = result
+    else:
+      self._background_caching_pipeline_results[pipeline] = result
 
-  def evict_pipeline_result(self, pipeline):
+  def evict_pipeline_result(self, pipeline, is_main_job=True):
     """Evicts the tracking of given pipeline run. Noop if absent."""
-    return self._pipeline_results.pop(pipeline, None)
+    if is_main_job:
+      return self._main_pipeline_results.pop(pipeline, None)
+    return self._background_caching_pipeline_results.pop(pipeline, None)
 
-  def pipeline_result(self, pipeline):
+  def pipeline_result(self, pipeline, is_main_job=True):
     """Gets the pipeline run result. None if absent."""
-    return self._pipeline_results.get(pipeline, None)
+    if is_main_job:
+      return self._main_pipeline_results.get(pipeline, None)
+    return self._background_caching_pipeline_results.get(pipeline, None)
 
-  def is_terminated(self, pipeline):
+  def is_terminated(self, pipeline, is_main_job=True):
     """Queries if the most recent job (by executing the given pipeline) state
     is in a terminal state. True if absent."""
-    result = self.pipeline_result(pipeline)
+    result = self.pipeline_result(pipeline, is_main_job=is_main_job)
     if result:
       return runner.PipelineState.is_terminal(result.state)
     return True

@@ -139,8 +139,8 @@ public class ExternalTest implements Serializable {
           testPipeline
               .apply(Create.of("1", "2", "2", "3", "3", "3"))
               .apply(
-                  External.<KV<String, Integer>>of(
-                      "beam:transforms:xlang:count", new byte[] {}, target))
+                  External.of("beam:transforms:xlang:count", new byte[] {}, target)
+                      .<KV<String, Long>>withOutputType())
               .apply(
                   "toString",
                   MapElements.into(TypeDescriptors.strings())

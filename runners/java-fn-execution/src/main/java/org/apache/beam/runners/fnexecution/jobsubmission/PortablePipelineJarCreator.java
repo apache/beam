@@ -49,13 +49,14 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc.Artif
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.construction.PipelineResources;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.MessageOrBuilder;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.JsonFormat;
@@ -106,7 +107,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
         new JarOutputStream(new FileOutputStream(outputFile), createManifest(mainClass, jobName));
     outputChannel = Channels.newChannel(outputStream);
     PortablePipelineJarUtils.writeDefaultJobName(outputStream, jobName);
-    writeClassPathResources(mainClass.getClassLoader());
+    writeClassPathResources(mainClass.getClassLoader(), pipelineOptions);
     writeAsJson(pipeline, PortablePipelineJarUtils.getPipelineUri(jobName));
     writeAsJson(
         PipelineOptionsTranslation.toProto(pipelineOptions),
@@ -144,9 +145,10 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   }
 
   /** Copy resources from {@code classLoader} to {@link #outputStream}. */
-  private void writeClassPathResources(ClassLoader classLoader) throws IOException {
+  private void writeClassPathResources(ClassLoader classLoader, PipelineOptions options)
+      throws IOException {
     List<String> classPathResources =
-        PipelineResources.detectClassPathResourcesToStage(classLoader);
+        PipelineResources.detectClassPathResourcesToStage(classLoader, options);
     Preconditions.checkArgument(
         classPathResources.size() == 1, "Expected exactly one jar on " + classLoader.toString());
     copyResourcesFromJar(new JarFile(classPathResources.get(0)));

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.portability;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
@@ -104,7 +104,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
           s -> pathsToStage.addAll(Arrays.asList(s.replaceFirst("jar_packages=", "").split(","))));
     }
     if (portableOptions.getFilesToStage() == null) {
-      pathsToStage.addAll(detectClassPathResourcesToStage(PortableRunner.class.getClassLoader()));
+      pathsToStage.addAll(
+          detectClassPathResourcesToStage(PortableRunner.class.getClassLoader(), options));
       if (pathsToStage.isEmpty()) {
         throw new IllegalArgumentException("No classpath elements found.");
       }

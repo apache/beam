@@ -214,14 +214,6 @@ task pythonPreCommit() {
   // have caught. Note that the same tests will still run in postcommit.
 }
 
-// TODO(BEAM-3713): Temporary task for testing pytest.
-task pythonPreCommitPytest() {
-  dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2Pytest"
-  dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35Pytest"
-  dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36Pytest"
-  dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37Pytest"
-}
-
 task pythonLintPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py2:lint"
   dependsOn ":sdks:python:test-suites:tox:py37:lint"

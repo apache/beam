@@ -46,8 +46,15 @@ from apache_beam.io.filesystem import BeamIOError
 # TODO(sourabhbajaj): Remove the GCP specific error code to a submodule
 try:
   from apitools.base.py.exceptions import HttpError
-except ImportError:
+except ImportError as e:
   HttpError = None
+
+# Protect against environments where aws tools are not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from apache_beam.io.aws.clients.s3.messages import S3ClientError
+except ImportError:
+  S3ClientError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -104,6 +111,8 @@ def retry_on_server_errors_filter(exception):
   """Filter allowing retries on server errors and non-HttpErrors."""
   if (HttpError is not None) and isinstance(exception, HttpError):
     return exception.status_code >= 500
+  if (S3ClientError is not None) and isinstance(exception, S3ClientError):
+    return exception.code >= 500
   return not isinstance(exception, PermanentException)
 
 
@@ -120,6 +129,9 @@ def retry_on_server_errors_and_timeout_filter(exception):
   if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 408:  # 408 Request Timeout
       return True
+  if S3ClientError is not None and isinstance(exception, S3ClientError):
+    if exception.code == 408:  # 408 Request Timeout
+      return True
   return retry_on_server_errors_filter(exception)
 
 
@@ -130,6 +142,9 @@ def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
   rateLimitExceeded."""
   if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 403:
+      return True
+  if S3ClientError is not None and isinstance(exception, S3ClientError):
+    if exception.code == 403:
       return True
   return retry_on_server_errors_and_timeout_filter(exception)
 
