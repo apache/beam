@@ -135,7 +135,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
         try {
           // If the process is not alive anymore, we abort.
           process.isAliveOrThrow();
-          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
+          instructionHandler = clientSource.take(workerId, Duration.ofSeconds(5));
         } catch (TimeoutException timeoutEx) {
           LOG.info(
               "Still waiting for startup of environment '{}' for worker id {}",
