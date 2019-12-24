@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
@@ -85,26 +86,12 @@ public class EncoderHelpers {
       this.beamCoder = beamCoder;
     }
 
-    public byte[] encode(boolean isInputNull, T inputValue) {
-      if (isInputNull) {
-        return null;
-      } else {
-        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-        try {
-          beamCoder.encode(inputValue, baos);
-        } catch (Exception e) {
-          throw org.apache.beam.sdk.util.UserCodeException.wrap(e);
-        }
-        return baos.toByteArray();
-      }
+    public byte[] encode(@Nullable T inputValue) {
+      return (inputValue == null) ? null : CoderHelpers.toByteArray(inputValue, beamCoder);
     }
 
-    public T decode(boolean isInputNull, byte[] inputValue) {
-      try {
-        return isInputNull ? null : beamCoder.decode(new java.io.ByteArrayInputStream(inputValue));
-      } catch (Exception e) {
-        throw org.apache.beam.sdk.util.UserCodeException.wrap(e);
-      }
+    public T decode(@Nullable byte[] inputValue) {
+      return (inputValue == null) ? null : CoderHelpers.fromByteArray(inputValue, beamCoder);
     }
   }
 
@@ -141,7 +128,7 @@ public class EncoderHelpers {
       List<Object> args = new ArrayList<>();
       /*
             CODE GENERATED
-            final $javaType ${ev.value} = $beamCoderWrapper.encode(${input.isNull}, ${input.value});
+            final $javaType ${ev.value} = $beamCoderWrapper.encode(${input.value});
       */
       parts.add("final ");
       args.add(javaType);
@@ -150,8 +137,6 @@ public class EncoderHelpers {
       parts.add(" = ");
       args.add(accessCode);
       parts.add(".encode(");
-      args.add(input.isNull());
-      parts.add(", ");
       args.add(input.value());
       parts.add(");");
 
@@ -243,7 +228,7 @@ public class EncoderHelpers {
       List<Object> args = new ArrayList<>();
       /*
             CODE GENERATED:
-            final $javaType ${ev.value} = ($javaType) $beamCoderWrapper.decode(${input.isNull}, ${input.value});
+            final $javaType ${ev.value} = ($javaType) $beamCoderWrapper.decode(${input.value});
       */
       parts.add("final ");
       args.add(javaType);
@@ -254,10 +239,9 @@ public class EncoderHelpers {
       parts.add(") ");
       args.add(accessCode);
       parts.add(".decode(");
-      args.add(input.isNull());
-      parts.add(", ");
       args.add(input.value());
       parts.add(");");
+
       StringContext sc =
           new StringContext(JavaConversions.collectionAsScalaIterable(parts).toSeq());
       Block code =
