@@ -21,6 +21,7 @@ import static org.apache.spark.sql.types.DataTypes.BinaryType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -48,29 +49,24 @@ import scala.reflect.ClassTag$;
 
 /** {@link Encoders} utility class. */
 public class EncoderHelpers {
-
-  /*
-   --------- Bridges from Beam Coders to Spark Encoders
-  */
-
   /**
    * Wrap a Beam coder into a Spark Encoder using Catalyst Expression Encoders (which uses java code
    * generation).
    */
-  public static <T> Encoder<T> fromBeamCoder(Coder<T> beamCoder) {
+  public static <T> Encoder<T> fromBeamCoder(Coder<T> coder) {
+    Class<? super T> clazz = coder.getEncodedTypeDescriptor().getRawType();
+    ClassTag<T> classTag = ClassTag$.MODULE$.apply(clazz);
+    BeamCoderWrapper<T> beamCoderWrapper = new BeamCoderWrapper<>(coder);
 
-    List<Expression> serialiserList = new ArrayList<>();
-    Class<? super T> claz = beamCoder.getEncodedTypeDescriptor().getRawType();
-    BeamCoderWrapper<T> beamCoderWrapper = new BeamCoderWrapper<>(beamCoder);
+    List<Expression> serializers =
+        Collections.singletonList(
+            new EncodeUsingBeamCoder<>(
+                new BoundReference(0, new ObjectType(clazz), true), beamCoderWrapper));
 
-    serialiserList.add(
-        new EncodeUsingBeamCoder<>(
-            new BoundReference(0, new ObjectType(claz), true), beamCoderWrapper));
-    ClassTag<T> classTag = ClassTag$.MODULE$.apply(claz);
     return new ExpressionEncoder<>(
         SchemaHelpers.binarySchema(),
         false,
-        JavaConversions.collectionAsScalaIterable(serialiserList).toSeq(),
+        JavaConversions.collectionAsScalaIterable(serializers).toSeq(),
         new DecodeUsingBeamCoder<>(
             new Cast(new GetColumnByOrdinal(0, BinaryType), BinaryType),
             classTag,
@@ -80,18 +76,18 @@ public class EncoderHelpers {
 
   public static class BeamCoderWrapper<T> implements Serializable {
 
-    private Coder<T> beamCoder;
+    private Coder<T> coder;
 
-    public BeamCoderWrapper(Coder<T> beamCoder) {
-      this.beamCoder = beamCoder;
+    public BeamCoderWrapper(Coder<T> coder) {
+      this.coder = coder;
     }
 
     public byte[] encode(@Nullable T inputValue) {
-      return (inputValue == null) ? null : CoderHelpers.toByteArray(inputValue, beamCoder);
+      return (inputValue == null) ? null : CoderHelpers.toByteArray(inputValue, coder);
     }
 
     public T decode(@Nullable byte[] inputValue) {
-      return (inputValue == null) ? null : CoderHelpers.fromByteArray(inputValue, beamCoder);
+      return (inputValue == null) ? null : CoderHelpers.fromByteArray(inputValue, coder);
     }
   }
 
