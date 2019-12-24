@@ -101,6 +101,7 @@ from typing import TypeVar
 
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
@@ -266,16 +267,16 @@ class IOTypeHints(object):
           input_args.append(typehints.Any)
       else:
         if param.kind in [param.KEYWORD_ONLY, param.VAR_KEYWORD]:
-          input_kwargs[param.name] = param.annotation
+          input_kwargs[param.name] = convert_to_beam_type(param.annotation)
         else:
           assert param.kind in [param.POSITIONAL_ONLY,
                                 param.POSITIONAL_OR_KEYWORD,
                                 param.VAR_POSITIONAL], \
               'Unsupported Parameter kind: %s' % param.kind
-          input_args.append(param.annotation)
+          input_args.append(convert_to_beam_type(param.annotation))
     output_args = []
     if signature.return_annotation != signature.empty:
-      output_args.append(signature.return_annotation)
+      output_args.append(convert_to_beam_type(signature.return_annotation))
     else:
       output_args.append(typehints.Any)
 

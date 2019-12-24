@@ -38,6 +38,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Splittabl
 import org.apache.beam.runners.core.construction.ExternalTranslation.ExternalTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -278,7 +280,7 @@ public class PTransformTranslation {
       if (spec != null) {
         transformBuilder.setSpec(spec);
       }
-
+      transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
       return transformBuilder.build();
     }
   }
@@ -291,6 +293,11 @@ public class PTransformTranslation {
       implements TransformTranslator<T> {
     private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
         KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
+
+    // TODO: BEAM-9001 - set environment ID in all transforms and allow runners to override.
+    private static List<String> sdkTransformsWithEnvironment =
+        ImmutableList.of(
+            PAR_DO_TRANSFORM_URN, COMBINE_PER_KEY_TRANSFORM_URN, ASSIGN_WINDOWS_TRANSFORM_URN);
 
     private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
         loadTransformPayloadTranslators() {
@@ -342,6 +349,16 @@ public class PTransformTranslation {
               .translate(appliedPTransform, components);
       if (spec != null) {
         transformBuilder.setSpec(spec);
+
+        if (sdkTransformsWithEnvironment.contains(spec.getUrn())) {
+          transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+        } else if (spec.getUrn().equals(READ_TRANSFORM_URN)
+            && (appliedPTransform.getTransform().getClass() == Read.Bounded.class)) {
+          // Only assigning environment to Bounded reads. Not assigning an environment to Unbounded
+          // reads since they are a Runner translated transform, unless, in the future, we have an
+          // adapter available for splittable DoFn.
+          transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+        }
       }
       return transformBuilder.build();
     }

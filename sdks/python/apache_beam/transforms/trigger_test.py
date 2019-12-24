@@ -422,19 +422,6 @@ class RunnerApiTest(unittest.TestCase):
 
 class TriggerPipelineTest(unittest.TestCase):
 
-  def setUp(self):
-    # Use state on the TestCase class, since other references would be pickled
-    # into a closure and not have the desired side effects.
-    TriggerPipelineTest.all_records = []
-
-  def record_dofn(self):
-    class RecordDoFn(beam.DoFn):
-
-      def process(self, element):
-        TriggerPipelineTest.all_records.append(element)
-
-    return RecordDoFn()
-
   def test_after_count(self):
     with TestPipeline() as p:
       def construct_timestamped(k_t):
@@ -471,29 +458,28 @@ class TriggerPipelineTest(unittest.TestCase):
       if i % 5 == 0:
         ts.advance_watermark_to(i)
         ts.advance_processing_time(5)
+    ts.advance_watermark_to_infinity()
 
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     with TestPipeline(options=options) as p:
-      _ = (p
-           | ts
-           | beam.WindowInto(
-               FixedWindows(10),
-               accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
-               trigger=AfterWatermark(
-                   early=AfterAll(
-                       AfterCount(1), AfterProcessingTime(5))
-               ))
-           | beam.GroupByKey()
-           | beam.FlatMap(lambda x: x[1])
-           | beam.ParDo(self.record_dofn()))
+      records = (p
+                 | ts
+                 | beam.WindowInto(
+                     FixedWindows(10),
+                     accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+                     trigger=AfterWatermark(
+                         early=AfterAll(
+                             AfterCount(1), AfterProcessingTime(5))
+                     ))
+                 | beam.GroupByKey()
+                 | beam.FlatMap(lambda x: x[1]))
 
     # The trigger should fire twice. Once after 5 seconds, and once after 10.
     # The firings should accumulate the output.
     first_firing = [str(i) for i in elements if i <= 5]
     second_firing = [str(i) for i in elements]
-    self.assertListEqual(first_firing + second_firing,
-                         TriggerPipelineTest.all_records)
+    assert_that(records, equal_to(first_firing + second_firing))
 
 
 class TranscriptTest(unittest.TestCase):
@@ -816,6 +802,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
         else:
           raise ValueError('Unexpected action: %s' % action)
     test_stream.add_elements([json.dumps(('expect', []))])
+    test_stream.advance_watermark_to_infinity()
 
     read_test_stream = test_stream | beam.Map(json.loads)
 

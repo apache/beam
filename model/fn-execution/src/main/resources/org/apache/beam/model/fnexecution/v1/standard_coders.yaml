@@ -263,6 +263,44 @@ examples:
 
 ---
 
+# ParamWindowedValueCoder with constant value of:
+# timestamp: Instant.ofEpochMilli(1000)
+# windows: [IntervalWindow(10, 20)]
+# pane info: PaneInfo(false, true, PaneInfo.Timing.ON_TIME, 30, 40)
+coder:
+  urn: "beam:coder:param_windowed_value:v1"
+  payload: "\x80\x00\x00\x00\x00\x00\x03è\x00\x00\x00\x01\x80\x00\x00\x00\x00\x00\x00\x14\n&\x1E(\x00"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:interval_window:v1"}]
+examples:
+  "\u0002": {
+    value: 2,
+    timestamp: 1000,
+    pane: {is_first: False, is_last: True, timing: ON_TIME, index: 30, on_time_index: 40},
+    windows: [{end: 20, span: 10}]
+  }
+
+---
+
+# ParamWindowedValueCoder with constant value of:
+# timestamp: BoundedWindow.TIMESTAMP_MIN_VALUE
+# windows: [GlobalWindow.INSTANCE]
+# pane info: PaneInfo.NO_FIRING
+coder:
+  urn: "beam:coder:param_windowed_value:v1"
+  payload: "\x7Fß;dZ\x1C¬\t\x00\x00\x00\x01\x0F\x00"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:global_window:v1"}]
+examples:
+  "\u0002": {
+    value: 2,
+    timestamp: -9223372036854775,
+    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: ["global"]
+  }
+
+---
+
 coder:
   urn: "beam:coder:double:v1"
 examples:

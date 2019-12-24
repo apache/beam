@@ -66,16 +66,17 @@ public class External {
     return namespaceCounter.getAndIncrement();
   }
 
-  public static <OutputT> SingleOutputExpandableTransform<OutputT> of(
-      String urn, byte[] payload, String endpoint) {
+  public static <InputT extends PInput, OutputT>
+      SingleOutputExpandableTransform<InputT, OutputT> of(
+          String urn, byte[] payload, String endpoint) {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(urn, payload, apiDesc, getFreshNamespaceIndex());
   }
 
   /** Expandable transform for output type of PCollection. */
-  public static class SingleOutputExpandableTransform<OutputT>
-      extends ExpandableTransform<PCollection<OutputT>> {
+  public static class SingleOutputExpandableTransform<InputT extends PInput, OutputT>
+      extends ExpandableTransform<InputT, PCollection<OutputT>> {
     SingleOutputExpandableTransform(
         String urn,
         byte[] payload,
@@ -90,14 +91,20 @@ public class External {
       return Iterables.getOnlyElement(output.values());
     }
 
-    public MultiOutputExpandableTransform withMultiOutputs() {
-      return new MultiOutputExpandableTransform(
+    public MultiOutputExpandableTransform<InputT> withMultiOutputs() {
+      return new MultiOutputExpandableTransform<>(
+          getUrn(), getPayload(), getEndpoint(), getNamespaceIndex());
+    }
+
+    public <T> SingleOutputExpandableTransform<InputT, T> withOutputType() {
+      return new SingleOutputExpandableTransform<>(
           getUrn(), getPayload(), getEndpoint(), getNamespaceIndex());
     }
   }
 
   /** Expandable transform for output type of PCollectionTuple. */
-  public static class MultiOutputExpandableTransform extends ExpandableTransform<PCollectionTuple> {
+  public static class MultiOutputExpandableTransform<InputT extends PInput>
+      extends ExpandableTransform<InputT, PCollectionTuple> {
     MultiOutputExpandableTransform(
         String urn,
         byte[] payload,
@@ -119,8 +126,8 @@ public class External {
   }
 
   /** Base Expandable Transform which calls ExpansionService to expand itself. */
-  public abstract static class ExpandableTransform<OutputT extends POutput>
-      extends PTransform<PInput, OutputT> {
+  public abstract static class ExpandableTransform<InputT extends PInput, OutputT extends POutput>
+      extends PTransform<InputT, OutputT> {
     private final String urn;
     private final byte[] payload;
     private final Endpoints.ApiServiceDescriptor endpoint;
@@ -142,7 +149,7 @@ public class External {
     }
 
     @Override
-    public OutputT expand(PInput input) {
+    public OutputT expand(InputT input) {
       Pipeline p = input.getPipeline();
       SdkComponents components = SdkComponents.create(p.getOptions());
       RunnerApi.PTransform.Builder ptransformBuilder =

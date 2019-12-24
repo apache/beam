@@ -176,7 +176,7 @@ REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=0.23.4,<0.25',
-    'parameterized>=0.6.0,<0.7.0',
+    'parameterized>=0.6.0,<0.8.0',
     'pyhamcrest>=1.9,<2.0',
     'pyyaml>=3.12,<6.0.0',
     'requests_mock>=1.7,<2.0',
@@ -207,6 +207,10 @@ INTERACTIVE_BEAM = [
     'jsons>=1.0.0,<2; python_version >= "3.5.3"',
     'timeloop>=1.0.2,<2',
 ]
+AWS_REQUIREMENTS = [
+    'boto3 >=1.9'
+]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
@@ -267,6 +271,7 @@ setuptools.setup(
         'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
         'interactive': INTERACTIVE_BEAM,
+        'aws': AWS_REQUIREMENTS
     },
     zip_safe=False,
     # PyPI package information.

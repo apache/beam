@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.translation;
 
+import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTING;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -234,6 +235,7 @@ public class BatchSideInputHandlerFactoryTest {
         Collections.emptyList(),
         Collections.emptyList(),
         Collections.emptyList(),
-        Collections.emptyList());
+        Collections.emptyList(),
+        DEFAULT_WIRE_CODER_SETTING);
   }
 }

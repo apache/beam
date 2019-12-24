@@ -349,7 +349,7 @@ public class Nodes {
   public abstract static class FetchAndFilterStreamingSideInputsNode extends Node {
     public static FetchAndFilterStreamingSideInputsNode create(
         WindowingStrategy<?, ?> windowingStrategy,
-        Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec> pCollectionViewsToWindowMappingFns,
+        Map<PCollectionView<?>, RunnerApi.FunctionSpec> pCollectionViewsToWindowMappingFns,
         NameContext nameContext) {
       return new AutoValue_Nodes_FetchAndFilterStreamingSideInputsNode(
           windowingStrategy, pCollectionViewsToWindowMappingFns, nameContext);
@@ -357,7 +357,7 @@ public class Nodes {
 
     public abstract WindowingStrategy<?, ?> getWindowingStrategy();
 
-    public abstract Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec>
+    public abstract Map<PCollectionView<?>, RunnerApi.FunctionSpec>
         getPCollectionViewsToWindowMappingFns();
 
     public abstract NameContext getNameContext();

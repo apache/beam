@@ -58,9 +58,11 @@ KNOWN_COMPOSITES = frozenset([
     common_urns.primitives.PAR_DO.urn,  # After SDF expansion.
 ])
 
+
 COMBINE_URNS = frozenset([
     common_urns.composites.COMBINE_PER_KEY.urn,
 ])
+
 
 PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
@@ -70,6 +72,7 @@ PAR_DO_URNS = frozenset([
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_ELEMENTS.urn,
 ])
+
 
 IMPULSE_BUFFER = b'impulse'
 
@@ -114,17 +117,11 @@ class Stage(object):
 
   @staticmethod
   def _extract_environment(transform):
+
     # type: (beam_runner_api_pb2.PTransform) -> Optional[str]
-    if transform.spec.urn in PAR_DO_URNS:
-      pardo_payload = proto_utils.parse_Bytes(
-          transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-      return pardo_payload.do_fn.environment_id
-    elif transform.spec.urn in COMBINE_URNS:
-      combine_payload = proto_utils.parse_Bytes(
-          transform.spec.payload, beam_runner_api_pb2.CombinePayload)
-      return combine_payload.combine_fn.environment_id
-    else:
-      return None
+    environment = transform.environment_id
+    if environment:
+      return environment
 
   @staticmethod
   def _merge_environments(env1, env2):
@@ -295,7 +292,7 @@ class Stage(object):
               payload=payload.SerializeToString()),
           inputs=named_inputs,
           outputs={'output_%d' % ix: pcoll
-                   for ix, pcoll in enumerate(external_outputs)})
+                   for ix, pcoll in enumerate(external_outputs)},)
 
 
 def memoize_on_instance(f):
@@ -681,13 +678,7 @@ def lift_combiners(stages, context):
         context.components.pcollections[
             only_element(list(combine_per_key_transform.inputs.values()))
         ].windowing_strategy_id]
-    if windowing.output_time != beam_runner_api_pb2.OutputTime.END_OF_WINDOW:
-      # This depends on the spec of PartialGroupByKey.
-      return False
-    elif not is_compatible_with_combiner_lifting(windowing.trigger):
-      return False
-    else:
-      return True
+    return is_compatible_with_combiner_lifting(windowing.trigger)
 
   def make_stage(base_stage, transform):
     # type: (Stage, beam_runner_api_pb2.PTransform) -> Stage
@@ -771,7 +762,8 @@ def lift_combiners(stages, context):
                 .COMBINE_PER_KEY_PRECOMBINE.urn,
                 payload=transform.spec.payload),
             inputs=transform.inputs,
-            outputs={'out': precombined_pcoll_id}))
+            outputs={'out': precombined_pcoll_id},
+            environment_id=transform.environment_id))
 
     yield make_stage(
         stage,
@@ -791,7 +783,8 @@ def lift_combiners(stages, context):
                 .COMBINE_PER_KEY_MERGE_ACCUMULATORS.urn,
                 payload=transform.spec.payload),
             inputs={'in': grouped_pcoll_id},
-            outputs={'out': merged_pcoll_id}))
+            outputs={'out': merged_pcoll_id},
+            environment_id=transform.environment_id))
 
     yield make_stage(
         stage,
@@ -802,7 +795,8 @@ def lift_combiners(stages, context):
                 .COMBINE_PER_KEY_EXTRACT_OUTPUTS.urn,
                 payload=transform.spec.payload),
             inputs={'in': merged_pcoll_id},
-            outputs=transform.outputs))
+            outputs=transform.outputs,
+            environment_id=transform.environment_id))
 
   def unlifted_stages(stage):
     transform = stage.transforms[0]
@@ -1043,7 +1037,8 @@ def fix_flatten_coders(stages, pipeline_context):
                   inputs={local_in: pcoll_in},
                   outputs={'out': transcoded_pcollection},
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.IDENTITY_DOFN_URN))],
+                      urn=bundle_processor.IDENTITY_DOFN_URN),
+                  environment_id=transform.environment_id)],
               downstream_side_inputs=frozenset(),
               must_follow=stage.must_follow)
           pcollections[transcoded_pcollection].CopyFrom(
