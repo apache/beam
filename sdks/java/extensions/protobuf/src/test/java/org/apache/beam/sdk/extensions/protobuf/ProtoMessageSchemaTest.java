@@ -197,7 +197,7 @@ public class ProtoMessageSchemaTest {
     assertEquals(OUTER_ONEOF_PROTO, fromRow.apply(OUTER_ONEOF_ROW));
   }
 
-  private static EnumerationType ENUM_TYPE =
+  private static final EnumerationType ENUM_TYPE =
       EnumerationType.create(ImmutableMap.of("ZERO", 0, "TWO", 2, "THREE", 3));
   private static final Schema ENUM_SCHEMA =
       Schema.builder()

@@ -34,11 +34,13 @@ import com.google.protobuf.StringValue;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.UInt32Value;
 import com.google.protobuf.UInt64Value;
+import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -92,29 +94,29 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 
 public class ProtoByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
-  private static TypeDescriptor<ByteString> BYTE_STRING_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<ByteString> BYTE_STRING_TYPE_DESCRIPTOR =
       TypeDescriptor.of(ByteString.class);
-  private static TypeDescriptor<Timestamp> PROTO_TIMESTAMP_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<Timestamp> PROTO_TIMESTAMP_TYPE_DESCRIPTOR =
       TypeDescriptor.of(Timestamp.class);
-  private static TypeDescriptor<Duration> PROTO_DURATION_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<Duration> PROTO_DURATION_TYPE_DESCRIPTOR =
       TypeDescriptor.of(Duration.class);
-  private static TypeDescriptor<Int32Value> PROTO_INT32_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<Int32Value> PROTO_INT32_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(Int32Value.class);
-  private static TypeDescriptor<Int64Value> PROTO_INT64_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<Int64Value> PROTO_INT64_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(Int64Value.class);
-  private static TypeDescriptor<UInt32Value> PROTO_UINT32_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<UInt32Value> PROTO_UINT32_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(UInt32Value.class);
-  private static TypeDescriptor<UInt64Value> PROTO_UINT64_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<UInt64Value> PROTO_UINT64_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(UInt64Value.class);
-  private static TypeDescriptor<FloatValue> PROTO_FLOAT_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<FloatValue> PROTO_FLOAT_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(FloatValue.class);
-  private static TypeDescriptor<DoubleValue> PROTO_DOUBLE_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<DoubleValue> PROTO_DOUBLE_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(DoubleValue.class);
-  private static TypeDescriptor<BoolValue> PROTO_BOOL_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<BoolValue> PROTO_BOOL_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(BoolValue.class);
-  private static TypeDescriptor<StringValue> PROTO_STRING_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<StringValue> PROTO_STRING_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(StringValue.class);
-  private static TypeDescriptor<BytesValue> PROTO_BYTES_VALUE_TYPE_DESCRIPTOR =
+  private static final TypeDescriptor<BytesValue> PROTO_BYTES_VALUE_TYPE_DESCRIPTOR =
       TypeDescriptor.of(BytesValue.class);
 
   private static final ForLoadedType BYTE_STRING_TYPE = new ForLoadedType(ByteString.class);
@@ -170,7 +172,7 @@ public class ProtoByteBuddyUtils {
       super(returnRawValues);
     }
 
-    private final Map<TypeDescriptor<?>, Class<?>> TYPE_OVERRIDES =
+    private static final Map<TypeDescriptor<?>, Class<?>> TYPE_OVERRIDES =
         ImmutableMap.<TypeDescriptor<?>, Class<?>>builder()
             .put(PROTO_TIMESTAMP_TYPE_DESCRIPTOR, Row.class)
             .put(PROTO_DURATION_TYPE_DESCRIPTOR, Row.class)
@@ -410,13 +412,13 @@ public class ProtoByteBuddyUtils {
   static class OneOfFieldValueGetter<ProtoT extends MessageLite>
       implements FieldValueGetter<ProtoT, OneOfType.Value> {
     private final String name;
-    private final Method getCaseMethod;
+    private final Supplier<Method> getCaseMethod;
     private final Map<Integer, FieldValueGetter<ProtoT, ?>> getterMethodMap;
     private final OneOfType oneOfType;
 
     public OneOfFieldValueGetter(
         String name,
-        Method getCaseMethod,
+        Supplier<Method> getCaseMethod,
         Map<Integer, FieldValueGetter<ProtoT, ?>> getterMethodMap,
         OneOfType oneOfType) {
       this.name = name;
@@ -429,7 +431,7 @@ public class ProtoByteBuddyUtils {
     @Override
     public Value get(ProtoT object) {
       try {
-        EnumLite caseValue = (EnumLite) getCaseMethod.invoke(object);
+        EnumLite caseValue = (EnumLite) getCaseMethod.get().invoke(object);
         if (caseValue.getNumber() == 0) {
           return null;
         } else {
@@ -480,7 +482,11 @@ public class ProtoByteBuddyUtils {
                 fieldValueTypeSupplier);
         oneOfGetters.put(protoFieldIndex, oneOfFieldGetter);
       }
-      return new OneOfFieldValueGetter(field.getName(), caseMethod, oneOfGetters, oneOfType);
+      return new OneOfFieldValueGetter(
+          field.getName(),
+          (Supplier<Method> & Serializable) () -> caseMethod,
+          oneOfGetters,
+          oneOfType);
     } else {
       return JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
     }
@@ -533,7 +539,9 @@ public class ProtoByteBuddyUtils {
           Method method = getProtoSetter(methods, oneOfField.getName(), oneOfField.getType());
           oneOfMethods.put(getFieldNumber(oneOfField.getType()), method);
         }
-        setters.add(new ProtoOneOfSetter(oneOfMethods, field.getName()));
+        setters.add(
+            new ProtoOneOfSetter(
+                (Function<Integer, Method> & Serializable) oneOfMethods::get, field.getName()));
       } else {
         Method method = getProtoSetter(methods, field.getName(), field.getType());
         setters.add(
@@ -542,30 +550,22 @@ public class ProtoByteBuddyUtils {
                 new ProtoTypeConversionsFactory()));
       }
     }
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(protoClass, schema);
-
-    Method buildMethod =
-        ReflectUtils.getMethods(builderClass).stream()
-            .filter(m -> m.getName().equals("build"))
-            .findAny()
-            .orElseThrow(() -> new RuntimeException("No build method in builder"));
-    return createBuilderCreator(
-        protoClass, builderClass, setters, buildMethod, schema, schemaTypes);
+    return createBuilderCreator(protoClass, builderClass, setters, schema);
   }
 
   static class ProtoOneOfSetter<BuilderT extends MessageLite.Builder>
       implements FieldValueSetter<BuilderT, OneOfType.Value> {
-    private final Map<Integer, Method> methods;
+    private final Function<Integer, Method> methods;
     private final String name;
 
-    ProtoOneOfSetter(Map<Integer, Method> methods, String name) {
+    ProtoOneOfSetter(Function<Integer, Method> methods, String name) {
       this.methods = methods;
       this.name = name;
     }
 
     @Override
     public void set(BuilderT builder, OneOfType.Value oneOfValue) {
-      Method method = methods.get(oneOfValue.getCaseType().getValue());
+      Method method = methods.apply(oneOfValue.getCaseType().getValue());
       try {
         method.invoke(builder, oneOfValue.getValue());
       } catch (IllegalAccessException | InvocationTargetException e) {
@@ -580,12 +580,7 @@ public class ProtoByteBuddyUtils {
   }
 
   static SchemaUserTypeCreator createBuilderCreator(
-      Class<?> protoClass,
-      Class<?> builderClass,
-      List<FieldValueSetter> setters,
-      Method buildMethod,
-      Schema schema,
-      List<FieldValueTypeInformation> types) {
+      Class<?> protoClass, Class<?> builderClass, List<FieldValueSetter> setters, Schema schema) {
     try {
       DynamicType.Builder<Supplier> builder =
           BYTE_BUDDY
