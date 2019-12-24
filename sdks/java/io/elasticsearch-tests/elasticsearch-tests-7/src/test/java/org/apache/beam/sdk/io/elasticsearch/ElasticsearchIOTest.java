@@ -43,7 +43,7 @@ Cannot use @RunWith(JUnit4.class) with ESIntegTestCase
 Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 */
 
-/** Tests for {@link ElasticsearchIO} version 6. */
+/** Tests for {@link ElasticsearchIO} version 7. */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 // use cluster of 1 node that has data + master roles
 @ESIntegTestCase.ClusterScope(scope = SUITE, numDataNodes = 1, supportsDedicatedMasters = false)
@@ -61,14 +61,18 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Override
+  protected boolean addMockHttpTransport() {
+    return false;
+  }
+
+  @Override
   protected Settings nodeSettings(int nodeOrdinal) {
     System.setProperty("es.set.netty.runtime.available.processors", "false");
     return Settings.builder()
         .put(super.nodeSettings(nodeOrdinal))
-        .put("http.enabled", "true")
         // had problems with some jdk, embedded ES was too slow for bulk insertion,
         // and queue of 50 was full. No pb with real ES instance (cf testWrite integration test)
-        .put("thread_pool.bulk.queue_size", 400)
+        .put("thread_pool.write.queue_size", 400)
         .build();
   }
 
