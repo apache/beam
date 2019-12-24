@@ -204,7 +204,7 @@ public class ElasticsearchIO {
         } else {
           if (backendVersion == 2) {
             errorRootName = "create";
-          } else if (backendVersion == 5 || backendVersion == 6 || backendVersion == 7) {
+          } else if (backendVersion >= 5) {
             errorRootName = "index";
           }
         }
@@ -667,7 +667,7 @@ public class ElasticsearchIO {
               new BoundedElasticsearchSource(spec, shardId, null, null, null, backendVersion));
         }
         checkArgument(!sources.isEmpty(), "No shard found");
-      } else if (backendVersion == 5 || backendVersion == 6 || backendVersion == 7) {
+      } else if (backendVersion >= 5) {
         long indexSize = getEstimatedSizeBytes(options);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
@@ -819,9 +819,7 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if ((source.backendVersion == 5 || source.backendVersion == 6 || source.backendVersion == 7)
-          && source.numSlices != null
-          && source.numSlices > 1) {
+      if ((source.backendVersion >= 5) && source.numSlices != null && source.numSlices > 1) {
         // if there is more than one slice, add the slice to the user query
         String sliceQuery =
             String.format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId, source.numSlices);
@@ -1310,11 +1308,10 @@ public class ElasticsearchIO {
           if (value.id != null) {
             gen.writeStringField("_id", value.id);
           }
-          if (value.retryOnConflict != null
-              && (backendVersion == 2 || backendVersion == 5 || backendVersion == 6)) {
+          if (value.retryOnConflict != null && (backendVersion <= 6)) {
             gen.writeNumberField("_retry_on_conflict", value.retryOnConflict);
           }
-          if (value.retryOnConflict != null && backendVersion == 7) {
+          if (value.retryOnConflict != null && backendVersion >= 7) {
             gen.writeNumberField("retry_on_conflict", value.retryOnConflict);
           }
           gen.writeEndObject();

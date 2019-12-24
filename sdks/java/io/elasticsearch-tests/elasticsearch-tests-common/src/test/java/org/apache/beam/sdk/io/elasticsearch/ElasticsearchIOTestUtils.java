@@ -168,7 +168,7 @@ class ElasticsearchIOTestUtils {
       request = new Request("GET", endPoint);
       Response response = restClient.performRequest(request);
       JsonNode searchResult = ElasticsearchIO.parseResponse(response.getEntity());
-      if (backenVersion == 7) {
+      if (backenVersion >= 7) {
         result = searchResult.path("hits").path("total").path("value").asLong();
       } else {
         result = searchResult.path("hits").path("total").asLong();
@@ -259,7 +259,7 @@ class ElasticsearchIOTestUtils {
     request.setEntity(httpEntity);
     Response response = restClient.performRequest(request);
     JsonNode searchResult = parseResponse(response.getEntity());
-    if (getBackendVersion(connectionConfiguration) == 7) {
+    if (getBackendVersion(connectionConfiguration) >= 7) {
       return searchResult.path("hits").path("total").path("value").asInt();
     } else {
       return searchResult.path("hits").path("total").asInt();
