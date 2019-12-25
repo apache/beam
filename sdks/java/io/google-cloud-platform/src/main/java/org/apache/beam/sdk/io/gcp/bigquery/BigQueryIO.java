@@ -2247,8 +2247,8 @@ public class BigQueryIO {
     }
 
     /**
-     * Performs streaming insert without insert id. Insert id is used to offer best effort insert
-     * deduplication. Default is false, which always inserts with insert id.
+     * Setting this option to true disables insertId based data deduplication offered by BigQuery. For more information,
+     * please see https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication.
      */
     public Write<T> ignoreInsertIds() {
       return toBuilder().setIgnoreInsertIds(true).build();
