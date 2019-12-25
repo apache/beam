@@ -40,6 +40,7 @@ task postCommitPy2() {
   dependsOn ':runners:flink:1.9:job-server:shadowJar'
   dependsOn portableWordCountFlinkRunnerBatch
   dependsOn portableWordCountFlinkRunnerStreaming
+  dependsOn 'postCommitPy2IT'
   dependsOn ':runners:spark:job-server:shadowJar'
   dependsOn portableWordCountSparkRunnerBatch
 }
@@ -147,10 +148,10 @@ task crossLanguagePortableWordCount {
   }
 }
 
-task postCommitIT {
+task postCommitPy2IT {
   dependsOn 'installGcpTest'
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.8:job-server:shadowJar'
+  dependsOn ':runners:flink:1.9:job-server:shadowJar'
 
   doLast {
     def tests = [

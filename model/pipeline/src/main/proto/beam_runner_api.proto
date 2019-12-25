@@ -164,6 +164,11 @@ message PTransform {
   // there is none, or it is not relevant (such as use by the Fn API)
   // then it may be omitted.
   DisplayData display_data = 6;
+
+  // (Optional) Environment where the current PTransform should be executed in.
+  // Runner that executes the pipeline may choose to override this if needed. If
+  // not specified, environment will be decided by the runner.
+  string environment_id = 7;
 }
 
 message StandardPTransforms {
@@ -364,8 +369,8 @@ message PCollection {
 // The payload for the primitive ParDo transform.
 message ParDoPayload {
 
-  // (Required) The SdkFunctionSpec of the DoFn.
-  SdkFunctionSpec do_fn = 1;
+  // (Required) The FunctionSpec of the DoFn.
+  FunctionSpec do_fn = 1;
 
   // (Required) Additional pieces of context the DoFn may require that
   // are not otherwise represented in the payload.
@@ -439,7 +444,7 @@ message BagStateSpec {
 
 message CombiningStateSpec {
   string accumulator_coder_id = 1;
-  SdkFunctionSpec combine_fn = 2;
+  FunctionSpec combine_fn = 2;
 }
 
 message MapStateSpec {
@@ -467,8 +472,8 @@ message IsBounded {
 // The payload for the primitive Read transform.
 message ReadPayload {
 
-  // (Required) The SdkFunctionSpec of the source for this Read.
-  SdkFunctionSpec source = 1;
+  // (Required) The FunctionSpec of the source for this Read.
+  FunctionSpec source = 1;
 
   // (Required) Whether the source is bounded or unbounded
   IsBounded.Enum is_bounded = 2;
@@ -479,15 +484,15 @@ message ReadPayload {
 // The payload for the WindowInto transform.
 message WindowIntoPayload {
 
-  // (Required) The SdkFunctionSpec of the WindowFn.
-  SdkFunctionSpec window_fn = 1;
+  // (Required) The FunctionSpec of the WindowFn.
+  FunctionSpec window_fn = 1;
 }
 
 // The payload for the special-but-not-primitive Combine transform.
 message CombinePayload {
 
-  // (Required) The SdkFunctionSpec of the CombineFn.
-  SdkFunctionSpec combine_fn = 1;
+  // (Required) The FunctionSpec of the CombineFn.
+  FunctionSpec combine_fn = 1;
 
   // (Required) A reference to the Coder to use for accumulators of the CombineFn
   string accumulator_coder_id = 2;
@@ -562,11 +567,11 @@ message EventsRequest {}
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
 
-  // (Required) The SdkFunctionSpec of the FileBasedSink.
-  SdkFunctionSpec sink = 1;
+  // (Required) The FunctionSpec of the FileBasedSink.
+  FunctionSpec sink = 1;
 
   // (Required) The format function.
-  SdkFunctionSpec format_function = 2;
+  FunctionSpec format_function = 2;
 
   bool windowed_writes = 3;
 
@@ -588,7 +593,7 @@ message Coder {
 
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
-  // the SdkFunctionSpec and all components must be identical, recursively.
+  // the FunctionSpec and all components must be identical, recursively.
   repeated string component_coder_ids = 2;
 }
 
@@ -672,6 +677,16 @@ message StandardCoders {
     // Components: The element coder and the window coder, in that order
     WINDOWED_VALUE = 8 [(beam_urn) = "beam:coder:windowed_value:v1"];
 
+    // A windowed value coder with parameterized timestamp, windows and pane info.
+    // Encodes an element with only the value of the windowed value.
+    // Decodes the value and assign the parameterized timestamp, windows and PaneInfo to the
+    // windowed value
+    // Components: The element coder and the window coder, in that order
+    // The payload of this coder is an encoded windowed value using the
+    // beam:coder:windowed_value:v1 coder parameterized by beam:coder:bytes:v1
+    // elements coder and the window coder that this param_windowed_value uses.
+    PARAM_WINDOWED_VALUE = 14 [(beam_urn) = "beam:coder:param_windowed_value:v1"];
+
     // Encodes an iterable of elements, some of which may be stored elsewhere.
     //
     // The encoding for a state-backed iterable is the same as that for
@@ -741,10 +756,10 @@ message StandardCoders {
 // TODO: consider inlining field on PCollection
 message WindowingStrategy {
 
-  // (Required) The SdkFunctionSpec of the UDF that assigns windows,
+  // (Required) The FunctionSpec of the UDF that assigns windows,
   // merges windows, and shifts timestamps before they are
   // combined according to the OutputTime.
-  SdkFunctionSpec window_fn = 1;
+  FunctionSpec window_fn = 1;
 
   // (Required) Whether or not the window fn is merging.
   //
@@ -787,6 +802,11 @@ message WindowingStrategy {
   //
   // This knowledge is required for some optimizations
   bool assigns_to_one_window = 10;
+
+  // (Optional) Environment where the current window_fn should be applied in.
+  // Runner that executes the pipeline may choose to override this if needed.
+  // If not specified, environment will be decided by the runner.
+  string environment_id = 11;
 }
 
 // Whether or not a PCollection's WindowFn is non-merging, merging, or
@@ -1043,20 +1063,35 @@ message SideInput {
   // URN)
   FunctionSpec access_pattern = 1;
 
-  // (Required) The SdkFunctionSpec of the UDF that adapts a particular
+  // (Required) The FunctionSpec of the UDF that adapts a particular
   // access_pattern to a user-facing view type.
   //
   // For example, View.asSingleton() may include a `view_fn` that adapts a
   // specially-designed multimap to a single value per window.
-  SdkFunctionSpec view_fn = 2;
+  FunctionSpec view_fn = 2;
 
-  // (Required) The SdkFunctionSpec of the UDF that maps a main input window
+  // (Required) The FunctionSpec of the UDF that maps a main input window
   // to a side input window.
   //
   // For example, when the main input is in fixed windows of one hour, this
   // can specify that the side input should be accessed according to the day
   // in which that hour falls.
-  SdkFunctionSpec window_mapping_fn = 3;
+  FunctionSpec window_mapping_fn = 3;
+}
+
+// Settings that decide the coder type of wire coder.
+message WireCoderSetting {
+  // (Required) The URN of the wire coder.
+  // Note that only windowed value coder or parameterized windowed value coder are supported.
+  string urn = 1;
+
+  // (Optional) The data specifying any parameters to the URN. If
+  // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
+  // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
+  // value using the beam:coder:windowed_value:v1 coder parameterized by
+  // beam:coder:bytes:v1 elements coder and the window coder that this
+  // param_windowed_value uses.
+  bytes payload = 2;
 }
 
 // An environment for executing UDFs. By default, an SDK container URL, but
@@ -1097,18 +1132,6 @@ message ProcessPayload {
 message ExternalPayload {
   ApiServiceDescriptor endpoint = 1;
   map<string, string> params = 2;  // Arbitrary extra parameters to pass
-}
-
-// A specification of a user defined function.
-//
-message SdkFunctionSpec {
-
-  // (Required) A full specification of this function.
-  FunctionSpec spec = 1;
-
-  // (Required) Reference to an execution environment capable of
-  // invoking this function.
-  string environment_id = 2;
 }
 
 extend google.protobuf.EnumValueOptions {
@@ -1258,7 +1281,7 @@ message MessageWithComponents {
   oneof root {
     Coder coder = 2;
     CombinePayload combine_payload = 3;
-    SdkFunctionSpec sdk_function_spec = 4;
+    FunctionSpec function_spec = 4;
     ParDoPayload par_do_payload = 6;
     PTransform ptransform = 7;
     PCollection pcollection = 8;
@@ -1266,7 +1289,6 @@ message MessageWithComponents {
     SideInput side_input = 11;
     WindowIntoPayload window_into_payload = 12;
     WindowingStrategy windowing_strategy = 13;
-    FunctionSpec function_spec = 14;
   }
 }
 
@@ -1279,6 +1301,9 @@ message ExecutableStagePayload {
   // We use an environment rather than environment id
   // because ExecutableStages use environments directly. This may change in the future.
   Environment environment = 1;
+
+  // set the wire coder of this executable stage
+  WireCoderSetting wire_coder_setting = 9;
 
   // (Required) Input PCollection id. This must be present as a value in the inputs of any
   // PTransform the ExecutableStagePayload is the payload of.

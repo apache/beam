@@ -559,8 +559,14 @@ public class Schema implements Serializable {
 
     abstract FieldType.Builder toBuilder();
 
+    public boolean isLogicalType(String logicalTypeIdentifier) {
+      return getTypeName().isLogicalType()
+          && getLogicalType().getIdentifier().equals(logicalTypeIdentifier);
+    }
+
     /** Helper function for retrieving the concrete logical type subclass. */
-    public <LogicalTypeT> LogicalTypeT getLogicalType(Class<LogicalTypeT> logicalTypeClass) {
+    public <LogicalTypeT extends LogicalType> LogicalTypeT getLogicalType(
+        Class<LogicalTypeT> logicalTypeClass) {
       return logicalTypeClass.cast(getLogicalType());
     }
 

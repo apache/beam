@@ -29,6 +29,7 @@ import sys
 import threading
 import traceback
 from builtins import object
+from concurrent import futures
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import DefaultDict
@@ -74,8 +75,10 @@ class SdkHarness(object):
                worker_id=None,  # type: Optional[str]
                # Caching is disabled by default
                state_cache_size=0,
+               # time-based data buffering is disabled by default
+               data_buffer_time_limit_ms=0,
                profiler_factory=None  # type: Optional[Callable[..., Profile]]
-              ):
+               ):
     self._alive = True
     self._worker_index = 0
     self._worker_id = worker_id
@@ -94,7 +97,7 @@ class SdkHarness(object):
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor(self._worker_id))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
-        credentials, self._worker_id)
+        credentials, self._worker_id, data_buffer_time_limit_ms)
     self._state_handler_factory = GrpcStateHandlerFactory(self._state_cache,
                                                           credentials)
     self._profiler_factory = profiler_factory
@@ -104,6 +107,10 @@ class SdkHarness(object):
         state_handler_factory=self._state_handler_factory,
         data_channel_factory=self._data_channel_factory,
         fns=self._fns)
+
+    # TODO(BEAM-8998) use common UnboundedThreadPoolExecutor to process bundle
+    #  progress once dataflow runner's excessive progress polling is removed.
+    self._report_progress_executor = futures.ThreadPoolExecutor(max_workers=1)
     self._worker_thread_pool = UnboundedThreadPoolExecutor()
     self._responses = queue.Queue()  # type: queue.Queue[beam_fn_api_pb2.InstructionResponse]
     _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')
@@ -199,7 +206,7 @@ class SdkHarness(object):
                 'Unknown process bundle instruction {}').format(
                     instruction_id)), request)
 
-    self._worker_thread_pool.submit(task)
+    self._report_progress_executor.submit(task)
 
   def _request_finalize_bundle(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None

@@ -146,8 +146,6 @@ class ReadTests(BigQueryReadIntegrationTests):
           query=self.query, use_standard_sql=True)))
       assert_that(result, equal_to(self.TABLE_DATA))
 
-  @skip(['DirectRunner', 'TestDirectRunner', 'SwitchingDirectRunner',
-         'BundleBasedDirectRunner'])
   @attr('IT')
   def test_iobase_source(self):
     with beam.Pipeline(argv=self.args) as p:
@@ -252,8 +250,6 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
           query=self.query, use_standard_sql=True)))
       assert_that(result, equal_to(self.get_expected_data()))
 
-  @skip(['DirectRunner', 'TestDirectRunner', 'SwitchingDirectRunner',
-         'BundleBasedDirectRunner'])
   @attr('IT')
   def test_iobase_source(self):
     with beam.Pipeline(argv=self.args) as p:

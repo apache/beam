@@ -1,0 +1,64 @@
+import org.apache.beam.gradle.BeamModulePlugin
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Build a Docker image to bootstrap SparkJobServerDriver which requires a Java environment.
+ * Alternatively, it can also be bootstrapped through the runShadow goal
+ * or by directly running the generated JAR file.
+ */
+
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'base'
+applyDockerNature()
+
+def sparkJobServerProject = project.parent.path
+
+description = "Apache Beam :: Runners :: Spark :: Job Server :: Container"
+
+configurations {
+  dockerDependency
+}
+
+dependencies {
+  dockerDependency project(path: sparkJobServerProject, configuration: "shadow")
+}
+
+task copyDockerfileDependencies(type: Copy) {
+  // Required Jars
+  from configurations.dockerDependency
+  rename 'beam-runners-spark-job-server.*.jar', 'beam-runners-spark-job-server.jar'
+  into "build"
+  // Entry script
+  from "spark-job-server.sh"
+  into "build"
+  // Dockerfile
+  from "Dockerfile"
+  into "build"
+}
+
+docker {
+  name containerImageName(name: 'spark-job-server',
+                          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                                  project.rootProject["docker-repository-root"] : "apachebeam")
+  files "./build/"
+}
+
+// Ensure that we build the required resources and copy and file dependencies from related projects
+dockerPrepare.dependsOn copyDockerfileDependencies

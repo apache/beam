@@ -97,6 +97,10 @@ func main() {
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *loggingEndpoint}))
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *controlEndpoint}))
 
+	if info.GetStatusEndpoint() != nil {
+		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
+	}
+
 	const jarsDir = "/opt/apache/beam/jars"
 	cp := []string{
 		filepath.Join(jarsDir, "slf4j-api.jar"),
