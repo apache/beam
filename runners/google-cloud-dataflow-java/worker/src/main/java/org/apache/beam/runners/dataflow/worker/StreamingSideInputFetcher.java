@@ -87,11 +87,12 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     this.elementsAddr =
         StateTags.makeSystemTagInternal(
             StateTags.bag("elem", WindowedValue.getFullCoder(inputCoder, mainWindowCoder)));
-    this.timersAddr =
-        StateTags.makeSystemTagInternal(StateTags.bag("timer", TimerDataCoder.of(mainWindowCoder)));
     this.oldTimersAddr =
         StateTags.makeSystemTagInternal(
-            StateTags.bag("oldTimer", OldTimerDataCoder.of(mainWindowCoder)));
+            StateTags.bag("timer", OldTimerDataCoder.of(mainWindowCoder)));
+    this.timersAddr =
+        StateTags.makeSystemTagInternal(
+            StateTags.bag("newTimer", TimerDataCoder.of(mainWindowCoder)));
     StateTag<WatermarkHoldState> watermarkTag =
         StateTags.watermarkStateInternal(
             "holdForSideinput", windowingStrategy.getTimestampCombiner());
