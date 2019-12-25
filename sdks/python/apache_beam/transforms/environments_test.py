@@ -46,7 +46,8 @@ class RunnerApiTest(unittest.TestCase):
         ExternalEnvironment('localhost:8080', params={'k1': 'v1'}),
         EmbeddedPythonEnvironment(),
         EmbeddedPythonGrpcEnvironment(),
-        EmbeddedPythonGrpcEnvironment(state_cache_size=0),
+        EmbeddedPythonGrpcEnvironment(
+            state_cache_size=0, data_buffer_time_limit_ms=0),
         SubprocessSDKEnvironment(command_string=u'foö')):
       context = pipeline_context.PipelineContext()
       self.assertEqual(
