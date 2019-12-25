@@ -29,6 +29,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -122,6 +123,15 @@ public class RowWithGetters extends Row {
                   cacheKey, i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), map))
           : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), map);
     } else {
+      if (type.isLogicalType(OneOfType.IDENTIFIER)) {
+        OneOfType oneOfType = type.getLogicalType(OneOfType.class);
+        OneOfType.Value oneOfValue = (OneOfType.Value) fieldValue;
+        Object convertedOneOfField =
+            getValue(oneOfValue.getFieldType(), oneOfValue.getValue(), null);
+        return (T)
+            oneOfType.toBaseType(
+                oneOfType.createValue(oneOfValue.getCaseType(), convertedOneOfField));
+      }
       return (T) fieldValue;
     }
   }

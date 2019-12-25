@@ -94,7 +94,6 @@ public class ByteBuddyUtils {
       new ForLoadedType(ReadableInstant.class);
   private static final ForLoadedType READABLE_PARTIAL_TYPE =
       new ForLoadedType(ReadablePartial.class);
-  private static final ForLoadedType OBJECT_TYPE = new ForLoadedType(Object.class);
   private static final ForLoadedType INTEGER_TYPE = new ForLoadedType(Integer.class);
   private static final ForLoadedType ENUM_TYPE = new ForLoadedType(Enum.class);
   private static final ForLoadedType BYTE_BUDDY_UTILS_TYPE =
@@ -134,7 +133,7 @@ public class ByteBuddyUtils {
 
   // Create a new FieldValueGetter subclass.
   @SuppressWarnings("unchecked")
-  static DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
+  public static DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
       ByteBuddy byteBuddy, Type objectType, Type fieldType) {
     TypeDescription.Generic getterGenericType =
         TypeDescription.Generic.Builder.parameterizedType(
