@@ -956,7 +956,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 FileTree exposedClasses = project.zipTree(it).matching {
                   include "**/*.class"
                   // BEAM-5919: Exclude paths for Java 9 multi-release jars.
-                  exclude "META-INF/versions/*/module-info.class"
+                  exclude "**/module-info.class"
                   configuration.shadowJarValidationExcludes.each {
                     exclude "$it"
                     exclude "META-INF/versions/*/$it"
@@ -1497,7 +1497,7 @@ class BeamModulePlugin implements Plugin<Project> {
               archivesBaseName: configuration.archivesBaseName,
               automaticModuleName: configuration.automaticModuleName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-              shadowClosure: GrpcVendoring.shadowClosure() << {
+              shadowClosure: GrpcVendoringOld.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
                 // by org.apache.beam:beam-vendor-grpc-v1p21p0:0.1
@@ -1538,7 +1538,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
+      project.dependencies GrpcVendoringOld.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
     }
 
     /** ***********************************************************************************************/
