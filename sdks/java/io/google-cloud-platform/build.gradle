@@ -31,8 +31,8 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
+  compile project(":sdks:java:extensions:arrow")
   compile library.java.avro
-  compile library.java.arrow
   compile library.java.bigdataoss_util
   compile library.java.gax_grpc
   compile library.java.google_api_client
@@ -67,7 +67,6 @@ dependencies {
   compile library.java.proto_google_common_protos
   compile library.java.protobuf_java
   compile library.java.slf4j_api
-  compile library.java.arrow
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")

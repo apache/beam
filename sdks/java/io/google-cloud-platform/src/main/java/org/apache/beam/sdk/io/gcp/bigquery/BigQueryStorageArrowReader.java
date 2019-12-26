@@ -51,7 +51,8 @@ public class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
     this.alloc = new RootAllocator(Long.MAX_VALUE);
     this.arrowSchema = MessageSerializer.deserializeSchema(readChannel);
-    this.arrowBeamSchema = org.apache.beam.sdk.schemas.ArrowSchema.toBeamSchema(arrowSchema);
+    this.arrowBeamSchema =
+        org.apache.beam.sdk.extensions.arrow.ArrowSchema.toBeamSchema(arrowSchema);
     this.vectorRoot = VectorSchemaRoot.create(arrowSchema, alloc);
     this.vectorLoader = new VectorLoader(vectorRoot);
     this.rowCount = 0;
@@ -63,13 +64,13 @@ public class BigQueryStorageArrowReader implements BigQueryStorageReader {
     InputStream buffer = recordBatch.getSerializedRecordBatch().newInput();
     rowCount = recordBatch.getRowCount();
 
-    // TODO: add clear when arrow == 0.15.0
-    // vectorRoot.clear();
+    vectorRoot.clear();
     ReadChannel readChannel = new ReadChannel(Channels.newChannel(buffer));
     ArrowRecordBatch arrowMessage = MessageSerializer.deserializeRecordBatch(readChannel, alloc);
     vectorLoader.load(arrowMessage);
     recordBatchIterable =
-        new org.apache.beam.sdk.schemas.ArrowSchema.RecordBatchIterable(arrowBeamSchema, vectorRoot)
+        new org.apache.beam.sdk.extensions.arrow.ArrowSchema.RecordBatchIterable(
+                arrowBeamSchema, vectorRoot)
             .iterator();
     arrowMessage.close();
   }

@@ -112,7 +112,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -167,11 +166,6 @@ public class BigQueryIOStorageReadTest {
   public void setUp() throws Exception {
     alloc = new RootAllocator(Long.MAX_VALUE);
     FakeDatasetService.setUp();
-  }
-
-  @After
-  public void tearDown() {
-    //alloc.close();
   }
 
   @Test
@@ -707,9 +701,7 @@ public class BigQueryIOStorageReadTest {
   private static final org.apache.arrow.vector.types.pojo.Schema ARROW_SCHEMA =
       new org.apache.arrow.vector.types.pojo.Schema(
           asList(
-              field("name", new ArrowType.Utf8()),
-              field("number", new ArrowType.Int(64, true))
-          ));
+              field("name", new ArrowType.Utf8()), field("number", new ArrowType.Int(64, true))));
 
   private static final TableSchema TABLE_SCHEMA =
       new TableSchema()
@@ -907,7 +899,10 @@ public class BigQueryIOStorageReadTest {
     assertEquals(Double.valueOf(1.00), reader.getFractionConsumed());
   }
 
-  private static ReadRowsResponse createResponse(org.apache.arrow.vector.types.pojo.Schema schema, List<Pair<String, Long>> rowValues, double fractionConsumed)
+  private static ReadRowsResponse createResponse(
+      org.apache.arrow.vector.types.pojo.Schema schema,
+      List<Pair<String, Long>> rowValues,
+      double fractionConsumed)
       throws IOException {
     VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(schema, alloc);
     vectorRoot.setRowCount(rowValues.size());
@@ -929,22 +924,27 @@ public class BigQueryIOStorageReadTest {
     int bodyLen = recordBatch.computeBodyLength();
 
     ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
-    MessageSerializer.serialize(new WriteChannel(Channels.newChannel(byteOutputStream)), recordBatch);
+    MessageSerializer.serialize(
+        new WriteChannel(Channels.newChannel(byteOutputStream)), recordBatch);
 
     VectorLoader vectorLoader = new VectorLoader(vectorRoot);
     vectorLoader.load(recordBatch);
 
-    Iterator<Row> iter = new org.apache.beam.sdk.schemas.ArrowSchema.RecordBatchIterable(org.apache.beam.sdk.schemas.ArrowSchema.toBeamSchema(schema), vectorRoot).iterator();
+    Iterator<Row> iter =
+        new org.apache.beam.sdk.extensions.arrow.ArrowSchema.RecordBatchIterable(
+                org.apache.beam.sdk.extensions.arrow.ArrowSchema.toBeamSchema(schema), vectorRoot)
+            .iterator();
     while (iter.hasNext()) {
       Row r = iter.next();
       r.toString();
     }
 
     return ReadRowsResponse.newBuilder()
-        .setArrowRecordBatch(ArrowProto.ArrowRecordBatch.newBuilder()
-            .setSerializedRecordBatch(ByteString.copyFrom(byteOutputStream.toByteArray()))
-            .setRowCount(vectorRoot.getRowCount())
-            .build())
+        .setArrowRecordBatch(
+            ArrowProto.ArrowRecordBatch.newBuilder()
+                .setSerializedRecordBatch(ByteString.copyFrom(byteOutputStream.toByteArray()))
+                .setRowCount(vectorRoot.getRowCount())
+                .build())
         .setStatus(StreamStatus.newBuilder().setFractionConsumed((float) fractionConsumed))
         .build();
   }
@@ -952,7 +952,8 @@ public class BigQueryIOStorageReadTest {
   @Test
   public void testFractionConsumed_forArrowFormat() throws Exception {
     ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
-    MessageSerializer.serialize(new WriteChannel(Channels.newChannel(byteOutputStream)), ARROW_SCHEMA);
+    MessageSerializer.serialize(
+        new WriteChannel(Channels.newChannel(byteOutputStream)), ARROW_SCHEMA);
     ByteString serializedSchema = ByteString.copyFrom(byteOutputStream.toByteArray());
 
     ReadSession readSession =
