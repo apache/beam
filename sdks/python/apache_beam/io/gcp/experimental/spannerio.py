@@ -223,8 +223,8 @@ class _NaiveSpannerReadDoFn(DoFn):
     A naive version of Spanner read which uses the transaction API of the
     cloud spanner.
     https://googleapis.dev/python/spanner/latest/transaction-api.html
-    In Naive reads, this transform performs single reads, where as the the
-    Batch read use the spanner partitioning query to create batches.
+    In Naive reads, this transform performs single reads, where as the
+    Batch reads use the spanner partitioning query to create batches.
 
     Args:
       spanner_configuration: (_BeamSpannerConfiguration) Connection details to
@@ -534,8 +534,8 @@ class ReadFromSpanner(PTransform):
            | 'Read From Partitions' >> ParDo(_ReadFromPartitionFn(
                spanner_configuration=self._configuration)))
     else:
-      # reading as naive read, in which we dont make batches and execute the
-      # queries and a single read.
+      # reading as naive read, in which we don't make batches and execute the
+      # queries as a single read.
       p = (pcoll
            | 'Reshuffle' >> Reshuffle().with_input_types(ReadOperation)
            | 'Perform Read' >> ParDo(
