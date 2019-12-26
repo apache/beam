@@ -120,10 +120,11 @@ class Pipeline(object):
     return frozenset().union(*sets)
 
   def __init__(self,
-               runner=None,  # type: Optional[Union[str, PipelineRunner]]
-               options=None,  # type: Optional[PipelineOptions]
-               argv=None  # type: Optional[List[str]]
+               runner=None,
+               options=None,
+               argv=None
               ):
+    # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], type: Optional[List[str]]) -> None
     """Initialize a pipeline object.
 
     Args:

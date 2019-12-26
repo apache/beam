@@ -170,8 +170,9 @@ class PipelineOptions(HasDisplayData):
   the options.
   """
   def __init__(self,
-               flags=None,  # type: Optional[List[str]]
+               flags=None,
                **kwargs):
+    # type: (Optional[List[str]], **Any) -> None
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
