@@ -23,29 +23,28 @@ import org.gradle.api.Project
 /**
  * Utilities for working with our vendored version of gRPC.
  */
-class GrpcVendoring {
+class GrpcVendoringOld {
   /** Returns the list of compile time dependencies. */
   static List<String> dependencies() {
     return [
       'com.google.guava:guava:26.0-jre',
-      'com.google.protobuf:protobuf-java:3.11.0',
-      'com.google.protobuf:protobuf-java-util:3.11.0',
-      'com.google.code.gson:gson:2.8.6',
-      'io.grpc:grpc-auth:1.26.0',
-      'io.grpc:grpc-core:1.26.0',
-      'io.grpc:grpc-context:1.26.0',
-      'io.grpc:grpc-netty:1.26.0',
-      'io.grpc:grpc-protobuf:1.26.0',
-      'io.grpc:grpc-stub:1.26.0',
-      'io.netty:netty-transport-native-epoll:4.1.42.Final',
+      'com.google.protobuf:protobuf-java:3.7.1',
+      'com.google.protobuf:protobuf-java-util:3.7.1',
+      'com.google.code.gson:gson:2.7',
+      'io.grpc:grpc-auth:1.21.0',
+      'io.grpc:grpc-core:1.21.0',
+      'io.grpc:grpc-context:1.21.0',
+      'io.grpc:grpc-netty:1.21.0',
+      'io.grpc:grpc-protobuf:1.21.0',
+      'io.grpc:grpc-stub:1.21.0',
+      'io.netty:netty-transport-native-epoll:4.1.34.Final',
       // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-      'io.netty:netty-tcnative-boringssl-static:2.0.26.Final',
-      'com.google.auth:google-auth-library-credentials:0.18.0',
-      'io.grpc:grpc-testing:1.26.0',
+      'io.netty:netty-tcnative-boringssl-static:2.0.22.Final',
+      'com.google.auth:google-auth-library-credentials:0.13.0',
+      'io.grpc:grpc-testing:1.21.0',
       'com.google.api.grpc:proto-google-common-protos:1.12.0',
-      'io.opencensus:opencensus-api:0.24.0',
-      'io.opencensus:opencensus-contrib-grpc-metrics:0.24.0',
-      'io.perfmark:perfmark-api:0.19.0'
+      'io.opencensus:opencensus-api:0.21.0',
+      'io.opencensus:opencensus-contrib-grpc-metrics:0.21.0',
     ]
   }
 
@@ -55,7 +54,7 @@ class GrpcVendoring {
    */
   static List<String> runtimeDependencies() {
     return [
-      'com.google.errorprone:error_prone_annotations:2.3.3',
+      'com.google.errorprone:error_prone_annotations:2.3.2',
     ]
   }
 
@@ -74,7 +73,7 @@ class GrpcVendoring {
     // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
     // ensures that there are no classes outside of the 'org.apache.beam' namespace.
 
-    String version = "v1p26p0";
+    String version = "v1p21p0";
     String prefix = "org.apache.beam.vendor.grpc.${version}";
     List<String> packagesToRelocate = [
       // guava uses the com.google.common and com.google.thirdparty package namespaces
@@ -91,7 +90,6 @@ class GrpcVendoring {
       "com.google.rpc",
       "com.google.type",
       "io.opencensus",
-      "io.perfmark",
       "io.netty"
     ]
 

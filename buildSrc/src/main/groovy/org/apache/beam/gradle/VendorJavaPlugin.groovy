@@ -132,7 +132,7 @@ artifactId=${project.name}
               include "**/*.class"
               exclude "org/apache/beam/vendor/**"
               // BEAM-5919: Exclude paths for Java 9 multi-release jars.
-              exclude "META-INF/versions/*/module-info.class"
+              exclude "**/module-info.class"
               exclude "META-INF/versions/*/org/apache/beam/vendor/**"
             }
             if (exposedClasses.files) {

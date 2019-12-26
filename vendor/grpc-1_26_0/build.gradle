@@ -20,7 +20,7 @@ import org.apache.beam.gradle.GrpcVendoring
 
 plugins { id 'org.apache.beam.vendor-java' }
 
-description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.21.0"
+description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.26.0"
 
 group = "org.apache.beam"
 version = "0.1"
@@ -30,7 +30,7 @@ vendorJava(
   runtimeDependencies: GrpcVendoring.runtimeDependencies(),
   relocations: GrpcVendoring.relocations(),
   exclusions: GrpcVendoring.exclusions(),
-  artifactId: "beam-vendor-grpc-1_21_0",
+  artifactId: "beam-vendor-grpc-1_26_0",
   groupId: group,
   version: version,
 )
