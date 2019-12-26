@@ -54,16 +54,15 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
       cpMark.setChannelLeaser(this.connectionHandler);
     }
     this.checkpointMark = cpMark;
-    mkTimestampPolicy(
+    ensureTimestampPolicySet(
         Optional.ofNullable(checkpointMark).map(RabbitMqCheckpointMark::getWatermark));
   }
 
-  private TimestampPolicy mkTimestampPolicy(Optional<Instant> prevWatermark) {
+  private void ensureTimestampPolicySet(Optional<Instant> prevWatermark) {
     if (this.timestampPolicy == null) {
       this.timestampPolicy =
           source.spec.timestampPolicyFactory().createTimestampPolicy(prevWatermark);
     }
-    return this.timestampPolicy;
   }
 
   @Override
@@ -110,7 +109,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
       queueName = source.spec.queue();
 
       ChannelLeaser.UseChannelFunction<Void> setupFn =
-          (channel) -> {
+          channel -> {
             if (source.spec.queueDeclare()) {
               // declare the queue (if not done by another application)
               // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
@@ -145,7 +144,8 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
       // we consume message without autoAck (we want to do the ack ourselves)
       GetResponse delivery =
           connectionHandler.useChannel(
-              checkpointMark.getCheckpointId(), (channel) -> channel.basicGet(queueName, false));
+              checkpointMark.getCheckpointId(),
+              channel -> channel.basicGet(queueName, /* autoAck: */ false));
 
       if (delivery == null) {
         currentRecord = null;

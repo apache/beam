@@ -23,11 +23,11 @@ import org.joda.time.Instant;
 /**
  * A timestamp policy to assign event time for messages from a RabbitMq queue and watermark for it.
  *
- * <p>Inspired by a similar concept if KafkaIO
+ * <p>Inspired by a similar concept in KafkaIO
  */
 public abstract class TimestampPolicy {
 
-  /** Analgous to KafkaIO's TimestampPolicy.PartitionContext */
+  /** Analogous to KafkaIO's TimestampPolicy.PartitionContext. */
   public abstract static class LastRead implements Serializable {
     /** Estimate of current queue depth per {@code GetResponse.messageCount}. */
     public abstract int getMessageBacklog();

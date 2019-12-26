@@ -93,40 +93,43 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
   private Channel getChannel(UUID lessee) throws IOException {
     if (connection == null) {
       synchronized (this) {
-        ConnectionFactory connectionFactory = new ConnectionFactory();
-        try {
-          connectionFactory.setUri(uri);
-          connectionFactory.setAutomaticRecoveryEnabled(true);
-          connectionFactory.setConnectionTimeout(60000);
-          connectionFactory.setNetworkRecoveryInterval(5000);
-          connectionFactory.setRequestedHeartbeat(60);
-          connectionFactory.setTopologyRecoveryEnabled(true);
-          connectionFactory.setRequestedChannelMax(0);
-          connectionFactory.setRequestedFrameMax(0);
-        } catch (URISyntaxException e) {
-          // full URI excluded lest it contain user/pass
-          throw new IOException("Unable to connect to rabbit; invalid URI", e);
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-          throw new IOException("Security issue while connecting to rabbit: " + e.getMessage(), e);
-        }
+        if (connection == null) {
+          ConnectionFactory connectionFactory = new ConnectionFactory();
+          try {
+            connectionFactory.setUri(uri);
+            connectionFactory.setAutomaticRecoveryEnabled(true);
+            connectionFactory.setConnectionTimeout(60000);
+            connectionFactory.setNetworkRecoveryInterval(5000);
+            connectionFactory.setRequestedHeartbeat(60);
+            connectionFactory.setTopologyRecoveryEnabled(true);
+            connectionFactory.setRequestedChannelMax(0);
+            connectionFactory.setRequestedFrameMax(0);
+          } catch (URISyntaxException e) {
+            // full URI excluded lest it contain user/pass
+            throw new IOException("Unable to connect to rabbit; invalid URI (uri redacted)", e);
+          } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new IOException(
+                "Security issue while connecting to rabbit: " + e.getMessage(), e);
+          }
 
-        try {
-          connection = connectionFactory.newConnection();
-        } catch (TimeoutException e) {
-          throw new IOException("Timed out attempting to connect to rabbit", e);
+          try {
+            connection = connectionFactory.newConnection();
+          } catch (TimeoutException e) {
+            throw new IOException("Timed out attempting to connect to rabbit", e);
+          }
         }
       }
     }
 
     return channelsByLessee.computeIfAbsent(
         lessee,
-        (uuid) -> {
+        uuid -> {
           try {
             return connection
                 .openChannel()
-                .orElseThrow(() -> new RuntimeException("No RabitMQ channel available"));
+                .orElseThrow(() -> new RuntimeException("No RabbitMQ channel available"));
           } catch (IOException e) {
-            throw new RuntimeException("No RabitMQ channel available");
+            throw new RuntimeException("No RabbitMQ channel available");
           }
         });
   }

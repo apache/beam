@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Modeled after {@link
@@ -52,26 +53,33 @@ public class ConnectionProviderFromUri
     this.uri = uri;
     String displayable = uri;
     try {
-      URI parsed = URI.create(uri);
-      String userInfo =
-          Optional.ofNullable(parsed.getUserInfo())
-              .map(x -> x.split(":", 2)[0]) // user:pass
-              .map(username -> username + ":")
-              .orElse("");
-      URI result =
-          new URI(
-              parsed.getScheme(),
-              userInfo,
-              parsed.getHost(),
-              parsed.getPort(),
-              parsed.getPath(),
-              null,
-              null);
-      displayable = result.toString();
+      displayable = stripPasswordFromUri(uri);
     } catch (URISyntaxException e) {
       /* ignored */
     }
     this.displayableUri = displayable;
+  }
+
+  @VisibleForTesting
+  static String stripPasswordFromUri(String uri) throws URISyntaxException {
+    // using new URI vs URI.create as this form throws URISyntaxException
+    // while the other throws IllegalArgumentException
+    URI parsed = new URI(uri);
+    String userInfo =
+        Optional.ofNullable(parsed.getUserInfo())
+            .map(x -> x.split(":", 2)[0]) // user:pass
+            .map(username -> username + ":")
+            .orElse("");
+    URI result =
+        new URI(
+            parsed.getScheme(),
+            userInfo,
+            parsed.getHost(),
+            parsed.getPort(),
+            parsed.getPath(),
+            null,
+            null);
+    return result.toString();
   }
 
   @Override
@@ -96,7 +104,7 @@ public class ConnectionProviderFromUri
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     shutdownAll();
   }
 }

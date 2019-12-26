@@ -89,8 +89,8 @@ class RabbitMqCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
 
   /**
    * When a CheckpointMark is serialized, deserialized, and passed into the constructor of a new
-   * Reader, it's imperative the reader and the checkpoint mark utilize the same channel. This is
-   * called by the Reader to enforce this.
+   * Reader, it's imperative the reader and the checkpoint mark utilize the same channel. This
+   * method is called by the Reader to enforce said restriction.
    *
    * <p>Note if any messages (delivery tags) exist that have not been acknowledged, an internal flag
    * is set, the current set of delivery tags are cleared, and the next time {@link
@@ -132,7 +132,7 @@ class RabbitMqCheckpointMark implements UnboundedSource.CheckpointMark, Serializ
     }
 
     ChannelLeaser.UseChannelFunction<Void> finalizeFn =
-        (channel) -> {
+        channel -> {
           for (Long deliveryTag : deliveryTags) {
             channel.basicAck(deliveryTag, false);
           }

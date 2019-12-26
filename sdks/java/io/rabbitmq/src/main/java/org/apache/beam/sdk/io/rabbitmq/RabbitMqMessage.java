@@ -35,8 +35,8 @@ import javax.annotation.Nullable;
 /**
  * Serializable wrapper around rabbitmq's {@link GetResponse}.
  *
- * <p>The main purpose of this class is that AMQP.BasicProperties doesn't provide a serializable
- * public API.
+ * <p>The main purpose of this class is to provide a serializable public API for
+ * AMQP.BasicProperties, which lacks one of its own.
  */
 public class RabbitMqMessage implements Serializable {
 

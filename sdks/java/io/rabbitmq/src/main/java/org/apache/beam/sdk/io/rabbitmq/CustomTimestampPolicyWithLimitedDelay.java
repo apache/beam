@@ -25,12 +25,13 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * A policy for custom record timestamps where timestamps within the queue are expected to be
- * roughly monotonically increasing with a cap on out of order event delays (say 1 minute). The
- * watermark at any time is '({@code Min(now(), Max(event timestamp so far)) - max delay})'.
- * However, watermark is never set in future and capped to 'now - max delay'. In addition, watermark
- * advanced to 'now - max delay' when the queue has caught up (previous read attempt returned no
- * message)
+ * A policy for custom record timestamps where the timestamps of messages within the queue are
+ * expected to be roughly monotonically increasing with a cap on out of order event delays (say 1
+ * minute). The watermark at any time is '({@code earliest(now(), latest(event timestamps seen so
+ * far)) - max delay})'. However, the watermark is never set to a timestamp in the future and is
+ * capped to 'now - max delay'. In addition, the watermark is advanced to 'now - max delay' when the
+ * queue has caught up (previous read attempt returned no message and/or estimated backlog per
+ * {@code GetResult} is zero))
  *
  * @see "org.apache.beam.sdk.io.kafka.CustomTimestampPolicyWithLimitedDelay for the inspiration and
  *     corresponding KafkaIO policy"
@@ -43,11 +44,11 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   /**
    * A policy for custom record timestamps where timestamps are expected to be roughly monotonically
    * increasing with out of order event delays less than {@code maxDelay}. The watermark at any time
-   * is {@code Min(now(), max_event_timestamp) - maxDelay}.
+   * is {@code earliest(now(), latest(event timestamp so far)) - maxDelay}.
    *
    * @param timestampFunction A function to extract timestamp from the record
-   * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent record
-   *     is expected to be after {@code current record timestamp - maxDelay}.
+   * @param maxDelay For any record in the queue, the timestamp of any subsequent record is expected
+   *     to be after {@code current record timestamp - maxDelay}.
    * @param previousWatermark Latest check-pointed watermark
    */
   public CustomTimestampPolicyWithLimitedDelay(

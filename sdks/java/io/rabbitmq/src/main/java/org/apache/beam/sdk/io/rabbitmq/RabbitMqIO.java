@@ -335,9 +335,11 @@ public class RabbitMqIO {
      * Sets the timestamps policy based on the amqp basic "timestamp" property of the message. It is
      * an error if a record's timestamp property is not populated. The timestamps within a queue are
      * expected to be roughly monotonically increasing with a cap on out of order delays (e.g. 'max
-     * delay' of 1 minute). The watermark at any time is '({@code Min(now(), Max(event timestamp so
-     * far)) - max delay})'. However, watermark is never set in future and capped to 'now - max
-     * delay'. In addition, watermark advanced to 'now - max delay' when a partition is idle.
+     * delay' of 1 minute). The watermark at any time is '({@code earliest(now(), latest(event
+     * timestamps seen so far)) - max delay})'. * However, the watermark is never set to a timestamp
+     * in the future and is capped to 'now - max delay'. In addition, the watermark * is advanced to
+     * 'now - max delay' when the queue has caught up (previous read attempt returned no * message
+     * and/or estimated backlog per {@code GetResult} is zero)
      *
      * @param maxDelay For any record in the queue partition, the timestamp of any subsequent record
      *     is expected to be after {@code current record timestamp - maxDelay}.
@@ -525,12 +527,17 @@ public class RabbitMqIO {
         }
 
         ChannelLeaser.UseChannelFunction<Void> setupFn =
-            (channel) -> {
+            channel -> {
               if (spec.exchange() != null && spec.exchangeDeclare()) {
                 channel.exchangeDeclare(spec.exchange(), spec.exchangeType());
               }
               if (spec.queue() != null && spec.queueDeclare()) {
-                channel.queueDeclare(spec.queue(), true, false, false, null);
+                channel.queueDeclare(
+                    spec.queue(), /* durable */
+                    true, /* exclusive */
+                    false, /* auto-delete */
+                    false, /* arguments */
+                    null);
               }
               return null;
             };
@@ -545,7 +552,7 @@ public class RabbitMqIO {
         // TODO: get rid of 'exchange' vs 'queue'
         if (spec.exchange() != null) {
           ChannelLeaser.UseChannelFunction<Void> basicPublishFn =
-              (channel) -> {
+              channel -> {
                 channel.basicPublish(
                     spec.exchange(),
                     message.getRoutingKey(),
@@ -560,7 +567,7 @@ public class RabbitMqIO {
         if (spec.queue() != null) {
 
           ChannelLeaser.UseChannelFunction<Void> basicPublishFn =
-              (channel) -> {
+              channel -> {
                 // TODO: what's with this ridiculous hard-coding of message props?
                 channel.basicPublish(
                     "", spec.queue(), MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBody());
