@@ -131,7 +131,7 @@ from apache_beam.utils.annotations import experimental
 try:
   from google.cloud.spanner import Client
   from google.cloud.spanner import KeySet
-    from google.cloud.spanner_v1.database import BatchSnapshot
+  from google.cloud.spanner_v1.database import BatchSnapshot
 except ImportError:
   Client = None
   KeySet = None
