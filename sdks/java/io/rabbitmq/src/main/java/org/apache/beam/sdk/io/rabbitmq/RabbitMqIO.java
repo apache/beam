@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * A IO to publish or consume messages with a RabbitMQ broker.
@@ -110,7 +111,8 @@ public class RabbitMqIO {
     return new AutoValue_RabbitMqIO_Read.Builder()
         .setQueueDeclare(false)
         .setExchangeDeclare(false)
-        // this is not a great policy, this should be set to something more sensible
+        // this policy is only appropriate for pipelines with at-least-once semantics
+        // and capable of handling potentially a large number of repeatedly-delivered messages
         .setRecordIdPolicy(RecordIdPolicy.alwaysUnique())
         .setMaxReadTime(null)
         .setMaxNumRecords(Long.MAX_VALUE)
@@ -325,21 +327,26 @@ public class RabbitMqIO {
      * the default timestamp policy. It assigns processing time to each record. Specifically, this
      * is the timestamp when the record becomes 'current' in the reader. The watermark aways
      * advances to current time. If messages are delivered to the rabbit queue with the Timestamp
-     * property set, {@link #withTimestampPropertyTime(Duration)}} is recommended over this.
+     * property set, {@link #withTimestampPluginCompatPolicyFactory(Duration)}} is recommended over
+     * this.
      */
     public Read withProcessingTime() {
       return withTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
     }
 
     /**
-     * Sets the timestamps policy based on the amqp basic "timestamp" property of the message. It is
-     * an error if a record's timestamp property is not populated. The timestamps within a queue are
-     * expected to be roughly monotonically increasing with a cap on out of order delays (e.g. 'max
-     * delay' of 1 minute). The watermark at any time is '({@code earliest(now(), latest(event
-     * timestamps seen so far)) - max delay})'. * However, the watermark is never set to a timestamp
-     * in the future and is capped to 'now - max delay'. In addition, the watermark * is advanced to
-     * 'now - max delay' when the queue has caught up (previous read attempt returned no * message
-     * and/or estimated backlog per {@code GetResult} is zero)
+     * Sets the timestamps policy based on an <a href
+     * ="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ Message Timestamp
+     * Plugin</a>-compatible message. It is an error if a record's {@code timestamp} property is not
+     * populated and the {@code timestamp_in_ms} header is missing or malformed . The timestamps
+     * within a queue are expected to be roughly monotonically increasing with a cap on out of order
+     * delays (e.g. 'max delay' of 1 minute). The watermark at any time is '({@code earliest(now(),
+     * latest(event timestamps seen so far)) - max delay})'.
+     *
+     * <p>However, the watermark is never set to a timestamp in the future and is capped to 'now -
+     * max delay'. In addition, the watermark * is advanced to 'now - max delay' when the queue has
+     * caught up (previous read attempt returned no * message and/or estimated backlog per {@code
+     * GetResult} is zero)
      *
      * @param maxDelay For any record in the queue partition, the timestamp of any subsequent record
      *     is expected to be after {@code current record timestamp - maxDelay}.
@@ -347,9 +354,38 @@ public class RabbitMqIO {
      *     Timestamp Plugin</a>
      * @see <a href="https://www.rabbitmq.com/amqp-0-9-1-reference.html#class.basic">basic Timestamp
      *     property</a>
+     * @see CustomTimestampPolicyWithLimitedDelay for how the extracted timestamp will be used in
+     *     Beam
      */
-    public Read withTimestampPropertyTime(Duration maxDelay) {
-      return withTimestampPolicyFactory(TimestampPolicyFactory.withTimestampProperty(maxDelay));
+    public Read withTimestampPluginCompatPolicyFactory(Duration maxDelay) {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withTimestampPluginCompat(maxDelay));
+    }
+
+    /**
+     * Sets a timestamp policy based on a custom timestamp extration strategy where the timestamps
+     * within a queue are expected to be roughly monotonically increasing with a cap on out of order
+     * delays (e.g. 'max delay' of 1 minute). The watermark at any time is '({@code earliest(now(),
+     * latest(event timestamps seen so far)) - max delay})'.
+     *
+     * <p>However, the watermark is never set to a timestamp in the future and is capped to 'now -
+     * max delay'. In addition, the watermark * is advanced to 'now - max delay' when the queue has
+     * caught up (previous read attempt returned no * message and/or estimated backlog per {@code
+     * GetResult} is zero).
+     *
+     * <p>If your timestamp approach is compatible with the <a href
+     * ="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ Message Timestamp
+     * Plugin</a>, use {@link #withTimestampPluginCompatPolicyFactory(Duration)} instead.
+     *
+     * @param maxDelay For any record in the queue partition, the timestamp of any subsequent record
+     *     is expected to be after {@code current record timestamp - maxDelay}.
+     * @param timestampExtractor a means of extracting the event time from a rabbitmq message
+     * @see CustomTimestampPolicyWithLimitedDelay for how the extracted timestamp will be used in
+     *     Beam
+     */
+    public Read withTimestampPluginCompatPolicyFactory(
+        Duration maxDelay, SerializableFunction<RabbitMqMessage, Instant> timestampExtractor) {
+      return withTimestampPolicyFactory(
+          TimestampPolicyFactory.withTimestamp(maxDelay, timestampExtractor));
     }
 
     public Read withTimestampPolicyFactory(TimestampPolicyFactory timestampPolicyFactory) {

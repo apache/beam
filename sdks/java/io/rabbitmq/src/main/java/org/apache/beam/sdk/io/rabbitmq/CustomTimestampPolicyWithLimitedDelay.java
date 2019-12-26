@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
+import java.util.Date;
 import java.util.Optional;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -40,6 +41,31 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   private final Duration maxDelay;
   private final SerializableFunction<RabbitMqMessage, Instant> timestampFunction;
   private Instant maxEventTimestamp;
+
+  /**
+   * A timestamp extractor compatible with the <a
+   * href="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ Message Timestamp
+   * plugin</a>, which first looks for header {@code timestamp_in_ms} then falls back to amqp
+   * message property {@code timestamp}
+   */
+  public static SerializableFunction<RabbitMqMessage, Instant>
+      RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT =
+          record -> {
+            Object rawTimestampMillis = record.getHeaders().get("timestamp_in_ms");
+            if (rawTimestampMillis != null) {
+              try {
+                return Instant.ofEpochMilli(Long.parseLong(rawTimestampMillis.toString()));
+              } catch (NumberFormatException | NullPointerException e) {
+                /* ignored */
+              }
+            }
+            Date timestamp = record.getTimestamp();
+            if (timestamp == null) {
+              throw new IllegalArgumentException(
+                  "Neither timestamp_in_ms header nor timestamp property contain a valid timestamp value");
+            }
+            return new Instant(timestamp);
+          };
 
   /**
    * A policy for custom record timestamps where timestamps are expected to be roughly monotonically

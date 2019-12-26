@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.io.Serializable;
 import java.util.Optional;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -29,7 +27,7 @@ import org.joda.time.Instant;
  * An extendable factory to create a {@link TimestampPolicy} for each queue at runtime by RabbitMqIO
  * reader. Subclasses implement {@link #createTimestampPolicy}, which is invoked by the the reader
  * while starting or resuming from a checkpoint. Two commonly used policies are provided. See {@link
- * #withTimestampProperty(Duration)} and {@link #withProcessingTime()}.
+ * #withTimestampPluginCompat(Duration)} and {@link #withProcessingTime()}.
  */
 @FunctionalInterface
 public interface TimestampPolicyFactory extends Serializable {
@@ -44,20 +42,55 @@ public interface TimestampPolicyFactory extends Serializable {
    */
   TimestampPolicy createTimestampPolicy(Optional<Instant> previousWatermark);
 
+  /**
+   * @return A simple policy that uses current time for event time and watermark. This should be
+   *     used if no better timestamps are available such as a custom header like timestamp_in_ms or
+   *     amqp property timestamp.
+   */
   static TimestampPolicyFactory withProcessingTime() {
     return prev -> new ProcessingTimePolicy();
   }
 
-  static TimestampPolicyFactory withTimestampProperty(Duration maxDelay) {
-    SerializableFunction<RabbitMqMessage, Instant> timestampFunction =
-        record -> {
-          checkArgument(
-              record.getTimestamp() != null, "Rabbit message's Timestamp property is null");
-          return new Instant(record.getTimestamp());
-        };
+  /**
+   * Produces a {@link CustomTimestampPolicyWithLimitedDelay} policy based on extracting timestamps
+   * compatible with the <a href="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ
+   * Message Timestamp</a> plugin, that first looks for header {@code timestamp_in_ms} then falls
+   * back to amqp property {@code timestamp}. If neither are specified or both are malformed, a
+   * runtime exception will be thrown.
+   *
+   * <p>To use a custom timestamp extraction strategy with {@link
+   * CustomTimestampPolicyWithLimitedDelay}, use {@link #withTimestamp(Duration,
+   * SerializableFunction)}.
+   *
+   * @param maxDelay For any record in the mostly-monotonically-increasing queue, the timestamp of
+   *     any subsequent record is expected to be after {@code current record timestamp - maxDelay}.
+   *     This value is meant to reflect the maximum 'out-of-orderness' that can be expected in the
+   *     queue before considering a message a late arrival.
+   */
+  static TimestampPolicyFactory withTimestampPluginCompat(Duration maxDelay) {
+    return withTimestamp(
+        maxDelay, CustomTimestampPolicyWithLimitedDelay.RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT);
+  }
 
+  /**
+   * Produces a {@link CustomTimestampPolicyWithLimitedDelay} policy based on the supplied timestamp
+   * extractor.
+   *
+   * <p>To use an implementation compatible with the <a
+   * href="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ Message Timestamp
+   * plugin</a>, use {@link #withTimestampPluginCompat(Duration)} or provide argument {@link
+   * CustomTimestampPolicyWithLimitedDelay#RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT}.
+   *
+   * @param maxDelay maxDelay For any record in the mostly-monotonically-increasing queue, the
+   *     timestamp of any subsequent record is expected to be after {@code current record timestamp
+   *     - maxDelay}. This value is meant to reflect the maximum 'out-of-orderness' that can be
+   *     expected in the queue before considering a message a late arrival.
+   * @param timestampExtractor a means of extracting the event time from a rabbitmq message
+   */
+  static TimestampPolicyFactory withTimestamp(
+      Duration maxDelay, SerializableFunction<RabbitMqMessage, Instant> timestampExtractor) {
     return previousWatermark ->
-        new CustomTimestampPolicyWithLimitedDelay(maxDelay, timestampFunction, previousWatermark);
+        new CustomTimestampPolicyWithLimitedDelay(maxDelay, timestampExtractor, previousWatermark);
   }
 
   /**
