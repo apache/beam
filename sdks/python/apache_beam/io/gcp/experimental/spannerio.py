@@ -88,9 +88,11 @@ utilizing the power of read only transactions. Staleness of data can be
 controlled by providing the `read_timestamp` or `exact_staleness` param values
 in the constructor.
 
-This transform requires root of the pipeline (PBegin) and returns the dict
-containing 'session_id' and 'transaction_id'. This `create_transaction`
-PTransform later passed to the constructor of ReadFromSpanner. For example:::
+This transform requires root of the pipeline (PBegin) and returns PTransform
+which is passed later to the `ReadFromSpanner` constructor. `ReadFromSpanner`
+pass this transaction PTransform as a singleton side input to the
+`_NaiveSpannerReadDoFn` containing 'session_id' and 'transaction_id'.
+For example:::
 
   transaction = (pipeline | create_transaction(TEST_PROJECT_ID,
                                               TEST_INSTANCE_ID,
@@ -129,7 +131,7 @@ from apache_beam.utils.annotations import experimental
 try:
   from google.cloud.spanner import Client
   from google.cloud.spanner import KeySet
-  from google.cloud.spanner_v1.database import BatchSnapshot
+    from google.cloud.spanner_v1.database import BatchSnapshot
 except ImportError:
   Client = None
   KeySet = None
@@ -403,9 +405,6 @@ class _ReadFromPartitionFn(DoFn):
 
   def __init__(self, spanner_configuration):
     self._spanner_configuration = spanner_configuration
-
-  # def to_runner_api_parameter(self, context):
-  #   return self.to_runner_api_pickled(context)
 
   def setup(self):
     spanner_client = Client(self._spanner_configuration.project)
