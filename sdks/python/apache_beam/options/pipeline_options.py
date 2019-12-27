@@ -169,9 +169,7 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  def __init__(self,
-               flags=None,
-               **kwargs):
+  def __init__(self, flags=None, **kwargs):
     # type: (Optional[List[str]], **Any) -> None
     """Initialize an options class.
 
