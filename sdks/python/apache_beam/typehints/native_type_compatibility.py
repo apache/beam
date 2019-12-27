@@ -189,8 +189,8 @@ def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
   Args:
-    typ (typing.Union[type, str]): typing type or string literal representing a
-      type.
+    typ (`typing.Union[type, str]`): typing type or string literal representing
+      a type.
 
   Returns:
     type: The given type converted to a Beam type as far as we can do the
