@@ -21,12 +21,10 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.DateTime;
-import com.google.auto.value.AutoValue;
-import com.google.protobuf.ByteString;
-import com.google.pubsub.v1.PubsubMessage;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -300,37 +298,59 @@ public abstract class PubsubClient implements Closeable {
    * <p>NOTE: This class is {@link Serializable} only to support the {@link PubsubTestClient}. Java
    * serialization is never used for non-test clients.
    */
-  @AutoValue
-  public abstract static class OutgoingMessage implements Serializable {
+  public static class OutgoingMessage implements Serializable {
+    /** Underlying (encoded) element. */
+    public final byte[] elementBytes;
 
-    /** Underlying Message. May not have publish timestamp set. */
-    public abstract PubsubMessage message();
+    public final Map<String, String> attributes;
 
     /** Timestamp for element (ms since epoch). */
-    public abstract long timestampMsSinceEpoch();
+    public final long timestampMsSinceEpoch;
 
     /**
      * If using an id attribute, the record id to associate with this record's metadata so the
      * receiver can reject duplicates. Otherwise {@literal null}.
      */
-    @Nullable
-    public abstract String recordId();
+    @Nullable public final String recordId;
 
-    public static OutgoingMessage of(
-        PubsubMessage message, long timestampMsSinceEpoch, @Nullable String recordId) {
-      return new AutoValue_PubsubClient_OutgoingMessage(message, timestampMsSinceEpoch, recordId);
-    }
-
-    public static OutgoingMessage of(
-        org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage message,
+    public OutgoingMessage(
+        byte[] elementBytes,
+        Map<String, String> attributes,
         long timestampMsSinceEpoch,
         @Nullable String recordId) {
-      PubsubMessage.Builder builder =
-          PubsubMessage.newBuilder().setData(ByteString.copyFrom(message.getPayload()));
-      if (message.getAttributeMap() != null) {
-        builder.putAllAttributes(message.getAttributeMap());
+      this.elementBytes = elementBytes;
+      this.attributes = attributes;
+      this.timestampMsSinceEpoch = timestampMsSinceEpoch;
+      this.recordId = recordId;
+    }
+
+    @Override
+    public String toString() {
+      return String.format(
+          "OutgoingMessage(%db, %dms)", elementBytes.length, timestampMsSinceEpoch);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
       }
-      return of(builder.build(), timestampMsSinceEpoch, recordId);
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      OutgoingMessage that = (OutgoingMessage) o;
+
+      return timestampMsSinceEpoch == that.timestampMsSinceEpoch
+          && Arrays.equals(elementBytes, that.elementBytes)
+          && Objects.equal(attributes, that.attributes)
+          && Objects.equal(recordId, that.recordId);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(
+          Arrays.hashCode(elementBytes), attributes, timestampMsSinceEpoch, recordId);
     }
   }
 
@@ -340,35 +360,86 @@ public abstract class PubsubClient implements Closeable {
    * <p>NOTE: This class is {@link Serializable} only to support the {@link PubsubTestClient}. Java
    * serialization is never used for non-test clients.
    */
-  @AutoValue
-  abstract static class IncomingMessage implements Serializable {
+  static class IncomingMessage implements Serializable {
+    /** Underlying (encoded) element. */
+    public final byte[] elementBytes;
 
-    /** Underlying Message. */
-    public abstract PubsubMessage message();
+    public Map<String, String> attributes;
 
     /**
      * Timestamp for element (ms since epoch). Either Pubsub's processing time, or the custom
      * timestamp associated with the message.
      */
-    public abstract long timestampMsSinceEpoch();
+    public final long timestampMsSinceEpoch;
 
     /** Timestamp (in system time) at which we requested the message (ms since epoch). */
-    public abstract long requestTimeMsSinceEpoch();
+    public final long requestTimeMsSinceEpoch;
 
     /** Id to pass back to Pubsub to acknowledge receipt of this message. */
-    public abstract String ackId();
+    public final String ackId;
 
     /** Id to pass to the runner to distinguish this message from all others. */
-    public abstract String recordId();
+    public final String recordId;
 
-    public static IncomingMessage of(
-        PubsubMessage message,
+    public IncomingMessage(
+        byte[] elementBytes,
+        Map<String, String> attributes,
         long timestampMsSinceEpoch,
         long requestTimeMsSinceEpoch,
         String ackId,
         String recordId) {
-      return new AutoValue_PubsubClient_IncomingMessage(
-          message, timestampMsSinceEpoch, requestTimeMsSinceEpoch, ackId, recordId);
+      this.elementBytes = elementBytes;
+      this.attributes = attributes;
+      this.timestampMsSinceEpoch = timestampMsSinceEpoch;
+      this.requestTimeMsSinceEpoch = requestTimeMsSinceEpoch;
+      this.ackId = ackId;
+      this.recordId = recordId;
+    }
+
+    public IncomingMessage withRequestTime(long requestTimeMsSinceEpoch) {
+      return new IncomingMessage(
+          elementBytes,
+          attributes,
+          timestampMsSinceEpoch,
+          requestTimeMsSinceEpoch,
+          ackId,
+          recordId);
+    }
+
+    @Override
+    public String toString() {
+      return String.format(
+          "IncomingMessage(%db, %dms)", elementBytes.length, timestampMsSinceEpoch);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      IncomingMessage that = (IncomingMessage) o;
+
+      return timestampMsSinceEpoch == that.timestampMsSinceEpoch
+          && requestTimeMsSinceEpoch == that.requestTimeMsSinceEpoch
+          && ackId.equals(that.ackId)
+          && recordId.equals(that.recordId)
+          && Arrays.equals(elementBytes, that.elementBytes)
+          && Objects.equal(attributes, that.attributes);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(
+          Arrays.hashCode(elementBytes),
+          attributes,
+          timestampMsSinceEpoch,
+          requestTimeMsSinceEpoch,
+          ackId,
+          recordId);
     }
   }
 
