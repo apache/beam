@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
-import java.util.function.Function;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 
 /**
@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
  * Channels.
  */
 @FunctionalInterface
-public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
+public interface RecordIdPolicy extends SerializableFunction<RabbitMqMessage, byte[]> {
 
   /**
    * @return a policy that defines the message id by the amqp {@code correlation-id} property

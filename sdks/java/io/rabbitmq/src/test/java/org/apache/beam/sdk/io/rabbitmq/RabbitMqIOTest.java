@@ -28,14 +28,16 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Method;
 import com.rabbitmq.client.ShutdownSignalException;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -72,6 +74,8 @@ public class RabbitMqIOTest implements Serializable {
 
   private static int port;
   private static String defaultPort;
+  private static String uri;
+  private static ConnectionHandler connectionHandler;
 
   @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -98,59 +102,64 @@ public class RabbitMqIOTest implements Serializable {
     attributes.put(SystemConfig.DEFAULT_QPID_WORK_DIR, temporaryFolder.newFolder().toString());
 
     launcher.startup(attributes);
+
+    uri = "amqp://guest:guest@localhost:" + port;
+
+    connectionHandler = new ConnectionHandler(uri);
   }
 
   @AfterClass
   public static void afterClass() {
-    launcher.shutdown();
     if (defaultPort != null) {
       System.setProperty("qpid.amqp_port", defaultPort);
     } else {
       System.clearProperty("qpid.amqp_port");
     }
+    launcher.shutdown();
+    try {
+      connectionHandler.close();
+    } catch (IOException e) {
+      /* ignored */
+    }
   }
 
-  @Test
-  public void testReadQueue() throws Exception {
+  @Test(timeout = ONE_MINUTE_MS * 100L)
+  public void testReadDefaultExchange() throws Exception {
+    UUID testId = UUID.randomUUID();
+
     final int maxNumRecords = 10;
-    PCollection<RabbitMqMessage> raw =
-        p.apply(
-            RabbitMqIO.read()
-                .withUri("amqp://guest:guest@localhost:" + port)
-                .withQueue("READ", true)
-                .withMaxNumRecords(maxNumRecords));
+    final String queueName = "READ";
+    RabbitMqIO.Read spec =
+        RabbitMqIO.read(uri)
+            .withDefaultExchange()
+            .withQueue(queueName, false)
+            .withMaxNumRecords(maxNumRecords);
+
+    PCollection<RabbitMqMessage> raw = p.apply(spec);
+
     PCollection<String> output =
         raw.apply(
-            MapElements.into(TypeDescriptors.strings())
-                .via(
-                    (RabbitMqMessage message) -> RabbitMqTestUtils.recordToString(message.body())));
+            MapElements.into(TypeDescriptors.strings()).via(RabbitMqTestUtils::messageToString));
 
-    List<String> records =
+    final List<RabbitMqMessage> messages =
         RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
-            .map(RabbitMqTestUtils::recordToString)
+            .map(msg -> msg.toBuilder().setRoutingKey(queueName).build())
             .collect(Collectors.toList());
-    PAssert.that(output).containsInAnyOrder(records);
+    Set<String> expected =
+        messages.stream().map(RabbitMqTestUtils::messageToString).collect(Collectors.toSet());
 
-    ConnectionFactory connectionFactory = new ConnectionFactory();
-    connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
-    Connection connection = null;
-    Channel channel = null;
+    PAssert.that(output).containsInAnyOrder(expected);
+
     try {
-      connection = connectionFactory.newConnection();
-      channel = connection.createChannel();
-      channel.queueDeclare("READ", false, false, false, null);
-      for (String record : records) {
-        channel.basicPublish("", "READ", null, record.getBytes(StandardCharsets.UTF_8));
-      }
-
+      connectionHandler.useChannel(testId, channel -> {
+        RabbitMqTestUtils.createExchange(spec).apply(channel);
+        channel.queueDeclare(queueName, false, false, false, Collections.emptyMap());
+        RabbitMqTestUtils.publishMessages(spec, messages).apply(channel);
+        return null;
+      });
       p.run();
     } finally {
-      if (channel != null) {
-        channel.close();
-      }
-      if (connection != null) {
-        connection.close();
-      }
+      connectionHandler.closeChannel(testId);
     }
   }
 
@@ -162,7 +171,6 @@ public class RabbitMqIOTest implements Serializable {
    */
   private void doExchangeTest(ExchangeTestPlan testPlan, boolean simulateIncompatibleExchange)
       throws Exception {
-    String uri = "amqp://guest:guest@localhost:" + port;
     RabbitMqIO.Read read = testPlan.getRead();
     PCollection<RabbitMqMessage> raw =
         p.apply(read.withUri(uri).withMaxNumRecords(testPlan.getNumRecords()));
@@ -170,8 +178,7 @@ public class RabbitMqIOTest implements Serializable {
     PCollection<String> result =
         raw.apply(
             MapElements.into(TypeDescriptors.strings())
-                .via(
-                    (RabbitMqMessage message) -> RabbitMqTestUtils.recordToString(message.body())));
+                .via((RabbitMqMessage message) -> RabbitMqTestUtils.bodyToString(message.body())));
 
     List<String> expected = testPlan.expectedResults();
 
@@ -221,7 +228,7 @@ public class RabbitMqIOTest implements Serializable {
                         exchange,
                         testPlan.publishRoutingKeyGen().get(),
                         testPlan.getPublishProperties(),
-                        RabbitMqTestUtils.generateRecord(i));
+                        RabbitMqTestUtils.generateRecord(i).body());
                   } catch (Exception e) {
                     LOG.error(e.getMessage(), e);
                   }
@@ -257,14 +264,15 @@ public class RabbitMqIOTest implements Serializable {
   @Test(timeout = ONE_MINUTE_MS)
   public void testReadDeclaredFanoutExchange() throws Exception {
     doExchangeTest(
-        new ExchangeTestPlan(RabbitMqIO.read().withFanoutExchange("DeclaredFanoutExchange"), 10));
+        new ExchangeTestPlan(
+            RabbitMqIO.read(uri).withFanoutExchange("DeclaredFanoutExchange"), 10));
   }
 
   @Test(timeout = ONE_MINUTE_MS)
   public void testReadDeclaredTopicExchangeWithQueueDeclare() throws Exception {
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read()
+            RabbitMqIO.read(uri)
                 .withTopicExchange("DeclaredTopicExchangeWithQueueDeclare", "#")
                 .withQueue("declared-queue", true),
             10));
@@ -274,7 +282,7 @@ public class RabbitMqIOTest implements Serializable {
   public void testReadDeclaredTopicExchange() throws Exception {
     final int numRecords = 10;
     RabbitMqIO.Read read =
-        RabbitMqIO.read().withTopicExchange("DeclaredTopicExchange", "user.create.#");
+        RabbitMqIO.read(uri).withTopicExchange("DeclaredTopicExchange", "user.create.#");
 
     final Supplier<String> publishRoutingKeyGen =
         new Supplier<String>() {
@@ -302,7 +310,7 @@ public class RabbitMqIOTest implements Serializable {
             return IntStream.range(0, numRecords)
                 .filter(i -> i % 2 == 0)
                 .mapToObj(RabbitMqTestUtils::generateRecord)
-                .map(RabbitMqTestUtils::recordToString)
+                .map(RabbitMqTestUtils::messageToString)
                 .collect(Collectors.toList());
           }
         };
@@ -312,7 +320,7 @@ public class RabbitMqIOTest implements Serializable {
 
   @Test(timeout = ONE_MINUTE_MS)
   public void testDeclareIncompatibleExchangeFails() throws Exception {
-    RabbitMqIO.Read read = RabbitMqIO.read().withDirectExchange("IncompatibleExchange");
+    RabbitMqIO.Read read = RabbitMqIO.read(uri).withDirectExchange("IncompatibleExchange");
     try {
       doExchangeTest(new ExchangeTestPlan(read, 1), true);
       fail("Expected to have failed to declare an incompatible exchange");
@@ -343,7 +351,7 @@ public class RabbitMqIOTest implements Serializable {
         new AMQP.BasicProperties().builder().correlationId("123").build();
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read()
+            RabbitMqIO.read(uri)
                 .withFanoutExchange("CorrelationIdSuccess")
                 .withRecordIdPolicy(RecordIdPolicy.correlationId()),
             messageCount,
@@ -357,7 +365,7 @@ public class RabbitMqIOTest implements Serializable {
     AMQP.BasicProperties publishProps = null;
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read()
+            RabbitMqIO.read(uri)
                 .withFanoutExchange("CorrelationIdFailure")
                 .withRecordIdPolicy(RecordIdPolicy.messageId()),
             messageCount,
@@ -370,10 +378,9 @@ public class RabbitMqIOTest implements Serializable {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
         RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
-            .map(body -> RabbitMqMessage.builder().setBody(body).setRoutingKey("TEST").build())
+            .map(msg -> msg.toBuilder().setRoutingKey("TEST").build())
             .collect(Collectors.toList());
-    p.apply(Create.of(data))
-        .apply(RabbitMqIO.write().withUri("amqp://guest:guest@localhost:" + port));
+    p.apply(Create.of(data)).apply(RabbitMqIO.write(uri));
 
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -410,15 +417,8 @@ public class RabbitMqIOTest implements Serializable {
   @Test
   public void testWriteExchange() throws Exception {
     final int maxNumRecords = 1000;
-    List<RabbitMqMessage> data =
-        RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
-            .map(body -> RabbitMqMessage.builder().setBody(body).build())
-            .collect(Collectors.toList());
-    p.apply(Create.of(data))
-        .apply(
-            RabbitMqIO.write()
-                .withUri("amqp://guest:guest@localhost:" + port)
-                .withExchange("WRITE"));
+    List<RabbitMqMessage> data = RabbitMqTestUtils.generateRecords(maxNumRecords);
+    p.apply(Create.of(data)).apply(RabbitMqIO.write(uri).withExchange("WRITE"));
 
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();

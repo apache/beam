@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
+import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -66,15 +67,28 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
       close();
       throw e;
     } catch (ShutdownSignalException e) {
-      // Connection- or Channel-level, depending
-      Object cause = e.getReference();
-      if (cause instanceof Channel) {
-        closeChannel(lesseeId);
-      }
-      if (cause instanceof Connection) {
-        close();
+      handleShutdownSignalException(e, lesseeId);
+      throw e;
+    } catch (RuntimeException e) {
+      // may have been wrapped
+      Throwable cause = e.getCause();
+      if (cause instanceof ShutdownSignalException) {
+        ShutdownSignalException cast = (ShutdownSignalException) cause;
+        handleShutdownSignalException(cast, lesseeId);
+        throw cast;
       }
       throw e;
+    }
+  }
+
+  private void handleShutdownSignalException(ShutdownSignalException e, UUID lesseeId)
+      throws IOException {
+    // Connection- or Channel-level, depending
+    Object cause = e.getReference();
+    if (cause instanceof Channel) {
+      closeChannel(lesseeId);
+    } else {
+      close();
     }
   }
 
@@ -153,7 +167,12 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
     channelsByLessee.clear();
 
     if (connection != null) {
-      connection.close();
+      try {
+        connection.close();
+      } catch (AlreadyClosedException e) {
+        /* ignored */
+      }
+
       connection = null;
     }
   }

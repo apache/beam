@@ -87,7 +87,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
 
   @Override
   public byte[] getCurrentRecordId() {
-    return Optional.ofNullable(currentRecord).map(recordIdPolicy).get();
+    return Optional.ofNullable(currentRecord).map(recordIdPolicy::apply).get();
   }
 
   @Override
@@ -123,15 +123,18 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
               queueName = channel.queueDeclare().getQueue();
             }
 
-            String routingKey = source.spec.routingKey();
-            if ("direct".equalsIgnoreCase(source.spec.exchangeType())
-                || "fanout".equalsIgnoreCase(source.spec.exchangeType())) {
-              // pubsub and direct exchanges do not require a routing key to be defined as the
-              // exchange type
-              // dictates the routing semantics
-              routingKey = null;
+            if (!"".equalsIgnoreCase(source.spec.exchange())) {
+              // the default exchange does not allow for explicitly binding a queue
+              String routingKey = source.spec.routingKey();
+              if ("direct".equalsIgnoreCase(source.spec.exchangeType())
+                  || "fanout".equalsIgnoreCase(source.spec.exchangeType())) {
+                // pubsub and direct exchanges do not require a routing key to be defined as the
+                // exchange type
+                // dictates the routing semantics
+                routingKey = "";
+              }
+              channel.queueBind(queueName, source.spec.exchange(), routingKey);
             }
-            channel.queueBind(queueName, source.spec.exchange(), routingKey);
 
             return null;
           };

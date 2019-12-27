@@ -24,11 +24,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
- * RabbitMqIO documents "using a queue" vs "using an exchange", but AMQP always interacts with an
- * exchange. The 'queue' semantics only make sense for a "direct exchange" where the routing key and
- * queue name match.
- *
- * <p>To facilitate the many combinations of queue bindings, routing keys, and exchange declarations
+ * To facilitate the many combinations of queue bindings, routing keys, and exchange declarations
  * that could be used, this class has been implemented to help represent the parameters of a test
  * oriented around reading messages published to an exchange.
  */
@@ -96,7 +92,7 @@ class ExchangeTestPlan {
   /** @return The expected parsed (String) messages read from the queue during the test. */
   public List<String> expectedResults() {
     return RabbitMqTestUtils.generateRecords(numRecordsToPublish).stream()
-        .map(RabbitMqTestUtils::recordToString)
+        .map(RabbitMqTestUtils::messageToString)
         .collect(Collectors.toList());
   }
 }

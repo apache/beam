@@ -142,7 +142,7 @@ import org.joda.time.Instant;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class RabbitMqIO {
-  public static Read read() {
+  public static Read read(String uri) {
     return new AutoValue_RabbitMqIO_Read.Builder()
         // until a queue is specified, this will have to be ephemeral
         .setQueueDeclare(false)
@@ -157,11 +157,14 @@ public class RabbitMqIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         // processing-time only policy by default; often not a great choice
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
+        .setConnectionHandlerProviderFn(new ConnectionProviderFromUri(uri))
         .build();
   }
 
-  public static Write write() {
-    return new AutoValue_RabbitMqIO_Write.Builder().build();
+  public static Write write(String uri) {
+    return new AutoValue_RabbitMqIO_Write.Builder()
+        .setConnectionHandlerProviderFn(new ConnectionProviderFromUri(uri))
+        .build();
   }
 
   private RabbitMqIO() {}
