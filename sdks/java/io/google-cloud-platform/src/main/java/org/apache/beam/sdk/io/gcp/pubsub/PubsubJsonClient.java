@@ -42,6 +42,7 @@ import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -171,7 +172,12 @@ public class PubsubJsonClient extends PubsubClient {
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessages().size());
     for (ReceivedMessage message : response.getReceivedMessages()) {
       PubsubMessage pubsubMessage = message.getMessage();
-      @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
+      Map<String, String> attributes;
+      if (pubsubMessage.getAttributes() != null) {
+        attributes = pubsubMessage.getAttributes();
+      } else {
+        attributes = new HashMap<>();
+      }
 
       // Payload.
       byte[] elementBytes = pubsubMessage.getData() == null ? null : pubsubMessage.decodeData();
@@ -189,7 +195,7 @@ public class PubsubJsonClient extends PubsubClient {
 
       // Record id, if any.
       @Nullable String recordId = null;
-      if (idAttribute != null && attributes != null) {
+      if (idAttribute != null) {
         recordId = attributes.get(idAttribute);
       }
       if (Strings.isNullOrEmpty(recordId)) {

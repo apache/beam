@@ -125,6 +125,36 @@ public class PubsubJsonClientTest {
   }
 
   @Test
+  public void pullOneMessageEmptyAttributes() throws IOException {
+    client = new PubsubJsonClient(null, null, mockPubsub);
+    String expectedSubscription = SUBSCRIPTION.getPath();
+    PullRequest expectedRequest = new PullRequest().setReturnImmediately(true).setMaxMessages(10);
+    PubsubMessage expectedPubsubMessage =
+        new PubsubMessage()
+            .setMessageId(MESSAGE_ID)
+            .encodeData(DATA.getBytes(StandardCharsets.UTF_8))
+            .setPublishTime(String.valueOf(PUB_TIME));
+    ReceivedMessage expectedReceivedMessage =
+        new ReceivedMessage().setMessage(expectedPubsubMessage).setAckId(ACK_ID);
+    PullResponse expectedResponse =
+        new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
+    when((Object)
+            (mockPubsub
+                .projects()
+                .subscriptions()
+                .pull(expectedSubscription, expectedRequest)
+                .execute()))
+        .thenReturn(expectedResponse);
+    List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
+    assertEquals(1, acutalMessages.size());
+    IncomingMessage actualMessage = acutalMessages.get(0);
+    assertEquals(ACK_ID, actualMessage.ackId());
+    assertEquals(DATA, actualMessage.message().getData().toStringUtf8());
+    assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch());
+    assertEquals(PUB_TIME, actualMessage.timestampMsSinceEpoch());
+  }
+
+  @Test
   public void pullOneMessageWithNoData() throws IOException {
     String expectedSubscription = SUBSCRIPTION.getPath();
     PullRequest expectedRequest = new PullRequest().setReturnImmediately(true).setMaxMessages(10);
