@@ -48,74 +48,89 @@ import org.joda.time.Instant;
  * messages body (as {@code byte[]}) wrapped as {@link RabbitMqMessage}.
  *
  * <p>To configure a RabbitMQ source, you have to provide a RabbitMQ {@code URI} to connect to a
- * RabbitMQ broker. From there, the various configurable parameters center around the type of
- * exchange to be used and how to bind messages to the expected queue.
+ * RabbitMQ broker. From there, the various configurable parameters center around {@link
+ * ReadParadigm} used.
  *
- * <p>For unbounded readers, it is suggested that a durable, non-auto-delete queue be created
- * outside of this runtime. Having an intermittent-connected client declare exchanges and queues is
- * fickle as declarations fail if any properties don't match how they were initially declared. If an
- * ephemeral queue is used, it will not be amenable to use with more than one reader at a time, and
- * all messages will be dropped when the Beam client disconnects, which is generally unsafe.
+ * <p>The safest way to use this IO is to use a pre-existing queue. This is analogous to how one
+ * might set up a PubSubIO subscription before use. In general, some system or user will have
+ * declared an exchange and a durable queue, and RabbitMqIO will read from this queue directly. This
+ * is the {@link ReadParadigm.ExistingQueue} approach. However this is not always appropriate and
+ * RabbitMqIO can declare a queue and bind it to incoming messages on an exchange via {@link
+ * ReadParadigm.NewQueue}. Despite the name, the queue isn't *necessarily* new, but it will be
+ * re-declared and the routing key will overwrite any previous settings. This is safe even if the
+ * queue already exists, provided it was declared as durable, non-autodelete, and non-exclusive and
+ * the newly specified routing key is appropriate (if using a fanout or direct exchange, this is a
+ * non-issue).
+ *
+ * <p>Because Beam runners are free to close readers and start new ones, it's *highly* likely,
+ * especially in an unbounded streaming reader, that messages will be re-delivered (e.g. channel was
+ * closed before the messages were acknowledged and were re-read on a new reader). For this reason,
+ * it's *highly* encouraged callers specify an appropriate {@link RecordIdPolicy}. The default is to
+ * allow for messages to be replayed, which may be acceptable if your pipeline is built for
+ * at-least-once data processing, but is likely undesirable. The safest approach would be to utilize
+ * the amqp property {@code messageId}, ensure it's set to a globally unique value such as a UUID,
+ * and use {@link RecordIdPolicy#messageId()}.
  *
  * <p>Because AMQP is a multi-paradigm messaging protocol, learning how to configure RabbitMqIO in
- * Beam for different use cases is perhaps best learned by exeample:
+ * Beam for different use cases is perhaps best learned by example:
  *
  * <pre>{@code
- * // for clarity of example params, as a context-less 'true' is confusing
- * boolean doNotDeclare = false;
- * boolean declare = true;
+ * // EXAMPLE 1: READ FROM AN EXISTING QUEUE
+ * // (Secondary: using the amqp messageId property for deduping messages)
  *
- * // EXAMPLE 1: TOPIC EXCHANGES:
- * //
- * // read all messages to a topic exchange where topics are of the form
- * // "appname.environment.loglevel", e.g. "foo.prod.info" or "bar.stg.debug",
- * // looking to process all messages for any application in production
+ * // this approach does not require the caller to know anything about the exchange
+ * // or queue bindings and will simply read any messages delivered to the named queue.
+ * // that is, this approach is appropriate for any exchange(s) in use
  *
- * PCollection<RabbitMqMessage> messages = pipeline.apply(
- *   RabbitMqIO.read()
- *     .withUri("amqp://user:password@localhost:5672")
- *     .withTopicExchange("my-existing-topic-exchange", "*.prod.*")
- *     .withQueue("my-existing-beam-queue", doNotDeclare));
+ * RabbitMqIO.read()
+ *   .withUri("amqp://user:password@localhost:5672")
+ *   .withReadParadigm(ReadParadigm.ExistingQueue.of("my-existing-queue"))
+ *   .withRecordIdPolicy(RecordIdPolicy.messageId())
  *
- * // EXAMPLE 2: DEFAULT EXCHANGE / DIRECT EXCHANGES:
- * // in a direct exchange, including the default, messages are delivered
- * // using a routing key with value exactly equal to a queue name.
- * // in this example, the queue will be declared, which means it either must not
- * // already exist, or must already exist with the same properties (durable, non-auto-delete)
+ * // ----------
  *
- * // all messages must be published with routing key "my-existing-beam-queue"
- * PCollection<RabbitMqMessage> messages = pipeline.apply(
- *   RabbitMqIO.read()
- *     .withUri("amqp://user:password@localhost:5672")
- *     .withDefaultExchange()
- *     .withQueue("my-existing-beam-queue", declare));
+ * // EXAMPLE 2: READ FROM A NEW QUEUE ON A FANOUT EXCHANGE (pubsub)
+ * // (Secondary: using a combination of message body hash and timestamp for deduping)
  *
- * // EXAMPLE 3: FANOUT EXCHANGES:
- * // also known as 'pubsub' this type of exchange routes all incoming messages to
- * // all queues bound to it, regardless of routing key
+ * // in a fanout exchange, all messages are delivered to all queues
  *
- * PCollection<RabbitMqMessage> messages = pipeline.apply(
- *   RabbitMqIO.read()
- *     .withUri("amqp://user:password@localhost:5672")
- *     .withFanoutExchange("some-pubsub-exchange")
- *     .withQueue("my-existing-beam-queue", declare));
+ * RabbitMqIO.read()
+ *   .withUri("amqp://user:password@localhost:5672")
+ *   .withReadParadigm(
+ *     ReadParadigm.NewQueue.fanoutExchange("some-fanout-exchange", "my-beam-queue"))
+ *   .withRecordIdPolicy(RecordIdPolicy.bodyWithTimestamp())
  *
+ * // ----------
+ *
+ * // EXAMPLE 3: READ FROM A NEW QUEUE ON THE DEFAULT EXCHANGE
+ * // (Secondary: deduping using a hash of the body; appropriate if all messages
+ *     contain some unique data, such as as UUID or are effectively unique by a
+ *     some data like an embedded timestamp along with relatively distinct message
+ *     bodies)
+ *
+ * // the default exchange is a built-in implementation of a direct exchange, named ""
+ * RabbitMqIO.read()
+ *   .withUri("amqp://user:password@localhost:5672")
+ *   .withReadParadigm(ReadParadigm.NewQueue.defaultExchange("my-beam-queue"))
+ *   .withRecordIdPolicy(RecordIdPolicy.bodySha256())
+ *
+ * // ----------
+ *
+ * // EXAMPLE 4: READ FROM A NEW QUEUE ON A TOPIC EXCHANGE
+ * // (Secondary: do not dedupe messages; redeliver any that were not ack'd)
+ *
+ * // reads all messages to a topic exchange where topics are of the form
+ * // "appname.environment.loglevel", e.g. "foo.prod.info" or "bar.stg.debug".
+ * // in this example, the goal is to process all messages for any application
+ * // in production
+ *
+ * RabbitMqIO.read()
+ *   .withUri("amqp://user:password@localhost:5672")
+ *   .withReadParadigm(ReadParadigm.NewQueue.topicExchange(
+ *     "some-topic-exchange", "my-beam-queue", "*.prod.*"
+ *   ))
+ *   .withRecordIdPolicy(RecordIdPolicy.alwaysUnique())
  * }</pre>
- *
- * General guidelines:
- *
- * <ul>
- *   <li>Use a previously-declared exchange; Beam is not a great tool for managing your rabbitmq
- *       broker.
- *   <li>Use a durable, non-auto-delete queue. This will allow safe parallelization of reads, and
- *       when used along with persistent messages will ensure no messages are lost when clients
- *       disconnect or on rabbitmq server crash.
- *   <li>A Direct Exchange, including the default exchange, is a reasonable use case if the queue is
- *       populated in advance and will be read in a batch-style Beam job. Otherwise, you'll likely
- *       want an exchange that routes all desired messages to an already-declared, durable queue
- *       such that Beam reads can pick up from wherever they left off without having lost any
- *       messages.
- * </ul>
  *
  * <h3>Publishing messages to RabbitMQ server</h3>
  *
