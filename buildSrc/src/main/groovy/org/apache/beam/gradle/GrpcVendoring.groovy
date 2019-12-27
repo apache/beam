@@ -45,7 +45,27 @@ class GrpcVendoring {
       'com.google.api.grpc:proto-google-common-protos:1.12.0',
       'io.opencensus:opencensus-api:0.24.0',
       'io.opencensus:opencensus-contrib-grpc-metrics:0.24.0',
-      'io.perfmark:perfmark-api:0.19.0'
+      'io.perfmark:perfmark-api:0.19.0',
+      'avalon-framework:avalon-framework:4.1.5',
+      'com.github.jponge:lzma-java:1.3',
+      'com.google.protobuf.nano:protobuf-javanano:3.0.0-alpha-5',
+      'com.jcraft:jzlib:1.1.3',
+      'com.ning:compress-lzf:1.0.3',
+      'commons-logging:commons-logging:1.2',
+      'javax.jms:jms-api:1.1-rev-1',
+      'javax.mail:mail:1.4.3',
+      'javax.servlet:servlet-api:2.5',
+      'log4j:log4j:1.2.17',
+      'logkit:logkit:1.0.1',
+      'net.jpountz.lz4:lz4:1.3.0',
+      'org.apache.logging.log4j:log4j-api:2.6.2',
+      'org.bouncycastle:bcpkix-jdk15on:1.54',
+      'org.bouncycastle:bcprov-jdk15on:1.54',
+      'org.conscrypt:conscrypt-openjdk-uber:1.3.0',
+      'org.eclipse.jetty.alpn:alpn-api:1.1.2.v20150522',
+      'org.eclipse.jetty.npn:npn-api:1.1.1.v20141010',
+      'org.jboss.marshalling:jboss-marshalling:1.4.11.Final',
+      'org.jboss.modules:jboss-modules:1.1.0.Beta1'
     ]
   }
 
@@ -92,7 +112,29 @@ class GrpcVendoring {
       "com.google.type",
       "io.opencensus",
       "io.perfmark",
-      "io.netty"
+      "io.netty",
+      "com.google.protobuf.nano",
+      "com.jcraft",
+      "com.ning",
+      "com.sun",
+      "javax.activation",
+      "javax.jms",
+      "javax.mail",
+      "javax.servlet",
+      "lzma",
+      "net.jpountz",
+      "org.apache.avalon",
+      "org.apache.commons.logging",
+      "org.apache.log",
+      "org.apache.log4j",
+      "org.apache.logging.log4j",
+      "org.bouncycastle",
+      "org.cservenak.streams",
+      "org.conscrypt",
+      "org.eclipse.jetty.alpn",
+      "org.eclipse.jetty.npn",
+      "org.jboss.marshalling",
+      "org.jboss.modules"
     ]
 
     return packagesToRelocate.collectEntries {
